@@ -70,9 +70,11 @@ vpn {
 			}
 		}
 		site-to-site {
-			# A tunnel-mode peer restricted to two subnets, the second of them
-			# to one TCP port. RFC 7296 Section 2.9 narrows a peer's proposal
-			# against exactly this list, and the order is the preference order.
+			# A tunnel-mode peer restricted to one local subnet and two remote
+			# ones, from one TCP port. RFC 7296 Section 2.9 narrows a peer's
+			# proposal against exactly this list, and the order is the
+			# preference order. Section 3.13 reads TSi and TSr as every
+			# combination of their entries, so the list names each combination.
 			peer peer-narrow {
 				ike-group ike-default
 				esp-group esp-default
@@ -81,8 +83,10 @@ vpn {
 				remote-address 10.0.0.2
 				mode tunnel
 				traffic-selector 1 {
+					protocol 6
 					local {
-						prefix 10.1.0.0/16
+						prefix 10.3.0.0/24
+						port 179
 					}
 					remote {
 						prefix 10.2.0.0/16

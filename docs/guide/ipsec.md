@@ -1090,7 +1090,8 @@ policy RFC 7296 Section 2.9 narrows a peer's proposal against.
 ```
 vpn { ipsec { site-to-site { peer branch-1 {
     traffic-selector 1 {
-        local  { prefix 10.1.0.0/16; }
+        protocol 6
+        local  { prefix 10.3.0.0/24; port 179; }
         remote { prefix 10.2.0.0/16; }
     }
     traffic-selector 2 {
@@ -1109,8 +1110,22 @@ restricts a peer, never omitting it.
 
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->
 
+A Child SA carries every combination of its local and remote selectors. RFC 7296 Section
+3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
+selectors in TSi, and at least one of the individual selectors in TSr." So the list must
+name every combination of the local and remote selectors it uses, as the example above
+does with one local and two remote selectors. A list such as local 10.1.0.0/16 with remote
+10.2.0.0/16, then local 10.3.0.0/16 with remote 10.4.0.0/16, would be offered as
+10.1.0.0/16 with 10.4.0.0/16 as well, so `ze config verify` refuses it and names the
+missing combination. Add the missing entries, or remove the entry that brings in the
+extra prefix.
+
+<!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
+
 As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
-and leads the answer with the initiator's first choices. A proposal it cannot narrow to a
+and leads the answer with the initiator's first choices. When the pairs it accepts are not
+every combination of their own selectors, it answers the largest part that is, starting
+from the first choice, because the initiator installs every combination it is answered. A proposal it cannot narrow to a
 non-empty subset draws a `TS_UNACCEPTABLE` notification. As initiator, Ze proposes the list
 in order, because RFC 7296 reads the order as the preference order.
 

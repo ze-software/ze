@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -58,7 +59,7 @@ type tsPair struct {
 // zero of each is the initiator's first choice.
 //
 // policy is the operator's configured selector list in TSi/TSr orientation. An EMPTY
-// policy means "allow everything": the proposal is returned unchanged. That default is
+// policy means "allow everything": every combination of the proposal is returned. That default is
 // load-bearing. Every configuration written before the traffic-selector list existed has
 // no entries, and narrowing those to the empty set would answer each of them with
 // TS_UNACCEPTABLE.
@@ -79,7 +80,9 @@ type tsPair struct {
 //
 // The second result is false when nothing is acceptable, and the caller then answers
 // TS_UNACCEPTABLE. Every returned selector is a subset of some proposed selector, so the
-// answer can never be wider than the proposal.
+// answer can never be wider than the proposal. The returned set is every acceptable
+// pair, which a TS payload pair cannot always carry: closedSubset picks the part of it
+// one TSi and one TSr payload can state exactly.
 func narrowSelectors(proposedI, proposedR []tsSelector, policy, floor []tsPair) ([]tsPair, bool) {
 	if len(proposedI) == 0 || len(proposedR) == 0 {
 		return nil, false
@@ -94,40 +97,22 @@ func narrowSelectors(proposedI, proposedR []tsSelector, policy, floor []tsPair) 
 		}
 	}
 
-	// An unconfigured peer allows everything, so the proposal is its own narrowing.
-	// This is Section 2.9's second bullet: the policy allows the entire proposed set.
-	if len(policy) == 0 {
-		out := make([]tsPair, 0, len(proposedI))
-		for i := range proposedI {
-			r := proposedR[min(i, len(proposedR)-1)]
-			pair, ok := programmablePair(tsPair{I: proposedI[i], R: r})
-			if !ok {
-				continue
-			}
-			out = append(out, pair)
-		}
-		if len(out) == 0 {
-			return nil, false
-		}
-		return out, true
-	}
-
 	// Bullets 1, 3 and 4. Acceptable intersections are collected in proposal order, and
 	// the intersections covering the initiator's FIRST choices are kept apart so they can
 	// lead the answer.
+	//
+	// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one
+	// of the individual selectors in TSi, and at least one of the individual selectors in
+	// TSr." The proposal is therefore every combination of a TSi entry with a TSr entry,
+	// never entry i with entry i, and both branches walk that cross product.
+	//
+	// An unconfigured peer allows everything, so each combination is its own narrowing.
+	// This is Section 2.9's second bullet: the policy allows the entire proposed set.
 	var rest []tsPair
 	var firstChoice []tsPair
 	for i := range proposedI {
 		for r := range proposedR {
-			for _, p := range policy {
-				pair, ok := intersectPair(tsPair{I: proposedI[i], R: proposedR[r]}, p)
-				if !ok {
-					continue
-				}
-				pair, ok = programmablePair(pair)
-				if !ok {
-					continue
-				}
+			for _, pair := range acceptablePairs(tsPair{I: proposedI[i], R: proposedR[r]}, policy) {
 				if i == 0 && r == 0 {
 					firstChoice = append(firstChoice, pair)
 					continue
@@ -149,6 +134,35 @@ func narrowSelectors(proposedI, proposedR []tsSelector, policy, floor []tsPair) 
 		return nil, false
 	}
 	return dedupePairs(out), true
+}
+
+// acceptablePairs returns the parts of one proposed combination the policy accepts and
+// the dataplane can program exactly. An EMPTY policy accepts the combination whole. A
+// combination whose two protocols are disjoint matches no packet, so it yields nothing.
+func acceptablePairs(proposed tsPair, policy []tsPair) []tsPair {
+	if _, ok := intersectProto(proposed.I.Proto, proposed.R.Proto); !ok {
+		return nil
+	}
+	if len(policy) == 0 {
+		pair, ok := programmablePair(proposed)
+		if !ok {
+			return nil
+		}
+		return []tsPair{pair}
+	}
+	var out []tsPair
+	for _, p := range policy {
+		pair, ok := intersectPair(proposed, p)
+		if !ok {
+			continue
+		}
+		pair, ok = programmablePair(pair)
+		if !ok {
+			continue
+		}
+		out = append(out, pair)
+	}
+	return out
 }
 
 // floorWithinProposal keeps the rekey floor when the peer's proposal still covers it.
@@ -357,10 +371,7 @@ func dedupePairs(pairs []tsPair) []tsPair {
 	seen := make(map[string]bool, len(pairs))
 	var key textbuf.Buffer
 	for _, p := range pairs {
-		key.Reset()
-		key.Str(p.I.Net.String()).Byte('|').Str(p.I.Port.String()).Byte('|')
-		key.Str(p.R.Net.String()).Byte('|').Str(p.R.Port.String()).Byte('|').Uint8(p.I.Proto)
-		k := string(key.Bytes())
+		k := pairKey(&key, p)
 		if seen[k] {
 			continue
 		}
@@ -604,6 +615,18 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 		narrowed = oneTransportPair(narrowed)
 	}
 
+	// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one
+	// of the individual selectors in TSi, and at least one of the individual selectors in
+	// TSr." The initiator installs every combination of the answered payloads, so the
+	// answer is cut to a set that IS every such combination. Answering the acceptable
+	// pairs (A, C) and (B, D) as TSi {A, B} and TSr {C, D} would hand the peer A-D and
+	// B-C as well, and RFC 7296 Section 2.9 lets the answer only narrow the policy.
+	// Section 2.9 also licenses the cut: "When narrowing is done, there may be several
+	// subsets that are acceptable but their union is not. In this case, the responder
+	// arbitrarily chooses one of them". closedSubset keeps the first pair, so the
+	// initiator's first choices still lead the answer.
+	narrowed = closedSubset(narrowed, answerPairsMax)
+
 	// RFC 7296 Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors
 	// than the original" (rfc/full/rfc7296.txt:2539-2540), and "The responder MUST NOT
 	// narrow down the Traffic Selectors narrower than the scope currently in use"
@@ -696,11 +719,11 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 	// populated with the value or values negotiated at the time the SA was created".
 	// The answer IS the negotiated value, so it is read exactly (answerSelectors), never
 	// through wireToSelectors, whose narrowing is the responder's to do.
-	iSels, iOrigin, err := answerSelectors(tsi.TrafficSelectors, "TSi")
+	iSels, err := answerSelectors(tsi.TrafficSelectors, "TSi")
 	if err != nil {
 		return err
 	}
-	rSels, rOrigin, err := answerSelectors(tsr.TrafficSelectors, "TSr")
+	rSels, err := answerSelectors(tsr.TrafficSelectors, "TSr")
 	if err != nil {
 		return err
 	}
@@ -734,7 +757,7 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 		return fmt.Errorf("%w: the responder answered with %d TSi and %d TSr selectors this node could not decode",
 			errTSUnusable, len(iSels), len(rSels))
 	}
-	pairs, err := answerPairs(iSels, iOrigin, rSels, rOrigin)
+	pairs, err := answerPairs(iSels, rSels)
 	if err != nil {
 		return err
 	}
@@ -800,60 +823,61 @@ const answerPairsMax = 64
 // vppPortRange in internal/component/ike/dataplane), so the only exact form of
 // 1024-65535 is 64512 policies. Cutting it to its start port, as wireToSelectors does
 // for the responder, would install less than was negotiated.
-//
-// origin[k] is the index of the answered selector that sels[k] came from, so
-// answerPairs can pair them the way the payloads paired them.
-func answerSelectors(list []wire.TrafficSelector, payload string) (sels []tsSelector, origin []int, err error) {
+func answerSelectors(list []wire.TrafficSelector, payload string) ([]tsSelector, error) {
 	if len(list) == 0 {
-		return nil, nil, fmt.Errorf("%w: the responder answered %s with no selector", errTSUnusable, payload)
+		return nil, fmt.Errorf("%w: the responder answered %s with no selector", errTSUnusable, payload)
 	}
+	var sels []tsSelector
 	for i := range list {
 		ts := list[i]
 		port, ok := ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)
 		if !ok {
-			return nil, nil, fmt.Errorf("%w: %s port range %d-%d has no exact dataplane form",
+			return nil, fmt.Errorf("%w: %s port range %d-%d has no exact dataplane form",
 				errTSUnusable, payload, ts.StartPort, ts.EndPort)
 		}
 		nets, ok := rangePrefixes(ts.StartAddress, ts.EndAddress, answerPairsMax)
 		if !ok {
-			return nil, nil, fmt.Errorf("%w: %s address range %v-%v is malformed or needs more than %d prefixes",
+			return nil, fmt.Errorf("%w: %s address range %v-%v is malformed or needs more than %d prefixes",
 				errTSUnusable, payload, net.IP(ts.StartAddress), net.IP(ts.EndAddress), answerPairsMax)
 		}
 		for _, n := range nets {
 			sels = append(sels, tsSelector{Net: n, Port: port, Proto: ts.IPProtocol})
-			origin = append(origin, i)
 		}
 	}
-	return sels, origin, nil
+	return sels, nil
 }
 
-// answerPairs builds the pairs an answer negotiated: answered TSi selector i with TSr
-// selector i (the last TSr when TSr is shorter), and each such pair as every combination
-// of the prefixes its two halves tile into. Every pair must be programmable exactly; one
-// that is not refuses the answer, because dropping it would install less than was
-// negotiated (RFC 4301 Section 4.4.2).
+// answerPairs builds the pairs an answer negotiated: every answered TSi selector with
+// every answered TSr selector, after each range has become the prefixes tiling it.
+//
+// RFC 7296 Section 3.13: "There is no requirement that TSi and TSr contain the same
+// number of individual Traffic Selectors. Thus, they are interpreted as follows: a
+// packet matches a given TSi/TSr if it matches at least one of the individual selectors
+// in TSi, and at least one of the individual selectors in TSr." Pairing entry i with
+// entry i installed only A-C of an answer TSi {A}, TSr {C, D}, and dropped A-D.
+//
+// Every pair must be programmable exactly; one that is not refuses the answer, because
+// dropping it would install less than was negotiated (RFC 4301 Section 4.4.2). An
+// answer of more than answerPairsMax pairs is refused for the same reason.
 //
 // Both slices are non-empty: answerSelectors refuses an empty payload.
-func answerPairs(iSels []tsSelector, iOrigin []int, rSels []tsSelector, rOrigin []int) ([]tsPair, error) {
-	rLast := rOrigin[len(rOrigin)-1]
+func answerPairs(iSels, rSels []tsSelector) ([]tsPair, error) {
 	var pairs []tsPair
-	for k := range iSels {
-		rIndex := min(iOrigin[k], rLast)
-		for m := range rSels {
-			if rOrigin[m] != rIndex {
-				continue
-			}
-			pair, ok := programmablePair(tsPair{I: iSels[k], R: rSels[m]})
-			if !ok {
-				return nil, fmt.Errorf("%w: the answered pair %v <-> %v has no exact dataplane form",
-					errTSUnusable, iSels[k].Net, rSels[m].Net)
-			}
-			if len(pairs) == answerPairsMax {
-				return nil, fmt.Errorf("%w: the answer expands into more than %d policies",
-					errTSUnusable, answerPairsMax)
-			}
-			pairs = append(pairs, pair)
+	for _, cross := range crossPairs(iSels, rSels) {
+		pair, ok := programmablePair(cross)
+		if !ok {
+			return nil, fmt.Errorf("%w: the answered pair %v <-> %v has no exact dataplane form",
+				errTSUnusable, cross.I.Net, cross.R.Net)
 		}
+		if len(pairs) == answerPairsMax {
+			return nil, fmt.Errorf("%w: the answer expands into more than %d policies",
+				errTSUnusable, answerPairsMax)
+		}
+		pairs = append(pairs, pair)
+	}
+	if len(pairs) == 0 {
+		return nil, fmt.Errorf("%w: no answered TSi selector shares a protocol with any answered TSr selector",
+			errTSUnusable)
 	}
 	return pairs, nil
 }
@@ -995,13 +1019,139 @@ func singleAddress(n *net.IPNet) bool {
 	return bits > 0 && ones == bits
 }
 
-// pairsToWire builds the TSi and TSr payloads of a narrowed answer.
+// pairsToWire builds the TSi and TSr payloads that state pairs exactly: each distinct
+// TSi selector once, and each distinct TSr selector once.
+//
+// RFC 7296 Section 3.13 reads the two payloads as every combination of their entries,
+// so only a set that IS every such combination has a payload pair. For any other set it
+// returns nil, nil, and every caller refuses: a payload pair for it would offer or answer
+// combinations the set does not hold, and RFC 7296 Section 3.13 says of such a policy
+// that it "cannot be negotiated as a single Child SA pair".
 func pairsToWire(pairs []tsPair) (*wire.PayloadTS, *wire.PayloadTS) {
-	iSels := make([]tsSelector, 0, len(pairs))
-	rSels := make([]tsSelector, 0, len(pairs))
-	for _, p := range pairs {
-		iSels = append(iSels, p.I)
-		rSels = append(rSels, p.R)
+	if len(pairs) == 0 {
+		return nil, nil
 	}
+	if _, missing := missingCombination(pairs); missing {
+		return nil, nil
+	}
+	iSels, rSels := pairSelectors(pairs)
 	return selectorsToWire(iSels, wire.PayloadTypeTSi), selectorsToWire(rSels, wire.PayloadTypeTSr)
+}
+
+// pairSelectors returns the distinct TSi and TSr selectors of pairs, in first-seen order.
+func pairSelectors(pairs []tsPair) (iSels, rSels []tsSelector) {
+	for _, p := range pairs {
+		iSels = withSelector(iSels, p.I)
+		rSels = withSelector(rSels, p.R)
+	}
+	return iSels, rSels
+}
+
+// crossPairs returns every combination of a TSi selector with a TSr selector that a
+// packet can match, TSi-major.
+//
+// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one of
+// the individual selectors in TSi, and at least one of the individual selectors in TSr."
+// A packet carries one protocol, so a combination whose two protocols are disjoint
+// matches no packet and is left out.
+func crossPairs(iSels, rSels []tsSelector) []tsPair {
+	out := make([]tsPair, 0, len(iSels)*len(rSels))
+	for _, i := range iSels {
+		for _, r := range rSels {
+			if _, ok := intersectProto(i.Proto, r.Proto); !ok {
+				continue
+			}
+			out = append(out, tsPair{I: i, R: r})
+		}
+	}
+	return out
+}
+
+// missingCombination returns the first combination of the distinct selectors of pairs
+// that pairs does not hold, and true. It returns false when pairs holds every one, which
+// is the only shape a TSi and TSr payload pair can state exactly (RFC 7296 Section 3.13).
+func missingCombination(pairs []tsPair) (tsPair, bool) {
+	held := pairKeys(pairs)
+	iSels, rSels := pairSelectors(pairs)
+	var key textbuf.Buffer
+	for _, cross := range crossPairs(iSels, rSels) {
+		if !held[pairKey(&key, cross)] {
+			return cross, true
+		}
+	}
+	return tsPair{}, false
+}
+
+// closedSubset picks, from an acceptable answer, a subset that is every combination of
+// its own selectors and holds at most limit pairs. The first pair is always kept; each
+// later pair joins when every combination its selectors add is itself acceptable.
+//
+// RFC 7296 Section 2.9: "When narrowing is done, there may be several subsets that are
+// acceptable but their union is not. In this case, the responder arbitrarily chooses one
+// of them". A pair left out is one whose combinations with the kept pairs the policy
+// does not allow, or one past the bound on installed policies.
+func closedSubset(pairs []tsPair, limit int) []tsPair {
+	held := pairKeys(pairs)
+	var key textbuf.Buffer
+	var iSels, rSels []tsSelector
+	var out []tsPair
+	for _, p := range pairs {
+		nextI := withSelector(slices.Clip(iSels), p.I)
+		nextR := withSelector(slices.Clip(rSels), p.R)
+		cross := crossPairs(nextI, nextR)
+		if len(cross) > limit {
+			continue
+		}
+		if !allHeld(cross, held, &key) {
+			continue
+		}
+		iSels, rSels, out = nextI, nextR, cross
+	}
+	return out
+}
+
+func allHeld(pairs []tsPair, held map[string]bool, key *textbuf.Buffer) bool {
+	for _, p := range pairs {
+		if !held[pairKey(key, p)] {
+			return false
+		}
+	}
+	return true
+}
+
+func pairKeys(pairs []tsPair) map[string]bool {
+	held := make(map[string]bool, len(pairs))
+	var key textbuf.Buffer
+	for _, p := range pairs {
+		held[pairKey(&key, p)] = true
+	}
+	return held
+}
+
+// withSelector returns list with s appended unless an equal selector is already in it.
+func withSelector(list []tsSelector, s tsSelector) []tsSelector {
+	for _, have := range list {
+		if sameSelector(have, s) {
+			return list
+		}
+	}
+	return append(list, s)
+}
+
+func sameSelector(a, b tsSelector) bool {
+	if a.Proto != b.Proto {
+		return false
+	}
+	if a.Port != b.Port {
+		return false
+	}
+	return a.Net.String() == b.Net.String()
+}
+
+// pairKey renders p as a map key: both halves' prefix, port and protocol.
+func pairKey(key *textbuf.Buffer, p tsPair) string {
+	key.Reset()
+	key.Str(p.I.Net.String()).Byte('|').Str(p.I.Port.String()).Byte('|').Uint8(p.I.Proto).Byte('#')
+	key.Str(p.R.Net.String()).Byte('|').Str(p.R.Port.String()).Byte('|').Uint8(p.R.Proto)
+	return string(key.Bytes())
 }

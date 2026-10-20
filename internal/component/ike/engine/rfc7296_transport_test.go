@@ -98,12 +98,16 @@ func TestTSUnacceptableIsSentWhenNothingIsAcceptable(t *testing.T) {
 // not run on, or being rejected merely for carrying more than one selector.
 func TestTransportModeUsesExactlyOneAddress(t *testing.T) {
 	sa := &SA{PeerCfg: transportPeer(), IsInitiator: true}
-	// Two configured selectors differing only in port: Section 2.23.1 permits that.
+	// Two configured selectors differing only in local port: Section 2.23.1 permits that.
+	// They share the remote selector, so TSi {179, 180} with TSr {any} is every
+	// combination the two entries name, which RFC 7296 Section 3.13 needs of one TS
+	// payload pair ("a packet matches a given TSi/TSr if it matches at least one of the
+	// individual selectors in TSi, and at least one of the individual selectors in TSr").
 	sa.PeerCfg.TrafficSelectors = []ipsec.TrafficSelectorPolicy{
 		{Number: "1", LocalPrefix: mustNet(t, "10.0.0.1/32"), RemotePrefix: mustNet(t, "10.0.0.2/32"),
 			LocalPort: ipsec.PortSelector{Form: ipsec.PortSingle, Port: 179}, RemotePort: ipsec.AnyPort(), Protocol: 6},
 		{Number: "2", LocalPrefix: mustNet(t, "10.0.0.1/32"), RemotePrefix: mustNet(t, "10.0.0.2/32"),
-			LocalPort: ipsec.AnyPort(), RemotePort: ipsec.PortSelector{Form: ipsec.PortSingle, Port: 179}, Protocol: 6},
+			LocalPort: ipsec.PortSelector{Form: ipsec.PortSingle, Port: 180}, RemotePort: ipsec.AnyPort(), Protocol: 6},
 	}
 
 	tsi, tsr := proposeChildTSPayloads(sa)

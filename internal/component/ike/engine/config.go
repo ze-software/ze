@@ -4,6 +4,9 @@ package engine
 import (
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -190,7 +193,34 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateTrafficSelectors(); err != nil {
 		return err
 	}
+	if err := validateSelectorCombinations(cfg); err != nil {
+		return err
+	}
 	return cfg.ValidateRemoteAccess()
+}
+
+// validateSelectorCombinations refuses a peer whose traffic-selector list one TSi and
+// one TSr payload cannot state exactly.
+//
+// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one of
+// the individual selectors in TSi, and at least one of the individual selectors in TSr."
+// The proposal therefore offers every combination of a local entry with a remote entry,
+// and the list (A, C), (B, D) would offer A-D and B-C as well. The same section names the
+// outcome: such a policy "cannot be negotiated as a single Child SA pair". Ze negotiates
+// one Child SA per peer, so the list is refused here, at ze config verify and commit,
+// rather than proposed wider than the operator wrote (pairsToWire, ts_narrow.go).
+func validateSelectorCombinations(cfg *ipsec.IPsecConfig) error {
+	for _, name := range slices.Sorted(maps.Keys(cfg.Peers)) {
+		missing, ok := missingCombination(policyPairs(cfg.Peers[name], true))
+		if !ok {
+			continue
+		}
+		return fmt.Errorf("%w: peer %q traffic-selectors name local %s and remote %s in different entries but never together; "+
+			"RFC 7296 Section 3.13 makes a Child SA carry every combination of its local and remote selectors, so the peer would be offered traffic this list does not allow; "+
+			"add a traffic-selector entry for local %s remote %s with the same protocol and ports, or remove the entry that brings in the extra prefix",
+			ipsec.ErrTrafficSelectorPolicy, name, missing.I.Net, missing.R.Net, missing.I.Net, missing.R.Net)
+	}
+	return nil
 }
 
 // parseIPsecFromJSON parses the JSON config section data into IPsecConfig.

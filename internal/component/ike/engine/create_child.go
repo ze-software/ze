@@ -581,7 +581,7 @@ const (
 	childResponseFixNoTS = "the peer accepted the Child SA without the TSi and TSr payloads that " +
 		"name the traffic it protects, so ze has no negotiated selector to install and deleted the " +
 		"IKE SA; no traffic is protected until it is re-established; the peer's IKE_AUTH response " +
-		"breaks RFC 7296 Appendix C.2: check the traffic selectors configured on the peer, or " +
+		"breaks RFC 7296 Section 2.9, which puts two TS payloads in every message that creates a Child SA: check the traffic selectors configured on the peer, or " +
 		"upgrade its IKEv2 software"
 	childResponseFixInstall = "the peer accepted the Child SA and the kernel refused to install it, so " +
 		"ze deleted the pair; no traffic is protected until a Child SA exists, and ze asks again " +

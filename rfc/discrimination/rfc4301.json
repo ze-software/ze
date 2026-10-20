@@ -651,6 +651,28 @@
       "break": "line 757: \"sa.UseTransportMode \u0026\u0026 len(pairs) \u003e 1\" -\u003e \"false\""
     },
     {
+      "rid": "RFC4301-4.4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination",
+      "unit-sha": "c15c40812c5f35da",
+      "claim-sha": "7c4b60431c21f211",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/ts_narrow.go::answerPairs",
+      "producer-sha": "228ef23627d4c42c",
+      "break": "line 866: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels, rSels[:1])\""
+    },
+    {
+      "rid": "RFC4301-4.4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination",
+      "unit-sha": "c15c40812c5f35da",
+      "claim-sha": "6f9955d20ba3f643",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/ts_narrow.go::answerPairs",
+      "producer-sha": "228ef23627d4c42c",
+      "break": "line 866: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels[:1], rSels[:1])\""
+    },
+    {
       "rid": "RFC4301-4.4.2.1-1",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue",

@@ -111,6 +111,24 @@ that answers several TSi/TSr pairs negotiated several values, and `childPolicies
 builds one inbound and one outbound policy per pair, all protecting with the one SA:
 XFRM resolves each to the state through its template, VPP through the SAD id.
 
+**TSi and TSr are read as every combination of their entries.** RFC 7296 Section
+3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
+selectors in TSi, and at least one of the individual selectors in TSr." So an answer
+TSi {A}, TSr {C, D} negotiates A-C and A-D, and Ze installs both (`answerPairs`,
+`crossPairs`); entry i is never paired with entry i alone. A payload pair can therefore
+state only a selector set that is every combination of its own entries, and
+`pairsToWire` refuses any other set rather than offer or answer combinations the set
+does not hold. Three places follow from it. The responder walks every combination of
+the proposal against policy, and `closedSubset` then keeps, first choice first, the
+largest set of acceptable pairs whose every combination is acceptable and that installs
+at most `answerPairsMax` policies: a policy of (A, C) and (B, D) answers the proposal
+TSi {A, B}, TSr {C, D} with A-C alone, because answering both would hand the peer A-D
+and B-C. The initiator refuses an answer whose combinations leave its proposal. And a
+configured `traffic-selector` list that is not every combination of its local and
+remote selectors, such as (A, C) with (B, D), "cannot be negotiated as a single Child
+SA pair" (Section 3.13), so `ze config verify` refuses it
+(`validateSelectorCombinations`, `engine/config.go`) and names the missing combination.
+
 **The initiator installs the answer exactly, or refuses it.** The responder's TS
 payloads are the negotiated values (RFC 4301 Section 4.4.2), so
 `recordInitiatorSelectors` reads them through `answerSelectors`, never through the
@@ -127,8 +145,9 @@ and a Delete for the new pair on a rekey. The responder installs what it answers
 policies read), so its narrowing is never a gap between the ends.
 
 **An IKE_AUTH response that accepts a Child SA without naming its traffic is
-refused.** RFC 7296 Appendix C.2 lists the response as `SA, TSi, TSr` together, so
-a response carrying SAr2 and no TSi or no TSr negotiated no selector at all.
+refused.** RFC 7296 Section 2.9: "Two TS payloads appear in each of the messages in
+the exchange that creates a Child SA pair." A response carrying SAr2 and no TSi or no
+TSr negotiated no selector at all.
 `adoptAuthResponseNegotiation` deletes the IKE SA with INVALID_SYNTAX and logs
 `childResponseFixNoTS`, rather than install the Child SA with host-to-host selectors
 for every protocol and port, which is wider than the pairs Ze proposed. A response
@@ -168,7 +187,8 @@ SAD data item Ze installs is asserted one item at a time in
 `internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go`.
 
 <!-- source: internal/component/ike/engine/child.go -- installChildSA, childPolicies, inboundStateSelector -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors, answerSelectors, answerPairs, rangePrefixes -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors, answerSelectors, answerPairs, rangePrefixes, crossPairs, closedSubset, pairsToWire -->
+<!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- adoptAuthResponseNegotiation -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 

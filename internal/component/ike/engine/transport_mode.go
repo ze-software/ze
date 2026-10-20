@@ -145,8 +145,8 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, 
 	//
 	// A response carrying no Child SA carries no selector to adopt: an EAP round, or a
 	// childless answer (RFC 7296 Section 2.21.2). A response carrying SAr2 MUST carry both
-	// TS payloads. RFC 7296 Appendix C.2 lists the IKE_AUTH response as "IDr, [CERT+,]
-	// AUTH, ... SA, TSi, TSr", the three together, and Section 1.2 has the responder
+	// TS payloads. RFC 7296 Section 2.9: "Two TS payloads appear in each of the messages
+	// in the exchange that creates a Child SA pair.", and Section 1.2 has the responder
 	// complete the Child SA "with the additional fields described below in the
 	// CREATE_CHILD_SA exchange". Accepting such a response with no selector left
 	// NegotiatedPairs nil, and the Child SA was then installed with host-to-host selectors
