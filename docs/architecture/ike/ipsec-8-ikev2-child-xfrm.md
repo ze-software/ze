@@ -365,7 +365,7 @@ cookie threshold or any peer change. A BYPASS catch-all that is not installed
 fails the apply the same way (no dataplane, no XFRM, a failed install), because
 without the entry an inbound packet meets no SPD-I entry at all (RFC 4301
 Section 5.2). The one bypass neither installed nor refused is on a backend whose
-`CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), the open gap on
+`CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), one of the two open gaps on
 RFC4301-5.2-1 and RFC4301-5.2-9.
 
 Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
@@ -375,7 +375,18 @@ installs nothing. Every exit of `runEngine` stops every peer, removing its Child
 SA (`stopAllPeers`), then `releaseSPD` removes the IKE bypass, the operator's
 entries, and the catch-all LAST. So no Ze entry is in force without the final
 entry beneath it, and outside that window Ze holds no SPD entry and no SA: it is
-not acting as an IPsec implementation then (owner decision 2026-10-20). The
+not acting as an IPsec implementation then (owner decision 2026-10-20). A
+removal that fails (anything but ENOENT, or another peer's ownership refusal)
+leaves its entry in the SPD ledger (`removeZePolicy`, `spd_left.go`), which every
+Child SA policy, bypass and operator removal reports to; `releaseSPD` then keeps
+the catch-all beneath the entries left and logs them at Warn with the command
+that removes them (`warnSPDLeft`). The whole shutdown runs in `runEngine`'s
+deferred cleanup for a clean and an error return alike: `reEstablishFn` is
+cleared and the IKE sockets closed after the peers stop and before the release,
+so no session can install a policy behind it. This lifetime is the IKE engine's
+SPD only: OSPFv3 RFC 4552 manual keying (`internal/plugins/ospf/ipsec_install.go`)
+installs its own SAs and transport policies with no catch-all, and they are not
+released by the IKE engine. The
 engine records whether configuration reached the SPD writers (`spdApplied`);
 an SDK startup failure before it removes nothing, so a pre-existing policy it
 never managed survives.

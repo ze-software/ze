@@ -106,7 +106,7 @@ func installSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.
 			continue
 		}
 		for _, sp := range spdPolicyParams(previous[name]) {
-			if err := dp.RemovePolicyParams(sp); err != nil {
+			if err := removeZePolicy(dp, sp); err != nil {
 				log.Debug("ike: remove spd policy", "policy", name, "dir", sp.Dir, "error", err)
 			}
 		}
@@ -133,14 +133,15 @@ func installSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.
 //
 // Ze owns what it touches. An entry that outlives the process keeps dropping or
 // bypassing traffic for a daemon that is no longer running, and no configuration on
-// the box then explains why.
+// the box then explains why. A removal that left an entry installed is recorded in the
+// SPD ledger (removeZePolicy, spd_left.go), so releaseSPD keeps the catch-all beneath it.
 func removeSPDPolicies(dp dataplane.Dataplane, policies map[string]ipsec.SPDPolicy, log *slog.Logger) {
 	if dp == nil {
 		return
 	}
 	for name := range policies {
 		for _, sp := range spdPolicyParams(policies[name]) {
-			if err := dp.RemovePolicyParams(sp); err != nil {
+			if err := removeZePolicy(dp, sp); err != nil {
 				log.Debug("ike: remove spd policy", "policy", name, "dir", sp.Dir, "error", err)
 			}
 		}

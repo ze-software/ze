@@ -1019,7 +1019,9 @@ apply, the catch-all first and the IKE bypass right after it, before any IKE
 socket opens. The catch-all is re-asserted on every apply. When the engine
 stops, every tunnel is torn down first, then the IKE bypass and your `policy`
 entries are removed, and the catch-all goes last, so no Ze entry is ever in
-force without it.
+force without it. If any of those entries cannot be removed, the catch-all
+stays installed beneath it, and the daemon logs a warning naming each entry
+left and the `ip xfrm policy delete` command that removes it.
 
 #### When the entry is not there
 
@@ -1034,7 +1036,7 @@ whichever value `unmatched` holds. The one exception is the VPP backend:
 | A build off Linux, or a kernel without XFRM | Refused at commit, and a start fails as in the row above | The apply fails: a commit is refused, and at startup the configure step returns the error. Fix: run Ze on a Linux kernel with XFRM (`CONFIG_XFRM_USER`) |
 | No dataplane loaded (the daemon logged that the load failed) | Refused at commit | The apply fails. Fix: the cause the daemon logged |
 | The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Same as `discard`. Fix: give the daemon `CAP_NET_ADMIN` |
-| Before the first configuration is applied, and after the engine stops | Ze holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of Ze's; the kernel passes traffic as it does with no IPsec configured | Same |
+| Before the first configuration is applied, and after the engine stops | The IPsec engine holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of its own; the kernel passes traffic as it does with no IPsec configured. Two exceptions: an entry the engine could not remove on stop keeps the catch-all beneath it (the warning names both), and OSPFv3 authentication with manual keys installs its own SAs and policies with no catch-all, an open RFC 4301 gap | Same |
 
 The catch-all is installed before the `policy` entries, the peers and the
 cookie threshold of the same configuration, so a refused apply leaves the

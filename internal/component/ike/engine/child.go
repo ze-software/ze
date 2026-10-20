@@ -871,7 +871,7 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		// peer owns the selector, which is a takeover the install should already have
 		// stopped, so it is logged at Warn rather than swallowed.
 		for _, p := range childPolicies(child, dataplane.SADirOut) {
-			if err := dp.RemovePolicyParams(p); err != nil {
+			if err := removeZePolicy(dp, p); err != nil {
 				logPolicyRemoveFailure(log, "outbound", child, err)
 			}
 		}
@@ -893,7 +893,7 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 	setChildRemoving(child, true)
 	if dropPolicy {
 		for _, p := range childPolicies(child, dataplane.SADirIn) {
-			if err := dp.RemovePolicyParams(p); err != nil {
+			if err := removeZePolicy(dp, p); err != nil {
 				logPolicyRemoveFailure(log, "inbound", child, err)
 			}
 		}
@@ -908,8 +908,9 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 //
 // A refusal on ownership is not routine cleanup noise. It means a different peer holds
 // this selector, so this Child SA's policy was never installed and something upstream
-// let two peers negotiate one selector. A netlink failure on teardown is ordinary (the
-// policy is often already gone), so it stays at Debug.
+// let two peers negotiate one selector. A netlink failure on teardown stays at Debug:
+// ENOENT (the policy is already gone) is ordinary, and any other failure is recorded in
+// the SPD ledger (removeZePolicy, spd_left.go), which releaseSPD reports at Warn on exit.
 func logPolicyRemoveFailure(log *slog.Logger, dir string, child *ChildSA, err error) {
 	if owned, ok := errors.AsType[*dataplane.PolicyOwnedError](err); ok {
 		log.Warn("child-sa: refused to remove a policy another peer owns",

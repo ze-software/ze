@@ -85,8 +85,9 @@ func unmatchedPolicies(family net.IP, action dataplane.SPAction) ([]dataplane.SP
 // ahead of any install, that it holds no entry bound to no interface (the VPP backend,
 // dataplane.ErrNoNodeWideSPD, vppBackend.CatchAllSupported). verifyUnmatchedEnforceable refuses a DISCARD there,
 // and a bypass is the only disposition such a backend runs under. Packets no entry
-// matches meet no SPD-I entry on it, which rfc/short/rfc4301.md records as the open
-// gap of RFC4301-5.2-1 and RFC4301-5.2-9.
+// matches meet no SPD-I entry on it, which rfc/short/rfc4301.md records as one of the
+// two open gaps of RFC4301-5.2-1 and RFC4301-5.2-9 (the other is OSPFv3 manual keying,
+// which installs its entries outside this engine with no catch-all).
 func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) error {
 	if dp == nil {
 		return errUnmatchedNoDataplane

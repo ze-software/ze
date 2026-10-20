@@ -289,14 +289,20 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// SPD-I entry at all, so the apply fails and the configuration is not reported
 	// applied (installUnmatched, unmatched.go). Running it before the operator's entries
 	// and the cookie threshold means a refusal leaves those unchanged. The entries a
-	// partial install did place are discards, and they fail closed. The catch-all is
+	// partial install did place carry the configured disposition: under DISCARD they
+	// drop what they match, under BYPASS they pass it in the clear, which is what the
+	// packet would meet with no entry at all, so neither opens anything the refused apply
+	// did not already leave open. spdApplied is set first, so releaseSPD removes them on
+	// exit. The catch-all is
 	// re-asserted on every apply, because the backend upserts a template-free policy, so
 	// a changed disposition replaces the entry in place.
 	//
 	// Ze's SPD comes into being here, on the first apply, and is released as one unit
 	// on exit (releaseSPD). The catch-all is the FIRST entry in and the LAST out, so at
 	// no instant does Ze hold an SPD entry without the final entry beneath it, and
-	// outside [first apply, exit] Ze holds no SPD entry and no SA: it is not acting as
+	// outside [first apply, exit] Ze holds no SPD entry and no SA (unless a removal at
+	// exit failed, when releaseSPD keeps the catch-all beneath what is left and says so):
+	// it is not acting as
 	// an IPsec implementation then, and no packet is looked up in an SPD-I of Ze's
 	// (owner decision 2026-10-20, Q6 B; docs/guide/ipsec.md, "Traffic no entry
 	// matches"). The IKE bypass follows it on the first apply. No IKE socket is open
@@ -461,6 +467,28 @@ func (s *ikeEngineState) reloadPool(ra *ipsec.RemoteAccessConfig) {
 	s.log.Info("ike: virtual IP pool created", "range", ra.Pool.Range)
 }
 
+// shutdown ends everything the engine runs, on every exit of runEngine, in an order
+// each step depends on:
+//   - operator `clear` loses its way to start peers (reEstablishFn), so no session can
+//     be started behind the stop below;
+//   - every peer stops, so every Child SA and its policies are gone;
+//   - the IKE sockets close, so nothing left can negotiate a Child SA and install a
+//     policy behind the release (closeSockets requires the peers stopped first);
+//   - the SPD the engine installed is released, catch-all last (releaseSPD).
+//
+// An error return of the SDK used to skip the middle steps, so a session started by a
+// `clear` could still install a policy between releaseSPD and the backend closing.
+// Every path that installs an SPD entry needs a peer session and a socket, and both
+// are gone before the release starts.
+//
+// The caller MUST close the backend after it returns: releaseSPD needs the dataplane.
+func (s *ikeEngineState) shutdown(log *slog.Logger) {
+	reEstablishFn.Store(nil)
+	s.stopAllPeers()
+	s.listeners.closeSockets(log)
+	s.releaseSPD(dataplane.Get(), log)
+}
+
 // releaseSPD removes the SPD this engine installed, on every exit of runEngine, as
 // the one unit applyConfig installed it as: the IKE bypass, then the operator's
 // entries, and the catch-all LAST. Each set is node-wide and outlives the process
@@ -473,6 +501,11 @@ func (s *ikeEngineState) reloadPool(ra *ipsec.RemoteAccessConfig) {
 // holds no SPD entry and no SA (stopAllPeers ran first), which is the state before
 // the first apply (owner decision 2026-10-20, Q6 B).
 //
+// A removal that fails leaves its entry installed, and that entry would then outlive
+// the catch-all. So the catch-all is removed only when the SPD ledger (spd_left.go) is
+// empty: every Child SA policy, bypass and operator entry Ze installed is gone. Otherwise
+// it stays, and warnSPDLeft names the entries left and the command that removes them.
+//
 // An engine that never applied a configuration installed nothing, so it removes
 // nothing, and a catch-all another policy manager put in place survives its failed
 // start.
@@ -482,5 +515,8 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	}
 	removeIKEBypass(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
+	if warnSPDLeft(log) {
+		return
+	}
 	removeUnmatched(dp, log)
 }

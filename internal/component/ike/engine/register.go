@@ -369,7 +369,9 @@ func runEngine(conn net.Conn) int {
 	// No SPD entry is installed here. Ze's SPD, the IKE bypass and the catch-all,
 	// appears on the first configuration apply (applyConfig, apply.go) and is released
 	// on EVERY exit of runEngine by the deferred releaseSPD below, catch-all last, so
-	// before the first apply and after exit Ze holds no SPD entry and no SA.
+	// before the first apply and after exit Ze holds no SPD entry and no SA. The one
+	// exception is a removal that failed: the catch-all then stays beneath the entries
+	// left, and releaseSPD names them at Warn.
 	//
 	// The backend closes in the same defer, and AFTER the release: CloseBackend clears
 	// the active backend, so a release ordered after it would have no dataplane to talk
@@ -387,12 +389,14 @@ func runEngine(conn net.Conn) int {
 	}
 	setActivePeers(state.peers)
 
+	// metricsStop ends the metrics worker started below; the deferred shutdown closes it.
+	metricsStop := make(chan struct{})
+
+	// The whole shutdown, for a clean return and an error return of p.Run alike
+	// (ikeEngineState.shutdown, apply.go, states the order).
 	defer func() {
-		// An error exit skips the shutdown tail that stops the peers, so it is done
-		// here too: every Child SA and its policies are gone before the SPD the engine
-		// installed is released (stopAllPeers finds no peer once the tail ran).
-		state.stopAllPeers()
-		state.releaseSPD(dataplane.Get(), log)
+		close(metricsStop)
+		state.shutdown(log)
 		if err := dataplane.CloseBackend(); err != nil {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
@@ -419,7 +423,6 @@ func runEngine(conn net.Conn) int {
 	}
 	reEstablishFn.Store(&reEstablish)
 
-	metricsStop := make(chan struct{})
 	if state.metrics != nil {
 		go func() {
 			ticker := time.NewTicker(5 * time.Second)
@@ -542,16 +545,8 @@ func runEngine(conn net.Conn) int {
 		return 1
 	}
 
-	// Cleanup after Run returns (shutdown).
-	reEstablishFn.Store(nil)
-	close(metricsStop)
-	state.stopAllPeers()
-	state.listeners.closeSockets(log)
-	// The SPD and the backend are released by the deferred cleanup above, so this
-	// clean shutdown and every error exit release the same set. It runs after this
-	// line, which is after every peer has stopped, so nothing is left that still needs
-	// the IKE bypass, and the catch-all goes last (releaseSPD, apply.go).
-
+	// The shutdown is the deferred cleanup above, so this clean return and every error
+	// exit run the same steps in the same order.
 	return 0
 }
 

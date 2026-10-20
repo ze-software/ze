@@ -401,12 +401,12 @@
       "rid": "RFC4301-4.4.1-3",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry",
-      "unit-sha": "e0d309d7980a68c8",
-      "claim-sha": "1dfe81be8e5c8a5d",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/apply.go::releaseSPD",
-      "producer-sha": "88d29634ecbffcf4",
-      "break": "body of releaseSPD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "unit-sha": "3d8eaf37a2ccc061",
+      "claim-sha": "4cc894c702d8299f",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/apply.go::shutdown",
+      "producer-sha": "ba1436a4aa6f56e7",
+      "break": "line 487: \"s.stopAllPeers()\" -\u003e \"s.releaseSPD(dataplane.Get(), log); s.stopAllPeers()\""
     },
     {
       "rid": "RFC4301-4.4.1-4",

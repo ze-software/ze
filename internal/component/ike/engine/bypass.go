@@ -158,14 +158,16 @@ func installIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 //
 // A removal that finds nothing is the expected case for a family that never carried
 // a tunnel, and for a platform that never installed anything. Errors are logged and
-// never returned: shutdown continues.
+// never returned: shutdown continues, and a removal that left the entry installed is
+// recorded in the SPD ledger (removeZePolicy, spd_left.go), so releaseSPD keeps the
+// catch-all beneath it.
 func removeIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 	if dp == nil {
 		return
 	}
 	for _, family := range ikeBypassFamilies {
 		for _, p := range ikeBypassPolicies(family) {
-			if err := dp.RemovePolicyParams(p); err != nil {
+			if err := removeZePolicy(dp, p); err != nil {
 				log.Debug("ike: remove IKE bypass policy", "dir", p.Dir, "error", err)
 			}
 		}
