@@ -16,6 +16,7 @@
 package ldp
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 
@@ -118,12 +119,27 @@ func pickNextHop(transport netip.Addr, peerAddrs []netip.Addr, localPrefixes []n
 	return transport
 }
 
+// ensureIfaceBackend loads the iface component's default backend when nothing
+// else has. It is a package variable so a test can substitute it: the real one
+// opens a netlink socket, which a unit test has no business doing.
+var ensureIfaceBackend = iface.EnsureBackend
+
 // interfacePrefixes returns the advertisable connected prefixes of the named
 // interface. A missing interface or read error returns the error to the caller.
 func interfacePrefixes(name string) ([]netip.Prefix, error) {
+	// An LDP-only config has no interface{} block, and the iface component
+	// loads its backend from THAT block alone. Without one, iface.Addresses
+	// fails "iface: no backend loaded" and LDP originates no label for the
+	// connected prefixes. EnsureBackend loads the build-time default and is a
+	// no-op when an explicit interface{} backend already loaded one, so
+	// `interface { backend vpp }` still wins. OSPF and IS-IS do the same
+	// (internal/plugins/ospf/transport/backend_linux.go resolveOSPFInterface).
+	if err := ensureIfaceBackend(); err != nil {
+		return nil, fmt.Errorf("ldp: interface %s: %w", name, err)
+	}
 	addrs, err := iface.Addresses(name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ldp: read addresses of interface %s: %w", name, err)
 	}
 	out := make([]netip.Prefix, 0, len(addrs))
 	for _, a := range addrs {

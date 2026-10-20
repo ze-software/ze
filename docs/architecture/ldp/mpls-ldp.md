@@ -215,6 +215,20 @@ itself and recurses until the stack overflows. Register the command with
 
 <!-- source: internal/plugins/ldp/cmd_show.go -- the show ldp proxy registration -->
 
+## Trap: an LDP-only config loads no iface backend
+
+The iface component loads its backend from an `interface { }` block, and an
+LDP-only config has none. LDP reads its interfaces through `iface.Resolve`
+(Basic Discovery) and `iface.Addresses` (connected FECs), and both failed
+"iface: no backend loaded" until each read called `iface.EnsureBackend` first.
+Discovery then retried forever and sent no Hello. `EnsureBackend` loads the
+build-time default backend and does nothing when one is already loaded, so an
+explicit `interface { backend ... }` still wins. OSPF and IS-IS read their
+interfaces the same way.
+
+<!-- source: internal/plugins/ldp/local.go -- ensureIfaceBackend, interfacePrefixes -->
+<!-- source: internal/plugins/ldp/register.go -- resolveDiscoveryInterface, waitForInterface -->
+
 ## Trap: the config schema is top-level
 
 LDP configuration is a top-level `ldp { ... interfaces <name> }` block. A

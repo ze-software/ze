@@ -404,7 +404,8 @@ func connectedPrefixes(ifaces []string, log *slog.Logger) []netip.Prefix {
 	for _, name := range ifaces {
 		prefixes, err := interfacePrefixes(name)
 		if err != nil {
-			log.Warn("ldp: cannot read interface addresses", "interface", name, "error", err)
+			log.Warn("ldp: cannot read interface addresses, LDP advertises no label for its connected prefixes",
+				"interface", name, "error", err)
 			continue
 		}
 		out = append(out, prefixes...)
@@ -614,21 +615,23 @@ const ldpInterfaceRetry = 5 * time.Second
 // the engine starts; the retry timer is a bootstrap fallback in case an event
 // is missed (the resolver drops events on a full channel). The "not available"
 // warning is logged once, then demoted to debug, so a permanently-misconfigured
-// interface name does not spam the log every retry.
+// interface name does not spam the log every retry. Both lines carry the reason
+// the attempt failed, so an operator can tell a missing device from a missing
+// iface backend.
 func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retry time.Duration) *net.Interface {
 	events, cancelSub := iface.Subscribe(ifName)
 	defer cancelSub()
 	warned := false
 	for {
-		if b, err := iface.Resolve(ifName); err == nil {
-			if ifi, ierr := net.InterfaceByName(b.OsName); ierr == nil {
-				return ifi
-			}
+		ifi, err := resolveDiscoveryInterface(ifName)
+		if err == nil {
+			return ifi
 		}
 		if warned {
-			log.Debug("ldp: discovery interface still not available", "interface", ifName)
+			log.Debug("ldp: discovery interface still not available", "interface", ifName, "error", err)
 		} else {
-			log.Warn("ldp: discovery interface not available, retrying", "interface", ifName, "retry", retry)
+			log.Warn("ldp: discovery interface not available, LDP sends no Hello on it until it is; retrying",
+				"interface", ifName, "retry", retry, "error", err)
 			warned = true
 		}
 		timer := time.NewTimer(retry)
@@ -641,6 +644,27 @@ func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retr
 		case <-timer.C:
 		}
 	}
+}
+
+// resolveDiscoveryInterface returns the kernel device that backs the logical
+// interface ifName, as the *net.Interface the stdlib multicast calls need.
+func resolveDiscoveryInterface(ifName string) (*net.Interface, error) {
+	// An LDP-only config has no interface{} block, and the iface component
+	// loads its backend from THAT block alone. Without one, iface.Resolve fails
+	// "iface: no backend loaded" on every retry and LDP sends no Hello. See
+	// interfacePrefixes (local.go) for the full reasoning.
+	if err := ensureIfaceBackend(); err != nil {
+		return nil, fmt.Errorf("ldp: interface %s: %w", ifName, err)
+	}
+	b, err := iface.Resolve(ifName)
+	if err != nil {
+		return nil, fmt.Errorf("ldp: resolve interface %s: %w", ifName, err)
+	}
+	ifi, err := net.InterfaceByName(b.OsName)
+	if err != nil {
+		return nil, fmt.Errorf("ldp: interface %s (device %s): %w", ifName, b.OsName, err)
+	}
+	return ifi, nil
 }
 
 // listenDiscovery opens the per-interface multicast UDP socket for Basic Discovery.

@@ -253,8 +253,14 @@ accepted infrastructure dependency.
 
 Once a consumer calls `iface.Resolve` or `iface.Addresses`, its Linux
 integration tests fail at open with "no backend loaded" unless they call
-`iface.LoadBackend("netlink")` inside the netns before the first resolve. This
-mirrors production, where the iface component is always loaded.
+`iface.LoadBackend("netlink")` inside the netns before the first resolve.
+
+Production loads a backend only when the config has an `interface { }` block.
+A consumer that can run without one (an OSPF-only, IS-IS-only or LDP-only
+config) calls `iface.EnsureBackend` before its first read. That loads the
+build-time default and does nothing when a backend is already loaded.
+
+<!-- source: internal/component/iface/backend.go -- EnsureBackend -->
 
 `AddrInfo` carries `LinkLocal`, set by `classifyAddresses`, so a consumer
 splits IPv4, IPv6 link-local and IPv6 global with no re-parsing.
