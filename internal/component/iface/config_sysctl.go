@@ -81,7 +81,7 @@ func applySysctl(osName string, u unitEntry) {
 		if s.Forwarding != nil {
 			emit("net.ipv6.conf."+osName+".forwarding", boolVal(*s.Forwarding))
 		}
-		// IPv6 rpf-check has no sysctl: Linux has no IPv6 rp_filter. It is
+		// IPv6 rpf-check has no sysctl (Linux limitation LL-IPV6-NO-RP-FILTER). It is
 		// enforced by Backend.ReplaceIPv6RPF (rpf6.go, desiredIPv6RPF).
 	}
 }

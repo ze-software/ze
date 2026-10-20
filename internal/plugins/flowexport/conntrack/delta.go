@@ -9,7 +9,8 @@ import (
 )
 
 // flowKey identifies a conntrack flow by its 5-tuple.
-// Used instead of CTA_ID which vishvananda/netlink does not expose.
+// Used instead of CTA_ID, which the netlink library does not decode (Linux
+// limitation LL-NETLINK-NO-CTA-ID, docs/architecture/linux-limitations.md).
 type flowKey struct {
 	SrcAddr  netip.Addr
 	DstAddr  netip.Addr

@@ -172,8 +172,8 @@ type ChildSA struct {
 	//
 	// The disjunct MUST NOT be deleted to chase that interop either. Dropping it trades
 	// away RFC7296-2.23-11, which asks that the encapsulated form be RECEIVED with no
-	// NAT detected. One Linux XFRM inbound state still binds exactly ONE ESP form, so
-	// the bare form strongSwan sends is served beside the kernel instead
+	// NAT detected. One Linux XFRM inbound state still binds exactly ONE ESP form (Linux
+	// limitation LL-XFRM-STATE-ONE-ESP-FORM), so the bare form strongSwan sends is served beside the kernel instead
 	// (SAParams.AcceptBothESPForms, dataplane/espform.go).
 	UDPEncap bool
 	// udpLocalPort and udpRemotePort are the UDP encapsulation ports, taken from the IKE

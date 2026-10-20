@@ -18,7 +18,8 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
-// Linux has no IPv6 rp_filter sysctl, so the IPv6 reverse-path check is an
+// Linux has no IPv6 rp_filter sysctl (Linux limitation LL-IPV6-NO-RP-FILTER,
+// docs/architecture/linux-limitations.md), so the IPv6 reverse-path check is an
 // nftables fib lookup in prerouting, in a table this backend owns alone:
 //
 //	table ip6 ze_iface_rpf {

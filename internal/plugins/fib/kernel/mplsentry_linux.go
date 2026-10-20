@@ -194,7 +194,8 @@ var probeMPLSTransitMTU = kernelcap.MPLSIPMTUInThisNamespace
 // transitRouteMTU returns the RTAX_MTU an AF_MPLS swap or pop carries for
 // pathMTU: the path MTU on a kernel that accepts one, and none otherwise.
 //
-// Upstream Linux rejects RTA_METRICS on an AF_MPLS route with EINVAL; only a
+// Upstream Linux rejects RTA_METRICS on an AF_MPLS route (Linux limitation
+// LL-MPLS-FORWARD-NO-PMTU, docs/architecture/linux-limitations.md); only a
 // kernel carrying gokrazy/kernel/patches/0002-mpls-ip-mtu.patch accepts and
 // enforces it. Sending the MTU to a stock kernel fails every transit install,
 // so no transit LSP comes up (owner decision, 2026-10-08: install without it
@@ -228,8 +229,8 @@ func askTransitMTU() kernelcap.State {
 	case kernelcap.StateAbsent:
 		logger().Warn("fib-kernel: this kernel cannot enforce an MPLS transit path MTU; "+
 			"transit routes install without it, and an oversized labeled packet is dropped "+
-			"by the outgoing device instead of fragmented or answered with ICMP",
-			"kernel", "CONFIG_MPLS_IP_MTU", "reason", result.Reason)
+			"by the kernel's MPLS forwarding instead of fragmented or answered with ICMP",
+			"kernel", "CONFIG_MPLS_IP_MTU", "limitation", "LL-MPLS-FORWARD-NO-PMTU", "reason", result.Reason)
 		return kernelcap.StateAbsent
 	case kernelcap.StateUnknown, kernelcap.StateDenied, kernelcap.StateUnspecified:
 		logger().Warn("fib-kernel: cannot determine whether the kernel enforces an MPLS transit path MTU; "+

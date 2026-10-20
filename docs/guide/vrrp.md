@@ -304,8 +304,8 @@ VRRP group, whatever turns it on: `ipv4 proxy-arp true` on the unit, a
 or one of your own), or a `sysctl setting` of `net.ipv4.conf.<device>.proxy_arp`,
 `net.ipv4.conf.all.proxy_arp` or `net.ipv4.conf.default.proxy_arp`. The last one
 counts because ze creates the virtual-MAC macvlan, which takes the `default`
-value. `proxy_arp_pvlan` (private VLAN proxy ARP) is the same reply path, so the same keys ending in `proxy_arp_pvlan` are refused alike. The
-device is matched under the interface name you configured and under the kernel
+value. `proxy_arp_pvlan` (private VLAN proxy ARP) is the same reply path, so
+the same keys ending in `proxy_arp_pvlan` are refused alike. The device is matched under the interface name you configured and under the kernel
 device it resolves to (`os-name` or `mac-match`), and a VLAN unit's device
 matches in either spelling, `eth0.100` or sysctl's `eth0/100`. Turn proxy ARP
 off there, or run the group on an interface without it.

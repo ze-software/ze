@@ -1056,9 +1056,15 @@ registry):
 - `RegisterOwnedMacvlan(owner, spec)`, `UnregisterOwnedMacvlan(owner, name)`,
   `UnregisterOwnedMacvlans(owner)`.
 
-**Ownership marker.** At create, the device's kernel link alias (IFLA_IFALIAS)
-is set to `ze:owned:<owner>`, atomically with the MAC in one RTM_NEWLINK. The
-reconcile pass reads ownership back from the kernel rather than remembering
+**Ownership marker.** The device's kernel link alias (IFLA_IFALIAS) carries
+`ze:owned:<owner>`. The kernel ignores the alias in the RTM_NEWLINK that
+creates a device (Linux limitation `LL-RTNL-NEWLINK-NO-ALIAS`,
+`docs/architecture/linux-limitations.md`), so `CreateMacvlanDevice` creates the
+device with its MAC, then sets the alias with a second message, and deletes the
+device if that fails, before it sets the IPv6 address generation mode to none
+and brings the device up. A crash between the two messages can leave an
+unmarked device under a registered name; the reconcile pass adopts and re-marks
+it. The reconcile pass reads ownership back from the kernel rather than remembering
 history, so orphan cleanup works across restarts and crashes -- the one
 structural difference from the address registry (which must track its own stale
 interfaces because an address carries no owner).

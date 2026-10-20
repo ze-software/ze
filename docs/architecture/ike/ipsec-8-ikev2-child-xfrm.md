@@ -157,12 +157,10 @@ with no SAr2 (an EAP round, a childless answer) carries no selector and is not
 refused for it.
 
 **A transport-mode Child SA carries exactly one pair.** An XFRM state holds one
-selector and one SPI names one state, so a transport-mode inbound state holds the
-negotiated values exactly only when one pair was negotiated. Several pairs whose
-union is not one selector would leave the state either too narrow, dropping a
-negotiated pair's traffic, or a cover wider than the pairs, through which a
-decrypted packet in no pair reaches a bypass entry: RFC 4301 Section 5.2 requires
-such a packet to be discarded. Both negotiation ends therefore keep one pair. The
+selector, and a selector that covers several pairs admits a decrypted packet in no
+pair (Linux limitation `LL-XFRM-STATE-ONE-SELECTOR`,
+`docs/architecture/linux-limitations.md`): RFC 4301 Section 5.2 requires such a
+packet to be discarded. Both negotiation ends therefore keep one pair. The
 responder narrows a transport-mode answer to its first pair
 (`oneTransportPair`, `narrowChildSelectors`), which RFC 7296 Section 2.9 permits
 ("the responder arbitrarily chooses one of them") and which keeps the initiator's
@@ -218,7 +216,8 @@ SAD-ID allocation uses `IpsecSaV3Dump`. Public SAD and SPD inspection still retu
 ## Vendored netlink patch
 
 The pinned `github.com/vishvananda/netlink` release lacks these XFRM
-corrections. Ze records them in
+corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
+`docs/architecture/linux-limitations.md`). Ze records them in
 `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch`:
 
 - The state reader decodes `XFRMA_REPLAY_ESN_VAL`, restores the replay window,

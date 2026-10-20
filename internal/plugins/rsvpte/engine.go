@@ -470,7 +470,7 @@ func (e *engine) handlePath(src netip.Addr, msg *ParsedMessage) {
 		}
 	}
 	// A path MTU under the floor would reach a push route as a metric that can
-	// livelock a stock kernel's IPv4 fragmentation (mplsfib.PathMTUMinimum), so
+	// livelock an older kernel's IPv4 fragmentation (mplsfib.PathMTUMinimum), so
 	// it is neither stored, echoed in a RESV, nor composed onward. The onward
 	// value is composed per RFC 2215 Section 3.5. RFC 2205 Appendix B, Error
 	// Code 21: "The Resv or Path message that caused the call cannot be

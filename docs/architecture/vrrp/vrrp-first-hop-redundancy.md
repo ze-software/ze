@@ -337,9 +337,8 @@ state; a tracked route and a health-check script are not implemented.
 - A bool leaf can arrive from the config tree as the STRING "true". A `.(bool)`
   assertion drops it silently, which let a `version 2` plus accept-mode config
   validate clean. Use a helper that accepts both shapes and rejects anything else.
-- macvlan create does not persist `IFLA_IFALIAS`. The vendored netlink library
-  serializes the alias in `RTM_NEWLINK` and the kernel ignores it at create, while
-  the MAC and the mode do stick. The fallback is LinkAdd, LinkSetAlias, LinkSetUp,
+- macvlan create does not persist `IFLA_IFALIAS` (Linux limitation
+  `LL-RTNL-NEWLINK-NO-ALIAS`, `docs/architecture/linux-limitations.md`). The fallback is LinkAdd, LinkSetAlias, LinkSetUp,
   with LinkDel as rollback. The reconcile pass adopts and re-marks an unmarked
   macvlan that holds a registered name.
 - Parent admin-down does not propagate to the macvlan's oper-state. The kernel

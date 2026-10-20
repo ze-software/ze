@@ -30,8 +30,9 @@ const (
 // header and one 8-octet fragment.
 //
 // Below it, Linux's IPv4 fragmentation on a push route can be left fewer than
-// eight data octets per fragment, rounds each fragment to zero, and on a stock
-// kernel emits empty fragments forever inside softirq (mpls-kernel.md).
+// eight data octets per fragment, rounds each fragment to zero, and on a kernel
+// whose ip_do_fragment lacks the one-fragment floor Linux 7.2.9 carries, emits
+// empty fragments forever inside softirq (mpls-kernel.md).
 //
 // The floor is IPv4's and not RFC 8200's 1280: an IPv6 router never
 // fragments, so an IPv6 datagram over the budget is dropped with Packet Too

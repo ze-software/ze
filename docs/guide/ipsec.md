@@ -1067,9 +1067,9 @@ window.
 ## Both ESP wire forms
 
 RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
-UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form. A
-state that carries the encapsulation template refuses bare ESP, and a state without one
-refuses encapsulated ESP. Ze serves the second form beside the kernel. A raw IPPROTO_ESP
+UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form
+([LL-XFRM-STATE-ONE-ESP-FORM](../architecture/linux-limitations.md#ll-xfrm-state-one-esp-form)).
+Ze serves the second form beside the kernel. A raw IPPROTO_ESP
 reader takes the datagram XFRM refused. It re-presents that datagram through port 4500,
 which carries UDP_ENCAP, so the kernel hands XFRM the form its template wants. One
 established Child SA therefore keeps carrying traffic when its peer changes ESP form

@@ -28,15 +28,13 @@ const sysctlRoot = "sysctl"
 const proxyARPPrefix = "net.ipv4.conf."
 
 // proxyARPLeaves are the per-device sysctls that make Linux answer an ARP
-// request for an address the device does not hold, with the device's own MAC.
+// request for an address the device does not hold, with the device's own MAC
+// (Linux limitation LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md).
 //
 // proxy_arp is the classic form. proxy_arp_pvlan (private VLAN proxy ARP,
-// RFC 3069) answers a request for another host on the SAME device. Linux
-// arp_process (net/ipv4/arp.c) takes one reply branch for both, through
-// arp_fwd_proxy or arp_fwd_pvlan, and that branch sends dev->dev_addr as the
-// sender MAC. Each is on for a device when the device's value or the `all`
-// value is on (IN_DEV_ORCONF). The kernel source is not in this checkout, so
-// this is a reading of Linux 6.x arp.c and inetdevice.h, not a quote.
+// RFC 3069) answers a request for another host on the SAME device; Linux takes
+// one reply branch for both. Each is on for a device when the device's value
+// or the `all` value is on (Linux limitation LL-IPV4-CONF-ALL-WINS).
 var proxyARPLeaves = []string{"proxy_arp", "proxy_arp_pvlan"}
 
 // proxyARPKeyDevice names the device a proxy ARP sysctl key sets, or reports
@@ -78,11 +76,13 @@ type sysctlCandidate struct {
 //
 // RFC 5798 Section 8.1.3 and RFC 9568 Section 8.1.3: "If Proxy ARP is to be used
 // on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC
-// address in the Proxy ARP message." Linux limitation LL-PROXY-ARP-MAC
-// (docs/architecture/linux-limitations.md): the reply carries the receiving
-// device's own MAC, so a host would learn a MAC that does not move on failover. The owner declined proxy
-// ARP on a VRRP router (2026-10-20), so ze refuses the configuration that would
-// turn it on, at ze config verify, commit and reload.
+// address in the Proxy ARP message." Proxy ARP on the parent answers with the
+// parent's own MAC (Linux limitation LL-PROXY-ARP-MAC,
+// docs/architecture/linux-limitations.md), so a host would learn a MAC that
+// does not move on failover. Answering from the virtual-MAC macvlan instead is
+// untested, and the owner declined proxy ARP on a VRRP router (2026-10-20), so
+// ze refuses the configuration that would turn it on, at ze config verify,
+// commit and reload.
 //
 // Four sources turn proxy ARP on: the unit's `ipv4 proxy-arp` leaf, a
 // `sysctl-profile` the unit names, a global `sysctl setting` for the unit's
@@ -149,7 +149,8 @@ func walkProxyARPUnits(tree map[string]any, candidate sysctlCandidate) error {
 				}
 				return fmt.Errorf("vrrp: interface %s unit %s group %s: proxy ARP is on (%s); "+
 					"RFC 5798 and RFC 9568 Section 8.1.3 require a proxy ARP reply on a VRRP router to carry the virtual router MAC, "+
-					"but the kernel answers with the device's own MAC, so hosts would keep a MAC that does not move on failover; "+
+					"but proxy ARP there answers with the device's own MAC (Linux limitation LL-PROXY-ARP-MAC, "+
+					"docs/architecture/linux-limitations.md), so hosts would keep a MAC that does not move on failover; "+
 					"turn proxy ARP off there, or run this VRRP group on an interface without proxy ARP",
 					name, unit, group, source)
 			}
@@ -293,7 +294,8 @@ func refuseProxyARPWrite(units []proxyARPUnit, key, value string) error {
 		}
 		return fmt.Errorf("vrrp: set sysctl %s %s refused: interface %s unit %s runs VRRP group %s, "+
 			"and RFC 5798 and RFC 9568 Section 8.1.3 require a proxy ARP reply on a VRRP router to carry the virtual router MAC, "+
-			"but the kernel answers with the device's own MAC, so hosts would keep a MAC that does not move on failover; "+
+			"but proxy ARP there answers with the device's own MAC (Linux limitation LL-PROXY-ARP-MAC, "+
+			"docs/architecture/linux-limitations.md), so hosts would keep a MAC that does not move on failover; "+
 			"leave proxy ARP off there, or remove the VRRP group from that interface first",
 			key, value, u.Interface, u.Unit, u.Group)
 	}

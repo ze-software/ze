@@ -110,8 +110,9 @@ eight-byte fragment payload, fragmentation returns `EMSGSIZE`. This check
 precedes subtraction and rounding, so small physical MTUs and IP options
 cannot produce an underflow or an endless stream of empty fragments.
 
-Upstream Linux 7.2's `mpls_forward` drops an oversized labeled frame without
-examining the inner IP header. The runtime kernel applies
+Upstream `mpls_forward` drops an oversized labeled frame without fragmenting it
+or sending ICMP (Linux limitation `LL-MPLS-FORWARD-NO-PMTU`,
+`docs/architecture/linux-limitations.md`). The runtime kernel applies
 `gokrazy/kernel/patches/0002-mpls-ip-mtu.patch` through the existing patch
 series. Its native transit path uses the complete constructed label stack,
 fragments DF-clear IPv4 with the kernel's IP fragment helpers, and sends
@@ -135,9 +136,8 @@ insufficient evidence for this behaviour.
 
 ### On a kernel without the patch
 
-Upstream Linux refuses `RTA_METRICS` on an `AF_MPLS` route: `ip -f mpls route
-add 1000 as 2000 via inet 192.0.2.1 dev eth0 mtu 1400` answers "Unknown
-attribute" (`EINVAL`). Sending the path MTU there would fail every RSVP-TE
+Upstream Linux refuses `RTA_METRICS` on an `AF_MPLS` route
+(`LL-MPLS-FORWARD-NO-PMTU`). Sending the path MTU there would fail every RSVP-TE
 transit install whose PATH carried an ADSPEC, so no transit LSP would come up.
 
 Before its first transit route that has a path MTU, the forwarding owner asks
@@ -180,7 +180,7 @@ the label space, and the row reads `denied`, naming the profile and the grant
 profile grants exactly those steps, and the Docker kernel check runs its probe
 under it.
 
-A push metric is also a hazard on a stock kernel. A forwarded IPv4 packet on a
+A push metric is also a hazard on an older kernel. A forwarded IPv4 packet on a
 push route is bounded by `ip_dst_mtu_maybe_forward`: `RTAX_MTU` minus the
 lwtunnel label headroom. With path MTU 68 and eleven labels that leaves 24
 bytes, so a 68-byte DF-clear datagram enters `ip_do_fragment` with four bytes of
@@ -189,8 +189,10 @@ bytes and, because that is less than what remains, rounds it down to a multiple
 of eight: zero. The remaining length never shrinks, and the loop sends empty
 fragments through `mpls_xmit` forever, in the softirq that the sending thread
 runs. That thread never returns to user space to take a signal, and the host
-needs a reboot. Upstream has no floor there through 7.2; the patch adds the
-`EMSGSIZE` check described above.
+needs a reboot. Linux 7.2.9 refuses that case: `ip_do_fragment` returns
+`EMSGSIZE` when the MTU cannot hold the header and one fragment
+(`docs/architecture/linux-limitations.md`, "Considered and left out"). A host
+kernel without that check still loops, so the floor below stays.
 
 Ze therefore never produces a nonzero path MTU below
 `mplsfib.PathMTUMinimum`: RFC 791's 68-octet IPv4 minimum (a 60-octet header

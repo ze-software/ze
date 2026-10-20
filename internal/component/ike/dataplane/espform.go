@@ -156,11 +156,10 @@ func espFormPacketLen(esp []byte) int {
 // returns the number of bytes written. It reports 0 when the payload is unusable or buf
 // is too small, so a caller that ignores the length cannot transmit a partial header.
 //
-// The datagram re-presents a BARE ESP packet in the UDP-encapsulated form. Linux XFRM
-// binds one inbound state to one wire form: net/xfrm/xfrm_input.c compares
-// `(x->encap ? x->encap->encap_type : 0) != encap_type` and raises XfrmInStateMismatch
-// when they disagree. A state carrying an ESP-in-UDP template therefore refuses bare ESP
-// outright, and RFC 7296 Section 2.23 still requires that form to be received. Sending
+// The datagram re-presents a BARE ESP packet in the UDP-encapsulated form. A Linux XFRM
+// inbound state receives one wire form (Linux limitation LL-XFRM-STATE-ONE-ESP-FORM,
+// docs/architecture/linux-limitations.md), so a state carrying an ESP-in-UDP template
+// refuses bare ESP, and RFC 7296 Section 2.23 still requires that form to be received. Sending
 // the same payload back through the port-4500 socket, which carries UDP_ENCAP_ESPINUDP,
 // makes the kernel strip the header again and hand XFRM the encapsulation type its
 // template demands.
