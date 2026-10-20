@@ -590,9 +590,9 @@ with field offsets.
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/bgp-sr-policy-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (verdict `findings`, 10 files, machine-local) |
-| `./le spec review check` | not clean: verdict `findings` (1 BLOCKER, 2 ISSUE) |
-| Rounds | 1 (2026-10-20, independent reviewer, over commits `6ca8175fbc`, `8da63d389a`, `02b886d7b1`, `b73176e7ea`, `ca5ae1feaa`, `65ecdbf014` as at HEAD `df7d3abc23`) |
-| Reviewer lenses used | wiring + functional coverage; logic + removed-behavior + test rewrites; RFC 9830 / RFC 7911 + docs drift |
+| `./le spec review check` | not clean: round 2 verdict `findings` (0 BLOCKER, 3 ISSUE) |
+| Rounds | 2. Round 1 (2026-10-20, independent reviewer, over commits `6ca8175fbc`, `8da63d389a`, `02b886d7b1`, `b73176e7ea`, `ca5ae1feaa`, `65ecdbf014` as at HEAD `df7d3abc23`). Round 2 (2026-10-21, a second independent reviewer, narrow: the round 1 fixes `7052b662a4`, `55be07dd57`, `11ea7bebde` and what they touch) |
+| Reviewer lenses used | Round 1: wiring + functional coverage; logic + removed-behavior + test rewrites; RFC 9830 / RFC 7911 + docs drift. Round 2: disposition verification at the producer; RFC 7911 framing logic per rail and family; test discrimination of each new line |
 
 ### Findings open (round 1)
 | # | Severity | Finding | Location | Fixed by |
@@ -619,3 +619,33 @@ with field offsets.
 | N-3 | Not handled here, owed to the interop agent | - |
 
 Verified in this round: scoped tests green (`srpolicy`, `nlrisyntax`; `reactor` and `message` filtered to the RFC9830, TypedNLRIEdit, PrefixLimitShort, SRPolicy, NLRISyntax, RetainWellFormed, BGPLS and EVPN tests). `./le rfc check` shows no RFC 9830 violation (its 4 violations are RFC 4659, RFC 8654 and RFC 8955 records). RFC9830-4.2.1-2 and -4.2.1-7 are audited `enforced`. The moved assertions of `TestRetainWellFormedNLRILeavesOtherFamiliesAlone` and `TestReceivePrefixLimitShortAddPathEntry` are kept. Every `NLRISyntaxRuled` site and the `isEVPN` literal are gone (no-layering). The wire, attribute, message and feature pages match the code.
+
+### Round 2 (2026-10-21, independent reviewer, narrow over `7052b662a4`, `55be07dd57`, `11ea7bebde`)
+
+Dispositions verified at the producer:
+
+| # | Verdict | Evidence |
+|---|---------|----------|
+| B-1 | Fixed | `reactor/peer_initial_sync.go::sendPluginRoutesVia` frames each ungrouped route with `message.PluginNLRI(params.NLRI, route.PathID, addPath)`; `sendPluginRouteGroup` frames every member before both the one-UPDATE build and the `packNLRIs` split, so the split measures framed bytes. `addPath` is `Peer.addPathFor(fam)`, read from `sendCtx` (`bgpctx.FromNegotiatedSend`), so the framing follows ADD-PATH send per family, never receive. The Section 3 quote above `PluginNLRI` is verbatim against `rfc/full/rfc7911.txt` lines 144-146, under "3. Extended NLRI Encodings". `PathID` travels `bgp_routes.go::buildConfigRouteRequest` (`parsed.PathID`), `PluginRouteConfig.PathID`, `loader_routes.go::convertPluginRoute`, `reactor.PluginRoute.PathID`; `test/encode/addpath-srpolicy-pathid.ci` pins `00000000` and `00000009` ahead of the 0x60 length octet. Config plugin routes have no withdrawal rail (`p.settings.PluginRoutes` is read only by `sendPluginRoutesVia`), so no MP_UNREACH is owed there; the API rail frames through `WireNLRI` (`SupportsAddPath` true, `PathID` 0 without one) in `nlri.WriteNLRI`. Every receiver Ze has for these families honours `addPath` (`message/rfc7606.go::validateMPNLRIField`, `flowspec/plugin.go::DecodeNLRIHex`, `vpls/vpls.go::DecodeNLRIHex`, `srpolicy/split.go`), so no Ze receive side meets a Path Identifier it does not expect |
+| I-1 | Fixed | `test/encode/addpath-srpolicy-pathid.ci` reads as the disposition says |
+| I-2 | Fixed | `ai/INDEX.md` line 442 routes `nlrisyntax` to `docs/architecture/wire/nlri.md` |
+| N-1 | Accepted | record correction only |
+| N-2 | Fixed | `reactor/session_tunnel_encap.go::srPolicyAnnounced` compares `family.SAFISRPolicy`, `family.AFIIPv4`, `family.AFIIPv6` |
+| N-3 | Still owed | interop revert-reds run separately in QEMU; owed evidence, not a finding |
+
+`bgp/config` reds: foreign to `7052b662a4`. `go test -tags ze_core,ze_distro ./internal/component/bgp/config/` fails the same 55 tests over the working tree and over a `git archive 7052b662a4^` export (failing-name lists identical by `diff`), all on schema and registry lookups (`unknown top-level keyword: ospf`/`isis`, `unknown field in policy: reject-asn`, `unknown internal plugin`, `unknown address family "ipv4/flow"`) that the PathID return of `buildConfigRouteRequest` cannot produce. `reactor`, `message`, `srpolicy` and `mup` pass with the same tags.
+
+### Findings open (round 2)
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| I-3 | ISSUE | The SR Policy ADD-PATH refusal is now false. `srpolicy/register.go` still registers `NLRIAddPathRefusal: "Ze builds SR-Policy routes without an ADD-PATH path identifier"`, and its comment says "The SR-Policy route Ze builds carries none". Since `7052b662a4` the config rail sends a configured `path-information 9` (`addpath-srpolicy-pathid.ci`), but `update text ... path-information 9 nlri ipv4/sr-policy add ...` is still refused by `update/update_text_nlri.go::parseRegistryNLRISection` (`errFamilyRefusesAddPath`) with that reason shown to the operator. The fix removed the matching `_ = addPath` comment in `srpolicy/encode.go` but not this one (`ai/rules/stale-comments.md`, `ai/rules/user-facing-errors.md`). `srpolicy/types.go::PathID` says "SR-Policy does not use ADD-PATH" and is stale too | `srpolicy/register.go` (`NLRIAddPathRefusal`), `srpolicy/types.go` (`PathID`, `SupportsAddPath` docs) | open |
+| I-4 | ISSUE | The `ze bgp encode -i` framing in `flowspec/encode.go::EncodeRoute`, `mup/encode.go::EncodeRoute` and `vpls/encode.go::EncodeRoute` has no test: every `EncodeRoute` call in those packages' tests passes `addPath` false. Deleting any of the three `message.PluginNLRI` lines leaves every test green. Only `srpolicy` has `TestSRPolicyEncodeRouteAddPathWritesPathID` | `flowspec`, `mup`, `vpls` `*_test.go` (absent) | open |
+| I-5 | ISSUE | `pluginRouteGroupKey`'s new `PathID` field is unproven. `TestPluginRouteAddPathWritesPathID` groups two MVPN routes that both have PathID 0, so it stays green if `b.Uint(uint64(r.PathID))` is removed from the key. Two grouped routes with `path-information 1` and `2` would then share one UPDATE and both go out with the representative's identifier (`sendPluginRouteGroup` uses `g.rep.PathID`) | `reactor/plugin_route_addpath_test.go` | open |
+
+### Notes (round 2, non-blocking)
+| # | Note |
+|---|------|
+| N-4 | `7052b662a4` also carries an unrelated RFC 4760 Section 3 change that its body does not name: `mup/encode.go::EncodeRoute` stops writing NEXT_HOP (code 3) for IPv4 MUP. Its test `TestEncodeRouteWritesNoNextHop` is still uncommitted in `mup/encode_test.go` (another session's hunk), and `internal/core/family/family.go` carries the matching uncommitted removal of `LegacyNextHop`. The change is RFC-correct and `mup` passes over the working tree; `ai/rules/git-safety.md` asks the body to say whose hunks rode along |
+| N-5 | The `PathID` field in the group key also splits groups on sessions without ADD-PATH, where the identifier is never sent: routes that differ only in `path-information` now go in separate UPDATEs. Correct on the wire, just more UPDATEs |
+
+Round 2 verdict: 0 BLOCKER, 3 ISSUE (I-3, I-4, I-5), 2 NOTE. The gate is not clean. Round 3 is owed, narrow: the I-3 to I-5 fixes only.
