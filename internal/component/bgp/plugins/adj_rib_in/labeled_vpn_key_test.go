@@ -92,7 +92,14 @@ func vpnNLRI(label, distinguisher []byte, prefix ...byte) []byte {
 
 func feedStructured(t *testing.T, r *AdjRIBInManager, peer netip.Addr, body []byte) {
 	t.Helper()
-	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	feedStructuredContext(t, r, peer, body, bgpctx.EncodingContextForASN4(true))
+}
+
+// feedStructuredContext is feedStructured under the given encoding context, so a
+// test can negotiate ADD-PATH for a family.
+func feedStructuredContext(t *testing.T, r *AdjRIBInManager, peer netip.Addr, body []byte, ctx *bgpctx.EncodingContext) {
+	t.Helper()
+	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
 	wu := wireu.NewWireUpdate(body, ctxID)
 	attrs, err := wu.Attrs()
