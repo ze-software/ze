@@ -92,14 +92,17 @@ func waitFor(t *testing.T, what string, ready func() bool) {
 	t.Fatalf("timed out waiting for %s", what)
 }
 
-// lines answers the number of lines in a file, and zero when it does not exist.
+// lines answers the number of complete lines in a file, and zero when it does
+// not exist. It counts newlines, not words: an answer such as `error: <why>`
+// is one line, and counting its words let a wait end before the last answers
+// were written.
 func lines(t *testing.T, path string) int {
 	t.Helper()
 	data, err := os.ReadFile(path) //nolint:gosec // G304: a path this test wrote.
 	if err != nil {
 		return 0
 	}
-	return len(strings.Fields(string(data)))
+	return strings.Count(string(data), "\n")
 }
 
 // TestFleetRunsEveryScript is the defect this package exists to remove. Two
