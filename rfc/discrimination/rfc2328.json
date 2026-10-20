@@ -9,7 +9,7 @@
       "claim-sha": "0ff3937f588ae520",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
-      "producer-sha": "de6932919bf8ddbc",
+      "producer-sha": "1133b40076ec631e",
       "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "8fa2d918c514ab23",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
-      "producer-sha": "de6932919bf8ddbc",
+      "producer-sha": "1133b40076ec631e",
       "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "13840515c0df6aac",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
-      "producer-sha": "de6932919bf8ddbc",
+      "producer-sha": "1133b40076ec631e",
       "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "be4686e1eff58edf",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
-      "producer-sha": "de6932919bf8ddbc",
+      "producer-sha": "1133b40076ec631e",
       "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "00d38876fa232cdc",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
-      "producer-sha": "de6932919bf8ddbc",
+      "producer-sha": "1133b40076ec631e",
       "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "da156964d8acceb1",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/origination.go::routerLinks",
-      "producer-sha": "ef7dc3b9a15fef79",
+      "producer-sha": "b4bf643c3c3ad703",
       "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "182e4efd768cae60",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/origination.go::routerLinks",
-      "producer-sha": "ef7dc3b9a15fef79",
+      "producer-sha": "b4bf643c3c3ad703",
       "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1151,7 +1151,7 @@
       "claim-sha": "c693ebcdfb96ac42",
       "route": "revert",
       "producer": "internal/plugins/ospf/transport/backend_linux.go::joinGroup",
-      "producer-sha": "6f67c29ef621eb90",
+      "producer-sha": "5e1c79ad5397380a",
       "break": "body of joinGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1162,7 +1162,7 @@
       "claim-sha": "166c864d3aa682a9",
       "route": "revert",
       "producer": "internal/plugins/ospf/transport/backend_linux.go::joinGroup",
-      "producer-sha": "6f67c29ef621eb90",
+      "producer-sha": "5e1c79ad5397380a",
       "break": "body of joinGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1173,7 +1173,7 @@
       "claim-sha": "b53cd731e3140e51",
       "route": "revert",
       "producer": "internal/plugins/ospf/transport/backend_linux.go::leaveGroup",
-      "producer-sha": "ff9420d8aea721a6",
+      "producer-sha": "05f13fb311bd27b9",
       "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1184,7 +1184,7 @@
       "claim-sha": "af086876a33744e9",
       "route": "revert",
       "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
-      "producer-sha": "45343f40e3b5681d",
+      "producer-sha": "57357c85c1ce52bc",
       "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1404,7 +1404,7 @@
       "claim-sha": "8cc312190f39ea8c",
       "route": "revert",
       "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
-      "producer-sha": "45343f40e3b5681d",
+      "producer-sha": "57357c85c1ce52bc",
       "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1415,7 +1415,7 @@
       "claim-sha": "9f969d0dc8b468f0",
       "route": "revert",
       "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
-      "producer-sha": "45343f40e3b5681d",
+      "producer-sha": "57357c85c1ce52bc",
       "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

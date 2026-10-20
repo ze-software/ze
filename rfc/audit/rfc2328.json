@@ -9,6 +9,8 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -19,8 +21,8 @@
       "tests": {
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD": "cf75f320761de34a",
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterSendsNoSecondDDWithoutAck": "cf75f320761de34a",
-        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit": "505f18daaaedb60c",
-        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD": "505f18daaaedb60c"
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit": "61e1af9c89aa0d86",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD": "61e1af9c89aa0d86"
       },
       "units": {
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD": "cd9993a9dd59ab43",
@@ -34,8 +36,8 @@
       "note": "Forbidden: an LS Request for an LSA absent from the database not generating BadLSReq. Red: TestOSPFBadLSReqRestart fails on HandleLSReq != reasonBadLSReq, on state != exstart, and on the resent DD not being the initial I|M|MS DD. Other polarity: TestOSPFValidLSReqSendsLSUpdate and TestRFC2328KnownLSRequestDoesNotRestartExchange go red if a satisfiable request restarts the exchange (state change, exstart) or is not answered with one LS Update carrying that LSA. One clause, both polarities.",
       "requirement_sha": "ca04ff37ce67ff10",
       "tests": {
-        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFBadLSReqRestart": "505f18daaaedb60c",
-        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "505f18daaaedb60c",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFBadLSReqRestart": "61e1af9c89aa0d86",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "61e1af9c89aa0d86",
         "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328KnownLSRequestDoesNotRestartExchange": "42818b298d1598fb"
       },
       "units": {
@@ -547,8 +549,8 @@
       "tests": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "d5c94aa47f4b6b51",
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "d5c94aa47f4b6b51",
-        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "f8a4787456989a9e",
-        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "f8a4787456989a9e"
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "9e9280bb607bcee6",
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "9e9280bb607bcee6"
       },
       "units": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "3e6caeb689ba2dcb",
@@ -598,8 +600,8 @@
       "note": "Each listed test has both polarities through deliverDatagram, the Linux receive path. IP checksum: the 'checksum' case fails if a datagram with a broken header checksum is delivered. Destination: accepted for the interface address, AllSPFRouters and AllDRouters (TestOSPFReceiveAcceptsValidIPv4Envelope fails if any is rejected or not delivered), 'destination' case fails if a foreign address is delivered. Protocol: 'protocol' case (17) fails if delivered, while the valid datagrams carry 89. Rejections also assert one drop recorded and nothing on recvCh.",
       "requirement_sha": "ce131d5ca75ff71f",
       "tests": {
-        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "7b652ec10cdf20f2",
-        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "7b652ec10cdf20f2"
+        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "207326999e5c29e9",
+        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "207326999e5c29e9"
       },
       "units": {
         "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "fe85c4a36c926d58",
