@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""X-15: the v6 control words do what their v4 spelling does. `peer create` and `peer delete`
+are answered done (the created peer names this process, so the delete selector reaches it),
+and `session ack disable` answers done once and then nothing, while the route written after
+it still reaches the peer."""
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            sys.stderr.write('ERROR: stdin closed\n')
+            sys.exit(1)
+        line = line.strip()
+        lines.append(line)
+        # `error: <why>` is a detail line before the marker, so only the
+        # marker ends the answer.
+        if line in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('peer * announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    expect(
+        'peer create 127.0.0.9 local-address 127.0.0.1 local-as 1 peer-as 1 router-id 1.2.3.4 api api-v6-vocabulary',
+        lambda a: a == ['done'],
+        'done',
+    )
+    expect('peer delete 127.0.0.9', lambda a: a == ['done'], 'done')
+    expect('session ack disable', lambda a: a == ['done'], 'done')
+    # No answer is owed from here on, so the route on the wire is the proof.
+    send('peer * announce route 3.3.3.3/32 next-hop 33.33.33.33')
+    sys.stderr.write('SUCCESS\n')
+    for _ in sys.stdin:
+        pass
+
+
+if __name__ == '__main__':
+    main()

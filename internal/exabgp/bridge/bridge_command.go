@@ -118,6 +118,12 @@ type Command struct {
 	// Key names the routes Text carries, for the batch netting. It is zero for
 	// every command that carries no route.
 	Key RouteKey
+	// Withdrawal is the ze command that withdraws what Text announces, written
+	// by the builder that wrote Text, from the same tokens. The runner
+	// dispatches it when the script that announced the route exits with its
+	// routes withdrawn (ExaBGP's withdraw_owner). It is empty for a withdrawal
+	// and for every command that carries no route.
+	Withdrawal string
 }
 
 // RouteKey names the routes one command carries.
@@ -202,6 +208,13 @@ const (
 // statusWord is ExaBGP's daemon status command, `status` in API 4 and
 // `daemon status` in API 6.
 const statusWord = "status"
+
+// shutdownWord and pingWord are ExaBGP's v4 spellings of `daemon shutdown` and
+// `session ping` (v6ControlSpellings).
+const (
+	shutdownWord = "shutdown"
+	pingWord     = "ping"
+)
 
 // Nothing reports a line that carries no command: a blank line, or a comment.
 // It is an ANSWER rather than a failure, and it is named so that no caller has
@@ -290,8 +303,12 @@ func (t Translator) Line(line string) (Translation, error) {
 	// ExaBGP pads a command to align it in a script, and its own qa/api corpus
 	// writes `announce` and `route` with 38 spaces between them. Every match
 	// below is on token text, so the run of spaces is collapsed once here
-	// rather than guarded against at each site.
-	selector, rest, unmatched := splitNeighborSelector(strings.Join(strings.Fields(line), " "), t.everyPeer())
+	// rather than guarded against at each site. A v6 control line is read in
+	// its v4 spelling from here on (v4ControlSpelling), so both spellings of a
+	// word reach one translation, and one refusal, which still quotes the line
+	// as the script wrote it.
+	collapsed := v4ControlSpelling(strings.Join(strings.Fields(line), " "))
+	selector, rest, unmatched := splitNeighborSelector(collapsed, t.everyPeer())
 	if unmatched {
 		return Translation{Unmatched: true}, nil
 	}
@@ -340,7 +357,11 @@ func (t Translator) Line(line string) (Translation, error) {
 //	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
 //	shutdown, request shutdown  -> request shutdown           (ze-plugin:system-daemon-shutdown)
 //	enable-ack, disable-ack, silence-ack -> answered by the bridge itself
-//	ping, session ping [text]   -> answered by the bridge itself (bridge_ping.go)
+//	ping [text]                 -> answered by the bridge itself (bridge_ping.go)
+//
+// Each v6 spelling (`daemon shutdown`, `session ack disable`, `session ping`,
+// `rib clear out`, ...) arrives here already in its v4 spelling
+// (v4ControlSpelling in Translator.Line).
 //
 // The watchdog forms are read BEFORE convertRoute although they start with the
 // announce and withdraw verbs. convertRoute would refuse them anyway, because
@@ -360,14 +381,12 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{Local: LocalAckDisableAfter}, true
 	case len(fields) == 1 && fields[0] == "silence-ack":
 		return Translation{Local: LocalAckDisableNow}, true
-	case fields[0] == "ping",
-		len(fields) >= 2 && fields[0] == "session" && fields[1] == "ping":
+	case fields[0] == pingWord:
 		return Translation{Local: pingAction(fields)}, true
-	case fields[0] == statusWord,
-		len(fields) >= 2 && fields[0] == "daemon" && fields[1] == statusWord:
+	case fields[0] == statusWord:
 		return Translation{Local: LocalStatus}, true
-	case len(fields) == 1 && fields[0] == "shutdown",
-		len(fields) == 2 && fields[0] == "request" && fields[1] == "shutdown":
+	case len(fields) == 1 && fields[0] == shutdownWord,
+		len(fields) == 2 && fields[0] == "request" && fields[1] == shutdownWord:
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
 	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
 		(fields[2] == "in" || fields[2] == "out"):
@@ -503,7 +522,7 @@ func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlr
 	// a withdrawal of one route reach this function with the same family and
 	// the same tokens, and differ in the verb alone, so the two carry one
 	// identity and the batch netting can cancel one against the other.
-	write := func(tokens []string) Command {
+	write := func(tokens []string, verb string) Command {
 		var tb textbuf.Buffer
 		tb.Str("send bgp ").Str(selector).Str(" update text")
 		if command := attrs.Command(); command != "" {
@@ -528,13 +547,23 @@ func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlr
 			},
 		}
 	}
+	// An announce carries its own withdrawal: the same attributes and NLRI
+	// tokens under `del`, which is what `withdraw route` with the same body
+	// writes.
+	announce := func(tokens []string) Command {
+		command := write(tokens, verb)
+		if verb == nlriAdd {
+			command.Withdrawal = write(tokens, nlriDel).Text
+		}
+		return command
+	}
 
 	if !perNLRI {
-		return []Command{write(nlriTokens)}
+		return []Command{announce(nlriTokens)}
 	}
 	commands := make([]Command, 0, len(nlriTokens))
 	for _, token := range nlriTokens {
-		commands = append(commands, write([]string{token}))
+		commands = append(commands, announce([]string{token}))
 	}
 	return commands
 }
@@ -712,7 +741,16 @@ func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 	}
 	// The three NLRI fields are the policy's identity, so the key names them
 	// and not the tunnel-encap tail that follows.
-	return Command{Text: tb.String(), Key: srPolicyKey(afi, distinguisher, color, endpoint, false)}
+	var withdrawal textbuf.Buffer
+	withdrawal.Str("send bgp ").Str(selector).Str(" update text mp ").Str(afi).Str("/sr-policy del ").
+		Str(srPolicyDistinguisher).Byte(' ').Str(distinguisher).
+		Byte(' ').Str(srPolicyColor).Byte(' ').Str(color).
+		Byte(' ').Str(srPolicyEndpoint).Byte(' ').Str(endpoint)
+	return Command{
+		Text:       tb.String(),
+		Key:        srPolicyKey(afi, distinguisher, color, endpoint, false),
+		Withdrawal: withdrawal.String(),
+	}
 }
 
 // srPolicyKey names one SR-Policy candidate path, stated where the command is
@@ -803,10 +841,14 @@ func convertFlowSpec(selector, family, routeStr, verb string) Command {
 		}
 	}
 	keyNLRI.Str(nlri)
-	return Command{
+	command := Command{
 		Text: textbuf.Join(cmdParts, " "),
 		Key:  RouteKey{Family: fam, NLRI: keyNLRI.String(), Withdraw: verb == nlriDel},
 	}
+	if verb == nlriAdd {
+		command.Withdrawal = convertFlowSpec(selector, family, routeStr, nlriDel).Text
+	}
+	return command
 }
 
 func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string) {

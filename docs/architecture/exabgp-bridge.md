@@ -163,14 +163,20 @@ application is what measured it. That application writes
 refused by name, nothing was announced, and the script read the refusal as a
 failed check. `api-healthcheck-module` is the case.
 
-The REST of the v6 vocabulary is not read. v6 is target-first, so it writes
-`daemon shutdown`, `session ack disable`, `rib flush`, `peer create <ip>` and
-`peer delete <ip>` where v4 wrote `shutdown`, `disable-ack`, `flush adj-rib`,
-`create neighbor <ip>` and `delete neighbor <ip>`. The bridge translates the v4
-spelling of each and refuses the v6 one by name.
+The rest of the v6 vocabulary is read in its v4 spelling. v6 is target-first,
+so it writes `daemon shutdown`, `session ack disable`, `rib flush out`,
+`rib clear in`, `peer create <ip> ...` and `peer delete <ip>` where v4 wrote
+`shutdown`, `disable-ack`, `flush adj-rib out`, `clear adj-rib in`,
+`create neighbor <ip> ...` and `delete neighbor <ip>`. ExaBGP translates each
+v4 line into its v6 form (`translate_v4_to_v6`, `dispatch/v4.py`); the bridge
+reads the same table the other way, so the two spellings of a word reach one
+translation. A word whose v4 spelling the bridge does not translate
+(`daemon reload`, `session reset`, `system version`, `rib show in`, ...) is
+refused in both spellings with the same reason. `api-v6-vocabulary` is the case.
 
 <!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeyword, splitBracketSelector, selectorForAddresses -->
 <!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertNeighborControl -->
+<!-- source: internal/exabgp/bridge/bridge_v6_control.go -- v6ControlSpellings, v4ControlSpelling -->
 
 ## A bare address is a host route
 

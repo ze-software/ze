@@ -444,7 +444,11 @@ func (r *flowRoute) command(selector, verb string) Command {
 	// netting never reads them back out of the finished command. A withdrawal
 	// of this route writes the same rd and the same match components, so the
 	// two carry one key whatever the `then` block held (bridge_batch.go, Net).
-	return Command{Text: textbuf.Join(parts, " "), Key: r.key(verb)}
+	command := Command{Text: textbuf.Join(parts, " "), Key: r.key(verb)}
+	if verb == flowVerbAdd {
+		command.Withdrawal = r.command(selector, flowVerbDel).Text
+	}
+	return command
 }
 
 // key names the route this flow command carries.

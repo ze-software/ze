@@ -482,3 +482,98 @@ func TestThePeerKeywordNamesTheSameSessionsAsNeighbor(t *testing.T) {
 		})
 	}
 }
+
+// TestTranslateV6Vocabulary holds ExaBGP 6.0's target-first control words to
+// the translation their v4 spelling gets (X-15).
+//
+// VALIDATES: each v6 word of `_build_v6_tree` (dispatch/v6.py) translates to
+// exactly what the v4 word `translate_v4_to_v6` (dispatch/v4.py) maps onto it
+// translates to; a word whose v4 spelling the bridge refuses is refused in both
+// spellings with the same reason.
+// PREVENTS: a v6 script stopping at `daemon shutdown` or `session ack disable`
+// where the same script in v4 spelling goes on.
+func TestTranslateV6Vocabulary(t *testing.T) {
+	const create = " 10.0.0.2 local-address 10.0.0.1 local-as 65001 peer-as 65002"
+	translated := []struct{ v6, v4 string }{
+		{"daemon shutdown", "shutdown"},
+		{"daemon status", "status"},
+		{"session ack enable", "enable-ack"},
+		{"session ack disable", "disable-ack"},
+		{"session ack silence", "silence-ack"},
+		{"session ping", "ping"},
+		{"rib flush out", "flush adj-rib out"},
+		{"rib clear in", "clear adj-rib in"},
+		{"rib clear out", "clear adj-rib out"},
+		{"peer create" + create, "create neighbor" + create},
+		{"peer delete 10.0.0.2", "delete neighbor 10.0.0.2"},
+		{"system help", "help"},
+		{"Daemon  Shutdown", "shutdown"},
+	}
+	for _, tc := range translated {
+		t.Run(tc.v6, func(t *testing.T) {
+			want, err := TranslateLine(tc.v4)
+			require.NoError(t, err, "the v4 spelling is translated")
+			got, err := TranslateLine(tc.v6)
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+
+	refused := []struct{ v6, v4 string }{
+		{"daemon reload", "reload"},
+		{"daemon restart", "restart"},
+		{"session sync enable", "enable-sync"},
+		{"session sync disable", "disable-sync"},
+		{"session reset", "reset"},
+		{"session bye", "bye"},
+		{"system version", "version"},
+		{"system crash", "crash"},
+		{"system queue-status", "queue-status"},
+		{"rib show in", "show adj-rib in"},
+		{"peer show", "show neighbor"},
+	}
+	for _, tc := range refused {
+		t.Run(tc.v6, func(t *testing.T) {
+			_, v4Err := TranslateLine(tc.v4)
+			require.ErrorIs(t, v4Err, ErrLineNotTranslated)
+			_, v6Err := TranslateLine(tc.v6)
+			require.ErrorIs(t, v6Err, ErrLineNotTranslated)
+			assert.Contains(t, v6Err.Error(), tc.v6, "the refusal names the line the script wrote")
+			assert.Equal(t, strings.Replace(v4Err.Error(), tc.v4, tc.v6, 1), v6Err.Error(), "the same reason")
+		})
+	}
+
+	// `peer list` has no v4 spelling at all, and `list` is no peer address.
+	_, err := TranslateLine("peer list")
+	require.ErrorIs(t, err, ErrLineNotTranslated)
+}
+
+// TestAnnounceCarriesItsWithdrawal holds each announce's Withdrawal to the
+// command the matching withdraw line translates to (X-21).
+//
+// VALIDATES: the runner withdraws an exited script's route with the command
+// the script itself would have sent to withdraw it, for each builder that
+// writes a route: `announce route`, `announce <afi> <safi>`, flow, SR Policy.
+// PREVENTS: an exit withdrawal that names another route, or none.
+func TestAnnounceCarriesItsWithdrawal(t *testing.T) {
+	pairs := []struct{ announce, withdraw string }{
+		{"announce route 10.0.0.0/24 next-hop 1.2.3.4", "withdraw route 10.0.0.0/24 next-hop 1.2.3.4"},
+		{"neighbor 127.0.0.1 announce route 10.0.0.0/24 next-hop 1.2.3.4 path-information 7", "neighbor 127.0.0.1 withdraw route 10.0.0.0/24 next-hop 1.2.3.4 path-information 7"},
+		{"announce ipv6 unicast 2001:db8::/32 next-hop 2001:db8::1", "withdraw ipv6 unicast 2001:db8::/32 next-hop 2001:db8::1"},
+		{"announce flow route { match { destination 10.0.0.0/24; } then { discard; } }", "withdraw flow route { match { destination 10.0.0.0/24; } then { discard; } }"},
+		{"announce flow route destination 10.0.0.0/24 discard", "withdraw flow route destination 10.0.0.0/24 discard"},
+		{"announce ipv4 sr-policy distinguisher 1 color 2 endpoint 10.0.0.1 preference 3", "withdraw ipv4 sr-policy distinguisher 1 color 2 endpoint 10.0.0.1"},
+	}
+	for _, tc := range pairs {
+		t.Run(tc.announce, func(t *testing.T) {
+			announce, err := TranslateLine(tc.announce)
+			require.NoError(t, err)
+			withdraw, err := TranslateLine(tc.withdraw)
+			require.NoError(t, err)
+			require.Len(t, announce.Commands, 1)
+			require.Len(t, withdraw.Commands, 1)
+			assert.Equal(t, withdraw.Commands[0].Text, announce.Commands[0].Withdrawal)
+			assert.Empty(t, withdraw.Commands[0].Withdrawal, "a withdrawal withdraws nothing on exit")
+		})
+	}
+}
