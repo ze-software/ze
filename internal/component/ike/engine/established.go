@@ -319,6 +319,12 @@ func (ps *PeerSession) maintainSA(
 			// only this loop knows whether a Child SA is being created from the old
 			// group (pendingRekey), so the check and the adoption are one step.
 			ps.adoptESPGroup(reload, log)
+		case suspect := <-ps.suspicious:
+			// A message from this peer's address that named no IKE SA. It is answered
+			// HERE because the notification is built under sa.SKKeys and takes a
+			// message id from sa.NextMsgID, state this loop owns alone
+			// (notify_suspicious.go). RFC 7296 Section 2.21.4.
+			ps.informSuspicious(sa, suspect, tr, log)
 		case refusal := <-probeRefusals(sa, tr):
 			// The kernel queued an EMSGSIZE for a datagram this SA's socket sent
 			// with Don't Fragment. Only a path probe sends one, and a router's

@@ -217,6 +217,12 @@ type PeerSession struct {
 	// probeRequests: retargetESPGroup hands it over only to a loop that is there to take
 	// it, and the loop answers on the reply channel the request carries.
 	espReloads chan espReload
+
+	// suspicious carries a message that matched no IKE SA, sent from this peer's
+	// address, to the owner loop (maintainSA), which alone builds under the SA's keys
+	// and advances its message id (notify_suspicious.go). Buffered suspiciousQueueDepth;
+	// the dispatch goroutine never blocks on it and drops a message when it is full.
+	suspicious chan transport.Packet
 }
 
 // espReload is a reload's esp-group on its way to the owner loop, with the channel the
@@ -745,6 +751,7 @@ func startPeerSession(
 		// Unbuffered on purpose: see the field.
 		probeRequests: make(chan probeRequest),
 		espReloads:    make(chan espReload),
+		suspicious:    make(chan transport.Packet, suspiciousQueueDepth),
 	}
 	go ps.run(peer, ikeGroup, table, tr, bus, log)
 	return ps

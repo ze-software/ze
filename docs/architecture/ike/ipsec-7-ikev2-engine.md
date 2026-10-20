@@ -74,6 +74,28 @@ out-of-SA path.
 
 <!-- source: internal/component/ike/engine/table.go -- lookupInbound -->
 
+**A request that names no IKE SA, from a peer that holds one, is reported to
+that peer over its SA.** On the out-of-SA path a request that is not an
+IKE_SA_INIT can draw the unprotected INVALID_IKE_SPI that RFC 7296 Section
+2.21.4 permits. The same section adds that a node receiving a suspicious message
+from an address "with which it has an IKE SA SHOULD send an IKE Notify payload in
+an IKE INFORMATIONAL exchange over that SA". The dispatch goroutine therefore
+also hands the datagram to the session configured for its source address, when
+that session owns an established SA. The owner loop compares the source with the
+SA's own endpoint: the address always, and the port once the SA has floated to
+port 4500. When they match, it sends INVALID_IKE_SPI, with no data, as a new
+protected INFORMATIONAL request over the SA. A message marked as a response
+draws nothing, because the section forbids answering one.
+
+Every trigger is unauthenticated, so the bound is what keeps this safe. The
+notification goes to the SA's endpoint and never to the datagram's source, so a
+spoofed source cannot aim it at a third party. Each SA sends at most one per
+second, with a burst of three, and only while its request window is free, so it
+never displaces a liveness probe, a Delete or a rekey. The queue to the owner
+loop holds four, and a full queue drops the datagram.
+
+<!-- source: internal/component/ike/engine/notify_suspicious.go -- noteSuspicious, informSuspicious, fromSAEndpoint -->
+
 **The engine publishes its live tunnels through a registered inventory, so a
 feature outside this component reads them without importing it.** `init()`
 registers `inventorySnapshot` with `internal/core/ipsecinventory`, a

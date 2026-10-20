@@ -684,6 +684,9 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 			// not a request to start one, can draw an unprotected INVALID_IKE_SPI.
 			// answerOutOfSA holds each guard.
 			answerOutOfSA(tr, nattPkt, true, notifyLimiter, log)
+			// RFC 7296 Section 2.21.4 SHOULD, beside that MAY: when the source holds an
+			// IKE SA, tell the peer over that SA (notify_suspicious.go).
+			noteSuspicious(nattPkt)
 			continue
 		}
 
@@ -903,6 +906,8 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 			// RFC 7296 Section 2.21.4, as on the NAT-T path. This socket carries no
 			// non-ESP marker.
 			answerOutOfSA(tr, pkt, false, notifyLimiter, log)
+			// RFC 7296 Section 2.21.4, as on the NAT-T path (notify_suspicious.go).
+			noteSuspicious(pkt)
 			continue
 		}
 

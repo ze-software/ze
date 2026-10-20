@@ -140,6 +140,12 @@ type SA struct {
 	// limited". The emitter lives in notify_invalid_msgid.go.
 	invalidMsgIDLimiter *outboundNotifyLimiter
 
+	// suspiciousNotifyLimiter bounds how many INVALID_IKE_SPI notifications this SA
+	// raises over itself for a suspicious message from the peer's address. RFC 7296
+	// Section 2.21.4: "A node needs to limit the rate at which it will send messages in
+	// response to unprotected messages." The emitter lives in notify_suspicious.go.
+	suspiciousNotifyLimiter *outboundNotifyLimiter
+
 	// The one self-initiated request this SA awaits an answer for. RFC 7296
 	// Section 2.3 calls it the window for requests we send. Its size is one,
 	// because Ze never sends a SET_WINDOW_SIZE notify and never reads one. Every
