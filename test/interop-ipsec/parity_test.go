@@ -32,6 +32,7 @@ var ipsecScenarios = []string{
 	"ike-aes-ccm16",
 	"ike-padded-probe-strongswan",
 	"ike-rekey-retries-in-the-named-group",
+	"initiator-answer-one-local-two-remote",
 	"initiator-rekey-answer-narrows",
 	"invalid-ke-retry",
 	"ipsec-bgp-redistribute-frr",

@@ -84,7 +84,11 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"responder-ike-rekey":                  {run: checkResponderIKERekey},
 	"responder-psk":                        {run: checkResponderPSK},
 	"responder-two-subnets":                {run: checkResponderTwoSubnets},
-	"responder-raises-child-rekey":         {run: checkResponderRaisesChildRekey},
+	// Ze initiates the same two pairs, and strongSwan's answer of one TSi and two
+	// TSr selectors must install both (RFC 7296 Section 3.13), so the same policy
+	// read decides it.
+	"initiator-answer-one-local-two-remote": {run: checkResponderTwoSubnets},
+	"responder-raises-child-rekey":          {run: checkResponderRaisesChildRekey},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

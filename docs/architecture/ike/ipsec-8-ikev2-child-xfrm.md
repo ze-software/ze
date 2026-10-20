@@ -173,7 +173,10 @@ the one inbound policy into the state, and refuses a transport-mode Child SA of
 several pairs as a Ze defect rather than widen it. Tunnel mode keeps every pair.
 The interop scenario
 `responder-two-subnets` has strongSwan propose two subnets in one Child SA and
-reads both kernels: each must hold exactly the two ESP policy pairs. MOBIKE migration moves tunnel-mode SAs only (the
+reads both kernels: each must hold exactly the two ESP policy pairs.
+`initiator-answer-one-local-two-remote` turns the roles round: Ze proposes one local
+and two remote subnets, strongSwan answers one TSi and two TSr selectors, and both
+kernels must again hold both pairs (RFC 7296 Section 3.13). MOBIKE migration moves tunnel-mode SAs only (the
 migration refuses a non-tunnel template), and it carries the old state selector
 unchanged. The kernel probes are in
 `internal/component/ike/engine/rfc4301_sad_selector_linux_test.go`.
