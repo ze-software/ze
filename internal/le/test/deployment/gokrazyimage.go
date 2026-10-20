@@ -68,7 +68,11 @@ const (
 // developer who iterates on the proof itself. Both carry the warning that the
 // image must already contain this proof's template, its environment AND an
 // L2TP-capable kernel.
-func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string, error) {
+//
+// ctx is the verb's signal root: every child of the build (the host driver's
+// compile, its database writes, the child le that runs gok) starts under it,
+// bounded by imageBuildTimeout, so a SIGTERM to le ends the build it is in.
+func gokrazyImage(ctx context.Context, tree, work, template, arch string, progress io.Writer) (string, error) {
 	image := proofImagePath(tree, work)
 
 	if os.Getenv(GokrazySkipBuildEnv) == "1" {
@@ -88,14 +92,14 @@ func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string
 	// The build resolves ze's runtime kernel itself. This proof checks the cache
 	// entry first because it needs PPPoL2TP, and a cold cache is refused with the
 	// command that fills it rather than started as a 30-minute build here.
-	if err := checkRuntimeKernelCache(tree, arch, progress); err != nil {
+	if err := checkRuntimeKernelCache(ctx, tree, arch, progress); err != nil {
 		return "", err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), imageBuildTimeout)
+	ctx, cancel := context.WithTimeout(ctx, imageBuildTimeout)
 	defer cancel()
 
-	host, err := hostTool(tree)
+	host, err := hostTool(ctx, tree)
 	if err != nil {
 		return "", err
 	}
@@ -116,9 +120,15 @@ func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string
 	return image, nil
 }
 
-func hostTool(tree string) (string, error) {
-	report, code := buildcompile.BuildHost(tree)
+// hostTool builds the host appliance driver under ctx and answers its path.
+func hostTool(ctx context.Context, tree string) (string, error) {
+	report, code := buildcompile.BuildHost(ctx, tree)
 	if code != 0 || report.Output == "" {
+		if err := ctx.Err(); err != nil {
+			// The root ended or the bound passed: say so, rather than blame
+			// the toolchain for a build that was stopped.
+			return "", fmt.Errorf("build native host appliance driver: stopped: %w", err)
+		}
 		return "", errors.New("build native host appliance driver")
 	}
 	return report.Output, nil
@@ -325,12 +335,12 @@ func environmentHasKey(entries []any, key string) bool {
 // carry this proof: absent, built for another arch, without PPPoL2TP, or not the
 // pinned version. The image build reads the same entry, so a refusal here names
 // the build's own kernel before the build starts.
-func checkRuntimeKernelCache(tree, arch string, progress io.Writer) error {
+func checkRuntimeKernelCache(ctx context.Context, tree, arch string, progress io.Writer) error {
 	pinned, err := pinnedKernelVersion(tree)
 	if err != nil {
 		return err
 	}
-	cache, err := RuntimeKernelCacheDir(tree, arch, "", progress)
+	cache, err := RuntimeKernelCacheDir(ctx, tree, arch, "", progress)
 	if err != nil {
 		return err
 	}
@@ -352,11 +362,14 @@ func checkRuntimeKernelCache(tree, arch string, progress io.Writer) error {
 // The host binary is built first because it owns this answer. The cache layout
 // is keyed by architecture, by the pinned version and by the build backend. A
 // second statement of that layout here would create a second thing to keep in step.
-func RuntimeKernelCacheDir(tree, arch, builder string, progress io.Writer) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), imageBuildTimeout)
+//
+// ctx is the calling verb's signal root, so the host build and the query end
+// with the verb; imageBuildTimeout bounds both, as it did from Background.
+func RuntimeKernelCacheDir(ctx context.Context, tree, arch, builder string, progress io.Writer) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, imageBuildTimeout)
 	defer cancel()
 
-	host, err := hostTool(tree)
+	host, err := hostTool(ctx, tree)
 	if err != nil {
 		return "", err
 	}

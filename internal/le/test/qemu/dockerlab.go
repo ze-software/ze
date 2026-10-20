@@ -12,6 +12,7 @@
 package testqemu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -58,7 +59,7 @@ func runDockerLabHere(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	goarch := GuestArch()
-	cache, err := testdeployment.RuntimeKernelCacheDir(root, goarch, "", os.Stderr)
+	cache, err := testdeployment.RuntimeKernelCacheDir(context.Background(), root, goarch, "", os.Stderr)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

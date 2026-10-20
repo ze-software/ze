@@ -12,6 +12,7 @@
 package buildcompile
 
 import (
+	"context"
 	"path/filepath"
 	"runtime"
 
@@ -60,9 +61,16 @@ func Host() (any, int) {
 	return runAtRoot(hostPlan)
 }
 
-// BuildHost builds the native host-side appliance driver in root.
-func BuildHost(root string) (BuildReport, int) {
-	payload, code := runWithRoot(root, hostPlan, streamBuild)
+// BuildHost builds the native host-side appliance driver in root, under ctx.
+//
+// ctx is the calling verb's signal root. The build heads a process group of
+// its own (gaterun.StreamContext), so a Ctrl-C reaches le alone, and the
+// root's cancel kills the whole group: a canceled ctx starts no build at all.
+func BuildHost(ctx context.Context, root string) (BuildReport, int) {
+	payload, code := runWithRoot(root, hostPlan, func(action string, argv []string, dir string, environ []string) int {
+		_, code, _ := gaterun.RunContext(ctx, action, argv, dir, environ)
+		return code
+	})
 	report, _ := payload.(BuildReport)
 	return report, code
 }

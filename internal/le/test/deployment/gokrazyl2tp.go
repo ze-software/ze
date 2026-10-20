@@ -29,6 +29,7 @@ package testdeployment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -245,7 +246,13 @@ func applianceAccel() string {
 // fix, and the proof reached no verdict. A step of the L2TP path that does not
 // happen is NOT an error. It is the verdict. The report contains the verdict,
 // the reason, and the appliance's last console lines.
-func (g *gokrazyL2TP) Run() (GokrazyL2TPReport, error) {
+//
+// ctx is the verb's signal root. The image build and the virtual machine run
+// under it, so a SIGTERM ends the build, or kills the machine and with it every
+// wait on the console; the lab, the peer and the machine are then torn down by
+// the deferred stops, which take no context. A run the root ended answers an
+// error, because it reached no verdict.
+func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 	report := GokrazyL2TPReport{
 		Peer:             PeerName,
 		Arch:             g.Arch,
@@ -284,20 +291,27 @@ func (g *gokrazyL2TP) Run() (GokrazyL2TPReport, error) {
 		return report, err
 	}
 
-	image, err := gokrazyImage(g.Tree, work, template, g.Arch, g.Progress)
+	image, err := gokrazyImage(ctx, g.Tree, work, template, g.Arch, g.Progress)
 	if err != nil {
 		return report, err
 	}
 	report.Image = image
+	// A root that ended after the build creates no lab and boots nothing.
+	if err := ctx.Err(); err != nil {
+		return report, stoppedRun(err)
+	}
 
 	defer g.Lab.remove()
 	if err := g.Lab.setup(); err != nil {
 		return report, err
 	}
 
-	report, err = g.observe(report, image, peerDir)
+	report, err = g.observe(ctx, report, image, peerDir)
 	if err != nil {
 		return report, err
+	}
+	if err := ctx.Err(); err != nil {
+		return report, stoppedRun(err)
 	}
 	if report.Proven {
 		os.RemoveAll(work) //nolint:errcheck // the run passed; a scratch directory left behind is not a verdict
@@ -310,7 +324,10 @@ func (g *gokrazyL2TP) Run() (GokrazyL2TPReport, error) {
 // The proof stops the peer before the appliance. Only the peer's departure can
 // test the teardown path. If the appliance stops first, it ends the session
 // from the wrong end and proves nothing about the withdraw path.
-func (g *gokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error) {
+//
+// The machine runs under ctx, unbounded in time otherwise: the run's own waits
+// bound it, and the stop path is what ends it.
+func (g *gokrazyL2TP) observe(ctx context.Context, report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error) {
 	baselines, err := readPPPBaselines([]string{g.Lab.Namespace})
 	if err != nil {
 		return report, err
@@ -326,7 +343,7 @@ func (g *gokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (
 	if err != nil {
 		return report, err
 	}
-	machine := exec.CommandContext(g.context(), argv[0], argv[1:]...) //nolint:gosec // the argv is built below, never by an operator
+	machine := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the argv is built below, never by an operator
 	machine.Dir = g.Tree
 
 	appliance, err := startWatched(machine, "qemu> ", console, g.Progress)
@@ -352,7 +369,7 @@ func (g *gokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (
 		}
 	}
 
-	if err := g.Lab.awaitAppliance(g.AddressWait); err != nil {
+	if err := g.Lab.awaitAppliance(ctx, g.AddressWait); err != nil {
 		writeProgress(g.Progress, g.Lab.dnsmasqLog())
 		return g.fail(report, console, err.Error()), nil
 	}
@@ -401,6 +418,12 @@ func (g *gokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (
 
 	report.Proven = true
 	return report, nil
+}
+
+// stoppedRun answers the error of a run whose signal root ended before it
+// reached a verdict.
+func stoppedRun(cause error) error {
+	return fmt.Errorf("the proof was stopped before it reached a verdict (a SIGINT or SIGTERM to le): %w", cause)
 }
 
 // assertKernelState asks the host kernel what the appliance's console claims.
@@ -465,11 +488,6 @@ func (g *gokrazyL2TP) fail(report GokrazyL2TPReport, console *collector, reason 
 	report.LogTail = console.tailLines()
 	return report
 }
-
-// context answers the context the virtual machine is started under. It is
-// unbounded because the run's own waits are where it is bounded in time, and
-// the stop path is what ends the machine.
-func (g *gokrazyL2TP) context() context.Context { return context.Background() }
 
 // qemuArgs answers the virtual machine.
 //

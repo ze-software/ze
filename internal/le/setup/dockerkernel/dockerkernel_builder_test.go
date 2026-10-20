@@ -1,6 +1,7 @@
 package dockerkernel
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func TestDockerKernelInstallAsksForTheNamedBuilder(t *testing.T) {
 	saved := runtimeKernelCacheDir
 	t.Cleanup(func() { runtimeKernelCacheDir = saved })
 	var asked []string
-	runtimeKernelCacheDir = func(tree, arch, builder string, _ io.Writer) (string, error) {
+	runtimeKernelCacheDir = func(_ context.Context, tree, arch, builder string, _ io.Writer) (string, error) {
 		if tree != "/checkout" || arch != runtime.GOARCH {
 			t.Errorf("asked for tree %q arch %q, want /checkout %s", tree, arch, runtime.GOARCH)
 		}

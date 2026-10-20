@@ -41,7 +41,7 @@ func TestDockerLabGuestBootsZeKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cache, err := testdeployment.RuntimeKernelCacheDir(root, GuestArch(), "", os.Stderr)
+	cache, err := testdeployment.RuntimeKernelCacheDir(t.Context(), root, GuestArch(), "", os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}

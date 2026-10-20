@@ -20,6 +20,7 @@
 package testdeployment
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -289,11 +290,17 @@ func (g *gokrazyLab) stopDNSMasq() {
 // The proof uses a ping instead of the lease file. The peer needs the
 // appliance's stack to answer at the reserved address, not only a completed DHCP
 // exchange. A lease does not prove that a dial will succeed.
-func (g *gokrazyLab) awaitAppliance(timeout time.Duration) error {
+//
+// It gives up when ctx, the verb's signal root, ends: the machine is gone then,
+// and the wait would only run out its timeout.
+func (g *gokrazyLab) awaitAppliance(ctx context.Context, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
 		if _, ok := nsText(g.Namespace, "ping", "-c", "1", "-W", "1", g.ApplianceIP); ok {
 			return nil
+		}
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		if !time.Now().Before(deadline) {
 			var tb textbuf.Buffer

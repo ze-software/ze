@@ -45,7 +45,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "gokrazy-l2tp-ppp-test", Why: "the same L2TP PPP/NCP path proven on the gokrazy appliance image" +
 		" rather than on a dev host. Needs Linux root, QEMU, dnsmasq," +
 		" xl2tpd, pppd and PPPoL2TP kernel support",
-		Answer: runGokrazyL2TPHere},
+		Answer: signalRooted(runGokrazyL2TPAt)},
 	leaction.Action{Verb: "vpp-iface-test", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
 		" wireguard, LCP. Needs Docker and the host's /dev/net/tun and /dev/vhost-net",
 		Answer: signalRooted(runVPPIfaceAt)},
@@ -185,22 +185,17 @@ func runL2TPPPP(run *L2TPPPP) (L2TPPPPReport, int) {
 	return report, 0
 }
 
-// runGokrazyL2TPHere proves the L2TP PPP path against the appliance image built
-// from the checkout this command was run in.
-func runGokrazyL2TPHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	return runGokrazyL2TP(newGokrazyL2TP(root))
+// runGokrazyL2TPAt proves the L2TP PPP path against the appliance image built
+// from the checkout at root, under the verb's signal root ctx.
+func runGokrazyL2TPAt(ctx context.Context, root string) (any, int) {
+	return runGokrazyL2TP(ctx, newGokrazyL2TP(root))
 }
 
 // runGokrazyL2TP answers the proof over one run. It uses the same terms as its
 // on-host sibling. A step that cannot be performed is an error. A step in the
 // path that did not happen is the verdict.
-func runGokrazyL2TP(run *gokrazyL2TP) (GokrazyL2TPReport, int) {
-	report, err := run.Run()
+func runGokrazyL2TP(ctx context.Context, run *gokrazyL2TP) (GokrazyL2TPReport, int) {
+	report, err := run.Run(ctx)
 	if err != nil {
 		leaction.ReportError(err)
 		return report, 1

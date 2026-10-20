@@ -362,8 +362,12 @@ var runtimeKernelCacheDir = testdeployment.RuntimeKernelCacheDir
 // installCache answers the runtime-kernel cache entry the install places: the
 // one ze-host keys by this host's architecture and by builder, the backend the
 // operator named after `builder`, or ze-host's own choice when none.
+//
+// The install verb holds no signal root, so the query runs from Background,
+// bounded by the producer's own timeout, as it did before the producer took a
+// context.
 func installCache(root, builder string) (string, error) {
-	return runtimeKernelCacheDir(root, runtime.GOARCH, builder, os.Stderr)
+	return runtimeKernelCacheDir(context.Background(), root, runtime.GOARCH, builder, os.Stderr)
 }
 
 // runtimeKernelRebuild is what every refusal of a cache entry tells the

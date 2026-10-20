@@ -131,12 +131,21 @@ checks of `./le verify evidence release-candidate`, `./le setup docker-kernel`,
 the deployment proofs and the terminal demos, and the scenarios `./le feature
 record-run` drives, each run under that root, and so does the daemon
 cross-compile of the signal-rooted deployment proofs (`l2tp-test`, `vpp-test`,
-`vpp-iface-test`).
+`vpp-iface-test`). `gokrazy-l2tp-ppp-test` runs its whole appliance path under
+the root: the host driver's compile, the runtime-kernel query, the child le
+that runs gok, and the QEMU machine. A cancel during the build ends the build
+and boots nothing; a cancel after the boot kills the machine, so every console
+wait ends at once and the deferred stops tear the lab and the peer down, with
+no context of their own.
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 <!-- source: internal/le/verify/evidence/evidence.go -- dockerKernel, Runner.Run -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck -->
 <!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
 <!-- source: internal/le/test/deployment/daemonbuild.go -- runDaemonBuild -->
+<!-- source: internal/le/test/deployment/gokrazyimage.go -- gokrazyImage, RuntimeKernelCacheDir, hostTool -->
+<!-- source: internal/le/test/deployment/gokrazyl2tp.go -- gokrazyL2TP.Run, gokrazyL2TP.observe -->
+<!-- source: internal/le/build/compile/build.go -- BuildHost -->
+<!-- test: internal/le/test/deployment/gokrazyroot_test.go TestGokrazyImageBuildsUnderTheVerbRoot -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkKernel, Engine.demoGrants -->
 <!-- source: internal/le/feature/recordrun.go -- runCatalogScenario -->
 <!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
