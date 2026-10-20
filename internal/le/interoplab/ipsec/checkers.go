@@ -377,6 +377,16 @@ var eapTLSRefusalFacts = [...]string{
 //
 // Each assertion is numbered, so a red run names which one failed and a
 // discrimination record can cite it.
+//
+// RFC requirement: RFC7627-5.4-1 negative -- with strongSwan 5.9.14 completing
+// an EAP-TLS handshake with ze on TLS 1.2 without the RFC 7627 extended master
+// secret, ze logs that it cannot export the RFC 5216 Section 2.3 MSK, naming the
+// peer, TLS 1.2, RFC 7627 and crypto/tls refusing ExportKeyingMaterial, and
+// neither ze nor strongSwan installs an XFRM state.
+// RFC requirement: RFC7627-5.4-2 negative -- on that same session the RFC 5705
+// export EAP-TLS keys come from is refused: ze's log carries crypto/tls's
+// "ExportKeyingMaterial is unavailable" with the refusal, and no XFRM state
+// exists on either end, so EAP-TLS authenticates nothing.
 func checkEAPTLS(ctx context.Context, lab *scenarioLab) error {
 	const (
 		// The grouped form is what `interopScenarioOf` (`internal/le/rfc`) reads to
