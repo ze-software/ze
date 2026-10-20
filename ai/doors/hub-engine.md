@@ -22,12 +22,13 @@ repeat it.
   separate orchestrator in `internal/component/hub` was deleted on 2026-08-12.
   That directory now holds only the `ze-hub-conf.yang` schema
   (`docs/architecture/hub-architecture.md`, status header).
-- **The Engine supervises `ze.Subsystem`s, and BGP is not one of them.**
+- **BGP is a subsystem, but it does not boot through `RegisterSubsystem`.**
   `engine.Engine` `RegisterSubsystem` takes L2TP and PPPoE today
-  (`cmd/ze/hub/register_l2tp.go` `registerBNGSubsystems`). BGP loads as a
-  config-path plugin through the plugin server and attaches to
-  `plugin.Coordinator` with `SetReactor` and `OnPostStartup`
-  (`internal/component/bgp/plugin/register.go`).
+  (`cmd/ze/hub/register_l2tp.go` `registerBNGSubsystems`). The BGP subsystem
+  loads through the plugin server and attaches to `plugin.Coordinator` with
+  `SetReactor` and `OnPostStartup` (`internal/component/bgp/plugin/register.go`).
+  That is the wiring, not the design: BGP and its plugins stay one subsystem
+  that `ze_bgp` compiles out.
 - **The plugin server is the EventBus and does the forking.** `eng.Start` runs
   before any plugin process exists. The five startup phases run later, in
   `apiServer.StartWithContext` (`cmd/ze/hub/main.go`).

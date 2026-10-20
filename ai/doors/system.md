@@ -62,13 +62,31 @@ which. Code that only works internal is broken.
 
 ## The core knows nothing, and everything registers
 
-- **The engine has no BGP knowledge.** BGP loads as a config-root plugin whose
-  reactor attaches to the coordinator (`internal/component/bgp/plugin/register.go`),
-  and `bgp-rib`, `bgp-rs` and `bgp-gr` are plugins beside it. The engine
-  registers only L2TP and PPPoE as `ze.Subsystem` today
-  (`cmd/ze/hub/register_l2tp.go`). The SSH server also implements the
-  interface.
-  `internal/component/plugin/` imports nothing from `internal/component/bgp/`
+- **BGP is a subsystem, and the engine has no BGP knowledge.** The BGP
+  subsystem owns TCP, the FSM and the wire. Its plugins (`bgp-rib`, `bgp-rs`,
+  `bgp-gr` and the rest under `internal/component/bgp/plugins`) extend it, and
+  each one can be removed. The whole subsystem and its plugins compile out
+  with `ze_bgp`. A subsystem is not a plugin, and a plugin is not a subsystem
+  (`component-boundaries.md`). The mechanism today: the BGP reactor attaches to
+  the coordinator from `internal/component/bgp/plugin/register.go`, and only
+  L2TP and PPPoE go through `Engine.RegisterSubsystem`
+  (`ai/doors/hub-engine.md`).
+- **A compile tag is a boundary, and code MUST NOT reach across it.** A
+  `ze_<feature>` tag in `feature-gates.txt` removes a package and everything
+  only it imports.
+
+  - Always-on code MUST NOT import a gated package.
+  - Code reaches a gated feature only through a registry or a seam that the
+    feature fills from its own `init()`. A build without the tag then still
+    compiles, and it answers that the feature is absent.
+  - A gate that depends on another gate (BMP needs `ze_bgp`) declares it.
+    Read "Dependent gates and dependent files" in
+    `docs/architecture/plugin/feature-gates.md` before you add one.
+  - `./le arch tier check` refuses the import. The generated
+    `plugin/all/all_ze_<tag>.go` files own the blank imports
+    (`docs/architecture/module-tiers.md`, "Compile-out").
+  - An untagged test does not link a gated package. Run it with its tag.
+- `internal/component/plugin/` imports nothing from `internal/component/bgp/`
   (`component-boundaries.md`), apart from the blank imports in the generated
   composition root `plugin/all`. `plugin/server` does import `iface` for
   autoload, which section 19 of `core-design.md` does not allow: a known gap,

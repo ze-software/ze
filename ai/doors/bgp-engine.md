@@ -27,9 +27,11 @@ How a session and an UPDATE flow is in `ai/digests/bgp-reactor.md` and
   `internal/component/bgp` is gated by `ze_bgp` through the generated
   `internal/component/plugin/all/all_ze_bgp.go`. None carries its own build tag
   (`feature-gates.txt`, the `ze_bgp` block). Always-on code must not import it.
-- **It boots as a config-path plugin, not as a `ze.Subsystem`.** The BGP plugin
+- **BGP is a subsystem, and its plugins extend it.** The subsystem owns TCP,
+  the FSM and the wire (`docs/architecture/plugin/component-boundaries.md`).
+  Its boot mechanism today: the BGP plugin
   (`internal/component/bgp/plugin/register.go`) builds the reactor and hands it
-  to the Coordinator. Peers start only after every plugin phase finished
+  to the Coordinator, rather than through `Engine.RegisterSubsystem`. Peers start only after every plugin phase finished
   (`ai/digests/hub-engine.md`, step 7).
 - **Two tiers of package.** `internal/core/bgp/{attribute,nlri,capability,context,wire}`
   are core leaves with no config lifecycle. `internal/component/bgp/{reactor,fsm,message,wireu,attrpool,filterapi,server}`
