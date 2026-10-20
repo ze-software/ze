@@ -40,9 +40,14 @@ func runYangWrite(t *testing.T, content string) (int, string) {
 }
 
 // runYangWriteAt names the module path, which decides whether a leaf renders.
+// The writing session has read every design door first, so the door gate
+// (doorgate_test.go) stays out of the verdict these YANG cases judge.
 func runYangWriteAt(t *testing.T, path, content string) (int, string) {
 	t.Helper()
-	code, _, message := runHook(t, t.TempDir(), "pretool-writeedit", map[string]any{
+	root := t.TempDir()
+	readEveryDoor(t, root, "sess-yang")
+	code, _, message := runHook(t, root, "pretool-writeedit", map[string]any{
+		"session_id": "sess-yang",
 		"tool_name":  "Write",
 		"tool_input": map[string]any{"file_path": path, "content": content},
 	})
@@ -173,8 +178,11 @@ func TestWriteEditSaysWhenTheProposedYangDoesNotRead(t *testing.T) {
 // never saw is reported as unjudged, and it is not measured.
 func TestWriteEditSaysWhenAYangEditNamesNoOwningStatement(t *testing.T) {
 	long := strings.Repeat("abcdefghij ", 8) + "abcdefgh."
-	code, _, message := runHook(t, t.TempDir(), "pretool-writeedit", map[string]any{
-		"tool_name": "Edit",
+	root := t.TempDir()
+	readEveryDoor(t, root, "sess-yang")
+	code, _, message := runHook(t, root, "pretool-writeedit", map[string]any{
+		"session_id": "sess-yang",
+		"tool_name":  "Edit",
 		"tool_input": map[string]any{
 			"file_path":  yangModulePath,
 			"old_string": "    ze:help\n      \"Show the state of every BGP session.\";\n",

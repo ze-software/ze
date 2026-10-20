@@ -22,6 +22,27 @@ writes from habit gets wrong:
 
 Then open the door for the area you work in.
 
+**The write hook enforces the read.** Before a session's or a subagent's first
+Write, Edit or MultiEdit of a Go file (tests included), a YANG module or a templ
+file, it must have read `system.md` and the door covering that file, each in
+full: a Read with no offset and no limit short of the last line, or a `cat`
+with no pipe. The covering door is every door whose `door-base` header names
+the longest whole-component prefix of the file's path, so a file under
+`internal/component/bgp/plugins/` owes `bgp-plugins.md`, not `bgp-engine.md`,
+and doors tied on that prefix (`pkg/ze`) are all owed. A file no header reaches
+owes `system.md` alone. Prose and other files are never refused. The refusal
+names each unread door (`writeDesignDoorsRead`,
+`internal/le/hookruntime/writeedit.go`;
+`ai/rules/points/architecture/directives/read-the-design-doors-before-the-first-code-edit.md`).
+
+**A new door joins the gate by its header alone.** The hook parses the
+`door-base` header of every page here at call time, so no list of doors exists
+to update. Every page here except this README owes one well-formed header: a
+page with none, a misspelt opener, or a header that does not close or names no
+path refuses every code edit until it is repaired, rather than covering nothing
+in silence. A code file outside the checkout (scratch, another worktree) is not
+gated by these doors; a symlink alias of the checkout is.
+
 **The main thread names the door in every subagent brief** that touches a
 subsystem: "Read `ai/doors/system.md` and `ai/doors/<door>.md` before you act."
 

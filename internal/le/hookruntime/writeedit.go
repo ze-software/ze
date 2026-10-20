@@ -261,34 +261,12 @@ func writeSpecStatus(ctx context) *verdict {
 	return nil
 }
 
-// styleGuidePath is the Go style guide a context reads before its first Go
-// edit, relative to the checkout root.
-const styleGuidePath = "docs/contributing/ze-go-style.md"
-
-// styleGuideMarker names the file that records this context's read of the Go
-// style guide. A subagent's hook payload carries its PARENT's session_id and
-// its own agent_id, so a subagent gets a marker of its own: a read in the
-// parent's context put nothing into the subagent's. The name joins the two the
-// way every per-agent file does (lepath.AgentFingerprint), so the session
-// reaper removes it with its session. It answers "" when the session or the
-// agent cannot be named, and every caller reads "" as no record.
-func styleGuideMarker(ctx context) string {
-	id := resolvedSessionID(ctx)
-	if id == "" {
-		return ""
-	}
-	fingerprint, err := lepath.AgentFingerprint(id, ctx.payload.AgentID)
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(ctx.root, "tmp", "session", ".style-guide-read-"+fingerprint)
-}
-
 // ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit
 // writeStyleGuideRead refuses a Go write from a context with no record of
-// reading the Go style guide. The Read hook (hookSourceRead) and the Bash hook
-// (bashStyleGuideRead) write the record. Go written through a Bash heredoc never
-// reaches this check.
+// reading the Go style guide in full. The Read hook (hookSourceRead) and the
+// Bash hook (bashDocumentRead) write the record, which documentReadMarker names
+// per session and per subagent. Go written through a Bash heredoc never reaches
+// this check.
 func writeStyleGuideRead(ctx context) *verdict {
 	if !strings.HasSuffix(ctx.path, ".go") {
 		return nil
@@ -296,14 +274,88 @@ func writeStyleGuideRead(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
 		return nil
 	}
-	marker := styleGuideMarker(ctx)
+	marker := documentReadMarker(ctx, styleGuidePath)
 	if marker == "" {
 		return &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + styleGuidePath + " can be found.\n  The Go style gate is fail-closed.\n  ai/rules/go-standards.md"}
 	}
-	if _, err := os.Stat(marker); err == nil {
+	if recorded(marker) {
 		return nil
 	}
 	return &verdict{2, "❌ BLOCKED: read " + styleGuidePath + " in full before this session's first Go edit.\n  Read it whole with the Read tool (no offset, no limit short of its last line),\n  or print it whole from Bash with cat and no pipe, then retry.\n  ai/rules/go-standards.md"}
+}
+
+// ze point: architecture/directives/read-the-design-doors-before-the-first-code-edit
+// writeDesignDoorsRead refuses a code write (Go, YANG, templ) from a context
+// with no record of reading ai/doors/system.md and every door covering the
+// file, each in full. The Read hook (hookSourceRead) and the Bash hook
+// (bashDocumentRead) write the records. The doors are found by their own
+// headers at call time, so a new door joins the gate with no edit here. A file
+// outside the checkout, after symlinks are resolved, is not gated by its doors.
+// Code written through a Bash heredoc never reaches this check.
+func writeDesignDoorsRead(ctx context) *verdict {
+	if !codeFile(ctx.path) {
+		return nil
+	}
+	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
+		return nil
+	}
+	file, inside := checkoutPath(ctx)
+	if !inside {
+		// A file outside this checkout (scratch, another checkout or worktree)
+		// is not under this checkout's doors, so a scratch probe stays possible.
+		return nil
+	}
+	if documentReadMarker(ctx, systemDoorPath) == "" {
+		return &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + systemDoorPath + " can be found.\n  The design-door gate is fail-closed.\n  ai/rules/architecture.md"}
+	}
+	doors, err := loadDoors(ctx.root)
+	var header *doorHeaderError
+	if errors.As(err, &header) {
+		return &verdict{2, "❌ BLOCKED: " + header.page + " is not a usable design door: " + header.reason +
+			".\n  Why: the gate reads each door's header to know which files it covers, and a door it cannot read would release them in silence.\n  Fix: give " + header.page + " one line `<!-- door-base: <path> <path> -->` naming the checkout paths it covers, then retry.\n  ai/doors/README.md, ai/rules/architecture.md"}
+	}
+	if err != nil {
+		return &verdict{2, "❌ BLOCKED: " + doorsDir + " cannot be read: " + err.Error() +
+			"\n  Why: every code edit needs " + systemDoorPath + " read first, and the gate cannot name the doors covering the file.\n  Fix: restore " + doorsDir + " from git, then read the doors and retry.\n  ai/rules/architecture.md"}
+	}
+	if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(systemDoorPath))); err != nil {
+		return &verdict{2, "❌ BLOCKED: " + systemDoorPath + " cannot be read: " + err.Error() +
+			"\n  Why: every code edit needs it read first, and this checkout does not hold it.\n  Fix: restore " + systemDoorPath + " from git, then read it and retry.\n  ai/rules/architecture.md"}
+	}
+	required := []string{systemDoorPath}
+	for _, page := range coveringDoors(doors, file) {
+		if !slices.Contains(required, page) {
+			required = append(required, page)
+		}
+	}
+	var unread []string
+	for _, page := range required {
+		if !recorded(documentReadMarker(ctx, page)) {
+			unread = append(unread, page)
+		}
+	}
+	if len(unread) == 0 {
+		return nil
+	}
+	return &verdict{2, doorRefusal(file, unread)}
+}
+
+// doorRefusal names the file, every unread door, why the doors come first,
+// and the read that clears the refusal.
+func doorRefusal(file string, unread []string) string {
+	var tb textbuf.Buffer
+	tb.Str("❌ BLOCKED: this session or agent has not read the design doors that cover ").Str(file).Str(":\n")
+	for _, page := range unread {
+		tb.Str("  - ").Str(page).Byte('\n')
+	}
+	tb.Str("  Why: ").Str(systemDoorPath).Str(" holds the design every change respects (third-party plugins, the process\n").
+		Str("  boundary, the public pkg/ API, registration over enumeration), and the covering door names\n").
+		Str("  this subsystem's outside contracts, boundaries and traps. Code written before them is written from habit.\n").
+		Str("  Fix: read each listed door whole with the Read tool (no offset, no limit short of its last line),\n").
+		Str("  or print it whole from Bash with cat and no pipe, then retry. A glob (`cat ai/doors/*.md`) records\n").
+		Str("  nothing: name each door.\n").
+		Str("  ai/rules/architecture.md")
+	return tb.String()
 }
 
 func goEdit(ctx context) bool {

@@ -86,14 +86,15 @@ var nativeHookActions = map[string]hookAction{
 			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
 			bashTestDeletion, bashGovernedWrite, preMaterializeDerived,
-			bashStyleGuideRead, bashCallBudget,
+			bashDocumentRead, bashCallBudget,
 		},
 	},
 	"pretool-writeedit": {
 		tools: []string{toolWrite, "Edit", "MultiEdit", "NotebookEdit"},
 		checks: []hookCheck{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
-			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeGoPatterns,
+			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead,
+			writeGoPatterns,
 			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
 			writeCallBudget,
 		},

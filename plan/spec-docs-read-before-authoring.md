@@ -134,9 +134,9 @@ missing `// Design:` line, at warning severity only.
 
 **Source files read:**
 - [ ] `internal/le/hookruntime/runtime.go` - `nativeHookActions` maps `pretool-bash`, `pretool-writeedit`, `posttool-writeedit` to ordered checks; `context` carries root, tool, input, path, content, payload
-- [ ] `internal/le/hookruntime/writeedit.go` - `writeDesignEvidence` refuses a spec or `plan/design-*` write unless an LSP marker or a `.source-read-*-<session>` marker exists (session-wide, not per agent); `writeStyleGuideRead` refuses a Go Write/Edit/MultiEdit without the per-agent `.style-guide-read-<fingerprint>` marker, fail-closed when the id is unusable
+- [ ] `internal/le/hookruntime/writeedit.go` - `writeDesignEvidence` refuses a spec or `plan/design-*` write unless an LSP marker or a `.source-read-*-<session>` marker exists (session-wide, not per agent); `writeStyleGuideRead` refuses a Go Write/Edit/MultiEdit without the per-agent `.doc-read-<escaped path>-<fingerprint>` marker (`documentReadMarker`), fail-closed when the id is unusable
 - [ ] `internal/le/hookruntime/lifecycle.go` - `runLifecycleHook` dispatches `mark-source-read` to `hookSourceRead` and `mark-agent-spawned` to a session marker; `hookSourceRead` writes the style-guide marker only for a whole-file Read (`readWholeFile`)
-- [ ] `internal/le/hookruntime/bash.go` - `bashStyleGuideRead` records a Bash print of the style guide (`printsStyleGuide`: `cat` with no pipe); `bashGovernedWrite` refuses a shell write into `plan/` or `ai/rules/`
+- [ ] `internal/le/hookruntime/bash.go` - `bashDocumentRead` records a Bash print of the style guide or a door (`printedDocuments`: `cat` with no pipe); `bashGovernedWrite` refuses a shell write into `plan/` or `ai/rules/`
 - [ ] `internal/le/hookruntime/session.go` - `resolvedSessionID`, `sessionMarker`
 - [ ] `internal/le/le/path/commitsession.go` - `AgentFingerprint(session, agent)` answers `session` for the main thread and `session` plus separator plus agent for a subagent
 - [ ] `internal/le/doc/index/docstocode.go` - `Build`, `walkGo`, `designRefs`, `designLine`, `SkipsDir`, `IsDesignSource`
@@ -183,7 +183,7 @@ missing `// Design:` line, at warning severity only.
 
 ### Integration Points
 - `nativeHookActions` - new checks appended to `pretool-writeedit`, new `pretool-agent` group
-- `hookSourceRead`, `bashStyleGuideRead`'s sibling in `pretool-bash` - ledger writers
+- `hookSourceRead`, `bashDocumentRead`'s sibling in `pretool-bash` - ledger writers
 - `docindex.DocumentsByPath` and `designRefs` - the only coverage producers
 - `citation.AuditAnchors` - switches from `declaredDesignDocument` to the shared producer
 - `.claude/settings.json` - one new `PreToolUse` entry with matcher `Task|Agent`

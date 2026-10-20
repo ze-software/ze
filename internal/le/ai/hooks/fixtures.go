@@ -180,11 +180,25 @@ var (
 	// (exit 2) instead of running as the main thread. 2026-10-18: the
 	// wait-loop refusal names `./le verify current`, the removed `mode full`
 	// spelling gone.
+	// Re-sealed 2026-10-20 for the design-door gate: writeDesignDoorsRead
+	// (writeedit.go, with its door parsing in readgate.go, now a hashed
+	// source) refuses a Go, YANG or templ write until the context read
+	// ai/doors/system.md and every door whose
+	// door-base header is the longest prefix of the file, each in full. The
+	// style guide and the doors share one read record (documentReadMarker,
+	// gatedDocument), so bashStyleGuideRead became bashDocumentRead and the
+	// style-guide marker is now .doc-read-<escaped path>-<fingerprint>. Pinned
+	// by doorgate_test.go and styleguide_test.go in hookruntime. No fixture
+	// category is owed: the style gate it extends has none, and Probe reaches
+	// the new check through the registry. Review round 1: a page under
+	// ai/doors other than README.md with no usable header refuses, a file
+	// outside the checkout after symlink resolution is not gated, the
+	// unreadable-doors refusal is split by cause, and the marker escapes `+`.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xcf, 0x08, 0x45, 0x18, 0xa6, 0x2a, 0x12, 0xc4,
-		0xe9, 0xbf, 0x45, 0x3c, 0xea, 0xbe, 0x91, 0xed,
-		0xa1, 0x35, 0xa2, 0xa2, 0xe8, 0x41, 0xac, 0x8f,
-		0x4a, 0x06, 0x67, 0xda, 0x73, 0x44, 0x60, 0xf1,
+		0xfb, 0x11, 0xd1, 0x58, 0x66, 0xee, 0xf1, 0x38,
+		0xbb, 0x63, 0x10, 0xd5, 0x11, 0x3c, 0x08, 0xa7,
+		0xf2, 0x67, 0xfb, 0xed, 0xbc, 0x9b, 0x09, 0xe4,
+		0x98, 0xcd, 0x30, 0xb8, 0x50, 0x1a, 0x3c, 0xe9,
 	}
 )
 
@@ -291,6 +305,7 @@ var hookSourcePaths = [...]string{
 	hookWriteEditFile,
 	hookPostWriteFile,
 	hookLifecycleFile,
+	"internal/le/hookruntime/readgate.go",
 	weakenedActionsFile,
 	weakenedProposedFile,
 }

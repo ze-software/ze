@@ -883,14 +883,16 @@ func preMaterializeDerived(ctx context) *verdict {
 }
 
 // ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit
-// bashStyleGuideRead records a Bash print of the whole Go style guide, which
-// writeStyleGuideRead asks for before a Go edit. It never refuses. A command
+// ze point: architecture/directives/read-the-design-doors-before-the-first-code-edit
+// bashDocumentRead records a Bash print of a whole gated document (the Go style
+// guide, or a page under ai/doors), which writeStyleGuideRead and
+// writeDesignDoorsRead ask for before a code edit. It never refuses. A command
 // with a pipe, a redirection or a substitution records nothing, because the
 // output then goes somewhere other than the reader. It runs before the
 // command, so a command that then fails still leaves the record.
-func bashStyleGuideRead(ctx context) *verdict {
+func bashDocumentRead(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if !strings.Contains(command, styleGuidePath) {
+	if !strings.Contains(command, styleGuidePath) && !strings.Contains(command, doorsDir+"/") {
 		return nil
 	}
 	for _, diverts := range []string{"|", ">", "<(", "$("} {
@@ -899,45 +901,45 @@ func bashStyleGuideRead(ctx context) *verdict {
 		}
 	}
 	for _, segment := range commandSegments(command) {
-		if printsStyleGuide(shellWords(segment)) {
-			writeMarkerFile(styleGuideMarker(ctx), "")
-			return nil
+		for _, document := range printedDocuments(shellWords(segment)) {
+			writeMarkerFile(documentReadMarker(ctx, document), "")
 		}
 	}
 	return nil
 }
 
-// printsStyleGuide reports whether one command prints the whole style guide: a
-// program that prints every line of a file, with the guide among its operands.
-// head, tail and sed print a range, so they are no read, and neither is a bat
-// with a line range or a less or more told to start at a line with `+N`.
-func printsStyleGuide(words []string) bool {
+// printedDocuments answers the gated documents one command prints whole: a
+// program that prints every line of a file, with those documents among its
+// operands. head, tail and sed print a range, so they are no read, and neither
+// is a bat with a line range or a less or more told to start at a line with
+// `+N`. A glob is not expanded here, so `cat ai/doors/*.md` names no document.
+func printedDocuments(words []string) []string {
 	if len(words) == 0 {
-		return false
+		return nil
 	}
 	program := filepath.Base(words[0])
 	ranged := program == "bat"
 	switch program {
 	case "cat", "bat", "nl", "less", "more":
 	default:
-		return false
+		return nil
 	}
-	named := false
+	var documents []string
 	for _, word := range words[1:] {
 		if strings.HasPrefix(word, "+") {
-			return false
+			return nil
 		}
 		if ranged && strings.HasPrefix(word, "-r") {
-			return false
+			return nil
 		}
 		if ranged && strings.HasPrefix(word, "--line-range") {
-			return false
+			return nil
 		}
-		if word == styleGuidePath || strings.HasSuffix(word, "/"+styleGuidePath) {
-			named = true
+		if document := gatedDocument(word); document != "" {
+			documents = append(documents, document)
 		}
 	}
-	return named
+	return documents
 }
 
 // commandNamesArtifact reports whether the command text reaches the artifact,

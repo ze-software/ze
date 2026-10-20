@@ -6,6 +6,7 @@ related: plugins, performance, protocol, completion, go-standards
 ---
 directives ## Directives
   load-ze-context-before-any-design-decision
+  read-the-design-doors-before-the-first-code-edit
   place-a-package-by-dependency-direction
   use-statestore-put-and-get-never-os-writefile
   keep-markup-in-templ-and-out-of-go
