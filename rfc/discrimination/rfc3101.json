@@ -460,7 +460,7 @@
       "claim-sha": "e8be233d3c1dedc6",
       "route": "revert",
       "producer": "internal/plugins/ospf/nssa.go::translateNSSA",
-      "producer-sha": "f4204addd849abf1",
+      "producer-sha": "f27faf642c6ad5e9",
       "break": "body of translateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -471,7 +471,7 @@
       "claim-sha": "bdc527ac16f0b2fc",
       "route": "revert",
       "producer": "internal/plugins/ospf/nssa.go::translateNSSA",
-      "producer-sha": "f4204addd849abf1",
+      "producer-sha": "f27faf642c6ad5e9",
       "break": "body of translateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "4d049b3ef5629c8c",
       "route": "revert",
       "producer": "internal/plugins/ospf/nssa.go::translateNSSA",
-      "producer-sha": "f4204addd849abf1",
+      "producer-sha": "f27faf642c6ad5e9",
       "break": "body of translateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -493,7 +493,7 @@
       "claim-sha": "5ce140c08e153f45",
       "route": "revert",
       "producer": "internal/plugins/ospf/nssa.go::translateNSSA",
-      "producer-sha": "f4204addd849abf1",
+      "producer-sha": "f27faf642c6ad5e9",
       "break": "body of translateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
