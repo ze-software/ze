@@ -1,0 +1,63 @@
+# Test: a transport-mode peer configured with two traffic-selector entries is
+# refused at config validate, even when every prefix is a single host.
+# Validates: one transport-mode SA holds exactly one selector, and RFC 4301
+# Section 5.2 discards traffic outside it, so the second entry could never be
+# carried (validateTransportOnePair, internal/component/ike/engine/config.go).
+# Design: docs/guide/ipsec.md, transport mode.
+#
+# Without the refusal the list commits, then the responder keeps the first pair
+# and the initiator deletes the SA at negotiation time.
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode transport
+				traffic-selector 1 {
+					local {
+						prefix 10.0.0.1/32
+					}
+					remote {
+						prefix 10.0.0.2/32
+					}
+				}
+				traffic-selector 2 {
+					protocol 6
+					local {
+						prefix 10.0.0.1/32
+					}
+					remote {
+						prefix 10.0.0.2/32
+						port 179
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=a transport-mode SA holds exactly one selector pair

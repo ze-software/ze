@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/pki"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -193,10 +194,38 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateTrafficSelectors(); err != nil {
 		return err
 	}
+	if err := validateTransportOnePair(cfg); err != nil {
+		return err
+	}
 	if err := validateSelectorCombinations(cfg); err != nil {
 		return err
 	}
 	return cfg.ValidateRemoteAccess()
+}
+
+// validateTransportOnePair refuses a transport-mode peer configured with more than one
+// traffic-selector entry.
+//
+// A transport-mode inbound XFRM state holds ONE selector (inboundStateSelector, child.go),
+// so a transport-mode Child SA carries exactly one selector pair (oneTransportPair,
+// errTSTransportPairs, ts_narrow.go). A selector wide enough for several pairs would break
+// RFC 4301 Section 5.2: "If an IPsec system receives an inbound packet on an SA and the
+// packet's header fields are not consistent with the selectors for the SA, it MUST discard
+// the packet." Without this refusal the list commits, the responder answers with the first
+// pair and the initiator deletes the SA at negotiation time, so the operator meets the
+// problem as a tunnel that never comes up instead of at ze config verify.
+func validateTransportOnePair(cfg *ipsec.IPsecConfig) error {
+	for _, name := range slices.Sorted(maps.Keys(cfg.Peers)) {
+		peer := cfg.Peers[name]
+		if peer.Mode != dataplane.ModeTransport || len(peer.TrafficSelectors) <= 1 {
+			continue
+		}
+		return fmt.Errorf("%w: peer %q sets mode transport with %d traffic-selector entries, but a transport-mode SA holds exactly one selector pair; "+
+			"RFC 4301 Section 5.2 makes the SA discard traffic outside its one selector, so the extra entries could never be carried; "+
+			"keep one traffic-selector entry on this peer, or set mode tunnel",
+			ipsec.ErrTrafficSelectorPolicy, name, len(peer.TrafficSelectors))
+	}
+	return nil
 }
 
 // validateSelectorCombinations refuses a peer whose traffic-selector list one TSi and

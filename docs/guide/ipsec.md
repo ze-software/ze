@@ -1194,11 +1194,14 @@ Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactl
 address in TSi and in TSr, so every prefix must be a single host, and a `vti` binding is
 refused because an XFRM interface carries tunnel encapsulation. A transport-mode Child SA
 also carries exactly one selector pair: the kernel's transport-mode SA holds one selector,
-and one wide enough for several pairs would admit traffic that no pair negotiated. As
-responder Ze answers a proposal of several pairs with the first one. As initiator it refuses
-an answer of several pairs and deletes the SA, so configure one selector on a transport-mode
-peer, here and on the far end.
+and one wide enough for several pairs would admit traffic that no pair negotiated. So
+`ze config verify` and `ze config commit` refuse a transport-mode peer that configures more
+than one `traffic-selector` entry: keep one entry, or set `mode tunnel`. The far end can
+still propose several pairs. As responder Ze answers such a proposal with the first one. As
+initiator it refuses an answer of several pairs and deletes the SA, so configure one selector
+on the far end too.
 
+<!-- source: internal/component/ike/engine/config.go -- validateTransportOnePair -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectors -->
 
