@@ -250,6 +250,13 @@ func (ps *PeerSession) maintainSA(
 	// (serviceRequestWindow, then the StateDead arm below) or any other exit.
 	defer ps.failPendingProbe(log)
 
+	// RFC 7296 Section 2.21.4: the endpoint published at the top of each pass below
+	// names the SA this loop answers for. Once the loop returns nothing answers for it,
+	// so the endpoint is withdrawn on every exit: a stale one would let
+	// establishedSessionFrom pick this session for an address no SA of it talks to,
+	// until the next owner loop publishes its own.
+	defer ps.saEndpoint.Store(nil)
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 

@@ -65,7 +65,8 @@ type PeerSession struct {
 	// the configured remote before. Its one writer is publishSAEndpoint, on the owner loop
 	// (maintainSA), which owns sa.peerEndpoint; its one reader is establishedSessionFrom,
 	// on the shared dispatch goroutine, which may not read owner-loop state. Atomic for
-	// that reason. Nil until the owner loop first publishes.
+	// that reason. Nil until the owner loop first publishes, and nil again once it
+	// returns, which withdraws it.
 	saEndpoint atomic.Pointer[net.UDPAddr]
 
 	// graceful marks a session that operator `clear` is bouncing (vs a config-change

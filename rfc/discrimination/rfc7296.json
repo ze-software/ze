@@ -927,6 +927,17 @@
     },
     {
       "rid": "RFC7296-2.21.4-8",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOwnerLoopPublishesMovedEndpoint",
+      "unit-sha": "2d07a86ff44a0df5",
+      "claim-sha": "7d2cb1a832680334",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/established.go::maintainSA",
+      "producer-sha": "f52db92f225348aa",
+      "break": "line 274: \"ps.publishSAEndpoint(sa)\" -\u003e \"_ = sa\""
+    },
+    {
+      "rid": "RFC7296-2.21.4-8",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusRateLimitCapsTheNotify",
       "unit-sha": "794f79e08b8d50f3",

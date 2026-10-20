@@ -84,7 +84,8 @@ also hands the datagram to the session whose configured remote, or whose SA's
 current endpoint, is its source address, when that session owns an established SA.
 The current endpoint is the one the owner loop publishes at the top of each pass
 (`publishSAEndpoint`), so a peer that moved by NAT rebinding or MOBIKE is still
-found. The owner loop compares the source with the
+found. The loop withdraws it when it returns, so no session is found by the
+endpoint of an SA that nothing answers for any more. The owner loop compares the source with the
 SA's own endpoint: the address always, and the port once the SA has floated to
 port 4500. When they match, it sends INVALID_IKE_SPI, with no data, as a new
 protected INFORMATIONAL request over the SA. A message marked as a response

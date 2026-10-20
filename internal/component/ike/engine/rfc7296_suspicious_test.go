@@ -254,3 +254,117 @@ func TestSusMovedSAEndpointDrawsTheNotify(t *testing.T) {
 		t.Errorf("Notify type %d, want INVALID_IKE_SPI (%d)", notify.NotifyMsgType, wire.NotifyInvalidIKESPI)
 	}
 }
+
+// susAwaitPublished waits, bounded by rtxArrive, for the owner loop to publish the
+// endpoint its SA talks to, and returns it. It fails the test when nothing is published,
+// because then no suspicious message from a moved endpoint can reach the loop at all.
+func susAwaitPublished(t *testing.T, ps *PeerSession) *net.UDPAddr {
+	t.Helper()
+	deadline := time.Now().Add(rtxArrive)
+	for time.Now().Before(deadline) {
+		if endpoint := ps.saEndpoint.Load(); endpoint != nil {
+			return endpoint
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("the owner loop never published the endpoint its SA talks to")
+	return nil
+}
+
+// VALIDATES: with the real owner loop (maintainSA) running an SA whose endpoint has
+// moved away from the configured remote, an out-of-SA request from that moved endpoint
+// travels the whole path: noteSuspicious on the dispatch side finds the session by the
+// endpoint the loop published, the loop's suspicious arm answers it, and one protected
+// INVALID_IKE_SPI notification reaches the peer. Once the loop returns, the endpoint is
+// withdrawn and the same message no longer finds the session.
+// PREVENTS: the owner loop not publishing the endpoint, which the sibling test cannot
+// see because it publishes by hand; and a stale endpoint outliving the loop that
+// answered for it.
+//
+// RFC requirement: RFC7296-2.21.4-8 positive -- with maintainSA running an established IKE SA whose endpoint moved away from the configured remote, an out-of-SA request from that moved endpoint, handed to noteSuspicious, draws exactly one INFORMATIONAL request over that SA, which the peer authenticates under the SA's keys and which carries one INVALID_IKE_SPI Notify; after the loop returns, the same request is queued to no session.
+func TestSusOwnerLoopPublishesMovedEndpoint(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ini, peer, ps, peerTr, myTr := osrSession(t)
+	susRegister(t, ps, ini)
+	remote := ini.remoteUDPAddr()
+	// The peer now talks from remote, and the configuration still names another host,
+	// so only the endpoint the owner loop publishes can match the source.
+	ps.peerCfg.RemoteAddress = "127.0.0.9"
+	ini.peerEndpoint = copyUDPAddr(remote)
+	ps.stopCh = make(chan struct{})
+	ps.supersede = make(chan struct{}, 1)
+
+	done := make(chan struct{})
+	go func() {
+		_ = ps.maintainSA(ini, nil, nil, nil,
+			testIKEGroup(), NewSATable(), &rkyDP{}, myTr, nil, log)
+		close(done)
+	}()
+	stopped := false
+	stop := func() {
+		if stopped {
+			return
+		}
+		stopped = true
+		close(ps.stopCh)
+		<-done
+	}
+	t.Cleanup(stop)
+
+	published := susAwaitPublished(t, ps)
+	if !published.IP.Equal(remote.IP) || published.Port != remote.Port {
+		t.Fatalf("the owner loop published %v, want the SA's moved endpoint %v", published, remote)
+	}
+
+	pkt := transport.Packet{
+		Data:       susOutOfSA(t, wire.FlagInitiator, wire.ExchangeInformational),
+		RemoteAddr: remote,
+	}
+	noteSuspicious(pkt)
+
+	raw := rtxRecv(t, peerTr)
+	if raw == nil {
+		t.Fatal("no notification reached the peer for an out-of-SA request from the SA's moved endpoint")
+	}
+	msg := parseMsg(t, raw)
+	if msg.Header.ExchangeType != wire.ExchangeInformational {
+		t.Errorf("exchange %d, want INFORMATIONAL", msg.Header.ExchangeType)
+	}
+	if msg.Header.Flags&wire.FlagResponse != 0 {
+		t.Error("the notification is marked as a response; Section 2.21.4 asks for an exchange of its own")
+	}
+	if msg.Header.InitiatorSPI != ini.InitiatorSPI || msg.Header.ResponderSPI != ini.ResponderSPI {
+		t.Error("the notification does not travel over the SA the moved endpoint holds")
+	}
+	inner, err := decryptAndParse(peer, msg, raw)
+	if err != nil {
+		t.Fatalf("the peer could not authenticate the notification: %v", err)
+	}
+	if len(inner) != 1 {
+		t.Fatalf("the notification carries %d payloads, want exactly 1 Notify", len(inner))
+	}
+	notify, ok := inner[0].Payload.(*wire.PayloadNotify)
+	if !ok {
+		t.Fatalf("the payload is %T, want a Notify", inner[0].Payload)
+	}
+	if notify.NotifyMsgType != wire.NotifyInvalidIKESPI {
+		t.Errorf("Notify type %d, want INVALID_IKE_SPI (%d)", notify.NotifyMsgType, wire.NotifyInvalidIKESPI)
+	}
+
+	// The loop has returned once stop does, so nothing it could still write is pending:
+	// the drain then proves the request drew exactly one datagram.
+	stop()
+	if extra := imiDrain(t, peerTr, myTr, remote, "after the owner loop returned"); len(extra) != 0 {
+		t.Errorf("%d more datagrams went out over the SA, want exactly 1 in total", len(extra))
+	}
+
+	if endpoint := ps.saEndpoint.Load(); endpoint != nil {
+		t.Errorf("the endpoint %v is still published after the owner loop returned", endpoint)
+	}
+	noteSuspicious(pkt)
+	select {
+	case queued := <-ps.suspicious:
+		t.Errorf("a request from %v was queued to a session whose owner loop has returned", queued.RemoteAddr)
+	default:
+	}
+}
