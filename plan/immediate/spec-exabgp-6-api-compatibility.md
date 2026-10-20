@@ -321,7 +321,7 @@ CHANGELOG sentence of that producer.
 | AC-10 | `environment { exabgp { api { version 4 } } }` | every script starts held to v4; `ze exabgp migrate` carries `exabgp.api.version` from an ExaBGP env file |
 | AC-11 | OPEN event to a v4 JSON script | `capabilities` keyed by code (`"1"`, `"65"`) with no `code` member |
 | AC-12 | OPEN event to a v6 JSON script | `capabilities` keyed by name, each with `"code"` inside |
-| AC-13 | NOTIFICATION with an RFC 9003 Shutdown Communication to a v4 script | `data` is the readable message, not hex with its length octet; non-text data is hexed once |
+| AC-13 | NOTIFICATION with an RFC 9003 Shutdown Communication to a v4 script | `data` is the hex of the readable text, `hexstring(message.v4_data)`: for a Shutdown Communication the decoded message without its length octet, for any other data the wire octets, each hexed once, and `message` carries the readable `Notification.text`. Corrected 2026-10-20 from "`data` is the readable message": the ExaBGP producer at the pin hexes the readable form, and Failure Routing makes the producer the source of truth (`TestV4NotificationDataReadable`) |
 | AC-14 | a refused line from a v4 or undecided script with ack enabled | answers `error: <why>` then `error` |
 | AC-15 | a refused line from a v6 script | answers `{"error": "<why>"}` then `error` |
 | AC-16 | the same with ack disabled | neither line is written |
