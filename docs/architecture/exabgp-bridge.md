@@ -238,6 +238,30 @@ before the narrowing landed).
 `ze-meta:bgp-help` is the one member `bridgeSurface` keeps, so the eight BGP methods
 above it are checked by the verb-first grammar gate rather than exempted from it.
 
+## `ping` is answered by the bridge
+
+ExaBGP 6.0's health check, `ping` (v6 spelling `session ping`), reaches no ze
+command: the bridge answers it, as it answers the ack words. The answer is
+ExaBGP's bytes, then `done`:
+
+| Line | Answer line |
+|------|-------------|
+| `ping`, `session ping`, `ping <client-uuid> <client-start-time>` | `{"pong": "<uuid>", "active": true}` |
+| any of these with the word `text` | `pong <uuid> active=true` |
+
+The UUID is a version 4 UUID drawn once per process, as ExaBGP draws its
+`daemon_uuid` once per reactor, so every script of one ze daemon reads the same
+value. `active` is always true: ExaBGP keeps no list of clients and answers
+true. The answer line is written whatever the ack state, and only the `done`
+follows it, because ExaBGP writes the pong with `processes.write` and the
+`done` with `answer_done_sync`.
+
+`status`, the other half of ExaBGP's health pair, is still refused: its answer
+lists every peer with its FSM state, and the bridge reads no peer state from ze.
+
+<!-- source: internal/exabgp/bridge/bridge_ping.go -- writePong, pingAction, daemonUUID -->
+<!-- source: internal/exabgp/bridge/bridge_ack.go -- AnswerLocal -->
+
 <!-- source: internal/component/command/grammar/checker.go -- bridgeSurface, ExemptCategory -->
 
 ## A neighbor command is one of three things

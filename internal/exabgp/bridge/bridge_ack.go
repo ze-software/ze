@@ -36,7 +36,9 @@ type AckMode struct {
 }
 
 // AnswerLocal moves the ack state for one local action and writes the ack that
-// action still owes, in ONE place.
+// action still owes, in ONE place. A ping's pong comes first and is written
+// whatever the ack state, as ExaBGP writes it with processes.write and only the
+// done with answer_done_sync.
 //
 // The decision cannot be split between a caller and WriteAck. `disable-ack` is
 // itself acked and silences what follows, so applying it sets enabled false
@@ -45,6 +47,7 @@ type AckMode struct {
 // cleared. That is a decision made twice: both halves were right and the answer
 // was wrong.
 func (m *AckMode) AnswerLocal(pluginW io.Writer, action LocalAction) {
+	writePong(pluginW, action)
 	if !m.apply(action) {
 		return
 	}
@@ -72,7 +75,7 @@ func (m *AckMode) apply(action LocalAction) bool {
 	case LocalAckDisableNow:
 		m.enabled = false
 		return false
-	case LocalNone:
+	case LocalNone, LocalPing, LocalPingText:
 		return m.enabled
 	default:
 		panic("BUG: invalid bridge local action")

@@ -181,6 +181,11 @@ const (
 	LocalAckDisableAfter
 	// LocalAckDisableNow stops acks immediately, so this command is not acked.
 	LocalAckDisableNow
+	// LocalPing answers ExaBGP's health check as JSON, then done.
+	LocalPing
+	// LocalPingText answers the health check as text, then done: the line
+	// carried the `text` keyword.
+	LocalPingText
 )
 
 // Nothing reports a line that carries no command: a blank line, or a comment.
@@ -314,6 +319,7 @@ func (t Translator) Line(line string) (Translation, error) {
 //	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
 //	shutdown, request shutdown  -> request shutdown           (ze-plugin:system-daemon-shutdown)
 //	enable-ack, disable-ack, silence-ack -> answered by the bridge itself
+//	ping, session ping [text]   -> answered by the bridge itself (bridge_ping.go)
 //
 // The watchdog forms are read BEFORE convertRoute although they start with the
 // announce and withdraw verbs. convertRoute would refuse them anyway, because
@@ -333,6 +339,9 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{Local: LocalAckDisableAfter}, true
 	case len(fields) == 1 && fields[0] == "silence-ack":
 		return Translation{Local: LocalAckDisableNow}, true
+	case fields[0] == "ping",
+		len(fields) >= 2 && fields[0] == "session" && fields[1] == "ping":
+		return Translation{Local: pingAction(fields)}, true
 	case len(fields) == 1 && fields[0] == "shutdown",
 		len(fields) == 2 && fields[0] == "request" && fields[1] == "shutdown":
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
