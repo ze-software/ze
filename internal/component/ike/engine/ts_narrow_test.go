@@ -1,8 +1,8 @@
 package engine
 
-// netip carries this file's own oracle, and coveredBy is pinned separately in both
-// directions. Asking the production predicate coveredBy whether the answer is a
-// subset of the proposal is the implementation grading itself.
+// netip carries this file's own oracle, and floorWithinProposal is pinned separately in
+// both directions. Asking a production predicate whether the answer is a subset of the
+// proposal is the implementation grading itself.
 
 import (
 	"net"
@@ -37,10 +37,10 @@ func selPort(t *testing.T, cidr string, p ipsec.PortSelector, proto uint8) tsSel
 // tsWithinAny is this file's OWN containment oracle: it reports whether inner sits inside
 // some prefix of outer.
 //
-// It is written over netip, and not over coveredBy or containsNet, on purpose. Those are
-// production predicates that the narrowing path depends on. A sweep that asks coveredBy
+// It is written over netip, and not over selectorWithin or containsNet, on purpose. Those
+// are production predicates that the narrowing path depends on. A sweep that asks them
 // whether the answer is a subset of the proposal asks the implementation to grade itself.
-// A coveredBy that answered true for everything leaves every such sweep green while ze
+// A predicate that answered true for everything leaves every such sweep green while ze
 // installs selectors the peer widened.
 func tsWithinAny(t *testing.T, inner tsSelector, outer []tsSelector) bool {
 	t.Helper()
@@ -113,11 +113,11 @@ func TestNarrowingIncludesFirstChoice(t *testing.T) {
 			got[0].I.Net, got[0].R.Net)
 	}
 	// Never wider than the proposal. The oracle is tsWithinAny, written in this file over
-	// netip. It is NOT the production coveredBy this sweep used to call.
+	// netip. It is NOT a production predicate.
 	//
-	// coveredBy is a predicate the narrowing path itself depends on. A coveredBy that
-	// answered true for everything left the sweep passing over an answer wider than the
-	// proposal. That is the one thing the sweep exists to catch.
+	// A production predicate the narrowing path itself depends on, answering true for
+	// everything, would leave the sweep passing over an answer wider than the proposal.
+	// That is the one thing the sweep exists to catch.
 	for i, p := range got {
 		if !tsWithinAny(t, p.I, proposedI) {
 			t.Errorf("answered pair %d TSi %v is not a subset of any proposed TSi", i, p.I.Net)
@@ -127,16 +127,17 @@ func TestNarrowingIncludesFirstChoice(t *testing.T) {
 		}
 	}
 
-	// The production predicate is pinned on its own now, in both directions. The sweep
-	// above is independent of coveredBy, so without these two rows nothing in the package
-	// reports a coveredBy that stopped discriminating. floorWithinProposal reads it to
-	// decide whether a rekey floor is still inside the peer's proposal.
-	if coveredBy(sel(t, "10.0.0.0/8"), proposedI) {
-		t.Error("coveredBy reported a /8 as covered by a proposal of /16s; every subset " +
-			"judgement written on it would accept a widened answer")
+	// The rekey floor's predicate is pinned on its own, in both directions. The sweep
+	// above is independent of it, so without these two rows nothing here reports a
+	// floorWithinProposal that stopped discriminating on prefixes.
+	wide := []tsPair{{I: sel(t, "10.0.0.0/8"), R: sel(t, "10.2.0.0/16")}}
+	if kept := floorWithinProposal(wide, proposedI, proposedR); len(kept) != 0 {
+		t.Error("floorWithinProposal kept a /8 floor against a proposal of /16s; the rekey " +
+			"would answer wider than the proposal")
 	}
-	if !coveredBy(sel(t, "10.1.128.0/17"), proposedI) {
-		t.Error("coveredBy reported a /17 inside 10.1.0.0/16 as NOT covered; the predicate " +
+	inside := []tsPair{{I: sel(t, "10.1.128.0/17"), R: sel(t, "10.2.0.0/16")}}
+	if kept := floorWithinProposal(inside, proposedI, proposedR); len(kept) != 1 {
+		t.Error("floorWithinProposal dropped a /17 floor inside 10.1.0.0/16; the predicate " +
 			"refuses everything and the assertion above proves nothing")
 	}
 

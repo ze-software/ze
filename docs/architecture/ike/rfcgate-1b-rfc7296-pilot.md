@@ -45,7 +45,9 @@ for because no summary listed them:
 `narrowSelectors` intersects what the peer proposed with the configured policy
 pairs. `floorWithinProposal` keeps the floor inside the proposal, which is how
 Section 2.9.2 is honored on a rekey: the new SA cannot come out narrower than
-the scope in use.
+the scope in use. A floor pair is kept only when one proposed combination covers
+both its halves in prefix, port and protocol (`pairWithinAny`), so an any/any
+scope in use is never answered to a TCP/80 proposal; that rekey is refused.
 
 **The initiator checks the answer, it does not trust it.**
 `recordInitiatorSelectors` and `checkAnswerWithin` reject a response whose

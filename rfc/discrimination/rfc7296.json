@@ -1676,6 +1676,28 @@
     {
       "rid": "RFC7296-2.9-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal",
+      "unit-sha": "c65ac062a7659e9c",
+      "claim-sha": "f6d1bd9cd8222235",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/ts_narrow.go::floorWithinProposal",
+      "producer-sha": "7aa7960682df36b1",
+      "break": "line 187: \"pairWithinAny(f, proposed)\" -\u003e \"len(proposed)\u003c0\""
+    },
+    {
+      "rid": "RFC7296-2.9-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal",
+      "unit-sha": "c65ac062a7659e9c",
+      "claim-sha": "07f222b9d6477b9b",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/ts_narrow.go::floorWithinProposal",
+      "producer-sha": "7aa7960682df36b1",
+      "break": "line 187: \"pairWithinAny(f, proposed)\" -\u003e \"len(proposed)\u003e=0\""
+    },
+    {
+      "rid": "RFC7296-2.9-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy",
       "unit-sha": "af360a22099aee1f",
       "claim-sha": "04c01cc2b5f4d676",

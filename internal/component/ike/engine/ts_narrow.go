@@ -165,15 +165,26 @@ func acceptablePairs(proposed tsPair, policy []tsPair) []tsPair {
 	return out
 }
 
-// floorWithinProposal keeps the rekey floor when the peer's proposal still covers it.
+// floorWithinProposal keeps the floor pairs that some proposed combination covers in
+// all three dimensions: prefix, port and protocol.
 //
 // RFC 7296 Section 2.9.2 forbids narrowing below the scope in use, and it does not
-// license widening beyond the proposal. When the proposal no longer covers the floor,
-// the floor cannot be answered and the caller falls through to ordinary narrowing.
+// license widening beyond the proposal. RFC 7296 Section 2.9 MUST: "When the responder
+// chooses a subset of the traffic proposed by the initiator, it narrows the Traffic
+// Selectors to some subset of the initiator's proposal (provided the set does not become
+// the null set)." A floor pair answered back is part of that answer, so it has to be a
+// subset of a combination the peer proposed, ports and protocol included: an any/any
+// floor answered to a TCP/80 proposal is wider than the proposal. The same combination
+// has to cover both halves, because a TSi from one combination and a TSr from another
+// describe a flow the proposal does not hold once their protocols differ.
+//
+// When the proposal no longer covers the floor, the floor cannot be answered and the
+// caller falls through to ordinary narrowing.
 func floorWithinProposal(floor []tsPair, proposedI, proposedR []tsSelector) []tsPair {
+	proposed := crossPairs(proposedI, proposedR)
 	kept := make([]tsPair, 0, len(floor))
 	for _, f := range floor {
-		if coveredBy(f.I, proposedI) && coveredBy(f.R, proposedR) {
+		if pairWithinAny(f, proposed) {
 			kept = append(kept, f)
 		}
 	}
@@ -214,16 +225,6 @@ func pairsText(pairs []tsPair) string {
 		text.Str(p.I.Net.String()).Str(" <-> ").Str(p.R.Net.String())
 	}
 	return string(text.Bytes())
-}
-
-// coveredBy reports whether some selector in list is a superset of s.
-func coveredBy(s tsSelector, list []tsSelector) bool {
-	for _, c := range list {
-		if containsNet(c.Net, s.Net) {
-			return true
-		}
-	}
-	return false
 }
 
 // intersectPair intersects a proposed pair with one policy pair.
