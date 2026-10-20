@@ -161,7 +161,7 @@ func interfaceUnnumbered(network networkType, mask [4]byte) bool {
 // helloNetworkMask is the Network Mask an OSPFv2 Hello carries on an interface.
 //
 // RFC 2328 Section 9.5: "On unnumbered point-to-point networks and on virtual
-// links this field should be set to 0.0.0.0."
+// links this field should be set to 0.0.0.0".
 func helloNetworkMask(network networkType, mask [4]byte) [4]byte {
 	if interfaceUnnumbered(network, mask) {
 		return [4]byte{}

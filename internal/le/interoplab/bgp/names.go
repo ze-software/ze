@@ -416,6 +416,8 @@ const (
 	nextHopScopeGlobal             = "global"
 	ospfNeighborHeading            = "Neighbor"
 	ospfStateFull                  = "Full"
+	// zeOSPFNeighborFull is how ze's show ospf neighbor JSON names a Full adjacency.
+	zeOSPFNeighborFull = `"state": "full"`
 	// The donor addresses of ospf-p2p-unnumbered-frr. They sit outside the lab
 	// subnet, so the runner's fixture rewrite leaves them alone.
 	zeUnnumberedDonor  = "10.255.0.2"

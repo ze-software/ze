@@ -133,7 +133,7 @@ func (d *recordingDataplane) ListPolicies() ([]PolicyInfo, error) {
 			DstPort:    p.DstPort,
 			Dir:        p.Dir,
 			UpperProto: p.UpperProto,
-			Priority:   int(p.Priority),
+			Priority:   p.Priority,
 			IfIndex:    p.IfIndex,
 			IfID:       p.IfID,
 			Action:     p.Action,
