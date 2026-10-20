@@ -151,6 +151,9 @@ func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error { ret
 func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
+func (m *mockReactor) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
 func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string

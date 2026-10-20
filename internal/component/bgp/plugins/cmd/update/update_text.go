@@ -1152,8 +1152,12 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	peerSelector := ctx.PeerSelector()
 	sel := selector.ParseDefault(peerSelector)
 	var eorSent int
+	announceEOR := bgpReactor.AnnounceEOR
+	if replayEORFromMeta(ctx.Meta) {
+		announceEOR = bgpReactor.AnnounceReplayEOR
+	}
 	for _, fam := range result.EORFamilies {
-		if err := bgpReactor.AnnounceEOR(sel, uint16(fam.AFI), uint8(fam.SAFI), ctx.Sender); err != nil {
+		if err := announceEOR(sel, uint16(fam.AFI), uint8(fam.SAFI), ctx.Sender); err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 		}
 		eorSent++
@@ -1349,6 +1353,16 @@ func staleLevelFromMeta(meta map[string]any) uint8 {
 	default:
 		return 0
 	}
+}
+
+// replayEORFromMeta reports whether this command's End-of-RIB closes a
+// plugin's replay (bgptypes.ReplayEORMeta), so the engine sends it only when
+// the session has not already carried the family's marker. False when meta is
+// nil or carries no such key: an operator's or a script's EOR goes out each
+// time. A forked plugin's JSON round-trip decodes the value as a bool too.
+func replayEORFromMeta(meta map[string]any) bool {
+	replayEOR, ok := meta[bgptypes.ReplayEORMeta].(bool)
+	return ok && replayEOR
 }
 
 // replayFromMeta reports whether this command re-advertises what the peer was

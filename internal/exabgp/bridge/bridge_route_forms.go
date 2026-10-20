@@ -22,11 +22,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// errEORNeedsFamily is what a bare `announce eor` answers when the bridge was
-// given no family list. ExaBGP sends one End-of-RIB per NEGOTIATED family, and
-// ze's update-text spells the marker per family rather than for all of them at
-// once, so the expansion needs to know which families there are.
-var errEORNeedsFamily = errors.New("the ExaBGP bridge needs a family on `announce eor`")
+// errEORNeedsFamily is what `announce eor` answers when it carries a family
+// token count other than none or two, as ExaBGP's api_eor refuses it.
+var errEORNeedsFamily = errors.New("the ExaBGP bridge needs `announce eor` alone or `announce eor <afi> <safi>`")
 
 // errRouteRefreshNeedsFamily is what `announce route-refresh` answers when it
 // does not name one address family and one subsequent address family: a
@@ -42,24 +40,20 @@ var errSplitLength = errors.New("invalid split length")
 // NLRI and no withdrawn routes.
 //
 // It reports false when the line is not an End-of-RIB.
-func convertEOR(selector, rest string, families []string) ([]Command, bool, error) {
+func convertEOR(selector, rest string) ([]Command, bool, error) {
 	fields := strings.Fields(strings.TrimSpace(rest))
 	if len(fields) < 2 || !strings.EqualFold(fields[0], announceVerb) || !strings.EqualFold(fields[1], "eor") {
 		return nil, false, nil
 	}
 
-	// A bare `announce eor` is every family, which ExaBGP reads as every family
-	// the session negotiated. The bridge answers with the families it DECLARED,
-	// which is the set it asked to negotiate.
-	if len(fields) < 4 {
-		if len(families) == 0 {
-			return nil, true, errEORNeedsFamily
-		}
-		commands := make([]Command, 0, len(families))
-		for _, family := range families {
-			commands = append(commands, eorCommand(selector, family))
-		}
-		return commands, true, nil
+	// A bare `announce eor` is IPv4 unicast alone: ExaBGP's api_eor
+	// (src/exabgp/reactor/api/__init__.py) answers
+	// `Family(AFI.ipv4, SAFI.unicast)` when no family token follows.
+	if len(fields) == 2 {
+		return []Command{eorCommand(selector, "ipv4/unicast")}, true, nil
+	}
+	if len(fields) != 4 {
+		return nil, true, errEORNeedsFamily
 	}
 
 	afi := strings.ToLower(fields[2])

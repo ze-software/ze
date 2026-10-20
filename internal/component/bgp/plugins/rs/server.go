@@ -503,14 +503,15 @@ func (rs *routeServer) dispatchCommand(ctx context.Context, command string, args
 	return rs.plugin.DispatchCommandArgs(ctx, command, args, "")
 }
 
-// updateRoute sends a route update command to matching peers via the engine.
-func (rs *routeServer) updateRoute(peerSelector, command string) {
+// updateRouteWithMeta sends a route update command to matching peers via the
+// engine, with route metadata for the engine's command context (nil for none).
+func (rs *routeServer) updateRouteWithMeta(peerSelector, command string, meta map[string]any) {
 	if rs.updateRouteHook != nil {
 		rs.updateRouteHook(peerSelector, command)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
-	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
+	_, _, err := rs.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rs.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)", "peer", peerSelector, "command", command, "error", err)

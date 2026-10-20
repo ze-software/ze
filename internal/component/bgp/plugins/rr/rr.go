@@ -220,10 +220,16 @@ func (rr *routeReflector) forwardUpdate(msgID uint64) {
 
 // updateRoute sends a route update command to matching peers via the engine.
 func (rr *routeReflector) updateRoute(peerSelector, command string) {
+	rr.updateRouteWithMeta(peerSelector, command, nil)
+}
+
+// updateRouteWithMeta is updateRoute with route metadata for the engine's
+// command context (nil for none).
+func (rr *routeReflector) updateRouteWithMeta(peerSelector, command string, meta map[string]any) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 
-	_, _, err := rr.plugin.UpdateRoute(ctx, peerSelector, command)
+	_, _, err := rr.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rr.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)",
@@ -653,7 +659,11 @@ func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
 
 	slices.Sort(families)
 	for _, fam := range families {
-		rr.updateRoute(peerAddr, rrEORCmd(fam))
+		// RFC 4724 Section 2: the marker indicates "the completion of the
+		// initial routing update". The replay-eor meta has the engine send it
+		// only when this session has not already carried the family's marker
+		// from the reactor's own initial sync, so the replay does not repeat it.
+		rr.updateRouteWithMeta(peerAddr, rrEORCmd(fam), map[string]any{bgptypes.ReplayEORMeta: true})
 	}
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }

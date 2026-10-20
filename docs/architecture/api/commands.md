@@ -854,7 +854,7 @@ The following legacy commands have been removed:
 |-------------|-------------|
 | `announce ipv4/unicast <p> next-hop <nh>` | `update text next <nh> nlri add prefix <p>` |
 | `announce ipv6/unicast <p> next-hop <nh>` | `update text next <nh> mp ipv6/unicast add prefix <p>` |
-| `announce eor <afi> <safi>` | `update text mp <family> eor` (`update text nlri eor` for IPv4 unicast) |
+| `announce eor <afi> <safi>` | `update text mp <family> eor` (`update text nlri eor` for IPv4 unicast). A bare `announce eor` is IPv4 unicast, as in ExaBGP. The marker goes out each time it is asked for; a replaying plugin's `replay-eor` marker goes out once per session (`update-syntax.md`, "End-of-RIB") |
 | `announce vpls ...` | `update text mp l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>` |
 | `announce l2vpn ...` | `update text mp l2vpn/evpn add ...` |
 | `withdraw ipv4/unicast <p>` | `update text nlri del prefix <p>` |

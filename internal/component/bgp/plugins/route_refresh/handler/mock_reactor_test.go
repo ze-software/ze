@@ -97,6 +97,9 @@ func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error { ret
 func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
+func (m *mockReactor) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
 func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
 

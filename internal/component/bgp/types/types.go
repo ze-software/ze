@@ -261,6 +261,14 @@ type UpdateTextResult struct {
 // JSON number decoding cannot round a uint64 message identifier.
 const SentOwnerMessageMeta = "sent-owner-message"
 
+// ReplayEORMeta marks an `update text ... eor` as the End-of-RIB closing a
+// plugin's replay of the initial routing update (the route server's and the
+// route reflector's). The value is the bool true. The engine then sends the
+// marker only when the session has not already carried the family's
+// End-of-RIB (BGPReactor.AnnounceReplayEOR); without it the marker goes out
+// every time it is asked for (BGPReactor.AnnounceEOR).
+const ReplayEORMeta = "replay-eor"
+
 // Initial replay receipts are issued by the peer-up state event. They are not
 // interchangeable with an ordinary same-session sent replay expectation.
 const (

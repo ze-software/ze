@@ -108,6 +108,9 @@ func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, _ *selector.Selector,
 func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
+func (m *mockReactor) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
 func (m *mockReactor) WithdrawNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
 

@@ -45,6 +45,14 @@ take it as a route.
 
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- convertRouteRefresh -->
 
+An `announce eor <afi> <safi>` line becomes `update text mp <family> eor`
+(`update text nlri eor` for IPv4 unicast). A bare `announce eor` is IPv4 unicast
+alone, because ExaBGP's `api_eor` answers `Family(AFI.ipv4, SAFI.unicast)` when
+no family token follows; any other token count is refused. Each line sends its
+marker, however many the session already carried, as ExaBGP does.
+
+<!-- source: internal/exabgp/bridge/bridge_route_forms.go -- convertEOR -->
+
 An `announce vpls` or `withdraw vpls` line becomes
 `update text <attributes> mp l2vpn/vpls add|del rd <rd> ve-id <n>
 ve-block-offset <n> ve-block-size <n> label-base <n>`, the RFC 4761 Section 3.2.2

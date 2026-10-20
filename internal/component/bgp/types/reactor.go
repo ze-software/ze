@@ -57,8 +57,16 @@ type BGPReactor interface {
 	// ctx bounds admission and the peer's socket write, including flush.
 	AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
 
-	// AnnounceEOR sends an End-of-RIB marker for the given address family.
+	// AnnounceEOR sends an End-of-RIB marker for the given address family to
+	// every selected established peer that negotiated it, each time it is asked.
+	// It answers an error when no selected peer qualifies.
 	AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error
+
+	// AnnounceReplayEOR sends the End-of-RIB that closes a plugin's replay of
+	// the initial routing update. It stands down for a peer whose session has
+	// already carried the family's marker (RFC 4724 Section 2), so a replay
+	// finishing after the reactor's own initial sync does not repeat it.
+	AnnounceReplayEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error
 
 	// --- Route withdraw ---
 

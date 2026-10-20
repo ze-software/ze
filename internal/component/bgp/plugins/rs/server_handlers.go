@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -558,7 +559,11 @@ func (rs *routeServer) sendEOR(peerAddr string, gen, initialReplay uint64) {
 		if textparse.LegacyNLRISection(fam, false) {
 			eor = "update text nlri eor"
 		}
-		rs.updateRoute(peerAddr, eor)
+		// RFC 4724 Section 2: the marker indicates "the completion of the
+		// initial routing update". The replay-eor meta has the engine send it
+		// only when this session has not already carried the family's marker
+		// from the reactor's own initial sync, so the replay does not repeat it.
+		rs.updateRouteWithMeta(peerAddr, eor, map[string]any{bgptypes.ReplayEORMeta: true})
 	}
 	if len(families) > 0 {
 		logger().Info("sent EOR", "peer", peerAddr, "families", families)

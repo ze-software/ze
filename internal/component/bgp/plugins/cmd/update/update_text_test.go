@@ -1220,6 +1220,8 @@ func TestParseUpdateText_WatchdogBeforeNLRI(t *testing.T) {
 // mockReactorBatch implements ReactorLifecycle + BGPReactor for batch handler testing.
 // Used by handler integration tests.
 type mockReactorBatch struct {
+	eorCalls           int // AnnounceEOR calls
+	replayEORCalls     int // AnnounceReplayEOR calls
 	announceError      error
 	withdrawError      error
 	announceCalls      []bgptypes.NLRIBatch
@@ -1282,6 +1284,11 @@ func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                       
 func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error               { return nil }
 func (m *mockReactorBatch) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
 func (m *mockReactorBatch) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	m.eorCalls++
+	return nil
+}
+func (m *mockReactorBatch) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	m.replayEORCalls++
 	return nil
 }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON { return nil }

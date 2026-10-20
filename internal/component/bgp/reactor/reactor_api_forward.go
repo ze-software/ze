@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errNoEstablishedPeersToForwardTo = errors.New("no established peers to forward to")
@@ -76,8 +77,10 @@ var errAllDestinationsSuppressed = errors.New("all destinations suppressed by eg
 // than not sending it.
 var errForwardNoSource = errors.New("forward: source peer is not an established peer, refusing to forward")
 
-// AnnounceEOR sends an End-of-RIB marker for the given address family.
-// Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
+// AnnounceEOR sends an End-of-RIB marker for the given address family each
+// time it is asked: an operator or a script that asks for the marker gets it,
+// as ExaBGP's announce_eor sends one per request
+// (src/exabgp/reactor/api/command/announce.py).
 //
 // sender is who asked for the marker: an attached process, or the operator.
 // It is gated on `send [ update ]`: RFC 4724 Section 2 defines the
@@ -85,7 +88,20 @@ var errForwardNoSource = errors.New("forward: source peer is not an established 
 // just made, so the permission that let it announce is the permission that lets
 // it say the announce is complete.
 func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
-	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
+	return a.announceEOR(sel, family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}, sender, false)
+}
+
+// AnnounceReplayEOR sends the End-of-RIB that closes a plugin's replay (the
+// route server's and the route reflector's): it stands down for a session
+// that already carried the family's marker (claimInitialSyncEOR).
+func (a *reactorAPIAdapter) AnnounceReplayEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error {
+	return a.announceEOR(sel, family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}, sender, true)
+}
+
+// announceEOR is AnnounceEOR and AnnounceReplayEOR. once selects the replay
+// form, which claims the family's one initial-sync marker. Inlined peer
+// iteration (not sendToMatchingPeers) to count EOR sent per peer.
+func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Family, sender plugin.Sender, once bool) error {
 	update := message.BuildEOR(fam)
 
 	a.r.mu.RLock()
@@ -101,6 +117,14 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 
 	for _, peer := range peers {
 		if peer.State() != PeerStateEstablished {
+			continue
+		}
+		// RFC 4760 Section 8: "A BGP speaker that uses Multiprotocol Extensions
+		// SHOULD use the Capability Advertisement procedures [BGP-CAP] to
+		// determine whether the speaker could use Multiprotocol Extensions with
+		// a particular peer." A peer that did not negotiate the family is not
+		// sent its End-of-RIB, and it does not count as served.
+		if nc := peer.negotiated.Load(); nc == nil || !nc.Has(fam) {
 			continue
 		}
 		// During initial route sync, sendInitialRoutes owns EoR ordering: it
@@ -148,7 +172,14 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		// and put a second identical marker on the wire. Claiming here is also the
 		// recovery path -- if the initial-sync send failed it released the claim,
 		// so this producer legitimately takes it.
-		if !peer.claimInitialSyncEOR(fam) {
+		//
+		// The gate guards the replay form only. An explicit request (once
+		// false) is the asker's own marker and goes out each time, but it
+		// still claims the family when unclaimed, so a replay finishing after
+		// it stands down. claimed records whether this call took the claim, so
+		// a failed send releases only a claim it owns.
+		claimed := peer.claimInitialSyncEOR(fam)
+		if once && !claimed {
 			sentCount++
 			continue
 		}
@@ -160,7 +191,9 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		// the marker is written at once.
 		if a.r.fwdPool != nil {
 			if !a.queueEndOfRIB(peer, fam, update) {
-				peer.releaseInitialSyncEOR(fam)
+				if claimed {
+					peer.releaseInitialSyncEOR(fam)
+				}
 				errs = append(errs, errForwardPoolStopped)
 				continue
 			}
@@ -169,7 +202,9 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		}
 		if err := peer.SendUpdate(update); err != nil {
 			// Release, or the family stays marked and the peer never gets it.
-			peer.releaseInitialSyncEOR(fam)
+			if claimed {
+				peer.releaseInitialSyncEOR(fam)
+			}
 			errs = append(errs, err)
 		} else {
 			peer.incrEORSent()
@@ -178,10 +213,20 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 	}
 
 	if sentCount == 0 && len(errs) == 0 {
-		return errors.New("no established peers to send to")
+		return eorNoPeerError(fam)
 	}
 
 	return errors.Join(errs...)
+}
+
+// eorNoPeerError answers an End-of-RIB request that reached no peer: none of
+// the selected peers is established with the family negotiated.
+func eorNoPeerError(fam family.Family) error {
+	var tb textbuf.Buffer
+	tb.Str("no End-of-RIB sent for ").Str(fam.String()).
+		Str(": no selected peer is established with that family negotiated; ").
+		Str("check the session and its families with show bgp peer")
+	return errors.New(tb.String())
 }
 
 // logEORSuppressed records an End-of-RIB that AnnounceEOR declined to send, and

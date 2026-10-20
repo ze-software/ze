@@ -921,6 +921,24 @@ send bgp upstream1 update text mp ipv6/unicast eor nhop set 10.0.0.1 nlri add pr
 | Other families | MP_UNREACH_NLRI with AFI/SAFI, no prefixes |
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- EOR handling -->
 
+### Who gets the marker, and how often
+
+The marker goes to every selected peer that is established and negotiated the
+family, each time the command asks for it, as ExaBGP's `announce eor` does. A
+peer that did not negotiate the family is skipped (RFC 4760 Section 8), and a
+command that reaches no peer answers `error`, naming the family. While a peer's
+own initial sync still owes the family's marker, the command writes nothing to
+that peer, answers as handled, and the sync writes the one marker.
+
+A plugin that replays the initial routing update (the route server, the route
+reflector) closes the replay with the same command and the route metadata
+`replay-eor` set to `true` (`UpdateRouteWithMeta`). That marker is the
+session's one End-of-RIB for the family (RFC 4724 Section 2): it goes out only
+when no marker for the family has gone out on the session yet, so a replay
+that finishes after the reactor's initial sync does not repeat it.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, AnnounceReplayEOR, announceEOR -->
+<!-- source: internal/component/bgp/types/types.go -- ReplayEORMeta -->
+
 ## VPLS (L2VPN/VPLS)
 
 RFC 4761 Virtual Private LAN Service.

@@ -7,8 +7,8 @@ package bridge
 
 import (
 	"errors"
-	"net/netip"
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
@@ -255,16 +255,16 @@ func TranslateLine(line string) (Translation, error) {
 
 // Translator carries what a translation needs beyond the line itself.
 //
-// Two things are not in the line. A bare `announce eor` is every family, and
-// which families there are is the bridge's own declaration. A line that names
-// no neighbor is every peer that attaches THIS script, and which peers those
-// are is the neighbor's `api { processes [ ... ] }` list rather than anything
-// the script writes. A zero Translator refuses the End-of-RIB line by name and
-// sends an unaddressed line to every peer, which is what one process serving
-// every neighbor means.
+// A line that names no neighbor is every peer that attaches THIS script, and
+// which peers those are is the neighbor's `api { processes [ ... ] }` list
+// rather than anything the script writes. A zero Translator sends an
+// unaddressed line to every peer, which is what one process serving every
+// neighbor means.
 type Translator struct {
 	// Families are the families this bridge declared, in ze spelling
-	// ("ipv4/unicast"). They are the set a bare End-of-RIB expands over.
+	// ("ipv4/unicast"). No translation reads them since a bare End-of-RIB
+	// became IPv4 unicast alone, as ExaBGP's api_eor reads it. The field and
+	// its writers (bridge.go, bridgerun.New) are owed a removal.
 	Families []string
 	// Peers are the addresses of the peers that attach the script this
 	// translator serves. An empty list is every peer.
@@ -478,7 +478,7 @@ func (t Translator) convertRoute(selector, rest string) ([]Command, bool, error)
 	// carries no route; the attributes form, which carries several; and the
 	// braced flow route, whose body is a nested grammar rather than a token
 	// run (bridge_flow.go).
-	if commands, matched, err := convertEOR(selector, rest, t.Families); matched {
+	if commands, matched, err := convertEOR(selector, rest); matched {
 		return commands, true, err
 	}
 	if strings.HasPrefix(restLower, announceVerb) || strings.HasPrefix(restLower, withdrawVerb) {

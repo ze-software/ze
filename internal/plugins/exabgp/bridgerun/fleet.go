@@ -105,9 +105,9 @@ type Fleet struct {
 
 // New builds a Fleet for the given scripts. It forks nothing: Start does.
 //
-// families are the families this bridge declared, in ze spelling. A bare
-// `announce eor` is every one of them, and the line itself names none, so the
-// translator carries the set (bridge.Translator).
+// families are the families this bridge declared, in ze spelling. No
+// translation reads them since a bare `announce eor` became IPv4 unicast alone,
+// as in ExaBGP; the parameter and bridge.Translator.Families are owed a removal.
 //
 // The translator is built PER SCRIPT, because the peers an unaddressed line
 // reaches are the peers that script serves.
