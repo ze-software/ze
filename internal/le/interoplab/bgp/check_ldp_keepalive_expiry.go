@@ -23,15 +23,20 @@ const (
 	ldpTransportAddress = "172.30.0.250"
 	ldpPort             = "646"
 	ldpLabTable         = "ldplab"
-	ldpLabChain         = "input"
-	// ldpLabChainSpec hooks the chain ahead of every other input filter.
-	ldpLabChainSpec = "{ type filter hook input priority -300; policy accept; }"
-	// ldpLabDataSegments matches the LDP session segments that carry PDUs (PSH
-	// set) and leaves pure ACKs alone; nft joins its arguments into one rule.
-	ldpLabDataSegments  = "tcp sport " + ldpPort + " tcp flags & psh == psh"
+	ldpLabChain         = "output"
+	// ldpLabChainSpec hooks the chain ahead of every other output filter.
+	ldpLabChainSpec = "{ type filter hook output priority -300; policy accept; }"
+	// ldpLabZeroWindow rewrites the receive window of every segment ze sends on
+	// the LDP session (ze is the active LSR, so it dials FRR's port 646) to
+	// zero. nft fixes the TCP checksum for the rewritten field; nft joins its
+	// arguments into one rule.
+	ldpLabZeroWindow    = "tcp dport " + ldpPort + " tcp window set 0"
 	ldpStateOperational = "OPERATIONAL"
 	// ldpExpiryStatus is the Status name FRR logs for Status Code 0x00000014.
 	ldpExpiryStatus = "KeepAlive Timer Expired"
+	// ldpReceivedNotification is the prefix FRR's message debug gives a received
+	// Notification.
+	ldpReceivedNotification = "msg[in]: notification:"
 	// ldpExpiryWait covers ze's 3 s KeepAlive Timer, the 5 s write bound and
 	// FRR's handling of the Notification.
 	ldpExpiryWait = 30 * time.Second
@@ -39,20 +44,22 @@ const (
 
 var frrShowLDPNeighbor = []string{cmdVtysh, "-c", "show mpls ldp neighbor"}
 
-// checkLDPKeepaliveExpiry brings the LDP session up, drops FRR's LDP PDUs in
-// ze's container so ze's KeepAlive Timer is the one that expires, and requires
-// FRR to log a received Notification naming KeepAlive Timer Expired after the
-// break, then to leave OPERATIONAL. Hellos are UDP and still pass, so the
-// adjacency stays and the close is the timer's, not the adjacency expiry's.
+// checkLDPKeepaliveExpiry brings the LDP session up, then closes ze's TCP
+// receive window toward FRR, so FRR can send ze no LDP PDU and ze's KeepAlive
+// Timer is the one that expires. It requires FRR to log a received
+// Notification naming KeepAlive Timer Expired after the break, then to leave
+// OPERATIONAL.
 //
-// KNOWN BROKEN (2026-10-20, spec-ldp-keepalive-expiry-notification A-4): any
-// drop of FRR's segments stalls ze's own TCP stream. FRR always has KeepAlives
-// queued, so its ACKs ride on data segments; with those dropped ze gets no
-// ACK, falls into retransmission, and its KeepAlives and Notification stop
-// reaching FRR. FRR's KeepAlive Timer then fires first (FRR logged ze's
-// KeepAlives each second up to the break, then nbr_ktimeout about 3 s later).
-// Dropping only PSH segments, as below, did not change that. The break needs a
-// redesign that leaves FRR's TCP acknowledging ze's data.
+// Why a zero window and not a drop: a drop of FRR's segments toward ze also
+// drops the ACKs FRR piggybacks on its KeepAlives, so ze's own stream stalls in
+// retransmission, ze's Notification never reaches FRR, and FRR's timer fires
+// first (spec-ldp-keepalive-expiry-notification A-4, seen 2026-10-20).
+// A zero window advertised by ze leaves FRR's kernel holding its LDP data while
+// it still acknowledges ze's, with pure ACKs and zero-window probes, so ze's
+// KeepAlives keep FRR's timer from expiring and ze's Notification is delivered.
+// FRR's KeepAlive Time cannot be raised instead: RFC 5036 Section 3.5.3 has both
+// sides use the smaller proposal. Hellos are UDP and untouched, so the adjacency
+// stays and the close is the timer's, not the adjacency expiry's.
 func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
 	address := []string{"ip", "address", "add", ldpTransportAddress + "/32", "dev", "eth0"}
 	if _, err := check.Lab.Exec(ctx, "ze", address, nil); err != nil {
@@ -72,23 +79,23 @@ func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext
 	}
 	before := expiryNotificationsLogged(logBefore)
 
-	// The break: FRR's LDP data segments toward ze, dropped in a table of ze's
-	// own container (see KNOWN BROKEN above). The FRR image ships no iptables,
-	// and the table is outside the ze_ prefix, so ze's firewall never sweeps it.
+	// The break: ze's advertised receive window, rewritten to zero in a table of
+	// ze's own container. The FRR image ships no iptables, and the table is
+	// outside the ze_ prefix, so ze's firewall never sweeps it.
 	for _, argv := range [][]string{
 		{cmdNft, nftActionAdd, nftObjectTable, nftFamilyInet, ldpLabTable},
 		{cmdNft, nftActionAdd, nftObjectChain, nftFamilyInet, ldpLabTable, ldpLabChain, ldpLabChainSpec},
-		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, ldpLabTable, ldpLabChain, "ip", "saddr", frrLabAddress, ldpLabDataSegments, "drop"},
+		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, ldpLabTable, ldpLabChain, "ip", "daddr", frrLabAddress, ldpLabZeroWindow},
 	} {
 		if _, err := check.Lab.Exec(ctx, "ze", argv, nil); err != nil {
-			return fmt.Errorf("drop FRR's LDP TCP traffic: %w", err)
+			return fmt.Errorf("close ze's LDP receive window: %w", err)
 		}
 	}
 	defer func() {
 		restore := []string{cmdNft, nftActionDelete, nftObjectTable, nftFamilyInet, ldpLabTable}
 		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), "ze", restore, nil)
 		if restoreErr != nil && resultErr == nil {
-			resultErr = fmt.Errorf("restore FRR's LDP TCP traffic: %w", restoreErr)
+			resultErr = fmt.Errorf("reopen ze's LDP receive window: %w", restoreErr)
 		}
 	}()
 
@@ -122,15 +129,16 @@ func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext
 
 // expiryNotificationsLogged counts the received Notifications naming KeepAlive
 // Timer Expired in FRR's log. `debug mpls ldp messages recv` logs each received
-// message with its Status name; a line must also name a Notification, so a log
-// line about FRR's own timer is not counted.
+// message as "msg[in]: notification: lsr-id <id>, status <name> (fatal error)",
+// so a line must carry that received-Notification prefix: a line about FRR's
+// own timer (nbr_ktimeout), or a Notification FRR sent, is not counted.
 func expiryNotificationsLogged(frrLog string) int {
 	count := 0
 	for line := range strings.SplitSeq(frrLog, "\n") {
-		if !strings.Contains(line, ldpExpiryStatus) {
+		if !strings.Contains(line, ldpReceivedNotification) {
 			continue
 		}
-		if strings.Contains(strings.ToLower(line), "notification") {
+		if strings.Contains(line, ldpExpiryStatus) {
 			count++
 		}
 	}

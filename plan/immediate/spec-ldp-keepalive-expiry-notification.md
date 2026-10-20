@@ -14,7 +14,7 @@
 | Depends | - |
 | Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-10-20 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
@@ -98,7 +98,7 @@ remain outside this transferred scope; their obligations are not waived.
 - [ ] `docs/architecture/testing/interop.md` - interop suites, scenario naming, discrimination
   → Constraint: a scenario directory is named, no numeric prefix; LDP has no suite of its own. Scenarios live in the BGP lab (`test/interop/scenarios/`, checkers in `internal/le/interoplab/bgp/`, run by `./le test integration interop`)
   → Constraint: no lab scenario has ever brought up an LDP session (design review r1, I-3). `ospf-ldp-sync-frr` configures `mpls ldp` in `frr.conf`, but the shared `test/interop/daemons` sets `ldpd=no`, the scenario ships no `daemons` override, and its `checkers.go` entry waits only for OSPF Full. `prepare.go` mounts a scenario's own `daemons` file in place of the shared one when it exists, so the new scenario ships one with `ldpd=yes` (A-6). Journal row: `plan/journal/test-against-broken-path.md`, 2026-10-14
-  → Decision: the precedent for forcing a timer expiry against FRR is `check_special.go` (BFD failover): an nft table in ze's own container drops ze's INBOUND traffic, because the FRR image ships no iptables. The same shape drops FRR's TCP toward ze, so ze's KeepAlive Timer expires while ze's outbound Notification still reaches FRR
+  → Decision: the precedent for forcing a timer expiry against FRR is `check_special.go` (BFD failover): an nft table in ze's own container drops ze's INBOUND traffic, because the FRR image ships no iptables. Superseded at closure (2026-10-20, A-4 broken): for a TCP session a drop of FRR's segments also drops the ACKs they carry, so the break is an `ldplab` OUTPUT rule in ze's container that rewrites the TCP window ze advertises to zero: FRR can send no PDU, its kernel still acknowledges ze's, and ze's Notification reaches FRR
   → Constraint: before claiming the interop test validates the change, revert, rebuild the image, see it red, restore, see it green, and record the red
 
 ### RFC Summaries (Scope: protocol)
@@ -186,9 +186,9 @@ remain outside this transferred scope; their obligations are not waived.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `ReadLoop` is the only place a KeepAlive Timer expiry is detected | `grep` for `errKeepaliveExpiry` finds one return, in `ReadLoop`; `runSession` is the only `ReadLoop` caller (passive role absent) | A second detection site closes silently | Grep at implementation start; a future passive-role session reuses `ReadLoop` | confirmed (2026-10-14: `errKeepaliveExpiry` is returned only by `keepaliveTimerExpired`, called only from `ReadLoop`'s timeout branch; `register.go` `runSession` is the only non-test `ReadLoop` caller) |
 | A-2 | Concurrent `Write` calls on one TCP `net.Conn` do not interleave bytes | Go `net` documents conn methods as safe for concurrent use; the poll FD write lock serialises each `Write` | A KeepAlive could split the Notification PDU | AC-5 mechanism serialises all session writes, which removes the dependency | confirmed, and moot: every PDU write now holds `Session.writeMu` (`writePDU`, `sendNotification`), so no two writes run concurrently |
-| A-3 | FRR ldpd records a received fatal Notification with its status name ("KeepAlive Timer Expired") where the lab can read it, given `debug mpls ldp messages recv` (or equivalent) in `frr.conf` | Not verified against FRR source in this session | The interop checker cannot tell the code from any other close | Run the scenario once at implementation; fallback: capture the PDU on FRR's interface (packet capture in ze's container on egress) and assert the Status TLV bytes | unvalidated |
-| A-4 | Dropping FRR's TCP toward ze in ze's container input hook expires ze's timer while ze's outbound Notification still reaches FRR, and Hellos (UDP) keep the adjacency alive so `expireAdjacencies` does not stop the session first | BFD failover precedent in `check_special.go` drops one direction only | The adjacency expiry path closes without a Notification and the test proves nothing | Scenario run plus forced red under revert (AC-6) | broken (2026-10-20, closure agent, HEAD `e4f9fc338a`, four runs): FRR logs ze's KeepAlives each second up to the break (`kalive[in]: keepalive: lsr-id 172.30.0.2` at 04:59:41, :42, :43 with `debug mpls ldp messages recv all`), then `nbr_ktimeout` at :46, and it receives no Notification. Any drop of FRR's TCP toward ze stalls ze's own stream: FRR always has KeepAlives queued, so its ACKs ride on data segments, ze gets no ACK and goes into retransmission, and its KeepAlives and Notification stop reaching FRR, so FRR's timer fires first. Dropping only PSH segments (`tcp flags & psh == psh`) did not change it. Also seen in every run, cause not traced: ze's re-dial after the close fails `dial tcp 172.30.0.250:0->172.30.0.3:646: i/o timeout` |
-| A-5 | Zero Message ID and Message Type are right for expiry | RFC 5036 Section 3.4.6 quotes above; expiry answers no peer message | FRR rejects the Status TLV | Interop AC-6 | unvalidated |
+| A-3 | FRR ldpd records a received fatal Notification with its status name ("KeepAlive Timer Expired") where the lab can read it, given `debug mpls ldp messages recv` (or equivalent) in `frr.conf` | Not verified against FRR source in this session | The interop checker cannot tell the code from any other close | Run the scenario once at implementation; fallback: capture the PDU on FRR's interface (packet capture in ze's container on egress) and assert the Status TLV bytes | confirmed (2026-10-20, closure agent, green run of the zero-window break): FRR 10.3.1 logged `msg[in]: notification: lsr-id 172.30.0.2, status KeepAlive Timer Expired (fatal error)` at 05:51:35, then `nbr_fsm: event SESSION CLOSE ... from OPERATIONAL to PRESENT`; `expiryNotificationsLogged` now requires the `msg[in]: notification:` prefix, and `TestExpiryNotificationsLogged` carries the real line format |
+| A-4 | Dropping FRR's TCP toward ze in ze's container input hook expires ze's timer while ze's outbound Notification still reaches FRR, and Hellos (UDP) keep the adjacency alive so `expireAdjacencies` does not stop the session first | BFD failover precedent in `check_special.go` drops one direction only | The adjacency expiry path closes without a Notification and the test proves nothing | Scenario run plus forced red under revert (AC-6) | broken (2026-10-20, closure agent, HEAD `e4f9fc338a`, four runs): FRR logs ze's KeepAlives each second up to the break (`kalive[in]: keepalive: lsr-id 172.30.0.2` at 04:59:41, :42, :43 with `debug mpls ldp messages recv all`), then `nbr_ktimeout` at :46, and it receives no Notification. Any drop of FRR's TCP toward ze stalls ze's own stream: FRR always has KeepAlives queued, so its ACKs ride on data segments, ze gets no ACK and goes into retransmission, and its KeepAlives and Notification stop reaching FRR, so FRR's timer fires first. Dropping only PSH segments (`tcp flags & psh == psh`) did not change it. Also seen in every run: ze's re-dial after the close fails `dial tcp 172.30.0.250:0->172.30.0.3:646: i/o timeout`. Traced at closure to the break, not to ze: `ldpSessionDialer` (`register.go`) bounds a dial at 5 s, the failed dial started at 05:34:04, 17 s after FRR's close at 05:33:47, while the `ldplab` table was still installed (the checker removes it only when it returns), so a drop of FRR's TCP from port 646 drops the SYN-ACK too. Under the zero-window break the re-dial at 05:57:14 (red run) reached FRR's `INIT RECEIVED`, and no dial timeout follows. Redesign (closure agent, 2026-10-20): the break no longer drops anything; an `ldplab` OUTPUT rule in ze's container rewrites the TCP window ze advertises on the session to zero (`ldpLabZeroWindow` in `check_ldp_keepalive_expiry.go`), so FRR's kernel holds FRR's PDUs and keeps acknowledging ze's; FRR logged ze's KeepAlives at 05:56:52, :53, :54 and :55 during the break of the red run, so its own timer never fired |
+| A-5 | Zero Message ID and Message Type are right for expiry | RFC 5036 Section 3.4.6 quotes above; expiry answers no peer message | FRR rejects the Status TLV | Interop AC-6 | confirmed (2026-10-20, green run): FRR decoded the Status TLV and logged `status KeepAlive Timer Expired (fatal error)` for the Notification with Message ID and Message Type zero; it raised no Bad TLV or Unknown status in reply (FRR's log shows `SESSION CLOSE` next) |
 | A-6 | FRR ldpd, started by a scenario `daemons` file with `ldpd=yes`, reaches OPERATIONAL with ze in the Docker lab | Nothing yet: no lab scenario has started ldpd (journal row 2026-10-14 in `plan/journal/test-against-broken-path.md`); the QEMU `TestLDPInteropFRR` establishes a session in a netns, which is a different topology. `prepare.go` mounts the scenario's `daemons` over `/etc/frr/daemons` | AC-6 has no session to expire; the interop proof needs a lab repair first, and the owner is told before any other route is chosen | First step of phase 5: run the scenario with only the OPERATIONAL wait in its checker (`vtysh -c "show mpls ldp neighbor"` showing the ze LSR ID in state OPERATIONAL), before any nft step is written | confirmed (2026-10-20, after `a42919934f`, HEAD `e4f9fc338a`, ze image `8993b21ee0c6`): FRR logs `nbr_fsm: event KEEPALIVE RECEIVED resulted in action START NEIGHBOR SESSION and changing state for lsr-id 172.30.0.2 from OPENREC to OPERATIONAL` and decodes ze's Label Mappings (fec 172.30.0.2/32 label 16, 172.30.0.0/24 label 17); the checker's OPERATIONAL wait passed in all four runs. Superseded earlier verdict follows. Broken (2026-10-20, closure agent at HEAD `1bd1a62004`): `INTEROP_SCENARIO=ldp-keepalive-expiry-frr ./le test integration interop` failed at assertion 0, "LDP session with ze never became operational", FRR's `show mpls ldp neighbor` empty after 120 s. Ze's log: `ldp: cannot read interface addresses interface=eth0 error="iface: no backend loaded"`, then `ldp: discovery interface not available, retrying interface=eth0`. The cause is in ze, not the lab: `waitForInterface` (`internal/plugins/ldp/register.go`) calls `iface.Resolve`, and `interfacePrefixes` (`internal/plugins/ldp/local.go`) calls `iface.Addresses`, each with no `iface.EnsureBackend` first, which OSPF (`internal/plugins/ospf/transport/backend_linux.go`) and IS-IS (`internal/plugins/isis/transport/backend_linux.go` `resolveInterface`) both call; the scenario's `ze.conf` has no `interface {}` block, so no backend loads and LDP never sends a Hello. Same message as the open `TestLDPInteropFRR` row (2026-08-24) in `plan/journal/test-against-broken-path.md`. AC-6 is blocked on that fix |
 | A-7 | Arming the write deadline unblocks a `conn.Write` already pending in another goroutine | Go `net.Conn` `SetWriteDeadline` documents that a deadline applies to pending as well as future writes, and `net.Pipe` implements deadlines | The expiry Notification waits on the write lock without bound (AC-4b) | AC-4b over `net.Pipe` with a KeepAlive blocked mid-write | confirmed: `TestRunSessionKeepaliveExpiryBoundedBehindBlockedKeepalive` and `TestAdvisoryNotificationBoundedBehindBlockedKeepalive` pass, and both go red (unbounded wait) with the deadline armed inside the lock |
 
@@ -252,7 +252,7 @@ remain outside this transferred scope; their obligations are not waived.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Peer silent on an operational session dialed by `startSessionForAdj` (checked 2026-10-14: `startSessionForAdj` in `register.go` starts `go runSession(...)`; re-confirm the name at implementation) | → | `runSession` → `Session.ReadLoop` timeout branch → `sendNotification` → deferred `Stop` | `TestRunSessionKeepaliveExpiryNotifiesThenCloses` (`internal/plugins/ldp/rfc5036_keepalive_expiry_test.go`) |
-| FRR ldpd session, FRR's TCP toward ze dropped | → | the same chain in the running `ze` daemon | interop scenario `ldp-keepalive-expiry-frr` |
+| FRR ldpd session, FRR's LDP PDUs toward ze held back by a zero TCP window ze advertises | → | the same chain in the running `ze` daemon | interop scenario `ldp-keepalive-expiry-frr` |
 
 ## Acceptance Criteria
 
@@ -266,7 +266,7 @@ remain outside this transferred scope; their obligations are not waived.
 | AC-4 | The peer is connected but never reads, so the write cannot complete | The attempt ends within `notificationWriteTimeout`; one Warn line; `ReadLoop` returns `errKeepaliveExpiry` | `TestReadLoopKeepaliveExpiryNotificationWriteBounded` (elapsed time bounded, `net.Pipe` peer that never reads; about 5 s, because `notificationWriteTimeout` is a constant) |
 | AC-4b | As AC-4, and a KeepAlive from the `runSession` sender is blocked mid-write holding the write lock when the timer expires | The blocked KeepAlive write returns a timeout error; the expiry attempt still ends within `notificationWriteTimeout` of the expiry; one Warn line; `ReadLoop` returns, `runSession`'s deferred `Stop` runs, and the KeepAlive sender goroutine has exited when `runSession` returns | `TestRunSessionKeepaliveExpiryBoundedBehindBlockedKeepalive` (`net.Pipe` peer that reads nothing after the session is OPERATIONAL, KeepAlive 1 s so the sender is mid-write at expiry; the test LIB holds no local bindings, so `SendLabelMapping` in the `onOperational` callback, which carries no deadline, writes nothing and cannot block `ReadLoop`; the blocked write fails only AT the armed deadline, so the test asserts elapsed time from expiry to `ReadLoop` return of `notificationWriteTimeout` plus a fixed slack, and that the Notification write itself fails because the peer reads nothing; `runSession` returns; goroutine count back to its baseline). Red against a design that arms the deadline inside the lock |
 | AC-5 | A fatal Notification has been written (expiry, or any other fatal cause) and a KeepAlive, Label Mapping, Label Withdraw or Initialization send is then attempted on the same session | Nothing more reaches the wire; each send returns an error | `TestNoPDUAfterFatalNotification` (calls `SendKeepalive`, `SendLabelMapping`, `SendLabelWithdraw` and `SendInit` after the expiry Notification, asserts each returned error and that the peer reads no further octet) |
-| AC-6 | Live FRR ldpd peer, operational session, FRR's TCP toward ze dropped in ze's container | FRR receives a Notification carrying KeepAlive Timer Expired from ze and the FRR neighbor leaves OPERATIONAL; with the send reverted the scenario is red | Interop scenario `ldp-keepalive-expiry-frr`, plus a recorded red under revert with a rebuilt image |
+| AC-6 | Live FRR ldpd peer, operational session, FRR's LDP PDUs toward ze stopped in ze's container (closure, 2026-10-20: by rewriting the TCP window ze advertises to zero, because dropping FRR's TCP stalls ze's own stream, A-4) | FRR receives a Notification carrying KeepAlive Timer Expired from ze and the FRR neighbor leaves OPERATIONAL; with the send reverted the scenario is red | Interop scenario `ldp-keepalive-expiry-frr`, plus a recorded red under revert with a rebuilt image |
 | AC-7 | Every other Notification path (Bad Protocol Version, Session Rejected/No Hello, Session Rejected/Bad KeepAlive Time, Shutdown NAK, Unknown TLV, Loop Detected) | Unchanged codes, references and log lines; advisory Notifications do not block later writes | The existing tagged tests in `rfc5036_test.go`, `rfc5036_procedures_test.go`, `rfc5036_establishment_test.go`, `rfc5036_openrec_test.go` stay green unedited, plus `TestAdvisoryNotificationDoesNotBlockWrites`; an advisory Notification behind a blocked KeepAlive is bounded by its own armed deadline (D-3), proven by `TestAdvisoryNotificationBoundedBehindBlockedKeepalive` |
 | AC-8 | Docs | `docs/architecture/ldp/mpls-ldp.md` and `docs/guide/mpls.md` say ze sends KeepAlive Timer Expired before closing; `rfc/short/rfc5036.md` RFC5036-2.5.3-2, RFC5036-3.5.1-1, Support remaining and the implementation prose drop expiry from the silent causes and keep decoding errors | `./le spec citation anchors` clean; grep shows no "KeepAlive expiry ... close silently" sentence left; `docs/guide/mpls.md` no longer says "three times that value" |
 | AC-9 | Q-1 fold in: KeepAlive Time negotiated to N seconds | The armed KeepAlive Timer (`currentHoldTime()`, the read deadline) is N seconds, not 3N | `TestRFC5036InitNonZeroKeepaliveTimeAccepted` asserts 30 s; `TestRFC5036KeepaliveNegotiationAdoptsLower` / `RefusesHigher` assert the armed timer equals the negotiated time; `TestConfiguredKeepaliveReachesInitializationMessage` asserts 15 s; fresh `./le rfc discriminate-record` for each changed tagged unit |
@@ -346,7 +346,7 @@ Q-3 (owner, 2026-10-14) adds row RFC5036-2.5.4-3 for the OPERATIONAL Timeout tra
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ldp-keepalive-expiry-frr` | `test/interop/scenarios/ldp-keepalive-expiry-frr/` (`ze.conf` with `ldp/keepalive-time` small, `frr.conf` with `mpls ldp` and message debug, `daemons` with `ldpd=yes` because the shared `test/interop/daemons` sets `ldpd=no`); checker in `internal/le/interoplab/bgp/` beside the BFD failover checker; run by `./le test integration interop` | FRR ldpd | Session OPERATIONAL; nft table in ze's container drops inbound TCP from FRR (port 646); ze's timer expires; FRR records a received Notification naming KeepAlive Timer Expired (A-3) and its neighbour leaves OPERATIONAL; table removed on exit. Red under a revert of the send with the image rebuilt | |
+| `ldp-keepalive-expiry-frr` | `test/interop/scenarios/ldp-keepalive-expiry-frr/` (`ze.conf` with `ldp/keepalive-time` small, `frr.conf` with `mpls ldp` and message debug, `daemons` with `ldpd=yes` because the shared `test/interop/daemons` sets `ldpd=no`); checker in `internal/le/interoplab/bgp/` beside the BFD failover checker; run by `./le test integration interop` | FRR ldpd | Session OPERATIONAL; nft table in ze's container rewrites the TCP window ze advertises to FRR (port 646) to zero, so FRR sends no PDU while still acknowledging ze; ze's timer expires; FRR records a received Notification naming KeepAlive Timer Expired (A-3) and its neighbour leaves OPERATIONAL; table removed on exit. Red under a revert of the send with the image rebuilt | |
 
 The name follows `docs/architecture/testing/interop.md` (named, no numeric prefix) and replaces the originating spec's planned `ldp-keepalive-shutdown-notification-frr`, which named the wrong status. The originating spec's interop row is updated to the new name in the same phase.
 
@@ -520,6 +520,7 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
 - Phase 4 found a fourth tagged unit the TDD plan did not list: `TestRFC5036KeepalivesSentPeriodically` (RFC5036-2.5.3-1 positive) went red because its peer stayed silent for a full 1 s KeepAlive Time after establishment, which the corrected timer rightly treats as a dead peer. The peer now answers each KeepAlive with its own, as a live peer does; the assertions are unchanged. Fresh discrimination record written; covered by the owner's "approve all RFC-tagged test changes" (2026-10-13), committed under `rfc-change-ok` so the approval row stays owed to the owner
 - Phase 6: `./le rfc check` refused RFC5036-2.5.4-3 with positive tags only ("has no negative test"), so AC-10 gained a negative the plan did not list: `TestReadLoopKeepaliveTrafficRestartsTimer` (peer sends a KeepAlive every 50 ms under a 300 ms timer for 900 ms; ze writes nothing, then the Notification once the peer stops). Row text is the verbatim span "Timeout NON EXISTENT Action: Transmit Shutdown msg and close transport connection"; RFC 5036 Appendix change 10 says the state table's Shutdown msg "is implemented as a notification message with a Status TLV indicating a fatal error", which the KeepAlive Timer Expired Notification is. The phase 1-4 changes to `handleInit` and `sendNotification` left 13 LDP discrimination records producer-changed (12 rfc5036, 1 rfc5443); all re-recorded by revert in phase 6. The gate also asks the tagged file be renamed `rfc5036_keepalive_expiry_test.go`; `./le rfc rename` refuses a file that differs from HEAD, so the rename is its own commit after the tags land
 - Closure attempt, 2026-10-20 (HEAD `1bd1a62004`): AC-6 did not run green, so no red walk was possible. A-6 is broken (see its row): LDP discovery never resolves eth0, because the ldp plugin never loads the iface backend on an LDP-only config. Fix plan [source]: call `iface.EnsureBackend()` before `iface.Resolve` in `waitForInterface` (`register.go`) and before `iface.Addresses` in `interfacePrefixes` (`local.go`), as OSPF and IS-IS do, with a unit test that resolves an interface under a config with no `interface {}` block and is red without the call. Rejected [workaround]: adding `interface { backend netlink }` to the scenario's `ze.conf`, which hides the defect every LDP-only operator config meets. Two diagnostic runs with that workaround applied temporarily (file restored after each, `git diff` empty) both failed before the checker ran, `docker run -d did not finish within 1m0s`, at host load average 55 to 79 from other sessions' QEMU and mutation runs. They say nothing about A-3, A-4 or A-5, which stay unvalidated until AC-6 runs
+- Closure attempt 3, 2026-10-20 (closure agent; the checker redesign is this agent's, in `internal/le/interoplab/bgp/check_ldp_keepalive_expiry.go`): the break is now a zero TCP window. RFC 5036 Section 3.5.3 rules out a long FRR KeepAlive Time: "The receiving LSR MUST calculate the value of the KeepAlive Timer by using the smaller of its proposed KeepAlive Time and the KeepAlive Time received in the PDU." SIGSTOP of FRR's ldpd was rejected unrun: both timers count from the same moment, so FRR's expired timer competes with the read of ze's Notification on resume. Trap found on the way: `./le` runs `bin/le`, an existence cache it never rebuilds from the tree (`le`, the launcher script), so a checker edit is not in the run until `./le --name <name>` or `./le --update` builds it; the runs of closure attempt 3 used `./le --name ldpka`. Whether attempt 2's PSH-only run measured the PSH rule or an older `bin/le` (built 05:24, before the edit landed) cannot be told now
 - Closure attempt 2, 2026-10-20 (HEAD `e4f9fc338a`): A-6 now holds, AC-6 is still red, and the cause is the scenario's break, not ze (A-4 broken, see its row). The `ldplab` drop of FRR's segments starves ze's TCP of ACKs, so ze's Notification does not get out of ze's send queue in time and FRR's own 3 s timer fires first. Tried: drop only FRR's PSH segments (in the working tree, `ldpLabDataSegments` in `internal/le/interoplab/bgp/check_ldp_keepalive_expiry.go`, with a KNOWN BROKEN comment): same result. `frr.conf` now logs `recv all`, so FRR's log shows ze's KeepAlives. Redesign candidates, none tried: freeze FRR's ldpd with SIGSTOP so FRR's kernel keeps acknowledging ze while FRR sends no PDU, then SIGCONT and read FRR's log (risk: FRR may run its expired timer before it reads the socket); or give FRR a long KeepAlive Time so only ze's timer can fire, and stop FRR's PDUs in a way that does not hold back FRR's ACKs. The forced red (revert `keepaliveTimerExpired` in `ReadLoop`) is owed after a green. A-3 and A-5 stay unvalidated: no Notification has reached FRR yet
 
 ## Key Design Decisions
@@ -603,3 +604,157 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `keepaliveTimerExpired` (`internal/plugins/ldp/session.go`): `ReadLoop`'s read-timeout branch sends one fatal Notification, `statusKeepaliveTimerExpired` (0x80000014, `wire.go`), Message ID and Message Type 0, logs a failed send once at Warn, and returns `errKeepaliveExpiry` (commit `1c24d00635`)
+- One serialised write path: `writePDU` and `sendNotification` hold `Session.writeMu`; `writeRefusal` refuses every write after a fatal Notification (`errFatalNotificationSent`) or a partial write (`errStreamBroken`); `sendNotification` arms its write deadline before taking the lock (D-3) (`1c24d00635`)
+- `handleInit` arms the KeepAlive Timer at the negotiated KeepAlive Time, not three times it (Q-1, `ac361668e5`)
+- Row RFC5036-2.5.4-3, its `unsourced-ids` entry, tags on the AC-1 tests and the negative `TestReadLoopKeepaliveTrafficRestartsTimer`, discrimination records (Q-3, `daf25fb80e`, file rename `a9892405ec`)
+- Interop scenario `ldp-keepalive-expiry-frr` and checker `checkLDPKeepaliveExpiry` (`d81ffceaea`); its break redesigned at closure to a zero TCP window (this commit); `iface.EnsureBackend` before LDP reads interfaces (`a42919934f`), which A-6 needed
+
+### Bugs Found/Fixed
+- LDP never loaded the iface backend on an LDP-only config, so discovery never ran (A-6 broken, fixed in `a42919934f`, covered by `internal/plugins/ldp/iface_backend_test.go`)
+- The scenario's break could not work: a drop of FRR's TCP also dropped the ACKs it carried and stalled ze's stream (A-4 broken). Fixed in the checker, covered by the scenario's own green/red pair below
+- `expiryNotificationsLogged` matched any line naming "notification" and the status, so a sent Notification would have passed for a received one; it now requires FRR's `msg[in]: notification:` prefix, and `TestExpiryNotificationsLogged` uses FRR 10.3.1's real line format with a `msg[out]` line that must not count
+
+### Documentation Updates
+- `docs/architecture/ldp/mpls-ldp.md` and `docs/guide/mpls.md`: expiry sends KeepAlive Timer Expired before closing; the timer equals the negotiated time (`1c24d00635`, `ac361668e5`)
+- `rfc/short/rfc5036.md`: RFC5036-2.5.3-2, RFC5036-3.5.1-1, Support remaining and the prose drop expiry from the silent causes; row RFC5036-2.5.4-3 (`daf25fb80e`)
+- `docs/architecture/testing/interop.md` Scenario Inventory row 39: the zero-window break and the red evidence replace the "Not yet green" text (this commit)
+
+### Deviations from Plan
+- AC-6's Condition named the mechanism "FRR's TCP toward ze dropped"; no drop of FRR's TCP can let ze's Notification out (A-4), so the Condition now reads "FRR's LDP PDUs toward ze stopped" by a zero window. The Expected Behavior and the proof column are unchanged
+- AC-10 gained a negative test the plan did not list (`TestReadLoopKeepaliveTrafficRestartsTimer`), required by `./le rfc check`
+- AC-9: `TestConfiguredKeepaliveReachesInitializationMessage` keeps 45 s (it reads `NewSession`'s pre-negotiation wait); recorded in Design Insights
+- A fourth tagged unit changed, `TestRFC5036KeepalivesSentPeriodically` (Design Insights, phase 4)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: dropping FRR's TCP in ze's input expires ze's timer while ze's Notification still reaches FRR | FRR's ACKs ride its KeepAlives; dropped with them, ze's stream stalls and FRR's own timer fires first | Closure attempt 2 runs, FRR's log | Break redesigned to a zero advertised window |
+| assumption | A-6: ldpd reaches OPERATIONAL with ze in the lab | LDP never loaded the iface backend on an LDP-only config | Closure attempt 1 run | Fixed in `a42919934f` |
+| approach | Checker edits were run through `./le`, which execs `bin/le` and never rebuilds it from the tree | The checker edit was not in the run; two diagnostic runs of attempt 3 measured an older binary | Diagnostics the edit added never appeared | Runs of record use `./le --name ldpka`; noted in Design Insights |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Fatal Notification, KeepAlive Timer Expired, before the close, with or without a monitor | Done | `session.go` `keepaliveTimerExpired`, `ReadLoop` | No monitor config is read on the path |
+| Best-effort write: existing deadline, log once, close anyway | Done | `session.go` `sendNotification`, `keepaliveTimerExpired` | AC-3, AC-4 |
+| Notification is the last PDU | Done | `session.go` `writePDU`, `writeRefusal` | AC-5 |
+| Not the Shutdown code 0x0000000A | Done | `wire.go` `statusKeepaliveTimerExpired` | `TestEncodeNotificationKeepaliveTimerExpired` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestReadLoopKeepaliveExpirySendsFatalNotification`, `TestRunSessionKeepaliveExpiryNotifiesThenCloses` | |
+| AC-2 | Done | `TestReadLoopKeepaliveExpiryDuringInitialization` | |
+| AC-3 | Done | `TestReadLoopKeepaliveExpiryNotificationWriteFails` | |
+| AC-4 | Done | `TestReadLoopKeepaliveExpiryNotificationWriteBounded` | |
+| AC-4b | Done | `TestRunSessionKeepaliveExpiryBoundedBehindBlockedKeepalive` | |
+| AC-5 | Done | `TestNoPDUAfterFatalNotification` | |
+| AC-6 | Done | `ldp-keepalive-expiry-frr` green, red under revert, green | Condition wording changed (Deviations) |
+| AC-7 | Done | existing tagged tests unedited, `TestAdvisoryNotificationDoesNotBlockWrites`, `TestAdvisoryNotificationBoundedBehindBlockedKeepalive` | |
+| AC-8 | Done | grep below | |
+| AC-9 | Done | `TestRFC5036InitNonZeroKeepaliveTimeAccepted` (30 s), `AdoptsLower`, `RefusesHigher` | 45 s deviation recorded |
+| AC-10 | Done | row RFC5036-2.5.4-3, tags, `rfc/discrimination/rfc5036.json` | negative test added |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestEncodeNotificationKeepaliveTimerExpired` | Done | `internal/plugins/ldp/wire_test.go` | |
+| AC-1 to AC-7 unit and wiring tests (nine names in the TDD plan) | Done | `internal/plugins/ldp/rfc5036_keepalive_expiry_test.go` | file renamed from `keepalive_expiry_test.go` |
+| `TestReadLoopKeepaliveTrafficRestartsTimer` | Changed (added) | same | AC-10 negative |
+| `TestExpiryNotificationsLogged` | Done | `internal/le/interoplab/bgp/check_ldp_keepalive_expiry_test.go` | fixture now FRR's real format |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `wire.go`, `session.go`, `register.go`, `wire_test.go` | Done | |
+| `rfc5036_test.go`, `keepalive_test.go` | Done | phase 4 |
+| `rfc/short/rfc5036.md`, `rfc/extraction/rfc5036.json`, `rfc/discrimination/rfc5036.json` | Done | |
+| `docs/architecture/ldp/mpls-ldp.md`, `docs/guide/mpls.md`, `docs/architecture/testing/interop.md` | Done | |
+| `plan/spec-liveness-event-tears-down-bgp-peer.md` | Done | interop row renamed in `d81ffceaea` |
+| scenario `ze.conf`, `frr.conf`, `daemons`; checker | Done | |
+
+### Audit Summary
+- **Total items:** 37
+- **Done:** 36
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the added negative test; AC-6 Condition wording in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An LDP peer learns why ze ended the session when ze's KeepAlive Timer expires | interop | `ldp-keepalive-expiry-frr` against FRR 10.3.1 ldpd: FRR logged `msg[in]: notification: lsr-id 172.30.0.2, status KeepAlive Timer Expired (fatal error)` then left OPERATIONAL. Red with `ReadLoop` returning `errKeepaliveExpiry` directly (image rebuilt): FRR logged `session_read: connection closed by remote end` and no Notification; restored, green again (runs under AC Verified) |
+| The exact wire form is right | data correctness | `TestEncodeNotificationKeepaliveTimerExpired` and `TestReadLoopKeepaliveExpirySendsFatalNotification` assert the raw octets in hex |
+| The session still closes when the send fails or blocks | resilience | `TestReadLoopKeepaliveExpiryNotificationWriteFails`, `TestReadLoopKeepaliveExpiryNotificationWriteBounded`, `TestRunSessionKeepaliveExpiryBoundedBehindBlockedKeepalive` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ldp-keepalive-expiry-notification-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md` (4 files, verdict clean) |
+| `./le spec review check` | `review_gate: OK (2 code files, clean, hashes match ...)`, exit 0, 2026-10-20 |
+| Rounds | 1 |
+| Reviewer lenses used | logic and lock order of the write path, wiring, RFC text against code, vacuity of the interop assertion, harness side effects; the reviewer authored none of the product code and authored the checker redesign, which is test harness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none above NOTE | - | - |
+
+NOTEs (do not block): (1) `sendNotification` returns `writeRefusal` with its write deadline still armed when the stream is already refused; harmless, because every later write is refused too. (2) The checker's zero-window rule stays until the checker returns, so ze's re-dial after the close runs under it (its SYN carries a zero window and reaches FRR's `INIT RECEIVED`); every assertion precedes that re-dial. (3) Pre-checks: `./le commit audit` exit 0, no `[DELETED]` or `[WEAKENED]` finding; `./le repo check` exit 0.
+
+## Pre-Commit Verification
+
+Full suites (`./le verify worktree`, `./le test unit all`, `./le test functional gating`, full lint) are owed to the session that owns them; `./le verify status check` is STALE for this tree.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/ldp/rfc5036_keepalive_expiry_test.go` | yes | `ls` 2026-10-20 lists it |
+| `test/interop/scenarios/ldp-keepalive-expiry-frr/` `ze.conf`, `frr.conf`, `daemons` | yes | `ls` 2026-10-20: `daemons frr.conf ze.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-5, AC-7, AC-9, AC-10 | unit and wiring tests pass | `./le job run label ldp-ka-unit command go test -race -count=1 ./internal/plugins/ldp/ ./internal/le/interoplab/bgp/` (2026-10-20, working tree): `ok github.com/ze-software/ze/internal/plugins/ldp 28.895s`, `ok github.com/ze-software/ze/internal/le/interoplab/bgp 6.083s` |
+| AC-6 | scenario green, red under revert, green | `INTEROP_SCENARIO=ldp-keepalive-expiry-frr ./le job run label ldp-ka-interop command ./le --name ldpka test integration interop`, 2026-10-20, host load under 12, no other container running. Green: `interop: [1/1] ldp-keepalive-expiry-frr: pass (42s)`, ze-interop `sha256:2da52ff45c79...`, FRR `msg[in]: notification: lsr-id 172.30.0.2, status KeepAlive Timer Expired (fatal error)` at 05:51:35. Red, `ReadLoop` timeout branch `return s.keepaliveTimerExpired()` replaced by `return errKeepaliveExpiry`, image rebuilt by the suite (`sha256:9e8e425e8533...`): `FAIL (1m23s): ... FRR logged no received "KeepAlive Timer Expired" Notification after the break`, FRR `session_read: connection closed by remote end` at 05:56:56. Restored (`git diff --quiet internal/plugins/ldp/` true), image rebuilt (`sha256:0c4618d906bc...`): `interop: [1/1] ldp-keepalive-expiry-frr: pass (23s)`, `1 passed, 0 failed` |
+| AC-8 | no "close silently" claim left for expiry | `grep -n -i "keepalive expiry\|close silently\|three times"` over `docs/architecture/ldp/mpls-ldp.md` and `docs/guide/mpls.md` finds one hit, a historical read-deadline bug in `mpls-ldp.md`; the `Support remaining` row of `rfc/short/rfc5036.md` says expiry "sends the fatal KeepAlive Timer Expired Notification before closing, but decoding errors ... still close silently" |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Peer silent on an operational session started by `startSessionForAdj` | none (Q-4); `TestRunSessionKeepaliveExpiryNotifiesThenCloses` drives production `runSession` | `startSessionForAdj` (`register.go`) starts `go runSession`; the test passes |
+| FRR ldpd session, zero window | interop `ldp-keepalive-expiry-frr` | green against the running daemon image |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | row A-1 |
+| A-2 | confirmed (moot) | row A-2 |
+| A-3 | confirmed | FRR's `msg[in]: notification: ... KeepAlive Timer Expired (fatal error)` |
+| A-4 | broken | row A-4; Mistake Log; Deviations |
+| A-5 | confirmed | FRR decoded the zero references and named the status |
+| A-6 | confirmed | row A-6 |
+| A-7 | confirmed | row A-7 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Interop inventory row 39 | `checkLDPKeepaliveExpiry`, `ldpLabZeroWindow` in `check_ldp_keepalive_expiry.go` | yes |
+| `mpls-ldp.md`, `mpls.md` expiry and timer text | `keepaliveTimerExpired`, `handleInit` in `session.go` | yes |
+| `rfc/short/rfc5036.md` gap text | `keepaliveTimerExpired` | yes |

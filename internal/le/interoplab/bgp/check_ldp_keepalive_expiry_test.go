@@ -7,9 +7,14 @@ import "testing"
 // PREVENTS: a line about FRR's own timer, or any other Notification, passing as
 // the one ze sent.
 func TestExpiryNotificationsLogged(t *testing.T) {
-	log := "2026/10/14 10:00:00 LDP: msg-in: notification: lsr-id 172.30.0.2, status Shutdown\n" +
-		"2026/10/14 10:00:01 LDP: keepalive timer: KeepAlive Timer Expired\n" +
-		"2026/10/14 10:00:02 LDP: msg-in: notification: lsr-id 172.30.0.2, status KeepAlive Timer Expired\n"
+	// The lines are FRR 10.3's own format, read from FRR's log in a green run of
+	// the scenario (2026-10-20); the msg[out] line is the form FRR logs for a
+	// Notification it sends, when send debug is on.
+	log := "2026/10/20 05:51:30 LDP: [ZM8R3-SDQ91] msg[in]: initialization: lsr-id 172.30.0.2\n" +
+		"2026/10/20 05:51:31 LDP: [SKMP8-5DYH7] msg[in]: notification: lsr-id 172.30.0.2, status Shutdown (fatal error)\n" +
+		"2026/10/20 05:51:33 LDP: [HJQMA-Z6XE5] nbr_ktimeout: lsr-id 172.30.0.2\n" +
+		"2026/10/20 05:51:34 LDP: msg[out]: notification: lsr-id 172.30.0.2, status KeepAlive Timer Expired (fatal error)\n" +
+		"2026/10/20 05:51:35 LDP: [SKMP8-5DYH7] msg[in]: notification: lsr-id 172.30.0.2, status KeepAlive Timer Expired (fatal error)\n"
 	if got := expiryNotificationsLogged(log); got != 1 {
 		t.Fatalf("expiryNotificationsLogged = %d, want 1", got)
 	}
