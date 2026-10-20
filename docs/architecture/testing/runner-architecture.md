@@ -133,22 +133,24 @@ record-run` drives, each run under that root, and so does the daemon
 cross-compile of the signal-rooted deployment proofs (`l2tp-test`, `vpp-test`,
 `vpp-iface-test`). `gokrazy-l2tp-ppp-test` runs its whole appliance path under
 the root: the host driver's compile, the runtime-kernel query, the child le
-that runs gok, and the QEMU machine. A cancel during the build ends the build
-and boots nothing; a cancel after the boot kills the machine, so every console
-wait ends at once and the deferred stops tear the lab and the peer down, with
-no context of their own. `./le test qemu docker-lab` takes its root before its
-first child, and its two admitted cross-compiles run through
-`Admission.RunContext`, whose wait for a slot ends with the root: a root that
-captured SIGTERM must not leave a queue that never asks it holding the verb.
+that runs gok, and the QEMU machine. The child le heads a process group of its
+own, and the cancel kills the whole group, so a cancel during the build ends
+the build, the compilers gok started included, and boots nothing; a cancel
+after the boot kills the machine, so every console wait ends at once and the
+deferred stops tear the lab and the peer down, with no context of their own.
+`./le test qemu docker-lab` takes its root before its first child, and its two
+admitted cross-compiles run through `Admission.RunContext`, whose wait for a
+slot ends with the root: a root that captured SIGTERM must not leave a queue
+that never asks it holding the verb.
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 <!-- source: internal/le/verify/evidence/evidence.go -- dockerKernel, Runner.Run -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck -->
 <!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
 <!-- source: internal/le/test/deployment/daemonbuild.go -- runDaemonBuild -->
-<!-- source: internal/le/test/deployment/gokrazyimage.go -- gokrazyImage, RuntimeKernelCacheDir, hostTool -->
+<!-- source: internal/le/test/deployment/gokrazyimage.go -- gokrazyImage, RuntimeKernelCacheDir, hostTool, gokrazyBuildCommand -->
 <!-- source: internal/le/test/deployment/gokrazyl2tp.go -- gokrazyL2TP.Run, gokrazyL2TP.observe -->
 <!-- source: internal/le/build/compile/build.go -- BuildHost -->
-<!-- test: internal/le/test/deployment/gokrazyroot_test.go TestGokrazyImageBuildsUnderTheVerbRoot -->
+<!-- test: internal/le/test/deployment/gokrazyroot_test.go TestGokrazyImageBuildsUnderTheVerbRoot, TestGokrazyBuildCancelEndsTheGrandchildren -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot -->

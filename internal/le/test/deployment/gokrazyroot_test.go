@@ -1,14 +1,20 @@
+// Design: docs/architecture/testing/runner-architecture.md -- How a suite's child processes end
 // Related: proofroot_test.go -- the same proof for the docker-backed deployment proofs.
 
 package testdeployment
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -90,5 +96,61 @@ func TestGokrazyStoppedRunCarriesTheCause(t *testing.T) {
 	err := stoppedRun(context.Canceled)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("stoppedRun lost its cause: %v", err)
+	}
+}
+
+// grandchildSpawner is a stand-in for the child le: it starts a long sleeper
+// of its own, prints the sleeper's pid, and waits, the shape of a gok build
+// whose compiler processes run below the child le.
+const grandchildSpawner = "#!/bin/sh\nsleep 300 &\necho $!\nwait\n"
+
+// VALIDATES: a cancel during the gokrazy image build ends the build, the
+// processes the child le started included, as runner-architecture.md says.
+// METHOD: gokrazyBuildCommand runs a stub child that starts a grandchild
+// sleeper and prints its pid; the context is canceled once the pid arrives,
+// and the grandchild must then be gone (kill(pid, 0) answers ESRCH).
+// PREVENTS: the default CommandContext cancel, which kills the child le alone,
+// leaving the compilers of a canceled build running after le stopped.
+func TestGokrazyBuildCancelEndsTheGrandchildren(t *testing.T) {
+	stub := filepath.Join(t.TempDir(), "le")
+	if err := os.WriteFile(stub, []byte(grandchildSpawner), 0o755); err != nil { //nolint:gosec // a stub child must be executable
+		t.Fatalf("write the stub child: %v", err)
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("make the progress pipe: %v", err)
+	}
+	defer reader.Close() //nolint:errcheck // the test's own pipe
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	run := gokrazyBuildCommand(ctx, stub, t.TempDir(), os.Environ(), writer)
+	if err := run.Start(); err != nil {
+		t.Fatalf("start the stub child: %v", err)
+	}
+
+	line, err := bufio.NewReader(reader).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read the grandchild pid: %v", err)
+	}
+	grandchild, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil {
+		t.Fatalf("the stub child printed %q, not a pid: %v", line, err)
+	}
+	t.Cleanup(func() { syscall.Kill(grandchild, syscall.SIGKILL) }) //nolint:errcheck // the sleeper is gone when the fix holds
+
+	cancel()
+	if err := run.Wait(); err == nil {
+		t.Fatal("a canceled build answered no error")
+	}
+	writer.Close() //nolint:errcheck,gosec // the test's own pipe
+	// The group's SIGKILL is delivered at once, but the killed sleeper is
+	// reaped by init a moment later, so its absence is awaited, bounded.
+	deadline := time.Now().Add(10 * time.Second)
+	for !errors.Is(syscall.Kill(grandchild, 0), syscall.ESRCH) {
+		if time.Now().After(deadline) {
+			t.Fatalf("grandchild %d still runs after the build was canceled", grandchild)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

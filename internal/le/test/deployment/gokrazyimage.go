@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/appliance"
@@ -179,19 +180,51 @@ func buildGokrazyImage(
 		return fmt.Errorf("locate le for build gokrazy: %w", err)
 	}
 
-	run := exec.CommandContext(ctx, self, "build", "gokrazy", //nolint:gosec // self is this le binary, and the argv is this package's own
-		"--parent_dir", parent, "-i", "ze", "overwrite",
-		"--full", image, "--target_storage_bytes", "2147483648")
-	run.Dir = tree
-	run.Env = toolchain.Environment(gotoolchain.EnvOptions{
+	env := toolchain.Environment(gotoolchain.EnvOptions{
 		GOOS: "linux", GOARCH: arch,
 	})
-	run.Env = append(run.Env, gokrazyBuildUser()...)
-	run.Stdout, run.Stderr = progress, progress
+	env = append(env, gokrazyBuildUser()...)
+	run := gokrazyBuildCommand(ctx, self, tree, env, progress,
+		"build", "gokrazy", "--parent_dir", parent, "-i", "ze", "overwrite",
+		"--full", image, "--target_storage_bytes", "2147483648")
 	if err := run.Run(); err != nil {
 		return fmt.Errorf("build gokrazy image: %w", err)
 	}
 	return nil
+}
+
+// gokrazyBuildWaitDelay bounds how long the build waits for its output pipe
+// to close once the child le has exited or been killed.
+const gokrazyBuildWaitDelay = 2 * time.Second
+
+// gokrazyBuildCommand answers the child le that runs gok, under ctx.
+//
+// gok runs the Go compiler, and the compiler processes outlive a kill of the
+// child le alone: the default CommandContext cancel signals that one pid. The
+// child therefore heads a process group of its own, and the cancel kills the
+// whole group, so a cancel during the build ends every compiler with it (the
+// pattern of gaterun.StreamContext and interoplab's process runner).
+//
+// A process in a background group that writes to a terminal set `tostop` is
+// stopped by SIGTTOU and would wait out imageBuildTimeout, so the child never
+// holds the terminal itself: progress is wrapped, which makes os/exec copy the
+// output through a pipe, and the child gets no stdin.
+func gokrazyBuildCommand(
+	ctx context.Context,
+	self, dir string,
+	env []string,
+	progress io.Writer,
+	argv ...string,
+) *exec.Cmd {
+	run := exec.CommandContext(ctx, self, argv...) //nolint:gosec // self is this le binary, and the argv is this package's own
+	run.Dir = dir
+	run.Env = env
+	piped := struct{ io.Writer }{progress}
+	run.Stdout, run.Stderr = piped, piped
+	run.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	run.Cancel = func() error { return syscall.Kill(-run.Process.Pid, syscall.SIGKILL) }
+	run.WaitDelay = gokrazyBuildWaitDelay
+	return run
 }
 
 // hostToolText runs one host binary over the tree. It answers the standard
