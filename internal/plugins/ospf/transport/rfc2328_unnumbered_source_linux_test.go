@@ -8,6 +8,7 @@ package transport
 import (
 	"net"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,6 +37,7 @@ func TestOSPFUnnumberedSourcesFromDonorAddress(t *testing.T) {
 	donor := netip.MustParseAddr(unnumberedDonor)
 	withVethPair(t, unnumberedDonor+"/32", "10.255.0.2/32", func(lab ospfVethLab) {
 		addDonorDevice(t, unnumberedDonor+"/32")
+		setReversePath(t, lab.nameA, reversePathLoose)
 		backend := NewBackend()
 		ha, err := backend.OpenInterface(lab.nameA, nil)
 		if err != nil {
@@ -56,6 +58,8 @@ func TestOSPFUnnumberedSourcesFromDonorAddress(t *testing.T) {
 
 		var hb InterfaceHandle
 		runInNS(t, lab.peerNS, func() {
+			setReversePath(t, "all", reversePathOff)
+			setReversePath(t, lab.nameB, reversePathOff)
 			hb, err = backend.OpenInterface(lab.nameB, nil)
 		})
 		if err != nil {
@@ -120,6 +124,35 @@ func addDonorDevice(t *testing.T, cidr string) {
 		}
 	})
 	setupVethAddr(t, name, cidr)
+}
+
+// Reverse-path filtering modes, as /proc/sys/net/ipv4/conf/<name>/rp_filter
+// takes them.
+const (
+	reversePathOff   = "0"
+	reversePathLoose = "2"
+)
+
+// setReversePath writes a reverse-path filtering mode for conf, a device name
+// or "all", in the namespace of the calling thread.
+//
+// The lab needs it because neither end has a route to the other's /32: a
+// router learns that route from OSPF, and this lab runs no OSPF. The QEMU
+// guest's Alpine root namespace runs strict filtering (rp_filter 1 on "all"
+// and "default") with a default route out eth0, and a new namespace inherits
+// those IPv4 settings. Strict filtering drops a datagram whose route back
+// leaves by another device, and loose filtering drops one whose source has no
+// route at all. The kernel applies max(all, device), so the unnumbered end in
+// the root namespace takes loose (its default route answers the loose check,
+// and "all" stays as the host set it), and the peer namespace, which has no
+// route at all and dies with the test, turns filtering off on "all" and on
+// its device. Each setting goes with its device or namespace.
+func setReversePath(t *testing.T, conf, mode string) {
+	t.Helper()
+	path := "/proc/sys/net/ipv4/conf/" + conf + "/rp_filter"
+	if err := os.WriteFile(path, []byte(mode), 0o600); err != nil {
+		t.Fatalf("set rp_filter %s on %s: %v", mode, conf, err)
+	}
 }
 
 // addMulticastRoute routes 224.0.0.0/4 out the named device, so the kernel can
