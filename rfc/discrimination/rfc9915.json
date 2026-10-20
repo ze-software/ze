@@ -382,9 +382,9 @@
       "unit-sha": "6c1d92c7ebbace01",
       "claim-sha": "92ddb629dda9d35c",
       "route": "revert",
-      "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::windowClosed",
-      "producer-sha": "ea3e20608c32811b",
-      "break": "body of windowClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::v6Preference",
+      "producer-sha": "fb674c1582be5fc8",
+      "break": "body of v6Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9915-18.2.10-1",
@@ -453,6 +453,28 @@
       "break": "body of replyMatcher replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9915-18.2.12-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212ConfirmOnMove",
+      "unit-sha": "184585ef1d0fc778",
+      "claim-sha": "61ac260b1cc95574",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::setConfirmIAs",
+      "producer-sha": "7d5b43bce6e3009d",
+      "break": "body of setConfirmIAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9915-18.2.12-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212NoMoveNoConfirm",
+      "unit-sha": "3ce3938e36f2d20c",
+      "claim-sha": "048b75cef972563a",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::linkMoved",
+      "producer-sha": "aee73540f36a66e3",
+      "break": "body of linkMoved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9915-18.2.12-2",
       "polarity": "negative",
       "unit": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go::TestRFC9915LinkChangeWithoutDownSendsNothing",
@@ -471,40 +493,40 @@
       "claim-sha": "55428c3175ee5b6d",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::rebindAfterMove",
-      "producer-sha": "1526eeeb416e4805",
+      "producer-sha": "68c7aba5f1065ce4",
       "break": "body of rebindAfterMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9915-18.2.12-2",
       "polarity": "positive",
       "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212MoveRebindsWithConfirmParameters",
-      "unit-sha": "f1286a15c974bf38",
+      "unit-sha": "3c48bce875e31bd2",
       "claim-sha": "5efc1ef9000a1c87",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::rebindAfterMove",
-      "producer-sha": "1526eeeb416e4805",
+      "producer-sha": "68c7aba5f1065ce4",
       "break": "body of rebindAfterMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9915-18.2.12-2",
       "polarity": "negative",
       "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212NoMoveNoRebind",
-      "unit-sha": "0bb37723bd70ad4c",
+      "unit-sha": "d0f9e6a0cd256f3b",
       "claim-sha": "1e510abff5ddc135",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::linkMoved",
       "producer-sha": "aee73540f36a66e3",
-      "break": "line 137: \"!w.linkDown\" -\u003e \"false\""
+      "break": "body of linkMoved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9915-18.2.12-4",
       "polarity": "positive",
       "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212MoveRebindRateLimited",
-      "unit-sha": "d4269c6ce977028b",
+      "unit-sha": "ca108187cd88f9d6",
       "claim-sha": "4db21c56e9c732bf",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::noteMove",
-      "producer-sha": "f9a7177a0640db1b",
+      "producer-sha": "ec06914aad4b372d",
       "break": "body of noteMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -550,6 +572,50 @@
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions",
       "producer-sha": "d7b0ca726f3b49e3",
       "break": "body of requestOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9915-18.2.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212ConfirmOnMove",
+      "unit-sha": "184585ef1d0fc778",
+      "claim-sha": "544704ff7a997081",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildConfirm",
+      "producer-sha": "ff926656fa9e9263",
+      "break": "body of buildConfirm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9915-18.2.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section1823ConfirmRetransmission",
+      "unit-sha": "e39d5e23e5bd90ec",
+      "claim-sha": "388b096405918bc3",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildConfirm",
+      "producer-sha": "ff926656fa9e9263",
+      "break": "body of buildConfirm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9915-18.2.3-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestDHCPv6ConfirmStopDuringDelay",
+      "unit-sha": "2e86be541e31d564",
+      "claim-sha": "2bd3f336712fd66a",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::confirmAfterMove",
+      "producer-sha": "b327eaa036f1f8c3",
+      "break": "body of confirmAfterMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9915-18.2.3-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212ConfirmOnMove",
+      "unit-sha": "184585ef1d0fc778",
+      "claim-sha": "099bce9ffaf812b4",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::confirmAfterMove",
+      "producer-sha": "b327eaa036f1f8c3",
+      "break": "body of confirmAfterMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9915-18.2.4-1",

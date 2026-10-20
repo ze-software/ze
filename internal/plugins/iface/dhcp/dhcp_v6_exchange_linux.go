@@ -180,7 +180,7 @@ type v6Exchange struct {
 	prepare func(msg *dhcpv6.Message, now time.Time)
 	// windowClosed, when set, is called when a listen window ends with no
 	// accepted answer; a non-nil result is taken as the answer (Advertise
-	// collection).
+	// collection, a Confirm's NotOnLink Reply).
 	windowClosed func() *dhcpv6.Message
 }
 
@@ -558,6 +558,56 @@ func (a *v6AdvertiseCollector) windowClosed() *dhcpv6.Message {
 	return a.best
 }
 
+// v6ConfirmCollector implements the Confirm answer rules: an identified
+// Reply with Success, explicit or implicit, is the answer at once; a NotOnLink
+// Reply is held, and answers only when its listen window closes with no
+// Success. A Reply with any other status is no answer, so the exchange
+// retransmits, as replyMatcher does for the other exchanges.
+//
+// RFC 9915 Section 18.2.10.3: "If the client receives any Reply messages
+// that indicate a status of Success (explicit or implicit), the client can
+// use the addresses in the IA and ignore any messages that indicate a
+// NotOnLink status."
+//
+// Holding the NotOnLink to the window's close lets a second server's Success
+// win. Not safe for concurrent use: the v6 worker goroutine owns it.
+type v6ConfirmCollector struct {
+	w         *v6Worker
+	notOnLink *dhcpv6.Message // the first NotOnLink Reply; nil before one
+}
+
+func (c *v6ConfirmCollector) accept(m *dhcpv6.Message) bool {
+	if m.MessageType != dhcpv6.MessageTypeReply {
+		return false
+	}
+	if !v6Identified(m, c.w.duid) {
+		return false
+	}
+	c.w.noteSolMaxRT(m)
+	status := v6Status(m) // Success when the Reply has no Status Code option
+	if status == iana.StatusSuccess {
+		return true
+	}
+	if status != iana.StatusNotOnLink {
+		return false
+	}
+	if c.notOnLink == nil {
+		c.notOnLink = m
+	}
+	return false
+}
+
+// windowClosed answers the NotOnLink Reply held, or nil when none arrived.
+//
+// RFC 9915 Section 18.2.10.3: "When the client only receives one or more
+// Reply messages with the NotOnLink status in response to a Confirm message,
+// the client performs DHCP server discovery as described in Section 18."
+//
+// A Success in the same window was accepted before this is called.
+func (c *v6ConfirmCollector) windowClosed() *dhcpv6.Message {
+	return c.notOnLink
+}
+
 // --- message builders -----------------------------------------------------
 
 // newV6Message starts a client message: a fresh transaction id, the Client
@@ -659,6 +709,46 @@ func (w *v6Worker) buildFromLease(kind dhcpv6.MessageType, lease *v6Lease, now t
 	}
 	w.setLeaseIAs(m, kind, lease, now)
 	return m, nil
+}
+
+// buildConfirm is the Confirm of the lease's addresses at now: the Client
+// Identifier, the Elapsed Time and the IA_NA, and no Server Identifier, IA_PD
+// or Option Request option, which Appendix B does not list for Confirm.
+//
+// RFC 9915 Section 18.2.3: "The client MUST include a Client Identifier
+// option (see Section 21.2) to identify itself to the server." "The client
+// MUST include an Elapsed Time option (see Section 21.9) to indicate how long
+// the client has been trying to complete the current DHCP message exchange."
+// "The client includes IA options for all of the IAs assigned to the
+// interface for which the Confirm message is being sent." newV6Message adds
+// the first two; setConfirmIAs writes the third.
+func (w *v6Worker) buildConfirm(lease *v6Lease, now time.Time) (*dhcpv6.Message, error) {
+	m, err := w.newV6Message(dhcpv6.MessageTypeConfirm)
+	if err != nil {
+		return nil, err
+	}
+	w.setConfirmIAs(m, lease, now)
+	return m, nil
+}
+
+// setConfirmIAs (re)writes the IA_NA of a Confirm from lease at now: every
+// live address, with T1, T2 and both lifetimes 0. Ze leases one IA_NA, so
+// that IA is every IA_NA the interface holds.
+//
+// RFC 9915 Section 18.2.3: "The IA options include all of the addresses the
+// client currently has associated with those IAs. The client SHOULD set the
+// T1 and T2 fields in any IA_NA options (see Section 21.4) and the preferred-
+// lifetime and valid-lifetime fields in the IA Address options (see Section
+// 21.6) to 0, as the server will ignore these fields."
+//
+// prepare calls it before each transmission, so an expired address leaves.
+func (w *v6Worker) setConfirmIAs(m *dhcpv6.Message, lease *v6Lease, now time.Time) {
+	m.Options.Del(dhcpv6.OptionIANA)
+	na := &dhcpv6.OptIANA{IaId: w.iaidNA}
+	for _, b := range lease.live(v6KindAddress, now) {
+		na.Options.Add(&dhcpv6.OptIAAddress{IPv6Addr: net.IP(b.prefix.Addr().AsSlice())})
+	}
+	m.AddOption(na)
 }
 
 // setLeaseIAs (re)writes the IA options of m from lease at now.

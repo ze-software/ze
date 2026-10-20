@@ -508,10 +508,16 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	// A scenario carrying kea-dhcp6.conf runs ze as a DHCPv6 client of Kea.
 	// The image's entrypoint reads /etc/kea/kea-dhcp6.conf
 	// (test/interop/Dockerfile.kea). Port 547 needs only NET_BIND_SERVICE,
-	// which is in Docker's default set; the sysctls keep IPv6 on eth0.
+	// which is in Docker's default set; the sysctls keep IPv6 on eth0. A
+	// scenario that also carries kea-dhcp6-moved.conf mounts it beside, for
+	// a checker that reconfigures Kea under a running lease.
 	if path := filepath.Join(scenario, keaConfigFile); regularFile(path) {
+		keaMounts := []interoplab.Mount{mount(path, "/etc/kea/kea-dhcp6.conf")}
+		if moved := filepath.Join(scenario, keaMovedConfigFile); regularFile(moved) {
+			keaMounts = append(keaMounts, mount(moved, keaMovedConfigTarget))
+		}
 		peers = append(peers, interoplab.PeerConfig{Name: peerKea, Container: containerName(peerKea, suffix), Image: peerKea, Host: keaHostNumber,
-			Mounts: []interoplab.Mount{mount(path, "/etc/kea/kea-dhcp6.conf")}, Arguments: ipv6Sysctls(), Ready: ready("ip", ipObjectLink)})
+			Mounts: keaMounts, Arguments: ipv6Sysctls(), Ready: ready("ip", ipObjectLink)})
 	}
 	if path := filepath.Join(scenario, "gobgp.toml"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,

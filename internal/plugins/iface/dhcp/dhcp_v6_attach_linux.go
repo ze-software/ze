@@ -1,6 +1,6 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
 // Overview: dhcp_v6_linux.go -- the v6 worker and its lease loop
-// Related: dhcp_v6_exchange_linux.go -- the retransmission engine the Decline and the Rebind run on
+// Related: dhcp_v6_exchange_linux.go -- the retransmission engine the Decline, the Rebind and the Confirm run on
 // RFC: rfc/short/rfc9915.md
 
 //go:build linux
@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"github.com/insomniacslk/dhcp/iana"
 
 	"github.com/ze-software/ze/internal/component/iface"
 )
@@ -152,16 +153,20 @@ func (w *v6Worker) linkMoved(ev iface.LinkEvent) bool {
 
 // noteMove reacts to a possible move to a new link: every leased address is
 // judged by DAD again, because the kernel runs DAD again when the link comes
-// back, and a lease holding a delegated prefix owes a Rebind.
+// back, and the lease owes a move exchange, which maintain runs once moveDue
+// is reached: a Rebind when it holds a delegated prefix, a Confirm when it
+// holds addresses alone.
 //
 // RFC 9915 Section 18.2.12: "If the client has any valid delegated prefixes
 // obtained from the DHCP server, the client MUST initiate a Rebind/Reply
 // message exchange as described in Section 18.2.5, with the exception that
 // the retransmission parameters should be set as for the Confirm message (see
-// Section 18.2.3)."
+// Section 18.2.3)." and "When the client detects that it may have moved to a
+// new link and it has obtained addresses and no delegated prefixes from a
+// server, the client SHOULD initiate a Confirm/Reply message exchange."
 //
-// A lease of addresses alone would owe the SHOULD-level Confirm, which ze
-// does not send.
+// The shape is decided when the exchange is due, not here: a prefix that
+// expires before then leaves a lease of addresses alone.
 //
 // Each leased address is installed again with what is left of its
 // lifetimes: the kernel deletes every address of finite lifetime from an
@@ -187,13 +192,8 @@ func (w *v6Worker) noteMove() {
 		}
 		w.queueDAD(b.prefix)
 	}
-	if len(w.lease.live(v6KindPrefix, now)) == 0 {
-		loggerPtr.Load().Debug("iface dhcp v6: the link came back up; no delegated prefix is held, so no Rebind is owed",
-			"iface", w.c.ifaceName)
-		return
-	}
 	if !w.moveDue.never {
-		return // a link-change Rebind is already owed
+		return // a move exchange is already owed
 	}
 	due := now
 	// RFC 9915 Section 18.2.12: "However, a client MUST rate- limit such
@@ -213,7 +213,8 @@ func later(a, b time.Time) time.Time {
 	return a
 }
 
-// moveOwed reports whether the link-change Rebind is due at now.
+// moveOwed reports whether the move exchange (the link-change Rebind or the
+// Confirm) is due at now.
 func (w *v6Worker) moveOwed(now time.Time) bool {
 	if w.moveDue.never {
 		return false
@@ -221,19 +222,23 @@ func (w *v6Worker) moveOwed(now time.Time) bool {
 	return !now.Before(w.moveDue.at)
 }
 
-// rebindAfterMove runs the link-change Rebind with the Confirm parameters.
-// Unanswered, the lease runs on its own timers.
+// startMoveExchange records that the move exchange owed starts at now, so a
+// later move waits v6MoveInterval from it whichever shape it took. maintain
+// MUST call it before rebindAfterMove or confirmAfterMove.
+func (w *v6Worker) startMoveExchange(now time.Time) {
+	w.moveDue = v6Never()
+	w.moveLast = v6Instant{at: now}
+}
+
+// rebindAfterMove runs the link-change Rebind with the Confirm parameters,
+// for a lease holding a live delegated prefix at now. Unanswered, the lease
+// runs on its own timers. It MUST be called after startMoveExchange.
 //
 // RFC 9915 Section 18.2.3 gives Confirm the parameters IRT CNF_TIMEOUT, MRT
 // CNF_MAX_RT, MRC 0 and MRD CNF_MAX_RD, and "The first Confirm message from
 // the client on the interface MUST be delayed by a random amount of time
 // between 0 and CNF_MAX_DELAY." The Rebind takes both.
 func (w *v6Worker) rebindAfterMove(now time.Time) v6End {
-	w.moveDue = v6Never()
-	w.moveLast = v6Instant{at: now}
-	if len(w.lease.live(v6KindPrefix, now)) == 0 {
-		return v6EndExhausted // the prefixes expired before the Rebind was due
-	}
 	if !w.waitUntil(w.ctx, now.Add(v6Scale(v6CnfMaxDelay, w.random()))) {
 		return v6EndCanceled
 	}
@@ -245,6 +250,94 @@ func (w *v6Worker) rebindAfterMove(now time.Time) v6End {
 			"iface", w.c.ifaceName)
 	}
 	return end
+}
+
+// confirmAfterMove runs the Confirm exchange for a lease holding addresses
+// and no live delegated prefix at now, and acts on its answer: a Success
+// keeps the lease, a NotOnLink alone removes every leased address, so
+// maintain finds the lease empty and the worker solicits, and no answer keeps
+// the lease on its timers. It MUST be called after startMoveExchange.
+//
+// RFC 9915 Section 18.2.3: "The first Confirm message from the client on the
+// interface MUST be delayed by a random amount of time between 0 and
+// CNF_MAX_DELAY." Every move delays its Confirm, as it delays its Rebind.
+func (w *v6Worker) confirmAfterMove(now time.Time) v6End {
+	if !w.waitUntil(w.ctx, now.Add(v6Scale(v6CnfMaxDelay, w.random()))) {
+		return v6EndCanceled
+	}
+	logger := loggerPtr.Load()
+	at := w.clock().Now()
+	if len(w.lease.live(v6KindAddress, at)) == 0 {
+		return v6EndExhausted // the addresses expired during the delay
+	}
+	// RFC 9915 Section 18.2.3: IRT CNF_TIMEOUT, MRT CNF_MAX_RT, MRC 0 and MRD
+	// CNF_MAX_RD, cut where the last address expires.
+	params := v6Retransmission{irt: v6CnfTimeout, mrt: v6CnfMaxRT, mrd: v6CnfMaxRD}
+	if last := w.lease.lastExpiry(); !last.never {
+		params.mrd = min(params.mrd, last.at.Sub(at))
+	}
+	msg, err := w.buildConfirm(w.lease, at)
+	if err != nil {
+		logger.Error("iface dhcp v6: cannot build Confirm", "iface", w.c.ifaceName, "err", err)
+		return v6EndExhausted
+	}
+	link, ok := w.open()
+	if !ok {
+		return v6EndCanceled
+	}
+	lease := w.lease
+	collector := &v6ConfirmCollector{w: w}
+	out := w.runExchange(w.ctx, &v6Exchange{
+		name:         "Confirm",
+		link:         link,
+		msg:          msg,
+		params:       params,
+		accept:       collector.accept,
+		prepare:      func(m *dhcpv6.Message, now time.Time) { w.setConfirmIAs(m, lease, now) },
+		windowClosed: collector.windowClosed,
+	})
+	closeV6Link(link, w.c.ifaceName)
+	if out.end != v6EndAnswered {
+		if out.end == v6EndExhausted {
+			// RFC 9915 Section 18.2.3: "If the client receives no responses
+			// before the message transmission process terminates, as described
+			// in Section 15, the client SHOULD continue to use any leases, using
+			// the last known lifetimes for those leases".
+			logger.Debug("iface dhcp v6: no server answered the Confirm; the lease runs on its timers",
+				"iface", w.c.ifaceName)
+		}
+		return out.end
+	}
+	// RFC 9915 Section 18.2.10.3: "If the client receives any Reply messages
+	// that indicate a status of Success (explicit or implicit), the client can
+	// use the addresses in the IA and ignore any messages that indicate a
+	// NotOnLink status. When the client only receives one or more Reply
+	// messages with the NotOnLink status in response to a Confirm message, the
+	// client performs DHCP server discovery as described in Section 18."
+	// The collector answers a NotOnLink only when no Success arrived.
+	if v6Status(out.answer) != iana.StatusNotOnLink {
+		logger.Debug("iface dhcp v6: a server confirmed the leased addresses after the link came back up",
+			"iface", w.c.ifaceName)
+		return v6EndAnswered
+	}
+	logger.Info("iface dhcp v6: the server answered NotOnLink to the Confirm; the leased addresses do not fit this link, soliciting again",
+		"iface", w.c.ifaceName)
+	w.dropAddresses()
+	return v6EndAnswered
+}
+
+// dropAddresses forgets every address binding of the lease, removes it from
+// the device and publishes its expiry, as an expiry does.
+func (w *v6Worker) dropAddresses() {
+	for _, b := range w.lease.live(v6KindAddress, w.clock().Now()) {
+		if _, ok := w.lease.remove(v6KindAddress, b.prefix); !ok {
+			continue
+		}
+		w.drop(b)
+	}
+	if err := w.registerLeased(); err != nil {
+		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
+	}
 }
 
 // queueDAD marks an installed address for a DAD outcome read, unless its

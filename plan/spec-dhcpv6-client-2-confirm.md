@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-dhcpv6-client-1-gap-annotations (closed 2026-10-19) |
 | Phase | 2/4 of `plan/spec-dhcpv6-client-0-umbrella.md` |
 | Handoff | - |
-| Updated | 2026-10-19 |
+| Updated | 2026-10-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -97,9 +97,9 @@ RFC9915-18.2.3-1, RFC9915-18.2.3-2, RFC9915-18.2.3-3, RFC9915-18.2.12-1.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Kea 2.6.2 answers a Confirm with Success when the addresses fit its subnet and NotOnLink when they do not | `pkt6-confirm-received` in the image; RFC 9915 Section 18.3.3 | interop needs another peer | `dhcpv6-client-confirm-kea` | unvalidated |
-| A-2 | a Confirm Reply passes `replyMatcher` as it stands (transaction id, Client ID, Server ID present) | Section 16.10 applies to every Reply | the matcher needs a Confirm branch | `TestRFC9915Section18212ConfirmOnMove` | unvalidated |
-| A-3 | a Reply with no Status Code option is Success (implicit) | Section 18.2.10.3 "(explicit or implicit)"; Section 21.13 | NotOnLink handling misfires | `TestRFC9915Section182103ConfirmReplySuccessImplicit` | unvalidated |
+| A-1 | Kea 2.6.2 answers a Confirm with Success when the addresses fit its subnet and NotOnLink when they do not | `pkt6-confirm-received` in the image; RFC 9915 Section 18.3.3 | interop needs another peer | `dhcpv6-client-confirm-kea` | confirmed 2026-10-20: Kea 2.6.2 (`kea-dhcp6 -V`) answered the replug CONFIRM with `Success(0) "All addresses are on-link"` and, after the subnet reload, `NotOnLink(4) "Address fd00:1e:1::50 is not on link."` (DHCP6_RESPONSE_DATA, read by `kea6ReplugVerdict` / `kea6MovedVerdict`) |
+| A-2 | a Confirm Reply passes `replyMatcher` as it stands (transaction id, Client ID, Server ID present) | Section 16.10 applies to every Reply | the matcher needs a Confirm branch | `TestRFC9915Section18212ConfirmOnMove` | broken, design holds: `replyMatcher` accepts a Success Confirm Reply but discards a NotOnLink one as a failure status, so Confirm runs on `v6ConfirmCollector.accept` (`dhcp_v6_exchange_linux.go`), which applies the same `v6Identified` check; `TestRFC9915Section182103ConfirmNotOnLinkRediscovers` and `...ConfirmMixedReplies` pass (2026-10-20) |
+| A-3 | a Reply with no Status Code option is Success (implicit) | Section 18.2.10.3 "(explicit or implicit)"; Section 21.13 | NotOnLink handling misfires | `TestRFC9915Section182103ConfirmReplySuccessImplicit` | confirmed: `v6Status` answers Success when the Status Code option is absent; the `implicit` subtest keeps the lease with one Confirm (2026-10-20) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -180,7 +180,7 @@ RFC9915-18.2.3-1, RFC9915-18.2.3-2, RFC9915-18.2.3-3, RFC9915-18.2.12-1.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `dhcpv6-client-confirm-kea` | `test/interop/scenarios/` | Kea 2.6.2 (`test/interop/Dockerfile.kea`) | phase 1: ze leases an IA_NA address, the checker sets ze's eth0 down then up, Kea logs one CONFIRM and ze keeps the address with no SOLICIT; phase 2: the checker rewrites Kea's subnet and reloads it, sets eth0 down then up, Kea answers NotOnLink, ze removes the old address and leases one in the new subnet. Red phase: with the Confirm branch reverted, phase 2 fails because the old address stays | |
+| `dhcpv6-client-confirm-kea` | `test/interop/scenarios/` | Kea 2.6.2 (`test/interop/Dockerfile.kea`) | phase 1: ze leases an IA_NA address, the checker sets ze's eth0 down then up, Kea logs one CONFIRM and ze keeps the address with no SOLICIT; phase 2: the checker rewrites Kea's subnet and reloads it, sets eth0 down then up, Kea answers NotOnLink, ze removes the old address and leases one in the new subnet. Red phase: with the Confirm branch reverted, phase 2 fails because the old address stays | green 2026-10-20 (`pass (48s)`, again `pass (52s)` after the red walk); red A (Confirm dispatch skipped in `maintain`): assertion 3 "ze ran 0 CONFIRM exchanges before the subnet moved, want 1"; red B (`dropAddresses` skipped on NotOnLink): phase 1 passed, assertion 5 "ze's eth0 still holds fd00:1e::50/128 after the move" |
 
 ## Files to Modify
 - `internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go` - `noteMove` schedules the move exchange for both lease shapes; the Confirm exchange beside `rebindAfterMove`
@@ -330,3 +330,174 @@ Add `// RFC 9915 Section 18.2.3: "..."` above the builder and the delay, `// RFC
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-dhcpv6-client-2-confirm.md` only, in the same `./le commit create` script
+
+## Owner Decisions (2026-10-20)
+
+| Decision | Owner's words | Where it acts |
+|----------|---------------|---------------|
+| WIP cap raised to claim this spec | "start" | `./le spec claim` |
+| Edit of RFC-tagged `TestRFC9915Section18212NoMoveNoRebind`: the "move without a prefix" case expects one Confirm | "1 approve" | `./le rfc approve`, `tmp/commit-rfc-approved-19f2971a.md`; the no-Rebind assertion and the tag claim are unchanged |
+| RFC9915-18.2.3-1 and -2 carry `{single-polarity: positive}` instead of AC-10's positive and negative pair | "2 accept" | no input can make the client omit its own Client ID or Elapsed Time; the same reading as 18.2.1-1/2, 18.2.4-5/6, 18.2.7-2/3, 18.2.8-3/4 |
+| No full verify: `./le verify worktree`, `./le test unit all`, `./le test functional gating` stay verification debt | standing ruling, `plan/handover/07-session-2026-10-19-vyos-followups.md` | Goal Gates row "`./le verify worktree` passes" is that debt |
+
+## Implementation Summary
+
+### What Was Implemented
+- `noteMove` schedules the move exchange for every lease shape; `maintain` calls `startMoveExchange` (one 30 s `moveLast` for both shapes), then `rebindAfterMove` with a live delegated prefix, else `confirmAfterMove` (`internal/plugins/iface/dhcp/dhcp_v6_linux.go`, `dhcp_v6_attach_linux.go`).
+- `confirmAfterMove`: RAND times CNF_MAX_DELAY wait on `w.ctx`, `buildConfirm` and `setConfirmIAs` (Client ID, Elapsed Time, one IA_NA with every live address, T1/T2/lifetimes 0, no Server ID, IA_PD or ORO), `runExchange` on IRT 1 s / MRT 4 s / MRD 10 s cut at the last expiry, `v6ConfirmCollector` (Success at once, NotOnLink held to the window's close, other status no answer); Success or no answer keeps the lease, NotOnLink runs `dropAddresses` (removal plus one `dhcp-expired` per binding through `drop`), so `maintain` finds the lease empty and the worker solicits.
+- Interop scenario `dhcpv6-client-confirm-kea` with checker `checkDHCPv6ConfirmKea` and its predicates; `Dockerfile.kea` runs Kea on a copy so SIGHUP re-reads a rewritten config; `prepare.go` mounts `kea-dhcp6-moved.conf`.
+- Ledger: four `{gap}` rows closed, Meta `Support remaining` 23 to 19 and Confirm removed from its list, `Support coverage` names the Confirm; ten discrimination records added or re-recorded in `rfc/discrimination/rfc9915.json`.
+
+### Bugs Found/Fixed
+- None in shipped code. The closure review fixed one style finding (below).
+
+### Documentation Updates
+- `docs/features/interfaces.md` move paragraph rewritten; anchors add `startMoveExchange`, `confirmAfterMove`, `dropAddresses`, `v6ConfirmCollector`, `buildConfirm`, `setConfirmIAs`.
+- `docs/architecture/testing/interop.md` Kea row: copy-on-start, the moved config, the confirm scenario's two phases. The same file also drops a duplicated `Docker.RemoveContainer` anchor beside the `startsettle.go` anchor (the next anchor line already names it); that hunk came from another session's tree and is prose only.
+- `features/interfaces.md`: `Interop` row added, Doc review redone 2026-10-20. `features/ipv6-router-advertisements.md`: Doc review redone 2026-10-20 (its page is `docs/features/interfaces.md`; only the DHCPv6 paragraph changed).
+- `docs/features/rfc-status.md` regenerated by `./le rfc index-update` (generated, untracked).
+- `./le doc check verify`: one failure, the `docs/architecture/hub-architecture.md` anchor naming `caseInEffect` in `internal/component/config/yang/validator_default.go`, another session's uncommitted config work; no failure names a file of this spec.
+
+### Deviations from Plan
+- R-1 mitigation said a NotOnLink is held "until the window or MRD ends"; the collector holds it to the close of the listen window it arrived in (the Advertise collector's shape). A Success in that window still wins (`TestRFC9915Section182103ConfirmMixedReplies`); RFC 9915 Section 18.2.10.3 names no collection period.
+- A-2 broke: Confirm runs on its own collector, not `replyMatcher`.
+- AC-10 for 18.2.3-1/-2: single-polarity positive (owner "2 accept").
+- `TestRFC9915Section18212NoMoveNoConfirm` (18.2.12-1 negative) and the 18.2.3-3 negative tag on `TestDHCPv6ConfirmStopDuringDelay` were added beyond the TDD plan, to give AC-10 its negatives.
+- The 18.2.1-6 positive record moved its producer from `windowClosed` to `v6Preference`, because the new `v6ConfirmCollector.windowClosed` made the bare name ambiguous in `dhcp_v6_exchange_linux.go`.
+- Files to Modify named `docs/features/rfc-status.md`; it is generated and untracked, so it is regenerated, not committed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: a Confirm Reply passes `replyMatcher` as it stands | `replyMatcher` accepts only Success, so a NotOnLink Confirm Reply is discarded as a failure status and the exchange would retransmit to MRD and keep the lease | phase 1-2 implementation, writing `TestRFC9915Section182103ConfirmNotOnLinkRediscovers` | Confirm uses `v6ConfirmCollector.accept`, which applies the same `v6Identified` check and holds NotOnLink |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| send Confirm on a move of an addresses-only lease | Done | `dhcp_v6_linux.go` `maintain` move branch; `dhcp_v6_attach_linux.go` `confirmAfterMove` | |
+| keep the lease on Success | Done | `confirmAfterMove`, `v6Status != NotOnLink` branch | |
+| discover again when every Reply says NotOnLink | Done | `confirmAfterMove` -> `dropAddresses`; `maintain` `lease.empty()` | |
+| keep the lease when no server answers | Done | `confirmAfterMove`, `out.end == v6EndExhausted` | |
+| close the four `{gap}` rows | Done | `rfc/short/rfc9915.md` 18.2.3-1..3, 18.2.12-1 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC9915Section18212ConfirmOnMove/addresses_only` | delay 0.5 s at RAND 0.5 |
+| AC-2 | Done | same | contents and absent options |
+| AC-3 | Done | `TestRFC9915Section1823ConfirmRetransmission` | |
+| AC-4 | Done | `TestRFC9915Section182103ConfirmReplySuccessImplicit` | explicit and implicit |
+| AC-5 | Done | `TestRFC9915Section182103ConfirmNotOnLinkRediscovers` | |
+| AC-6 | Done | `TestRFC9915Section182103ConfirmMixedReplies` | both orders |
+| AC-7 | Done | `TestRFC9915Section18212ConfirmRateLimit` | [5s 35s] |
+| AC-8 | Done | `TestRFC9915Section18212ConfirmOnMove/prefix_held`, `TestRFC9915Section18212MoveRebindsWithConfirmParameters` | |
+| AC-9 | Done | `TestDHCPv6ConfirmStopDuringDelay` | delay and exchange |
+| AC-10 | Changed | `rfc/short/rfc9915.md`, `rfc/discrimination/rfc9915.json` | 18.2.3-1/-2 single-polarity, owner "2 accept" |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFC9915Section18212ConfirmOnMove` | Done | `rfc9915_dhcp_v6_attach_linux_test.go` | |
+| `TestRFC9915Section1823ConfirmRetransmission` | Done | same file | |
+| `TestRFC9915Section182103ConfirmReplySuccessImplicit` | Done | same file | |
+| `TestRFC9915Section182103ConfirmNotOnLinkRediscovers` | Done | same file | |
+| `TestRFC9915Section182103ConfirmMixedReplies` | Done | same file | |
+| `TestRFC9915Section18212ConfirmRateLimit` | Done | same file | |
+| `TestDHCPv6ConfirmStopDuringDelay` | Done | same file | |
+| `dhcpv6-client-confirm-kea` | Done | `test/interop/scenarios/dhcpv6-client-confirm-kea/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go` | Done | |
+| `internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go` | Done | |
+| `internal/plugins/iface/dhcp/dhcp_v6_linux.go` | Done | |
+| `internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go` | Done | |
+| `docs/features/interfaces.md` | Done | |
+| `rfc/short/rfc9915.md` | Done | |
+| `docs/features/rfc-status.md` | Changed | generated, untracked |
+| `features/interfaces.md` | Done | |
+| `docs/architecture/testing/interop.md` | Done | |
+| scenario dir, checker, `rfc/discrimination/rfc9915.json` | Done | plus `Dockerfile.kea`, `prepare.go`, `register_dhcp.go`, `check_dhcpv6*.go` |
+
+### Audit Summary
+- **Total items:** 33
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-10 single-polarity, owner-approved; rfc-status.md generated)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| ze keeps a valid lease across a replug on the same link | interop | `dhcpv6-client-confirm-kea` phase 1 against Kea 2.6.2: `pass (48s)` and `pass (52s)`; Kea answered the CONFIRM `Success(0) "All addresses are on-link"`, no second SOLICIT, the /128 on every 2 s sample for 20 s. Red A (Confirm dispatch skipped in `maintain`): "assertion 3: ze ran 0 CONFIRM exchanges before the subnet moved, want 1" |
+| ze leaves a link whose addresses no longer fit | interop | the same scenario's phase 2: Kea answered `NotOnLink(4)`, ze dropped `fd00:1e::50` and leased `fd00:1e:0:1::50`. Red B (`dropAddresses` skipped): phase 1 passed, "assertion 5: ze's eth0 still holds fd00:1e::50/128 after the move" |
+| the four RFC rows are met | ledger | `./le rfc discriminate stem rfc9915`: `stale` and `unproven` empty (closure run, after the comment edit); `./le rfc check` names no rfc9915 violation. The two negative revert records (18.2.12-1, 18.2.12-2) are corroborated by a hand mutant of `linkMoved` (a bare up counted as a move): `NoMoveNoConfirm` red at "CONFIRM at [5s] with no move to answer", `NoMoveNoRebind/up_without_down` red |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None: every Task item and AC is done | - | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dhcpv6-client-2-confirm-dc676f37-dfa7-4fc5-82f7-41a7eda9292e.md` (22 files, verdict clean) |
+| `./le spec review check` | clean: "OK (12 code files, clean, hashes match)" |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and data flow, removed-behavior audit, RFC 9915 18.2.3/18.2.10.3/18.2.12 against the code, security of the NotOnLink path, style pass (six questions) over the three changed Go files and the checker, discrimination soundness, doc and feature-row freshness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Style, "A caller obligation: MUST, on both sides of the pair": `startMoveExchange` says maintain MUST call it before `rebindAfterMove`/`confirmAfterMove`, and neither callee said so | `dhcp_v6_attach_linux.go` `rebindAfterMove`, `confirmAfterMove` doc comments | both now say "It MUST be called after startMoveExchange." (comment only; discrimination stays fresh) |
+| 2 | ISSUE | `./le feature check` refused `features/interfaces.md` and `features/ipv6-router-advertisements.md`: Doc review 2026-10-07 older than the 2026-10-20 page change | both feature files | Doc review redone 2026-10-20 against `confirmAfterMove`, `dropAddresses`, `v6ConfirmCollector`, the RA leaf and counters; `./le feature check` no longer names either |
+
+### NOTEs
+- The 18.2.12-1 and 18.2.12-2 negative records use the revert route: the red comes from the halt in `linkMoved`, which proves the unit reaches the producer, not that the negative assertion discriminates. `docs/contributing/rfc-conformance-gates.md` ("Producing a record: the two proof routes") admits a halt that names the unit, so the gate is satisfied; the hand mutant in Goal Validation shows the assertions themselves discriminate.
+- `./le commit audit` reports the test file `[WEAKENED]`: the change is the owner-approved `NoMoveNoRebind` edit plus the `awaitRebind` helper now calling `awaitSentOf` (same wait); no other tagged body changed.
+- R-1 holding reading recorded under Deviations.
+
+### Run 2
+Re-read the two comment edits and both feature rows: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop/scenarios/dhcpv6-client-confirm-kea/` | Yes | `ze.conf`, `kea-dhcp6.conf`, `kea-dhcp6-moved.conf` |
+| `internal/le/interoplab/bgp/check_dhcpv6_confirm.go` and its predicate and test | Yes | `ls internal/le/interoplab/bgp/check_dhcpv6_confirm*` three files |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-9 | the seven Confirm tests plus the Rebind tests pass | closure run `go test -count=1 -v -run 'Confirm\|NoMoveNo\|MoveRebind'`: all eleven `--- PASS`; `go test -race -count=1 ./internal/plugins/iface/dhcp/... ./internal/le/interoplab/bgp/` ok |
+| AC-10 | no `{gap` on the four rows | `grep -E "RFC9915-18.2.3-[123]\|RFC9915-18.2.12-1\]" rfc/short/rfc9915.md`: none carries `{gap` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| link down then up, addresses-only lease | interop `dhcpv6-client-confirm-kea` (no `.ci`: no config surface) | `replugZe` runs `ip link set dev eth0 down/up` in the ze container; assertion 3 counts Kea's CONFIRM |
+| link event into `maintain` | `TestRFC9915Section18212ConfirmOnMove` | rig `move` sends LinkDown then LinkUp on the subscription; `maintain` -> `confirmAfterMove` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Kea 2.6.2 Success then NotOnLink in the interop logs |
+| A-2 | broken | Mistake Log row; `v6ConfirmCollector` |
+| A-3 | confirmed | `v6Status` returns Success when the option is absent; `ConfirmReplySuccessImplicit/implicit` passes |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| move paragraph, `docs/features/interfaces.md` | `confirmAfterMove`, `dropAddresses`, `v6ConfirmCollector.windowClosed` | Yes |
+| Kea row, `docs/architecture/testing/interop.md` | `Dockerfile.kea` ENTRYPOINT, `prepare.go` `keaMovedConfigTarget`, `checkDHCPv6ConfirmKea` | Yes |
+| RFC Meta, `rfc/short/rfc9915.md` | Nineteen MUST gaps: 23 minus the four closed rows | Yes |
+| feature rows | `./le feature check` names neither feature file | Yes |

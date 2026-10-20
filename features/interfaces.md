@@ -11,8 +11,9 @@
 | Level | experimental |
 | Components | internal/component/iface, internal/plugins/iface, internal/plugins/cos, internal/core/rtproto/rtproto.go |
 | Real-path tests | test/plugin/iface-tunnel-kinds.ci, test/plugin/iface-vlan-qos.ci, test/plugin/iface-cli-ops.ci, test/plugin/iface-verbs.ci, test/plugin/iface-rate-json.ci, test/plugin/iface-ensure-rollback.ci, test/plugin/iface-learned-route-metric.ci, test/plugin/iface-route-protocol-name.ci, test/parse/iface-rpf-check.ci, test/parse/iface-netlink-accepts-wireguard.ci, test/reload/tx-iface-apply.ci |
+| Interop | bgp/dhcpv6-client-renew-kea, bgp/dhcpv6-client-confirm-kea |
 | Docs | docs/features/interfaces.md |
-| Doc review | 2026-10-07: the row itself says target-runner evidence is still required; anchors (rtproto Iface 253, route-priority default 254, tunnel ttl defaults) exist at the named files |
+| Doc review | 2026-10-20: the DHCPv6 move paragraph of docs/features/interfaces.md matches confirmAfterMove, dropAddresses and v6ConfirmCollector (Confirm after the CNF_MAX_DELAY wait, Success or silence keeps the lease, NotOnLink alone removes every address and solicits); both Interop scenarios exist under test/interop/scenarios; the row itself says target-runner evidence is still required; anchors (rtproto Iface 253, route-priority default 254, tunnel ttl defaults) exist at the named files |
 | Defect review | 2026-10-07: open: plan/immediate/spec-bridge-member-removal-never-detaches-port.md, spec-iface-delete-parent-before-vlan-rolls-back.md, spec-interface-monitor-container-names-no-behavior.md |
 | Extra criteria | supported: privileged netlink evidence on a target runner per link type = none yet |
 

@@ -238,10 +238,12 @@ func kea6RenewAfterRebindVerdict(log, address string) error {
 }
 
 // zeV6LeaseVerdict reads `ip -6 -o addr show dev eth0`: address is on the
-// interface as a /128 with a finite valid lifetime no longer than the lease.
+// interface as a /128 with a finite valid lifetime no longer than lifetime,
+// the lease the scenario's server grants.
 //
 //	2: eth0    inet6 fd00:1e:0::50/128 scope global dynamic \       valid_lft 38sec preferred_lft 28sec
-func zeV6LeaseVerdict(output, address string) error {
+func zeV6LeaseVerdict(output, address string, lifetime time.Duration) error {
+	lifetimeSeconds := int(lifetime / time.Second)
 	for line := range strings.Lines(output) {
 		fields := strings.Fields(line)
 		index := indexOf(fields, address+"/128")
@@ -257,13 +259,13 @@ func zeV6LeaseVerdict(output, address string) error {
 		}
 		seconds, err := strconv.Atoi(strings.TrimSuffix(fields[valid+1], "sec"))
 		if err != nil {
-			return errors.New("ze installed " + address + " with valid_lft " + fields[valid+1] + ", want a finite lifetime of at most 40 s")
+			return errors.New("ze installed " + address + " with valid_lft " + fields[valid+1] + ", want a finite lifetime of at most " + strconv.Itoa(lifetimeSeconds) + " s")
 		}
 		if seconds <= 0 {
 			return kea6CountError("ze's "+address+" has valid_lft", seconds, "s, want above 0")
 		}
-		if seconds > int(kea6ValidLifetime/time.Second) {
-			return kea6CountError("ze's "+address+" has valid_lft", seconds, "s, want at most the 40 s lease")
+		if seconds > lifetimeSeconds {
+			return kea6CountError("ze's "+address+" has valid_lft", seconds, "s, want at most the "+strconv.Itoa(lifetimeSeconds)+" s lease")
 		}
 		return nil
 	}

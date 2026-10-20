@@ -5,4 +5,5 @@ func init() {
 	specialCheckers[scenarioDHCPRenewNak] = checkDHCPRenewNak
 	specialCheckers[scenarioDHCPRebind] = checkDHCPRebind
 	specialCheckers[scenarioDHCPv6RenewKea] = checkDHCPv6RenewKea
+	specialCheckers[scenarioDHCPv6ConfirmKea] = checkDHCPv6ConfirmKea
 }

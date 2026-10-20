@@ -189,7 +189,7 @@ func TestZeV6LeaseVerdict(t *testing.T) {
 		{"absent", line("fd00:1e:0::51/128", "38sec"), false},
 	}
 	for _, c := range cases {
-		if err := zeV6LeaseVerdict(c.output, keaTestAddress); (err == nil) != c.ok {
+		if err := zeV6LeaseVerdict(c.output, keaTestAddress, kea6ValidLifetime); (err == nil) != c.ok {
 			t.Errorf("%s: err=%v, want ok=%v", c.name, err, c.ok)
 		}
 	}

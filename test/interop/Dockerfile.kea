@@ -9,6 +9,12 @@
 # while the memfile lease database, which lives in the container and not in a
 # mount, keeps the lease. The pid file is removed too, because the container's
 # file system outlives the process that wrote it.
+#
+# The lab mounts the scenario's configuration read-only at
+# /etc/kea/kea-dhcp6.conf. Every start copies it to /run/kea/kea-dhcp6.conf and
+# runs Kea on the copy, because SIGHUP makes Kea re-read the file it started
+# with: a checker that changes the server's configuration under a running
+# lease writes the copy and sends SIGHUP.
 
 FROM alpine:3.21
 
@@ -16,4 +22,4 @@ RUN apk add --no-cache kea-dhcp6 iproute2 tini && mkdir -p /var/lib/kea /run/kea
 
 ENV KEA_LOCKFILE_DIR=none
 
-ENTRYPOINT ["tini", "--", "/bin/sh", "-c", "rm -f /var/lib/kea/kea-dhcp6-serverid /run/kea/*.pid && exec kea-dhcp6 -c /etc/kea/kea-dhcp6.conf"]
+ENTRYPOINT ["tini", "--", "/bin/sh", "-c", "rm -f /var/lib/kea/kea-dhcp6-serverid /run/kea/*.pid && cp /etc/kea/kea-dhcp6.conf /run/kea/kea-dhcp6.conf && exec kea-dhcp6 -c /run/kea/kea-dhcp6.conf"]

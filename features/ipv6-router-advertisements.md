@@ -12,7 +12,7 @@
 | Components | internal/plugins/iface/ra, internal/component/iface/config_ra.go, internal/core/ndp |
 | Real-path tests | test/plugin/iface-ra-slaac.ci, test/parse/iface-router-advertisement.ci, test/parse/iface-router-advertisement-invalid.ci, test/parse/iface-vpp-rejects-router-advertisement.ci |
 | Docs | docs/features/interfaces.md |
-| Doc review | 2026-10-07: rdnss server leaf-list max-elements 8 in ze-iface-conf.yang; counters ze_iface_ra_sent_total and ze_iface_ra_solicited_total registered in ifacera.go; matches the row |
+| Doc review | 2026-10-20: the 2026-10-20 change to docs/features/interfaces.md rewrote only the DHCPv6 move paragraph, not the router advertisement text; rdnss server leaf-list max-elements 8 in ze-iface-conf.yang; counters ze_iface_ra_sent_total and ze_iface_ra_solicited_total registered in ifacera.go; matches the row |
 | Defect review | 2026-10-07: plan/journal/identity-default-hides-a-mapping.md row 7 may name the doctor forwarding check; RFC 4861/8106 not enrolled (plan/pre-release/spec-rfc4861-rfc8106-enrolment.md) |
 | Extra criteria | supported: RFC 4861 and RFC 8106 enrolled in the RFC ledger (plan/pre-release/spec-rfc4861-rfc8106-enrolment.md) = none yet; supported: SLAAC against a non-Ze host = none yet |
 

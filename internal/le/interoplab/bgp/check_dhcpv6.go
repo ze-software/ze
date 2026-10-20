@@ -46,12 +46,12 @@ func checkDHCPv6RenewKea(ctx context.Context, check *interoplab.CheckContext) er
 		return fail(1, err)
 	}
 	// Assertion 1. ze installed the leased address.
-	if err := waitZeV6Lease(ctx, check.Lab, address); err != nil {
+	if err := waitZeV6Lease(ctx, check.Lab, address, kea6ValidLifetime); err != nil {
 		return fail(1, err)
 	}
 	// Assertion 2. ze holds it, refreshed, for three lease periods.
 	holdEnd := time.Now().Add(kea6HoldPeriods*kea6ValidLifetime + kea6HoldMargin)
-	if err := holdZeV6Lease(ctx, check.Lab, address, holdEnd); err != nil {
+	if err := holdZeV6Lease(ctx, check.Lab, address, kea6ValidLifetime, holdEnd); err != nil {
 		return fail(2, err)
 	}
 	// Assertion 3. Kea saw one Solicit and Request, then a Renew per T1.
@@ -69,7 +69,7 @@ func checkDHCPv6RenewKea(ctx context.Context, check *interoplab.CheckContext) er
 	// Assertion 5. ze keeps the address for two lease periods after the
 	// stop: the lease granted before it runs out within the first, so only
 	// an answered REBIND keeps the address past it.
-	if err := holdZeV6Lease(ctx, check.Lab, address, stopped.Add(2*kea6ValidLifetime)); err != nil {
+	if err := holdZeV6Lease(ctx, check.Lab, address, kea6ValidLifetime, stopped.Add(2*kea6ValidLifetime)); err != nil {
 		return fail(5, err)
 	}
 	// Assertion 6. A REBIND, not a SOLICIT, kept it, and ze then renewed
@@ -114,15 +114,23 @@ func readKea(ctx context.Context, lab interoplab.CheckerLab, verdict func(string
 }
 
 // waitZeV6Lease waits for ze's eth0 to hold address as a /128 with a lease
-// lifetime, and returns the last reading's error at timeout.
-func waitZeV6Lease(ctx context.Context, lab interoplab.CheckerLab, address string) error {
+// lifetime of at most lifetime.
+func waitZeV6Lease(ctx context.Context, lab interoplab.CheckerLab, address string, lifetime time.Duration) error {
+	return waitZeV6(ctx, lab, kea6BindWait, func(output string) error {
+		return zeV6LeaseVerdict(output, address, lifetime)
+	})
+}
+
+// waitZeV6 reads ze's eth0 every kea6Sample until verdict accepts a reading,
+// and returns the last reading's error at timeout.
+func waitZeV6(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration, verdict func(string) error) error {
 	var last error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: kea6BindWait, Interval: kea6Sample, Description: "ze DHCPv6 lease on eth0",
+		Timeout: timeout, Interval: kea6Sample, Description: "ze DHCPv6 addresses on eth0",
 	}, func(probeCtx context.Context) (string, error) {
 		return zeV6Addresses(probeCtx, lab)
 	}, func(output string) bool {
-		last = zeV6LeaseVerdict(output, address)
+		last = verdict(output)
 		return last == nil
 	})
 	if last != nil {
@@ -132,16 +140,17 @@ func waitZeV6Lease(ctx context.Context, lab interoplab.CheckerLab, address strin
 }
 
 // holdZeV6Lease reads ze's eth0 every kea6Sample until end, and fails on the
-// first reading that does not hold address with a lease lifetime. A sample
-// that fails to run is an error: a gap in the readings is not a hold.
-func holdZeV6Lease(ctx context.Context, lab interoplab.CheckerLab, address string, end time.Time) error {
+// first reading that does not hold address with a lease lifetime of at most
+// lifetime. A sample that fails to run is an error: a gap in the readings is
+// not a hold.
+func holdZeV6Lease(ctx context.Context, lab interoplab.CheckerLab, address string, lifetime time.Duration, end time.Time) error {
 	// The bound: end, a fixed instant; each pass waits kea6Sample.
 	for {
 		output, err := zeV6Addresses(ctx, lab)
 		if err != nil {
 			return err
 		}
-		if err := zeV6LeaseVerdict(output, address); err != nil {
+		if err := zeV6LeaseVerdict(output, address, lifetime); err != nil {
 			return err
 		}
 		remaining := time.Until(end)

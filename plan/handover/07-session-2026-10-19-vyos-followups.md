@@ -40,7 +40,7 @@ RFC 9774, Blast-RADIUS message authentication, DHCP lease lifetimes.
 | # | Item | State | Next step |
 |---|------|-------|-----------|
 | 1 | RADIUS: EAP without Message-Authenticator, Blast-RADIUS hardening | Blocked on `plan/immediate/spec-radius-rfc-defects.md` (in-progress, Phase 6/7, owned by another session) | When that spec closes, start a fresh session: `/ze-spec` for both items. The journal row in `plan/journal/silent-fall-through.md` (VyOS T9351, `verifyResponseMessageAuthenticator`) is the starting evidence |
-| 2 | DHCPv6 Confirm | Spec `plan/spec-dhcpv6-client-2-confirm.md`, status ready, post release | Fresh session, `/ze-implement`. Interop peer Kea 2.6.2, scenario `dhcpv6-client-confirm-kea` |
+| 2 | DHCPv6 Confirm | Closed 2026-10-20: spec-dhcpv6-client-2-confirm implemented and removed; closure commit A is SHA-PENDING. Kea 2.6.2 scenario `dhcpv6-client-confirm-kea` green | None. Verification debt by owner ruling: `./le go lint run`, `./le test unit all`, `./le test functional gating` not run over it |
 | 3 | DHCPv6 stateless (Information-request) | Spec `plan/spec-dhcpv6-client-3-stateless.md`, ready, post release | Fresh session. Kea interop `dhcpv6-client-stateless-kea` runs over 10 min (IRT_MINIMUM 600 s), accepted by the owner |
 | 4 | DHCPv6 Reconfigure with RKAP authentication | Spec `plan/spec-dhcpv6-client-4-reconfigure.md`, ready, post release, after #3 | Fresh session. Peer: odhcpd built from source (`dhcpv6-client-reconfigure-odhcpd`); if it will not build, stop and ask, never skip. `reconfigure-accept` leaf defaults false |
 | 5 | Umbrella `plan/spec-dhcpv6-client-0-umbrella.md` | Ready; owner Q1 to Q5 recorded there | Closes when 2 to 4 close |

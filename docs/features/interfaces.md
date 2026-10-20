@@ -439,13 +439,17 @@ have moved to a new link: with a delegated prefix held it sends a Rebind for eve
 lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
 and it installs every leased address again with what is left of its lifetimes,
 because the kernel deletes them when the interface is set down, then runs DAD on
-them again. A lease of addresses alone sends nothing on a
-move, because Ze does not send Confirm.
-<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.goneDuplicates, v6Worker.goneWhileUp, v6Worker.warnLinkState, v6Worker.dadUnreported, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
+them again. A lease of addresses alone sends a Confirm instead, after a random
+delay of up to 1 s and under the same 30 s limit, carrying every leased address with its
+lifetimes set to 0. A Reply with Success, stated or implied by a missing Status Code,
+keeps the lease, and so does no answer at all. When every Reply that arrives in a
+listen window says NotOnLink, the client removes every leased address, publishes
+one `dhcp-expired` for each, and solicits again.
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.goneDuplicates, v6Worker.goneWhileUp, v6Worker.warnLinkState, v6Worker.dadUnreported, v6Worker.decline, v6Worker.noteMove, v6Worker.startMoveExchange, v6Worker.rebindAfterMove, v6Worker.confirmAfterMove, v6Worker.dropAddresses -->
 <!-- source: internal/component/iface/resolve.go -- ReadAddressState -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf duid pattern -->
-<!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6ConfirmCollector, v6Worker.buildConfirm, v6Worker.setConfirmIAs, v6Worker.emptyIAPD -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go -- v6Lease.apply, v6Lease.renewTimes -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- installV4Lease, v4AddressLifetime, teardownV4 -->
 - **A VLAN unit carries its parent's MTU.** A unit has no `mtu` leaf, so every

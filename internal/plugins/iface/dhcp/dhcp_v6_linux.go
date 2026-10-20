@@ -51,8 +51,8 @@ type v6Worker struct {
 
 	links    <-chan iface.LinkEvent // link events of the logical name; nil once closed
 	linkDown bool                   // a down event was seen and no up since
-	moveDue  v6Instant              // when the link-change Rebind is owed; never when none is
-	moveLast v6Instant              // when the last link-change Rebind started; never before the first
+	moveDue  v6Instant              // when the move exchange (Rebind or Confirm) is owed; never when none is
+	moveLast v6Instant              // when the last move exchange started; never before the first
 
 	dadPending []netip.Prefix        // installed addresses whose DAD outcome is not read yet
 	dadChecked map[netip.Prefix]bool // addresses whose DAD outcome was read since their install
@@ -352,7 +352,16 @@ func (w *v6Worker) maintain() {
 		}
 		now := w.clock().Now()
 		if w.moveOwed(now) {
-			if w.rebindAfterMove(now) == v6EndCanceled {
+			w.startMoveExchange(now)
+			// RFC 9915 Section 18.2.12: a Rebind when a delegated prefix is
+			// held, a Confirm when the lease holds addresses alone.
+			var end v6End
+			if len(w.lease.live(v6KindPrefix, now)) > 0 {
+				end = w.rebindAfterMove(now)
+			} else {
+				end = w.confirmAfterMove(now)
+			}
+			if end == v6EndCanceled {
 				return
 			}
 			continue
