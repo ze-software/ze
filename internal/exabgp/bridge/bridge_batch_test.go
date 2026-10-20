@@ -416,3 +416,37 @@ func TestAnswerBatchRefusalInTheLineVersion(t *testing.T) {
 		"{\"error\": \"cannot read route\"}\nerror\n"
 	assert.Equal(t, want, written.String())
 }
+
+// TestSelectorMatchingNoPeerRefused is X-24 (AC-30).
+//
+// VALIDATES: a selector naming only addresses outside Translator.Peers, in the
+// API 6 `peer` and the API 4 `neighbor` spellings, is refused and carries no
+// command, and the batch answers it with the error marker; a selector naming
+// one served and one unserved address reaches the served one only.
+// PREVENTS: the old `done` for a line that reached nothing (Translation.Unmatched),
+// and a selector widened to every peer.
+func TestSelectorMatchingNoPeerRefused(t *testing.T) {
+	translator := Translator{Families: []string{"ipv4/unicast"}, Peers: []string{"192.0.2.1"}}
+	for _, line := range []string{
+		"peer 192.0.2.99 announce route 10.0.0.0/24 next-hop 1.1.1.1",
+		"neighbor 192.0.2.99 announce route 10.0.0.0/24 next-hop 1.1.1.1",
+	} {
+		t.Run(line, func(t *testing.T) {
+			translation, err := translator.Line(line)
+			require.ErrorIs(t, err, errSelectorMatchesNoPeer)
+			assert.Empty(t, translation.Commands)
+
+			lines := []BatchLine{{Text: line, Version: CommandAPIVersion(line), Translation: translation, Err: err}}
+			var written strings.Builder
+			ack := NewAckMode()
+			AnswerBatch(&written, &ack, lines, make([]BatchAnswer, len(lines)))
+			assert.True(t, strings.HasSuffix(written.String(), "error\n"), written.String())
+			assert.Contains(t, written.String(), "the selector matches no peer")
+		})
+	}
+
+	translation, err := translator.Line("neighbor 192.0.2.1, neighbor 192.0.2.99 announce route 10.0.0.0/24 next-hop 1.1.1.1")
+	require.NoError(t, err)
+	require.Len(t, translation.Commands, 1)
+	assert.Equal(t, "send bgp 192.0.2.1 update text nhop 1.1.1.1 nlri add 10.0.0.0/24", translation.Commands[0].Text)
+}
