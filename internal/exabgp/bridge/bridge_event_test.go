@@ -278,3 +278,82 @@ func TestOpenTextHoldTimeFromTimer(t *testing.T) {
 		t.Errorf("no hold_time 180 in %q", text)
 	}
 }
+
+// updateEventZe is a received UPDATE as ze writes it, with one announce group.
+func updateEventZe(family, nextHop, nlri, attr string) string {
+	return `{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},` +
+		`"peer":{"remote":{"address":"10.0.0.1","as":65001}},` +
+		`"update":{"attr":` + attr + `,"nlri":{"` + family + `":[{"action":"add","next-hop":"` + nextHop + `","nlri":[` + nlri + `]}]}}}}`
+}
+
+// announcedNLRI answers the one NLRI an UPDATE rendered in JSON announces.
+func announcedNLRI(t *testing.T, rendered map[string]any, family, nextHop string) map[string]any {
+	t.Helper()
+	neighbor, _ := rendered["neighbor"].(map[string]any)
+	message, _ := neighbor["message"].(map[string]any)
+	update, _ := message["update"].(map[string]any)
+	announce, _ := update["announce"].(map[string]map[string][]any)
+	byNextHop := announce[family]
+	if len(byNextHop[nextHop]) != 1 {
+		t.Fatalf("no %s %s announce in %v", family, nextHop, update)
+	}
+	nlri, ok := byNextHop[nextHop][0].(map[string]any)
+	if !ok {
+		t.Fatalf("nlri %v", byNextHop[nextHop][0])
+	}
+	return nlri
+}
+
+// TestV4ShapesRestoredFrom5x proves X-11 for JSON: an API 4 helper reads each
+// label as its value alone (Labels.json(raw=False), `[[100]]`) and a flow's
+// `string` ending with the next hop (NLRI.v4_text); an API 6 helper keeps the
+// raw label entry and the bare flow string (ExaBGP 0e8dc3bd2).
+func TestV4ShapesRestoredFrom5x(t *testing.T) {
+	labeled := readZeEvent(t, updateEventZe("ipv4/mpls-label", "1.2.3.4",
+		`{"prefix":"10.0.0.0/24","labels":[[100,1601]]}`, `{"origin":"igp"}`))
+	sameJSON(t, "v4 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV4JSON), "ipv4 nlri-mpls", "1.2.3.4")["label"], `[[100]]`)
+	sameJSON(t, "v6 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV6JSON), "ipv4 nlri-mpls", "1.2.3.4")["label"], `[[100, 1601]]`)
+
+	flow := readZeEvent(t, updateEventZe("ipv4/flow", "1.2.3.4",
+		`{"source-ipv4":[["10.0.1.0/24"]]}`, `{"origin":"igp"}`))
+	v4String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV4JSON), "ipv4 flow", "1.2.3.4")["string"].(string)
+	v6String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV6JSON), "ipv4 flow", "1.2.3.4")["string"].(string)
+	if v6String == "" {
+		t.Fatalf("no flow string")
+	}
+	if v4String != v6String+" next-hop 1.2.3.4" {
+		t.Errorf("v4 flow string %q, want %q", v4String, v6String+" next-hop 1.2.3.4")
+	}
+}
+
+// TestV4TextLabeledRouteAndClusterList proves X-11 for text, as v4/text.py
+// writes a route (LabelBase.v4_text): the labels without their raw value, the
+// next hop, then the route distinguisher; and a cluster list of one cluster in
+// brackets (ClusterList.__repr__).
+func TestV4TextLabeledRouteAndClusterList(t *testing.T) {
+	cases := []struct{ name, family, nlri, attr, want string }{
+		{
+			name: "vpn", family: "ipv4/mpls-vpn",
+			nlri: `{"prefix":"10.0.0.0/24","labels":[[100,1601]],"rd":"0:65000:1"}`, attr: `{"origin":"igp"}`,
+			want: "neighbor 10.0.0.1 receive update announced 10.0.0.0/24 label 100 next-hop 1.2.3.4 rd 65000:1 origin igp\n",
+		},
+		{
+			name: "label stack", family: "ipv4/mpls-label",
+			nlri: `{"prefix":"10.0.0.0/24","labels":[[100,1600],[200,3201]]}`, attr: `{"origin":"igp"}`,
+			want: "neighbor 10.0.0.1 receive update announced 10.0.0.0/24 label [ 100 200 ] next-hop 1.2.3.4 origin igp\n",
+		},
+		{
+			name: "one cluster", family: "ipv4/unicast",
+			nlri: `"10.0.0.0/24"`, attr: `{"origin":"igp","cluster-list":["1.1.1.1"]}`,
+			want: "neighbor 10.0.0.1 receive update announced 10.0.0.0/24 next-hop 1.2.3.4 origin igp cluster-list [ 1.1.1.1 ]\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text, _ := readZeEvent(t, updateEventZe(tc.family, "1.2.3.4", tc.nlri, tc.attr)).AppendText(nil)
+			if !strings.Contains(string(text), tc.want) {
+				t.Errorf("text\n got  %q\n want %q", text, tc.want)
+			}
+		})
+	}
+}

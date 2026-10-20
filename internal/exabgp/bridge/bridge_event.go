@@ -264,7 +264,7 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 		neighbor["state"] = state
 
 	case msgTypeUpdate:
-		neighbor["message"] = updateMessageJSON(e.Data)
+		neighbor["message"] = updateMessageJSON(e.Data, format)
 
 	case msgTypeOpen:
 		neighbor[msgTypeOpen] = e.openJSON(format)
@@ -386,14 +386,14 @@ func hostname() string {
 // member was dropped and the script met an `update` event with no message in
 // it: test/exabgp-compat/etc/run/api-api.receive.run classifies each line it
 // reads and took its failure branch on that one.
-func updateMessageJSON(data map[string]any) map[string]any {
+func updateMessageJSON(data map[string]any, format Format) map[string]any {
 	// A literal rather than msgTypeEOR, for the reason convertUpdateIPC2 spells
 	// `announce` and `withdraw` as literals: this one names a key in ExaBGP's
 	// own UPDATE JSON, and a rename of ze's event kind must not follow it here.
 	if afi, safi, ok := eorFamilyParts(data); ok {
 		return map[string]any{"eor": map[string]any{"afi": afi, "safi": safi}}
 	}
-	return map[string]any{msgTypeUpdate: convertUpdateIPC2(data)}
+	return map[string]any{msgTypeUpdate: convertUpdateIPC2(data, format)}
 }
 
 // eorFamilyParts answers the AFI and the SAFI of an End-of-RIB marker, and
@@ -418,7 +418,8 @@ func eorFamilyParts(data map[string]any) (afi, safi string, ok bool) {
 
 // convertUpdateIPC2 converts ze-bgp JSON UPDATE event data to ExaBGP format.
 // ze-bgp JSON: attr in "attr" object, nlri in "nlri" object with family keys.
-func convertUpdateIPC2(eventData map[string]any) map[string]any {
+// format decides the NLRI shapes that differ between the APIs (exabgpNLRIObject).
+func convertUpdateIPC2(eventData map[string]any, format Format) map[string]any {
 	update := make(map[string]any)
 
 	// Convert NLRI sections from "nlri" object
@@ -463,7 +464,7 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 						if s, ok := nlri.(string); ok {
 							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], map[string]any{bridgeUpdateNLRI: s})
 						} else {
-							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], exabgpNLRIObject(exabgpFamily, nlri))
+							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], exabgpNLRIObject(exabgpFamily, nlri, nextHop, format))
 						}
 					}
 				case "del":
@@ -477,7 +478,7 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 						if s, ok := nlri.(string); ok {
 							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], map[string]any{bridgeUpdateNLRI: s})
 						} else {
-							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], exabgpNLRIObject(exabgpFamily, nlri))
+							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], exabgpNLRIObject(exabgpFamily, nlri, "", format))
 						}
 					}
 				}
@@ -561,13 +562,23 @@ var exabgpNLRIMembers = map[string]string{
 // wrong for `flow packet-length [ >200&<300 ]`, which is a flow that matches no
 // address at all: RFC 8955 Section 4.2 makes every component optional, so no
 // member is the one that identifies the family.
-func exabgpNLRIObject(exabgpFamily string, nlri any) any {
+//
+// An API 4 helper reads two shapes 6.0 changed back as 5.x wrote them
+// (ExaBGP 0e8dc3bd2, LabelBase.v4_json and Flow.v4_json): each label as its
+// value alone, `[[100]]` where API 6 reads `[[100, 1601]]` with the raw label
+// entry, and a flow's `string` ending with the route's next hop. nextHop is the
+// announce's, empty for a withdrawal and for a route that has none.
+func exabgpNLRIObject(exabgpFamily string, nlri any, nextHop string, format Format) any {
 	object, ok := nlri.(map[string]any)
 	if !ok {
 		return nlri
 	}
 	if isFlowFamily(exabgpFamily) {
-		return exabgpFlowNLRI(exabgpFamily, nlri)
+		flow := exabgpFlowNLRI(exabgpFamily, nlri)
+		if format == FormatV4JSON {
+			appendFlowStringNextHop(flow, nextHop)
+		}
+		return flow
 	}
 	renamed := make(map[string]any, len(object))
 	for key, value := range object {
@@ -577,6 +588,10 @@ func exabgpNLRIObject(exabgpFamily string, nlri any) any {
 		}
 		if key == bridgeNLRIPathID {
 			renamed["path-information"] = exabgpPathInformation(value)
+			continue
+		}
+		if key == bridgeNLRILabels && format == FormatV4JSON {
+			renamed[exabgpNLRIMembers[key]] = labelValuesOnly(value)
 			continue
 		}
 		if exabgpName, held := exabgpNLRIMembers[key]; held {
@@ -594,7 +609,47 @@ func exabgpNLRIObject(exabgpFamily string, nlri any) any {
 const (
 	bridgeNLRIRD     = "rd"
 	bridgeNLRIPathID = "path-id"
+	bridgeNLRILabels = "labels"
 )
+
+// labelValuesOnly is Labels.json(raw=False): ze writes each label as
+// `[label, entry]`, the entry being the three octets on the wire, and API 4
+// reads `[label]`.
+func labelValuesOnly(value any) any {
+	stack, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	values := make([]any, 0, len(stack))
+	for _, entry := range stack {
+		pair, isPair := entry.([]any)
+		if !isPair || len(pair) == 0 {
+			values = append(values, entry)
+			continue
+		}
+		values = append(values, pair[:1])
+	}
+	return values
+}
+
+// appendFlowStringNextHop ends a flow's `string` with ` next-hop <ip>`, as
+// NLRI.v4_text does for an API 4 helper (next_hop_text: nothing for a route
+// that has none).
+func appendFlowStringNextHop(flow any, nextHop string) {
+	object, ok := flow.(map[string]any)
+	if !ok {
+		return
+	}
+	text, ok := object["string"].(string)
+	if !ok {
+		return
+	}
+	if nextHop == "" {
+		return
+	}
+	var tb textbuf.Buffer
+	object["string"] = tb.Str(text).Str(" next-hop ").Str(nextHop).String()
+}
 
 // exabgpPathInformation restates an RFC 7911 Path Identifier the way ExaBGP
 // writes it: the four octets joined with dots, `1.2.3.4` for 16909060.

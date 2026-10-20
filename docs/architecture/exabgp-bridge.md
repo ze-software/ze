@@ -533,6 +533,9 @@ them (`response/json.py`, `Notification.v4_data`):
 | `open.capabilities` | keyed by code, `"1"`, `"65"`, body without `code` | keyed by name, `"multiprotocol"`, `"asn4"`, `code` inside the body |
 | `notification.data` | hex of the Shutdown Communication decoded (`Shutdown Communication: "bye"`), else of the wire | hex of the wire, length octet included |
 | `notification.message` | the Data field made readable | the same |
+| `label` of a labeled or VPN route | `[[100]]`, the label alone | `[[100, 1601]]`, with the raw label entry |
+| `string` of a flow route | ends with ` next-hop <ip>` when the route has one | the rules alone |
+| a labeled or VPN route on a text line | `10.0.0.0/24 label 100 next-hop 1.2.3.4 rd 65000:1` (labels without raw value, next hop before the RD) | (no text) |
 
 Hex is ExaBGP's `hexstring`, `0x` and uppercase. ze's OPEN event carries each
 capability as a code, a name and a value, and the bridge rebuilds ExaBGP's body
@@ -550,6 +553,8 @@ error and no log line.
 <!-- source: internal/exabgp/bridge/bridge_version.go -- CommandAPIVersion, FormatFor, APIVersionRequest.Answer -->
 <!-- source: internal/exabgp/bridge/bridge_event_open.go -- Event.openJSON, openCapabilitiesJSON, capabilityBody -->
 <!-- source: internal/exabgp/bridge/bridge_event_notification.go -- notificationData.v4Data, notificationData.readable -->
+<!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpNLRIObject, labelValuesOnly, appendFlowStringNextHop -->
+<!-- source: internal/exabgp/bridge/bridge_event_text.go -- labeledText.appendAnnounced, labeledText.appendQualifier -->
 <!-- source: internal/plugins/exabgp/bridgerun/version.go -- script.detectAPIVersion, script.resetAPIVersion -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 

@@ -159,15 +159,30 @@ func appendUpdateOperation(buf []byte, prefix string, operation map[string]any, 
 		switch action {
 		case "add":
 			buf = append(buf, " announced "...)
-			buf = appendNLRIText(buf, value)
+			labeled, isLabeled := labeledRoute(value)
+			if !isLabeled {
+				buf = appendNLRIText(buf, value)
+			}
+			if isLabeled {
+				buf = labeled.appendAnnounced(buf)
+			}
 			if nextHop != "" {
 				buf = append(buf, " next-hop "...)
 				buf = appendOneline(buf, nextHop)
 			}
+			if isLabeled {
+				buf = labeled.appendQualifier(buf)
+			}
 			buf = append(buf, attributes...)
 		case "del":
 			buf = append(buf, " withdrawn "...)
-			buf = appendNLRIText(buf, value)
+			labeled, isLabeled := labeledRoute(value)
+			if !isLabeled {
+				buf = appendNLRIText(buf, value)
+			}
+			if isLabeled {
+				buf = labeled.appendWithdrawn(buf)
+			}
 		default:
 			// Neither action: write the NLRI on a route line, which is the
 			// shape ExaBGP uses for an End-of-RIB.
@@ -177,6 +192,83 @@ func appendUpdateOperation(buf []byte, prefix string, operation map[string]any, 
 		buf = append(buf, '\n')
 	}
 	return buf
+}
+
+// labeledText is a labeled-unicast or VPN route (RFC 8277, RFC 4364) as ze's
+// event states it: `prefix`, `labels` as `[label, entry]` pairs, and an `rd`
+// for VPN.
+type labeledText struct {
+	prefix string
+	labels []any
+	rd     any
+}
+
+// labeledRoute reads an NLRI object as a labeled route, and answers false for
+// any other NLRI.
+func labeledRoute(value any) (labeledText, bool) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		return labeledText{}, false
+	}
+	prefix, ok := object["prefix"].(string)
+	if !ok {
+		return labeledText{}, false
+	}
+	labels, _ := object[bridgeNLRILabels].([]any)
+	return labeledText{prefix: prefix, labels: labels, rd: object[bridgeNLRIRD]}, true
+}
+
+// appendAnnounced writes the head of LabelBase.v4_text, as 5.x wrote it: the
+// prefix and the labels without their raw value (Labels.text(raw=False),
+// ` label 100`, or ` label [ 100 200 ]` for a stack). The next hop follows,
+// then appendQualifier.
+func (l labeledText) appendAnnounced(buf []byte) []byte {
+	buf = appendOneline(buf, l.prefix)
+	values := labelValuesOnly(l.labels).([]any) //nolint:forcetypeassert // labelValuesOnly answers []any for a []any
+	if len(values) == 0 {
+		return buf
+	}
+	buf = append(buf, " label "...)
+	if len(values) > 1 {
+		buf = append(buf, "[ "...)
+	}
+	for index, entry := range values {
+		if index > 0 {
+			buf = append(buf, ' ')
+		}
+		pair, _ := entry.([]any)
+		if len(pair) == 0 {
+			continue
+		}
+		buf = appendJSONNumber(buf, pair[0])
+	}
+	if len(values) > 1 {
+		buf = append(buf, " ]"...)
+	}
+	return buf
+}
+
+// appendQualifier writes what LabelBase.v4_qualifier puts after the next hop:
+// the route distinguisher of a VPN route (IPVPN.v4_qualifier, str(rd)), and
+// nothing for labeled unicast.
+func (l labeledText) appendQualifier(buf []byte) []byte {
+	if l.rd == nil {
+		return buf
+	}
+	rd, ok := exabgpRD(l.rd).(string)
+	if !ok {
+		return buf
+	}
+	buf = append(buf, " rd "...)
+	return appendOneline(buf, rd)
+}
+
+// appendWithdrawn writes the route as extensive() does on a withdrawn line:
+// the prefix (Label.extensive), and the route distinguisher of a VPN route
+// (IPVPN.extensive). No label: a withdrawal names the route.
+func (l labeledText) appendWithdrawn(buf []byte) []byte {
+	buf = appendOneline(buf, l.prefix)
+	return l.appendQualifier(buf)
 }
 
 // appendNLRIText writes one NLRI as ExaBGP's `extensive()` writes it.
