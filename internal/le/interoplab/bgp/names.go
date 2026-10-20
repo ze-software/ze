@@ -89,8 +89,17 @@ const (
 	gobgpFamilyIPv4         = "ipv4"
 	gobgpFamilyIPv4Flowspec = "ipv4-flowspec"
 	gobgpFamilyIPv4MUP      = "ipv4-mup"
-	gobgpFamilyIPv4SRPolicy = "ipv4-srpolicy"
-	gobgpFamilyIPv6SRPolicy = "ipv6-srpolicy"
+)
+
+// The gobgp client names no SR Policy family after -a in any release, so an
+// SR Policy RIB is read with gobgp-paths, the gRPC ListPath reader
+// test/interop/Dockerfile.gobgp builds, which takes a numeric AFI and SAFI
+// and prints each path's NLRI and attributes through GoBGP's own String().
+const (
+	cmdGoBGPPaths     = "gobgp-paths"
+	gobgpAFIIPv4      = "1"
+	gobgpAFIIPv6      = "2"
+	gobgpSAFISRPolicy = "73"
 )
 
 // gobgp client words.

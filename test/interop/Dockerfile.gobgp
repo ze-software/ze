@@ -6,12 +6,125 @@ FROM golang:1.23-alpine AS builder
 RUN go install github.com/osrg/gobgp/v3/cmd/gobgpd@v3.31.0 && \
     go install github.com/osrg/gobgp/v3/cmd/gobgp@v3.31.0
 
+# gobgp-paths prints the global RIB of one numeric AFI/SAFI, one path per
+# line: the NLRI then every path attribute, each through GoBGP's own String().
+# The gobgp CLI cannot do this for SR Policy: no GoBGP release (v3.31.0 to
+# v4.10.0) names SAFI 73 in its -a family switch (cmd/gobgp/common.go,
+# checkAddressFamily), so `gobgp global rib -a ipv4-srpolicy` answers
+# "unsupported address family". The daemon still holds the paths and serves
+# them over gRPC ListPath, which is what this reads.
+# It asks for the wire form only and decodes it with GoBGP's packet decoder,
+# never through apiutil: in v3.31.0 apiutil's conversion back from the API
+# form corrupts SR Policy. It rebuilds the NLRI with NewSRPolicyIPv4(Length,
+# ...), which divides the octet count the API carries by 8 again, so the
+# NLRI reads "Length: 1" and re-serializing it panics (slice bounds out of
+# range [:5] with capacity 2), and it rebuilds a 4-octet Binding SID with
+# NewBSID, which shifts the label the wire value already holds 12 more bits,
+# so Binding SID 1048575 prints as 1044480 (pkg/apiutil/attribute.go,
+# pkg/packet/bgp/sr_policy.go).
+# Usage: gobgp-paths <afi> <safi>, e.g. gobgp-paths 1 73 for ipv4/sr-policy.
+WORKDIR /src/gobgp-paths
+COPY <<'EOF' main.go
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	api "github.com/osrg/gobgp/v3/api"
+	"github.com/osrg/gobgp/v3/pkg/packet/bgp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, "gobgp-paths:", err)
+		os.Exit(1)
+	}
+}
+
+func run(args []string) error {
+	if len(args) != 2 {
+		return errors.New("usage: gobgp-paths <afi> <safi> (numeric, e.g. 1 73 for ipv4/sr-policy)")
+	}
+	afi, err := strconv.ParseUint(args[0], 10, 16)
+	if err != nil {
+		return fmt.Errorf("afi %q is not a number: %w", args[0], err)
+	}
+	safi, err := strconv.ParseUint(args[1], 10, 8)
+	if err != nil {
+		return fmt.Errorf("safi %q is not a number: %w", args[1], err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, "127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		return fmt.Errorf("connect to gobgpd's gRPC API at 127.0.0.1:50051: %w", err)
+	}
+	defer conn.Close()
+
+	stream, err := api.NewGobgpApiClient(conn).ListPath(ctx, &api.ListPathRequest{
+		TableType:        api.TableType_GLOBAL,
+		Family:           &api.Family{Afi: api.Family_Afi(afi), Safi: api.Family_Safi(safi)},
+		EnableOnlyBinary: true,
+	})
+	if err != nil {
+		return fmt.Errorf("ListPath: %w", err)
+	}
+	for {
+		response, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("ListPath: %w", err)
+		}
+		for _, path := range response.Destination.Paths {
+			nlri, err := bgp.NewPrefixFromRouteFamily(uint16(afi), uint8(safi))
+			if err != nil {
+				return fmt.Errorf("afi %d safi %d: %w", afi, safi, err)
+			}
+			if err := nlri.DecodeFromBytes(path.NlriBinary); err != nil {
+				return fmt.Errorf("decode NLRI %x: %w", path.NlriBinary, err)
+			}
+			var line strings.Builder
+			line.WriteString(nlri.String())
+			for _, wire := range path.PattrsBinary {
+				attribute, err := bgp.GetPathAttribute(wire)
+				if err != nil {
+					return fmt.Errorf("attribute %x of %s: %w", wire, nlri, err)
+				}
+				if err := attribute.DecodeFromBytes(wire); err != nil {
+					return fmt.Errorf("decode attribute %x of %s: %w", wire, nlri, err)
+				}
+				line.WriteByte(' ')
+				line.WriteString(attribute.String())
+			}
+			fmt.Println(line.String())
+		}
+	}
+}
+EOF
+RUN go mod init gobgp-paths && \
+    go get github.com/osrg/gobgp/v3@v3.31.0 && \
+    go mod tidy && \
+    CGO_ENABLED=0 go build -o /go/bin/gobgp-paths .
+
 FROM alpine:3.21
 
 RUN apk add --no-cache tini
 
 COPY --from=builder /go/bin/gobgpd /usr/local/bin/gobgpd
 COPY --from=builder /go/bin/gobgp /usr/local/bin/gobgp
+COPY --from=builder /go/bin/gobgp-paths /usr/local/bin/gobgp-paths
 
 ENTRYPOINT ["tini", "--", "gobgpd"]
 CMD ["-f", "/etc/gobgp/gobgp.toml"]

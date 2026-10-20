@@ -83,8 +83,8 @@ var scenarioExtras = map[string][]operation{
 	// Binding SID label at the top of the 20-bit range and both Type A segment
 	// labels exactly as configured.
 	scenarioSRPolicyGoBGP: {
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyOriginatedBSIDSRv6, srPolicyBindingSIDSRv6}, timeout: 60 * time.Second},
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv6SRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyOriginatedBSIDSRv6, srPolicyBindingSIDSRv6}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv6, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	// RFC 9830 Section 5: A, B and the control C arrive well-formed; A beside
@@ -95,10 +95,10 @@ var scenarioExtras = map[string][]operation{
 	// its session on an NLRI of a length other than 96 or 192 bits, so the
 	// session holding at the end is the proof no 13-octet NLRI reached it.
 	scenarioSRPolicyMalformedReceiveGoBGP: {
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyReceivedA, srPolicyReceivedB, srPolicyReceivedControl}, timeout: 120 * time.Second},
-		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, absent: []string{srPolicyReceivedA}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
-		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, absent: []string{srPolicyReceivedB}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
-		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyReceivedControl}},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyReceivedA, srPolicyReceivedB, srPolicyReceivedControl}, timeout: 120 * time.Second},
+		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, absent: []string{srPolicyReceivedA}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
+		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, absent: []string{srPolicyReceivedB}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
+		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyReceivedControl}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	scenarioFlowspecFRR: {

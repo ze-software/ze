@@ -1,6 +1,7 @@
 # RFC 9830 SR Policy origination, read by GoBGP, which negotiates
 # ipv4-srpolicy and ipv6-srpolicy and prints each received policy's NLRI and
-# Tunnel Encapsulation sub-TLVs in its text RIB.
+# Tunnel Encapsulation sub-TLVs through gobgp-paths
+# (Dockerfile.gobgp), since the gobgp CLI names no SR Policy family.
 [global.config]
   as = 65002
   router-id = "172.30.0.5"
