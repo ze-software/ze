@@ -1062,6 +1062,12 @@ var scenarioOperations = map[string][]operation{
 	"ospf-p2p-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
+	// FRR's eth0 loses Docker's subnet and takes the /32 its lo holds, the form
+	// FRR runs as unnumbered; Ze's eth0 is unnumbered through its own config.
+	"ospf-p2p-unnumbered-frr": {
+		{kind: opExec, peer: peerFRR, command: []string{"sh", "-c", "ip -4 addr flush dev eth0 && ip addr add " + frrUnnumberedDonor + "/32 dev lo && ip addr add " + frrUnnumberedDonor + "/32 dev eth0"}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull, zeUnnumberedDonor}, timeout: 90 * time.Second},
+	},
 	"ospf-ptmp-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},

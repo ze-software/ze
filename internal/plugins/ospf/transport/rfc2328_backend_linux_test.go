@@ -16,9 +16,9 @@ import (
 
 // VALIDATES: resolving an active OSPF interface supplies its own assigned IPv4
 // address to the raw socket configuration as the packet source.
-// This is Ze's numbered-interface rule, not RFC 2328 section 8.1, whose
-// unnumbered point-to-point sourcing Ze does not implement (RFC2328-8.1-1 is a
-// {gap}, owner ruling 8 (g), 2026-10-02).
+// An unnumbered unit resolves the same way: iface installs the donor's address
+// on it as a /32, so the address this reads is the donor's (RFC 2328 section
+// 8.1, exercised in rfc2328_unnumbered_source_linux_test.go).
 func TestResolveOSPFInterfaceUsesIfaceResolverOSName(t *testing.T) {
 	oldBinding := resolveIfaceBinding
 	oldAddresses := resolveIfaceAddresses
@@ -103,9 +103,10 @@ func TestLinuxInterfaceCountsMalformedReceiveDrop(t *testing.T) {
 
 // VALIDATES: an interface without an assigned IPv4 source, including an
 // unspecified or multicast value, cannot open an OSPF socket.
-// This is Ze policy, not RFC 2328 section 8.1: an unnumbered point-to-point
-// interface would source from another router address, a feature Ze does not
-// implement (RFC2328-8.1-1 is a {gap}, owner ruling 8 (g), 2026-10-02).
+// An unnumbered point-to-point interface is not this case: iface installs
+// the donor's address on it as a /32, so it holds an IPv4 source. A device
+// with no address at all has nothing to source from (RFC 2328 section 8.1:
+// "there must be at least one IP address assigned to the router").
 func TestOSPFRefusesInterfaceWithoutIPv4Source(t *testing.T) {
 	oldAddresses := resolveIfaceAddresses
 	t.Cleanup(func() { resolveIfaceAddresses = oldAddresses })

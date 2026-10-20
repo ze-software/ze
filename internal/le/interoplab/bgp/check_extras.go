@@ -283,6 +283,16 @@ var scenarioExtras = map[string][]operation{
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface"}, contains: []string{"POINTOPOINT"}},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
+	// RFC 2328 Section 8.1: Ze sources its packets from the donor, FRR runs
+	// the link unnumbered, and each side routes to the other's donor through
+	// the link, Ze with the on-link gateway FRR also installs.
+	"ospf-p2p-unnumbered-frr": {
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface eth0"}, contains: []string{"UNNUMBERED", "POINTOPOINT"}},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{"\"state\": \"full\"", frrUnnumberedDonor}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip route " + zeUnnumberedDonor + "/32"}, contains: []string{"Known via \"ospf\"", "eth0"}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-4", "route", "show", frrUnnumberedDonor}, contains: []string{"via " + frrUnnumberedDonor + " dev eth0", "onlink"}, timeout: 30 * time.Second},
+		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
+	},
 	"ospf-debug-inject-frr": {
 		{kind: opExec, peer: "ze", command: zeCommand("debug ospf inject enable")},
 		{kind: opExec, peer: "ze", command: zeCommand("debug ip ospf inject opaque scope area id 1 hex 0001000401020304")},

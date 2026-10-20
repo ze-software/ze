@@ -416,6 +416,10 @@ const (
 	nextHopScopeGlobal             = "global"
 	ospfNeighborHeading            = "Neighbor"
 	ospfStateFull                  = "Full"
+	// The donor addresses of ospf-p2p-unnumbered-frr. They sit outside the lab
+	// subnet, so the runner's fixture rewrite leaves them alone.
+	zeUnnumberedDonor  = "10.255.0.2"
+	frrUnnumberedDonor = "10.255.0.3"
 )
 
 // IPsec state, as ip xfrm state prints it.
