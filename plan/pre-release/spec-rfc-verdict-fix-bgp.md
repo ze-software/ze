@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
-| Phase | 2/48 |
+| Phase | 48/48 (closure check: the derived listing re-run 2026-10-21 holds 6 weak, 0 wrong, each a "Blocked by" id) |
 | Handoff | - |
 | Updated | 2026-10-09 |
 
@@ -308,6 +308,7 @@ This table records acceptance ownership, not a fresh conformance count. The init
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10 | weak | `spec-bgp-update-propagation-rfc-defects` |
+| DRAFT-IETF-BESS-MUP-SAFI-3.1-1 | weak | `spec-bgp-update-propagation-rfc-defects` AC-5 (2026-10-21: the ingress positive cannot tell a silent ignore from a treat-as-withdraw; test-strength fix named there) |
 | RFC9234-3.1-1 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC7999-3.1-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC9830-4.2.1-2 | weak | `spec-bgp-sr-policy-rfc-defects` |
