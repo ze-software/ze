@@ -1779,3 +1779,44 @@ Left, in order:
 Gates owed: `./le go lint run` scoped to `internal/component/config/yang`, `./le verify worktree`
 (debt `plan/verification-debt/c1266198.md`). `go test ./internal/component/config/yang/cli/` is red at HEAD
 without these edits (`TestDocCommand`: unknown command: show bgp peer list), from other work.
+
+## Closing spec-rfc-verdict-fix-bgp (2026-10-21, agent a887f9b6, stopped at budget)
+
+Done and committed: 25938997c9 (five waiting specs to `blocked`, phase lines of
+daemon-drain and rs-replacement, M1 pointer in docker-hosts), and the commit after it
+(reseal of the four SHIFTED verdicts RFC4659-3.2-2, RFC4659-3.2.1.1-1, RFC7999-3.1-2,
+RFC8654-4-2, resealed in a `git archive HEAD` export so no foreign working-tree edit
+leaked in; MUP-SAFI-3.1-1 added to "Blocked by" and to update-propagation AC-5;
+Phase 48/48).
+
+Findings that decide the closure:
+- Derived listing (spec "Derived listing" jq) re-run 2026-10-21: 6 weak, 0 wrong, all
+  six owned in another spec's AC (PATHS-LIMIT-3-7 add-path AC-21, MUP-SAFI-3.1-1
+  update-propagation AC-5, RFC4271-9.2-7 rs-replacement AC-3, RFC7999-3.1-2
+  update-propagation AC-5, RFC9252-5-3 vpp-srv6-service-policy AC-7, RFC9494-4.2-6 GR AC-4).
+  AC-C1 holds.
+- MUP-SAFI-3.1-1 is a test-strength weak, not a producer defect: the fix is asserting
+  `r.Discarded == 4` and `r.WithdrawnCount == 0` in
+  `TestMUPOtherRouteTypesSilentlyIgnoredAtIngress`. Moved by the coordinator's order; a
+  test agent can fix it any time (needs P-1 approve, discrimination record, independent re-judge).
+- Parent P-3 (spec-rfc-verdict-test-fix-pass) lets a child close before the parent.
+- AC-C5 at HEAD (rfc check over an archive export): after the reseal no stale verdict in
+  BGP stems. The working tree shows more (RFC8955-4-3 STALE, revert records for rfc2545,
+  rfc2918, rfc7705, bfd-strict-mode, rfc9830 producer-changed): all from other sessions'
+  uncommitted BGP edits; re-check once they land. `rfc7313_local_resend_test.go` naming
+  violation is another session's commit.
+- AC-C3/C6 spot check: 16 of 17 split rows and all 4 missing rows have their own row in
+  `rfc/short/`; RFC9552 "Table 9" reserved-bit sentence maps to RFC9552-5.3.2.2-3 only
+  by reading, confirm it. RFC9552-5.1-2 is `enforced`.
+
+Left for closure, in order (the closer must not be this agent's author context):
+1. `/ze-close` step 1: append `plan/TEMPLATE-CLOSURE.md`, fill Goal Validation (AC-C1:
+   the listing above), Implementation Summary, Deliverables (spec line ~1057) and Security
+   (~1063) checklists, Documentation Update Checklist (~607).
+2. Gates: `./le verify worktree` (main thread or a fresh agent), then `/ze-review` over
+   the child's diff, `./le spec review record spec spec-rfc-verdict-fix-bgp verdict CLEAN ...`.
+3. Citers: `git grep -n "plan/pre-release/spec-rfc-verdict-fix-bgp"` (the parent, and the
+   blocking specs' AC rows, cite it), repoint or bare-stem them in commit A.
+4. Commit A then commit B (`remove plan/pre-release/spec-rfc-verdict-fix-bgp.md`).
+The claim is held by agent a887f9b6 under session 8385ff13
+(`tmp/session/.session-8385ff13-...+a887f9b6a1c02b23e`); the continuation re-claims.
