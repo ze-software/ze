@@ -326,11 +326,14 @@ file: a candidate promoted to active) before its first listener, because each
 of the record's syncs waits behind any other writer on the disk, and the first
 listener used to wait for all of them. `DeferBootRecord` arms the record on the
 bound handle where the record used to run. `Start` runs it once in its own
-goroutine, against a view of that handle the gate does not hold, before the
-hub waits for plugin startup: SSH binds during plugin startup with BGP, and the
-web UI, looking glass, MCP and managed listeners bind after
-`WaitForStartupComplete`, so the record runs beside the rest of startup and no
-listener waits for it. `Wait` runs before the handle closes. The owner lock, `recoverFileCommit`, stale-candidate
+goroutine, against a view of that handle the gate does not hold, once the hub
+serves: after plugin startup, the service listeners and the ready file. The
+record holds the store's write lock across all of its syncs, so any store read
+waits for it. Started before the plugin wait, it made bgp's Stage 2 read of its
+Graceful Restart marker wait on a slow disk until the startup barrier, which
+allows a few seconds with no plugin progress, failed the start
+(`test/encode/dut-store-slow-boot-record-starts.ci` holds it there). So neither
+a listener nor the plugin handshake waits for it. `Wait` runs before the handle closes. The owner lock, `recoverFileCommit`, stale-candidate
 cleanup and the SSH host key all stay before serving.
 
 While the record is pending, `ReadActiveConfig` of the bound name answers the

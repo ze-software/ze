@@ -488,8 +488,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// The boot configuration is no longer made durable here, before any
 	// listener: on a disk another writer saturates, its syncs held the first
-	// listener back by a minute. bootRecord.Start below runs it beside the rest
-	// of startup, so no listener waits for it. Until it lands, reads of the
+	// listener back by a minute. bootRecord.Start below runs it once ze serves,
+	// so neither a listener nor the plugin handshake waits for it. Until it lands, reads of the
 	// configuration answer these bytes and every config write waits for it
 	// (storage.BootRecord). A crash before it lands loses nothing: the next
 	// start reads the same source and records it then.
@@ -1437,16 +1437,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	fmt.Printf("Starting ze with config: %s\n", configPath)
 
-	// Record the boot configuration (see DeferBootRecord above). It starts
-	// before the plugin wait below and runs beside the rest of startup: SSH
-	// binds during plugin startup with BGP, and web, looking glass, MCP and
-	// managed bind after WaitForStartupComplete, so no listener waits for it.
-	if bootRecord != nil {
-		bootRecord.Start(func(view storage.Storage) error {
-			return recordBootConfig(view, configPath, data)
-		})
-	}
-
 	// Wait for all plugins to complete startup (BGP reactor starts, peers connect, etc.)
 	// before signaling readiness. The test infrastructure polls ze.ready.file.
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -1534,6 +1524,20 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	writeReadyFile()
+
+	// Record the boot configuration (see DeferBootRecord above), now that ze
+	// serves. The record holds the store's write lock across every one of its
+	// syncs, so a store read waits for all of them: started before the plugin
+	// wait, it made bgp's Stage 2 read of its Graceful Restart marker wait on a
+	// slow disk until the startup barrier, which allows only a few seconds with
+	// no plugin progress, failed the start. A config write of the bound name
+	// that arrives earlier (a SIGHUP during startup) waits for the record here.
+	if bootRecord != nil {
+		bootRecord.Start(func(view storage.Storage) error {
+			return recordBootConfig(view, configPath, data)
+		})
+	}
+
 	// Serve managed fleet clients declared under hub server blocks (answers
 	// config-fetch, pushes config-changed). No-op unless a server block has client
 	// entries and storage is blob-backed. Independent of the outbound managed client.

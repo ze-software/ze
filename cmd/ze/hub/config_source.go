@@ -56,11 +56,20 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 	return nil
 }
 
+// bootRecordHold is nil in every shipped build. A test DUT build (zetest) sets
+// it to hold the store's write lock for the duration ze.test.boot.record.hold
+// names before the record writes, the way a record whose syncs wait behind
+// another writer on a slow disk holds it (register_boot_record_hold_zetest.go).
+var bootRecordHold func(storage.Storage)
+
 // recordBootConfig is the boot record runYANGConfig starts once it serves. A
 // failure is logged here, with the fix, and the record keeps it: every later
 // config change is refused with it (storage.BootRecord), while the daemon keeps
 // running the configuration it booted from.
 func recordBootConfig(store storage.Storage, path string, content []byte) error {
+	if bootRecordHold != nil {
+		bootRecordHold(store)
+	}
 	err := initializeConfigSource(store, path, content)
 	if err != nil {
 		slogutil.Logger("hub.config").Error("boot configuration not recorded in the store; configuration changes are refused until ze restarts", "source", path, "error", err, "fix", "run `ze data check`, then restart ze")
