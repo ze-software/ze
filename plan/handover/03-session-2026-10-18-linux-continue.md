@@ -1070,3 +1070,54 @@ Three 6.0 api cases were handed over: api-peer-lifecycle, api-disable (AC-41), a
   to `docs/architecture/testing/interop.md` (foreign uncommitted hunks there: check), commit.
 - Not started: conf-watchdog (helper `le test interop-bgp exabgp-api watchdog`, config `api-watchdog.conf`,
   sequence 2 = withdraw 77.77.77.77/32 `0005204D4D4D4D0000`); api-health `status` design.
+
+### ExaBGP 6 spec, AC-4 twelfth package (2026-10-20, Linux): continuation owed, nothing committed
+
+All three changes below are UNCOMMITTED and none is green yet.
+
+- **sr-policy GoBGP scenario** (`test/interop/scenarios/bgp-exabgp-bridge-sr-policy-gobgp/{ze.conf,gobgp.toml}`,
+  `internal/le/interoplab/bgp/register_exabgp_bridge_sr_policy.go`). Fixed: ze's config tokenizer
+  (`internal/component/config/tokenizer.go`, quoted-string escapes) turns `\n` into a newline and drops the
+  backslash of an unknown escape, so `\040` reached printf as `040`; the run string now writes `\\040`/`\\n`
+  (comment in ze.conf says why). GoBGP v3.31.0 prints Preference as `{Flags: 0x%02x, Preference: %d}`
+  (`pkg/packet/bgp/sr_policy.go`), so the checker matches `Preference: 300}`; the bad NLRI comment is fixed.
+  The shared `bin/le` does not see the untracked register file ("has no Go checker"): run with
+  `INTEROP_SCENARIO=bgp-exabgp-bridge-sr-policy-gobgp ./le --name exa6c test integration interop`.
+  Current RED: assertion 2, `gobgp global rib -a ipv4-srpolicy` exits 1 on every poll (session up). The
+  script's line reached the bridge (WARN "uses the deprecated ExaBGP API 4" for announce-sr-policy, from the
+  Phase 2 detection: a bare `announce` is v4). Next: read GoBGP's exit-1 text (empty table, or refused family),
+  then whether the bridge's dispatch of the v4-held line succeeded (run ze with `ze.log=debug`). Red proof and
+  the inventory row still owed. `docs/architecture/testing/interop.md` holds a FOREIGN RADIUS hunk (FreeRADIUS
+  accounting port, radclient `-i`) from the RADIUS spec session: the row was NOT added; add it once that hunk lands.
+- **conf-watchdog (6.0 encoding)**. Diagnosed two causes, neither a ze daemon defect yet proven:
+  1. Run by hand, `run "le test interop-bgp exabgp-api watchdog"` finds no `le` on PATH (`exec: "le":
+     executable file not found`, logged only at DEBUG as "post-startup callback failed": that DEBUG level
+     for a script that never starts is itself a user-facing-error defect, owed a journal row). The functional
+     stage puts the binaries dir on the child PATH (`internal/le/test/functional/binaries.go`); by hand use
+     `PATH=$PWD/bin/le-exa6c:$PATH ./le --name exa6c test exabgp encoding conf-watchdog`.
+  2. The helper profile sent ONE announce/withdraw pair and exited after 1s, while the 6.0 fixture expects
+     three cycles (sequences 2..6) from upstream `watchdog.run`, which loops until its parent dies. Uncommitted
+     fix in `internal/le/interoplab/bgp/exabgp_helpers.go`: `exaProfile.repeat`, `repeatExaCommands`,
+     `exaInputEnded`; the watchdog profile repeats. With `le` on PATH it is still RED: the bridge logs
+     "exabgp-bridge script restarted too often; it stays stopped" (5 starts in 1m4s) and sequence 2 never
+     arrives. Next: find why the looping helper exits (stdin closed by the bridge? a write error?), and why
+     ze announced 77.77.77.77 at peer up ("watchdog resent on reconnect count=1") although the config says
+     `watchdog dnsr withdraw` (initially withdrawn): check the migration of `withdraw`. No unit test written
+     yet for `repeatExaCommands` (owed, red first).
+- **api-sr-policy announce frame vs the pin**. Cause found by reading the script: `api-sr-policy.run` sends the
+  withdrawal right after the announce's ack, before the session is up; ExaBGP holds API routes until
+  established and the withdrawal cancels the pending announce, so the pin never sent the announce frame.
+  Uncommitted fix: `time.sleep(2)` after each command in `test/exabgp-compat/etc/run/api-sr-policy.run`.
+  Not yet run. Next: run it under `--dut exabgp` with the pin (`PYTHONPATH= uv run --no-project --python 3.12
+  --with paramiko --with 'exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6'
+  ./le --name exa6c test exabgp api --dut exabgp api-sr-policy`) and against ze; if the announce frame
+  differs, take ExaBGP's bytes into the `.ci`.
+- **api-health `status` design (not built).** No new engine contract is needed for the plugin runner:
+  `bridgerun.Dispatcher.DispatchCommand` already returns `(status, json.RawMessage, error)`, and the
+  registered `ze-bgp:peer-list` (`internal/component/bgp/plugins/cmd/peer/peer.go`, `handleBgpPeerList`)
+  answers address -> {`state`, `name`, `remote-as`, `uptime`}. The runner can dispatch it on `status` and
+  write ExaBGP's text/JSON (reactor.py `status`: per peer `name: peer.fsm.name()`, the name being ExaBGP's
+  neighbor key and the state upper-case, e.g. `ESTABLISHED`; version/uuid/pid/uptime are the bridge's own).
+  Open: the standalone MuxConn runner (`internal/exabgp/bridge`, `pendingResponses`) carries ok/error only,
+  so `status` there needs the payload path or is recorded plugin-runner-only; and ze's state names must be
+  mapped to ExaBGP's FSM names. Both are design choices for the main thread.
