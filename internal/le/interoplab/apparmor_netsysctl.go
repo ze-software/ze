@@ -40,8 +40,9 @@ func NetSysctlWriteArguments() []string {
 // NetSysctlSecurityArguments answers every docker run argument a container
 // that writes its network namespace's sysctls at run time takes on this
 // daemon: NetSysctlWriteArguments, then the NetSysctlAppArmorProfileName
-// option on a daemon that applies AppArmor. It refuses, naming the load
-// command, a host whose kernel lists its profiles without this one. On a
+// option on a daemon that applies AppArmor. It refuses a host whose kernel
+// lists its profiles without this one, naming the load command on a Linux
+// client and the QEMU docker-lab route elsewhere. On a
 // daemon that applies no AppArmor nothing confines the writes to net/, so
 // container root can write any host sysctl whose handler checks only
 // ownership (R-3 of spec-lab-containers-least-privilege); --privileged
@@ -54,7 +55,8 @@ func (d *Docker) NetSysctlSecurityArguments(ctx context.Context) ([]string, erro
 	return append(NetSysctlWriteArguments(), profile...), nil
 }
 
-// NetSysctlUnapplied answers the refusal, naming the load command, for a
+// NetSysctlUnapplied answers the refusal, naming the load command on a Linux
+// client and the QEMU docker-lab route elsewhere, for a
 // container run under NetSysctlSecurityArguments that exited with exitCode
 // because the daemon could not apply the profile (runc's "unable to apply
 // apparmor profile" in stderr), quoting that stderr line alone, and nil for
@@ -62,7 +64,7 @@ func (d *Docker) NetSysctlSecurityArguments(ctx context.Context) ([]string, erro
 // runs the container outside Docker.runContainer, such as the terminal demo
 // renderer, reads it from the tail of the run's stderr: when the host's
 // profile list is unreadable, NetSysctlSecurityArguments cannot refuse first.
-func NetSysctlUnapplied(exitCode int, stderr string) error {
+func (d *Docker) NetSysctlUnapplied(exitCode int, stderr string) error {
 	if !appArmorProfileUnapplied(exitCode, stderr) {
 		return nil
 	}
@@ -70,7 +72,7 @@ func NetSysctlUnapplied(exitCode int, stderr string) error {
 	if !registered {
 		return nil
 	}
-	return labAppArmorRefusal(profile, "the daemon could not apply ("+appArmorUnappliedLine(stderr)+")")
+	return labAppArmorRefusal(d.owner.goos, profile, "the daemon could not apply ("+appArmorUnappliedLine(stderr)+")")
 }
 
 // appArmorUnappliedLine answers the one stderr line that carries runc's

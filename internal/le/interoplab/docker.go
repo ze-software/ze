@@ -400,7 +400,9 @@ func architectureToken(value string) bool {
 
 // Build retains a built image until ReleaseImage drops its run-owned tag:
 // Suite.Run does that for a lab, and any other caller MUST call ReleaseImage
-// after a successful Build. The shared Tag stays.
+// after a successful Build. The shared Tag stays. A build that carries a named
+// context runs only where the docker CLI builds with BuildKit, and is refused
+// before `docker build` runs otherwise (requireBuildKit).
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	if build.Timeout < 0 {
@@ -428,6 +430,11 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 		}
 		var tb textbuf.Buffer
 		arguments = append(arguments, "--build-context", tb.Str(named.Name).Byte('=').Str(named.Path).String())
+	}
+	if len(build.NamedContexts) > 0 {
+		if err := d.requireBuildKit(ctx, build); err != nil {
+			return image, err
+		}
 	}
 	arguments = append(arguments, "-t", image.retainedTag, "-f", build.Dockerfile, build.Context, "-q")
 	result, err := d.command(ctx, timeout, arguments...)
@@ -699,7 +706,7 @@ func (d *Docker) runContainerFailure(peer PeerConfig, confined bool, err error) 
 	if !registered {
 		return err
 	}
-	if unapplied := labAppArmorUnapplied(profile, err); unapplied != nil {
+	if unapplied := labAppArmorUnapplied(d.owner.goos, profile, err); unapplied != nil {
 		return unapplied
 	}
 	return err

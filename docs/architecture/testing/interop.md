@@ -539,6 +539,18 @@ other such caller. Its network goes through `Docker.CreateNetwork` and
 and each image through `Docker.Build` (a named build context, such as
 FreeRtr's source checkout, is a typed `NamedBuildContext`) followed by
 `Docker.ReleaseImage`, which drops the run-owned tag and keeps the DUT's own.
+Only BuildKit accepts `--build-context`, so a build that carries a named
+context first asks `docker buildx version`. When the docker CLI has no buildx
+plugin, `docker build` would run the legacy builder and answer with its usage
+text, so `Docker.Build` refuses before `docker build` runs: the error names
+BuildKit and the missing plugin, and gives the install (`brew install
+docker-buildx` and the `cliPluginsExtraDirs` entry Homebrew prints on macOS,
+the distribution's buildx package on Linux). An environment that sets
+`DOCKER_BUILDKIT` to a false value forces the legacy builder even with buildx
+installed, so that build is refused too, naming the variable and
+`unset DOCKER_BUILDKIT`; Ze never overrides the setting. The named context is
+never dropped to make the build run.
+<!-- source: internal/le/interoplab/buildkit.go -- Docker.requireBuildKit, legacyBuilderForced -->
 `Docker.ContainerRunning` answers an inspect it cannot read as an error, never
 as "not running". It removes only a DUT or sender name it recorded, and records
 one only when `interoplab.ContainerMayExist` says its `RunDetached` may have
@@ -546,8 +558,11 @@ left a container: never for a name the daemon refused as another container's.
 <!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages, Runner.startContainer, Runner.removeContainer -->
 <!-- source: internal/le/interoplab/container.go -- Docker.ContainerRunning -->
 
-`Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
-prints each removal or skip as a progress line. A listing the daemon refuses is
+`Suite.Run` runs the cleanup after the Docker probe and before Preflight. It
+prints each removal or skip as a progress line, then the summary line that
+`./le test integration cleanup` ends with: `interop: cleanup: N removed, N kept,
+N failed, N unknown`, or `interop: cleanup: no Ze lab resource on this Docker
+daemon` when the sweep met nothing. So a sweep that ran always says so. A listing the daemon refuses is
 a setup error that names the pre-run cleanup, why the run stops, and the fix:
 run the failing docker command by hand, then `./le test integration cleanup`
 or the run again. Before a scenario creates its network and containers, its
@@ -560,7 +575,7 @@ the lab's own suffix variable, which the message names from
 verdict's own fix: stop the owner pid it names, or run the cleanup. The
 scenario's teardown then removes nothing of that name: it removes only what
 the scenario itself created.
-<!-- source: internal/le/interoplab/orphans.go -- Docker.claimName -->
+<!-- source: internal/le/interoplab/orphans.go -- Docker.claimName, OrphanReport.Summary -->
 
 `./le test integration cleanup` runs the cleanup by hand and exits 1 when a
 removal failed, naming the failing command. `./le test integration cleanup
@@ -611,12 +626,23 @@ same command rather than reporting an unreadable answer. Both refusals also name
 the daemon's kernel release and the kernel route below, because the profile lets
 the probe answer and adds no kernel feature: a stock kernel may still lack some
 (MOBIKE's xfrm migrate, for example), and the operator reads the whole path in
-one run. A security
-options query that fails or prints no JSON refuses, because the argv depends on
+one run. On a client that is not Linux, such as a Mac, neither refusal names
+the load command, and neither does a `denied` row's fix: `le setup docker-kernel
+apparmor` loads a profile into the kernel of the Linux machine it runs on and
+refuses on every other system (`appArmorLoadPlatform`), so the refusal says so,
+still names the daemon's kernel release, and names only the kernel route, the
+QEMU docker-lab guest. The client system is the one the `Docker` wrapper
+records in its owner labels (`ze.lab.os`); it is read from the client even when
+the machine or boot identity is not, so a host with no `/etc/machine-id` still
+gets the Linux text (`readHostFacts`).
+<!-- source: internal/le/interoplab/orphans.go -- readHostFacts -->
+
+A security options query that fails or prints no JSON refuses, because the argv depends on
 it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
 and the guest route is unchanged.
 
-<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeContainer -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, deniedFix, kernelProbeContainer -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel_apparmor.go -- appArmorLoadPlatform -->
 
 The probe is the first container to run under a Ze profile, and the same rule
 holds for every lab container: one that needs more than docker-default grants
@@ -630,8 +656,11 @@ profile list lacks it, the lab refuses before the container starts, naming
 `./le setup docker-kernel apparmor confirm <name>`; where that list is
 unreadable the container runs, and when runc answers "unable to apply apparmor
 profile" the lab refuses naming the same command (`labAppArmorUnapplied`); on a
+client that is not Linux both refusals name the QEMU docker-lab route instead
+of the command, which refuses there (`appArmorLoadUnreachable`); on a
 daemon that applies no AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
 4.0.1 (Ubuntu 24.04).
+<!-- source: internal/le/interoplab/apparmor.go -- labAppArmorProfileMissing, labAppArmorUnapplied, labAppArmorRefusal, appArmorLoadUnreachable -->
 
 A lab peer runs with no more than its daemon needs, never `--privileged`
 (`plan/pre-release/spec-lab-containers-least-privilege.md`). A sysctl set once

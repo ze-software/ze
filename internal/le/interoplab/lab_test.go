@@ -2,6 +2,7 @@ package interoplab
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -55,6 +56,60 @@ func TestSuiteRunCleansOrphansBeforePreflight(t *testing.T) {
 	}
 	if createdAt < 0 || listedAt >= createdAt {
 		t.Errorf("orphan listing at %d, first create at %d", listedAt, createdAt)
+	}
+}
+
+// VALIDATES: a lab run's start sweep prints its summary after its per-resource
+// lines, so a sweep that met nothing still says it ran. Method: run the suite
+// against a fake daemon, stop it at Preflight, and read the progress output.
+// PREVENTS: a clean daemon's sweep that prints nothing, which an operator
+// cannot tell from a sweep that never ran.
+func TestSuiteRunPrintsTheSweepSummary(t *testing.T) {
+	oneContainer := func(command ProcessCommand) (ProcessResult, bool) {
+		joined := strings.Join(command.Arguments, " ")
+		if strings.HasPrefix(joined, "docker network ls") {
+			return ProcessResult{}, true
+		}
+		if strings.HasPrefix(joined, "docker image ls") {
+			return ProcessResult{}, true
+		}
+		return ProcessResult{}, false
+	}
+	for _, row := range []struct {
+		name  string
+		run   func(ProcessCommand) (ProcessResult, error)
+		lines []string
+	}{
+		{name: "clean daemon", run: kernelAnswering(nil),
+			lines: []string{"interop: cleanup: no Ze lab resource on this Docker daemon"}},
+		{name: "one removable orphan", run: orphanDaemon(fixtureLabels(nil), oneContainer),
+			lines: []string{
+				"interop: cleanup: removed container lab-peer-4242",
+				"interop: cleanup: 1 removed, 0 kept, 0 failed, 0 unknown",
+			}},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			var progress strings.Builder
+			suite := Suite{
+				Docker:   newDocker(&recordingRunner{run: row.run}),
+				Progress: &progress,
+				NoBuild:  true,
+				Preflight: func(context.Context, *Docker) error {
+					return errors.New("stop after the sweep")
+				},
+				Scenarios: []ScenarioPlan{{Source: ScenarioSource{Name: "one"}}},
+			}
+			suite.Run(t.Context())
+			output := progress.String()
+			from := 0
+			for _, want := range row.lines {
+				at := strings.Index(output[from:], want)
+				if at < 0 {
+					t.Fatalf("progress lacks %q after offset %d:\n%s", want, from, output)
+				}
+				from += at + len(want)
+			}
+		})
 	}
 }
 

@@ -174,19 +174,85 @@ func TestBuildRendersNamedContexts(t *testing.T) {
 	if _, err := docker.Build(t.Context(), build); err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	argv := runner.commands[0].Arguments
+	argv := runner.commands[len(runner.commands)-1].Arguments
 	at := slices.Index(argv, "--build-context")
 	if at < 0 || argv[at+1] != "freertr=/src/rtr" || at > slices.Index(argv, "/repo") {
 		t.Errorf("argv %v lacks --build-context freertr=/src/rtr before the main context", argv)
 	}
+	ran := len(runner.commands)
 	for _, named := range []NamedBuildContext{{Path: "/src"}, {Name: "x"}} {
 		build.NamedContexts = []NamedBuildContext{named}
 		if _, err := docker.Build(t.Context(), build); err == nil {
 			t.Errorf("Build accepted the incomplete context %+v", named)
 		}
 	}
-	if len(runner.commands) != 1 {
-		t.Errorf("an incomplete context still ran docker: %d commands", len(runner.commands))
+	if len(runner.commands) != ran {
+		t.Errorf("an incomplete context still ran docker: %d commands", len(runner.commands)-ran)
+	}
+}
+
+// VALIDATES: AC-7: a build that carries a named context refuses before
+// `docker build` runs when the docker CLI has no buildx plugin, and names
+// BuildKit, buildx and the install for macOS and Linux. A build with no named
+// context never probes, so its argv and command count stay as they were.
+// PREVENTS: the legacy builder's usage text `unknown flag: --build-context`
+// as the whole answer, or the named context dropped to make the build run.
+func TestBuildRefusesNamedContextsWithoutBuildKit(t *testing.T) {
+	runner := &recordingRunner{}
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
+		if command.Arguments[1] == "buildx" {
+			return ProcessResult{ExitCode: 1, Stderr: "docker: unknown command: docker buildx\n"}, nil
+		}
+		return ProcessResult{Stdout: "sha256:abc\n"}, nil
+	}
+	docker := newDocker(runner)
+	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Dockerfile: "Dockerfile.freertr", Context: "/repo",
+		NamedContexts: []NamedBuildContext{{Name: "freertr", Path: "/src/rtr"}}}
+	_, err := docker.Build(t.Context(), build)
+	if err == nil {
+		t.Fatal("Build with a named context ran without BuildKit")
+	}
+	for _, want := range []string{"BuildKit", "buildx", "legacy builder", "freertr", "brew install docker-buildx", "cliPluginsExtraDirs", "docker-buildx-plugin", "unknown command"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal lacks %q:\n%v", want, err)
+		}
+	}
+	for _, command := range runner.commands {
+		if command.Arguments[1] == "build" {
+			t.Errorf("docker build ran after the BuildKit probe failed: %v", command.Arguments)
+		}
+	}
+
+	legacy := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "sha256:abc\n"}, nil }}
+	forced := newDocker(legacy)
+	forced.environ = []string{"DOCKER_BUILDKIT=0"}
+	_, err = forced.Build(t.Context(), build)
+	if err == nil {
+		t.Fatal("Build with a named context ran with DOCKER_BUILDKIT=0")
+	}
+	for _, want := range []string{"DOCKER_BUILDKIT=0", "unset DOCKER_BUILDKIT", "legacy builder"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("DOCKER_BUILDKIT refusal lacks %q:\n%v", want, err)
+		}
+	}
+	for _, command := range legacy.commands {
+		if command.Arguments[1] == "build" {
+			t.Errorf("docker build ran under DOCKER_BUILDKIT=0: %v", command.Arguments)
+		}
+	}
+	for _, want := range []string{"/opt/homebrew/lib/docker/cli-plugins", "/usr/local/lib/docker/cli-plugins"} {
+		if probeErr := mustBuildKitRefusal(t, runner); !strings.Contains(probeErr, want) {
+			t.Errorf("buildx refusal lacks the Homebrew plugin directory %q", want)
+		}
+	}
+
+	plain := &recordingRunner{run: runner.run}
+	build.NamedContexts = nil
+	if _, err := newDocker(plain).Build(t.Context(), build); err != nil {
+		t.Fatalf("Build with no named context: %v", err)
+	}
+	if len(plain.commands) != 1 || plain.commands[0].Arguments[1] != "build" {
+		t.Errorf("a build with no named context ran %d commands, want only docker build", len(plain.commands))
 	}
 }
 
@@ -276,4 +342,17 @@ func TestPublishedPortReadsTheFirstBinding(t *testing.T) {
 	if len(unchosen.commands) != 0 {
 		t.Errorf("docker ran %v for a port with no transport", unchosen.commands)
 	}
+}
+
+// mustBuildKitRefusal answers the refusal text of a named-context build over
+// runner, whose buildx probe fails.
+func mustBuildKitRefusal(t *testing.T, runner *recordingRunner) string {
+	t.Helper()
+	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Dockerfile: "Dockerfile.freertr", Context: "/repo",
+		NamedContexts: []NamedBuildContext{{Name: "freertr", Path: "/src/rtr"}}}
+	_, err := newDocker(runner).Build(t.Context(), build)
+	if err == nil {
+		t.Fatal("Build with a named context ran without buildx")
+	}
+	return err.Error()
 }

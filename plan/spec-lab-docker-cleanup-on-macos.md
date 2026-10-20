@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -164,6 +164,19 @@ Every AC runs on the owner's Mac. "Colima" means `DOCKER_HOST=unix://$HOME/.coli
 | AC-6 | On the perf daemon: `./le perf run dut ze`; once `docker ps --filter label=ze.lab` lists the DUT and the sender, press Ctrl-C once; then, with the run id from the DUT's `ze.lab.run` label, `docker ps -a --filter label=ze.lab.run=<id>`, `docker network ls --filter label=ze.lab.run=<id>` and `docker image ls --filter label=ze.lab.run=<id> --format '{{.Repository}}:{{.Tag}}'` | the run exits 1 after its removals; the first two commands print no resource; the third prints no `ze-interop-retained:` tag (the kept DUT image under its cache tag is allowed); `./le test integration cleanup dry` names no resource of that run |
 | AC-7 | Against Colima, then against Docker Desktop, with a FreeRtr checkout at `FREERTR_DIR` (default `../rtr`): `FREERTR_DIR=<dir> ./le perf run step build dut freertr` | exit 0 on each daemon; `docker image inspect freertr-interop --format '{{index .Config.Labels "ze.lab.kind"}}'` prints `image`; no `ze-interop-retained:` tag of that run is left (`docker image ls --filter label=ze.lab.run=<id>`) |
 | AC-8 | On the daemon R-6 names, for `vpp-test` and then for `vpp-iface-test`: start `./le test deployment <proof>` from a terminal (its own process group); once `docker ps --filter label=ze.lab` lists its container, press Ctrl-C once (SIGINT to the process group); then, with the run id from the container's `ze.lab.run` label, `docker ps -a --filter label=ze.lab.run=<id>`, `docker network ls --filter label=ze.lab.run=<id>` and `docker image ls --filter label=ze.lab.run=<id> --format '{{.Repository}}:{{.Tag}}'` | each run exits 1 and prints no verdict line (no report carrying `passed`), only the interruption; the first two commands print no resource; the third prints no `ze-interop-retained:` tag (the pulled VPP image is allowed); `./le test integration cleanup dry` names no resource of that run |
+
+### Results
+
+Owner decision, 2026-10-20 ("ignore ac-3, work on the rest"): AC-3 is not run; the agent runs the other ACs on the owner's Mac.
+
+| AC | Daemon | Commit | Date | Result |
+|----|--------|--------|------|--------|
+| AC-1 | none (client only) | 9ea1b56917 | 2026-10-20 | PASS: both commands exit 0 as the owner's user without `sudo`; `kern.bootsessionuuid` = `BB515EFB-74C7-4BB1-8C88-C362D6AC4CB0`, `IOPlatformUUID` = `EE5D8926-A73F-56C1-9A6C-19344ED99E78`. The real `ioreg` line has the `"IOPlatformUUID" = "<uuid>"` shape `readDarwinFacts` parses |
+| AC-4 | colima 29.5.2 | 9ea1b56917 | 2026-10-20 | PASS on Colima: `--- PASS: TestKilledLabRunIsCleanedByNextStart (20.33s)`; first sweep `cleanup: 3 removed, 3 kept, 0 failed, 0 unknown` (the killed owner's container, network and retained tag removed, the live owner's kept); second sweep `cleanup: 3 removed, 0 kept, 0 failed, 0 unknown`; no listing error. Docker Desktop half not run: Docker Desktop is not installed on the Mac |
+| AC-2, AC-6 | colima 29.5.2 | 9ea1b56917 | 2026-10-20 | NOT PROVEN (R-3): `./le perf run dut ze` exits 1 before any DUT or sender: Colima applies AppArmor and could not apply `ze-kernel-probe` (`write fsmount:fscontext:proc/thread-self/attr/apparmor/exec: no such file or directory`). Nothing left (`cleanup: no Ze lab resource on this Docker daemon`). The refusal routes darwin to `./le test qemu docker-lab lab 'perf run dut ze'` |
+| AC-7 | colima 29.5.2 | 9ea1b56917 | 2026-10-20 | FAIL (R-2): the Mac's docker CLI has no buildx plugin, so `docker build` is the legacy builder: `unknown flag: --build-context`; no `freertr-interop` image. The run still exited 0 and printed "built the DUT images", a second defect. Both fixed at the producer under Failure Routing; rerun needs buildx installed. Docker Desktop half not run: not installed |
+| AC-5 | QEMU guest, Alpine docker-engine 27.3.1, Ze runtime kernel 7.2.9, HVF | 9ea1b56917 | 2026-10-20 | FAIL as written. A-5 holds on the guest dockerd: no "could not list" setup error, so the start sweep's labeled listings were accepted; labeled `build` (`interop: images ready (52s)`), `network create` and `run` accepted across 45 passing scenarios. Not met: exit 1 (5 IPsec scenario failures unrelated to labels, journaled), and no `cleanup:` line, because the lab start sweep printed only per-resource lines and is silent on a clean daemon, a defect fixed at the producer. Rerun owed |
+| AC-8 | colima 29.5.2 | 9ea1b56917, 05aeb4fd75 | 2026-10-20 | NOT PROVEN (R-6): `vpp-test` and `vpp-iface-test` each exit 1 on the same AppArmor refusal before their container; no verdict printed, nothing left. The route is the `docker-lab` guest once its kernel carries `CONFIG_VHOST_NET` (`plan/spec-lab-kernel-features-in-setup.md`) |
 
 ## 🧪 TDD Test Plan
 

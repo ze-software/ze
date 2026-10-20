@@ -118,7 +118,7 @@ func TestNetSysctlUnappliedQuotesOnlyTheRuncLine(t *testing.T) {
 		"unable to apply apparmor profile: apparmor failed to apply profile: write " +
 		"/proc/self/attr/apparmor/exec: no such file or directory: unknown."
 	stderr := "Step 1/9 : FROM debian\n go: downloading golang.org/x/sys\n" + cause + "\nRun 'docker run --help' for more information\n"
-	err := NetSysctlUnapplied(125, stderr)
+	err := newDocker(nil).NetSysctlUnapplied(125, stderr)
 	if err == nil {
 		t.Fatal("runc's AppArmor failure answered no refusal")
 	}
@@ -131,10 +131,10 @@ func TestNetSysctlUnappliedQuotesOnlyTheRuncLine(t *testing.T) {
 			t.Errorf("the refusal quotes %q from the rest of stderr:\n%s", noise, message)
 		}
 	}
-	if err := NetSysctlUnapplied(0, stderr); err != nil {
+	if err := newDocker(nil).NetSysctlUnapplied(0, stderr); err != nil {
 		t.Errorf("a clean exit answered %v", err)
 	}
-	if err := NetSysctlUnapplied(1, "exit status 1\n"); err != nil {
+	if err := newDocker(nil).NetSysctlUnapplied(1, "exit status 1\n"); err != nil {
 		t.Errorf("a failure that is not the profile answered %v", err)
 	}
 }

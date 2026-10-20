@@ -294,7 +294,8 @@ const demoStderrTailOctets = 4096
 // also kept in a bounded tail, because when the host's AppArmor profile list
 // is unreadable (a non-root renderer) demoGrants cannot refuse first, and the
 // daemon's failure to apply the profile surfaces only there; it is answered
-// with the load command, never as a bare exit code.
+// with the fix for this client (the load command on Linux, the QEMU
+// docker-lab route elsewhere), never as a bare exit code.
 func (e *Engine) runDemoContainer(demo *Demo, container interoplab.OneShotContainer) error {
 	container.Timeout = demoContainerTimeout
 	container.Stdin = os.Stdin
@@ -310,7 +311,7 @@ func (e *Engine) runDemoContainer(demo *Demo, container interoplab.OneShotContai
 		return nil
 	}
 	if stderrTail != nil {
-		if refusal := interoplab.NetSysctlUnapplied(result.ExitCode, stderrTail.String()); refusal != nil {
+		if refusal := e.docker.NetSysctlUnapplied(result.ExitCode, stderrTail.String()); refusal != nil {
 			return fmt.Errorf("terminal demo %s writes /proc/sys/net: %w", demo.ID, refusal)
 		}
 	}

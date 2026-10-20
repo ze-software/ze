@@ -696,3 +696,47 @@ func TestCleanupOrphansSkipsContainerWithInheritedImageLabels(t *testing.T) {
 		t.Errorf("no container skip names inherited image labels: %#v", report.Skipped)
 	}
 }
+
+// VALIDATES: the client's operating system survives an identity it cannot
+// read: every problem answer of readHostFacts still carries readers.goos, so
+// an AppArmor refusal on a Linux host whose machine id is unreadable still
+// names the Linux load command, and an empty system reaching a refusal
+// builder is a Ze defect that panics rather than picking the non-Linux text.
+// PREVENTS: "cannot be loaded from : ..." and "On  the labs run inside" on a
+// host with no /etc/machine-id, such as a minimal guest.
+func TestHostFactsKeepTheSystemWhenTheIdentityIsUnreadable(t *testing.T) {
+	failing := func(string) ([]byte, error) { return nil, os.ErrPermission }
+	for _, readers := range []hostReaders{
+		{goos: hostGOOSLinux, readFile: failing},
+		{goos: hostGOOSDarwin, command: func(string, ...string) ([]byte, error) { return nil, os.ErrPermission }},
+		{goos: "plan9"},
+	} {
+		facts := readHostFacts(readers)
+		if facts.problem == "" {
+			t.Fatalf("%s: an unreadable identity gave no problem", readers.goos)
+		}
+		if facts.goos != readers.goos {
+			t.Errorf("%s: the problem answer lost the system: goos %q", readers.goos, facts.goos)
+		}
+	}
+	host := readHostFacts(hostReaders{goos: hostGOOSLinux, readFile: failing})
+	registerTestLabProfile(t)
+	profile, _ := LookupAppArmorProfile(testLabProfile)
+	refusal := labAppArmorRefusal(host.goos, profile, "x")
+	requireCommandOnItsOwnLine(t, refusal, AppArmorLoadCommandFor(testLabProfile))
+
+	for name, build := range map[string]func(){
+		"lab":    func() { _ = labAppArmorRefusal("", profile, "x") },
+		"probe":  func() { _ = appArmorRefusal("", "6.8", "x") },
+		"denied": func() { _ = deniedFix("", true, false) },
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s: an empty client system chose a refusal text", name)
+				}
+			}()
+			build()
+		}()
+	}
+}

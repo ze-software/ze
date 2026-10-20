@@ -221,9 +221,11 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	}
 	// The orphan cleanup runs before Preflight and before anything is
 	// created, so a killed run's leftovers go before this run's names are
-	// claimed. Its per-resource outcomes are progress lines: a dead run's
-	// leftover it could not remove is not this run's failure, and preClean
-	// still refuses a name it collides with.
+	// claimed. Its per-resource outcomes and then its summary are progress
+	// lines: a dead run's leftover it could not remove is not this run's
+	// failure, and preClean still refuses a name it collides with. The summary
+	// prints even when the sweep met nothing, so the operator can tell a sweep
+	// that ran from one that never did.
 	var line textbuf.Buffer
 	orphans, err := s.Docker.CleanupOrphans(ctx, false)
 	if err != nil {
@@ -237,6 +239,7 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	for _, text := range orphans.Lines() {
 		s.progress(line.Reset().Str("interop: ").Str(text))
 	}
+	s.progress(line.Reset().Str("interop: ").Str(orphans.Summary()))
 	if s.Preflight != nil {
 		if err := s.Preflight(ctx, s.Docker); err != nil {
 			report.SetupError = err.Error()

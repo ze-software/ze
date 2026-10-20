@@ -112,11 +112,13 @@ profile loaded refuses the demo and names the command that loads it. When the
 renderer cannot read the host's profile list (it runs as a user without
 policy-view privilege), the container starts, and if the daemon then cannot
 apply the profile the demo is refused with the same command rather than an
-exit code. On a daemon with no AppArmor nothing confines the writes to `net/`,
+exit code. A renderer on a client that is not Linux, such as a Mac, is never
+told to run that command, which loads a profile only on the Linux machine it
+runs on: the refusal names the QEMU docker-lab route instead. On a daemon with no AppArmor nothing confines the writes to `net/`,
 which is still narrower than `--privileged`. A demo that states both grants is
 refused.
 <!-- source: internal/le/site/terminaldemo/render.go -- demoGrants, runDemoContainer -->
-<!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlSecurityArguments, NetSysctlUnapplied -->
+<!-- source: internal/le/interoplab/apparmor_netsysctl.go -- Docker.NetSysctlSecurityArguments, Docker.NetSysctlUnapplied -->
 
 A tape can `Source` a fragment that lives outside its demo directory, such as a
 topic's `demos/terminal/topics/<topic>/configure.tape`, which both the topic

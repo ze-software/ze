@@ -83,7 +83,8 @@ func AppArmorLoadCommandFor(name string) string {
 // appArmorSecurityOption answers the docker run arguments that confine a
 // container under the named profile: none on a daemon that applies no
 // AppArmor, the option when the host has the profile loaded, and a refusal
-// naming the load command when it has not, or when no lab registered it.
+// naming the fix when it has not (the load command on a Linux client, the
+// QEMU docker-lab route elsewhere), or when no lab registered it.
 func (d *Docker) appArmorSecurityOption(ctx context.Context, name string) ([]string, error) {
 	profile, registered := LookupAppArmorProfile(name)
 	if !registered {
@@ -98,7 +99,7 @@ func (d *Docker) appArmorSecurityOption(ctx context.Context, name string) ([]str
 	if !applies {
 		return nil, nil
 	}
-	if missing := labAppArmorProfileMissing(profile); missing != nil {
+	if missing := labAppArmorProfileMissing(d.owner.goos, profile); missing != nil {
 		return nil, missing
 	}
 	return []string{"--security-opt", "apparmor=" + name}, nil
@@ -109,7 +110,7 @@ func (d *Docker) appArmorSecurityOption(ctx context.Context, name string) ([]str
 // no answer either way (apparmorfs refuses it to a reader without policy-view
 // privilege, such as a non-root user), so the container runs, and a daemon
 // that cannot apply the profile refuses through labAppArmorUnapplied instead.
-func labAppArmorProfileMissing(profile AppArmorProfile) error {
+func labAppArmorProfileMissing(goos string, profile AppArmorProfile) error {
 	profiles, readable := appArmorProfiles()
 	if !readable {
 		return nil
@@ -117,7 +118,7 @@ func labAppArmorProfileMissing(profile AppArmorProfile) error {
 	if appArmorProfileLoaded(profiles, profile.Name) {
 		return nil
 	}
-	return labAppArmorRefusal(profile, appArmorProfilesPath+" does not list")
+	return labAppArmorRefusal(goos, profile, appArmorProfilesPath+" does not list")
 }
 
 // labAppArmorUnapplied answers the refusal for a `docker run` under profile
@@ -125,7 +126,7 @@ func labAppArmorProfileMissing(profile AppArmorProfile) error {
 // other outcome. It is the half of the check labAppArmorProfileMissing cannot
 // make when the profile list is unreadable, as appArmorProfileUnapplied is for
 // the kernel probe.
-func labAppArmorUnapplied(profile AppArmorProfile, runErr error) error {
+func labAppArmorUnapplied(goos string, profile AppArmorProfile, runErr error) error {
 	var failed *commandError
 	if !errors.As(runErr, &failed) {
 		return nil
@@ -133,15 +134,52 @@ func labAppArmorUnapplied(profile AppArmorProfile, runErr error) error {
 	if !appArmorProfileUnapplied(failed.ExitCode, failed.Stderr) {
 		return nil
 	}
-	return labAppArmorRefusal(profile, "the daemon could not apply ("+failed.Stderr+")")
+	return labAppArmorRefusal(goos, profile, "the daemon could not apply ("+failed.Stderr+")")
 }
 
 // labAppArmorRefusal names what runs under profile, what showed the profile is
-// not in force, what docker-default denies it, and the command that loads it.
-func labAppArmorRefusal(profile AppArmorProfile, finding string) error {
+// not in force, what docker-default denies it, and the fix for a client on
+// goos: the command that loads it on Linux, and the QEMU docker-lab route
+// anywhere else, where that command refuses (appArmorLoadUnreachable).
+func labAppArmorRefusal(goos string, profile AppArmorProfile, finding string) error {
 	var refusal textbuf.Buffer
-	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and ").Str(profile.Runs).
+	refusal.Str("the Docker daemon applies AppArmor, and ").Str(profile.Runs).
 		Str(" runs under Ze's profile ").Str(profile.Name).Str(", which ").Str(finding).
-		Str(". Docker's docker-default profile denies ").Str(profile.Needs).
-		Str(". Load Ze's profile with:\n  ").Str(AppArmorLoadCommandFor(profile.Name)).String())
+		Str(". Docker's docker-default profile denies ").Str(profile.Needs).Byte('.')
+	if clientGOOS(goos) == hostGOOSLinux {
+		return errors.New(refusal.Str(" Load Ze's profile with:\n  ").Str(AppArmorLoadCommandFor(profile.Name)).String())
+	}
+	return errors.New(refusal.Byte(' ').Str(appArmorLoadUnreachable(goos)).Byte('\n').
+		Str(DockerKernelRoute(goos, leWords(), selectorEnvironment())).String())
+}
+
+// appArmorLoadUnreachable says why a client on goos, which is not Linux, is
+// not told to load Ze's profile: `le setup docker-kernel apparmor` loads it
+// into the kernel of the Linux machine it runs on and refuses every other
+// system (appArmorLoadPlatform, internal/le/setup/dockerkernel). A refusal on
+// such a client names only the route that works there, the QEMU docker-lab
+// guest from DockerKernelRoute.
+func appArmorLoadUnreachable(goos string) string {
+	system := systemName(goos)
+	return "Ze's profile cannot be loaded from " + system +
+		": `./le setup docker-kernel apparmor` loads it into the kernel of the Linux machine it runs on, and refuses on " +
+		system + "."
+}
+
+// clientGOOS answers goos, the client's system that picks a refusal's text.
+// Every Docker carries it (readHostFacts sets it even when the identity is a
+// problem), so an empty one is a Ze defect, and no text is chosen for it.
+func clientGOOS(goos string) string {
+	if goos == "" {
+		panic("BUG: an AppArmor refusal was built with no client operating system")
+	}
+	return goos
+}
+
+// systemName answers the name a person knows goos by: macOS for darwin.
+func systemName(goos string) string {
+	if goos == hostGOOSDarwin {
+		return "macOS"
+	}
+	return goos
 }

@@ -255,6 +255,17 @@ func systemHostReaders() hostReaders {
 }
 
 func readHostFacts(readers hostReaders) hostFacts {
+	// The system is a fact the client always knows, so it is carried even when
+	// the identity is a problem: an AppArmor refusal and the kernel route pick
+	// their text by it, and an empty one would name no system at all.
+	facts := readHostIdentity(readers)
+	facts.goos = readers.goos
+	return facts
+}
+
+// readHostIdentity answers the machine and boot identity readHostFacts
+// carries, or the problem that kept it from being read.
+func readHostIdentity(readers hostReaders) hostFacts {
 	switch readers.goos {
 	case hostGOOSLinux:
 		machine, problem := readIDFile(readers, machineIDPath)
@@ -788,15 +799,24 @@ func shortID(id string) string {
 	return id
 }
 
-// Text renders the report for an operator.
+// Text renders the report for an operator: the per-resource lines, then the
+// summary.
 func (r OrphanReport) Text() string {
-	if r.Empty() {
-		return "cleanup: no Ze lab resource on this Docker daemon\n"
-	}
 	var text textbuf.Buffer
 	for _, line := range r.Lines() {
 		text.Str(line).Byte('\n')
 	}
+	return text.Str(r.Summary()).Byte('\n').String()
+}
+
+// Summary answers the one line that closes the report, with no newline: the
+// totals, or that the cleanup met no Ze lab resource. A sweep that met nothing
+// still answers a line, so an operator can tell it from a sweep that never ran.
+func (r OrphanReport) Summary() string {
+	if r.Empty() {
+		return "cleanup: no Ze lab resource on this Docker daemon"
+	}
+	var text textbuf.Buffer
 	text.Str("cleanup: ").Int(int64(len(r.Removed)))
 	if r.Dry {
 		text.Str(" to remove, ")
@@ -804,7 +824,7 @@ func (r OrphanReport) Text() string {
 		text.Str(" removed, ")
 	}
 	text.Int(int64(len(r.Skipped))).Str(" kept, ").Int(int64(len(r.Failed))).Str(" failed, ").
-		Int(int64(len(r.Unknown))).Str(" unknown\n")
+		Int(int64(len(r.Unknown))).Str(" unknown")
 	return text.String()
 }
 

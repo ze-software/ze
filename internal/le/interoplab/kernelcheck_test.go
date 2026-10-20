@@ -100,7 +100,7 @@ func TestDockerKernelRefusesNamingEveryMissingFeature(t *testing.T) {
 	if err == nil {
 		t.Fatal("a kernel lacking features was accepted")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(hostGOOSLinux, leWords(), selectorEnvironment())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}
@@ -226,7 +226,7 @@ func TestSuiteRefusesDockerHostMissingAKernelFeature(t *testing.T) {
 	if !staged {
 		t.Error("the kernel check ran without the Preflight that stages ze")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(hostGOOSLinux, leWords(), selectorEnvironment())} {
 		if !strings.Contains(report.SetupError, want) {
 			t.Errorf("setup error does not name %q: %s", want, report.SetupError)
 		}
@@ -413,7 +413,8 @@ func TestSelectorEnvironmentCarriesTheDeclaredSelectors(t *testing.T) {
 
 // VALIDATES: review round 3, ISSUE 2, on the refusal itself: a kernel lacking
 // a feature names the platform's route command on a line of its own, and on
-// macOS that command reruns the refused lab.
+// macOS that command reruns the refused lab. Both client systems run on
+// every host, so the verdict does not depend on the machine.
 func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
 	original, originalEnvironment, originalGuest := leWords, selectorEnvironment, inDockerLabGuest
 	t.Cleanup(func() { leWords, selectorEnvironment, inDockerLabGuest = original, originalEnvironment, originalGuest })
@@ -422,15 +423,18 @@ func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
 	selectorEnvironment = func() []string { return []string{"IPSEC_INTEROP_SCENARIO=mobike-responder"} }
 	answer := `{"ready": false, "capabilities": [
  {"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "invalid argument"}]}`
-	err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(answer, 1, nil)), kernelCheckZe)
-	if err == nil {
-		t.Fatal("a kernel lacking a feature proceeded")
+	for goos, command := range map[string]string{
+		hostGOOSLinux:  "./le setup docker-kernel install",
+		hostGOOSDarwin: "./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'",
+	} {
+		docker := newDocker(scriptedKernel(answer, 1, nil))
+		docker.owner.goos = goos
+		err := checkDockerKernel(context.Background(), docker, kernelCheckZe)
+		if err == nil {
+			t.Fatalf("%s: a kernel lacking a feature proceeded", goos)
+		}
+		requireCommandOnItsOwnLine(t, err, command)
 	}
-	command := "./le setup docker-kernel install"
-	if runtime.GOOS != "linux" {
-		command = "./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'"
-	}
-	requireCommandOnItsOwnLine(t, err, command)
 }
 
 // appArmorKernel scripts a daemon that applies AppArmor and a probe answering
@@ -625,7 +629,7 @@ func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) 
 		t.Fatal("a profile the daemon could not apply proceeded")
 	}
 	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
-	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
+	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(hostGOOSLinux, leWords(), selectorEnvironment())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -646,7 +650,7 @@ func TestDockerKernelUnloadedProfileNamesTheKernelRoute(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unloaded profile proceeded")
 	}
-	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
+	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(hostGOOSLinux, leWords(), selectorEnvironment())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}

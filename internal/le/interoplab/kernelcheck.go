@@ -282,7 +282,7 @@ func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
 // privilege, such as a non-root user), so it is never read as "loaded": the
 // probe runs, and a daemon that cannot apply the profile refuses
 // through appArmorProfileUnapplied instead.
-func appArmorProfileMissing(release string) error {
+func appArmorProfileMissing(goos, release string) error {
 	profiles, readable := appArmorProfiles()
 	if !readable {
 		return nil
@@ -290,7 +290,7 @@ func appArmorProfileMissing(release string) error {
 	if appArmorProfileLoaded(profiles, kernelcap.ProbeAppArmorProfileName) {
 		return nil
 	}
-	return appArmorRefusal(release, appArmorProfilesPath+" does not list")
+	return appArmorRefusal(goos, release, appArmorProfilesPath+" does not list")
 }
 
 // runcAppArmorUnapplied is the phrase runc writes when the daemon applies
@@ -310,18 +310,27 @@ func appArmorProfileUnapplied(exit int, stderr string) bool {
 }
 
 // appArmorRefusal names the profile, what showed it is not in force, the
-// command that loads it, and the kernel route. Loading the profile lets the
-// probe answer and changes no kernel feature, so the operator reads the whole
-// path at once rather than one step per run.
-func appArmorRefusal(release, finding string) error {
+// command that loads it, and the kernel route for a client on goos. Loading
+// the profile lets the probe answer and changes no kernel feature, so the
+// operator reads the whole path at once rather than one step per run. A
+// client that is not Linux is never told to load it, because the load command
+// refuses there (appArmorLoadUnreachable): it reads the route alone.
+func appArmorRefusal(goos, release, finding string) error {
 	var refusal textbuf.Buffer
-	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ").
+	refusal.Str("the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ").
 		Str(kernelcap.ProbeAppArmorProfileName).Str(", which ").Str(finding).
-		Str(". Docker's docker-default profile denies the probe's mount and its /proc/sys write. Load Ze's profile with:\n  ").
-		Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).
-		Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
-		Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named.\n").
-		Str(DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())).String())
+		Str(". Docker's docker-default profile denies the probe's mount and its /proc/sys write.")
+	if clientGOOS(goos) == hostGOOSLinux {
+		refusal.Str(" Load Ze's profile with:\n  ").
+			Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).
+			Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
+			Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named.\n")
+	} else {
+		refusal.Byte(' ').Str(appArmorLoadUnreachable(goos)).
+			Str(" The profile adds no kernel feature: every feature the daemon's kernel (").
+			Str(release).Str(") lacks stays missing either way.\n")
+	}
+	return errors.New(refusal.Str(DockerKernelRoute(goos, leWords(), selectorEnvironment())).String())
 }
 
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
@@ -348,7 +357,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	}
 	release := dockerKernelRelease(ctx, docker)
 	if appArmor {
-		if missing := appArmorProfileMissing(release); missing != nil {
+		if missing := appArmorProfileMissing(docker.owner.goos, release); missing != nil {
 			return missing
 		}
 	}
@@ -362,7 +371,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		return errors.New(problem.Str("failed: ").Err(err).String())
 	}
 	if appArmor && appArmorProfileUnapplied(result.ExitCode, result.Stderr) {
-		return appArmorRefusal(release, "the daemon could not apply ("+strings.TrimSpace(result.Stderr)+")")
+		return appArmorRefusal(docker.owner.goos, release, "the daemon could not apply ("+strings.TrimSpace(result.Stderr)+")")
 	}
 	var answer kernelAnswer
 	if jsonErr := json.Unmarshal([]byte(result.Stdout), &answer); jsonErr != nil {
@@ -406,10 +415,10 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
 		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
 		Str(missing.String()).
-		Byte('\n').Str(DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment()))
+		Byte('\n').Str(DockerKernelRoute(docker.owner.goos, leWords(), selectorEnvironment()))
 	if denied {
 		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel.").
-			Str(deniedFix(appArmor, deniedBySELinux))
+			Str(deniedFix(docker.owner.goos, appArmor, deniedBySELinux))
 	}
 	return errors.New(refusal.String())
 }
@@ -419,13 +428,18 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 const seLinuxDenialsCommand = "sudo ausearch -m avc -ts recent"
 
 // deniedFix answers the fix a denied row's refusal names. Under AppArmor it is
-// Ze's profile, loaded or reloaded by one command (D-7). Ze ships no policy for
+// Ze's profile, loaded or reloaded by one command (D-7), on a Linux client; a
+// client on any other goos cannot run that command (appArmorLoadUnreachable)
+// and is sent to the route its refusal already printed. Ze ships no policy for
 // another module, so a daemon without AppArmor is told which grant the row's
 // policy owes, and under SELinux given the command that shows the denial.
-func deniedFix(appArmor, seLinux bool) string {
+func deniedFix(goos string, appArmor, seLinux bool) string {
 	if appArmor {
-		return " Load or reload Ze's AppArmor profile with:\n  " +
-			AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)
+		if clientGOOS(goos) == hostGOOSLinux {
+			return " Load or reload Ze's AppArmor profile with:\n  " +
+				AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)
+		}
+		return " " + appArmorLoadUnreachable(goos) + " Take the QEMU guest route above."
 	}
 	fix := " This Docker daemon applies no AppArmor, so Ze's AppArmor profile cannot help:" +
 		" the policy the row names must grant the probe what the row says it needs."

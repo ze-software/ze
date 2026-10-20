@@ -174,3 +174,74 @@ func TestKernelProbeProfileIsRegistered(t *testing.T) {
 		t.Errorf("AppArmorProfileNames lacks %s: %v", profile.Name, AppArmorProfileNames())
 	}
 }
+
+// VALIDATES: on a darwin client every AppArmor refusal names only the QEMU
+// docker-lab route, never `./le setup docker-kernel apparmor confirm`, which
+// refuses on darwin (appArmorLoadPlatform); on a Linux client the lab
+// refusal's text is unchanged and the kernel check still names the load
+// command on its own line.
+// METHOD: the kernel check runs over a scripted daemon whose client is set
+// to darwin, once with the probe's profile unloaded and once with a denied
+// row; the lab refusal builder runs for both client systems.
+// PREVENTS: a Mac user told to run a command that refuses on the Mac.
+func TestAppArmorRefusalOnDarwinNamesOnlyTheQEMURoute(t *testing.T) {
+	route := DockerKernelRoute(hostGOOSDarwin, leWords(), selectorEnvironment())
+	denied := `{"ready": false, "capabilities": [
+ {"subsystem": "mpls-transit-mtu", "kernel": "CONFIG_MPLS_IP_MTU", "state": "denied",
+  "reason": "make the probe's mounts private: permission denied"}]}`
+	for name, profiles := range map[string]string{
+		"unloaded":   "docker-default (enforce)\n",
+		"denied row": kernelcap.ProbeAppArmorProfileName + " (enforce)\n",
+	} {
+		answer := allPresent
+		if name == "denied row" {
+			answer = denied
+		}
+		docker := newDocker(appArmorKernel(t, answer, profiles, true))
+		docker.owner.goos = hostGOOSDarwin
+		err := checkDockerKernel(t.Context(), docker, kernelCheckZe)
+		if err == nil {
+			t.Fatalf("%s: the kernel check proceeded", name)
+		}
+		if strings.Contains(err.Error(), AppArmorLoadCommandPrefix) {
+			t.Errorf("%s: a darwin refusal names the Linux-only load command:\n%v", name, err)
+		}
+		if !strings.Contains(err.Error(), route) {
+			t.Errorf("%s: a darwin refusal lacks the QEMU route %q:\n%v", name, route, err)
+		}
+		if !strings.Contains(err.Error(), "6.8.0-117-generic") {
+			t.Errorf("%s: a darwin refusal lacks the daemon's kernel release:\n%v", name, err)
+		}
+		if strings.Contains(err.Error(), "from darwin") {
+			t.Errorf("%s: a darwin refusal names the system as darwin, not macOS:\n%v", name, err)
+		}
+	}
+
+	probe := appArmorRefusal(hostGOOSLinux, "6.8.0-117-generic", "the daemon could not apply (x)")
+	wantProbe := "the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ze-kernel-probe," +
+		" which the daemon could not apply (x). Docker's docker-default profile denies the probe's mount and its" +
+		" /proc/sys write. Load Ze's profile with:\n  ./le setup docker-kernel apparmor confirm ze-kernel-probe\n" +
+		"The profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel" +
+		" (6.8.0-117-generic) lacks, MOBIKE's xfrm migrate for example, is then named.\n" +
+		DockerKernelRoute(hostGOOSLinux, leWords(), selectorEnvironment())
+	if probe.Error() != wantProbe {
+		t.Errorf("the Linux probe refusal changed:\n%v\nwant\n%v", probe, wantProbe)
+	}
+
+	registerTestLabProfile(t)
+	profile, _ := LookupAppArmorProfile(testLabProfile)
+	darwin := labAppArmorRefusal(hostGOOSDarwin, profile, "the daemon could not apply (x)")
+	if strings.Contains(darwin.Error(), AppArmorLoadCommandPrefix) {
+		t.Errorf("the darwin lab refusal names the Linux-only load command:\n%v", darwin)
+	}
+	if !strings.Contains(darwin.Error(), route) {
+		t.Errorf("the darwin lab refusal lacks the QEMU route %q:\n%v", route, darwin)
+	}
+	linux := labAppArmorRefusal(hostGOOSLinux, profile, "the daemon could not apply (x)")
+	want := "the Docker daemon applies AppArmor, and the test lab's router runs under Ze's profile ze-test-lab," +
+		" which the daemon could not apply (x). Docker's docker-default profile denies its sysctl writes." +
+		" Load Ze's profile with:\n  ./le setup docker-kernel apparmor confirm ze-test-lab"
+	if linux.Error() != want {
+		t.Errorf("the Linux lab refusal changed:\n%v\nwant\n%v", linux, want)
+	}
+}
