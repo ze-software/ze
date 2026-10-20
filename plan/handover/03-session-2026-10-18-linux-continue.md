@@ -1743,3 +1743,24 @@ in the same background run); both cases on the pin
 (`PYTHONPATH= uv run --no-project --python 3.12 --with paramiko --with 'exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6' ./le --name exarib3 test exabgp api --dut exabgp api-rib api-rr-rib`);
 `api-family-carry-v4` red on ze with the `update_text.go` pre-check overlaid away (note `update_text.go` is
 dirty in the tree now, another session's). Gates owed: `./le verify worktree`, scoped lint on the four commits.
+
+## spec-config-yang-reference-types closure (2026-10-21, Mac subagent): round-4 review done, round 5 owed
+
+Claimed by agent `affc7043b343b5acc` of session 8385ff13 (agent marker; the parent's ExaBGP claim untouched).
+Round 4 independent review of bccd1e7cf5..32d2ed5b51 (plus later edits to the same files) found 0 BLOCKER,
+3 ISSUE, all fixed in 65a25421f0: leafref path prefixes were never resolved (`checkPathPrefix`), a leafref
+under an rpc input or notification referring to state was refused (`representsConfig`), and two l2tp
+"no leafref" claims were stale. Both new tests observed red with the check disabled; yang package tests and
+`./le test bgp parse yang-leafref-default-class` green. Findings and NOTEs are in the spec's `## Review Gate`.
+
+Left, in order:
+1. Round 5 by a FRESH reader (not agent affc7043...) over 65a25421f0 at least; loop to 0/0, then
+   `./le spec review record spec spec-config-yang-reference-types verdict clean rounds 5 file <each code file>`.
+2. Retire the three skeletons `plan/spec-config-yang-type-{leafref,identityref,instance-identifier}.md`, one
+   commit each (`remove`); each closure wants `tmp/review/config-yang-type-<name>-<sid>.md`.
+3. `/ze-close`: commit A (spec + learned), commit B (`remove plan/spec-config-yang-reference-types.md`).
+   The spec still lacks a Goal Validation table; its single goal's evidence is
+   `test/parse/yang-leafref-default-class.ci` plus the tagged tests in `rfc7950_reference*_test.go`.
+Gates owed: `./le go lint run` scoped to `internal/component/config/yang`, `./le verify worktree`
+(debt `plan/verification-debt/c1266198.md`). `go test ./internal/component/config/yang/cli/` is red at HEAD
+without these edits (`TestDocCommand`: unknown command: show bgp peer list), from other work.
