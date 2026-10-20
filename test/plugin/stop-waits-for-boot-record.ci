@@ -1,0 +1,39 @@
+# Test: a stop that arrives while the boot record still holds the store waits
+#       for the record, says so, and only then reports that ze stopped.
+# Exercises: SIGTERM after "Ze running." -> the ordered stop in runYANGConfig
+#            (cmd/ze/hub/main.go) -> awaitBootRecordAtStop
+#            (cmd/ze/hub/config_source.go) -> "Ze stopped.".
+# VALIDATES: spec-boot-record-after-listen, the stop fix of 322fc9e5c7: the
+#            waiting line is printed before "Ze stopped.", and after the exit
+#            the store's active pointer names the configuration ze booted from.
+# PREVENTS:  "Ze stopped." printed while the store still names the previous
+#            configuration: the call removed from main.go, or moved after the
+#            line, leaves the stdout pattern below unmatched.
+#
+# The fixture starts ze, relays its stdout and sends SIGTERM once ze prints
+# "Ze running.", which runYANGConfig prints after bootRecord.Start, so the stop
+# always finds the record in flight. ze.test.boot.record.hold (test DUT builds
+# only, register_boot_record_hold_zetest.go) keeps the record on the store's
+# write lock for 6s, far longer than the stop's own teardown takes. The budget
+# is 60s because the stop then waits for the record's own syncs too, which a
+# disk under another writer stretched to 35s (spec-boot-record-after-listen,
+# "Shutdown overrun traced"); a red run with a 30s budget once timed out
+# instead of reaching the pattern.
+
+option=storage:value=disk
+option=timeout:value=60s
+option=env:var=ze.test.boot.record.hold:value=6s
+
+tmpfs=boot-hold.conf:terminator=EOF_CONF
+# stop-waits-for-boot-record marker
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture hub/stop-during-boot-record boot-hold.conf term 0:timeout=60s:exit=0
+expect=stderr:contains=stop-boot-record: sent terminated after "Ze running."
+expect=stdout:pattern=(?s)Stopping: the store is still recording the boot configuration[^\n]*\n.*Ze stopped\.
+reject=stderr:pattern=panic
+reject=stderr:pattern=forced exit
+expect=key:path=meta/config/boot-hold.conf/active:exists=true
+expect=key:glob=object/*:contains=stop-waits-for-boot-record marker

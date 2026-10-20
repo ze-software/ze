@@ -204,6 +204,8 @@ The runner hands the selector to the DUT in two places, so each has its own test
 - New `test/plugin/dut-store-disk-option.ci` (AC-7, runOrchestrated): `option=storage:value=disk` makes the DUT print `created live store`, never the memory line.
 - New `test/encode/dut-store-memory-config.ci` (AC-6, runTest): a cmd-less config-file DUT leaves no `database` in its work directory (`expect=file:glob=database:absent=true`). Red 2026-10-17 with ONLY runTest's store env append removed by go -overlay (`expected absent, matched 1`, the DUT printed `created live store`); the same build left dut-store-memory-default green. Green restored.
 - New `test/encode/dut-store-disk-config.ci` (AC-7, runTest): with `option=storage:value=disk` the same DUT writes `database` (`exists=true`), which also proves the absence check looks where a disk store lands.
+- New `test/plugin/stop-waits-for-boot-record.ci` (AC-5, the stop fix of 322fc9e5c7, review ISSUE 1): disk store, `ze.test.boot.record.hold=6s`, and the compiled fixture `hub/stop-during-boot-record` (`internal/test/fixture/stop_boot_record_fixture.go`) runs `ze start`, sends SIGTERM on `Ze running.`, and relays stdout. Asserts by one ordered regex that `Stopping: the store is still recording the boot configuration` comes before `Ze stopped.`, then reads the store: `meta/config/boot-hold.conf/active` exists and an `object/*` holds the boot file's marker. Red 2026-10-20 against a `git archive HEAD` copy built with the main.go call removed (`output does not match regex`, stdout `Ze stopped.` with no waiting line, 7.2s), and again with the call moved after `Ze stopped.` (same regex miss, the waiting line printed after `Ze stopped.`, 7.0s). Green on the working tree: 11.2s, 8.1s.
+- New `test/plugin/stop-boot-record-second-signal.ci` (same): SIGINT on `Ze running.`, a second SIGINT only once ze prints the waiting line, so it lands in the wait and not in the fence. Asserts `forced exit` on stderr, the fixture's own check that ze exited 1, no `Ze stopped.`, and no active pointer for the file (the record was abandoned). Red 2026-10-20 with the main.go call removed: the fixture fails `sent 1 of 2 signals; ze exited 0 without printing the cue for the next`. Green on the working tree: 0.75s, 0.72s.
 
 ### Interop Tests (Scope: protocol)
 Not protocol.
@@ -414,7 +416,7 @@ so filter-irr was measured on the raw binary.
 | AC-2 | Done | `TestBootRecordWriteWaitsThenLands`, `TestBootRecordWaitBound` | |
 | AC-3 | Done | `TestBootRecordPendingReadAnswersBootBytes` | |
 | AC-4 | Done | `TestBootRecordFailureRefusesWrites` | |
-| AC-5 | Done | `TestBootRecordWriteWaitsThenLands`; explicit-file-restart (reads active after stop) | |
+| AC-5 | Done | `TestBootRecordWriteWaitsThenLands`; explicit-file-restart (reads active after stop); stop-waits-for-boot-record.ci, stop-boot-record-second-signal.ci (the stop at the daemon) | |
 | AC-6 | Done | `TestStoreSelector*`, dut-store-memory-default.ci, dut-store-memory-config.ci | |
 | AC-7 | Done | dut-store-disk-option.ci, dut-store-disk-config.ci; option list above | |
 | AC-8 | Done | 4c1db99ae2 comments and storage-backends.md | |
@@ -425,6 +427,7 @@ so filter-irr was measured on the raw binary.
 | `TestBootRecord*` (6) | Done | internal/component/config/storage/boot_record_test.go | |
 | `TestStoreSelector*` (4) | Done | cmd/ze/register_store_zetest_test.go | |
 | `TestStop*` (2) | Done | cmd/ze/hub/config_source_stop_test.go | added by bootrec2 |
+| `stop-waits-for-boot-record.ci`, `stop-boot-record-second-signal.ci` | Done | test/plugin/, fixture `hub/stop-during-boot-record` | review ISSUE 1: the stop at the daemon; red with the main.go call removed and with it moved after `Ze stopped.` |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -445,7 +448,7 @@ so filter-irr was measured on the raw binary.
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | ze serves before the boot record under fsync load | functional under load | filter-irr: before 1 FAIL in 1 invocation (stall), after 8/8 (2026-10-20 runs); explicit-file-restart before startup 4.1-24.3s vs HEAD 0.6-8.1s to `Ze running` |
-| The record still lands | functional | explicit-file-restart reads the active pointer after the stop: 10/10 with the fix under the writer |
+| The record still lands | functional | explicit-file-restart reads the active pointer after the stop: 10/10 with the fix under the writer; `test/plugin/stop-waits-for-boot-record.ci` stops ze while the record holds the store and asserts the waiting line before `Ze stopped.` and the active pointer and boot bytes after exit (red with the main.go call removed or moved after the line); `test/plugin/stop-boot-record-second-signal.ci` proves the second Ctrl+C forces exit 1 and leaves no active pointer |
 
 ## Work Not Done
 
@@ -466,6 +469,7 @@ so filter-irr was measured on the raw binary.
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | 1 | ISSUE | `Ze stopped.` printed before the boot record landed | cmd/ze/hub/main.go | `awaitBootRecordAtStop` |
+| 2 | ISSUE | (review round 1, ISSUE 1) the stop wait had no daemon-level test: the helper tests call `awaitBootRecordAtStop` directly, so removing or moving the main.go call left every test green | cmd/ze/hub/main.go | `test/plugin/stop-waits-for-boot-record.ci`, `test/plugin/stop-boot-record-second-signal.ci`, fixture `hub/stop-during-boot-record` |
 
 ## Pre-Commit Verification
 
