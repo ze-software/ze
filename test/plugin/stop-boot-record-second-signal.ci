@@ -14,10 +14,12 @@
 # The fixture sends the second SIGINT only once ze printed the waiting line, so
 # it lands inside the wait and not in the stop's fence, where a second signal
 # only skips the drain. With the wait gone the line never appears, the second
-# signal is never sent, and the fixture fails naming the missing cue.
+# signal is never sent, and the fixture fails naming the missing cue. The budget
+# matches stop-waits-for-boot-record.ci: startup shares the disk with the
+# record's syncs, and under load that alone has taken most of a minute.
 
 option=storage:value=disk
-option=timeout:value=60s
+option=timeout:value=90s
 option=env:var=ze.test.boot.record.hold:value=6s
 
 tmpfs=boot-force.conf:terminator=EOF_CONF
@@ -26,7 +28,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le test fixture hub/stop-during-boot-record boot-force.conf int,int 1:timeout=60s:exit=0
+cmd=foreground:seq=1:exec=le test fixture hub/stop-during-boot-record boot-force.conf int,int 1:timeout=90s:exit=0
 expect=stderr:contains=stop-boot-record: sent interrupt after "Ze running."
 expect=stderr:contains=stop-boot-record: sent interrupt after "Stopping: the store is still recording the boot configuration"
 expect=stderr:contains=forced exit

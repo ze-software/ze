@@ -15,13 +15,14 @@
 # always finds the record in flight. ze.test.boot.record.hold (test DUT builds
 # only, register_boot_record_hold_zetest.go) keeps the record on the store's
 # write lock for 6s, far longer than the stop's own teardown takes. The budget
-# is 60s because the stop then waits for the record's own syncs too, which a
-# disk under another writer stretched to 35s (spec-boot-record-after-listen,
-# "Shutdown overrun traced"); a red run with a 30s budget once timed out
-# instead of reaching the pattern.
+# is 90s, as explicit-file-restart.ci carries for the same exposure: startup and
+# the record's own syncs share the disk, which another writer stretched to 35s
+# for the syncs alone (spec-boot-record-after-listen, "Shutdown overrun
+# traced"), and one green run at load 21 took 52.7s. The assertions check line
+# order, so a longer budget hides no failure: a red run fails on the pattern.
 
 option=storage:value=disk
-option=timeout:value=60s
+option=timeout:value=90s
 option=env:var=ze.test.boot.record.hold:value=6s
 
 tmpfs=boot-hold.conf:terminator=EOF_CONF
@@ -30,7 +31,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le test fixture hub/stop-during-boot-record boot-hold.conf term 0:timeout=60s:exit=0
+cmd=foreground:seq=1:exec=le test fixture hub/stop-during-boot-record boot-hold.conf term 0:timeout=90s:exit=0
 expect=stderr:contains=stop-boot-record: sent terminated after "Ze running."
 expect=stdout:pattern=(?s)Stopping: the store is still recording the boot configuration[^\n]*\n.*Ze stopped\.
 reject=stderr:pattern=panic
