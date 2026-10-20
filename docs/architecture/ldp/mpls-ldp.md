@@ -226,7 +226,11 @@ build-time default backend and does nothing when one is already loaded, so an
 explicit `interface { backend ... }` still wins. OSPF and IS-IS read their
 interfaces the same way.
 
-<!-- source: internal/plugins/ldp/local.go -- ensureIfaceBackend, interfacePrefixes -->
+When a read still fails, the warning carries a `fix` attribute. If no backend
+could be loaded, it names `interface { backend netlink; }`. Otherwise it names
+`ip link show <interface>`, to check that the device exists.
+
+<!-- source: internal/plugins/ldp/local.go -- ensureIfaceBackend, interfacePrefixes, ifaceReadFix -->
 <!-- source: internal/plugins/ldp/register.go -- resolveDiscoveryInterface, waitForInterface -->
 
 ## Trap: the config schema is top-level

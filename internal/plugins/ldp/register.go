@@ -405,7 +405,7 @@ func connectedPrefixes(ifaces []string, log *slog.Logger) []netip.Prefix {
 		prefixes, err := interfacePrefixes(name)
 		if err != nil {
 			log.Warn("ldp: cannot read interface addresses, LDP advertises no label for its connected prefixes",
-				"interface", name, "error", err)
+				"interface", name, "error", err, "fix", ifaceReadFix(err, name))
 			continue
 		}
 		out = append(out, prefixes...)
@@ -631,7 +631,7 @@ func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retr
 			log.Debug("ldp: discovery interface still not available", "interface", ifName, "error", err)
 		} else {
 			log.Warn("ldp: discovery interface not available, LDP sends no Hello on it until it is; retrying",
-				"interface", ifName, "retry", retry, "error", err)
+				"interface", ifName, "retry", retry, "error", err, "fix", ifaceReadFix(err, ifName))
 			warned = true
 		}
 		timer := time.NewTimer(retry)
@@ -654,15 +654,15 @@ func resolveDiscoveryInterface(ifName string) (*net.Interface, error) {
 	// "iface: no backend loaded" on every retry and LDP sends no Hello. See
 	// interfacePrefixes (local.go) for the full reasoning.
 	if err := ensureIfaceBackend(); err != nil {
-		return nil, fmt.Errorf("ldp: interface %s: %w", ifName, err)
+		return nil, fmt.Errorf("interface %s: %w: %w", ifName, errIfaceBackendUnavailable, err)
 	}
 	b, err := iface.Resolve(ifName)
 	if err != nil {
-		return nil, fmt.Errorf("ldp: resolve interface %s: %w", ifName, err)
+		return nil, fmt.Errorf("resolve interface %s: %w", ifName, err)
 	}
 	ifi, err := net.InterfaceByName(b.OsName)
 	if err != nil {
-		return nil, fmt.Errorf("ldp: interface %s (device %s): %w", ifName, b.OsName, err)
+		return nil, fmt.Errorf("interface %s (device %s): %w", ifName, b.OsName, err)
 	}
 	return ifi, nil
 }

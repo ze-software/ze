@@ -16,6 +16,7 @@
 package ldp
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -124,6 +125,25 @@ func pickNextHop(transport netip.Addr, peerAddrs []netip.Addr, localPrefixes []n
 // opens a netlink socket, which a unit test has no business doing.
 var ensureIfaceBackend = iface.EnsureBackend
 
+// errIfaceBackendUnavailable marks an interface read that failed because no
+// iface backend could be loaded, so ifaceReadFix can name the config fix
+// instead of the device check.
+var errIfaceBackendUnavailable = errors.New("no interface backend could be loaded")
+
+// ifaceBackendFix is the next step when no iface backend loads: this build
+// has no default backend, or the default one failed to start.
+const ifaceBackendFix = "configure an interface backend: interface { backend netlink; }"
+
+// ifaceReadFix returns the operator's next step for an interface read that
+// failed with err: the backend config when no backend loaded, otherwise a
+// check that the device exists.
+func ifaceReadFix(err error, ifName string) string {
+	if errors.Is(err, errIfaceBackendUnavailable) {
+		return ifaceBackendFix
+	}
+	return "check that the interface is configured and its device exists: ip link show " + ifName
+}
+
 // interfacePrefixes returns the advertisable connected prefixes of the named
 // interface. A missing interface or read error returns the error to the caller.
 func interfacePrefixes(name string) ([]netip.Prefix, error) {
@@ -135,11 +155,11 @@ func interfacePrefixes(name string) ([]netip.Prefix, error) {
 	// `interface { backend vpp }` still wins. OSPF and IS-IS do the same
 	// (internal/plugins/ospf/transport/backend_linux.go resolveOSPFInterface).
 	if err := ensureIfaceBackend(); err != nil {
-		return nil, fmt.Errorf("ldp: interface %s: %w", name, err)
+		return nil, fmt.Errorf("interface %s: %w: %w", name, errIfaceBackendUnavailable, err)
 	}
 	addrs, err := iface.Addresses(name)
 	if err != nil {
-		return nil, fmt.Errorf("ldp: read addresses of interface %s: %w", name, err)
+		return nil, fmt.Errorf("read addresses of interface %s: %w", name, err)
 	}
 	out := make([]netip.Prefix, 0, len(addrs))
 	for _, a := range addrs {

@@ -28,6 +28,27 @@ func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error { //no
 func (h *recordingHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
 func (h *recordingHandler) WithGroup(string) slog.Handler      { return h }
 
+// fixAttr returns the "fix" attribute of the first WARN record, or "".
+func (h *recordingHandler) fixAttr() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for i := range h.records {
+		if h.records[i].Level != slog.LevelWarn {
+			continue
+		}
+		found := ""
+		h.records[i].Attrs(func(a slog.Attr) bool {
+			if a.Key != "fix" {
+				return true
+			}
+			found = a.Value.String()
+			return false
+		})
+		return found
+	}
+	return ""
+}
+
 // errorAttr returns the "error" attribute of the first WARN record, or nil.
 func (h *recordingHandler) errorAttr() error {
 	h.mu.Lock()
@@ -113,5 +134,41 @@ func TestWaitForInterfaceEnsuresIfaceBackend(t *testing.T) {
 	}
 	if got := rec.errorAttr(); !errors.Is(got, sentinel) {
 		t.Errorf("warning error = %v, want it to carry the EnsureBackend failure", got)
+	}
+	if got := rec.fixAttr(); got != ifaceBackendFix {
+		t.Errorf("warning fix = %q, want the backend config step %q", got, ifaceBackendFix)
+	}
+}
+
+// TestConnectedPrefixesWarningNamesBackendFix proves the connected-prefix
+// warning tells the operator which config loads a backend when none loads.
+//
+// PREVENTS: a warning that says what LDP loses but not how to fix it.
+func TestConnectedPrefixesWarningNamesBackendFix(t *testing.T) {
+	_, sentinel := stubIfaceBackend(t)
+	rec := &recordingHandler{}
+
+	if got := connectedPrefixes([]string{"eth-does-not-exist"}, slog.New(rec)); len(got) != 0 {
+		t.Fatalf("connectedPrefixes = %v, want none when no backend loads", got)
+	}
+	if got := rec.errorAttr(); !errors.Is(got, sentinel) {
+		t.Errorf("warning error = %v, want it to carry the EnsureBackend failure", got)
+	}
+	if got := rec.fixAttr(); got != ifaceBackendFix {
+		t.Errorf("warning fix = %q, want the backend config step %q", got, ifaceBackendFix)
+	}
+}
+
+// TestIfaceReadFixNamesDeviceCheck proves a read that failed for a reason
+// other than the backend points the operator at the device, by its name.
+//
+// PREVENTS: the backend config step offered for a missing device.
+func TestIfaceReadFixNamesDeviceCheck(t *testing.T) {
+	got := ifaceReadFix(errors.New("resolve interface eth9: not found"), "eth9")
+	if got == ifaceBackendFix {
+		t.Fatalf("fix = %q, want the device check, not the backend step", got)
+	}
+	if !strings.HasSuffix(got, "ip link show eth9") {
+		t.Errorf("fix = %q, want it to end with the command ip link show eth9", got)
 	}
 }
