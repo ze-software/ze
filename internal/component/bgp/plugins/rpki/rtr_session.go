@@ -541,15 +541,19 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		s.pendingVRPs = nil
 		s.pendingDels = nil
 
-		// Apply the accumulated ASPA records, the same two ways.
+		// Apply the accumulated ASPA records, the same two ways. Only a full sync replaces
+		// the whole set. A delta replaces no record but the one for each customer it names,
+		// draft-ietf-sidrops-8210bis Section 5.12: "Receipt of an ASPA PDU announcement with
+		// the announce/withdraw flag set to 1 when the router already has an ASPA PDU with
+		// the same Customer Autonomous System Number from that cache replaces the previous
+		// one."
 		aspaAnnounced := len(s.pendingASPAs)
 		aspaWithdrawn := len(s.pendingASPADels)
 		var aspaChanged []uint32
 		if s.aspaCache != nil {
-			switch {
-			case fullSync:
+			if fullSync {
 				aspaChanged = s.aspaCache.Replace(s.pendingASPAs)
-			case aspaAnnounced > 0 || aspaWithdrawn > 0:
+			} else if aspaAnnounced > 0 || aspaWithdrawn > 0 {
 				aspaChanged = s.aspaCache.changedCustomers(s.pendingASPADels, s.pendingASPAs)
 				s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
 			}
