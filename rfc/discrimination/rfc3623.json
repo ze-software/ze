@@ -9,7 +9,7 @@
       "claim-sha": "e0d1a12871e5c81e",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf_wiring.go::initSPF",
-      "producer-sha": "d24d92fa4a67402b",
+      "producer-sha": "bcb2aac5b84e020d",
       "break": "body of initSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "5788d9c638725876",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf_wiring.go::initSPF",
-      "producer-sha": "d24d92fa4a67402b",
+      "producer-sha": "bcb2aac5b84e020d",
       "break": "body of initSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
