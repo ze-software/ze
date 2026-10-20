@@ -305,7 +305,8 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 		// The version is settled BEFORE the line is translated, and the line
 		// is then held to it, as ExaBGP's API.process calls
 		// detect_api_version and then dispatch_for.
-		if err := s.api.Detect(text).Admits(text); err != nil {
+		version := s.api.Detect(text)
+		if err := version.Admits(text); err != nil {
 			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
 			batch = append(batch, bridge.BatchLine{Text: text, Err: err})
 			continue
@@ -320,6 +321,9 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 		line := bridge.BatchLine{Text: text, Translation: translation, Err: err}
 		if translation.Local == bridge.LocalAPIVersion {
 			line.Reply, answers[i].Failed = s.api.Answer(translation.APIVersion)
+		}
+		if translation.Local == bridge.LocalStatus {
+			line.Reply, answers[i] = s.status(ctx, d, bridge.StatusInJSON(version, text))
 		}
 		batch = append(batch, line)
 	}
@@ -355,6 +359,23 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 	// blocks for `done`, and gives up after two seconds, so a runner that
 	// dispatches without acking delivers exactly one command per script.
 	bridge.AnswerBatch(s.writer(), &s.ack, batch, answers)
+}
+
+// status performs a `status` line: it reads every peer's state from ze and
+// answers ExaBGP's daemon status. A peer list ze did not give is never
+// written, so a failed read answers the line with an error.
+func (s *script) status(ctx context.Context, d Dispatcher, asJSON bool) ([]byte, bridge.BatchAnswer) {
+	_, detail, err := d.DispatchCommand(ctx, bridge.StatusPeerCommand)
+	if err != nil {
+		s.log.Warn("exabgp-bridge status: peer list refused", "script", s.name, "error", err, "cmd", bridge.StatusPeerCommand)
+		return nil, bridge.BatchAnswer{Failed: true, Error: err.Error()}
+	}
+	peers, err := bridge.StatusPeers(detail)
+	if err != nil {
+		s.log.Warn("exabgp-bridge status: peer list unreadable", "script", s.name, "error", err)
+		return nil, bridge.BatchAnswer{Failed: true, Error: err.Error()}
+	}
+	return bridge.StatusReply(peers, asJSON), bridge.BatchAnswer{}
 }
 
 // reap waits for the exited child and forgets its pipes. It runs after read

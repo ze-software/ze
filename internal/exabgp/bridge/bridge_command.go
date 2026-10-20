@@ -193,7 +193,15 @@ const (
 	// LocalAPIVersion is `api version [<value>]`: the runner writes its answer
 	// line, then done, or error when the value is refused.
 	LocalAPIVersion
+	// LocalStatus is `status` or `daemon status`: the runner reads every
+	// peer's state from ze and writes ExaBGP's daemon status, then done
+	// (StatusPeers, StatusReply).
+	LocalStatus
 )
+
+// statusWord is ExaBGP's daemon status command, `status` in API 4 and
+// `daemon status` in API 6.
+const statusWord = "status"
 
 // Nothing reports a line that carries no command: a blank line, or a comment.
 // It is an ANSWER rather than a failure, and it is named so that no caller has
@@ -355,6 +363,9 @@ func convertControl(selector, rest string) (Translation, bool) {
 	case fields[0] == "ping",
 		len(fields) >= 2 && fields[0] == "session" && fields[1] == "ping":
 		return Translation{Local: pingAction(fields)}, true
+	case fields[0] == statusWord,
+		len(fields) >= 2 && fields[0] == "daemon" && fields[1] == statusWord:
+		return Translation{Local: LocalStatus}, true
 	case len(fields) == 1 && fields[0] == "shutdown",
 		len(fields) == 2 && fields[0] == "request" && fields[1] == "shutdown":
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true

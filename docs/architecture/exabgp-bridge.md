@@ -260,11 +260,45 @@ true. The answer line is written whatever the ack state, and only the `done`
 follows it, because ExaBGP writes the pong with `processes.write` and the
 `done` with `answer_done_sync`.
 
-`status`, the other half of ExaBGP's health pair, is still refused: its answer
-lists every peer with its FSM state, and the bridge reads no peer state from ze.
-
 <!-- source: internal/exabgp/bridge/bridge_ping.go -- writePong, pingAction, daemonUUID -->
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AnswerLocal -->
+
+## `status` is answered by the bridge
+
+`status` (v6 spelling `daemon status`), the other half of ExaBGP's health pair,
+is answered by the bridge too, with ExaBGP's bytes, then `done`. The answer is
+JSON when the script is held to API 6 or the line ends in `json`, and text
+otherwise, as ExaBGP's `_answers_in_json` decides:
+
+```
+ExaBGP Daemon Status
+====================
+Version: 6.0.0
+UUID: <the ping UUID>
+PID: <ze's pid>
+Uptime: 0h 1m 5s
+Peers: 1
+  - neighbor 127.0.0.1 local-ip 127.0.0.1 local-as 65535 peer-as 65535 router-id 127.0.0.1 family-allowed in-open: ESTABLISHED
+```
+
+```
+{"version": "6.0.0", "uuid": "<uuid>", "pid": 4242, "uptime": 65, "start_time": 1760960000.2499998, "peers": {"<name>": "ESTABLISHED"}}
+```
+
+The peer list is read from `show bgp peer * detail`. Each name is ExaBGP's
+`Neighbor.name()`, with `auto` for an absent local address or AS, and each state
+is the peer's `fsm-state`, the RFC 4271 Section 8.2.2 state as ExaBGP prints it
+(`IDLE`, `ACTIVE`, `CONNECT`, `OPENSENT`, `OPENCONFIRM`, `ESTABLISHED`). ExaBGP
+lists its peers in configuration order; ze's answer is a map keyed by address,
+so the bridge lists them by address. A row without its state answers the line
+with `error`, never with a guessed state.
+
+Only the exabgp-bridge plugin answers it. The standalone runner, `ze exabgp
+plugin`, reads ok or an error from each dispatch and no payload, so it refuses
+`status` by name in its log and answers `error`.
+
+<!-- source: internal/exabgp/bridge/bridge_status.go -- StatusPeers, StatusReply, StatusInJSON, errStatusStandalone -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.status -->
 
 <!-- source: internal/component/command/grammar/checker.go -- bridgeSurface, ExemptCategory -->
 

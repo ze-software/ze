@@ -39,6 +39,10 @@ type recorder struct {
 	// what the script has been told WHILE its route is still being flushed. A
 	// nil gate answers every command at once.
 	flushGate chan struct{}
+
+	// answers is the payload a command is answered with, keyed by the exact
+	// command. A command it does not hold is answered with no payload.
+	answers map[string]json.RawMessage
 }
 
 func (r *recorder) DispatchCommand(_ context.Context, command string) (string, json.RawMessage, error) {
@@ -50,7 +54,7 @@ func (r *recorder) DispatchCommand(_ context.Context, command string) (string, j
 	if gate != nil && strings.HasSuffix(command, " flush") {
 		<-gate
 	}
-	return "ok", nil, nil
+	return "ok", r.answers[command], nil
 }
 
 func (r *recorder) seen() []string {
@@ -638,6 +642,54 @@ func TestFleetAcksARouteOnlyAfterItsFlush(t *testing.T) {
 	waitFor(t, "the script to be acked once the flush completed", func() bool {
 		return strings.TrimSpace(readFile(t, acked)) == "done"
 	})
+
+	cancel()
+	fleet.Stop()
+}
+
+// TestFleetAnswersStatusFromZesPeerList proves a script's `status` line is
+// answered from the peers ze lists, through the plugin runner's dispatcher: the
+// peer key is ExaBGP's Neighbor.name() and the state is the fsm-state ze
+// reported, then the line is closed with done. A runner that answered from
+// anything but ze's peer list would not print this peer or this state.
+func TestFleetAnswersStatusFromZesPeerList(t *testing.T) {
+	dir := t.TempDir()
+	answered := filepath.Join(dir, "answered")
+	script := writeScript(t, dir, "status.sh",
+		"echo 'status'\n"+
+			"while IFS= read -r line; do echo \"$line\" >> "+answered+"; [ \"$line\" = done ] && break; done\n"+
+			"read never\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rec := &recorder{answers: map[string]json.RawMessage{
+		bridge.StatusPeerCommand: json.RawMessage(`{"peers":{"192.0.2.9":{"local-ip":"192.0.2.1",` +
+			`"local-as":65001,"remote-as":65002,"router-id":"10.0.0.1","fsm-state":"OPENCONFIRM"}}}`),
+	}}
+	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "status", Argv: []string{script}, Encoder: bridge.EncoderText},
+	})
+	if err := fleet.Start(ctx, rec); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	waitFor(t, "the status answer to close with done", func() bool {
+		return strings.HasSuffix(strings.TrimSpace(readFile(t, answered)), "done")
+	})
+	got := readFile(t, answered)
+	if !rec.held(bridge.StatusPeerCommand) {
+		t.Errorf("the runner never asked ze for %q; commands: %q", bridge.StatusPeerCommand, rec.seen())
+	}
+	for _, want := range []string{
+		"ExaBGP Daemon Status",
+		"Peers: 1",
+		"  - neighbor 192.0.2.9 local-ip 192.0.2.1 local-as 65001 peer-as 65002 router-id 10.0.0.1 family-allowed in-open: OPENCONFIRM",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("status answer lacks %q; got:\n%s", want, got)
+		}
+	}
 
 	cancel()
 	fleet.Stop()

@@ -755,6 +755,14 @@ func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.W
 		if translation.Local == LocalAPIVersion {
 			batched.Reply, answers[len(batch)].Failed = b.api.Answer(translation.APIVersion)
 		}
+		if translation.Local == LocalStatus {
+			// The MuxConn dispatch answer carries ok or an error, never a
+			// payload, so this runner cannot read the peers' states the
+			// status answer lists. The line is refused by name rather than
+			// answered with a peer list that is not ze's.
+			slog.Warn("plugin->zebgp: line refused", "error", errStatusStandalone, "line", line)
+			answers[len(batch)] = BatchAnswer{Failed: true, Error: errStatusStandalone.Error()}
+		}
 		batch = append(batch, batched)
 	}
 
