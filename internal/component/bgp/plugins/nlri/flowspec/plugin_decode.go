@@ -254,13 +254,12 @@ func contains(slice []string, val string) bool {
 // Input: {"destination-ipv4":[["10.0.0.0/24/0"]],"protocol":[["=tcp"],["=udp"]]}
 // Output: ["destination-ipv4", "10.0.0.0/24", "protocol", "tcp", "udp"].
 //
-// For simple OR groups (each inner array has one value), all values go after
-// a single keyword: "protocol tcp udp" -> one component with OR values.
-//
-// For complex OR-of-AND groups (inner arrays have multiple values), each OR
-// group becomes a separate keyword entry: "port >80 <100 port >443 <500".
-// The text encoder parses one component per keyword and FlowSpec.AddComponent
-// joins them into the single Type 4 component RFC 8955 Section 4.2 allows.
+// All the groups of one component follow a single keyword. The update text
+// grammar reads successive values as OR and a leading "&" as AND, so the
+// outer array (OR) becomes successive values and each later value of an inner
+// array (AND) carries "&": [[">80","<100"],[">443","<500"]] becomes
+// "port >80 &<100 >443 &<500". Protocol and next-header values are written
+// bare, as the protocol parser reads them.
 func jsonToTextComponents(m map[string]any) ([]string, error) {
 	var args []string
 
@@ -296,29 +295,33 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 			continue
 		}
 
-		// Emit each OR group with its own keyword, "port >80 <100 port >443
-		// <500": the text grammar ANDs the values that follow one keyword, and
-		// AddComponent joins a repeated keyword's groups back into one component
-		// as OR terms. Flattening one-value groups under one keyword would turn
-		// [["=80"], ["=443"]], 80 OR 443, into 80 AND 443.
+		// The protocol parser reads bare values and no "&".
+		joinsAnd := key != flowspec.KwProtocol && key != flowspec.KwNextHeader
+		var values []string
 		for _, orGroup := range arr {
 			innerArr, ok := orGroup.([]any)
 			if !ok {
 				if s, ok := orGroup.(string); ok {
-					args = append(args, key, normalizeJSONValue(key, s))
+					values = append(values, normalizeJSONValue(key, s))
 				}
 				continue
 			}
-			var values []string
-			for _, v := range innerArr {
-				if s, ok := v.(string); ok {
-					values = append(values, normalizeJSONValue(key, s))
+			for i, v := range innerArr {
+				s, ok := v.(string)
+				if !ok {
+					continue
 				}
+				value := normalizeJSONValue(key, s)
+				// RFC 8955 Section 4.2.1.1: a later term of an AND group sets the a bit.
+				if joinsAnd && i > 0 {
+					value = "&" + strings.TrimPrefix(value, "&")
+				}
+				values = append(values, value)
 			}
-			if len(values) > 0 {
-				args = append(args, key)
-				args = append(args, values...)
-			}
+		}
+		if len(values) > 0 {
+			args = append(args, key)
+			args = append(args, values...)
 		}
 	}
 

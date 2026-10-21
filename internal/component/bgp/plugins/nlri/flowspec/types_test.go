@@ -1007,13 +1007,13 @@ func TestNumericOperatorString(t *testing.T) {
 			expected: "destination-port !=0",
 		},
 		{
-			name: "range without AND prefix",
+			name: "range joined by AND",
 			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
 				{Op: flowspec.FlowOpGreater | flowspec.FlowOpEqual, Value: 1024},
 				{Op: flowspec.FlowOpLess | flowspec.FlowOpEqual, Value: 65535, And: true},
 			}),
-			// NOTE: No & prefix - parser infers And from position
-			expected: "destination-port >=1024 <=65535",
+			// The AND term is joined by "&", as the text grammar reads it.
+			expected: "destination-port >=1024&<=65535",
 		},
 	}
 
@@ -1060,8 +1060,8 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				}))
 				return f
 			}(),
-			// Parser expects separate tokens; And is inferred from position
-			expected: "flow destination-port >=1024 <=65535",
+			// Parser reads "&" as AND and successive values as OR.
+			expected: "flow destination-port >=1024&<=65535",
 		},
 		{
 			name: "tcp flags combined",

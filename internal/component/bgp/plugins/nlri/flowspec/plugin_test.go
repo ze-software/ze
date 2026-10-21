@@ -487,7 +487,7 @@ func TestEncodeFlowSpecProtocolOperatorEquivalence(t *testing.T) {
 //
 // VALIDATES: EncodeFlowSpecComponents (plugin_encode_text.go) parses each repeated
 // keyword into its own component and hands both to FlowSpec.AddComponent, which joins
-// them (core types.go). "port >80 <100 port >443 <500" therefore emits one Type 4
+// them (core types.go). "port >80&<100 port >443&<500" therefore emits one Type 4
 // component, and ze parses back what it emitted.
 //
 // PREVENTS: the malformed two-Type-4 NLRI ze announced for this command before the
@@ -496,7 +496,7 @@ func TestEncodeFlowSpecRepeatedKeywordIsOneComponent(t *testing.T) {
 	t.Parallel()
 
 	// (>80 AND <100) OR (>443 AND <500).
-	wire, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"port", ">80", "<100", "port", ">443", "<500"})
+	wire, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"port", ">80&<100", "port", ">443&<500"})
 	require.NoError(t, err)
 
 	want := []byte{0x0b, 0x04, 0x02, 0x50, 0x44, 0x64, 0x12, 0x01, 0xbb, 0xd4, 0x01, 0xf4}
@@ -640,10 +640,8 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "multiple_ports",
 			family: "ipv4/flow",
-			// 80 OR 443 OR 8080: the repeated keyword opens an OR term, while
-			// successive values under one keyword are ANDed, and =80 AND =443
-			// matches no packet, which CheckMatchable refuses (RFC 8955 4.2).
-			text: "destination-port =80 destination-port =443 destination-port =8080",
+			// 80 OR 443 OR 8080: successive values under one keyword are OR.
+			text: "destination-port =80 =443 =8080",
 		},
 		{
 			name:   "ipv6_destination",
@@ -654,7 +652,7 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "or_of_and_port_range",
 			family: "ipv4/flow",
-			text:   "port >80 <100 port >443 <500", // (>80 AND <100) OR (>443 AND <500)
+			text:   "port >80&<100 >443&<500", // (>80 AND <100) OR (>443 AND <500)
 		},
 		// VPN families
 		{
@@ -677,6 +675,13 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 			name:   "tcp_flags_multiple",
 			family: "ipv4/flow",
 			text:   "tcp-flags =syn =ack",
+		},
+		{
+			// (SYN AND NOT ACK) OR RST: the JSON AND group must come back as
+			// "&"-led terms, not as alternatives.
+			name:   "tcp_flags_and_group",
+			family: "ipv4/flow",
+			text:   "tcp-flags =syn &!ack =rst",
 		},
 		// Fragment
 		{
@@ -705,7 +710,7 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "packet_length",
 			family: "ipv4/flow",
-			text:   "packet-length >=64 <=1500",
+			text:   "packet-length >=64&<=1500",
 		},
 	}
 

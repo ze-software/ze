@@ -634,6 +634,21 @@ and a selector matching no peer; Ze gives the reason there too
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode.WriteError -->
 <!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, ScriptLines.answer -->
 
+## FlowSpec value lists
+
+ExaBGP 6.0 reads `destination-port [ =80 =443 ]` as 80 OR 443, and
+`>8080&<8088` as one AND term (configuration/grammar/types/flow.py,
+`_bracketed` and `_expression`). Ze's update text reads successive values as
+OR and `&` as AND (`docs/architecture/api/architecture.md`, "FlowSpec NLRI"),
+so the bridge drops the brackets and passes every term through unchanged, in
+the family form (`announce ipv4 flow ... destination-port [ =80 =443 ]`) and in
+`flow route`: both reach ze as `destination-port =80 =443`. Before 2026-10-21
+ze's update text ANDed successive numeric values, so such a route was sent as
+80 AND 443, which matches no packet, and the family form sent the brackets,
+which ze refused.
+<!-- source: internal/exabgp/bridge/bridge_command.go -- parseFlowSpecBridgeRoute -->
+<!-- source: internal/exabgp/bridge/bridge_flow.go -- flowRouteList, readComponent -->
+
 ## FlowSpec redirect and copy
 
 A `flow route` line's redirect and copy actions follow the ExaBGP 6.0 grammar

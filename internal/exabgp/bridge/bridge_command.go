@@ -1020,7 +1020,15 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 				currentComponent = strings.ToLower(token)
 				nlri = append(nlri, token)
 			} else {
-				nlri = append(nlri, normalizeFlowSpecComponentValue(currentComponent, token))
+				// ExaBGP's `[ =80 =443 ]` is a list of alternatives
+				// (configuration/grammar/types/flow.py, _bracketed). Ze's update
+				// text reads successive values as alternatives and has no
+				// brackets, so the brackets are dropped and the terms, "&" joins
+				// included, pass through unchanged.
+				value := strings.TrimSuffix(strings.TrimPrefix(token, "["), "]")
+				if value != "" {
+					nlri = append(nlri, normalizeFlowSpecComponentValue(currentComponent, value))
+				}
 				switch {
 				case strings.Contains(parts[i], "[") && !strings.Contains(parts[i], "]"):
 					inList = true

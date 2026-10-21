@@ -73,7 +73,7 @@ func EncodeFlowSpecComponents(fam flowspec.Family, args []string) ([]byte, error
 	}
 
 	// Parse components. A repeated keyword is another OR group of one component,
-	// not a second component: "port >80 <100 port >443 <500" is one Type 4
+	// not a second component: "port >80&<100 port >443&<500" is one Type 4
 	// component whose operator list holds both groups, because RFC 8955 Section 4.2
 	// allows each type exactly once. AddComponent performs that join.
 	i := 0
@@ -239,6 +239,14 @@ func parseProtocolComponentText(args []string) (flowspec.FlowComponent, int, err
 }
 
 // parseNumericComponentText parses numeric component with operators.
+//
+// Successive values are alternatives, and "&" joins a term to the one before
+// it: `destination-port >8080&<8088 =3128` (or `>8080 &<8088 =3128`) is
+// (>8080 AND <8088) OR =3128. RFC 8955 Section 4.2.1.1: "a - and bit. If unset,
+// the result of the previous {operator, value} pair is ORed with the current
+// one. If set, it is ANDed." Plain successive terms therefore leave the bit
+// clear, the spelling of Ze's config, of the bitmask components and of ExaBGP
+// 6.0, whose list text the bridge passes through unchanged.
 func parseNumericComponentText(args []string, compType flowspec.FlowComponentType) (flowspec.FlowComponent, int, error) {
 	var matches []flowspec.FlowMatch
 	consumed := 0
@@ -251,23 +259,13 @@ func parseNumericComponentText(args []string, compType flowspec.FlowComponentTyp
 			break
 		}
 
-		op, value, err := parseOperatorValue(token)
+		// A token that is not a keyword is a value of this component, so a
+		// malformed one is refused here, by this component's name.
+		terms, err := parseNumericTermsText(token, len(matches) > 0, maxValue)
 		if err != nil {
-			if consumed == 0 {
-				return nil, 0, fmt.Errorf("invalid %s value: %w", compType, err)
-			}
-			break
+			return nil, 0, fmt.Errorf("invalid %s value: %w", compType, err)
 		}
-
-		if value > maxValue {
-			return nil, 0, fmt.Errorf("%s value %d exceeds max %d", compType, value, maxValue)
-		}
-
-		matches = append(matches, flowspec.FlowMatch{
-			Op:    op,
-			Value: value,
-			And:   consumed > 0,
-		})
+		matches = append(matches, terms...)
 		consumed++
 	}
 
@@ -276,6 +274,37 @@ func parseNumericComponentText(args []string, compType flowspec.FlowComponentTyp
 	}
 
 	return flowspec.NewFlowNumericComponent(compType, matches), consumed + 1, nil
+}
+
+// parseNumericTermsText parses one token of a numeric component: one or more
+// `<op><value>` terms joined by "&", optionally led by "&" to join the first
+// term to the previous token's last one. hasPrevious says whether a term comes
+// before this token; a leading "&" with nothing before it is refused, as is an
+// "&" with no term after it.
+func parseNumericTermsText(token string, hasPrevious bool, maxValue uint64) ([]flowspec.FlowMatch, error) {
+	joined := strings.HasPrefix(token, "&")
+	if joined && !hasPrevious {
+		return nil, fmt.Errorf("%q starts with &, which joins a term to the one before it, and no term comes before it: drop the &", token)
+	}
+	body := strings.TrimPrefix(token, "&")
+
+	var terms []flowspec.FlowMatch
+	for part := range strings.SplitSeq(body, "&") {
+		if part == "" {
+			return nil, fmt.Errorf("%q holds an & with no term after it: write <op><value> after each &, as in >8080&<8088", token)
+		}
+		op, value, err := parseOperatorValue(part)
+		if err != nil {
+			return nil, err
+		}
+		if value > maxValue {
+			return nil, fmt.Errorf("value %d exceeds max %d", value, maxValue)
+		}
+		// RFC 8955 Section 4.2.1.1: the a bit ANDs this term with the previous one.
+		terms = append(terms, flowspec.FlowMatch{Op: op, Value: value, And: joined})
+		joined = true
+	}
+	return terms, nil
 }
 
 // parseTCPFlagsComponentText parses TCP flags with bitmask operators.

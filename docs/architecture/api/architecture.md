@@ -968,23 +968,38 @@ it uses match components that describe traffic flows.
 <component>        := destination <prefix>
                     | source <prefix>
                     | protocol <proto>+
-                    | port <op><value>+
-                    | destination-port <op><value>+
-                    | source-port <op><value>+
-                    | icmp-type <value>+
-                    | icmp-code <value>+
+                    | port <numeric-match>+
+                    | destination-port <numeric-match>+
+                    | source-port <numeric-match>+
+                    | icmp-type <numeric-match>+
+                    | icmp-code <numeric-match>+
                     | tcp-flags <bitmask-match>+
-                    | packet-length <op><value>+
-                    | dscp <value>+
+                    | packet-length <numeric-match>+
+                    | dscp <numeric-match>+
                     | fragment <bitmask-match>+
 
-<op>               := = | > | >= | < | <=    # default is =
+<numeric-match>    := [&]<op><value>[&<op><value>...]
+<op>               := = | != | > | >= | < | <=    # default is =
 <proto>            := tcp | udp | icmp | gre | <number>
 
 <bitmask-match>    := [&][!][=]<flag>[&<flag>...]
 <flag>             := syn | ack | fin | rst | psh | push | urg | ece | cwr  # tcp-flags
                     | dont-fragment | is-fragment | first-fragment | last-fragment  # fragment
 ```
+
+**Successive values are alternatives.** Each value after a keyword is ORed
+with the one before it, and `&` ANDs a term with the one before it, written
+inside one value (`>8080&<8088`) or leading the next (`>8080 &<8088`). This is
+RFC 8955 Section 4.2.1.1: "If unset, the result of the previous {operator,
+value} pair is ORed with the current one. If set, it is ANDed." A plain value
+leaves the `a` bit clear, and `&` sets it. Numeric and bitmask components read
+the same way, and so do Ze's config (`destination-port [ >8080&<8088 =3128 ]`)
+and ExaBGP 6.0, whose list text the ExaBGP bridge passes through. Repeating
+the keyword (`port >80&<100 port >443&<500`) adds another OR group to the same
+component. A leading `&` on the first value, or an `&` with no term after it, is
+refused.
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- parseNumericComponentText, parseNumericTermsText -->
 
 **Value Ranges (validated at parse time):**
 
@@ -1017,7 +1032,11 @@ mp ipv4/flowspec add destination-ipv4 10.0.0.0/24 source 192.168.0.0/16 protocol
 mp ipv4/flowspec-vpn rd 65000:100 add destination-ipv4 10.0.0.0/24
 
 # Port range (>=1024 AND <=65535)
-mp ipv4/flowspec add destination-port >=1024 <=65535
+mp ipv4/flowspec add destination-port >=1024&<=65535
+
+# Alternatives (80 OR 443), and a range OR a port ((>8080 AND <8088) OR 3128)
+mp ipv4/flowspec add destination-port =80 =443
+mp ipv4/flowspec add destination-port >8080&<8088 =3128
 
 # TCP flags with operators
 mp ipv4/flowspec add tcp-flags syn          # SYN is set (any)

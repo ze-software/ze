@@ -67,7 +67,8 @@ func (c *numericComponent) Bytes() []byte {
 
 // String returns command-style format: "<type> <op><value>...".
 // For bitmask types (TCP flags, Fragment), uses named flags instead of numbers.
-// Example: "destination-port =80 =443" or "tcp-flags syn&ack".
+// Example: "destination-port =80 =443" (80 OR 443), "destination-port
+// >8080&<8088" (an AND range) or "tcp-flags syn&ack".
 func (c *numericComponent) String() string {
 	// Handle bitmask types specially
 	if c.compType == FlowTCPFlags || c.compType == FlowFragment {
@@ -77,16 +78,21 @@ func (c *numericComponent) String() string {
 }
 
 // numericString formats numeric components with operators.
-// NOTE: The parser automatically sets And=true for second+ values based on position,
-// so we do NOT output & prefix for numeric components (only for bitmask types).
+// A term whose AND bit is set is joined to the one before it by "&", and the
+// others follow a space, so `>=1024&<=65535 =80` reads (>=1024 AND <=65535) OR
+// =80: the update text grammar reads it back to the same terms.
 //
 // Special case: protocol component uses a custom parser that accepts plain numeric
 // values without operator prefix, so we output "protocol 6" not "protocol =6".
 func (c *numericComponent) numericString() string {
 	var b textbuf.Buffer
 	b.Reset().Str(c.compType.String())
-	for _, m := range c.matches {
-		b.Byte(' ')
+	for i, m := range c.matches {
+		if m.And && i > 0 {
+			b.Byte('&')
+		} else {
+			b.Byte(' ')
+		}
 		if c.compType != FlowIPProtocol {
 			//exhaustive:ignore // Render only comparison bits after masking the operator framing flags.
 			switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) {

@@ -497,7 +497,7 @@ FlowSpec cannot carry two components of one type.
 | Decode | `FlowSpec.parseComponents` | Compares each component type against the previous one, refusing a repeat with `ErrFlowSpecDuplicateType` and a descent with `ErrFlowSpecTypeOrder` |
 
 An OR of AND groups on one type is therefore ONE component. The text form
-`port >80 <100 port >443 <500` repeats the keyword and emits a single Type 4
+`port >80&<100 port >443&<500` repeats the keyword and emits a single Type 4
 component holding both groups:
 
 ```

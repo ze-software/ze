@@ -191,7 +191,7 @@ func announcementPlan(scenario string) (processPlan, error) {
 		plan.updates = []announcement{
 			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.0.0/24"},
 			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", delay: 100 * time.Millisecond, quiesce: true},
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.2.0/24 port >80 <100 port >443 <500", delay: 100 * time.Millisecond, quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.2.0/24 port >80&<100 >443&<500", delay: 100 * time.Millisecond, quiesce: true},
 		}
 	case scenarioEVPNFRR, scenarioEVPNGoBGP:
 		plan.updates = []announcement{

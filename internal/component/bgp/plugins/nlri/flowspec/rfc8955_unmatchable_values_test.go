@@ -28,8 +28,8 @@ import (
 func TestFlowSpecUnmatchableByValueRefused(t *testing.T) {
 	base := []string{flowspec.KwDestinationIPv4, "192.0.2.0/24"}
 	// text holds the update text spelling where it differs from the config
-	// spelling in args: the text grammar takes each term as its own token,
-	// ANDs successive numeric terms, and joins bitmask terms with a leading "&".
+	// spelling in args: the text grammar joins bitmask terms with a leading "&"
+	// as their own token. Numeric terms share the config spelling.
 	for _, tc := range []struct {
 		args        []string
 		unmatchable bool
@@ -46,8 +46,8 @@ func TestFlowSpecUnmatchableByValueRefused(t *testing.T) {
 		{[]string{flowspec.KwFragment, "first-fragment", flowspec.KwDestPort, "=80"}, false, nil},
 		{[]string{flowspec.KwPort, "=80", flowspec.KwDestPort, "=443", flowspec.KwSourcePort, "=443"}, true, nil},
 		{[]string{flowspec.KwPort, "=80", flowspec.KwDestPort, "=80", flowspec.KwSourcePort, "=443"}, false, nil},
-		{[]string{flowspec.KwDestPort, ">100&<50"}, true, []string{flowspec.KwDestPort, ">100", "<50"}},
-		{[]string{flowspec.KwDestPort, ">100&<500"}, false, []string{flowspec.KwDestPort, ">100", "<500"}},
+		{[]string{flowspec.KwDestPort, ">100&<50"}, true, nil},
+		{[]string{flowspec.KwDestPort, ">100&<500"}, false, nil},
 		{[]string{flowspec.KwTCPFlags, "syn&!=syn"}, true, []string{flowspec.KwTCPFlags, "=syn", "&!=syn"}},
 		{[]string{flowspec.KwTCPFlags, "syn&!=ack"}, false, []string{flowspec.KwTCPFlags, "=syn", "&!=ack"}},
 	} {
