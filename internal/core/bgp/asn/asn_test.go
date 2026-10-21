@@ -2,6 +2,7 @@ package asn
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -61,6 +62,35 @@ func TestParseRejects(t *testing.T) {
 	for _, text := range cases {
 		if got, err := Parse(text); err == nil {
 			t.Errorf("Parse(%q) = %d, want an error", text, got)
+		}
+	}
+}
+
+// TestParseNamesTheFault proves the refusal of a plain token says which fault
+// the operator made. A decimal number past the 32-bit range is a number, so it
+// is told the range rather than that it is not a number. The method reads one
+// token of each kind and compares the message text.
+func TestParseNamesTheFault(t *testing.T) {
+	cases := []struct {
+		text    string
+		want    string
+		notWant string
+	}{
+		{"4294967296", "0 to 4294967295", "expected a decimal number"},
+		{"99999999999999999999", "0 to 4294967295", "expected a decimal number"},
+		{"one", "expected a decimal number or the asdot form X.Y", "0 to 4294967295"},
+		{"-1", "expected a decimal number or the asdot form X.Y", "0 to 4294967295"},
+	}
+	for _, tc := range cases {
+		_, err := Parse(tc.text)
+		if err == nil {
+			t.Fatalf("Parse(%q): want an error", tc.text)
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("Parse(%q) error %q does not name %q", tc.text, err, tc.want)
+		}
+		if strings.Contains(err.Error(), tc.notWant) {
+			t.Errorf("Parse(%q) error %q names %q, the other fault", tc.text, err, tc.notWant)
 		}
 	}
 }

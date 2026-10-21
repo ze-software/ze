@@ -16,6 +16,7 @@
 package asn
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -118,6 +119,11 @@ func Parse(text string) (uint32, error) {
 	high, low, dotted := strings.Cut(text, ".")
 	if !dotted {
 		number, err := strconv.ParseUint(text, 10, 32)
+		// A decimal number past 32 bits is a number the operator typed, so the
+		// refusal names the range rather than claiming it is not a number.
+		if errors.Is(err, strconv.ErrRange) {
+			return 0, fmt.Errorf("invalid AS number %q: an AS number is 0 to %d", text, uint32(maxASNumber))
+		}
 		if err != nil {
 			return 0, fmt.Errorf("invalid AS number %q: expected a decimal number or the asdot form X.Y", text)
 		}

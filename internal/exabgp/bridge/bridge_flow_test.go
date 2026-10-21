@@ -258,6 +258,19 @@ func TestConvertFlowRouteRefusesAndNames(t *testing.T) {
 			names: "match",
 		},
 		{
+			// ExaBGP refuses an asdot AS number in an interface-set
+			// (configuration/grammar/types/flow.py, _one_interface_set), so
+			// a script that sends one is told the 32-bit integer to write.
+			name:  "an interface-set AS number in asdot form",
+			body:  "flow route { match { source 1.2.3.4/32; } scope { interface-set [ transitive:input:1.234:10 ]; } then { discard; } }",
+			names: "write the 32-bit integer 65770",
+		},
+		{
+			name:  "an interface-set AS number in asdot form, flat and three-part",
+			body:  "flow route destination 1.2.3.4/32 interface-set [ output:65535.1:10 ] discard",
+			names: `"65535.1"`,
+		},
+		{
 			name:  "a route stating no match component",
 			body:  "flow route { then { discard; } }",
 			names: "match component",

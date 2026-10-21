@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
 // interfaceSetKeyword is the one keyword an ExaBGP flow route's scope block
@@ -61,8 +62,14 @@ func flowScopeExtCommunities(routeName string, scope *config.Tree) ([]string, er
 // The attribute package owns the encoding (attribute.ParseExtendedCommunityKeyword),
 // and every ze extended community parser reads its name, so the value is parsed
 // once here to refuse a malformed one at migration, and written back in the
-// four-field form so the migrated config states its transitivity.
+// four-field form so the migrated config states its transitivity. ExaBGP's one
+// stricter rule, no asdot AS number, is checked first (bridge.CheckInterfaceSetAS),
+// because the attribute package takes every RFC 5396 spelling.
 func interfaceSetExtCommunity(value string) (string, error) {
+	// ExaBGP refuses an asdot AS number here, which Ze's own parser accepts.
+	if err := bridge.CheckInterfaceSetAS(value); err != nil {
+		return "", err
+	}
 	ec, matched, err := attribute.ParseExtendedCommunityKeyword(interfaceSetKeyword + ":" + value)
 	if !matched {
 		return "", fmt.Errorf("BUG: the attribute package no longer registers %s", interfaceSetKeyword)

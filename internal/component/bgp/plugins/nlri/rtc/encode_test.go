@@ -27,6 +27,8 @@ func TestRTCEncodeNLRIHex(t *testing.T) {
 		{"origin-as max", []string{"origin-as", "4294967295", "route-target", "65000:1"}, "60FFFFFFFF0002FDE800000001"},
 		// Boundary: origin AS 0 is a value, not the default.
 		{"origin-as zero", []string{"origin-as", "0", "route-target", "65000:1"}, "60000000000002FDE800000001"},
+		// RFC 5396 asdot: 1.234 is 1<<16 | 234, origin AS 0x000100EA.
+		{"origin-as asdot", []string{"origin-as", "1.234", "route-target", "65000:1"}, "60000100EA0002FDE800000001"},
 		// The default route target is a zero-length prefix.
 		{"default", []string{"default"}, "00"},
 	}

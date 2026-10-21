@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -278,6 +279,9 @@ func (r *flowRoute) readWord(tokens []string, i int) (int, error) {
 		}
 		var tb textbuf.Buffer
 		for _, item := range items {
+			if err := CheckInterfaceSetAS(item); err != nil {
+				return 0, fmt.Errorf("exabgp flow route: %w", err)
+			}
 			r.extended = append(r.extended, tb.Reset().Str("interface-set:").Str(item).String())
 		}
 		return next, nil
@@ -569,4 +573,42 @@ func flowRouteList(tokens []string, i int) ([]string, int, error) {
 // flowRouteMissingValue names the keyword whose value is absent.
 func flowRouteMissingValue(keyword string) error {
 	return fmt.Errorf("exabgp flow route: %q states no value", keyword)
+}
+
+// CheckInterfaceSetAS refuses an interface-set value whose AS number holds a
+// period, the one spelling ExaBGP refuses there and Ze's own parser accepts.
+//
+// ExaBGP's _one_interface_set (configuration/grammar/types/flow.py) raises
+// "'<asn>' is not a valid ASN, it is a 32-bit integer" for any AS field that
+// holds a period, and its config and its API commands share that grammar. An
+// ExaBGP script, and a config migrated from ExaBGP, are refused the same way,
+// so the rule lives in the ExaBGP layer: attribute.parseInterfaceSet keeps
+// every RFC 5396 spelling for Ze-native text.
+//
+// The value is `[transitive|non-transitive:]<direction>:<asn>:<group-id>`. A
+// nil answer means only that ExaBGP's asdot rule does not refuse the value:
+// the caller MUST still hand it to the interface-set parser, which judges every
+// other fault, including a field count that names no AS number at all.
+func CheckInterfaceSetAS(value string) error {
+	fields := strings.Split(value, ":")
+	var asText string
+	switch len(fields) {
+	case 4:
+		asText = fields[2]
+	case 3:
+		asText = fields[1]
+	default:
+		return nil
+	}
+	if !strings.Contains(asText, ".") {
+		return nil
+	}
+
+	number, err := asn.Parse(asText)
+	if err != nil {
+		return fmt.Errorf("interface-set %q: the AS number %q holds a period, which ExaBGP refuses in an interface-set; write the AS number as one integer, 0 to 4294967295",
+			value, asText)
+	}
+	return fmt.Errorf("interface-set %q: the AS number %q is in asdot form, which ExaBGP refuses in an interface-set; write the 32-bit integer %d",
+		value, asText, number)
 }
