@@ -122,6 +122,8 @@ different identifiers never share a grouped UPDATE.
 <!-- source: internal/component/bgp/message/update_build_plugin.go -- PluginNLRI -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendPluginRoutesVia, sendPluginRouteGroup, pluginRouteGroupKey -->
 <!-- test: internal/component/bgp/reactor/plugin_route_addpath_test.go TestPluginRouteAddPathWritesPathID -->
+<!-- test: internal/component/bgp/reactor/plugin_route_addpath_test.go TestPluginRouteGroupSplitsOnPathID -->
+<!-- test: test/plugin/update-text-sr-policy-addpath.ci -->
 <!-- test: test/encode/addpath-srpolicy-pathid.ci -->
 
 **Files involved:**
