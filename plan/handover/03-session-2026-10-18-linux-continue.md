@@ -2413,3 +2413,88 @@ Still owed:
   sender instead of the injector: ask only if the injector shape is refused.
 - Gates for da23dcee89: `./le test functional plugin` (debt row in
   `plan/verification-debt/de91e90f.md`).
+
+### FlowSpec CheckMatchable completed (2026-10-21, Mac)
+
+Spec `plan/immediate/spec-exabgp-6-api-compatibility.md`, RFC8955-4.2-3.
+Commit A (recorder tells a function from same-named methods) landed as
+78fb6a2196.
+
+State carried from the predecessor agent (uncommitted at handoff):
+- `internal/core/bgp/nlri/flowspec/unmatchable.go` rewritten:
+  `CheckMatchable(afi, has, matches)` intersects the protocol sets of the
+  transport components (ports {6,17}, ICMP {1} v4 / {58} v6, tcp-flags {6}),
+  evaluates a protocol operator expression over 0..255 (RFC 8955 4.2.1.1
+  AND/OR), and a fragment expression over the transport-bearing states.
+  `anyPresent` deleted. The message keeps "ICMP has no ports" (the parse .ci
+  asserts it).
+- Tests: core `unmatchable_test.go` (TestCheckMatchable), plugin
+  `rfc8955_unmatchable_values_test.go`, rib
+  `rib_flowspec_unmatchable_values_test.go`, bridge
+  `bridge_flow_unmatchable_values_test.go`. Existing tagged tests were not
+  edited; new tagged functions were added instead.
+- Callers: bridge `flowRouteMatchable` (bridge_flow.go, bridge_command.go) and
+  migration `flowRouteMatchable` pass the AFI and a nil operator lookup (they
+  hold types only); the migration check moved after IPv6 detection.
+- Docs: `docs/architecture/wire/nlri-flowspec.md` "Combinations that match no
+  packet"; `docs/exabgp/exabgp-differences.md` bullet "More flow routes match
+  no packet".
+
+Done by this agent, landed in the commit "flowspec: a flow route no packet
+can match is refused by its values too":
+- Red: under a Go overlay restoring HEAD's ICMP-and-port-only rule, the new
+  tests fail on every new row (core TestCheckMatchable 18 rows, plus
+  TestCheckMatchableTypesOnly and TestCheckMatchableNamesTheFix; plugin
+  TestFlowSpecUnmatchableByValueRefused; rib ByValue 4 rows; bridge
+  TestFlowRouteUnmatchableTypesRefused) and the ICMP-and-port rows pass.
+- Records in `rfc/discrimination/rfc8955.json`, all RFC8955-4.2-3: mutants
+  on `unmatchable.go::CheckMatchable` from a one-file gomu report
+  (`narrowed.empty()` to false for the negatives of TestCheckMatchable and
+  TestFlowSpecUnmatchableRefused; the protocol clause to false for the
+  ByValue negatives; the protocol clause to true for every positive), and a
+  revert of CheckMatchable for `test/parse/flowspec-unmatchable-refused.ci`.
+  No record names `anyPresent` any more.
+- `bin/le` was older than 78fb6a2196, so the recorder refused the
+  same-named methods until `./le --update`.
+
+Owed by the main thread:
+`./le go lint run`, `./le test functional parse`, exabgp-test,
+`./le doc check verify`, and an independent re-judge of RFC8955-4.2-3.
+
+## 2026-10-21 fsr5 agent: FlowSpec double send fixed, interop not started (budget)
+
+Race (M4): the live forward gate (`flowSpecSection`,
+`reactor/forward_validation.go`) asked `RouteEligible(key, msgID)` while the RIB
+judges the same generation from its own UPDATE event and then ALWAYS emits a
+ValidationChange for it (`emitFlowSpecChanges`: the verdict carries msgID), which
+rs `processValidation` / rr replay through `RelayStoredRoute`. So each rule left
+twice; when the gate asked first the live copy was a withdrawal (flap).
+Fix (in the commit that carries this section): the live forward of a received
+UPDATE keeps no FlowSpec rule; only a stored relay (`validationReplay`) does.
+Unicast siblings still go live. Page: `structural-forwarding.md`. Journal row:
+`new-caller-assumes-the-old-callers-timing.md`. Tests: new
+`TestFlowSpecLiveForwardDefersToRIBVerdict` (red on old gate, green now);
+`TestFlowSpecForwardingRequiresAuthorizationAcrossRails` and the direct split
+test updated; the wire tests that drove FlowSpec through the live forward now
+use `forwardViaRIB` (`reactor/flowspec_rib_relay_test.go`), the RIB-driven path.
+reactor, rs, rr, rib packages green before the rs edit below. Both
+redirect-check `.ci` now expect the rule once (seq 4) and reject a withdrawal of
+it; refused is red under the old gate (overlay), disabled red 3 of 5.
+
+Left UNCOMMITTED, decide first: `plugins/rs/server_validation.go` +
+`server_handlers.go` drop the peer-up cut skip in `replayFlowSpecs` (a
+post-cut rule's ValidationChange is not ordered against rs's peer-up, so with no
+live copy it can reach nobody; rr has no cut). Unproven (no failing run traced
+to it) and it reds `TestPeerUpReplaysExistingFlowSpecBeforeEOR`, which encodes
+the cut. Either prove the hole with a test and update that test, or restore the
+cut. `./le test bgp plugin -c 5` on both `.ci` timed out 1-3 of 5 with and
+without the fix while another session's gomu-fs ran; sequential runs 4 of 4
+green. Investigate a timed-out run's peer log before calling them stable.
+
+Owed: re-take discrimination records staled by the edited tagged tests
+(`flowspec_forward_wire_test.go`, `rfc8955_width_wire_test.go`,
+`rfc8955_flowspec_forward_mixed_test.go`; `./le rfc check` names them); gates
+`./le go lint run`, `./le test functional plugin`, reactor `-race -count=20`.
+Interop `bgp-flowspec-redirect-check-frr` (task 2 of the brief) NOT started:
+the shape in the fsr4 section stands; first check for an ExaBGP image under
+`test/interop/scenarios/bgp-exabgp-*`.
