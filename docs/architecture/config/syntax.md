@@ -1308,11 +1308,11 @@ update {
 |-----------|-------------|
 | `source-ipv4` / `source-ipv6` | Source prefix |
 | `destination-ipv4` / `destination-ipv6` | Destination prefix |
-| `protocol` | IP protocol (`=tcp`, `=udp`, or number) |
+| `protocol` | IP protocol, a number (0 to 255) or a protocol name, under any match operator: `=tcp`, `!=udp`, `>5`, `[ >=6&<=17 ]`, `>=tcp&<=udp`. Config and update text read it with one grammar (`parseNumericTermsText`), and a malformed value is refused with the value and the fix |
 | `port` | Source or destination port |
 | `destination-port` | Destination port |
 | `source-port` | Source port |
-| `next-header` | IPv6 next header |
+| `next-header` | IPv6 next header, the same component and grammar as `protocol` |
 | `tcp-flags` | TCP flags (`syn`, `rst`, `fin`, `ack`, `urg`, `push`) |
 | `icmp-type` | ICMP type |
 | `icmp-code` | ICMP code |

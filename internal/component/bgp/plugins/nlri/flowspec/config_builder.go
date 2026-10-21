@@ -5,6 +5,7 @@
 package flowspec
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -86,8 +87,23 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*f
 			}
 		}
 	}
-	addNumeric(flowspec.KwProtocol, flowspec.FlowIPProtocol, parseFlowProtocolMatchesSlice)
-	addNumeric(flowspec.KwNextHeader, flowspec.FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	// Protocol and next-header take the update text grammar, so the refusal
+	// carries the parser's reason and fix rather than the key alone.
+	addProtocol := func(key string) {
+		vals, ok := matchCriteria[key]
+		if !ok {
+			return
+		}
+		seen[key] = true
+		matches, err := parseFlowProtocolMatches(vals)
+		if err != nil {
+			dropped = append(dropped, key+" "+err.Error())
+			return
+		}
+		add(key, flowspec.NewFlowNumericComponent(flowspec.FlowIPProtocol, matches))
+	}
+	addProtocol(flowspec.KwProtocol)
+	addProtocol(flowspec.KwNextHeader)
 	addNumeric(flowspec.KwPort, flowspec.FlowPort, parseFlowMatchesSlice)
 	addNumeric(flowspec.KwDestPort, flowspec.FlowDestPort, parseFlowMatchesSlice)
 	addNumeric(flowspec.KwSourcePort, flowspec.FlowSourcePort, parseFlowMatchesSlice)
@@ -194,39 +210,37 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 	return prefix, uint8(value)
 }
 
-// parseFlowProtocolMatches parses protocol values with operators.
-func parseFlowProtocolMatches(s string) []flowspec.FlowMatch {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowMatch
+// errFlowProtocolNoValue refuses a protocol or next-header criterion with no
+// term, such as `protocol [ ]`. The caller prefixes the criterion name.
+var errFlowProtocolNoValue = errors.New("has no value: write a protocol number or name, as in =tcp or >=6&<=17")
 
-	for _, p := range parts {
-		var op flowspec.FlowOperator
-
-		// Parse operator prefix
-		switch {
-		case strings.HasPrefix(p, "!="):
-			op = flowspec.FlowOpNotEq
-			p = strings.TrimPrefix(p, "!=")
-		case strings.HasPrefix(p, "="):
-			op = flowspec.FlowOpEqual
-			p = strings.TrimPrefix(p, "=")
-		default: // No operator prefix — bare protocol name/number implies equality
-			op = flowspec.FlowOpEqual
+// parseFlowProtocolMatches parses the values of a protocol or next-header
+// criterion with the update text grammar (parseNumericTermsText), so config and
+// update text read one operator table and one name table: `>=6&<=17`,
+// `[ >5 <10 ]`, `!=udp`, a bare `tcp`. Each element of vals may hold several
+// space-separated tokens and the brackets of a list.
+//
+// RFC 8955 Section 4.2.2.3: "Encoding: <type (1 octet), [numeric_op, value]+>".
+// A value is refused with its reason, never skipped: a protocol criterion with
+// a term missing would match packets the operator excluded.
+func parseFlowProtocolMatches(vals []string) ([]flowspec.FlowMatch, error) {
+	maxValue := componentMaxValue(flowspec.FlowIPProtocol)
+	names := componentValueNames(flowspec.FlowIPProtocol)
+	var matches []flowspec.FlowMatch
+	for _, v := range vals {
+		for token := range strings.FieldsSeq(strings.Trim(v, "[]")) {
+			// RFC 8955 Section 4.2.1.1
+			terms, err := parseNumericTermsText(token, len(matches) > 0, maxValue, names)
+			if err != nil {
+				return nil, err
+			}
+			matches = append(matches, terms...)
 		}
-
-		p = strings.ToLower(p)
-		if v, ok := flowspec.ProtocolNameToNumber[p]; ok {
-			result = append(result, flowspec.FlowMatch{Op: op, Value: uint64(v)})
-			continue
-		}
-		n, err := strconv.ParseUint(p, 10, 8)
-		if err != nil {
-			return nil
-		}
-		result = append(result, flowspec.FlowMatch{Op: op, Value: n})
 	}
-	return result
+	if len(matches) == 0 {
+		return nil, errFlowProtocolNoValue
+	}
+	return matches, nil
 }
 
 // parseFlowMatches parses FlowSpec match expressions with operators.
@@ -482,19 +496,6 @@ func parseFlowLabels(s string) []uint32 {
 }
 
 // --- Slice helpers for map[string][]string NLRI format ---
-
-// parseFlowProtocolMatchesSlice parses protocol values from a pre-split slice.
-func parseFlowProtocolMatchesSlice(vals []string) []flowspec.FlowMatch {
-	result := make([]flowspec.FlowMatch, 0, len(vals))
-	for _, v := range vals {
-		matches := parseFlowProtocolMatches(v)
-		if len(matches) == 0 {
-			return nil
-		}
-		result = append(result, matches...)
-	}
-	return result
-}
 
 // parseFlowMatchesSlice parses numeric match expressions from a pre-split slice.
 func parseFlowMatchesSlice(vals []string) []flowspec.FlowMatch {

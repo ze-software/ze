@@ -23,7 +23,11 @@ import (
 // than the operator wrote.
 func TestConfigProtocolNamesResolve(t *testing.T) {
 	for name, number := range flowspec.ProtocolNameToNumber {
-		matches := parseFlowProtocolMatches("=" + name)
+		matches, err := parseFlowProtocolMatches([]string{"=" + name})
+		if err != nil {
+			t.Errorf("protocol %q: refused: %v", name, err)
+			continue
+		}
 		if len(matches) != 1 {
 			t.Errorf("protocol %q: got %d matches, want 1 -- the component is dropped and the rule matches every protocol", name, len(matches))
 			continue

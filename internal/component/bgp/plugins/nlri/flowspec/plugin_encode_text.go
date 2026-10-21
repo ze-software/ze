@@ -9,7 +9,9 @@ package flowspec
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -259,7 +261,7 @@ func parseNumericTermsText(token string, hasPrevious bool, maxValue uint64, name
 			return nil, err
 		}
 		if value > maxValue {
-			return nil, fmt.Errorf("value %d exceeds max %d", value, maxValue)
+			return nil, fmt.Errorf("value %d exceeds max %d: write a value from 0 to %d", value, maxValue, maxValue)
 		}
 		// RFC 8955 Section 4.2.1.1: the a bit ANDs this term with the previous one.
 		terms = append(terms, flowspec.FlowMatch{Op: op, Value: value, And: joined})
@@ -406,10 +408,21 @@ func parseOperatorValue(token string, names map[string]uint8) (flowspec.FlowOper
 	}
 	value, err := parseUint64(s)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, operatorValueError(token, names)
 	}
 
 	return op, value, nil
+}
+
+// operatorValueError refuses a term whose value is not a number and, where the
+// component has value names, not one of them. The fix names what may follow the
+// operator, the names read from the component's own table.
+func operatorValueError(token string, names map[string]uint8) error {
+	if names == nil {
+		return fmt.Errorf("%q is not <op><value>: write a number after the operator, as in >1024", token)
+	}
+	known := slices.Sorted(maps.Keys(names))
+	return fmt.Errorf("%q is not <op><value>: write a number or a name (%s) after the operator, as in >=tcp", token, strings.Join(known, ", "))
 }
 
 // parseBitmaskValue parses bitmask with modifiers like "!syn", "=ack", "syn&ack", "&!is-fragment".
