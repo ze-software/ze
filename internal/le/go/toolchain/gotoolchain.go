@@ -730,15 +730,23 @@ func (t Toolchain) Environment(opts EnvOptions) []string {
 	if err != nil {
 		// The command still runs, and runs correctly: Go reads its own GOFLAGS
 		// as it would without le. What it loses is cache reuse across
-		// checkouts, so the loss is said and the command is not refused.
-		var tb textbuf.Buffer
-		_, _ = os.Stderr.WriteString(tb.Str("le: ").Err(err).
-			Str("; this Go command runs without -trimpath, so it reuses no compile from another checkout path. ").
-			Str("Run `go env GOFLAGS` to see why Go cannot answer\n").String())
+		// checkouts, so the loss is said and the command is not refused. One
+		// le process builds many Go environments, and Go's answer does not
+		// change between them, so the loss is said once per process.
+		goFlagsWarning.Do(func() {
+			var tb textbuf.Buffer
+			_, _ = os.Stderr.WriteString(tb.Str("le: ").Err(err).
+				Str("; Go commands run without -trimpath, so they reuse no compile from another checkout path. ").
+				Str("Run `go env GOFLAGS` to see why Go cannot answer\n").String())
+		})
 		return full
 	}
 	return append(withoutKey(full, goFlagsKey), flags)
 }
+
+// goFlagsWarning makes Environment say once per process that Go could not
+// answer its effective GOFLAGS. A pointer, so a test can start a fresh one.
+var goFlagsWarning = new(sync.Once)
 
 // goFlagsKey is the variable the go command reads for its default flags.
 const goFlagsKey = "GOFLAGS"
@@ -767,6 +775,14 @@ const trimpathFlag = "-trimpath"
 // diagnostic: a compile error names the same tree-relative file. It does
 // change runtime.Caller, which answers a module-path-prefixed name, so a test
 // MUST NOT find the repository from its own source path.
+//
+// An error means Go could not say what its effective GOFLAGS are, and the two
+// callers answer it differently on purpose. Environment proceeds without the
+// flag: the command it starts still reads Go's own GOFLAGS and builds the same
+// result, only colder. The Staticcheck gate (judgeEnvironment) refuses: its
+// matrix runs under a deadline measured with warm, path-independent compiles,
+// so a cold run would time out and read as a red the tree never earned, and a
+// verdict the gate cannot stand behind is refused rather than guessed.
 func TrimpathGoFlags(environ []string, dir string) (string, error) {
 	flags, err := EffectiveGoFlags([]string{goProgram}, dir, environ)
 	if err != nil {
@@ -808,8 +824,11 @@ func EffectiveGoFlags(goCommand []string, dir string, environ []string) (string,
 	cmd.Stderr = &diagnostic
 	if err := cmd.Run(); err != nil {
 		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("resolve the effective GOFLAGS: ").Err(err).Str(": ").
-			Str(strings.TrimSpace(diagnostic.String())).String())
+		tb.Str("resolve the effective GOFLAGS: ").Err(err)
+		if said := strings.TrimSpace(diagnostic.String()); said != "" {
+			tb.Str(": ").Str(said)
+		}
+		return "", errors.New(tb.String())
 	}
 	return strings.TrimSpace(output.String()), nil
 }

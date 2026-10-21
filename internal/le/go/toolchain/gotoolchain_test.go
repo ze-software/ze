@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"context"
@@ -791,5 +792,54 @@ func TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS(t *testing.T) {
 				t.Fatalf("GOFLAGS entries = %q, want exactly [%q]", entries, tc.want)
 			}
 		})
+	}
+}
+
+// TestEnvironmentWithoutAGoAnswerRunsAndWarnsOnce proves the fallback when
+// `go env GOFLAGS` fails: the environment is still answered, it carries no
+// GOFLAGS entry of le's making, and the loss is said on stderr once however
+// many environments one process builds.
+//
+// Method: unset GOFLAGS so the answer must come from `go env`, put an empty
+// directory on PATH so no go executable is found, start a fresh warning, and
+// build two environments with stderr captured in a file.
+func TestEnvironmentWithoutAGoAnswerRunsAndWarnsOnce(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	if err := os.Unsetenv("GOFLAGS"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	previous := goFlagsWarning
+	goFlagsWarning = new(sync.Once)
+	t.Cleanup(func() { goFlagsWarning = previous })
+	captured, err := os.Create(filepath.Join(t.TempDir(), "stderr"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderr := os.Stderr
+	os.Stderr = captured
+	t.Cleanup(func() { os.Stderr = stderr })
+
+	toolchain := Toolchain{Root: t.TempDir()}
+	for range 2 {
+		for _, entry := range toolchain.Environment(EnvOptions{}) {
+			if strings.HasPrefix(entry, "GOFLAGS=") {
+				t.Fatalf("environment carries %q although Go could not answer its GOFLAGS", entry)
+			}
+		}
+	}
+	os.Stderr = stderr
+	if err := captured.Close(); err != nil {
+		t.Fatal(err)
+	}
+	warning, err := os.ReadFile(captured.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(warning), "without -trimpath"); count != 1 {
+		t.Fatalf("warned %d times over two environments, want once:\n%s", count, warning)
+	}
+	if !strings.Contains(string(warning), "go env GOFLAGS") {
+		t.Fatalf("the warning names no command to run:\n%s", warning)
 	}
 }
