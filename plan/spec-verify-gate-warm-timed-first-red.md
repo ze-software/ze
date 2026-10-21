@@ -221,7 +221,7 @@ behaviour and no shortened run can ever read as a pass.
 | AC-13 | A `first-red` worktree run and a plain one of the same commit | They are separate work in the job registry; neither attaches to the other |
 | AC-14 | `first-red` with `part` | Refused before any work with exit 2, naming why (a piece is dealt for debt clearing, which needs every stage of the piece) and the two spellings that work |
 | AC-15 | `verify reds file <path>` over a stopped run | Verdict undetermined, and the answer says the run stopped at `<stage>` and the pending stages will never report |
-| AC-16 | Two consecutive `./le verify worktree commit <rev>` runs pinned to the same commit | The second run's `unit-cached` and race logs hold `(cached)` packages (the run saved under `tmp/verify-worktree-logs/20261018T015239.996486000Z-p66715-r1-0b037fd2fdcd/` held 0 of 657 `ok` lines); the `(cached)` and `ok` counts of both runs are recorded in Goal Validation. Wall-clock seconds are recorded but are not the proof: other sessions build and test on the same host while the runs go, so a time comparison measures their load as much as the cache (owner, 2026-10-21) |
+| AC-16 | Two consecutive `./le verify worktree` runs, each in its own fresh worktree path (the second may be at a later commit; only packages unchanged between the two commits are expected to hit) | The second run's `unit-cached` and race logs hold `(cached)` packages (the run saved under `tmp/verify-worktree-logs/20261018T015239.996486000Z-p66715-r1-0b037fd2fdcd/` held 0 of 657 `ok` lines); the `(cached)` and `ok` counts of both runs are recorded in Goal Validation. Wall-clock seconds are recorded but are not the proof: other sessions build and test on the same host while the runs go, so a time comparison measures their load as much as the cache (owner, 2026-10-21) |
 
 ## 🧪 TDD Test Plan
 
@@ -343,7 +343,7 @@ N-A: tooling, no protocol peer.
    - Tests: `TestAnUncutRunRunsCheapestRecordedStageFirst`, `TestACutRunKeepsTheDealtOrder`, `TestVerifyListKeepsTheDeclaredOrder`, `TestFirstRedStopsAndRecordsEveryUnreachedStage`, `TestAStoppedRunIsStaleForEveryPathList`, `TestAnUnreachedStructuralStageIsCharged`, `TestRedsNamesAStoppedRun`, `verify-first-red-stops.ci`
    - Files: `engine/run.go`, `engine/artifacts.go`, `reds.go`, `commit/verification.go`
 6. **Phase: docs** - each page is edited in the phase that changes it (`ai/rules/documentation.md`); this step only checks that none was skipped
-7. **Phase: goal measurement** - two consecutive `./le verify worktree commit <rev>` runs pinned to one commit, judged by cache-hit counts (AC-16), one cost-ordered against one declared-order comparison (A-1, judged by whether every stage's verdict matches, not by time), one `first-red` run with a seeded cheap red in place (`./le verify current fast first-red`), judged by which stages it reached
+7. **Phase: goal measurement** - two consecutive `./le verify worktree` runs in fresh worktree paths, judged by cache-hit counts (AC-16), one cost-ordered against one declared-order comparison (A-1, judged by whether every stage's verdict matches, not by time), one `first-red` run with a seeded cheap red in place (`./le verify current fast first-red`), judged by which stages it reached
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -363,7 +363,7 @@ N-A: tooling, no protocol peer.
 | Shared lint cache | `ls -l` of the kept worktree's `tmp/golangci-lint-cache` during a `keep` run |
 | Timing | the count of `### Stage timing:` lines over a saved run equals its stage count; `tmp/ze-verify-stage-times.tsv` grows by the reached-stage count |
 | Published index | `tmp/ze-verify-failures.json` mode and generated-at after a worktree run |
-| Cold-to-warm drop | AC-16 `(cached)` counts of both pinned runs pasted in Goal Validation |
+| Cold-to-warm drop | AC-16 `(cached)` counts of both runs pasted in Goal Validation |
 | First-red stop through the real entry point | `./le test functional runner`: `verify-first-red-stops` and `verify-first-red-refuses-a-cut` PASS; with the stop in `RunMode` disabled, `verify-first-red-stops` FAILs (the run went on to stage 02 `go lint/run`) |
 
 ### Security Review Checklist
