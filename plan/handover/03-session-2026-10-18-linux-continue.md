@@ -1802,8 +1802,11 @@ Findings that decide the closure:
 - Parent P-3 (spec-rfc-verdict-test-fix-pass) lets a child close before the parent.
 - AC-C5 at HEAD (rfc check over an archive export): after the reseal no stale verdict in
   BGP stems. The working tree shows more (RFC8955-4-3 STALE, revert records for rfc2545,
-  rfc2918, rfc7705, bfd-strict-mode, rfc9830 producer-changed): all from other sessions'
-  uncommitted BGP edits; re-check once they land. `rfc7313_local_resend_test.go` naming
+  rfc2918, rfc7705, bfd-strict-mode, rfc9830 producer-changed). CORRECTED 2026-10-21 (agent
+  a3e683aa, round-1 review ISSUE 2): the producer-changed records were NOT working-tree only.
+  Their producers changed in COMMITTED code (`2e32def1a9` buildOpen/offeredMultiprotocol,
+  `7052b662a4` srpolicy EncodeRoute, and the reactor_api_batch.go planBatchAttrs change), so
+  they were stale at HEAD; RFC8955-4-3 alone traces to an uncommitted foreign edit. `rfc7313_local_resend_test.go` naming
   violation is another session's commit.
 - AC-C3/C6 spot check: 16 of 17 split rows and all 4 missing rows have their own row in
   `rfc/short/`; RFC9552 "Table 9" reserved-bit sentence maps to RFC9552-5.3.2.2-3 only
@@ -1853,3 +1856,45 @@ also `native/conf-flow.conf`). Agent stopped at its call budget. Left, in order:
    draft-ietf-idr-flowspec-redirect-ip fetched to rfc/drafts/ and quoted. Then migrate_routes.go arms and the
    bridge flow translation, old-5.0/old-4.2 allowances. Forwarding-strips-next-hop journal row not started.
 3. MUP T1ST zero source length (journal row 2026-10-21): not started.
+
+## Closing spec-rfc-verdict-fix-bgp, round-1 fixes (2026-10-21, agent a3e683aa, stopped at budget)
+
+Claim: re-claimed under the agent marker `+a3e683aaf956e36c2` of session 8385ff13; a887f9b6's
+marker is dead (last transcript write 00:50) and the 2026-10-05 `01a0fdb1` marker has no session dir.
+
+Committed with this handover: re-recorded revert records (producer-changed at HEAD) for
+BFD-STRICT-MODE-6-1 positive and negative, RFC2918-2-1 positive, RFC7705-4.2-3 negative
+(producer `reactor/session_negotiate.go::buildOpen`), RFC9830-2.1-3 positive and negative
+(`reactor/reactor_api_batch.go::planBatchAttrs`). RFC2545-3-1/3-2 were already re-recorded by
+`cb7a3ca68f`. RFC7950 records are config/yang (another agent), not touched.
+
+Done in the WORKING TREE, uncommitted (the next agent commits them in commit A):
+- BLOCKER 1 route (a): `TestMUPOtherRouteTypesSilentlyIgnoredAtIngress` now asserts discarded
+  == 4 and withdrawn == 0 apart (new helper `retainMUPCounts`, `retainMUP` delegates to it);
+  P-1 approval in `tmp/commit-rfc-approved-485edca9.md` (agent namespace; quotes parent P-1);
+  scoped test PASS; `./le rfc discriminate-record` revert record taken over `rfc7606.go::RecognizeNLRI`
+  (in `rfc/discrimination/draft-ietf-bess-mup-safi.json`). HAZARD: the same test file now also
+  carries a FOREIGN hunk in `TestMUPDefinedRouteTypesSurviveIngress` (T1ST body gains a trailing
+  0) from the MUP-encoder agent, which depends on its uncommitted `types.go` and `encode.go`; the
+  file cannot land until that agent commits, or lands with it. Its other MUP tests are red on its WIP.
+- Update-propagation AC-5: the 2026-10-21 MUP-SAFI-3.1-1 addition removed.
+- Citers reworded (ISSUE 4), all saying "closed 2026-10-21" (true only once commit B lands):
+  add-path AC-21; rs-replacement (six sites); update-propagation (three); GR (three);
+  open-session (three); tunnel-encap; fsm-delayopen (two); epe (two); the parent (two);
+  `features/bgp-protocol.md` Defect review row; rfc-gap-difficulty #12 and #21 (both now
+  `enforced`) and #44 (RFC2545-3-6 to unowned-rows row 5). ISD rows MUP-SAFI-3.3.3-1/-3/-4 moved
+  to `spec-bgp-unowned-rfc-rows` as rows 13 to 15 with a new AC-9.
+
+Still owed, in order:
+1. This spec's own "Blocked by" table: the DRAFT-IETF-BESS-MUP-SAFI-3.1-1 row must leave
+   (fixed here, not transferred); it stays `weak` until the independent re-judge.
+2. OWED BY THE PARENT (not the test author): `./le rfc audit-stamp stem draft-ietf-bess-mup-safi
+   from <pending> mode rejudge` for 3.1-1 by a reader who did not write the test change.
+3. ISSUE 3 numbers, measured 2026-10-21 over the 60 owned stems' `rfc/audit` and
+   `rfc/discrimination`: 807 `enforced` verdicts, 230 with NO discrimination record at all; 6 weak,
+   0 wrong (PATHS-LIMIT-3-7, MUP-SAFI-3.1-1, RFC4271-9.2-7, RFC7999-3.1-2, RFC9252-5-3,
+   RFC9494-4.2-6). The reviewer's 335/336 counts only verdicts this child moved; that population
+   was not reproduced here. Write the reading taken into Goal Validation with both numbers, and
+   home the 230 (an existing spec, or a journal row) explicitly.
+4. Closure sections (TEMPLATE-CLOSURE, Goal Validation, Implementation Summary, checklists, Review
+   Gate, Updated bump), then commit A; commit B only after a fresh round-2 reviewer records CLEAN.

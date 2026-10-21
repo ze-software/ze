@@ -196,7 +196,7 @@
       "claim-sha": "50930d65501bab34",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-      "producer-sha": "81084a84390d2e32",
+      "producer-sha": "f937bc1380ae0377",
       "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

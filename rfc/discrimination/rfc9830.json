@@ -53,7 +53,7 @@
       "claim-sha": "bc8e391d1f3306ba",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::planBatchAttrs",
-      "producer-sha": "4fad73cdf9639d36",
+      "producer-sha": "d57e17c8144e6fd0",
       "break": "body of planBatchAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "fbd32ad074d938b0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::planBatchAttrs",
-      "producer-sha": "4fad73cdf9639d36",
+      "producer-sha": "d57e17c8144e6fd0",
       "break": "body of planBatchAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
