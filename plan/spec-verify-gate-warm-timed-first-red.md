@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -62,6 +62,7 @@ behaviour and no shortened run can ever read as a pass.
 
 **Source files read:**
 - [ ] `internal/le/go/toolchain/gotoolchain.go` - `GoTest`, `GoList`, `GoVet` build argv with `-tags` and `-timeout` only; `Overrides` sets GOCACHE, GOLANGCI_LINT_CACHE (`LintCache(t.Root)`), CGO_ENABLED and the optional GOTMPDIR/GOMAXPROCS/GOMEMLIMIT/GOOS/GOARCH; it sets no GOFLAGS. `Environment` appends `Overrides` after `os.Environ()`. `LintCache` comment: deliberately NOT under `cache/`, measured 9.5G on 2026-09-13.
+  → Decision (implementation, 1b8693f797): the GOFLAGS entry is composed in `Toolchain.Environment`, not in `Overrides`. `Overrides` never sees the inherited environment, so it cannot start from the effective value the next constraint requires. `Environment` appends exactly one GOFLAGS entry built from `EffectiveGoFlags` (the one resolver, moved here from `job.goTestDefaults`, which is deleted) plus `TrimpathGoFlags`. Proof: `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS`.
   → Constraint: `Overrides` is the one place every le-driven Go command (unit, race, vet, functional binary builds via `internal/le/test/functional/binaries.go` `tc.Environment`, lint via `internal/le/go/lint/verifylint.go`) gets its environment, so it is the single declaration point for `-trimpath`.
   → Constraint: a GOFLAGS environment variable REPLACES the `go env -w` file value rather than adding to it. `internal/le/job/process.go` `goTestDefaults` already resolves the effective value (last GOFLAGS entry, else `go env GOFLAGS`). Composing `-trimpath` MUST start from that effective value, from one resolver, or the owner's own GOFLAGS silently disappear.
 - [ ] `internal/le/go/staticcheck/judge.go` - `judgeEnvironment` appends `-trimpath` to the inherited GOFLAGS (inherited env only, not the `go env` file).
@@ -74,7 +75,8 @@ behaviour and no shortened run can ever read as a pass.
   → Constraint: a link that cannot be made is REPORTED and the run continues cold, as both existing links do.
 - [ ] `internal/le/verify/cleanup.go` - `saveLogs` copies `<wt>/tmp/verify` to `tmp/verify-worktree-logs/<name>` with `os.CopyFS` (mtimes lost) on red runs only; a green run's logs are deleted with the worktree.
 - [ ] `internal/le/verify/current.go` - keywords `full`/`fast` (`population`), `routeCurrent` sends full to the worktree lifecycle and fast in place (`runFast`); `slotFor` opens the job-registry progress log that `Release` deletes.
-- [ ] `internal/le/verify/actions.go` - `verify worktree` keywords `commit`, `keep`, `part`/`of`.
+- [ ] `internal/le/verify/actions.go` - `verify worktree` keywords `commit`, `keep`. (Corrected during implementation: `part`/`of` were NOT keywords of `verify worktree`; `Options.Part`/`Parts` were reachable only from `commit debt-clear`.)
+  → Decision (implementation, 88fb40e846): `part` and `of` were added as `verify worktree` keywords, because the approved entry point (`./le verify worktree [commit <rev>] [keep] [first-red] [part <i> of <n>]`, Data Flow) and AC-14's refusal name them. The `first-red` with `part` refusal lives in `Options.part` (`firstRedWithPart`, `internal/le/verify/lifecycle.go`).
 - [ ] `internal/le/verify/engine/stages.go` - `fullStages()` declared order: lint, about 30 cheap structural and doc checks, 6 Staticcheck pieces, more checks, `unit-cached`, 3 race pieces, functional `exabgp-test`, `gating`, `alloc`; order tuned for the 6-shard round robin (`staticcheckParts`, `raceParts` comments). `fastStages` drops three stages and keeps identities. `Structural` is a field on the stage.
   → Constraint: the declared order is CI's balance and MUST NOT change. Cost order is applied at run time to an uncut local run only.
 - [ ] `internal/le/verify/engine/run.go` - `runMode` runs `part.deal(population)` serially; per stage writes `### Stage NN/MM: <name>`, `Command:`, output, `### Stage result: <name> exit=N` (no time), `tell`s the block to the slot progress log, continues past red and crashed stages, breaks only on interrupt, a non-red refusal or a log-write failure; `Report.Completed` is true only when every stage ran; then writes the combined log, `writeRunArtifacts`, and `WriteCertificate`. `StageReport` has no time fields.
@@ -116,7 +118,8 @@ behaviour and no shortened run can ever read as a pass.
 
 ### Transformation Path
 1. Keyword parse: `first-red` becomes an option on `Options` (worktree) or the in-place run; refused together with `part`.
-2. Order: the caller reads the checkout's stage-time history and hands the engine a cost per stage name; the engine reorders an uncut population by cost (stable, unrecorded first). A cut run ignores costs.
+2. Order: the engine reads the checkout's stage-time history and reorders an uncut population by cost (stable, unrecorded first). A cut run ignores costs.
+   → Decision (implementation, 88fb40e846): the engine owns the history through `Plan.History` (`internal/le/verify/engine/stagetimes.go`): `RunMode`/`RunPart` read costs from `<Plan.History>/tmp/ze-verify-stage-times.tsv` and append the reached stages' times there when the run ends. `lifecycle.run` passes the checkout root and `runFast` passes the in-place root, so a worktree run appends to the checkout's file and there is no separate publication step for the times (step 7 below publishes the failure index only).
 3. Lifecycle (worktree only): after `tmp/` exists, link `<wt>/tmp/golangci-lint-cache` to the checkout's, beside the two existing links.
 4. Environment: every stage process builds Go through `Toolchain.Environment`, whose `Overrides` now carries `GOFLAGS=<effective> -trimpath`.
 5. Engine loop: stamp start, run, stamp duration, write `### Stage timing:` then `### Stage result:`; with first-red, stop after the first non-zero stage and record every unreached stage.
@@ -133,7 +136,7 @@ behaviour and no shortened run can ever read as a pass.
 | le ↔ CI | `verify list full` order | No |
 
 ### Integration Points
-- `Toolchain.Overrides` - gains the GOFLAGS entry; the GOFLAGS resolver moves here from `job/process.go` `goTestDefaults` so both read one function.
+- `Toolchain.Environment` - gains the GOFLAGS entry (see the Decision under Current Behavior); the GOFLAGS resolver `EffectiveGoFlags` moves into the toolchain from `job/process.go` `goTestDefaults` so both read one function.
 - `lifecycle.run` - third link beside `sharedCacheLink`/`sharedModcacheLink`; publication beside `CopyCertificate`.
 - `runMode` / `RunPart` - receive the order and the stop option.
 - `writeRunArtifacts` - new per-stage fields.
@@ -189,10 +192,11 @@ behaviour and no shortened run can ever read as a pass.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le verify worktree first-red` / `./le verify current first-red` | → | keyword parse into `Options`/in-place run, `worktreeArgv` | `TestFirstRedReachesTheEngineFromBothEntryPoints` (`internal/le/verify/current_test.go`) |
-| `./le verify worktree part 1 of 2 first-red` | → | refusal | `test/runner/verify-first-red-refuses-a-cut.ci` |
-| uncut run with a history file | → | `runMode` cost order | `TestAnUncutRunRunsCheapestRecordedStageFirst` (`internal/le/verify/engine/run_test.go`) |
-| any le-driven `go test`/`go build`/lint | → | `Toolchain.Overrides` GOFLAGS | `TestOverridesComposeTrimpathWithTheEffectiveGOFLAGS` (`internal/le/go/toolchain/gotoolchain_test.go`) |
+| `./le verify worktree first-red` / `./le verify current first-red` | → | keyword parse into `Options`/in-place run, `worktreeArgv`, `fastArgv` | `TestFirstRedReachesTheEngineFromBothEntryPoints` (`internal/le/verify/firstred_test.go`) |
+| `./le verify worktree part 1 of 2 first-red` | → | refusal in `Options.part` | `test/runner/verify-first-red-refuses-a-cut.ci`, `TestFirstRedWithAPartIsRefused` (`internal/le/verify/firstred_test.go`) |
+| `./le verify current fast first-red` | → | `RunMode` stop, combined log, failure index, history, certificate | `test/runner/verify-first-red-stops.ci` (fixture `internal/test/fixture/misc_fixture_runner_first_red.go`, `verifyFirstRedStopsDriver`) |
+| uncut run with a history file | → | `runMode` cost order (`planOrder`, `costOrder`) | `TestAnUncutRunRunsCheapestRecordedStageFirst` (`internal/le/verify/engine/run_test.go`) |
+| any le-driven `go test`/`go build`/lint | → | `Toolchain.Environment` GOFLAGS | `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS` (`internal/le/go/toolchain/gotoolchain_test.go`) |
 | `./le verify worktree` | → | lint-cache link | `TestAWorktreeSharesTheCheckoutLintCache` (`internal/le/verify/lifecycle_test.go`) |
 | `./le commit create` after a stopped run | → | `structuralGateReds` | `TestAnUnreachedStructuralStageIsCharged` (`internal/le/commit/commit_test.go`) |
 
@@ -202,7 +206,7 @@ behaviour and no shortened run can ever read as a pass.
 |-------|-------------------|-------------------|
 | AC-1 | Any `Toolchain.Environment` with no GOFLAGS inherited and none in the go env file | The environment holds exactly one GOFLAGS entry, `-trimpath` |
 | AC-2 | Inherited GOFLAGS `-mod=mod`, or the same value only in a GOENV file | The entry reads `-mod=mod -trimpath`; an inherited value already holding `-trimpath` is not doubled |
-| AC-3 | `judge.go` and `check_compile.go` after the change | Neither adds `-trimpath` itself; Staticcheck's environment still carries it (through `Overrides`) |
+| AC-3 | `judge.go` and `check_compile.go` after the change | Neither adds `-trimpath` itself; Staticcheck's environment still carries it (through `gotoolchain.TrimpathGoFlags`, the toolchain's one declaration, which `judgeEnvironment` composes) |
 | AC-4 | The four `runtime.Caller` tests run with GOFLAGS `-trimpath` | They pass, and they find the same root as before without `runtime.Caller` |
 | AC-5 | `./le verify worktree` | Before the first stage, `<wt>/tmp/golangci-lint-cache` is a link to `<checkout>/tmp/golangci-lint-cache` and the lifecycle prints one `verify-worktree: shared lint cache:` line; a link that cannot be made is printed and the run continues; worktree removal leaves the checkout's cache intact |
 | AC-6 | Every stage of every run | Its log carries `### Stage timing: <name> start=<RFC3339 UTC> seconds=<decimal>` immediately before an unchanged `### Stage result: <name> exit=N`; `verify reds` still parses every log |
@@ -222,25 +226,28 @@ behaviour and no shortened run can ever read as a pass.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOverridesComposeTrimpathWithTheEffectiveGOFLAGS` | `internal/le/go/toolchain/gotoolchain_test.go` | AC-1, AC-2 (env value, GOENV file value, already present) | |
-| `TestStaticcheckEnvironmentCarriesTrimpathFromTheToolchain` | `internal/le/go/staticcheck/judge_test.go` | AC-3 | |
-| `TestGoTestDefaultsUseTheToolchainResolver` | `internal/le/job/process_test.go` | one GOFLAGS resolver | |
+| `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS` | `internal/le/go/toolchain/gotoolchain_test.go` | AC-1, AC-2 (env value, GOENV file value, already present) | |
+| `TestJudgeRunsWithPathIndependentCompiles` (existing, extended; a rename was refused as a test weakening) | `internal/le/go/staticcheck/judge_test.go` | AC-3 | |
+| the existing GOENV cases of `internal/le/job/process_test.go`, now through `gotoolchain.EffectiveGoFlags` (no new test) | `internal/le/job/process_test.go` | one GOFLAGS resolver | |
 | existing four tests, repaired | the four files above | AC-4 | |
 | `TestAWorktreeSharesTheCheckoutLintCache` | `internal/le/verify/lifecycle_test.go` | AC-5, removal leaves target | |
 | `TestEveryStageLogCarriesItsTimingBeforeItsResult` | `internal/le/verify/engine/run_test.go` | AC-6 with an injected clock | |
 | `TestStageResultStillParsesALogWithATimingLine` | `internal/le/verify/reds_test.go` | AC-6 parser | |
-| `TestStageTimesReachTheCheckoutOnGreenAndRed` | `internal/le/verify/lifecycle_test.go` | AC-7 | |
+| `TestStageTimesReachTheCheckoutOnGreenAndRed` | `internal/le/verify/firstred_test.go` | AC-7 | |
+| `TestEveryReachedStageIsAppendedToTheHistory` | `internal/le/verify/engine/stagetimes_test.go` | AC-7 history line columns | |
 | `TestAWorktreeRunPublishesItsFailureIndex` | `internal/le/verify/lifecycle_test.go` | AC-8, rewritten paths exist | |
 | `TestAnUncutRunRunsCheapestRecordedStageFirst` | `internal/le/verify/engine/run_test.go` | AC-9 ordering, unrecorded first, ties | |
 | `TestACutRunKeepsTheDealtOrder` | `internal/le/verify/engine/part_test.go` | AC-9 cut | |
-| `TestVerifyListKeepsTheDeclaredOrder` | `internal/le/verify/engine/verifyengine_test.go` | AC-9 CI order | |
+| `TestVerifyListKeepsTheDeclaredOrder` | `internal/le/verify/firstred_test.go` | AC-9 CI order | |
 | `TestFirstRedStopsAndRecordsEveryUnreachedStage` | `internal/le/verify/engine/run_test.go` | AC-10 | |
+| `TestARunWithoutFirstRedStillRunsPastARed` | `internal/le/verify/engine/run_test.go` | AC-10 negative, behaviour to preserve | |
 | `TestAStoppedRunIsStaleForEveryPathList` | `internal/le/verify/engine/status_test.go` | AC-12 | |
 | `TestAnUnreachedStructuralStageIsCharged` | `internal/le/commit/commit_test.go` | AC-11 | |
-| `TestFirstRedIsSeparateWorkFromAWholeRun` | `internal/le/verify/lifecycle_test.go` | AC-13 | |
-| `TestFirstRedReachesTheEngineFromBothEntryPoints` | `internal/le/verify/current_test.go` | wiring, both actions | |
-| `TestRedsNamesAStoppedRun` | `internal/le/verify/reds_test.go` | AC-15 | |
-| `TestAMalformedHistoryLineIsSkippedAndCounted` | `internal/le/verify/engine/run_test.go` | R-6 | |
+| `TestFirstRedIsSeparateWorkFromAWholeRun` | `internal/le/verify/firstred_test.go` | AC-13 | |
+| `TestFirstRedReachesTheEngineFromBothEntryPoints` | `internal/le/verify/firstred_test.go` | wiring, both actions | |
+| `TestFirstRedWithAPartIsRefused` | `internal/le/verify/firstred_test.go` | AC-14 | |
+| `TestRedsNamesAStoppedRun` | `internal/le/verify/firstred_test.go` | AC-15 | |
+| `TestAMalformedHistoryLineIsSkippedAndCounted` | `internal/le/verify/engine/stagetimes_test.go` | R-6 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -251,7 +258,7 @@ behaviour and no shortened run can ever read as a pass.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `verify-first-red-refuses-a-cut` | `test/runner/verify-first-red-refuses-a-cut.ci` | Operator types `le verify worktree part 1 of 2 first-red`, gets exit 2 and the reason, no worktree created | |
-| `verify-first-red-stops` | `test/runner/verify-first-red-stops.ci` with a fixture under `internal/test/fixture/` (pattern: `test/runner/verify-reds-in-flight.ci`) | A throwaway checkout whose first cheap stage is red: `le verify current fast first-red` stops after it, the log names the unreached stages, `le verify status check` answers STALE | |
+| `verify-first-red-stops` | `test/runner/verify-first-red-stops.ci`, fixture `verifyFirstRedStopsDriver` in `internal/test/fixture/misc_fixture_runner_first_red.go` (seeds the history so `arch tier/check`, red in a checkout with no `internal/component`, runs first) | A throwaway checkout whose first cheap stage is red: `le verify current fast first-red` stops after it, the log names the unreached stages, `le verify status check` answers STALE | |
 
 ### Interop Tests (Scope: protocol)
 N-A: tooling, no protocol peer.
@@ -320,8 +327,8 @@ N-A: tooling, no protocol peer.
    - Tests: `TestFirstRedReachesTheEngineFromBothEntryPoints`, `verify-first-red-refuses-a-cut.ci`, `TestFirstRedIsSeparateWorkFromAWholeRun`
    - Files: `actions.go`, `current.go`, `lifecycle.go`, `engine/run.go`
    - Verify: entry point reachable; the stop behaviour test fails
-2. **Phase: -trimpath** - resolver moved, `Overrides` composes, private copies deleted, four tests repaired
-   - Tests: `TestOverridesComposeTrimpathWithTheEffectiveGOFLAGS`, `TestStaticcheckEnvironmentCarriesTrimpathFromTheToolchain`, `TestGoTestDefaultsUseTheToolchainResolver`, the four repaired tests
+2. **Phase: -trimpath** - resolver moved, `Environment` composes, private copies deleted, four tests repaired
+   - Tests: `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS`, `TestJudgeRunsWithPathIndependentCompiles` (extended), the GOENV cases of `internal/le/job/process_test.go`, the four repaired tests
    - Files: `gotoolchain.go`, `process.go`, `judge.go`, `check_compile.go`, four test files
    - Verify: the four go red with the flag before their repair, green after (paste both)
 3. **Phase: lint cache link**
@@ -350,11 +357,12 @@ N-A: tooling, no protocol peer.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `-trimpath` in every le Go command | `TestOverridesComposeTrimpathWithTheEffectiveGOFLAGS` under `./le job run label unit-pkg command go test -tags ... ./internal/le/go/toolchain/` |
+| `-trimpath` in every le Go command | `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS` under `./le job run label unit-pkg command go test -tags ... ./internal/le/go/toolchain/` |
 | Shared lint cache | `ls -l` of the kept worktree's `tmp/golangci-lint-cache` during a `keep` run |
 | Timing | the count of `### Stage timing:` lines over a saved run equals its stage count; `tmp/ze-verify-stage-times.tsv` grows by the reached-stage count |
 | Published index | `tmp/ze-verify-failures.json` mode and generated-at after a worktree run |
 | Cold-to-warm drop | AC-16 numbers pasted in Goal Validation |
+| First-red stop through the real entry point | `./le test functional runner`: `verify-first-red-stops` and `verify-first-red-refuses-a-cut` PASS; with the stop in `RunMode` disabled, `verify-first-red-stops` FAILs (the run went on to stage 02 `go lint/run`) |
 
 ### Security Review Checklist
 | Check | What to look for |

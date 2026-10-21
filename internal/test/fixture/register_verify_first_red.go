@@ -9,4 +9,5 @@ package fixture
 // Related: misc_fixture_runner_first_red.go -- the drivers.
 func init() {
 	Register("runner/verify-first-red-refuses-a-cut", verifyFirstRedRefusesACutDriver)
+	Register("runner/verify-first-red-stops", verifyFirstRedStopsDriver)
 }

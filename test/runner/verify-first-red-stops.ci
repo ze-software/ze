@@ -1,0 +1,31 @@
+# An operator asks a fast verification to stop at its first red, and the run
+# stops there, says what it did not run, and leaves no certificate a reader
+# could take for a pass.
+#
+# The fixture builds a throwaway git checkout (ZE_REPO_ROOT) and seeds its
+# stage-time history (tmp/ze-verify-stage-times.tsv) so every fast stage costs
+# 100 seconds except `arch tier/check`, which costs a millisecond. The cost
+# order therefore runs that stage first, and it is red because the checkout
+# holds no internal/component. The fixture then runs the real
+# `le verify current fast first-red` and asserts:
+#
+# - the progress line says where the run stopped and how many stages it did
+#   not run;
+# - the combined log records the stop after exactly one stage result, and the
+#   failure index names a stage the run never reached;
+# - the history gained one line, for the stage that ran, and none for the rest;
+# - `le verify status check` answers STALE for the stopped run.
+#
+# Delete the first-red stop in RunMode (internal/le/verify/engine/run.go,
+# `plan.FirstRed && stageReport.Code != 0`) and seq=1 fails: the run goes on
+# to the next stage.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture runner/verify-first-red-stops
+expect=exit:code=0
+expect=stdout:contains=cheap-red-stage-seeded
+expect=stdout:contains=run-stopped-at-first-red
+expect=stdout:contains=log-names-unreached-stages
+expect=stdout:contains=history-holds-only-the-reached-stage
+expect=stdout:contains=status-answers-stale
