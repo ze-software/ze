@@ -2094,3 +2094,29 @@ Open:
 2. conf-flow-redirect fails on the pin: the expected 00A0 UPDATE carrying community 30740 is
    never sent. Not investigated yet.
 3. Lint and the exabgp-test stage are owed.
+
+### ExaBGP 6 FlowSpec part B (2026-10-21, Mac, agent budget reached)
+
+Done: `7b0bf3a723` fixes open item 1. Forwarding keeps the 0x0800 next hop toward IBGP and
+route-server clients, and resets it to self toward EBGP under auto. It writes the configured
+address under self or explicit, and zero length when the destination is not sent extended
+communities. Relay reconstruction (RS, RR, adj-rib-in replay from the selecting RIB) dropped the
+field too, because FlowSpec StoredRoutes carry no NextHopHex: `relayFlowSpecNextHop` now takes it
+from the stored MP_REACH. The new tests are `TestFlowSpecRedirectForwardNextHop` and
+`TestFlowSpecRedirectRouteServerKeepsNextHop`. Each went red under its own mutation: with the
+redirect branch removed, and with the RS-client keep removed. The scoped reactor run
+`-run 'FlowSpec|Relay|NextHop|Forward'` is green. The journal row is marked fixed. The RFC8955-4-3
+negative tags still assert length 0, because their fixtures carry traffic-rate and no 0x0800.
+
+Still owed:
+
+1. conf-flow-redirect fails on the pin, and the cause is not found yet. The pin connects, sends 7
+   UPDATEs and closes. The mock waits for connection 1, sequence 1: an `00A0` UPDATE ordered
+   ORIGIN, AS_PATH, LOCAL_PREF, COMMUNITY `C008087814000078147814`, MP_REACH 1/133, then
+   EXTENDED_COMMUNITIES. No sent frame matches. Next step: capture the 7 frames the pin sends
+   (its recorder) and diff them against seq 1 of `test/exabgp-compat/encoding/conf-flow-redirect.ci`.
+   If the fixture holds 4.x frames, as conf-flow did, regenerate it from the pin. Repro:
+   `PYTHONPATH= uv run --no-project --python 3.12 --with paramiko --with 'exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6' ./le --name exaflow7 test exabgp encoding --dut exabgp conf-flow-redirect`.
+2. Gates over `7b0bf3a723`: lint over `internal/component/bgp/reactor`, the exabgp-test
+   stage, `./le test functional encode`/`plugin` (flowspec), interop (wire-visible change),
+   `go test -race -count=20` on the reactor, and an independent review.
