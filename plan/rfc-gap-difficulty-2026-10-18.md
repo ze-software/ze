@@ -52,7 +52,7 @@ still needs its own spec or commit under `ai/rules/planning.md`.
 | 9 | RFC2131-4.1-7 | RFC 2131 4.1 | 2 | 1.5 d (shared 9-10) | | | spec-rfc-verdict-fix-services |
 | 10 | RFC2131-4.1-15 | RFC 2131 4.1 | 2 | with #9 | | #9 | none |
 | 11 | RFC7950-7.2.2-1 | RFC 7950 7.2.2 | 2 | 1 d | | | pre-release/spec-config-yang-loader-structural-checks |
-| 12 | RFC7432-8.2.1-4 | RFC 7432 8.2.1 | 2 | 1.5 d | | | none needed: re-judged `enforced` 2026-10-18 after `0411b53e91` (`rfc/audit/rfc7432.json`); the former owner spec-rfc-verdict-fix-bgp closed 2026-10-21 |
+| 12 | RFC7432-8.2.1-4 | RFC 7432 8.2.1 | 2 | 1.5 d | | | none needed: re-judged `enforced` 2026-10-18 after `0411b53e91` (`rfc/audit/rfc7432.json`); the BGP verdict fix pass (spec-rfc-verdict-fix-bgp) owned it until then |
 | 13 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 | draft-ietf-idr-linklocal-capability 6 | 2 | 1.5 d | | | spec-bgp-unowned-rfc-rows |
 | 14 | DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5 | draft-ietf-bess-mup-safi 3.3.6 | 2 | 1.5 d | | | spec-bgp-unowned-rfc-rows |
 | 15 | RFC5216-5.3-5 | RFC 5216 5.3 | 2 | 1.5 d | | | none |
@@ -61,7 +61,7 @@ still needs its own spec or commit under `ai/rules/planning.md`.
 | 18 | RFC4271-8.2.2-20 | RFC 4271 8.2.2 | 3 | 2 d | | | spec-bgp-fsm-delayopen-and-automatic-start |
 | 19 | RFC7606-5.1-1 | RFC 7606 5.1 | 3 | 3 d | | | spec-bgp-unowned-rfc-rows |
 | 20 | DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4 | draft-ietf-bess-mup-safi 3.3.6 | 3 | 3 d | | #14 | spec-bgp-unowned-rfc-rows |
-| 21 | RFC9136-3.1-4 | RFC 9136 3.1 | 3 | 3 d | | | none needed: re-judged `enforced` 2026-10-19 after `4283f8d2e3` (`rfc/audit/rfc9136.json`); the former owner spec-rfc-verdict-fix-bgp closed 2026-10-21 |
+| 21 | RFC9136-3.1-4 | RFC 9136 3.1 | 3 | 3 d | | | none needed: re-judged `enforced` 2026-10-19 after `4283f8d2e3` (`rfc/audit/rfc9136.json`); the BGP verdict fix pass (spec-rfc-verdict-fix-bgp) owned it until then |
 | 22 | RFC4659-3.2.1.1-3 | RFC 4659 3.2.1.1 | 3 | 4 d | | | none |
 | 23 | RFC9552-5.3.2.7-1 | RFC 9552 5.3.2.7 | 3 | 3 d | scope (optional TLV policy) | | none |
 | 24 | RFC7752-3.3.2.7-1 | RFC 7752 3.3.2.7 | 3 | with #23 | scope | #23 | none |

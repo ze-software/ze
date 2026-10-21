@@ -13,8 +13,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The BGP child of the rfc-verdict pass (spec-rfc-verdict-fix-bgp, closed 2026-10-21; its
-"Gap accounting" section survives in git history) closed with requirement rows that no spec owned.
+The BGP child of the rfc-verdict pass (spec-rfc-verdict-fix-bgp; its
+"Gap accounting" section survives in git history) left requirement rows that no spec owned.
 One spec took them (`plan/immediate/spec-bgp-unowned-rfc-rows.md`). On 2026-10-11 the
 owner put EPE PeerAdj/PeerSet IN, ruled that the RFC 9514 §7.2 rows are owned
 "Only if EPE is in" (it is), and split the work: "Split into three". This spec owns
@@ -166,7 +166,7 @@ R-7 and R-8 keep the ids they had in the parent spec.
 |----------|--------|
 | What breaks if this is wrong? | Rows 8, 11, 12: EPE labels and SIDs installed or advertised wrongly, or advertised to a peer `advertise-to` excludes; an SRv6 SID advertised with no End.X behind it |
 | How is it reverted? | Each phase lands as its own commit, revertible alone |
-| Who else touches this path? | `plan/immediate/spec-bgp-unowned-rfc-rows.md` row 10 changes the byte order of every MP UPDATE, BGP-LS included: whichever lands second writes its expectations against the other. `plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md` (BGP-LS node keys), `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (ledger rows; its BGP child spec-rfc-verdict-fix-bgp closed 2026-10-21) |
+| Who else touches this path? | `plan/immediate/spec-bgp-unowned-rfc-rows.md` row 10 changes the byte order of every MP UPDATE, BGP-LS included: whichever lands second writes its expectations against the other. `plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md` (BGP-LS node keys), `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (ledger rows, with its BGP child spec-rfc-verdict-fix-bgp) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
