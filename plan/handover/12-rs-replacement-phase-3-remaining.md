@@ -4,6 +4,31 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-21 late night: Phase 3b code landed, round 9 owed
+
+- `c972e77416` (production): Phase 3b, the labelled withdrawal framing, AC-27.
+  One step `nlrisplit.writeWithdrawalNLRI` behind `GetWithdrawalWriter` and
+  `WithdrawalNLRIFromKey`; `buildWithdrawalPayload(payload, buf, source)`;
+  `recoverySentNLRI`, `adjOutWithdrawalNLRI` and the RFC 7606
+  `mpReachToUnreach` reach the same step; `nlrisplit.LabeledWithdrawal`
+  deleted. Reds, benchmarks, `-gcflags=-m` and the rfc7311 audit re-judgement:
+  spec Design Insights, "Phase 3b" entry.
+- `a48a721a4c` (production, deletion): `RecoveryRequest.PrefixOnly` had no
+  producer; field, IPC argument and bgp-rib branch deleted.
+- Interop `bgp-vpn-withheld-withdraw-frr` (scenario dir and
+  `internal/le/interoplab/bgp/check_vpn_withheld_withdraw.go`) written; its
+  green run and the SAFI 128 revert-to-red are recorded in the commit that
+  lands it (see `git log -- test/interop/scenarios/bgp-vpn-withheld-withdraw-frr`).
+- REVIEW ROUND 9 IS OWED over `c972e77416` and `a48a721a4c` (and the interop
+  commit), and needs Thomas's authorisation. Phase 3a calls
+  `WithdrawalNLRIFromKey` (Data Flow 3a), so 3a relies on this code.
+- Verification debt for these commits: `plan/verification-debt/6d6a3fdc.md`
+  (full verify not FRESH; owner approval owed for the nil-argument change to
+  the two RFC 7311 tagged units, recorded with `rfc-change-ok`).
+- NEXT after round 9: Phase 3a (AC-6, AC-18), then 4, 5, 6. Phase 2b second
+  half still waits on D1 (no `rpc.ReasonNotification` in the tree on
+  2026-10-21).
+
 ## STATE 2026-10-21 night, later: AC-9 landed, AC-10 found done, 3b next
 
 - Coordinator ruling: round 8 (0 BLOCKER, 0 ISSUE) satisfies the gate; the

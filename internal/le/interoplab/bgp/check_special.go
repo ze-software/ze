@@ -57,6 +57,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-relay-withdraw-shape-frr":             checkRelayWithdrawalShape,
 	"bgp-linklocal-only-multihop-withdraw-frr": checkLinkLocalOnlyMultihopWithdraw,
 	labeledWithdrawScenario:                    checkLabeledWithdrawCompatibility,
+	vpnWithheldScenario:                        checkVPNWithheldWithdraw,
 	"bgp-rfc2545-linklocal-nexthop-frr":        checkRFC2545NextHops,
 	scenarioVPNFRR:                             checkVPNFRR,
 	"bgp-rfc7606-relay-shape-frr":              checkRFC7606MixedUpdate,
