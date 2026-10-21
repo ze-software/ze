@@ -3089,3 +3089,34 @@ Remaining classes (both corpora summed), not started:
 
 Gates owed: `./le go lint run` over `internal/exabgp/bridge`, `./le verify
 worktree` after the reviewed commit lands.
+
+## 2026-10-21 Phase 7 item E, exa14 agent (budget ran out)
+
+Landed since exa13: 1cfb359fa1 (route-line escapes, merged lists, last NLRI
+field, SRv6 0xFFFF), ce28145f2f (`request peer notify`, bridge teardown sends
+the pin's octets as hex, `ze:rest-of-line`), 1b47e17ac3 (web finder goldens),
+a7f4e8652b (judge: RFC 8955 4.2 repeated flow prefix is an allowed refusal).
+
+UNCOMMITTED, owes independent review before commit:
+- origin/mup extended community through `attribute.ParseSingleExtCommunity`
+  (route_community.go, attribute comments, update-syntax.md row).
+- `bgp-prefix-sid [ ... ]` (RFC 8669) in update text and the bridge
+  (textparse KWPrefixSID, update_text.go, route.ParseBracketedValue,
+  bridge_attribute.go).
+- labeled family through `zeLabeledSAFI` (bridge_route_forms.go,
+  bridge_command.go).
+- `watchdog`/`name` empty at end of line (`EmptyAtEnd`, bridge_attribute.go).
+- tests: rfc8955_route_parse_test.go, update_text_reflect_test.go,
+  bridge/bridge_route_line_test.go.
+
+Counts: 5.0 3836/4250, 4.2 2375/2541.
+
+Pages owed in the same commit: exabgp-bridge.md line 233 (`nlri-mpls` ->
+`mpls-label`), the line-716 table (watchdog/name at end of line), a
+bgp-prefix-sid row; exabgp-differences.md repeated flow component row;
+update-syntax.md attribute row.
+
+Remaining: undecodable UPDATE (33), path-information in the attributes form,
+mpls-vpn (17), MUP encode (30), `attribute [ ]` (~60), IPv6 flow offsets
+(~33), mcast-vpn (28), ipv6 multicast (~40), unicast withdraw (33),
+refresh/operational judge branch, AC-38 TestOldResponses50/42.
