@@ -27,6 +27,7 @@ Agreed scope (2026-10-21, SCOPE gate):
 | b | A generated, always-compiled table of gated plugin name to build tag, because a binary today cannot name a plugin it was built without |
 | c | Flow export (`enrichment bgp`, which today declares no edge and silently receives nothing) and traffic (optional `vpp`) as the first users |
 | d | A check that finds undeclared cross-gate couplings like flow export's |
+| e | (owner, 2026-10-21, after WRITE) The hard-edge sibling: a HARD dependency absent from the build is refused on every load path, naming the plugin, the dependency and its build tag. Today two boot auto-load paths in `plugin/server/startup_autoload.go` log `ErrMissingDependency` at WARN and start the plugin without it (`resolved = needed`); the reload path and an explicit `plugin {}` block already fail closed, but their message names no tag |
 
 Scope widened at the RESEARCH gate (2026-10-21, owner): every coupling the
 part-d check finds is declared in this spec, so the check lands green. Found
@@ -148,6 +149,7 @@ no log line and no error (`internal/component/plugin/registry/registry.go`).
 | R-6 | A need's config path drifts from the YANG (leaf renamed) and the need never matches | refusal test goes green on a build that should refuse | `Register` cannot see YANG, so a unit test per owner walks each declared path against the loaded schema and fails on a path that does not exist |
 | R-7 | Refusing at boot a config that booted yesterday (stripped build, enrichment on) | operator report after upgrade | intended: the config never worked (silently empty, or failed at apply). The message names the leaf to turn off; recorded as a behavior change in the commit body |
 | R-8 | An any-of need (DDoS/anomaly flow source) refused when one provider is compiled in but not configured | detection refused although trafficusage is in the build | the refusal is about the BUILD only; whether the provider is configured stays the existing doctor warning (`ddos-detect-flow-source`, `anomaly-detect-feature-source`) |
+| R-10 | Refusing boot on a missing hard dependency stops a daemon that started yesterday with a half-loaded plugin | boot fails after upgrade on a stripped build | intended (owner, part e): the plugin never worked without its dependency. The message names the plugin to remove from config or the tag to build with; recorded as a behavior change in the commit body |
 | R-9 | Coupling list from research is incomplete (BGP-LS export, DDoS FlowSpec runtime paths were not traced) | check reports a coupling not in the AC table | the check is the authority: every row it reports gets a need or a StartAfter in this spec before it lands (owner scope, RESEARCH gate) |
 
 ## Blast Radius
@@ -193,6 +195,9 @@ no log line and no error (`internal/component/plugin/registry/registry.go`).
 | AC-18 | `feature-gates.txt` gains a gate, table not regenerated | `./le repo generate` check reports the table stale |
 | AC-19 | Nested gate (bgp-bmp) absent | The refusal names the compound requirement `ze_bgp` and `ze_bmp` |
 | AC-20 | Coupling check with flow export's need removed | Check reports flow export to `bgp-rib` over `ribevents.BestChange` (red), and is green with it restored |
+| AC-21 | Boot, config-path or token auto-load of a plugin whose HARD dependency is not in the build | Startup refused before any plugin starts; the plugin is never started without its dependency. Message names the plugin, the dependency and the build tag, with the fix on its own line |
+| AC-22 | Reload auto-load and an explicit `plugin {}` block with the same missing hard dependency | Still refused (unchanged), and the message now names the build tag as in AC-21 |
+| AC-23 | A hard dependency that is not a gated plugin and not registered (an external name, a typo) | Refused naming the dependency as unknown to this build, never a guessed tag |
 
 ## End-to-End User Stories
 
@@ -218,6 +223,8 @@ no log line and no error (`internal/component/plugin/registry/registry.go`).
 | `TestGatedPluginTableMatchesManifest` | generator package test | AC-18 | |
 | `TestCouplingCheckFlagsUndeclaredSubscriber` | `internal/le/plugin/coupling/` | AC-20 | |
 | `TestCouplingCheckAcceptsStartAfter` | same | R-4 | |
+| `TestBootAutoLoadRefusesMissingHardDependency` | `internal/component/plugin/server/startup_autoload_test.go` | AC-21, for both boot auto-load paths (config-path and token) | |
+| `TestMissingDependencyErrorNamesTag` | `internal/component/plugin/registry/registry_test.go` | AC-22, AC-23: `ErrMissingDependency` carries the tag from the generated table, or "not in this build" with no tag for an ungated name | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -237,7 +244,7 @@ N-A: no wire-visible change; config and startup only.
 - `internal/component/plugin/registry/registry.go` - config-need declaration on `Registration`, `Register` validation, conditional pull in `ResolveDependencies` (receives evaluated needs; registry stays a leaf with no config import)
 - `internal/component/config/loader.go` - call the refusal beside `refuseInvalidCustomSections`; pass the tree's evaluated needs to `ExpandDependencies`
 - `internal/component/config/plugin_verify.go` - call the same refusal in `VerifyPluginConfigMapTransition`
-- `internal/component/plugin/server/startup_autoload.go` - the three resolver callers pass the config they resolve for
+- `internal/component/plugin/server/startup_autoload.go` - the three resolver callers pass the config they resolve for; the two boot auto-load paths stop falling back to `resolved = needed` and refuse (AC-21)
 - `internal/plugins/flowexport/register.go` - optional edge to `bgp-rib` with its need
 - `internal/component/traffic/register.go` - need on the existing `vpp` edge
 - `internal/component/iface/register.go`, `internal/component/firewall/register.go` - optional edge to the VPP provider with the `backend vpp` need
@@ -318,13 +325,15 @@ Design documents declared by the files this spec changes:
    - Tests: `TestGatedPluginTableMatchesManifest`, AC-19
 3. **Phase: Refusal** -- evaluate needs over the tree, refuse with problem/why/fix and the tag(s)
    - Tests: `TestRefuseAbsentProvider*`, `TestLoadConfigRefusesAbsentProvider`, `TestVerifyPluginConfigRefusesAbsentProvider`
-4. **Phase: Conditional pull** -- resolver receives evaluated needs; the three autoload callers and `ExpandDependencies` pass their config
+4. **Phase: Hard-edge refusal** -- `ErrMissingDependency` names the tag; both boot auto-load paths refuse instead of starting without the dependency
+   - Tests: `TestMissingDependencyErrorNamesTag`, `TestBootAutoLoadRefusesMissingHardDependency`
+5. **Phase: Conditional pull** -- resolver receives evaluated needs; the three autoload callers and `ExpandDependencies` pass their config
    - Tests: `TestResolveDependenciesPullsNeededProviderOnlyWhenNeedHolds`, `TestFlowExportEnrichmentOffDoesNotPullRIB`, AC-17
-5. **Phase: First users** -- flow export, traffic; then interface, firewall, DDoS, anomaly, DDoS FlowSpec, BGP-LS/EPE
+6. **Phase: First users** -- flow export, traffic; then interface, firewall, DDoS, anomaly, DDoS FlowSpec, BGP-LS/EPE
    - Tests: `TestConfigNeedPathsExistInSchema` per owner; functional fixture steps for AC-1..AC-13
-6. **Phase: Coupling check** -- `./le plugin coupling check`, wired into native verification; declare every further coupling it reports (AC-14)
+7. **Phase: Coupling check** -- `./le plugin coupling check`, wired into native verification; declare every further coupling it reports (AC-14)
    - Tests: `TestCouplingCheckFlagsUndeclaredSubscriber`, `TestCouplingCheckAcceptsStartAfter`
-7. **Phase: Docs** -- each page in Files to Modify, edited in the phase that changes its behavior, never batched here
+8. **Phase: Docs** -- each page in Files to Modify, edited in the phase that changes its behavior, never batched here
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -388,9 +397,7 @@ must report each, and AC-14 covers the ones not named in AC-1..AC-13:
 | mrt table dump and `show system` NTP block cannot tell "not built" from "not configured" | AC-14 (mrt `dump` needs `bgp-rib`); the NTP show block is an answer, not a config, and stays outside unless the check reports it |
 | redistribute `destination`, bgp ls_export `source` are free strings naming another plugin | AC-13 for ls_export; redistribute `destination` under AC-14 |
 
-Not covered, owner decision outstanding: the census row "boot auto-load starts
-a plugin without its HARD dependency after a WARN". It is the hard-edge sibling
-of this spec and uses the same name-to-tag table.
+| boot auto-load starts a plugin without its HARD dependency after a WARN | AC-21..AC-23 (scope part e, owner 2026-10-21) |
 
 ## Known Limitations
 - External plugins cannot declare an optional edge or a need: the Stage 1 declaration carries `Dependencies` only (A-4). Not in the owner's scope for this spec.
@@ -412,7 +419,7 @@ of this spec and uses the same name-to-tag table.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-20 all demonstrated
+- [ ] AC-1..AC-23 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes
