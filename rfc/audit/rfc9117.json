@@ -1,5 +1,6 @@
 {
   "audited": "2026-10-06",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9117-4.1-1": {
       "note": "RFC9117 Section 4.1: 'b) One of the following conditions MUST hold true: 1. The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). 2. The AS_PATH attribute of the Flow Specification is empty or contains only an AS_CONFED_SEQUENCE segment [RFC5065].' Section 1 extends the considerations to AS_CONFED_SET. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute assert current eligibility, retained presence, candidates and exact zero-or-one selected nonwithdraw NLRI/action events. Matching ORIGINATOR_ID, empty internal path and confed-only paths succeed; differing transports despite equal router IDs and unmatched ORIGINATOR_ID fail. The internal /8-/16 pair has ordinary nonempty AS_SEQUENCE and changes only originator, proving longest-cover selection without local-domain or external-AS masking. flowSpecOriginator and flowSpecASPath feed flowSpecAuthorized via handleReceivedStructured/reconcileFlowSpecs; candidate and FlowSpecChanged consumers observe its decision. All four audit questions and both polarities pass by independent source reading. Stored panic records prove producer reachability, not semantic mutation. Current execution and independent live-peer/VPP acceptance remain pending.",
@@ -7,8 +8,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "5101973413fefddd",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "5101973413fefddd"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "27576d4a0fac2986",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "27576d4a0fac2986"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",
@@ -24,8 +25,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "5101973413fefddd",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "5101973413fefddd"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "27576d4a0fac2986",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "27576d4a0fac2986"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",
