@@ -50,6 +50,10 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		slices.Sort(dropped)
 		return registry.PluginRoute{}, fmt.Errorf("flowspec: invalid or unrecognized match criteria: %s", strings.Join(dropped, ", "))
 	}
+	// RFC 8955 Section 4.2
+	if err := fs.CheckMatchable(); err != nil {
+		return registry.PluginRoute{}, err
+	}
 
 	forVPN := rd != ""
 	var body []byte

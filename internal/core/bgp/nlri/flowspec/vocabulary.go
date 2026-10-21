@@ -33,6 +33,35 @@ const (
 	KwRD           = "rd"            // Route Distinguisher (VPN)
 )
 
+// keywordComponentType maps each component keyword to the type it encodes.
+// RFC 8955 Section 4.2.2 and RFC 8956 Section 3 number the types.
+var keywordComponentType = map[string]FlowComponentType{
+	KwDestinationIPv4: FlowDestPrefix,
+	KwDestinationIPv6: FlowDestPrefix,
+	KwSourceIPv4:      FlowSourcePrefix,
+	KwSourceIPv6:      FlowSourcePrefix,
+	KwProtocol:        FlowIPProtocol,
+	KwNextHeader:      FlowIPProtocol,
+	KwPort:            FlowPort,
+	KwDestPort:        FlowDestPort,
+	KwSourcePort:      FlowSourcePort,
+	KwICMPType:        FlowICMPType,
+	KwICMPCode:        FlowICMPCode,
+	KwTCPFlags:        FlowTCPFlags,
+	KwPacketLength:    FlowPacketLength,
+	KwDSCP:            FlowDSCP,
+	KwTrafficClass:    FlowDSCP,
+	KwFragment:        FlowFragment,
+	KwFlowLabel:       FlowFlowLabel,
+}
+
+// KeywordComponentType answers the component type a keyword encodes, and false
+// for a word that names no component (rd, or an unknown word).
+func KeywordComponentType(keyword string) (FlowComponentType, bool) {
+	t, ok := keywordComponentType[keyword]
+	return t, ok
+}
+
 // ProtocolNameToNumber maps protocol names to numbers. It is the ONLY FlowSpec
 // protocol vocabulary: protocolNumberToName is derived from it here, and the
 // FlowSpec plugin's config parser and text encoder read it through this

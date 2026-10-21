@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
@@ -158,10 +159,19 @@ func convertStaticToUpdate(static, dst *config.Tree) error {
 // Ze: update { attribute { extended-community ...; } nlri { ipv4/flow criterion value ...; } }.
 //
 // It reports the error of a scope block ze cannot express, so a filter is never
-// announced with a wider reach than the ExaBGP config gave it.
-func convertFlowToUpdate(flow, dst *config.Tree) error {
+// announced with a wider reach than the ExaBGP config gave it. A route no packet
+// can match is left out with a warning in result, as ExaBGP 6.0 drops it at load
+// (configuration/grammar/tree/flow.py, propagated): the config still loads, and
+// ze would refuse the route.
+func convertFlowToUpdate(flow, dst *config.Tree, result *MigrateResult) error {
 	for _, entry := range flow.GetListOrdered("route") {
 		route := entry.Value
+
+		// RFC 8955 Section 4.2
+		if err := flowRouteMatchable(route.GetContainer("match")); err != nil {
+			result.Warnings = append(result.Warnings, "flow route "+entry.Key+" is not migrated: "+err.Error())
+			continue
+		}
 
 		rd, _ := route.Get("rd")
 		nextHop, _ := route.Get(routeAttributeNextHop)
@@ -545,6 +555,25 @@ func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
 		return familyIPv6Unicast
 	}
 	return familyIPv4Unicast
+}
+
+// flowRouteMatchable answers flowspec.ErrFlowSpecUnmatchable when the match
+// block of an ExaBGP flow route names a combination no packet can match, and nil
+// otherwise. ExaBGP's match keywords for the components involved are ze's own
+// (configuration/grammar/tree/flow.py), so the core vocabulary resolves them.
+func flowRouteMatchable(match *config.Tree) error {
+	if match == nil {
+		return nil
+	}
+	present := make(map[flowspec.FlowComponentType]bool)
+	for _, key := range match.Values() {
+		val, _ := match.Get(key)
+		criterion, _ := parseFlowMatchEntry(key, val)
+		if t, ok := flowspec.KeywordComponentType(criterion); ok {
+			present[t] = true
+		}
+	}
+	return flowspec.CheckMatchable(func(t flowspec.FlowComponentType) bool { return present[t] })
 }
 
 // parseFlowMatchEntry splits a freeform entry into criterion and value.

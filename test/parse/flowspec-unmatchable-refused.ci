@@ -1,0 +1,39 @@
+# Test: a flow route pairing an ICMP match with a port match is refused.
+# RFC 8955 Section 4.2: "ICMP Type AND Port" will never match any packets and thus
+# SHOULD NOT be propagated by BGP. The config names the route's problem and the fix.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65500
+				remote 65500
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		update {
+			attribute {
+				extended-community [ rate-limit:0 ]
+			}
+			nlri {
+				ipv4/flow add destination-ipv4 192.168.0.1/32 destination-port =80 icmp-type =8
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=ICMP has no ports

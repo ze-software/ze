@@ -246,6 +246,13 @@ ExaBGP parses the attributes of both.
 <!-- source: internal/exabgp/bridge/bridge_command.go -- convertAnnounceSRPolicy, convertWithdrawSRPolicy -->
 <!-- source: internal/exabgp/migration/migrate_flow_scope.go -- interface-set conversion -->
 
+A flow route whose `match` block pairs an ICMP type or code with a port
+(`port`, `destination-port`, `source-port`) is not migrated. No packet matches
+it, RFC 8955 Section 4.2 says it SHOULD NOT be propagated, and ExaBGP 6.0 drops
+it at load with the warning `flow.unmatchable`. The migration drops it too and
+adds a warning naming the route, so the rest of the config migrates.
+<!-- source: internal/exabgp/migration/migrate_routes.go -- convertFlowToUpdate, flowRouteMatchable -->
+
 ### Redirect and copy
 
 Two drafts define a redirect to an address. The IETF one

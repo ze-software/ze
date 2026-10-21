@@ -88,15 +88,21 @@ func EncodeFlowSpecComponents(fam flowspec.Family, args []string) ([]byte, error
 		i += consumed
 	}
 
-	// Return wire bytes
+	// Return wire bytes. A route no packet can match is refused, RFC 8955 Section 4.2.
 	if fsv != nil {
 		if len(fsv.Components()) == 0 {
 			return nil, errFlowspecRequiresAtLeastOneComponent
+		}
+		if err := fsv.CheckMatchable(); err != nil {
+			return nil, err
 		}
 		return fsv.Bytes(), nil
 	}
 	if len(fs.Components()) == 0 {
 		return nil, errFlowspecRequiresAtLeastOneComponent
+	}
+	if err := fs.CheckMatchable(); err != nil {
+		return nil, err
 	}
 	return fs.Bytes(), nil
 }

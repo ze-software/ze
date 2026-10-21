@@ -81,6 +81,21 @@ else:
 
 <!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowComponentType constants -->
 
+### Combinations that match no packet
+
+RFC 8955 Section 4.2 allows every combination of components, then names one
+that matches nothing: "ICMP Type AND Port" will never match any packets and thus
+SHOULD NOT be propagated by BGP. An ICMP type or code (7, 8) only matches
+protocol 1, and a port (4, 5, 6) only TCP or UDP. Ze refuses a flow route that
+holds one of each, from config and from `update text`, with an error naming
+both matches and telling the operator to remove one. The ExaBGP migration
+drops such a route with a warning instead, as ExaBGP 6.0 does at load, so the
+rest of the migrated config still loads.
+<!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/config.go -- parseConfigRoute -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- EncodeFlowSpecComponents -->
+<!-- source: internal/exabgp/migration/migrate_routes.go -- flowRouteMatchable -->
+
 ---
 
 ## Prefix Component Encoding

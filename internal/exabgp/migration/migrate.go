@@ -1043,8 +1043,9 @@ func migrateHostnameToCapability(src, dstCap *config.Tree, hasCapabilities *bool
 
 // copyContainers copies container blocks from neighbor to peer. It reports the
 // error of a flow route whose scope block ze cannot express, and of a route
-// attribute ExaBGP itself refuses.
-func copyContainers(src, dst *config.Tree) error {
+// attribute ExaBGP itself refuses. The flow routes ExaBGP drops with a warning
+// are left out with a warning in result.
+func copyContainers(src, dst *config.Tree, result *MigrateResult) error {
 	// Copy and convert family block.
 	// ExaBGP: "ipv4 unicast" -> ZeBGP list entries: key="ipv4/unicast".
 	// Families go into session > family.
@@ -1066,7 +1067,7 @@ func copyContainers(src, dst *config.Tree) error {
 
 	// Convert flow block to update blocks.
 	if flow := src.GetContainer("flow"); flow != nil {
-		if err := convertFlowToUpdate(flow, dst); err != nil {
+		if err := convertFlowToUpdate(flow, dst, result); err != nil {
 			return err
 		}
 	}
@@ -1337,7 +1338,7 @@ func migrateSingleNeighbor(neighborTree *config.Tree, peerName string, result *M
 	}
 
 	// Copy other containers (family, etc.).
-	if err := copyContainers(neighborTree, peer); err != nil {
+	if err := copyContainers(neighborTree, peer, result); err != nil {
 		return nil, err
 	}
 
