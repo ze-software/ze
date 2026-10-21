@@ -2728,3 +2728,59 @@ are deleted. Owed gates (main thread): reactor `-race -count=5 -timeout 40m
 worktree`. Foreign red: `internal/component/plugin/server` has 31 failing
 tests at HEAD versions of the touched files too (command registry tests,
 e.g. `TestValidBgpEventTypes`), not from this change.
+
+### ExaBGP 6 Phase 7 AC-41 (2026-10-21, Mac)
+
+Spec `plan/immediate/spec-exabgp-6-api-compatibility.md`. The exa7 agent ran
+out of budget with AC-41 written and green but NOTHING COMMITTED.
+
+Done, uncommitted at the time of writing, tests green:
+- Design (M3): peer presence container `shutdown { message "<text>" }`
+  (ze-bgp-conf.yang, peer-fields, revision 2026-10-21), the FRR
+  `neighbor X shutdown [message MSG]` shape (bgpd.c
+  peer_flag_modify_action: PEER_FLAG_SHUTDOWN sends CEASE_ADMIN_SHUTDOWN with
+  tx_shutdown_message) and BIRD proto_cmd_disable/enable (nest/proto.c: a
+  runtime disable with message overrides config until reconfigure). Commands
+  `request peer <sel> disable [message]` / `enable` (ze-peer-cmd.yang
+  containers; ze-bgp-api.yang rpcs peer-disable, peer-enable).
+- Reactor: peer_admin.go (AdminShutdown type, Peer.Disable/Enable/AdminDown,
+  holdAdminDown parks the run loop as PeerStateIdleHold, an inbound connection
+  is answered Cease 6/5 per RFC 4486 S4), peer.go fields adminDown/adminWake
+  plus NewPeer seed, peer_run.go (loop-top hold, publish-time check under p.mu,
+  backoff wake), config.go parse, peer_settings.go field,
+  peer_settings_apply.go hot-swap plus applyAdminShutdownChange (presence
+  change only).
+- Plugin interface: ReactorPeerController DisablePeer/EnablePeer
+  (types_bgp.go), coordinator.go, reactor_api.go adapter, 10 mocks.
+- cmd/peer: admin.go handlers, peer.go registrations plus
+  errEnableTakesNoArgument, admin_test.go.
+- Migration: exabgp.yang leaf shutdown, migrate.go leafFields and
+  copySimpleFields to the shutdown container, migrate_serialize.go writes
+  `shutdown {}`; TestMigrateShutdownHoldsPeer (red before: "unknown field in
+  neighbor: shutdown").
+- Bridge: bridge_neighbor.go convertDisable (shlexSplit, ExaBGP neighbor.py
+  disable), convertEnable; TestNeighborDisableEnable and its Refusals test.
+- Tests: reactor peer_admin_test.go, 4 tests green under -race;
+  TestPeerShutdownContainerHoldsUntilEnable went RED with the run-loop checks
+  overlaid away. cmd/peer, migration and bridge packages green.
+- api-disable: PASS on ze (`./le test exabgp api api-disable`) and PASS on the
+  pin (`--dut exabgp`).
+
+Owed next, in order:
+1. Compile check every mock package with all feature tags.
+2. `./le yang glue check`, `./le doc yang-contract command-contract`, then the
+   AC-41 commit.
+3. Functional `test/plugin/peer-admin-shutdown.ci` through real config and
+   CLI: config shutdown container holds the peer idle, `request peer peer1
+   enable` brings it up, `disable "back soon"` sends Cease 6/2 with the RFC
+   9003 message (hex), an inbound connection while held gets Cease 6/5. Use
+   the engine-steps pattern of bgp-blackhole-honor.ci.
+4. Docs: config guide (shutdown container), command reference
+   (disable/enable), docs/architecture/exabgp-bridge.md,
+   exabgp-migration.md, exabgp-differences.md.
+5. Journal row or fix: the ExaBGP pin's teardown takes `[code] [subcode]
+   [text]` but convertTeardown refuses more than one word.
+6. `./le rfc check` after the commit; the spec's "Phase 7 state" line.
+7. Not started: X-35 (TestOldCommands50/42, TestOldResponses50/42), X-37/AC-39
+   (IPv4 route with an IPv6 next hop: extended-nexthop entry, capability and
+   warning in migrate), AC-37/38, old-4.2/old-5.0 population runs.
