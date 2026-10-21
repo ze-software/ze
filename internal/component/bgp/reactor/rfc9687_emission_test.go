@@ -142,7 +142,7 @@ func TestRFC9687SuppressedAttemptsDoNotRestartSendHold(t *testing.T) {
 				case "duplicate-message":
 					err = s.writeMessage(conn, update)
 				case "empty-dirty-flush":
-					s.appendFwdDirty(s)
+					s.appendFwdDirty(nil, s)
 					s.flushFwdDirty()
 				case "empty-raw":
 					err = s.SendRawMessage(0, nil)
@@ -215,7 +215,7 @@ func TestRFC9687EmissionRestartsExactSendHoldDeadline(t *testing.T) {
 					t.Fatalf("buffering alone moved deadline from %d to %d", initialDeadline, got)
 				}
 				clock.Add(time.Second)
-				s.appendFwdDirty(s)
+				s.appendFwdDirty(nil, s)
 				s.flushFwdDirty()
 			} else if err := s.writeMessage(conn, packet); err != nil {
 				t.Fatal(err)
@@ -228,7 +228,7 @@ func TestRFC9687EmissionRestartsExactSendHoldDeadline(t *testing.T) {
 				t.Fatalf("emitted frame deadline = %d, want %d", got, deadline)
 			}
 			clock.Add(6 * rfc9687SendHold / 10)
-			s.appendFwdDirty(s)
+			s.appendFwdDirty(nil, s)
 			s.flushFwdDirty()
 			if got := s.sendHoldDeadline.Load(); got != deadline {
 				t.Errorf("empty flush reused old emission: deadline = %d, want %d", got, deadline)

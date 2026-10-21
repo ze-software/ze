@@ -467,7 +467,7 @@ type Session struct {
 	// fast path (tryDirectWriteNoFlush). Flushed by flushFwdDirty when the
 	// source bufReader has no more data. Only accessed from this session's
 	// read goroutine -- no synchronization needed.
-	fwdDirty []*Session
+	fwdDirty []fwdDirtyTarget
 
 	// sourceID identifies the peer in the source registry.
 	// Set by Peer at creation time.

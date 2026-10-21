@@ -76,6 +76,19 @@ going through the pool, so it also refuses while that destination has items
 pending in overflow. The pool's own `TryDispatch` refuses its channel for the
 same reason.
 
+The fast path does not flush what it writes. The source's read loop flushes
+every destination it wrote to once its read buffer drains
+(`Session.flushFwdDirty`), and takes each destination's `writeMu` with
+`TryLock`, so a slow destination never stalls the source. A destination whose
+`writeMu` is held at that moment is handed to its forward worker as an item
+that carries no bytes (`Peer.handOffForwardFlush`). The worker's batch takes
+`writeMu` with a blocking `Lock`, then flushes. Waiting for the source's next
+read instead would leave the UPDATE in the buffer for as long as the source
+stays quiet, because a writer that holds `writeMu` does not always flush when
+it releases it: one whose own UPDATE is refused returns before its flush.
+<!-- source: internal/component/bgp/reactor/session_write.go -- flushFwdDirty -->
+<!-- source: internal/component/bgp/reactor/peer.go -- handOffForwardFlush -->
+
 "Pending in overflow" counts the bytes the worker still OWES that destination,
 not the items still sitting in `w.overflow`. An item the worker has moved onto
 its channel, and the batch it is writing right now, are both pending: the fast

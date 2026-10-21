@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -884,14 +883,24 @@ func (s *Session) retireWrite(err error) {
 	}
 }
 
+// fwdDirtyTarget is a destination the RS fast path wrote to without flushing:
+// the session whose bufWriter holds the bytes, and the peer whose forward
+// worker takes the flush over when that session's writeMu is contended.
+type fwdDirtyTarget struct {
+	peer    *Peer
+	session *Session
+}
+
 // appendFwdDirty tracks a destination session that has unflushed RS fast path
 // writes. Deduplicates so each session appears at most once per batch.
 // Only called from this session's read goroutine (no synchronization needed).
-func (s *Session) appendFwdDirty(dst *Session) {
-	if slices.Contains(s.fwdDirty, dst) {
-		return
+func (s *Session) appendFwdDirty(peer *Peer, dst *Session) {
+	for i := range s.fwdDirty {
+		if s.fwdDirty[i].session == dst {
+			return
+		}
 	}
-	s.fwdDirty = append(s.fwdDirty, dst)
+	s.fwdDirty = append(s.fwdDirty, fwdDirtyTarget{peer: peer, session: dst})
 }
 
 // flushFwdDirty flushes all destination sessions that have pending RS fast
@@ -899,15 +908,27 @@ func (s *Session) appendFwdDirty(dst *Session) {
 // batch boundary) or on read loop exit.
 //
 // For each dirty session: acquires writeMu via TryLock, sets write deadline,
-// flushes bufWriter, clears deadline, resets send hold timer. Sessions where
-// TryLock fails are retained for the next flush cycle.
+// flushes bufWriter, clears deadline, resets send hold timer.
+//
+// A session whose writeMu is held is handed to its peer's forward worker
+// (Peer.handOffForwardFlush), which waits for writeMu and flushes. It is not
+// kept for "the next flush cycle": that cycle runs only when this source reads
+// another message, and a source that has sent its last UPDATE never does. The
+// holder is no substitute either, since a writer that refuses its own UPDATE or
+// returns early releases writeMu without flushing, and the route sat in the
+// bufWriter until shutdown (the FlowSpec redirect-check hang). Only when no
+// worker can take it (no pool, or the pool stopped) is the session retained.
+//
+// A session no longer Established, or with no conn, is dropped: its connection
+// is closing, and closeConn flushes the bufWriter under writeMu itself.
 func (s *Session) flushFwdDirty() {
 	if len(s.fwdDirty) == 0 {
 		return
 	}
 	deadline := s.clock.Now().Add(fwdWriteDeadline())
 	kept := 0
-	for _, dst := range s.fwdDirty {
+	for _, target := range s.fwdDirty {
+		dst := target.session
 		dst.mu.RLock()
 		conn := dst.conn
 		state := dst.fsm.State()
@@ -916,7 +937,10 @@ func (s *Session) flushFwdDirty() {
 			continue
 		}
 		if !dst.writeMu.TryLock() {
-			s.fwdDirty[kept] = dst
+			if target.peer.handOffForwardFlush(dst) {
+				continue
+			}
+			s.fwdDirty[kept] = target
 			kept++
 			continue
 		}
@@ -934,7 +958,7 @@ func (s *Session) flushFwdDirty() {
 		dst.writeMu.Unlock()
 	}
 	for i := kept; i < len(s.fwdDirty); i++ {
-		s.fwdDirty[i] = nil
+		s.fwdDirty[i] = fwdDirtyTarget{}
 	}
 	s.fwdDirty = s.fwdDirty[:kept]
 }

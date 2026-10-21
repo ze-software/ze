@@ -835,7 +835,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 						"id", updateID, "peer", pending[i].key.peerAddr, "src", sourcePeerAddr)
 				}
 				if dstSession != nil && srcSession != nil {
-					srcSession.appendFwdDirty(dstSession)
+					srcSession.appendFwdDirty(pending[i].item.peer, dstSession)
 				}
 			case r.fwdPool.TryDispatch(pending[i].key, &pending[i].item):
 				delivered++

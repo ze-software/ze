@@ -811,7 +811,7 @@ func TestReactorForwardRSDirectWrite(t *testing.T) {
 	require.NoError(t, dstReader.SetReadDeadline(time.Time{}))
 
 	// Track dirty session and flush.
-	srcSession.appendFwdDirty(dstSession)
+	srcSession.appendFwdDirty(dst, dstSession)
 	require.Len(t, srcSession.fwdDirty, 1)
 
 	// Read concurrently: net.Pipe is synchronous (write blocks until read).
@@ -865,8 +865,8 @@ func TestFlushFwdDirtyRetainsLockedSessions(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	_, srcSession, _ := makeRSPeerWithSession(t, "10.0.0.1", 65001, ctx, ctxID)
-	_, dst1Session, dst1Reader := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
-	_, dst2Session, dst2Reader := makeRSPeerWithSession(t, "10.0.0.3", 65003, ctx, ctxID)
+	dst1, dst1Session, dst1Reader := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
+	dst2, dst2Session, dst2Reader := makeRSPeerWithSession(t, "10.0.0.3", 65003, ctx, ctxID)
 
 	body := []byte{0, 0, 0, 0}
 
@@ -881,8 +881,8 @@ func TestFlushFwdDirtyRetainsLockedSessions(t *testing.T) {
 	require.NoError(t, dst2Session.writeRawUpdateBody(body))
 	dst2Session.writeMu.Unlock()
 
-	srcSession.appendFwdDirty(dst1Session)
-	srcSession.appendFwdDirty(dst2Session)
+	srcSession.appendFwdDirty(dst1, dst1Session)
+	srcSession.appendFwdDirty(dst2, dst2Session)
 	require.Len(t, srcSession.fwdDirty, 2)
 
 	// Hold dst2's writeMu so flushFwdDirty can't flush it.
@@ -900,7 +900,7 @@ func TestFlushFwdDirtyRetainsLockedSessions(t *testing.T) {
 
 	// dst1 flushed and removed; dst2 retained (TryLock failed).
 	require.Len(t, srcSession.fwdDirty, 1)
-	require.Equal(t, dst2Session, srcSession.fwdDirty[0])
+	require.Equal(t, dst2Session, srcSession.fwdDirty[0].session)
 
 	select {
 	case n := <-dst1Done:
@@ -1001,9 +1001,9 @@ func BenchmarkReactorForwardRS(b *testing.B) {
 func TestAppendFwdDirtyDeduplicates(t *testing.T) {
 	s := &Session{}
 	dst := &Session{}
-	s.appendFwdDirty(dst)
-	s.appendFwdDirty(dst)
-	s.appendFwdDirty(dst)
+	s.appendFwdDirty(nil, dst)
+	s.appendFwdDirty(nil, dst)
+	s.appendFwdDirty(nil, dst)
 	require.Len(t, s.fwdDirty, 1)
 }
 

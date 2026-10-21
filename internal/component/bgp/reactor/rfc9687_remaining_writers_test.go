@@ -49,7 +49,7 @@ func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 				err = s.writeRawUpdateBody([]byte{0, 4, 24, 10, 0, 0, 0, 0})
 				s.writeMu.Unlock()
 				source := NewSession(s.settings)
-				source.appendFwdDirty(s)
+				source.appendFwdDirty(nil, s)
 				source.flushFwdDirty()
 				if len(source.fwdDirty) != 0 {
 					t.Fatal("the destination was not flushed")

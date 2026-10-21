@@ -2286,6 +2286,42 @@ func (p *Peer) wakeForwardOverflow() {
 	r.fwdPool.wakeOverflow(fwdKey{peerAddr: p.settings.PeerKey()})
 }
 
+// handOffForwardFlush asks this peer's forward worker to flush session's
+// bufWriter. Session.flushFwdDirty calls it for a route-server fast-path write
+// whose deferred flush found session.writeMu held. The worker runs
+// fwdBatchHandler, which takes writeMu with a blocking Lock, sets the write
+// deadline and flushes once the holder releases, whether or not the holder
+// flushed. The item carries no bytes, so the batch writes nothing of its own.
+//
+// TryDispatch refuses when the worker's channel is full or overflow is owed
+// ahead of it, and the item then joins the overflow queue behind that work, so
+// the flush still comes after every write already queued for this peer.
+//
+// Returns false when no worker can take the flush: a nil peer, no reactor, no
+// forward pool, or a stopped pool. The caller then keeps the session dirty.
+// Safe for concurrent use. It runs on the source session's read goroutine, off
+// the per-UPDATE path: only a contended batch-boundary flush reaches it.
+func (p *Peer) handOffForwardFlush(session *Session) bool {
+	if p == nil {
+		return false
+	}
+	r := p.reactor
+	if r == nil {
+		return false
+	}
+	if r.fwdPool == nil {
+		return false
+	}
+	// p.settings.PeerKey() is the key both forwarding rails dispatch under
+	// (wakeForwardOverflow reads it the same way, without p.mu).
+	key := fwdKey{peerAddr: p.settings.PeerKey()}
+	flush := fwdItem{peer: p, session: session}
+	if r.fwdPool.TryDispatch(key, &flush) {
+		return true
+	}
+	return r.fwdPool.dispatchOverflow(key, &flush)
+}
+
 // pendingSync reports whether the peer still owes the wire something from this
 // session's initial update: routes queued while not-yet-established, an in-flight
 // initial-route sync, or the End-of-RIB that closes it. Unlike shouldQueue it does
