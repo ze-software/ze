@@ -77,7 +77,7 @@ skeleton was written and are not true at HEAD:
 | The fault-management sibling is unbuilt | Its validator half is in the tree: `validateBGPLSNLRISyntax` and `RetainWellFormedNLRI` (`internal/component/bgp/message/rfc7606_bgpls_nlri.go`), documented in `docs/architecture/wire/nlri-bgpls.md` "Receive-Path NLRI Validation". Its declared Consumer-facing role is not built (no `role.go`, no role YANG under `nlri/ls`), and `RFC9552-8.2.6-2`, the row that role answered, now carries `{not-applicable}` in `rfc/short/rfc9552.md` | `ls internal/component/bgp/plugins/nlri/ls/`; `rfc/short/rfc9552.md` row 8.2.6-2 |
 | The work depends on the sibling | It does not. Neither control reads the role, and the role is no longer owed by a row. `Depends` is set to `-`; the overlap is recorded as R-1 | this research |
 
-**Dependency on route D of `plan/pre-release/spec-plugin-ownership-imports.md`.**
+**Dependency on route D of `spec-plugin-ownership-imports`.**
 Route D moves the BGP-LS wire vocabulary (`types*.go`, the NLRI parsers, the JSON
 helpers) from `internal/component/bgp/plugins/nlri/ls` to
 `internal/core/bgp/nlri/bgpls`, and splits `rfc9552_test.go`. This spec creates
@@ -219,7 +219,7 @@ unaffected.
 |----------|--------|
 | What breaks if this is wrong? | A leaked or racy counter refuses BGP-LS from every peer while sessions stay up, and a topology silently stops filling |
 | How is it reverted? | single commit revert; the ceiling defaults to unset and the accept side adds no code |
-| Who else touches this path? | `session_prefix.go` is the per-peer prefix-limit path for every family (`spec`s touching prefix limits: none open at research time); `plan/pre-release/spec-plugin-ownership-imports.md` route D (no file overlap); `plan/immediate/spec-bgp-ls-receiver-fault-management.md` (role overlap only, R-1) |
+| Who else touches this path? | `session_prefix.go` is the per-peer prefix-limit path for every family (`spec`s touching prefix limits: none open at research time); `spec-plugin-ownership-imports` route D (no file overlap); `plan/immediate/spec-bgp-ls-receiver-fault-management.md` (role overlap only, R-1) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

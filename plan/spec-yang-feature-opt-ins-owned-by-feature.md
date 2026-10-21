@@ -83,7 +83,7 @@ reader was not located in the audit; the implementer locates it before Phase 1 (
   → Constraint: an unknown key MUST fail at every level with the closest valid key suggested. After the move, `connection bfd` in a build without `ze_bfd` is an unknown key and is refused, which replaces today's "starts without BFD and logs a warning".
 - [ ] `ai/rules/plugins.md`
   → Constraint: a plugin owns its entire feature surface.
-- [ ] `plan/pre-release/spec-plugin-ownership-imports.md`
+- [ ] `spec-plugin-ownership-imports`
   → Constraint: that spec removes the 35 import edges `./le arch tier check` reports, and nothing else. It moves a command schema only where the schema's location is itself one of those edges (the `mtu`, `ping`, `traceroute` `-cmd` modules and `ze-rib-poolstats-cmd`); it moves no other command schema and no config node. Shared files: `feature-gates.txt` and the generated `all*.go` only. (Corrected 2026-10-12 after that spec's design review round 4: this line had said it moves command schemas to their owners in general.)
 
 ### RFC Summaries (references only, no protocol change)
@@ -372,7 +372,7 @@ N-A: no wire change. Config paths and runtime behavior are unchanged in a full b
 | Go readers stay in the clients | move the parse of `connection bfd` into `bfd/api` | the owner's rule is about the schema; the reader is the client's behavior and reads through the always-on `bfd/api` contract |
 
 ## Known Limitations
-- Command schemas are outside this spec: `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares `rpc l2tp-health` (handler `internal/component/l2tp/show_health.go`, `ze_l2tp`) and `rpc bgp-health` (handler `internal/component/bgp/plugins/cmd/peer/health.go`, `ze_bgp`) in an always-linked module. Answered by the owner on 2026-10-13 (Q-8): "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". The move belongs to `plan/pre-release/spec-plugin-ownership-imports.md` (route J, AC-17); out of scope here.
+- Command schemas are outside this spec: `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares `rpc l2tp-health` (handler `internal/component/l2tp/show_health.go`, `ze_l2tp`) and `rpc bgp-health` (handler `internal/component/bgp/plugins/cmd/peer/health.go`, `ze_bgp`) in an always-linked module. Answered by the owner on 2026-10-13 (Q-8): "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". The move belongs to `spec-plugin-ownership-imports` (route J, AC-17); out of scope here.
 
 ## Open Questions (which way, with recommendation)
 
@@ -385,7 +385,7 @@ N-A: no wire change. Config paths and runtime behavior are unchanged in a full b
 | Q-5 | OSPF `redistribute source` hard-codes `bgp`, `isis` as enum values present without those plugins. Fix here (string plus registry, as `ze-redistribute-conf` does) or separately? | Separately: it is a reference, not a definition |
 | Q-6 | OSPF `bfd` carries inline timers where BGP and static name a BFD profile. Keep the leaves (pure move), or replace with `profile`? | Pure move here; a profile change alters config and is its own decision |
 | Q-7 | How is the rule kept true: a reduced-tag schema test per gate, or a static check that no module names a node a gated package reads? | Reduced-tag schema test for the gates that have client opt-ins (`ze_bfd`, `ze_ldp`), plus the rule text |
-| Q-8 | Recorded as Q-C in `plan/pre-release/spec-plugin-ownership-imports.md`. Where do the `l2tp-health` and `bgp-health` RPCs go? `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares them in an always-linked module, while their handlers are gated (`ze_l2tp`, `ze_bgp`). Options: (a) the ownership-imports spec; (b) this spec; (c) a spec of their own | **Decided 2026-10-13: (a).** Thomas: "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". Moved to `plan/pre-release/spec-plugin-ownership-imports.md` (route J, AC-17, which proves it with a schema test since that spec's gate cannot see it); out of scope here |
+| Q-8 | Recorded as Q-C in `spec-plugin-ownership-imports`. Where do the `l2tp-health` and `bgp-health` RPCs go? `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares them in an always-linked module, while their handlers are gated (`ze_l2tp`, `ze_bgp`). Options: (a) the ownership-imports spec; (b) this spec; (c) a spec of their own | **Decided 2026-10-13: (a).** Thomas: "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". Moved to `spec-plugin-ownership-imports` (route J, AC-17, which proves it with a schema test since that spec's gate cannot see it); out of scope here |
 | Q-9 | Bucket: `plan/` (no shipped build lacks a tag today) or `plan/pre-release/`? | `plan/` |
 
 ## Checklist

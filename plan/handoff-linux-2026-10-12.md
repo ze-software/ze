@@ -42,7 +42,7 @@ missing"), and a BFD session cannot come Up there (the transport reads no TTL).
 |------|-------|------|
 | `spec-bgp-live-receive-binding-and-bfd-keep-session` | Phases 1-4 committed; I5 race fix reviewed clean (round 7); Phase 4 reviewed clean (round 3, `tmp/review/...`) | L1-L3, then the RFC5882-4.4-1 summary marker (`rfc/short/rfc5882.md` lacks `{partial}` for the two partly met configurations; then re-judge), then `/ze-close` |
 | `plan/immediate/spec-bgp-link-local-only-next-hop.md` (+ readvertise, unowned-rows companions) | design; round 13 fixes committed (`f9ad38e04c`); re-send shape is FRR's in place (owner standing decisions) | review round 14 needs owner authorisation (past the cap), then owner approval |
-| `plan/pre-release/spec-plugin-ownership-imports.md` | design; owner answered Q-1 one spec, Q-2 accept the three SR-Policy refusals; design review round 2 fixes committed | one more design review round, then owner approval |
+| `spec-plugin-ownership-imports` | design; owner answered Q-1 one spec, Q-2 accept the three SR-Policy refusals; design review round 2 fixes committed | one more design review round, then owner approval |
 | `plan/spec-bsd-family-interface-backend.md` + six BSD skeletons | design / skeleton, not started | owner answers the five Open Owner Questions; do not start before approval |
 
 ## 3. Owner items still open

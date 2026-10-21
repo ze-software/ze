@@ -63,7 +63,7 @@ L2TP interop `02-ppp-bgp-redistribute-frr` fixed in its frr.conf (b3a5960dc7).
   Ze sends no IPv6CP frame; build it under `plan/spec-l2tp-ipv6-subscriber.md`.
 
 ## 5. Spec claimed
-`plan/pre-release/spec-plugin-ownership-imports.md`: D1 and D2 landed (69b67933a2,
+`spec-plugin-ownership-imports`: D1 and D2 landed (69b67933a2,
 82591173b6), arch tier green. Remaining: route J (AC-17 health RPCs) and closure.
 
 ## Agent handoffs (appended below)
