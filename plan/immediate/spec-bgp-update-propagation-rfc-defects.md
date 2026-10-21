@@ -585,6 +585,31 @@ Per `docs/architecture/testing/interop.md`: scenario directories under `test/int
 | Registry that prevents drift | `nlritype` registry (the three-way recognizer registered by the owning NLRI plugin) |
 | Verification that proves it | the `.ci` files and interop scenarios above |
 
+### Deliverables Checklist
+
+Added at closure (2026-10-21): the design phase left this table and the next one out.
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| D1 low-nibble clear on every write | `grep -n 'attrFlagsUnusedMask' internal/component/bgp/reactor/session_egress_normalize.go`; `TestRFC4271WriteClearsLowNibbleEveryAttribute`, `TestRFC4271RelayedLowNibbleClearedOnBothRails` |
+| D2 LARGE_COMMUNITY repeats removed on write | `compactLargeCommunities` in `session_egress_normalize.go`; `TestRFC8092WriteRemovesRepeatedLargeCommunity`, `TestRFC8092PolicyAddOfPresentValueSentOnce` |
+| D3 malformed MUP NLRI withdrawn, unkeyable discarded | `mup/rfc7606.go::recognizerFor`, `nlritype.RetainUpdate`; `TestMUPMalformedT1STTreatAsWithdraw`, `TestMUPUnkeyableMalformedT1STDiscardedNotRelayed` |
+| Q-2 T1ST origination refusal | `mup/encode.go` `errMupT1stRequiresTEID`, `errMupT1stRequiresEndpoint`; `mup/encode_test.go` |
+| D4 `rs` source role suppressed upward | `role/otc.go::OTCEgressFilter`; `TestOTCEgressFilter` |
+| D5 BLACKHOLE withheld from unagreed eBGP, reload | `filter_community/blackhole.go::blackholeReadvertiseRefused`, `configTx`; `TestRFC7999ReadvertiseWithheldWithoutAgreement`, `TestRFC7999AgreementReloadTransaction` |
+| Six `.ci` and five interop scenarios | `ls` of the Wiring and Files to Create rows; `INTEROP_SCENARIO=<name>` runs (AC-13) |
+| AC-5 verdicts enforced | `rfc/audit/<stem>.json` verdict per ID |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Peer-reachable panic | no `panic` on a received UPDATE in the egress walk, the MUP recognizer or `nlritype.RetainUpdate` (the scratch-length panic is a caller defect, sized by `Session.typedNLRIKeyScratch`) |
+| Bounds on peer input | the egress walk stops on an attribute that overruns the section; `ValidateNLRI` bounds every field against the NLRI length |
+| Resource exhaustion | the compaction allocates nothing (fixed 8 KiB stack filter); a withdraw body is allocated only for malformed input, bounded by the message size |
+| Fail open | a D5 cache miss reads as "not agreed" (withheld); a parse failure at verify refuses the reload |
+| Data race | the D5 cache pointer is swapped under `mu` and read under `mu.RLock` in `egressFilter` |
+
 ## Key Insights
 
 - D1 and D2 are send-side sentences; the only point every send passes is `Session.writeUpdateBody`, which already normalizes the Label-Index on its private buffer. Fix there, one walk.
@@ -600,6 +625,7 @@ Per `docs/architecture/testing/interop.md`: scenario directories under `test/int
 - -> Decision (interop, implementation agent 6, 2026-10-14): the five scenarios are catalogue entries in `internal/le/interoplab/bgp/checkers.go` (`scenarioOperations`), not bespoke checkers. Each is an ordered list of existing operations, so `TestEveryScenarioOperationUsesRecorder` and `TestEveryScenarioOperationRejectsContradictoryRecorder` drive both polarities, and no `TestBespokeCheckerBranches` subtest is owed. Every negative carries positive proof: `opRequireAbsent` and `opWaitAbsent` name a proof token, and each `opFRRRouteAbsent` follows a control route at FRR and Ze's `show bgp rib status` routes-in count.
 - -> Decision (D5 interop, deviates from the scenario table's "BIRD (sender, agreed)"): BIRD's session carries no `blackhole` block. An agreement there makes Ze honor the route and add the NO_EXPORT guard (`blackholePropagationGuard`, `filter_community/blackhole.go`), and NO_EXPORT alone keeps the route off FRR, so the scenario could not go red with `blackholeReadvertiseRefused` reverted. The `.ci` source peer A has no agreement for the same reason.
 - -> Constraint (interop, 2026-10-14): NOT RUN. The Docker host kernel check refuses on this machine, so no scenario has a green or a red run, and AC-13 is unmet. The GoBGP output shapes the assertions read are unverified until the first run: `"flags":224` and `"type":241` in `gobgp global rib -j`, `{LargeCommunity: a, b, c}` in the text table, and the T1ST prefix under `-a ipv4-mup`. A-2, A-3 and A-4 stay unvalidated with them.
+- -> Constraint (interop, first runs, 2026-10-21, macOS QEMU docker-lab over a `git archive` of ce28145f2f, logs in `plan/handover/15-update-propagation-interop.md`): D1 `bgp-attr-flags-low-nibble-gobgp` PASS green (A-2 confirmed: GoBGP prints `"flags":224`). D2 FAIL on the assertion only: Ze sent each value once, GoBGP prints `{LargeCommunity: [ 65000:1:1, 65000:3:3, 65000:2:2]}` with brackets; the checker string is corrected (A-3 confirmed). D3 FAIL: GoBGP 3.31.0 panics (`MUPType1SessionTransformedRoute.DecodeFromBytes`, index out of range) decoding Ze's relayed MP_UNREACH_NLRI, because the treat-as-withdraw withdrawal carries the malformed K' bytes as received, not the bytes of the generation Ze advertised. D4 FAIL: Ze's `show bgp rib status` reports `routes-in 0` after the injector's UPDATE arrives. D5 FAIL: FRR never gets the control route; Ze logs "peer-up replay gave up waiting for adj-rib-in to reach the cut". D4 and D5 both log that bgp-rib and bgp-adj-rib-in are attached to no peer. No red run yet.
 
 ## Implementation Steps
 
