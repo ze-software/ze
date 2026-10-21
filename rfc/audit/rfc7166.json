@@ -1,0 +1,22 @@
+{
+  "audited": "2026-10-21",
+  "requirements": {
+    "RFC7166-4.6-4": {
+      "code": {
+        "internal/plugins/ospf/auth_wiring.go::installAuthHooks": "bb21e50fe0cc2937"
+      },
+      "note": "RFC 7166 Section 4.6: 'If the cryptographic sequence number in the AT is less than or equal to the last sequence number ... the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged.' Verified absent: installAuthHooks returns when the dispatch codec is not v4Codec, so an OSPFv3 engine gets neither signer nor dispatch.authOK; it is the only caller of SetSigner and the only setter of authOK, and nothing under internal/plugins/ospf/v3 parses or verifies a trailer. No sequence check, no drop, no log. Disclosed as Unsupported on the summary.",
+      "requirement_sha": "9117ecaceaa063e5",
+      "verdict": "unimplemented"
+    },
+    "RFC7166-4.6-7": {
+      "code": {
+        "internal/plugins/ospf/auth_wiring.go::installAuthHooks": "bb21e50fe0cc2937"
+      },
+      "note": "RFC 7166 Section 4.6: 'If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged.' Verified absent: installAuthHooks installs the verifier only for v4Codec engines and is the sole setter of dispatch.authOK, so no OSPFv3 trailer digest is computed or compared and no mismatch event exists. Disclosed as Unsupported on the summary.",
+      "requirement_sha": "79562e6493a57b61",
+      "verdict": "unimplemented"
+    }
+  },
+  "rfc": "rfc7166"
+}

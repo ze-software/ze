@@ -116,10 +116,11 @@
       "id": "4.6",
       "sites": 4,
       "disposition": "walked",
-      "reason": "Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Two advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2) and the SHOULD to log an error event on a dropped or digest-failed packet (4.6-4, the trailing clause of sites 4.6:2 and 4.6:3).",
+      "reason": "Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Three advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2), the SHOULD to log an error event on a packet dropped for its sequence number (4.6-4, the trailing clause of site 4.6:2), and the SHOULD to log an error event on a packet discarded for a digest mismatch (4.6-7, the trailing clause of site 4.6:3).",
       "unsourced-ids": [
         "RFC7166-4.6-2",
-        "RFC7166-4.6-4"
+        "RFC7166-4.6-4",
+        "RFC7166-4.6-7"
       ]
     },
     {
