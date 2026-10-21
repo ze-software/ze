@@ -334,6 +334,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 						// never converge, and no unit test sees that: they call
 						// Peer.updateDelayEndOfRIB directly.
 						peer.updateDelayEndOfRIB(eorFamily)
+						// RFC 4724 Section 4.2: the marker removes the stale
+						// routes of its family, and their held generations.
+						peer.typedNLRIHeld.endOfRIB(eorFamily)
 						// Cancel EOR timeout warning (AC-11).
 						if peer.health != nil {
 							peer.health.onEORReceived()

@@ -752,6 +752,7 @@ func (p *Peer) awaitBFDRelease(release bfdRelease) {
 func (p *Peer) newSession() *Session {
 	session := NewSession(p.settings)
 	session.bfdOptIn = p.bfdSettings
+	session.typedNLRIHeld = &p.typedNLRIHeld
 	return session
 }
 

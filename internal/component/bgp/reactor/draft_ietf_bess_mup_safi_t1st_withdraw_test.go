@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/family"
@@ -118,7 +119,7 @@ func TestMUPMalformedT1STTreatAsWithdraw(t *testing.T) {
 			nlri := append(append(append([]byte{}, l...), tc.k...), l2...)
 			wu, action, validation := applyRFC7606Body(t, s, makeUpdateBody(nil, mpReachAttrs(mupFam, nlri), nil))
 			assert.Equal(t, message.RFC7606ActionNone, action)
-			assert.Nil(t, validation.typedWithdrawBody, "no MP_UNREACH was present, so the withdrawal joins the UPDATE")
+			assert.Nil(t, validation.typedWithdrawBodies, "no MP_UNREACH was present, so the withdrawal joins the UPDATE")
 
 			kept, found := mpReachNLRIOf(t, wu.Payload())
 			require.True(t, found)
@@ -163,8 +164,8 @@ func TestMUPMalformedT1STWithdrawEdges(t *testing.T) {
 		unreach, found := mpUnreachNLRIOf(t, wu.Payload())
 		require.True(t, found)
 		assert.Equal(t, other, unreach, "the other family's withdrawal survives unchanged")
-		require.NotNil(t, validation.typedWithdrawBody, "K rides its own withdraw-only UPDATE")
-		assert.Equal(t, message.BuildMPUnreachBody(uint16(mupFam.AFI), uint8(mupFam.SAFI), k0), validation.typedWithdrawBody)
+		require.Len(t, validation.typedWithdrawBodies, 1, "K rides its own withdraw-only UPDATE")
+		assert.Equal(t, message.BuildMPUnreachBody(uint16(mupFam.AFI), uint8(mupFam.SAFI), k0), validation.typedWithdrawBodies[0])
 	})
 
 	t.Run("the only route", func(t *testing.T) {
@@ -236,7 +237,7 @@ func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 			assert.Equal(t, tc.l, kept)
 			_, found = mpUnreachNLRIOf(t, wu.Payload())
 			assert.False(t, found, "no withdrawal can name an unkeyable route")
-			assert.Nil(t, validation.typedWithdrawBody)
+			assert.Nil(t, validation.typedWithdrawBodies)
 
 			// Forward rail: a destination that already holds L receives the edited
 			// UPDATE. A K left in the body would fail fwdPathKeyFor inside
@@ -284,7 +285,7 @@ func TestMUPMalformedT1STWithdrawnByHeldGeneration(t *testing.T) {
 		assert.Equal(t, l, kept)
 		_, found = mpUnreachNLRIOf(t, wu.Payload())
 		assert.False(t, found, "the Adj-RIB-In held no route for K, so there is nothing to withdraw")
-		assert.Nil(t, validation.typedWithdrawBody)
+		assert.Nil(t, validation.typedWithdrawBodies)
 	})
 
 	t.Run("received malformed withdrawal replaced by the held generation", func(t *testing.T) {
@@ -357,4 +358,128 @@ func TestMUPMalformedT1STWithdrawnByHeldGeneration(t *testing.T) {
 		assert.Equal(t, append(append([]byte{}, long2...), long4...), withdrawn)
 		requireDecodable(t, mupFam, withdrawn, false)
 	})
+}
+
+// TestMUPHeldGenerationWithdrawalsFitTheMessageLimit is the size half of the
+// held-generation rule: a held generation can be longer than the malformed NLRI it
+// replaces, so the replacements must never grow a message past the limit.
+//
+// VALIDATES: 150 malformed T1STs in one received MP_UNREACH_NLRI, each holding a
+// 230-octet generation, leave as withdraw-only bodies no larger than the session's
+// 4096-octet UPDATE limit, carrying every held generation once and in order, each
+// one the recognizer keeps.
+// PREVENTS: an UPDATE whose attribute or message length overflows its field
+// (106411 octets declaring 40871 in review round 1 of the closure).
+func TestMUPHeldGenerationWithdrawalsFitTheMessageLimit(t *testing.T) {
+	s := nlriTypeTestSession()
+	tlv := append([]byte{0x00, 0xf0, 200}, make([]byte, 200)...)
+	var held, malformed []byte
+	for i := range 150 {
+		last := byte(10 + i)
+		long := mupWireNLRI(3, t1stBody(last, tlv...)...)
+		holdT1STGeneration(t, s, mupFam, long)
+		held = append(held, long...)
+		malformed = append(malformed, mupWireNLRI(3, t1stBody(last, 0x00, 0xf0)...)...)
+	}
+	body := makeUpdateBody(nil, mpUnreachAttrsExtLen(mupFam, malformed), nil)
+	wu, _, validation := applyRFC7606Body(t, s, body)
+
+	limit := int(message.MaxMessageLength(msgtype.TypeUPDATE, false)) - message.HeaderLen
+	assert.LessOrEqual(t, len(wu.Payload()), limit)
+	var relayed []byte
+	if inUpdate, found := mpUnreachNLRIOf(t, wu.Payload()); found {
+		relayed = append(relayed, inUpdate...)
+	}
+	require.NotEmpty(t, validation.typedWithdrawBodies, "34500 octets of withdrawals cannot fit one 4096-octet UPDATE")
+	for _, extra := range validation.typedWithdrawBodies {
+		assert.LessOrEqual(t, len(extra), limit)
+		nlri, found := mpUnreachNLRIOf(t, extra)
+		require.True(t, found)
+		relayed = append(relayed, nlri...)
+	}
+	assert.Equal(t, held, relayed, "every held generation once, in order")
+	requireDecodable(t, mupFam, relayed, false)
+}
+
+// TestMUPHeldGenerationRefreshAllocatesNothing pins the steady path: a peer
+// re-announcing the route it already announced costs the hold no allocation.
+//
+// VALIDATES: typedNLRIRelayEdit over an MP_REACH_NLRI that repeats the held bytes
+// allocates nothing.
+// PREVENTS: a closure or a copy per MUP UPDATE on the receive goroutine.
+func TestMUPHeldGenerationRefreshAllocatesNothing(t *testing.T) {
+	s := nlriTypeTestSession()
+	k0 := mupWireNLRI(3, t1stBody(2, 0x00)...)
+	holdT1STGeneration(t, s, mupFam, k0)
+	recognize := nlritype.Get(mupFam)
+	require.NotNil(t, recognize)
+	allocs := testing.AllocsPerRun(100, func() {
+		if _, err := s.typedNLRIRelayEdit(mupFam, recognize, k0, nil, false, true, false); err != nil {
+			t.Fatal(err)
+		}
+	})
+	assert.Zero(t, allocs)
+}
+
+// TestMUPHeldGenerationOutlivesAGracefulRestart covers the hold's lifetime, which
+// is the lifetime of the routes it mirrors (RFC 4724 Section 4.2).
+//
+// VALIDATES: a generation held on one session withdraws a malformed NLRI on the
+// next when that session negotiated Graceful Restart; a session without it starts
+// empty; an End-of-RIB drops the generations the new session did not announce
+// again and keeps those it did.
+// PREVENTS: a stale route that a malformed NLRI must withdraw surviving until the
+// stale purge, and a hold that grows across sessions.
+func TestMUPHeldGenerationOutlivesAGracefulRestart(t *testing.T) {
+	k := mupWireNLRI(3, t1stBody(2, 0x00, 0xf0)...)
+	k0 := mupWireNLRI(3, t1stBody(2, 0x00)...)
+	l := mupWireNLRI(3, t1stBody(1, 0x00)...)
+	withdrawnBy := func(s *Session) []byte {
+		wu, _, _ := applyRFC7606Body(t, s, makeUpdateBody(nil, mpReachAttrs(mupFam, append(append([]byte{}, l...), k...)), nil))
+		nlri, _ := mpUnreachNLRIOf(t, wu.Payload())
+		return nlri
+	}
+	session := func(held *typedNLRIHeldRoutes, gracefulRestart bool) *Session {
+		s := nlriTypeTestSession()
+		s.typedNLRIHeld = held
+		held.beginSession(gracefulRestart)
+		return s
+	}
+
+	t.Run("retained across a graceful restart", func(t *testing.T) {
+		var held typedNLRIHeldRoutes
+		holdT1STGeneration(t, session(&held, true), mupFam, k0)
+		assert.Equal(t, k0, withdrawnBy(session(&held, true)))
+	})
+	t.Run("dropped by a session without graceful restart", func(t *testing.T) {
+		var held typedNLRIHeldRoutes
+		holdT1STGeneration(t, session(&held, true), mupFam, k0)
+		assert.Nil(t, withdrawnBy(session(&held, false)))
+	})
+	t.Run("End-of-RIB drops what the new session did not refresh", func(t *testing.T) {
+		var held typedNLRIHeldRoutes
+		holdT1STGeneration(t, session(&held, true), mupFam, k0)
+		next := session(&held, true)
+		holdT1STGeneration(t, next, mupFam, l)
+		held.endOfRIB(mupFam)
+		assert.Nil(t, withdrawnBy(next), "K0 was stale and the End-of-RIB removed it")
+		_, kept := held.routes[mustHeldKey(t, next, l)]
+		assert.True(t, kept, "L was announced again and stays")
+	})
+}
+
+// mustHeldKey is the hold's key for one NLRI.
+func mustHeldKey(t *testing.T, s *Session, one []byte) fwdPathKey {
+	t.Helper()
+	var key fwdPathKey
+	require.True(t, s.typedNLRIKey(&key, mupFam, one, false, false))
+	return key
+}
+
+// mpUnreachAttrsExtLen is mpUnreachAttrs with a two-octet Extended Length, for an
+// NLRI section longer than 252 octets.
+func mpUnreachAttrsExtLen(fam family.Family, nlri []byte) []byte {
+	value := []byte{byte(uint16(fam.AFI) >> 8), byte(uint16(fam.AFI)), byte(fam.SAFI)}
+	value = append(value, nlri...)
+	return append([]byte{0x90, byte(attribute.AttrMPUnreachNLRI), byte(len(value) >> 8), byte(len(value))}, value...)
 }

@@ -116,6 +116,10 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// Capability, this document raises that limit to 65,535."
 	s.extendedMessage = s.negotiated.ExtendedMessageRecv
 
+	// RFC 4724 Section 4.2: a session without Graceful Restart removes the
+	// stale routes at once, so the held generations that mirror them go too.
+	s.heldTypedNLRI().beginSession(s.negotiated.GracefulRestart != nil)
+
 	// RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value of the
 	// Hold Timer by using the smaller of its configured Hold Time and the
 	// Hold Time received in the OPEN message. The Hold Time MUST be either

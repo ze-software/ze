@@ -135,7 +135,7 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 	if result.Action != message.RFC7606ActionSessionReset {
 		attrs := typedNLRIUpdateAttrs(pathAttrs, result)
 		var outcome typedNLRIOutcome
-		wu, pathAttrs, outcome, validation.typedWithdrawBody = s.applyTypedNLRIDiscard(
+		wu, pathAttrs, outcome, validation.typedWithdrawBodies = s.applyTypedNLRIDiscard(
 			wu, pathAttrs, offset, &attrs, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor,
 			result.Action == message.RFC7606ActionTreatAsWithdraw)
 		body = wu.Payload()

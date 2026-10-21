@@ -617,6 +617,12 @@ type Peer struct {
 	// on teardown; source candidate selection remains the selecting RIB's job.
 	adjOut adjRIBOut
 
+	// typedNLRIHeld is the last well-formed generation of each route key this
+	// peer announced in a body-judged family, kept across sessions as long as the
+	// routes it mirrors (session_validation_nlritype_held.go). Every session of
+	// the peer files into it (newSession).
+	typedNLRIHeld typedNLRIHeldRoutes
+
 	fwdFacts atomic.Pointer[peerForwardFacts]
 
 	// fwdOverflowPending is this peer's handle to the count its forward worker

@@ -364,12 +364,20 @@ NLRI bytes and counted in `ze_bgp_update_nlri_malformed_total`
 
 The withdrawal never carries the malformed bytes. A receiver decodes every field
 of a withdrawn NLRI, so for a family whose recognizer judges the body
-(`nlritype.RegisterBodyRecognizer`) each session keeps the last well-formed
-generation it received for each route key, and the withdrawal of a malformed
-route names that generation. When no generation is held, the session never
+(`nlritype.RegisterBodyRecognizer`) each peer keeps the last well-formed
+generation it announced for each route key, and the withdrawal of a malformed
+route names that generation. When no generation is held, the peer never
 installed the route and nothing is relayed for it. The same rule applies to a
 malformed or unkeyable NLRI a peer sends in an MP_UNREACH_NLRI. FRR and BIRD
 build their withdrawals the same way, from the route they hold.
+
+A held generation can be longer than the malformed NLRI it replaces, so the
+replacements join the UPDATE only while it carries no other MP_UNREACH_NLRI and
+still fits the session's message limit; otherwise they leave in withdraw-only
+UPDATEs sized to that limit. The hold lives as long as the routes it mirrors
+(RFC 4724 Section 4.2): it survives a reconnect that negotiates Graceful
+Restart, is emptied by one that does not, and an End-of-RIB drops the
+generations of its family the new session did not announce again.
 
 A family can also register an UPDATE-level check beside its recognizer, for a
 rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
@@ -390,7 +398,7 @@ Section 5.3 resets the session.
 <!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
 <!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
-<!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable, typedNLRIWithdrawBodies, typedNLRIHeldRoutes -->
 
 ### RFC 7911 Path Identifier regeneration
 
