@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"time"
 
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -56,4 +57,23 @@ type RawMessage struct {
 // See docs/architecture/memory/lifetime-contracts.md.
 func (m *RawMessage) IsAsyncSafe() bool {
 	return m.WireUpdate == nil
+}
+
+// SourceEncodingContext returns the encoding context the UPDATE was decoded
+// under, which says per family whether its NLRI carry a Path Identifier.
+//
+// It reads the context from WireUpdate, never from AttrsWire. An UPDATE whose
+// Total Path Attribute Length is zero has no attribute section, so AttrsWire
+// is nil for a withdraw-only UPDATE, and a reader that took the context from
+// it walked the Withdrawn Routes of an ADD-PATH peer with no Path Identifier.
+// AttrsWire is built from the same WireUpdate (WireUpdate.Attrs), so the two
+// agree whenever both exist.
+//
+// It returns nil when the message is not an UPDATE wrapper or the context id
+// is not registered: the caller then knows of no negotiated ADD-PATH.
+func (m *RawMessage) SourceEncodingContext() *bgpctx.EncodingContext {
+	if m.WireUpdate == nil {
+		return nil
+	}
+	return bgpctx.Registry.Get(m.WireUpdate.SourceCtxID())
 }

@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -41,10 +40,9 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 	wu := msg.WireUpdate
 
 	// Get encoding context for add-path detection.
-	var encCtx *bgpctx.EncodingContext
-	if msg.AttrsWire != nil {
-		encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
-	}
+	// RFC 7911 Section 3: read ADD-PATH from the UPDATE, not its attribute
+	// section, which a withdraw-only UPDATE does not have.
+	encCtx := msg.SourceEncodingContext()
 
 	// Withdrawals (del) run BEFORE announces (add), and the order is load-bearing.
 	// RFC 4271 Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and

@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -69,10 +68,9 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 	}
 	sp.records = sp.records[:0]
 
-	var encCtx *bgpctx.EncodingContext
-	if msg.AttrsWire != nil {
-		encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
-	}
+	// RFC 7911 Section 3: read ADD-PATH from the UPDATE, not its attribute
+	// section, which a withdraw-only UPDATE does not have.
+	encCtx := msg.SourceEncodingContext()
 
 	// Withdrawn records are appended BEFORE announced ones, and the order is
 	// load-bearing: every consumer walks this slice in order, and

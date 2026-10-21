@@ -27,6 +27,7 @@ func init() {
 	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02))
 	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
 	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02))
+	Register("plugin/addpath-withdraw-event", eventObserver02("addpath-withdraw-event", []string{eventUpdate}, addPathWithdrawEvent02))
 	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState, bgpevents.EventKeepalive}, reloadKept02))
 	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
 	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02))
@@ -840,6 +841,75 @@ func labeledWithdrawEvent02(ctx context.Context, plugin *sdk.Plugin, events <-ch
 	}
 	requestShutdownAsync02(ctx, plugin)
 	return waitForShutdown02(ctx, shutdown, 15*time.Second)
+}
+
+// addPathWithdrawEvent02 decodes every received UPDATE event and prints one
+// line for each ipv4/unicast entry to stderr, "ADDPATH-EVENT: <action>"
+// followed by each NLRI element, until an entry with action del arrives. An
+// object element prints as "<prefix> path-id <id>"; a bare string element
+// prints as "<prefix> no-path-id", so a withdrawal that lost its RFC 7911 Path
+// Identifier cannot match "ADDPATH-EVENT: del 10.0.0.0/8 path-id 7". The line
+// carries no quote because ze relays plugin stderr through its logger, which
+// escapes quotes.
+func addPathWithdrawEvent02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
+	for {
+		event, ok := nextEvent02(ctx, events, shutdown, 20*time.Second)
+		if !ok {
+			return fmt.Errorf("ADDPATH-EVENT: no ipv4/unicast withdrawal event arrived")
+		}
+		_, kind, direction := eventFacts02(event)
+		if kind != eventUpdate {
+			continue
+		}
+		if direction != directionReceived {
+			continue
+		}
+		if addPathEntries02(eventBody02(event)) {
+			break
+		}
+	}
+	if err := quiesce02(ctx, plugin); err != nil {
+		return err
+	}
+	requestShutdownAsync02(ctx, plugin)
+	return waitForShutdown02(ctx, shutdown, 15*time.Second)
+}
+
+// addPathEntries02 prints one ADDPATH-EVENT line per ipv4/unicast entry of the
+// update in body and reports whether any entry was a del.
+func addPathEntries02(body map[string]any) bool {
+	update, _ := body["update"].(map[string]any)
+	nlri, _ := update["nlri"].(map[string]any)
+	entries, _ := nlri["ipv4/unicast"].([]any)
+	withdrawn := false
+	for _, raw := range entries {
+		entry, _ := raw.(map[string]any)
+		action, _ := entry["action"].(string)
+		var line strings.Builder
+		line.WriteString("ADDPATH-EVENT: ")
+		line.WriteString(action)
+		elements, _ := entry["nlri"].([]any)
+		for _, element := range elements {
+			line.WriteByte(' ')
+			if prefix, isString := element.(string); isString {
+				line.WriteString(prefix)
+				line.WriteString(" no-path-id")
+				continue
+			}
+			object, _ := element.(map[string]any)
+			prefix, _ := object["prefix"].(string)
+			line.WriteString(prefix)
+			if pathID, hasPathID := object["path-id"].(float64); hasPathID {
+				line.WriteString(" path-id ")
+				line.WriteString(strconv.FormatFloat(pathID, 'f', -1, 64))
+			}
+		}
+		fmt.Fprintln(os.Stderr, line.String())
+		if action == "del" {
+			withdrawn = true
+		}
+	}
+	return withdrawn
 }
 
 // labeledEntries02 prints one LABELED-EVENT line per ipv4/mpls-label entry of
