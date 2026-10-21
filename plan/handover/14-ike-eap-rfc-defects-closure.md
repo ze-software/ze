@@ -134,7 +134,8 @@ shared index pointing at pre-`9d60c1d841` content for its paths; the repair is i
 - Round 7 over `09333fb1a1`: 0 BLOCKER, 1 ISSUE, 6 NOTEs (spec Review Gate, rows 12 and 13 and
   the round 7 paragraph). The ISSUE: `interop.md` said the EAP port scenario has no reachable
   red; only the D1b line has none. Reworded in the working tree, and the N4 survey wording too.
-  **That `interop.md` edit is NOT committed**: the file also holds another session's uncommitted
+  (Correction from round 8: that edit DID land, in another session's `f5ea135dd3`.) It was
+  believed uncommitted because the file also holds another session's uncommitted
   hunks naming `dockerKernelRouteFor`, which HEAD lacks, and stripping foreign hunks is banned
   (owner rule, 2026-10-21). It lands when that session commits its kernelcheck work, or with
   the closure once their referent is in HEAD. Round 8 needs Thomas.
@@ -150,3 +151,20 @@ shared index pointing at pre-`9d60c1d841` content for its paths; the repair is i
   `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (1 line). The spec's closure placeholders
   are filled except FULL-VERIFY and REVIEW-ARTIFACT / REVIEW-CHECK. Next: round 8 (Thomas),
   then the verify, then `/ze-close` (`rounds 8`).
+
+## Round 8, 2026-10-21 23:30 (Thomas: "Review round 8 for IKE EAP")
+
+- Round 8 over `ee07c2b2da` and the page: 0 BLOCKER, 1 ISSUE, 4 NOTEs (spec rows 13, 14 and
+  the round 8 paragraph). The ISSUE was real test debt: D1b had no interop proof, because
+  strongSwan negotiated MOBIKE and `handleAuthRequest` records the endpoint at the first
+  IKE_AUTH (RFC 4555 Section 3.3). Fixed: `mobike = no` in
+  `real-nat-port-translated-eap-ze-responder/swanctl.conf`. Green 23:25, walk M3 red 23:26
+  (Ze refuses the IKE_AUTH Child SA: no authenticated IKE endpoint), committed with this entry.
+  Runs used an export of `09333fb1a1` (ike and interop code identical to HEAD) because HEAD's
+  docker-host image needs a gokrazy module the cache lacks (`GOPROXY=off`, another session's
+  `2b98d538dc`/`a02b362081` change).
+- The matching `interop.md` rewording is in the working tree, NOT committed: the file holds
+  another session's hunk naming `dockerhost.ColimaHome`, which HEAD lacks. It lands with their
+  commit or with the closure.
+- Round 9 needs Thomas. Then the full verify (disk was 24 GB at 23:20), then `/ze-close`
+  (`rounds 9`), with the closure prep listed above.
