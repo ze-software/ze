@@ -5,14 +5,14 @@
 stdin=peer:terminator=EOF_PEER
 # Route sent by plugin script
 cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 mp ipv4/flow add source-ipv4 10.0.0.2/32
-# RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
-# Next-Hop Network Address MUST be set to 0.  The Network Address of the
-# Next-Hop field MUST be ignored." The expectation below therefore carries
-# `85 00 00` where it used to carry `85 04 <address> 00`, and is four octets
-# shorter. The `nhop` on the command line is still parsed and still reaches the
-# encoder; the family is what refuses to put it on the wire
-# (family.NeedsNextHop, internal/core/family/family.go).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F0200000028800E0C00018500000602200A0000024001010040020040050400000064C010080800000000000001
+# The action is copy-to-nexthop, the 0x0800 redirect/copy-to-IP-next-hop
+# community, whose target IS the MP_REACH_NLRI next hop
+# (draft-simpson-idr-flowspec-redirect-02 Section 3). The expectation carries
+# `85 04 01020304 00`, where every other FlowSpec action carries the RFC 8955
+# Section 4 zero length (message.MPReachCarriesNextHop, since 4358372547). That
+# exception is an owner-approved deviation from the RFC 8955 Section 4 MUST
+# (2026-10-20, handover 03 owner decisions), not conformance.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C800E100001850401020304000602200A0000024001010040020040050400000064C010080800000000000001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flow":[{"action":"add","nlri":{"source-ipv4":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
 # // the End-of-RIB rule that stood here asserted an ordering the
 # product does not define, and named a producer that never ran. Nothing in this
