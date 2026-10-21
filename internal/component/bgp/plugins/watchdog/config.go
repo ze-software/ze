@@ -43,7 +43,9 @@ func parseConfig(jsonData string) (map[string]*poolSet, error) {
 
 	// Standalone peers: bgp.peer.<addr>
 	if peerMap, ok := getMap(bgpTree, "peer"); ok {
-		parseWatchdogPeers(peerMap, nil, result)
+		if err := parseWatchdogPeers(peerMap, nil, result); err != nil {
+			return nil, err
+		}
 	}
 
 	// Grouped peers: bgp.group.<name>.peer.<addr>
@@ -54,7 +56,9 @@ func parseConfig(jsonData string) (map[string]*poolSet, error) {
 				continue
 			}
 			if peerMap, ok := getMap(groupMap, "peer"); ok {
-				parseWatchdogPeers(peerMap, groupMap, result)
+				if err := parseWatchdogPeers(peerMap, groupMap, result); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -73,7 +77,9 @@ func parseConfig(jsonData string) (map[string]*poolSet, error) {
 //
 // The result map is keyed by peer IP address (from remote.ip), not by peer name,
 // because state events and the engine identify peers by IP address.
-func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*poolSet) {
+//
+// It reports a watchdog route attribute that does not parse.
+func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*poolSet) error {
 	for _, peerData := range peerMap {
 		peerTree, ok := peerData.(map[string]any)
 		if !ok {
@@ -92,19 +98,26 @@ func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*poo
 		// Layer 1: group-level update blocks (defaults).
 		if groupMap != nil {
 			if groupUpdateMap, ok := getMap(groupMap, "update"); ok {
-				pools = collectWatchdogRoutes(groupUpdateMap, peerAddr, pools)
+				var err error
+				if pools, err = collectWatchdogRoutes(groupUpdateMap, peerAddr, pools); err != nil {
+					return err
+				}
 			}
 		}
 
 		// Layer 2: peer-level update blocks (additions/overrides).
 		if peerUpdateMap, ok := getMap(peerTree, "update"); ok {
-			pools = collectWatchdogRoutes(peerUpdateMap, peerAddr, pools)
+			var err error
+			if pools, err = collectWatchdogRoutes(peerUpdateMap, peerAddr, pools); err != nil {
+				return err
+			}
 		}
 
 		if pools != nil {
 			result[peerAddr] = pools
 		}
 	}
+	return nil
 }
 
 // extractRemoteIP extracts the remote IP address from a peer config tree.
@@ -124,7 +137,8 @@ func extractRemoteIP(peerTree map[string]any) string {
 
 // collectWatchdogRoutes scans update blocks for watchdog containers and adds
 // their routes to pools. Creates a new PoolSet if pools is nil and routes are found.
-func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *poolSet) *poolSet {
+// It reports a route attribute that does not parse, naming the peer and the watchdog.
+func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *poolSet) (*poolSet, error) {
 	for _, updateData := range updateMap {
 		updateTree, ok := updateData.(map[string]any)
 		if !ok {
@@ -146,7 +160,10 @@ func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *poo
 
 		// Parse attributes into a base Route (family/prefix/RD/labels added per NLRI).
 		attrMap, _ := getMap(updateTree, "attribute")
-		base := buildRouteFromAttrs(attrMap)
+		base, err := buildRouteFromAttrs(attrMap)
+		if err != nil {
+			return nil, fmt.Errorf("peer %s watchdog %s: %w; correct the attribute in that update block", peerAddr, wdName, err)
+		}
 
 		// Parse NLRI entries.
 		nlriMap, ok := getMap(updateTree, "nlri")
@@ -169,33 +186,41 @@ func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *poo
 			}
 		}
 	}
-	return pools
+	return pools, nil
 }
 
 // buildRouteFromAttrs creates a bgp.Route with path attributes from an attribute map.
-func buildRouteFromAttrs(attrMap map[string]any) bgp.Route {
+//
+// A value that does not parse is reported rather than dropped: a watchdog route
+// announced without the attribute its config gave it is a different route.
+func buildRouteFromAttrs(attrMap map[string]any) (bgp.Route, error) {
 	var route bgp.Route
 
 	if v := getStringAny(attrMap, "origin"); v != "" {
 		var o attribute.Origin
-		if err := o.UnmarshalText([]byte(v)); err == nil {
-			route.Origin = &o
+		if err := o.UnmarshalText([]byte(v)); err != nil {
+			return bgp.Route{}, fmt.Errorf("origin %q: %w", v, err)
 		}
+		route.Origin = &o
 	}
 	route.NextHop = getStringAny(attrMap, "next-hop")
 
 	if v := getStringAny(attrMap, "local-preference"); v != "" {
-		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-			n32 := uint32(n)
-			route.LocalPreference = &n32
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return bgp.Route{}, fmt.Errorf("local-preference %q is not a number 0 to 4294967295", v)
 		}
+		n32 := uint32(n)
+		route.LocalPreference = &n32
 	}
 
 	if v := getStringAny(attrMap, "med"); v != "" {
-		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-			n32 := uint32(n)
-			route.MED = &n32
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return bgp.Route{}, fmt.Errorf("med %q is not a number 0 to 4294967295", v)
 		}
+		n32 := uint32(n)
+		route.MED = &n32
 	}
 
 	if v := getStringAny(attrMap, "as-path"); v != "" {
@@ -211,12 +236,14 @@ func buildRouteFromAttrs(attrMap map[string]any) bgp.Route {
 	}
 
 	if v := getStringAny(attrMap, "extended-community"); v != "" {
-		if ecs, _, err := routepkg.ParseExtendedCommunities(splitCommaOrSpace(v)); err == nil {
-			route.ExtendedCommunities = ecs
+		ecs, _, err := routepkg.ParseExtendedCommunities(splitCommaOrSpace(v))
+		if err != nil {
+			return bgp.Route{}, fmt.Errorf("extended-community %q: %w", v, err)
 		}
+		route.ExtendedCommunities = ecs
 	}
 
-	return route
+	return route, nil
 }
 
 // parseNLRIEntries parses NLRI map entries into PoolEntry objects.

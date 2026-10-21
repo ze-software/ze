@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/family"
@@ -405,6 +406,42 @@ func TestParseConfigAllAttributes(t *testing.T) {
 	want := "update text origin igp as-path [65001 65002] med 50 local-preference 200 community [65000:100 65000:200] large-community [65000:1:2] extended-community [0002fde800000064] nhop 10.0.0.1 nlri add 10.0.0.0/24"
 	if route.AnnounceCmd != want {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", route.AnnounceCmd, want)
+	}
+}
+
+// TestParseConfigRefusesAnAttributeThatDoesNotParse proves a watchdog route
+// attribute that does not parse fails the config rather than vanishing.
+//
+// VALIDATES: an extended-community, med, local-preference or origin value
+// that does not parse is reported, naming the peer, the watchdog and the value.
+// PREVENTS: the route being announced without the attribute its config gave it.
+func TestParseConfigRefusesAnAttributeThatDoesNotParse(t *testing.T) {
+	cases := map[string]string{
+		"extended-community": `"extended-community": "bogus:1:2"`,
+		"med":                `"med": "fifty"`,
+		"local-preference":   `"local-preference": "-1"`,
+		"origin":             `"origin": "sideways"`,
+	}
+	for name, attr := range cases {
+		t.Run(name, func(t *testing.T) {
+			jsonData := `{"bgp": {"peer": {"peer1": {
+				"connection": {"remote": {"ip": "10.0.0.1"}},
+				"update": {"default": {
+					"attribute": {` + attr + `},
+					"nlri": {"ipv4/unicast": {"content": "add 10.0.0.0/24"}},
+					"watchdog": {"name": "dns"}
+				}}
+			}}}}`
+			_, err := parseConfig(jsonData)
+			if err == nil {
+				t.Fatalf("parseConfig accepted %s", attr)
+			}
+			for _, want := range []string{"peer 10.0.0.1 watchdog dns", name} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q does not name %q", err, want)
+				}
+			}
+		})
 	}
 }
 
