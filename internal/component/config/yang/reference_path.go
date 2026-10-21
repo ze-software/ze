@@ -171,11 +171,15 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 	if err != nil {
 		return nil, leafrefPath{}, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(" does not parse: ").Str(err.Error()))
 	}
-	ctx := &pathContext{leaf: leaf, stmt: pathStatement(leaf, typ)}
+	ctx, err := newPathContext(leaf, typ)
+	if err != nil {
+		return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(": ").Str(err.Error()))
+	}
 	parents, err := v.pathStart(ctx, path)
 	if err != nil {
 		return nil, path, err
 	}
+	namespace := ctx.namespace
 	var node *yang.Entry
 	for i, step := range path.steps {
 		node = childOf(parents, localName(step.node))
@@ -185,7 +189,11 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 		if err := checkPathPrefix(ctx, step.node, node); err != nil {
 			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(": ").Str(err.Error()))
 		}
-		if err := v.checkPathKeys(ctx, typ.Path, node, step); err != nil {
+		namespace, err = v.checkStepNamespace(ctx, namespace, step.node, node)
+		if err != nil {
+			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(": ").Str(err.Error()))
+		}
+		if err := v.checkPathKeys(ctx, namespace, typ.Path, node, step); err != nil {
 			return nil, path, err
 		}
 		if i < len(path.steps)-1 {
@@ -226,15 +234,21 @@ func (v *Validator) pathStart(ctx *pathContext, path leafrefPath) ([]*yang.Entry
 // childOf finds the first step in any of them. A prefixed nodeID names one
 // module, resolved in the module the path is written in, and the root of
 // that module answers when it holds the node, wherever it sits among the
-// loaded modules. When it does not, or the prefix is not declared, the
-// unprefixed lookup answers, so the step resolves by its local name and
-// checkPathPrefix refuses the prefix with the fix.
+// loaded modules. When it does not, or the prefix is not declared, every
+// loaded module whose top level holds the local name answers, so the step
+// resolves and checkPathPrefix refuses the prefix with the fix. An
+// unprefixed nodeID is looked up in the referring leaf's module and the
+// merged `-conf` sections (topLevel); checkStepNamespace then holds it to
+// the namespace Section 6.4.1 gives it.
 func (v *Validator) topLevelParents(ctx *pathContext, nodeID string) []*yang.Entry {
 	name := localName(nodeID)
-	if root := prefixedModuleRoot(ctx, nodeID); root != nil {
-		if schemaChild(root, name) != nil {
-			return []*yang.Entry{root}
+	if nodePrefix(nodeID) != "" {
+		if root := prefixedModuleRoot(ctx, nodeID); root != nil {
+			if schemaChild(root, name) != nil {
+				return []*yang.Entry{root}
+			}
 		}
+		return loadedTopLevelParents(ctx.leaf, name)
 	}
 	nodes := v.topLevel(ctx.leaf, name)
 	parents := make([]*yang.Entry, 0, len(nodes))
@@ -270,6 +284,32 @@ func prefixedModuleRoot(ctx *pathContext, nodeID string) *yang.Entry {
 	return yang.ToEntry(mod)
 }
 
+// loadedTopLevelParents answers the root of every loaded module whose top
+// level holds a data node called name, in module name order so the first
+// match is the same on every load. A module goyang lists under both its name
+// and its name with a revision answers once.
+func loadedTopLevelParents(leaf *yang.Entry, name string) []*yang.Entry {
+	modules := leaf.Modules().Modules
+	names := make([]string, 0, len(modules))
+	for modName := range modules {
+		names = append(names, modName)
+	}
+	slices.Sort(names)
+	seen := make(map[*yang.Module]bool, len(modules))
+	var parents []*yang.Entry
+	for _, modName := range names {
+		mod := modules[modName]
+		if seen[mod] {
+			continue
+		}
+		seen[mod] = true
+		if child := schemaChild(yang.ToEntry(mod), name); child != nil {
+			parents = append(parents, dataParentOrRoot(child))
+		}
+	}
+	return parents
+}
+
 // dataParentOrRoot answers the entry whose Dir holds node: its parent, which
 // for a top-level node is the module root.
 func dataParentOrRoot(node *yang.Entry) *yang.Entry {
@@ -286,7 +326,10 @@ func dataParentOrRoot(node *yang.Entry) *yang.Entry {
 // RFC 7950 Section 9.9.2: "Predicates are used only for constraining the
 // values for the key nodes for list entries.  Each predicate consists of
 // exactly one equality test per key".
-func (v *Validator) checkPathKeys(ctx *pathContext, text string, node *yang.Entry, step pathStep) error {
+//
+// namespace is the one an unprefixed key name takes at this step
+// (checkStepNamespace).
+func (v *Validator) checkPathKeys(ctx *pathContext, namespace, text string, node *yang.Entry, step pathStep) error {
 	var tb textbuf.Buffer
 	if len(step.keys) == 0 {
 		return nil
@@ -304,7 +347,14 @@ func (v *Validator) checkPathKeys(ctx *pathContext, text string, node *yang.Entr
 			return refError(tb.Str("leafref path ").Quoted(text).Str(" tests key ").Quoted(name).Str(" twice: give one equality test per key"))
 		}
 		seen[name] = true
-		if err := checkPathPrefix(ctx, key.node, schemaChild(node, name)); err != nil {
+		keyLeaf := schemaChild(node, name)
+		if err := checkPathPrefix(ctx, key.node, keyLeaf); err != nil {
+			return refError(tb.Str("leafref path ").Quoted(text).Str(": ").Str(err.Error()))
+		}
+		if keyLeaf == nil {
+			return refError(tb.Str("leafref path ").Quoted(text).Str(" tests key ").Quoted(name).Str(", which list ").Quoted(node.Name).Str(" names but does not define: correct the list's key statement"))
+		}
+		if _, err := v.checkStepNamespace(ctx, namespace, key.node, keyLeaf); err != nil {
 			return refError(tb.Str("leafref path ").Quoted(text).Str(": ").Str(err.Error()))
 		}
 		if _, err := v.keyExprTarget(ctx, key); err != nil {
@@ -328,6 +378,7 @@ func (v *Validator) keyExprTarget(ctx *pathContext, key pathKey) (*yang.Entry, e
 	if node.Parent == nil {
 		parents = v.topLevelParents(ctx, key.nodes[0])
 	}
+	namespace := ctx.namespace
 	var target *yang.Entry
 	for _, nodeID := range key.nodes {
 		target = childOf(parents, localName(nodeID))
@@ -335,6 +386,11 @@ func (v *Validator) keyExprTarget(ctx *pathContext, key pathKey) (*yang.Entry, e
 			return nil, refError(tb.Str("current() expression names no node ").Quoted(nodeID))
 		}
 		if err := checkPathPrefix(ctx, nodeID, target); err != nil {
+			return nil, err
+		}
+		var err error
+		namespace, err = v.checkStepNamespace(ctx, namespace, nodeID, target)
+		if err != nil {
 			return nil, err
 		}
 		parents = []*yang.Entry{target}
@@ -349,18 +405,33 @@ func (v *Validator) keyExprTarget(ctx *pathContext, key pathKey) (*yang.Entry, e
 // referring node, is the context node every relative step and current()
 // climbs from (RFC 7950 Section 9.9.2), and stmt is the type statement the
 // path is written in, whose module declares the prefixes the path may use.
-// The two differ when the path comes from a typedef of another module, and
-// stmt is nil when Ze cannot find that statement.
+// The two differ when the path comes from a typedef of another module or a
+// deviation, and stmt is nil when Ze cannot find that statement. namespace is
+// the module of leaf, the namespace an unprefixed name of the path takes
+// (RFC 7950 Section 6.4.1).
 type pathContext struct {
-	leaf *yang.Entry
-	stmt *yang.Type
+	leaf      *yang.Entry
+	stmt      *yang.Type
+	namespace string
+}
+
+// newPathContext builds the context a leafref typ of leaf is resolved
+// against. goyang gives a node a grouping instantiates the namespace of the
+// module using the grouping, which is the namespace Section 6.4.1 names.
+func newPathContext(leaf *yang.Entry, typ *yang.YangType) (*pathContext, error) {
+	namespace, err := leaf.InstantiatingModule()
+	if err != nil {
+		var tb textbuf.Buffer
+		return nil, refError(tb.Str("the module of the referring leaf ").Str(leaf.Path()).Str(" is not known: ").Str(err.Error()))
+	}
+	return &pathContext{leaf: leaf, stmt: pathStatement(leaf, typ), namespace: namespace}, nil
 }
 
 // pathStatement answers the type statement that writes the path of typ, one
 // leafref type of leaf: the statement holding the path substatement, reached
 // from leaf's own type statement through union members and the typedefs each
-// names. It answers nil when leaf has no type statement holding typ, as
-// after a deviation replaced the type.
+// names, or, when a deviation gave leaf its type, from the deviate's type
+// statement. It answers nil when neither holds typ.
 func pathStatement(leaf *yang.Entry, typ *yang.YangType) *yang.Type {
 	var stmt *yang.Type
 	switch node := leaf.Node.(type) {
@@ -368,10 +439,46 @@ func pathStatement(leaf *yang.Entry, typ *yang.YangType) *yang.Type {
 		stmt = node.Type
 	case *yang.LeafList:
 		stmt = node.Type
-	default:
-		return nil
 	}
-	return findPathStatement(stmt, typ)
+	if found := findPathStatement(stmt, typ); found != nil {
+		return found
+	}
+	return deviationStatement(leaf, typ)
+}
+
+// RFC 7950 Section 7.20.3.2: "The argument "replace" replaces properties of
+// the target node."
+//
+// deviationStatement answers the statement that writes the path of typ under
+// the type substatement of a deviate in any loaded module or submodule.
+// goyang copies a deviate's type onto the target entry, so the deviate that
+// gave leaf typ is found by identity, and its module is the one the path is
+// written in. goyang copies the type of an "add" deviate as it does a
+// "replace" one, so both are searched: the path is resolved in the module
+// that wrote it, whichever keyword carried it.
+func deviationStatement(leaf *yang.Entry, typ *yang.YangType) *yang.Type {
+	modules := leaf.Modules()
+	for _, set := range []map[string]*yang.Module{modules.Modules, modules.SubModules} {
+		for _, mod := range set {
+			if found := moduleDeviationStatement(mod, typ); found != nil {
+				return found
+			}
+		}
+	}
+	return nil
+}
+
+// moduleDeviationStatement answers the statement under one of mod's deviate
+// type substatements that writes the path of typ.
+func moduleDeviationStatement(mod *yang.Module, typ *yang.YangType) *yang.Type {
+	for _, deviation := range mod.Deviation {
+		for _, deviate := range deviation.Deviate {
+			if found := findPathStatement(deviate.Type, typ); found != nil {
+				return found
+			}
+		}
+	}
+	return nil
 }
 
 // findPathStatement answers the statement under t that writes the path of
@@ -429,8 +536,7 @@ func typedefStatement(t *yang.Type) *yang.Type {
 // leafref path, against node, the schema node its local name matched: the
 // prefix is declared in the module the path is written in (ctx.stmt), which
 // for a typedef is the module defining it, and names the module whose
-// namespace holds node. An unprefixed name belongs to the namespace of the
-// referring node (Section 6.4.1), which the local-name match already follows.
+// namespace holds node. An unprefixed name is checkStepNamespace's.
 func checkPathPrefix(ctx *pathContext, nodeID string, node *yang.Entry) error {
 	prefix := nodePrefix(nodeID)
 	if prefix == "" {
@@ -441,7 +547,7 @@ func checkPathPrefix(ctx *pathContext, nodeID string, node *yang.Entry) error {
 		return refError(tb.Str("names no node ").Quoted(nodeID))
 	}
 	if ctx.stmt == nil {
-		return refError(tb.Str("Ze cannot find the type statement that writes the path of ").Str(ctx.leaf.Path()).Str(", so prefix ").Quoted(prefix).Str(" cannot be resolved: this is a Ze defect, report it with the module text"))
+		return noPathStatement(ctx, nodeID)
 	}
 	owner, err := node.InstantiatingModule()
 	if err != nil {
@@ -458,6 +564,70 @@ func checkPathPrefix(ctx *pathContext, nodeID string, node *yang.Entry) error {
 	}
 	tb.Str("prefix ").Quoted(prefix).Str(" names module ").Str(declaredName).Str(", but ").Quoted(node.Name).Str(" belongs to module ").Str(owner).Str(": ")
 	return refError(prefixFix(&tb, ctx, owner, localName(nodeID)))
+}
+
+// noPathStatement refuses nodeID because the module the path is written in,
+// which declares the prefixes the path may use, is not known. pathStatement
+// searches every statement goyang takes a leaf's type from, so this answers
+// only when goyang gained a source Ze does not search.
+func noPathStatement(ctx *pathContext, nodeID string) error {
+	var tb textbuf.Buffer
+	return refError(tb.Str("Ze found no type statement writing the path of ").Str(ctx.leaf.Path()).
+		Str(" in the leaf's type, the typedefs it names, or a deviate of a loaded module, so ").Quoted(nodeID).
+		Str(" cannot be resolved: Ze's search for the statement is incomplete, report it with the module text"))
+}
+
+// RFC 7950 Section 6.4.1: "Names without a namespace prefix belong to the
+// same namespace as the identifier of the current node."
+//
+// checkStepNamespace checks an unprefixed nodeID of a leafref path against
+// node, the schema node its local name matched: node is in namespace, which
+// starts as the referring leaf's module (pathContext). It answers the
+// namespace the walk's next unprefixed name takes. Ze merges a top-level
+// section several `-conf` modules contribute to into one data node, with no
+// namespace in the config text (topLevel), so an unprefixed first step that
+// enters such a section of another module is the one exception: it is
+// accepted, and the names below it take that module's namespace. A prefixed
+// nodeID is checkPathPrefix's, and leaves namespace as it is.
+func (v *Validator) checkStepNamespace(ctx *pathContext, namespace, nodeID string, node *yang.Entry) (string, error) {
+	if nodePrefix(nodeID) != "" {
+		return namespace, nil
+	}
+	var tb textbuf.Buffer
+	owner, err := node.InstantiatingModule()
+	if err != nil {
+		return "", refError(tb.Str("the module of ").Quoted(node.Name).Str(" is not known: ").Str(err.Error()))
+	}
+	if owner == namespace {
+		return namespace, nil
+	}
+	if v.mergedSection(node, owner) {
+		return owner, nil
+	}
+	if ctx.stmt == nil {
+		return "", noPathStatement(ctx, nodeID)
+	}
+	tb.Quoted(nodeID).Str(" has no prefix, so it names module ").Str(namespace).
+		Str(" (RFC 7950 Section 6.4.1), but ").Quoted(node.Name).Str(" belongs to module ").Str(owner).Str(": ")
+	return "", refError(prefixFix(&tb, ctx, owner, nodeID))
+}
+
+// mergedSection reports whether node is a top-level section of owner, a
+// `-conf` module, which Ze merges with the same section of every other
+// `-conf` module (topLevel). Without a schema, as when a default is checked
+// at schema build, no section is merged.
+func (v *Validator) mergedSection(node *yang.Entry, owner string) bool {
+	parent := dataParent(node)
+	if parent == nil {
+		return false
+	}
+	if parent.Parent != nil {
+		return false
+	}
+	if v.schema == nil {
+		return false
+	}
+	return slices.Contains(v.schema.ConfModuleNames(), owner)
 }
 
 // RFC 7950 Section 6.4.1: "Names without a namespace prefix belong to the

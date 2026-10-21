@@ -165,6 +165,19 @@ Phase 1 in the order listed; tests first for each check.
 |-------|----------|-------|---------|-------|-------------|
 | 1-3 | independent agents, 2026-10-18 | bccd1e7cf5, then 2e4be94ae3, then 8a404499d5 | see commits | see commits | fixed by 2e4be94ae3, 8a404499d5, 40a03eb762 and 32d2ed5b51 |
 | 4 | independent agent (closure, 2026-10-21), author of none of the five commits | whole change, bccd1e7cf5^..HEAD over the spec's files | 0 | 3 | all fixed in the round-4 commit; a fresh reader owes round 5 |
+| 5 | independent agent, 2026-10-21 | whole change after round 4 | 0 | 3 | all fixed by 495eb83095 |
+| 6 | independent agent, 2026-10-21, author of none of the commits | whole change after 495eb83095, with a probe matrix of 34 module sets | 0 | 2 | both fixed in the round-6 fix commit; a fresh reader owes round 7 |
+
+Round 5 findings (495eb83095):
+- ISSUE 1 (fixed): a prefixed first step into another module's top level was refused; Section 6.4.1, "The root node has all top-level configuration data nodes in all modules as children." `topLevelParents` looks the step up in the module its prefix names.
+- ISSUE 2 (fixed): a typedef's path prefixes resolved in the module using the typedef; Section 6.4.1 names "the module where the XPath expression is specified". `pathStatement` finds the statement that writes the path.
+- ISSUE 3 (fixed): prefix refusals did not name the fix, and two quoted a leaf name as a module name. `prefixFix`.
+
+Round 6 findings:
+- ISSUE 1 (fixed, regression from 495eb83095): a leafref a `deviate replace` gives a leaf was refused as "a Ze defect", because `pathStatement` searched only the leaf's own type statement. Section 7.20.3.2: "The argument "replace" replaces properties of the target node." Fix: `deviationStatement` (`reference_path.go`) searches the deviate type statements of every loaded module and submodule, so the prefixes resolve in the deviating module; the nil-statement refusal (`noPathStatement`) no longer calls valid YANG a Ze defect. Test `TestLeafrefFromDeviateReplace` (`reference_namespace_test.go`), red observed against HEAD.
+- ISSUE 2 (fixed, predates round 5, AC-2 fail-open): an unprefixed path name was matched by local name in any namespace, so `../y` in pe loaded naming pd's y. Section 6.4.1: "Names without a namespace prefix belong to the same namespace as the identifier of the current node." Fix: `checkStepNamespace` at every step, key predicate and `current()` name, keeping the merged `-conf` top-level section exception; the `checkPathPrefix` comment claiming the local-name match followed 6.4.1 corrected. Test `TestLeafrefUnprefixedStepNamespace`, red observed against HEAD; the traffic `default-class` leafref still loads.
+- NOTE (fixed): an undeclared prefix, or one naming a module that lacks the node, on a first step was refused as "names no node" (probes T3, U3), not with the prefix refusal the `topLevelParents` comment promised. The prefixed lookup now falls back to every loaded module's top level (`loadedTopLevelParents`). Test `TestLeafrefPrefixRefusedAtTopLevel`.
+- NOTE: goyang applies a `deviate add` type as it does `replace`; Section 7.20.3.2 forbids adding a property that can appear once and a leaf always has a type. Journal row, not fixed here.
 
 Round 4 findings:
 - ISSUE 1 (fixed): a leafref path step, key predicate or `current()` name was matched by its local name alone, so `../bogus:l/k` and a prefix naming an imported module that does not hold the node loaded (AC-2 fail-open; RFC 7950 Section 6.4, "all prefixes used MUST be present in the XPath context"). Fix: `checkPathPrefix` (`reference_path.go`), test `TestLeafrefPathPrefixChecked` (`reference_prefix_test.go`), red observed with the check disabled.
