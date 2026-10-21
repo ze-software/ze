@@ -72,15 +72,15 @@ func (r *reloadTestReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 func (r *reloadTestReactor) PeerNegotiatedCapabilities(netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }
-func (r *reloadTestReactor) Stop()                                        {}
-func (r *reloadTestReactor) DisablePeer(netip.Addr, string) error         { return nil }
-func (r *reloadTestReactor) EnablePeer(netip.Addr) error                  { return nil }
-func (r *reloadTestReactor) TeardownPeer(netip.Addr, uint8, string) error { return nil }
-func (r *reloadTestReactor) Reload() error                                { return nil }
-func (r *reloadTestReactor) DrainPeerSync(_ context.Context) error        { return nil }
-func (r *reloadTestReactor) VerifyConfig(map[string]any) error            { return nil }
-func (r *reloadTestReactor) ApplyConfigDiff(map[string]any) error         { return nil }
-func (r *reloadTestReactor) RemovePeer(netip.Addr) error                  { return nil }
+func (r *reloadTestReactor) Stop()                                               {}
+func (r *reloadTestReactor) DisablePeer(netip.Addr, string) error                { return nil }
+func (r *reloadTestReactor) EnablePeer(netip.Addr) error                         { return nil }
+func (r *reloadTestReactor) TeardownPeer(netip.Addr, uint8, uint8, []byte) error { return nil }
+func (r *reloadTestReactor) Reload() error                                       { return nil }
+func (r *reloadTestReactor) DrainPeerSync(_ context.Context) error               { return nil }
+func (r *reloadTestReactor) VerifyConfig(map[string]any) error                   { return nil }
+func (r *reloadTestReactor) ApplyConfigDiff(map[string]any) error                { return nil }
+func (r *reloadTestReactor) RemovePeer(netip.Addr) error                         { return nil }
 func (r *reloadTestReactor) AddDynamicPeer(netip.Addr, map[string]any) error {
 	return nil
 }

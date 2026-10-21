@@ -150,12 +150,11 @@ const (
 // Enhanced Route Refresh marker).
 type peerOp struct {
 	Type        PeerOpType
-	Route       *rib.Route // For PeerOpAnnounce
-	NextHopSelf bool       // Resolve against the session that drains this announcement.
-	Replay      bool       // Preserve the sent entry's origin when a refresh is queued.
-	NLRI        nlri.NLRI  // For PeerOpWithdraw
-	Subcode     uint8      // For PeerOpTeardown
-	Message     string     // For PeerOpTeardown: RFC 8203 shutdown communication
+	Route       *rib.Route     // For PeerOpAnnounce
+	NextHopSelf bool           // Resolve against the session that drains this announcement.
+	Replay      bool           // Preserve the sent entry's origin when a refresh is queued.
+	NLRI        nlri.NLRI      // For PeerOpWithdraw
+	Notice      teardownNotice // For PeerOpTeardown: the NOTIFICATION it sends
 
 	// Automatic is set when the LOCAL SYSTEM chose this teardown rather than
 	// the operator, so draining it raises RFC 4271 Event 8 (AutomaticStop)
@@ -181,11 +180,11 @@ type peerOp struct {
 // sessionTeardown routes a teardown to the Session method whose RFC 4271 stop
 // event matches its origin. One call site would otherwise have to repeat the
 // if/else at every drain point (peer_initial_sync.go has two).
-func sessionTeardown(session *Session, subcode uint8, shutdownMsg string, automatic bool) error {
+func sessionTeardown(session *Session, notice teardownNotice, automatic bool) error {
 	if automatic {
-		return session.teardownAutomatic(subcode, shutdownMsg)
+		return session.teardownWith(notice, fsm.EventAutomaticStop)
 	}
-	return session.Teardown(subcode, shutdownMsg)
+	return session.teardownWith(notice, fsm.EventManualStop)
 }
 
 // DefaultOpQueueSize is the default maximum number of operations that can be
@@ -2011,7 +2010,20 @@ func (p *Peer) teardownAutomatic(subcode uint8, shutdownMsg string) error {
 }
 
 func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error {
-	return p.teardownOf(nil, subcode, shutdownMsg, automatic)
+	return p.teardownOf(nil, ceaseNotice(subcode, shutdownMsg), automatic)
+}
+
+// TeardownNotification closes the peer's session with the NOTIFICATION an
+// operator named: code, subcode and the Data field, sent as given. It is an
+// operator's stop (Event 2), queued as Teardown is. Data that does not fit
+// returns the refusal and leaves the session untouched.
+func (p *Peer) TeardownNotification(code, subcode uint8, data []byte) error {
+	// RFC 4271 Section 4.5
+	notice, err := operatorNotice(code, subcode, data)
+	if err != nil {
+		return err
+	}
+	return p.teardownOf(nil, notice, false)
 }
 
 // teardownOf is teardown for one session. A nil target is a peer-level teardown
@@ -2020,7 +2032,7 @@ func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error
 // another session it returns nil and does nothing, and the queued form carries
 // the target so the drain drops it once a later session holds the peer. A
 // restart decided for one session therefore never ends the session after it.
-func (p *Peer) teardownOf(target *Session, subcode uint8, shutdownMsg string, automatic bool) error {
+func (p *Peer) teardownOf(target *Session, notice teardownNotice, automatic bool) error {
 	p.mu.Lock()
 	session := p.session
 	if target != nil && session != target {
@@ -2035,7 +2047,7 @@ func (p *Peer) teardownOf(target *Session, subcode uint8, shutdownMsg string, au
 	if p.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < p.opQueueMax {
 			p.opQueue = append(p.opQueue, peerOp{
-				Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic, TeardownSession: target,
+				Type: PeerOpTeardown, Notice: notice, Automatic: automatic, TeardownSession: target,
 			})
 			p.mu.Unlock()
 			return nil
@@ -2047,7 +2059,7 @@ func (p *Peer) teardownOf(target *Session, subcode uint8, shutdownMsg string, au
 
 	if session != nil {
 		p.mu.Unlock()
-		if err := sessionTeardown(session, subcode, shutdownMsg, automatic); err != nil {
+		if err := sessionTeardown(session, notice, automatic); err != nil {
 			peerLogger().Debug("teardown error", "peer", p.settings.Address, "error", err)
 		}
 		// Set state after teardown - there's a brief race window where
@@ -2059,7 +2071,7 @@ func (p *Peer) teardownOf(target *Session, subcode uint8, shutdownMsg string, au
 
 	// No active session - queue teardown to maintain operation order
 	if len(p.opQueue) < p.opQueueMax {
-		p.opQueue = append(p.opQueue, peerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
+		p.opQueue = append(p.opQueue, peerOp{Type: PeerOpTeardown, Notice: notice, Automatic: automatic})
 		p.mu.Unlock()
 		return nil
 	}

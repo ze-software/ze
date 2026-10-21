@@ -488,7 +488,7 @@ func TestPeerTeardownQueuesWhenNotConnected(t *testing.T) {
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 1, "queue should have 1 item")
 	require.Equal(t, PeerOpTeardown, peer.opQueue[0].Type)
-	require.Equal(t, uint8(4), peer.opQueue[0].Subcode)
+	require.Equal(t, uint8(4), peer.opQueue[0].Notice.subcode)
 	peer.mu.RUnlock()
 }
 
@@ -521,7 +521,7 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	require.Equal(t, route1, peer.opQueue[0].Route)
 
 	require.Equal(t, PeerOpTeardown, peer.opQueue[1].Type)
-	require.Equal(t, uint8(4), peer.opQueue[1].Subcode)
+	require.Equal(t, uint8(4), peer.opQueue[1].Notice.subcode)
 
 	require.Equal(t, PeerOpAnnounce, peer.opQueue[2].Type)
 	require.Equal(t, route2, peer.opQueue[2].Route)
@@ -546,8 +546,8 @@ func TestPeerOpQueueMultipleTeardowns(t *testing.T) {
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 2, "queue should have 2 items")
-	require.Equal(t, uint8(2), peer.opQueue[0].Subcode)
-	require.Equal(t, uint8(4), peer.opQueue[1].Subcode)
+	require.Equal(t, uint8(2), peer.opQueue[0].Notice.subcode)
+	require.Equal(t, uint8(4), peer.opQueue[1].Notice.subcode)
 	peer.mu.RUnlock()
 }
 
@@ -1365,8 +1365,8 @@ func TestPeerTeardownQueuesMessage(t *testing.T) {
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 1, "queue should have 1 item")
 	require.Equal(t, PeerOpTeardown, peer.opQueue[0].Type)
-	require.Equal(t, uint8(2), peer.opQueue[0].Subcode)
-	require.Equal(t, "maintenance", peer.opQueue[0].Message)
+	require.Equal(t, uint8(2), peer.opQueue[0].Notice.subcode)
+	require.Equal(t, message.BuildCeaseData(2, "maintenance"), peer.opQueue[0].Notice.data, "the queued Cease carries the message as its Shutdown Communication")
 	peer.mu.RUnlock()
 }
 

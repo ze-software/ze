@@ -7,7 +7,7 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
-    revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner. request peer disable and enable hold a peer administratively down and release it."; }
+    revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner. request peer disable and enable hold a peer administratively down and release it. request peer notify closes a session with a NOTIFICATION of any code and subcode, its Data field given as text or, after the keyword hex, as octets."; }
     revision 2026-10-18 { description "The peer selector summary names * for every peer, so the selector guard's refusal, which quotes it, names the explicit every-peer form."; }
     // One verb pair for one runtime resource: create and delete, the pair the
     // verb table declares. peer-add and the delete verb's own spelling were
@@ -518,6 +518,60 @@ answer echoes the truncated text that went on the wire.";
                     description "The value is a whole number from 0 to 255, and a value outside that range
 is refused. Ze puts it in the Cease NOTIFICATION it sends before it closes the session.";
                     ze:help "BGP cease NOTIFICATION subcode";
+                }
+            }
+
+            container notify {
+                config false;
+                ze:command "ze-bgp:peer-notify";
+                ze:rpc "ze-bgp-api:peer-notify";
+                description "Ze closes the session with a NOTIFICATION carrying the error code and error
+subcode given, any value from 0 to 255. Under Cease (6), subcode 2 or 4, the
+words after the subcode are the RFC 9003 Shutdown Communication; under every
+other pair they are the Data field. Both are sent as UTF-8. With no words the
+Data field is empty. A text that does not fit is refused and the session stays
+up: more than 128 octets under Cease 2 or 4 (RFC 9003 Section 3), more than
+4075 octets otherwise, or text that is not UTF-8. With the word hex after the
+subcode, the next word is the Data field itself in hexadecimal, sent octet for
+octet with no encoding, and refused over 4075 octets. teardown is the Cease-only
+form; notify is the form for testing another implementation, and the hex form
+is the one the ExaBGP bridge sends for teardown with a code.";
+                ze:help "Close a peer session with a NOTIFICATION of any code and subcode.";
+                leaf code {
+                    type uint8;
+                    mandatory true;
+                    description "The NOTIFICATION error code, a whole number from 0 to 255.";
+                    ze:help "NOTIFICATION error code";
+                }
+                leaf subcode {
+                    type uint8;
+                    mandatory true;
+                    description "The NOTIFICATION error subcode, a whole number from 0 to 255.";
+                    ze:help "NOTIFICATION error subcode";
+                }
+                // 8150 digits are the 4075 octets a NOTIFICATION's Data field
+                // holds; the length lifts the 1024-byte cap every other
+                // argument keeps (command.ValidateArgString).
+                leaf hex {
+                    type string { length "0..8150"; }
+                    description "The Data field in hexadecimal, two digits for each octet, as one word typed
+after the keyword hex in place of a text. It is sent as it is, so it can carry
+octets that are not UTF-8 or a Shutdown Communication whose length octet is
+wrong. More than 4075 octets, an odd number of digits, or a character other
+than 0-9, a-f or A-F is refused.";
+                    ze:help "Data field octets in hexadecimal";
+                }
+                // The text is free prose, so a word in it can name another
+                // leaf ("the code is wrong"); ze:rest-of-line keeps every such
+                // word in the text. Declared last: a client writes the leaves
+                // in this order, and the text takes every word after it.
+                leaf text {
+                    type string { length "0..4075"; }
+                    ze:rest-of-line;
+                    description "Every word after the subcode, or after the keyword text, joined by one space.
+No word in it is read as a keyword, so a text can hold the words code, subcode,
+text or hex. Absent, the Data field is empty.";
+                    ze:help "Data field text";
                 }
             }
 

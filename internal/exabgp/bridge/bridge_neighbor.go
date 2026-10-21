@@ -1,7 +1,7 @@
 // Design: docs/architecture/exabgp-bridge.md -- the neighbor lifecycle vocabulary
 // RFC: rfc/short/rfc4271.md -- Section 4.5, the NOTIFICATION subcode is one octet
 // RFC: rfc/short/rfc4486.md -- the Cease subcodes a teardown chooses from
-// RFC: rfc/short/rfc8203.md -- the shutdown communication ze supplies by default
+// RFC: rfc/short/rfc9003.md -- the Shutdown Communication a teardown carries, and its 128-octet limit
 // Overview: bridge_command.go -- the line translator that calls this converter
 // Related: bridge_event.go -- the event encoder, which writes JSON and not text
 //
@@ -13,10 +13,12 @@
 package bridge
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -68,12 +70,6 @@ var (
 // the bridge reads the `encoder text` setting a script's config can carry.
 var errNeighborReceive = errors.New("`receive` names an event ze sends up to the script, not a command a script sends down")
 
-// errTeardownNotCease answers a teardown whose code is not Cease. ExaBGP 6 sends
-// any code a wire octet holds; ze's teardown (handleTeardown,
-// internal/component/bgp/plugins/cmd/peer/peer.go) sends a Cease and nothing
-// else, so the line is refused rather than sent with its code dropped.
-var errTeardownNotCease = errors.New("ze sends a teardown as a Cease (code 6) only")
-
 // The two NOTIFICATION values the teardown grammar names. The bridge is always
 // linked and the BGP message package is gated by ze_bgp, so the values are
 // stated here with their sources rather than imported.
@@ -84,12 +80,25 @@ const (
 	// the pin's default
 	// subcode (_TEARDOWN_DEFAULT, reactor/api/command/neighbor.py).
 	teardownSubcodeAdminShutdown uint8 = 2
+	// RFC 4486 Section 4, the subcode table row: "4 Administrative Reset".
+	teardownSubcodeAdminReset uint8 = 4
+	// The most octets of Shutdown Communication the pin sends
+	// (Notification.SHUTDOWN_COMM_MAX_LEGACY, bgp/message/notification.py).
+	// RFC 9003 Section 3 says: "Otherwise, a Shutdown Communication MAY be
+	// sent, but it SHOULD NOT be longer than 128 octets." That is the limit.
+	teardownCommunicationMax = 128
+	// The most octets of Data the pin sends (Notify.DATA_MAX_OCTETS,
+	// bgp/message/notification.py): RFC 4271 Section 4.1 says "The maximum
+	// message size is 4096 octets.", less the 19-octet header and the two
+	// code octets.
+	teardownDataMax = 4096 - 19 - 2
 )
 
 // convertNeighborControl translates the ExaBGP neighbor lifecycle commands
 // that are not routes. It reports false when the line is not one of them.
 //
-//	neighbor <ip> teardown <subcode>  -> request peer <ip> teardown <subcode>
+//	neighbor <ip> teardown [<code>] [<subcode>] [<text>]
+//	                                  -> request peer <ip> notify <code> <subcode> [hex <octets>]
 //	neighbor <ip> disable [<text>]    -> request peer <ip> disable [<text>]
 //	neighbor <ip> enable              -> request peer <ip> enable
 //	create neighbor <ip> ...          -> create bgp peer <ip> asn <asn> ...
@@ -137,8 +146,8 @@ func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 	return Translation{}, false, nil
 }
 
-// convertTeardown writes the ze command that closes a session with the Cease
-// subcode and the text the script chose.
+// convertTeardown writes the ze command that closes a session with the
+// NOTIFICATION code, subcode and text the script chose.
 //
 // The grammar is the pinned ExaBGP's teardown_notification
 // (reactor/api/command/neighbor.py): `teardown [<code>] [<subcode>] [<text>]`.
@@ -148,13 +157,14 @@ func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 // words joined with one space are the text. The refusals carry the pin's own
 // texts, which a script may match.
 //
-// ze sends Cease (RFC 4271 error code 6) with this subcode and the text as its
-// RFC 9003 Shutdown Communication (Session.teardown,
-// internal/component/bgp/reactor/session_connection.go). The words go to ze
-// unquoted: ze's handler joins its tokens with one space, the same join the pin
-// makes. ze's handler checks the subcode range again (handleTeardown,
-// internal/component/bgp/plugins/cmd/peer/peer.go): this check names the
-// ExaBGP line in the refusal, that one guards every other caller.
+// Every form goes to ze's `notify`, never its `teardown`: ze's teardown is
+// Cease-only and writes the subcode's name when no text is given, so it would
+// not send the pin's octets. The bridge builds the Data field the pin sends
+// (teardownWireData, the pin's Notify._wire_text) and hands it to notify's hex
+// form, which sends it octet for octet. The ExaBGP text therefore never passes
+// through ze's command tokenizer (tokenize,
+// internal/component/plugin/server/command.go), which would drop a `"` and
+// refuse a backslash: what the script wrote is what the peer receives.
 func convertTeardown(selector, rest string) (Translation, bool, error) {
 	_, after, _ := strings.Cut(strings.TrimSpace(rest), " ")
 	words, err := shlexSplit(after)
@@ -178,27 +188,140 @@ func convertTeardown(selector, rest string) (Translation, bool, error) {
 		return Translation{}, true, fmt.Errorf("expected a code or a subcode, got %s", pyRepr(words[0]))
 	}
 
-	subcode := teardownSubcodeAdminShutdown
+	code, subcode := teardownCodeCease, teardownSubcodeAdminShutdown
 	switch len(numbers) {
 	case 1:
 		subcode = numbers[0]
 	case 2:
-		if numbers[0] != teardownCodeCease {
-			return Translation{}, true, fmt.Errorf("%w, got code %d: write the Cease subcode alone, teardown <subcode> [<text>]", errTeardownNotCease, numbers[0])
-		}
-		subcode = numbers[1]
+		code, subcode = numbers[0], numbers[1]
 	}
 
 	// A wildcard selector reaches ze's own refusal rather than a second copy of
 	// it here. ResolveSinglePeer (internal/component/plugin/server/command.go)
-	// answers "teardown requires one specific peer", which states the rule where
+	// answers "notify requires one specific peer", which states the rule where
 	// it is decided; restating it in the bridge would be a copy that can drift.
+	// RFC 4271 Section 4.5, RFC 9003 Section 2
+	data := teardownWireData(code, subcode, strings.Join(words, " "))
 	var tb textbuf.Buffer
-	tb.Str("request peer ").Str(selector).Str(" teardown ").Uint8(subcode)
-	for _, word := range words {
-		tb.Str(" ").Str(word)
+	tb.Str("request peer ").Str(selector).Str(" notify ").Uint8(code).Str(" ").Uint8(subcode)
+	if len(data) > 0 {
+		tb.Str(" hex ").Str(hex.EncodeToString(data))
 	}
 	return Translation{Commands: textCommands(tb.String()), Selector: selector}, true, nil
+}
+
+// teardownWireData is the Data field the pin's Notify._wire_text builds for
+// code, subcode and text (bgp/message/notification.py), every case cut to
+// the pin's DATA_MAX_OCTETS as Notify.__init__ cuts it.
+//
+// Under Cease, Administrative Shutdown or Administrative Reset the text is an
+// RFC 9003 Shutdown Communication: its UTF-8 octets cut to 128, then back to
+// the last whole character, behind a length octet; no text is an empty Data
+// field. Under every other pair the text is `detail.encode('ascii',
+// 'backslashreplace')`: an ASCII character as it is, and any other character
+// as \xNN, \uNNNN or \UNNNNNNNN by its code point, lowercase hex.
+//
+// The pin reads a script's output as ASCII (processes.py, str(..., 'ascii')),
+// so its _wire_text never meets an octet that is not UTF-8. The bridge does:
+// such an octet is escaped \xNN under every other pair, and dropped from a
+// Shutdown Communication, as the pin's decode('utf-8', 'ignore') drops it.
+func teardownWireData(code, subcode uint8, text string) []byte {
+	var data []byte
+	// RFC 9003 Section 2.
+	if isTeardownCommunication(code, subcode) {
+		data = teardownCommunication(text)
+	} else {
+		data = backslashReplace(text)
+	}
+	if len(data) > teardownDataMax {
+		data = data[:teardownDataMax]
+	}
+	return data
+}
+
+// teardownCommunication is the RFC 9003 Shutdown Communication the pin sends
+// for text: a length octet and at most 128 octets of whole UTF-8 characters,
+// or nothing for an empty text.
+//
+// RFC 9003 Section 2: "the Shutdown Communication field MUST be encoded using
+// UTF-8." RFC 9003 Section 3: "Otherwise, a Shutdown Communication MAY be
+// sent, but it SHOULD NOT be longer than 128 octets."
+func teardownCommunication(text string) []byte {
+	if text == "" {
+		return nil
+	}
+	communication := make([]byte, 1, 1+teardownCommunicationMax)
+	for i := 0; i < len(text); {
+		r, width := utf8.DecodeRuneInString(text[i:])
+		i += width
+		if r == utf8.RuneError && width == 1 {
+			continue
+		}
+		if len(communication)-1+width > teardownCommunicationMax {
+			break
+		}
+		communication = utf8.AppendRune(communication, r)
+	}
+	communication[0] = byte(len(communication) - 1)
+	return communication
+}
+
+// backslashReplace is Python's text.encode('ascii', 'backslashreplace'): an
+// ASCII character as itself, a code point below 0x100 as \xNN, below 0x10000
+// as \uNNNN, and above as \UNNNNNNNN, the digits in lowercase. An octet that
+// is not UTF-8 is written \xNN.
+func backslashReplace(text string) []byte {
+	out := make([]byte, 0, len(text))
+	for i := 0; i < len(text); {
+		r, width := utf8.DecodeRuneInString(text[i:])
+		if r == utf8.RuneError && width == 1 {
+			out = appendEscape(out, `\x`, uint32(text[i]), 2)
+			i++
+			continue
+		}
+		i += width
+		if r < utf8.RuneSelf {
+			out = append(out, byte(r))
+			continue
+		}
+		if r < 0x100 {
+			out = appendEscape(out, `\x`, uint32(r), 2)
+			continue
+		}
+		if r < 0x10000 {
+			out = appendEscape(out, `\u`, uint32(r), 4)
+			continue
+		}
+		out = appendEscape(out, `\U`, uint32(r), 8)
+	}
+	return out
+}
+
+// appendEscape appends prefix and value as digits lowercase hex digits,
+// zero-padded on the left.
+func appendEscape(out []byte, prefix string, value uint32, digits int) []byte {
+	const hexDigits = "0123456789abcdef"
+	out = append(out, prefix...)
+	for shift := (digits - 1) * 4; shift >= 0; shift -= 4 {
+		out = append(out, hexDigits[(value>>uint(shift))&0xf])
+	}
+	return out
+}
+
+// isTeardownCommunication reports whether code and subcode are Cease,
+// Administrative Shutdown or Administrative Reset, the pin's SHUTDOWN_SUBCODES:
+// the pairs whose Data field is an RFC 9003 Shutdown Communication.
+//
+// RFC 9003 Section 2: "The Error Subcode value MUST be one of the following
+// values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset")."
+func isTeardownCommunication(code, subcode uint8) bool {
+	if code != teardownCodeCease {
+		return false
+	}
+	if subcode == teardownSubcodeAdminShutdown {
+		return true
+	}
+	return subcode == teardownSubcodeAdminReset
 }
 
 // allDigits reports whether word is one or more ASCII digits, the test the
@@ -272,15 +395,30 @@ func convertEnable(selector string, fields []string) (Translation, bool, error) 
 // shlexSplit splits text as Python's shlex.split does in POSIX mode, for the
 // forms an ExaBGP script writes: words separated by blanks, a single-quoted
 // run taken as written, a double-quoted run where a backslash escapes `"` or
-// `\`, and a backslash outside quotes escaping the next character. An
-// unclosed quote is refused with shlex's own text.
+// `\` and before any other character stays a backslash, and a backslash
+// outside quotes escaping the next character. An unclosed quote is refused
+// with shlex's own text.
+//
+// Python's shlex (Lib/shlex.py, read_token, POSIX mode) writes the escape
+// character itself when, inside quotes, the next character is neither the
+// quote nor the escape character, so `"a\tb"` is the four characters a, \, t,
+// b, which ExaBGP 6 then sends as its teardown text.
 func shlexSplit(text string) ([]string, error) {
 	var words []string
 	var word strings.Builder
 	inWord := false
 	quote := rune(0)
 	escaped := false
+	quotedEscape := false
 	for _, r := range text {
+		if quotedEscape {
+			if r != '"' && r != '\\' {
+				word.WriteRune('\\')
+			}
+			word.WriteRune(r)
+			quotedEscape = false
+			continue
+		}
 		if escaped {
 			word.WriteRune(r)
 			escaped = false
@@ -300,7 +438,7 @@ func shlexSplit(text string) ([]string, error) {
 				continue
 			}
 			if r == '\\' {
-				escaped = true
+				quotedEscape = true
 				continue
 			}
 			word.WriteRune(r)

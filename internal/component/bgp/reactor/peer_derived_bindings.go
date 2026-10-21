@@ -528,7 +528,7 @@ func (p *Peer) restartForBinding(target *Session, processes []string, why string
 	}
 	peerLogger().Warn(why, "peer", p.settings.Address, "processes", processes)
 	// RFC 4486 Section 4: subcode 6 "Other Configuration Change".
-	if err := p.teardownOf(target, message.NotifyCeaseOtherConfigChange, "", false); err != nil {
+	if err := p.teardownOf(target, ceaseNotice(message.NotifyCeaseOtherConfigChange, ""), false); err != nil {
 		peerLogger().Warn("binding change: session restart not queued",
 			"peer", p.settings.Address, "error", err)
 	}

@@ -21,7 +21,7 @@ type mockReactor struct {
 	teardownCalls []struct {
 		addr    netip.Addr
 		subcode uint8
-		message string
+		data    []byte
 	}
 	removedPeers []netip.Addr
 
@@ -84,12 +84,12 @@ func (m *mockReactor) Stop() {
 
 func (m *mockReactor) DisablePeer(netip.Addr, string) error { return nil }
 func (m *mockReactor) EnablePeer(netip.Addr) error          { return nil }
-func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
+func (m *mockReactor) TeardownPeer(addr netip.Addr, _, subcode uint8, data []byte) error {
 	m.teardownCalls = append(m.teardownCalls, struct {
 		addr    netip.Addr
 		subcode uint8
-		message string
-	}{addr, subcode, shutdownMsg})
+		data    []byte
+	}{addr, subcode, data})
 	return nil
 }
 

@@ -81,6 +81,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:modifier` | Marks a `config false` container as a trailing argument group of its parent command. `one-of` declares no leaf: it wraps sibling groups, the operator types exactly one of them, and the usage line renders them as a required alternation `(a <value>\|b <value>)`. The wrapper's own name is never typed, completed or listed | `once`, `repeat`, `required`, `choice`, `one-of` |
 | `ze:ordered` | Leaf-list is an ordered sequence whose duplicates are meaningful (AS_PATH prepends, MPLS label stacks) | (none) |
 | `ze:os` | Restricts a node to one operating system. The schema drops the node elsewhere | GOOS value |
+| `ze:rest-of-line` | Marks a command's string leaf as taking every word left on the line, with no word in it read as a keyword. At most one leaf per command, declared last (`docs/architecture/api/commands.md`, "Every route validates") | (none) |
 | `ze:related` | workbench: declares an operator tool descriptor on a config node | descriptor string |
 | `ze:required` | Field must hold a value after config inheritance resolves | path |
 | `ze:route-attributes` | Node accepts standard BGP route attributes | (none) |

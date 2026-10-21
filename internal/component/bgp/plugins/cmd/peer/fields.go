@@ -31,6 +31,10 @@ const (
 	// The rows themselves, under the key every multi-peer answer holds them in.
 	fieldPeers = "peers"
 
+	// The NOTIFICATION error subcode: the last one a peer saw, or the one
+	// teardown and notify sent.
+	fieldSubcode = "subcode"
+
 	// What the session IS: who configured it, what it negotiated, how long it
 	// has been up.
 	fieldName                = "name"

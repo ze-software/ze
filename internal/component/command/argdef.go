@@ -43,6 +43,12 @@ type ArgDef struct {
 	unionDefs  []ArgDef         // ArgUnion members, tried in order
 	mandatory  bool
 
+	// rest marks a free-text leaf, from its ze:rest-of-line statement: it takes
+	// every word left on the line, joined by one space, and no word it takes is
+	// read as a keyword (ValidateArgs). Only an ArgString can carry it, and a
+	// command declares at most one; ValidateArgs refuses any other shape.
+	rest bool
+
 	// shortHelp is the leaf's one-line summary, from its ze:help statement, and
 	// description is the long explanation, from its description statement.
 	// Neither is derived from the other: a leaf that declares one text leaves
@@ -79,6 +85,7 @@ type ArgOptions struct {
 	ShortHelp   string // the ze:help summary
 	Description string // the YANG description
 	Anchor      string // the keyword of the container above the command that declares the leaf
+	Rest        bool   // the leaf has ze:rest-of-line: it takes every remaining word
 }
 
 // NewStringArg builds an ArgString definition. lengths are character-count
@@ -193,6 +200,7 @@ func newArgDef(name string, kind ArgKind, opts ArgOptions) ArgDef {
 		shortHelp:   opts.ShortHelp,
 		description: opts.Description,
 		anchor:      opts.Anchor,
+		rest:        opts.Rest,
 		constructed: true,
 	}
 }
@@ -259,6 +267,10 @@ func (d ArgDef) Description() string { return d.description }
 // Anchor answers the keyword this value follows, empty for a leaf the command
 // itself declares (see the anchor field).
 func (d ArgDef) Anchor() string { return d.anchor }
+
+// Rest reports whether the leaf takes every word left on the line (see the
+// rest field).
+func (d ArgDef) Rest() bool { return d.rest }
 
 // EnumValues yields the enum names, in declared order: an ArgEnum's own, or
 // the flattened names of an ArgUnion's enum members.

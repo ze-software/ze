@@ -13,6 +13,7 @@ package command
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -42,8 +43,12 @@ type ValidatedArgs struct {
 	// (`name site-b`) or bound by the token matcher. A leaf filled
 	// positionally is not in it; bound answers that one. It is nil when no
 	// leaf took a value by name, which keeps the zero value an empty call's
-	// answer; reading a nil map answers not-found.
+	// answer; reading a nil map answers not-found. A rest-of-line leaf is
+	// always in it, however it started.
 	keyed map[string]string
+	// positional holds, in the order typed, every token no keyword consumed
+	// and no rest-of-line leaf took.
+	positional []string
 }
 
 // Tokens answers a copy of the judged tokens, in the order they were typed. A
@@ -64,6 +69,22 @@ func (v ValidatedArgs) Positional(leaf string) (value string, found bool) {
 		return "", false
 	}
 	return v.boundValue, true
+}
+
+// Keyed answers the value leaf took by name: after its own keyword, through
+// the token matcher, or as a rest-of-line leaf. A leaf filled positionally is
+// not answered here; PositionalTokens holds its token.
+func (v ValidatedArgs) Keyed(leaf string) (value string, found bool) {
+	value, found = v.keyed[leaf]
+	return value, found
+}
+
+// PositionalTokens answers a copy of the tokens no keyword consumed and no
+// rest-of-line leaf took, in the order they were typed. A command whose
+// leaves are typed in a fixed order reads them from here; which leaf each
+// token fills is the command's own grammar, not a guess this package makes.
+func (v ValidatedArgs) PositionalTokens() []string {
+	return slices.Clone(v.positional)
 }
 
 // Value answers the value leaf took, however the operator spelled it: after
@@ -122,6 +143,12 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 // ArgDefs. Unmatched args pass through to the handler.
 // Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
 //
+// A rest-of-line definition (ze:rest-of-line) is settled before phase 1
+// (restStart): from where it starts, every token is its value, joined by one
+// space, and no phase reads those tokens again. A free text can then hold a
+// word that names another leaf (`notify 6 2 the code is wrong`) without that
+// word being taken for its keyword.
+//
 // Phase 3 answers BEFORE phase 2's refusal whenever the call left more tokens
 // over than it left definitions open. The refusals are ordered, not the phases:
 // a missing mandatory argument is what the model itself says is wrong with the
@@ -146,12 +173,22 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 // before any token is read (ErrArgDef): it is a Ze defect, and accepting it as
 // an unrestricted string would fail open.
 func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (ValidatedArgs, error) {
+	var rest *ArgDef
 	for i := range defs {
 		if !defs[i].constructed {
 			return ValidatedArgs{}, fmt.Errorf("%w: argument %d (%q) was not built by a constructor", ErrArgDef, i, defs[i].name)
 		}
+		if !defs[i].rest {
+			continue
+		}
+		if defs[i].kind != ArgString {
+			return ValidatedArgs{}, fmt.Errorf("%w: argument %q: only a string leaf can take the rest of the line", ErrArgDef, defs[i].name)
+		}
+		if rest != nil {
+			return ValidatedArgs{}, fmt.Errorf("%w: arguments %q and %q both take the rest of the line", ErrArgDef, rest.name, defs[i].name)
+		}
+		rest = &defs[i]
 	}
-	consumed := make([]bool, len(args))
 	matched := make(map[string]bool, len(preMatched))
 	defByName := make(map[string]*ArgDef, len(defs))
 	for i := range defs {
@@ -181,6 +218,29 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		}
 	}
 
+	// The rest-of-line leaf takes its words before any keyword is read, so the
+	// phases below see only the tokens in front of it.
+	all := args
+	if rest != nil && !matched[rest.name] {
+		start, from := restStart(args, defs, defByName, matched, rest)
+		if start >= 0 {
+			if from >= len(args) {
+				return ValidatedArgs{}, missingValueError(rest.name)
+			}
+			value := textbuf.Join(args[from:], " ")
+			if err := ValidateArgString(value, rest); err != nil {
+				return ValidatedArgs{}, err
+			}
+			matched[rest.name] = true
+			if keyed == nil {
+				keyed = make(map[string]string)
+			}
+			keyed[rest.name] = value
+			args = args[:start]
+		}
+	}
+	consumed := make([]bool, len(args))
+
 	// Phase 1: keyword-value extraction.
 	for i := 0; i < len(args); i++ {
 		def, ok := defByName[args[i]]
@@ -197,7 +257,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 			continue
 		}
 		if i+1 >= len(args) {
-			return ValidatedArgs{}, fmt.Errorf("%s requires a value", args[i])
+			return ValidatedArgs{}, missingValueError(def.name)
 		}
 		i++
 		consumed[i] = true
@@ -225,10 +285,12 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	// one could not.
 	var bound, boundValue string
 	unplaced := make([]string, 0, len(args))
+	positional := make([]string, 0, spare)
 	for i, arg := range args {
 		if consumed[i] {
 			continue
 		}
+		positional = append(positional, arg)
 		def := positionalDef(arg, defs, matched)
 		if def == nil {
 			unplaced = append(unplaced, arg)
@@ -266,7 +328,65 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
 	}
 
-	return ValidatedArgs{tokens: slices.Clone(args), bound: bound, boundValue: boundValue, keyed: keyed}, nil
+	return ValidatedArgs{tokens: slices.Clone(all), bound: bound, boundValue: boundValue, keyed: keyed, positional: positional}, nil
+}
+
+// restStart answers where the rest-of-line leaf rest begins on args: start is
+// the index of the first token that belongs to it, its keyword or its first
+// word, and from the index its value begins at. start is -1 when no token
+// belongs to it.
+//
+// It walks the tokens in the order typed, as the operator wrote them. The
+// keyword of a leaf still open takes the next token as its value (a flag takes
+// none), and rest's own keyword starts rest. Any other token fills a
+// mandatory leaf still open while one is; once every mandatory leaf is filled,
+// it is the first word of rest. A word naming a leaf already filled is
+// therefore a word of the text, which is the point: `notify 6 2 code red`
+// sends the text "code red". A token no open mandatory leaf accepts is left
+// for the phases, which refuse it. The loop is bounded by len(args).
+func restStart(args []string, defs []ArgDef, defByName map[string]*ArgDef, matched map[string]bool, rest *ArgDef) (start, from int) {
+	filled := maps.Clone(matched)
+	if filled == nil {
+		filled = make(map[string]bool, len(defs))
+	}
+	for i := 0; i < len(args); i++ {
+		if args[i] == rest.name {
+			return i, i + 1
+		}
+		def, isKeyword := defByName[args[i]]
+		if isKeyword && !filled[def.name] {
+			filled[def.name] = true
+			if def.kind != ArgFlag {
+				i++
+			}
+			continue
+		}
+		if !mandatoryOpen(defs, filled) {
+			return i, i
+		}
+		def = positionalDef(args[i], defs, filled)
+		if def != nil && def.mandatory {
+			filled[def.name] = true
+		}
+	}
+	return -1, -1
+}
+
+// missingValueError answers a keyword typed last, with nothing after it to
+// read as its value, and names the form that fixes it.
+func missingValueError(keyword string) error {
+	return fmt.Errorf("%s requires a value: it is the last word, so nothing follows it to read as its value; write the value right after the keyword, as in '%s <%s>'", keyword, keyword, keyword)
+}
+
+// mandatoryOpen reports whether a mandatory definition other than a
+// rest-of-line one is still waiting for a value.
+func mandatoryOpen(defs []ArgDef, filled map[string]bool) bool {
+	for i := range defs {
+		if defs[i].mandatory && !defs[i].rest && !filled[defs[i].name] {
+			return true
+		}
+	}
+	return false
 }
 
 // positionalDef picks the ArgDef a positional token fills, or nil when none
@@ -299,6 +419,10 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 			if matched[def.name] {
 				continue
 			}
+			// restStart alone places a rest-of-line leaf.
+			if def.rest {
+				continue
+			}
 			if def.mandatory != wantMandatory {
 				continue
 			}
@@ -326,11 +450,12 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 }
 
 // unmatchedDefCount reports how many ArgDefs are still waiting for a value. A
-// flag never waits for one.
+// flag never waits for one, and neither does a rest-of-line leaf, which
+// restStart has already placed or found absent.
 func unmatchedDefCount(defs []ArgDef, matched map[string]bool) int {
 	n := 0
 	for i := range defs {
-		if !matched[defs[i].name] && defs[i].kind != ArgFlag {
+		if !matched[defs[i].name] && defs[i].kind != ArgFlag && !defs[i].rest {
 			n++
 		}
 	}
@@ -355,7 +480,7 @@ func unmatchedDefCount(defs []ArgDef, matched map[string]bool) int {
 func positionalError(arg string, defs []ArgDef, matched map[string]bool) error {
 	open := make([]*ArgDef, 0, len(defs))
 	for i := range defs {
-		if !matched[defs[i].name] && defs[i].kind != ArgFlag {
+		if !matched[defs[i].name] && defs[i].kind != ArgFlag && !defs[i].rest {
 			open = append(open, &defs[i])
 		}
 	}

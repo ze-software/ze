@@ -10,7 +10,15 @@ import (
 	"unicode/utf8"
 )
 
+// maxArgLength is the most bytes a token may hold for a leaf whose model
+// declares no longer length. A leaf that declares one, such as the hex Data
+// field of request peer notify (8150 digits), is held to that length instead,
+// counted in the bytes its characters can take (argLengthMax).
 const maxArgLength = 1024
+
+// echoMax is the most characters of a refused value a refusal quotes, so a
+// refusal of a value thousands of characters long stays readable.
+const echoMax = 64
 
 // ValidateArgString validates a raw string argument against an ArgDef. It
 // refuses every token for a definition no constructor built (ErrArgDef): the
@@ -19,8 +27,8 @@ func ValidateArgString(arg string, def *ArgDef) error {
 	if !def.constructed {
 		return fmt.Errorf("%w: argument %q was not built by a constructor", ErrArgDef, def.name)
 	}
-	if len(arg) > maxArgLength {
-		return fmt.Errorf("argument too long (max %d bytes)", maxArgLength)
+	if limit := argLengthMax(def); len(arg) > limit {
+		return fmt.Errorf("argument too long (max %d bytes): %s is %d bytes; shorten it to %d bytes or fewer", limit, def.name, len(arg), limit)
 	}
 
 	switch def.kind {
@@ -74,7 +82,7 @@ func validateString(arg string, def *ArgDef) error {
 		// of Unicode characters in the string."
 		length := uint64(utf8.RuneCountInString(arg))
 		if !inRanges(length, def.lengths) {
-			return fmt.Errorf("invalid value %q, length %d out of range %s", arg, length, joinRanges(def.lengths))
+			return fmt.Errorf("invalid value %q, length %d out of range %s: give %s a value of %s characters", echoValue(arg), length, joinRanges(def.lengths), def.name, joinRanges(def.lengths))
 		}
 	}
 	// RFC 7950 Section 9.4.5: "If the type has multiple "pattern" statements,
@@ -86,6 +94,31 @@ func validateString(arg string, def *ArgDef) error {
 		}
 	}
 	return nil
+}
+
+// argLengthMax answers the most bytes a token may hold for def: maxArgLength,
+// or more when the leaf declares a length whose upper bound, counted at the
+// utf8.UTFMax bytes one character can take, is larger. The declared length is
+// then judged in characters by validateString, so the byte cap only keeps a
+// token the declared length could accept from being refused before it.
+func argLengthMax(def *ArgDef) int {
+	limit := maxArgLength
+	for _, part := range def.lengths {
+		if part.Max > uint64(maxArgLength) {
+			limit = max(limit, int(min(part.Max, 1<<20))*utf8.UTFMax)
+		}
+	}
+	return limit
+}
+
+// echoValue answers arg as a refusal quotes it: whole when short, otherwise its
+// first echoMax characters followed by "...".
+func echoValue(arg string) string {
+	if utf8.RuneCountInString(arg) <= echoMax {
+		return arg
+	}
+	runes := []rune(arg)
+	return string(runes[:echoMax]) + "..."
 }
 
 // inRanges reports whether v falls inside any of ranges.

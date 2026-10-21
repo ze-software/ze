@@ -13,7 +13,7 @@ module ze-bgp-api {
     // peer-add and the delete verb's bgp-peer were two spellings of one
     // lifecycle; ze-bgp:peer-create and ze-bgp:peer-delete name the pair.
     revision 2026-10-21 {
-        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal; declare bgp-health, moved from ze-cli-show-api; declare peer-disable and peer-enable, the administrative hold.";
+        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal; declare bgp-health, moved from ze-cli-show-api; declare peer-disable and peer-enable, the administrative hold; declare peer-notify, a NOTIFICATION of any code and subcode, with its Data field as text or as hex octets.";
     }
 
     revision 2026-10-09 {
@@ -579,6 +579,52 @@ session receives the NOTIFICATION, and the peer stays configured.";
                 description "The Cease subcode, 0 to 255, that the NOTIFICATION carries under error code
 6. Subcodes 2 and 4 can carry a shutdown communication message.";
                 ze:help "CEASE subcode";
+            }
+        }
+    }
+
+    rpc peer-notify {
+        description "Ze closes the session with a NOTIFICATION carrying the given error code and
+error subcode, any value an octet holds. Under Cease (6), subcode 2 or 4, the
+text is the RFC 9003 Shutdown Communication; under every other pair it is the
+Data field. Both are sent as UTF-8. With no text the Data field is empty. A
+text that does not fit is refused and the session stays up: more than 128
+octets under Cease 2 or 4 (RFC 9003 Section 3), more than 4075 octets
+otherwise, or text that is not UTF-8. The hex leaf, given in place of the text,
+is the Data field itself, sent octet for octet and refused over 4075 octets.
+The answer echoes the Data field in hex.";
+        ze:help "Close a peer session with a NOTIFICATION of any code and subcode.";
+        input {
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address or a peer name. A selector that matches more than one peer is
+refused.";
+                ze:help "Peer filter";
+            }
+            leaf code {
+                type uint8;
+                mandatory true;
+                description "The NOTIFICATION error code, 0 to 255 (RFC 4271 Section 4.5).";
+                ze:help "NOTIFICATION error code";
+            }
+            leaf subcode {
+                type uint8;
+                mandatory true;
+                description "The NOTIFICATION error subcode, 0 to 255.";
+                ze:help "NOTIFICATION error subcode";
+            }
+            leaf hex {
+                type string;
+                description "The Data field in hexadecimal, two digits for each octet, given in place of
+the text. It is sent as it is, with no encoding. More than 4075 octets, an odd
+number of digits, or a character other than 0-9, a-f or A-F is refused.";
+                ze:help "Data field octets in hexadecimal";
+            }
+            leaf text {
+                type string;
+                description "The Data field text: every word after the subcode, joined by one space.";
+                ze:help "Data field text";
             }
         }
     }

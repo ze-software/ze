@@ -1509,10 +1509,9 @@ func capabilitiesEqual(a, b []capability.Capability) bool {
 	return bytes.Equal(encodeAll(a), encodeAll(b))
 }
 
-// TeardownPeer gracefully closes a peer session with NOTIFICATION.
-// Sends Cease (6) with the specified subcode per RFC 4486.
-// RFC 8203: shutdownMsg is included in the NOTIFICATION for subcodes 2/4.
-func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
+// TeardownPeer closes a peer session with the NOTIFICATION an operator named
+// (Peer.TeardownNotification): code, subcode and Data field.
+func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, code, subcode uint8, data []byte) error {
 	a.r.mu.RLock()
 	peer, exists := a.r.findPeerByAddr(addr)
 	a.r.mu.RUnlock()
@@ -1524,7 +1523,8 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8, shutdow
 	// Signal teardown with subcode - peer will send NOTIFICATION and close.
 	// If session exists, teardown happens immediately.
 	// If not connected, teardown is queued to maintain operation order.
-	return peer.Teardown(subcode, shutdownMsg)
+	// RFC 4271 Section 4.5
+	return peer.TeardownNotification(code, subcode, data)
 }
 
 // DisablePeer holds a peer administratively down (Peer.Disable).

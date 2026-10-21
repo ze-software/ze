@@ -75,7 +75,7 @@ produce continuously-updating output.
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
 | System | help, version, api version |
-| Peer | list, detail, capabilities, statistics, set (add/save), delete, teardown, flush |
+| Peer | list, detail, capabilities, statistics, set (add/save), delete, teardown, notify, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
@@ -643,6 +643,8 @@ show bgp peer <selector> capabilities # Show specific peer capabilities
 show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
+request peer <selector> notify <code> <subcode> [<text>]  # Disconnect one peer with any NOTIFICATION
+request peer <selector> notify <code> <subcode> hex <octets>  # The same, the Data field verbatim in hex
 create bgp peer <address> asn <asn> [...]  # Add a peer to the running daemon
 delete bgp peer <name>             # Stop a peer, configured or created, and remove it from the running set
 update bgp config                  # Write the running peer set to the config file
@@ -1607,6 +1609,24 @@ Usage renders it `[force]`, the completer offers the keyword, and help and the
 catalog name its kind `flag`.
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
 <!-- source: internal/component/command/argbind.go -- ValidateArgs, unmatchedDefCount -->
+
+A string leaf that carries `ze:rest-of-line` takes every word left on the line,
+joined by one space, and no word it takes is read as a keyword. Without it the
+keyword phase reads every word that names a leaf as that leaf's keyword, so
+`request peer <sel> notify 6 2 the code is wrong` was refused with `invalid
+value "is"` against `code`. `ValidateArgs` places the leaf before the keyword
+phase (`restStart`): it starts at its own keyword (`text the code is wrong`, the
+form `command.WriteInvocation` writes for MCP and the web form), or at the
+first word typed once every mandatory leaf is filled, and the phases see only
+the tokens in front of it. `ValidatedArgs.Keyed` answers it, as it answers
+every value typed after its keyword, and `ValidatedArgs.PositionalTokens`
+answers the tokens no keyword consumed and the leaf did not take, in the order
+typed, for a command whose leaves have a fixed order (`notify <code>
+<subcode>`). At most one leaf of a command carries the extension, only a string
+leaf, and it is declared last, because `WriteInvocation` writes arguments in
+declaration order and every word after the leaf's keyword is the leaf's.
+`ValidateArgs` refuses the other shapes with `ErrArgDef`.
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, restStart, ValidatedArgs.Keyed, ValidatedArgs.PositionalTokens -->
 
 A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that

@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"sync/atomic"
 	"syscall"
@@ -516,6 +517,47 @@ func (s *Session) seal() {
 }
 
 func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Event) error {
+	return s.teardownWith(ceaseNotice(subcode, shutdownMsg), stopEvent)
+}
+
+// teardownNotice is the NOTIFICATION a teardown sends: the code, the subcode
+// and the Data field, already built. A queued teardown carries it whole, so
+// the octets an operator asked for are the octets the drain sends.
+type teardownNotice struct {
+	code    message.NotifyErrorCode
+	subcode uint8
+	data    []byte
+}
+
+// ceaseNotice is the Cease every teardown Ze decides on itself sends.
+// BuildCeaseData carries the Shutdown Communication only under subcodes 2 and
+// 4 (RFC 9003 Section 2). When no message is given Ze sends the subcode's name
+// as the communication: that is Ze's choice, so a peer's log says why the
+// session ended; the RFC only says a zero length means no communication.
+func ceaseNotice(subcode uint8, shutdownMsg string) teardownNotice {
+	msg := shutdownMsg
+	if msg == "" {
+		msg = message.CeaseSubcodeString(subcode)
+	}
+	return teardownNotice{code: message.NotifyCease, subcode: subcode, data: message.BuildCeaseData(subcode, msg)}
+}
+
+// operatorNotice is the NOTIFICATION an operator's teardown names: any code
+// and subcode, and data as the Data field, octet for octet, so nil means an
+// empty Data field. Data that does not fit is refused, never cut: the command
+// handler checks it first, and this is the second check. The notice keeps its
+// own copy, because a queued teardown outlives the caller's slice.
+func operatorNotice(code, subcode uint8, data []byte) (teardownNotice, error) {
+	// RFC 4271 Section 4.1: "The maximum message size is 4096 octets." The
+	// header and the two code octets leave MaxNotificationDataLen for the Data.
+	if err := message.CheckNotificationData(data); err != nil {
+		return teardownNotice{}, err
+	}
+	return teardownNotice{code: message.NotifyErrorCode(code), subcode: subcode, data: slices.Clone(data)}, nil
+}
+
+// teardownWith ends the session with notice as its NOTIFICATION.
+func (s *Session) teardownWith(notice teardownNotice, stopEvent fsm.Event) error {
 	// Seal first: a conn published after this point would carry a session the
 	// caller believes it has just ended.
 	s.seal()
@@ -528,18 +570,7 @@ func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Even
 	s.mu.Unlock()
 
 	if conn != nil {
-		// RFC 8203 Section 2: BuildCeaseData carries the Shutdown
-		// Communication only under subcodes 2 and 4.
-		msg := shutdownMsg
-		if msg == "" {
-			msg = message.CeaseSubcodeString(subcode)
-		}
-
-		s.logNotifyErr(conn,
-			message.NotifyCease,
-			subcode,
-			message.BuildCeaseData(subcode, msg),
-		)
+		s.logNotifyErr(conn, notice.code, notice.subcode, notice.data)
 	}
 
 	s.closeConn()

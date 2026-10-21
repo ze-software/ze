@@ -333,10 +333,11 @@ func (c *Coordinator) Stop() {
 	}
 }
 
-// TeardownPeer gracefully closes a peer session with NOTIFICATION.
-func (c *Coordinator) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
+// TeardownPeer closes a peer session with the NOTIFICATION code, subcode and
+// Data field an operator named.
+func (c *Coordinator) TeardownPeer(addr netip.Addr, code, subcode uint8, data []byte) error {
 	if r := c.getReactor(); r != nil {
-		return r.TeardownPeer(addr, subcode, shutdownMsg)
+		return r.TeardownPeer(addr, code, subcode, data)
 	}
 	return ErrNoReactor
 }

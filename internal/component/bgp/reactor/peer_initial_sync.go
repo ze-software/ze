@@ -629,7 +629,7 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 		}
 	}
 
-	routesLogger().Debug("executing queued teardown", "peer", addr, "subcode", op.Subcode)
+	routesLogger().Debug("executing queued teardown", "peer", addr, "code", op.Notice.code, "subcode", op.Notice.subcode)
 	// Checked again: the session can end, or be replaced, while the End-of-RIB
 	// sends run unlocked.
 	session := p.queuedTeardownSession(addr, op)
@@ -641,7 +641,7 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	// still shows Established, the new connection is rejected by collision check.
 	// The FSM callback will also set this, but may fire too late.
 	p.setState(PeerStateConnecting)
-	if err := sessionTeardown(session, op.Subcode, op.Message, op.Automatic); err != nil {
+	if err := sessionTeardown(session, op.Notice, op.Automatic); err != nil {
 		routesLogger().Debug("teardown error", "peer", addr, "error", err)
 	}
 	// Clear remaining opQueue: these routes were never sent, so they have
@@ -675,7 +675,7 @@ func (p *Peer) keepTeardownForNextSessionLocked(addr string, op peerOp) {
 	copy(p.opQueue[1:], p.opQueue)
 	p.opQueue[0] = op
 	routesLogger().Info("queued teardown kept for the next session: the session it would end has gone",
-		"peer", addr, "subcode", op.Subcode, "queued", len(p.opQueue)-1)
+		"peer", addr, "code", op.Notice.code, "subcode", op.Notice.subcode, "queued", len(p.opQueue)-1)
 }
 
 // queuedTeardownSession returns the session op ends now, or nil when it ends

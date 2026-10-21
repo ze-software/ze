@@ -630,8 +630,20 @@ func (patterns compiledPatterns) argDefFor(leaf *gyang.Entry, name string) (comm
 		Mandatory:   leaf.Mandatory == gyang.TSTrue,
 		ShortHelp:   GetHelpExtension(leaf.Exts), // the ze:help summary
 		Description: leaf.Description,            // the YANG description explanation
+		Rest:        hasRestOfLineExtension(leaf),
 	}
 	return patterns.yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf), opts)
+}
+
+// hasRestOfLineExtension reports whether leaf carries ze:rest-of-line: it
+// takes every word left on the command line (command.ArgOptions.Rest).
+func hasRestOfLineExtension(leaf *gyang.Entry) bool {
+	for _, ext := range leaf.Exts {
+		if ext.Keyword == "ze:rest-of-line" || strings.HasSuffix(ext.Keyword, ":rest-of-line") {
+			return true
+		}
+	}
+	return false
 }
 
 // yangTypeToArgDef converts a goyang YangType into an ArgDef. declared is the

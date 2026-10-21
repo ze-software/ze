@@ -314,6 +314,115 @@ func BuildCeaseData(subcode uint8, msg string) []byte {
 	return nil
 }
 
+// MaxNotificationDataLen is the most octets the Data field of a NOTIFICATION
+// holds when the message keeps to the 4096-octet maximum of RFC 4271 Section
+// 4.1: the header (19) with the Error Code and Error Subcode (2) leaves 4075.
+// It is conservative: a session that negotiated RFC 8654 extended messages may
+// carry more, but an operator's NOTIFICATION never needs that much, and 4075
+// fits every peer whatever it negotiated.
+const MaxNotificationDataLen = 4096 - 19 - 2
+
+// The refusals BuildTeardownData answers. Each names the problem; the wrapping
+// error adds the octet counts and the fix.
+var (
+	errTeardownTextNotUTF8 = errors.New("the text is not valid UTF-8")
+	errTeardownTextTooLong = errors.New("the text is too long for a Shutdown Communication")
+	errTeardownDataTooLong = errors.New("the Data field is too long for a NOTIFICATION")
+	ErrTeardownTextRefused = errors.New("NOTIFICATION text refused")
+)
+
+// BuildTeardownData builds the Data field of the NOTIFICATION an operator
+// names with the given code, subcode and text, or refuses a text that cannot
+// be sent whole. It never cuts or rewrites the text: an operator who typed it
+// learns that it does not fit, rather than finding a different text on the wire.
+//
+// RFC 4271 Section 4.5: "The contents of the Data field depend upon the Error
+// Code and Error Subcode." No text sends an empty Data field under every pair.
+// Under Cease, Administrative Shutdown or Administrative Reset the text is the
+// Shutdown Communication, a length octet then the UTF-8 octets (RFC 9003
+// Section 2, Figure 1). Under every other pair the text is the Data field
+// itself, its UTF-8 octets. Every error wraps ErrTeardownTextRefused.
+//
+// The NOTIFICATION body this builds the tail of, after the 19-octet header:
+//
+//	Cease (6), subcode 2 or 4 (RFC 9003 Section 2):
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Error Code 6  |    Subcode    |    Length     |     ...       \
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               /
+//	\              ... Shutdown Communication (UTF-8) ...           \
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	offset 0: Error Code, 1: Error Subcode, 2: Length (0 to 128 here),
+//	3: Length octets of Shutdown Communication.
+//
+//	Every other pair (RFC 4271 Section 4.5):
+//	 0                   1                   2
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Error code    | Error subcode |   Data (variable)  ...
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	offset 0: Error Code, 1: Error Subcode, 2: the text's UTF-8 octets,
+//	0 to MaxNotificationDataLen of them.
+func BuildTeardownData(code NotifyErrorCode, subcode uint8, text string) ([]byte, error) {
+	if text == "" {
+		return nil, nil
+	}
+	// RFC 9003 Section 2: "the Shutdown Communication field MUST be encoded
+	// using UTF-8." Ze sends the text under every other pair as UTF-8 too.
+	if !utf8.ValidString(text) {
+		return nil, fmt.Errorf("%w: %w: Ze sends NOTIFICATION text as UTF-8, so a text that does not decode would reach the peer as noise; retype the text in UTF-8", ErrTeardownTextRefused, errTeardownTextNotUTF8)
+	}
+	// RFC 9003 Section 2.
+	if isShutdownCommunication(code, subcode) {
+		// RFC 9003 Section 3: "If it is known that the peer BGP speaker supports
+		// this specification, then a Shutdown Communication that is not longer
+		// than 255 octets MAY be sent.  Otherwise, a Shutdown Communication MAY
+		// be sent, but it SHOULD NOT be longer than 128 octets." No capability
+		// tells Ze that a peer supports RFC 9003, so 128 is the limit.
+		if len(text) > MaxShutdownMessageLen {
+			return nil, fmt.Errorf("%w: %w: it is %d octets and RFC 9003 allows %d to a peer not known to accept 255; shorten the text to %d octets or fewer", ErrTeardownTextRefused, errTeardownTextTooLong, len(text), MaxShutdownMessageLen, MaxShutdownMessageLen)
+		}
+		data := make([]byte, 1+len(text))
+		data[0] = byte(len(text))
+		copy(data[1:], text)
+		return data, nil
+	}
+	if err := CheckNotificationData([]byte(text)); err != nil {
+		return nil, err
+	}
+	return []byte(text), nil
+}
+
+// CheckNotificationData refuses a Data field longer than
+// MaxNotificationDataLen, the room a 4096-octet NOTIFICATION leaves after its
+// header and its two code octets. The error wraps ErrTeardownTextRefused and
+// names the octet counts and the fix. It is the check the command handlers
+// make before they ask the reactor, and the one the reactor makes again.
+func CheckNotificationData(data []byte) error {
+	// RFC 4271 Section 4.1: "The maximum message size is 4096 octets."
+	if len(data) <= MaxNotificationDataLen {
+		return nil
+	}
+	return fmt.Errorf("%w: %w: it is %d octets and a NOTIFICATION holds %d after its header; shorten it to %d octets or fewer", ErrTeardownTextRefused, errTeardownDataTooLong, len(data), MaxNotificationDataLen, MaxNotificationDataLen)
+}
+
+// isShutdownCommunication reports whether code and subcode are Cease,
+// Administrative Shutdown or Administrative Reset: the two pairs whose Data
+// field is an RFC 9003 Shutdown Communication.
+//
+// RFC 9003 Section 2: "The Error Subcode value MUST be one of the following
+// values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset")."
+func isShutdownCommunication(code NotifyErrorCode, subcode uint8) bool {
+	if code != NotifyCease {
+		return false
+	}
+	if subcode == NotifyCeaseAdminShutdown {
+		return true
+	}
+	return subcode == NotifyCeaseAdminReset
+}
+
 // BuildShutdownData builds the Data field for a Cease NOTIFICATION with
 // a shutdown communication message per RFC 8203 Section 2.
 // Format: 1-byte length + UTF-8 message (up to 128 bytes).

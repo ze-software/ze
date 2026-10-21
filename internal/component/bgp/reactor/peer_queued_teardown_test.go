@@ -192,8 +192,8 @@ func requireTeardownThenRoute(t *testing.T, peer *Peer, route peerOp) {
 	if queue[0].TeardownSession != nil {
 		t.Fatal("the requeued teardown names a session, want the peer-level one")
 	}
-	if queue[0].Subcode != message.NotifyCeaseOtherConfigChange {
-		t.Fatalf("the requeued teardown carries subcode %d, want %d", queue[0].Subcode, message.NotifyCeaseOtherConfigChange)
+	if queue[0].Notice.subcode != message.NotifyCeaseOtherConfigChange {
+		t.Fatalf("the requeued teardown carries subcode %d, want %d", queue[0].Notice.subcode, message.NotifyCeaseOtherConfigChange)
 	}
 	if queue[1].Type != PeerOpAnnounce {
 		t.Fatalf("opQueue second entry is %v, want the queued route", queue[1].Type)
@@ -223,7 +223,7 @@ func TestPeerLevelTeardownWithNoSessionWaitsForNextSession(t *testing.T) {
 	peer.opQueue = append(peer.opQueue, route)
 	peer.mu.Unlock()
 
-	teardown := peerOp{Type: PeerOpTeardown, Subcode: message.NotifyCeaseOtherConfigChange}
+	teardown := peerOp{Type: PeerOpTeardown, Notice: ceaseNotice(message.NotifyCeaseOtherConfigChange, "")}
 	peer.runQueuedTeardown(peer.settings.Address.String(), teardown)
 
 	requireTeardownThenRoute(t, peer, route)
@@ -244,7 +244,7 @@ func TestPeerLevelTeardownWithNoSessionWaitsForNextSession(t *testing.T) {
 // have sent it.
 func TestClosingDrainKeepsPeerLevelTeardownWithNoSession(t *testing.T) {
 	peer, route := sessionlessQueuedRoute(t)
-	teardown := peerOp{Type: PeerOpTeardown, Subcode: message.NotifyCeaseOtherConfigChange}
+	teardown := peerOp{Type: PeerOpTeardown, Notice: ceaseNotice(message.NotifyCeaseOtherConfigChange, "")}
 	peer.mu.Lock()
 	peer.opQueue = append(peer.opQueue, teardown, route)
 	peer.mu.Unlock()

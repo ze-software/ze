@@ -243,6 +243,24 @@ module ze-extensions {
                      stays a plain grouping node.";
     }
 
+    // Extension: rest-of-line
+    // Marks a command's free-text string leaf as taking every word left on the
+    // line, joined by one space. Without it the validator reads every word
+    // that names a leaf as that leaf's keyword, so a text holding the word
+    // "code" was refused under a command declaring a leaf named code. The leaf
+    // starts at its own keyword, or at the first word typed once every
+    // mandatory leaf is filled, and no word after that is read as a keyword
+    // (command.ValidateArgs). Declare it last among the command's leaves: a
+    // client writes the arguments in declaration order
+    // (command.WriteInvocation), and every word after the leaf's keyword is
+    // the leaf's.
+    extension rest-of-line {
+        description "Marks a command's string leaf as taking every word left on
+                     the line, joined by one space, with no word in it read as a
+                     keyword. At most one leaf of a command carries it, and only
+                     a string leaf.";
+    }
+
     // Extension: inherit
     // Says whether a command takes the values the containers ABOVE it declare.
     //

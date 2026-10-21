@@ -61,8 +61,9 @@ type mockReactor struct {
 	adminCalls    []adminCall
 	teardownCalls []struct {
 		addr    netip.Addr
+		code    uint8
 		subcode uint8
-		message string
+		data    []byte
 	}
 	configTree     map[string]any   // returned by GetConfigTree
 	appliedConfigs []map[string]any // captured by ApplyConfigDiff
@@ -190,12 +191,13 @@ type adminCall struct {
 	message string
 }
 
-func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
+func (m *mockReactor) TeardownPeer(addr netip.Addr, code, subcode uint8, data []byte) error {
 	m.teardownCalls = append(m.teardownCalls, struct {
 		addr    netip.Addr
+		code    uint8
 		subcode uint8
-		message string
-	}{addr, subcode, shutdownMsg})
+		data    []byte
+	}{addr, code, subcode, data})
 	return nil
 }
 

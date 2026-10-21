@@ -63,6 +63,8 @@ func init() {
 		{"plugin/wellknown-no-export-withdraw-egress", "wellknown-withdraw", plugin16WellknownWithdraw},
 		{"plugin/teardown-cmd", "teardown-test", plugin16TeardownCmd},
 		{"plugin/teardown-msg", "teardown-msg-test", plugin16TeardownMsg},
+		{"plugin/notify-cmd", "notify-test", plugin16NotifyCmd},
+		{"plugin/notify-hex-cmd", "notify-hex-test", plugin16NotifyHexCmd},
 		{"plugin/watchdog-med-override", "service-watchdog", plugin16AfterEOR(plugin16WatchdogMED)},
 		{"plugin/wire-edit-api-origin-order", "wire-edit-api-origin-order", plugin16WireEditOriginOrder},
 	}
@@ -785,6 +787,35 @@ func plugin16TeardownMsg(ctx context.Context, p *sdk.Plugin) error {
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 teardown 2 test")
 	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("teardown message: status=%s data=%s", r.status, r.text())
+	}
+	return nil
+}
+
+// plugin16NotifyCmd closes the session with a NOTIFICATION that is not a
+// Cease, so the .ci proves notify sends the code, the subcode and the text's
+// UTF-8 octets as Data, as ExaBGP 6 does for teardown 3 1 bad code. The word
+// code names a leaf of notify and stays text (ze:rest-of-line).
+func plugin16NotifyCmd(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin16UpdateAndQuiesce(ctx, p, "*", "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
+		return err
+	}
+	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 notify 3 1 bad code")
+	if r.err != nil || r.status != statusDone {
+		return fmt.Errorf("notify: status=%s data=%s", r.status, r.text())
+	}
+	return nil
+}
+
+// plugin16NotifyHexCmd closes the session with notify's hex form, whose Data
+// field holds an octet that is not UTF-8, so the .ci proves the octets go on
+// the wire as typed: the form the ExaBGP bridge sends for teardown.
+func plugin16NotifyHexCmd(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin16UpdateAndQuiesce(ctx, p, "*", "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
+		return err
+	}
+	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 notify 3 1 hex 5c78e9ff")
+	if r.err != nil || r.status != statusDone {
+		return fmt.Errorf("notify hex: status=%s data=%s", r.status, r.text())
 	}
 	return nil
 }

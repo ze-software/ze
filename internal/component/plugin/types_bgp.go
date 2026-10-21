@@ -475,10 +475,13 @@ type ReactorPeerController interface {
 	// Stop signals the reactor to shut down.
 	Stop()
 
-	// TeardownPeer gracefully closes a peer session with NOTIFICATION.
-	// RFC 4486: Cease subcodes (2=Admin Shutdown, 3=Peer De-configured, 4=Admin Reset).
-	// RFC 8203: shutdownMsg is included for subcodes 2/4 (empty = default message).
-	TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error
+	// TeardownPeer closes a peer session with a NOTIFICATION of the given code
+	// and subcode, and data as its Data field, octet for octet: the caller has
+	// built it (message.BuildTeardownData for a text, which writes the RFC 9003
+	// Shutdown Communication under Cease 2 and 4 and the UTF-8 octets under
+	// every other pair). Nil sends an empty Data field. Data longer than
+	// message.MaxNotificationDataLen is refused and the session stays up.
+	TeardownPeer(addr netip.Addr, code, subcode uint8, data []byte) error
 
 	// DisablePeer holds a peer administratively down: a running session is
 	// closed with Cease, Administrative Shutdown and shutdownMsg as its RFC 9003

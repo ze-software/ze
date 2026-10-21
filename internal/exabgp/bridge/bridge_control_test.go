@@ -403,7 +403,7 @@ func TestThePeerKeywordNamesTheSameSessionsAsNeighbor(t *testing.T) {
 			line:     "peer 127.0.0.1 teardown 6",
 			same:     "neighbor 127.0.0.1 teardown 6",
 			selector: "127.0.0.1",
-			want:     "request peer 127.0.0.1 teardown 6",
+			want:     "request peer 127.0.0.1 notify 6 6",
 		},
 		{
 			name:     "a bracket list",

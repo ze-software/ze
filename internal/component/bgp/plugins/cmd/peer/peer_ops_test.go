@@ -142,7 +142,7 @@ func TestHandlerTeardownWithMessage(t *testing.T) {
 	require.Len(t, reactor.teardownCalls, 1)
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), reactor.teardownCalls[0].addr)
 	assert.Equal(t, uint8(2), reactor.teardownCalls[0].subcode)
-	assert.Equal(t, "maintenance window", reactor.teardownCalls[0].message)
+	assert.Equal(t, "\x12maintenance window", string(reactor.teardownCalls[0].data))
 
 	// Verify response includes the truncated wire message with kebab-case key
 	data, ok := resp.Data.(plugin.Map)
@@ -152,7 +152,8 @@ func TestHandlerTeardownWithMessage(t *testing.T) {
 
 // TestHandlerTeardownWithoutMessage verifies teardown without message still works.
 //
-// VALIDATES: Empty message is valid (backwards compatible).
+// VALIDATES: Empty message is valid, and the reactor is handed the subcode's
+// name as the communication, the default teardown has always sent.
 // PREVENTS: Regression on existing teardown behavior.
 func TestHandlerTeardownWithoutMessage(t *testing.T) {
 	reactor := &mockReactor{}
@@ -164,7 +165,7 @@ func TestHandlerTeardownWithoutMessage(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	require.Len(t, reactor.teardownCalls, 1)
-	assert.Empty(t, reactor.teardownCalls[0].message)
+	assert.Equal(t, "\x17Administrative Shutdown", string(reactor.teardownCalls[0].data))
 
 	// Verify response does not include shutdown-message key when empty
 	data, ok := resp.Data.(plugin.Map)

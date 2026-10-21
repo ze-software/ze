@@ -1,0 +1,63 @@
+# request peer <selector> notify <code> <subcode> hex <octets> sends the Data
+# field octet for octet, here one octet (FF) no text form can carry: the form
+# the ExaBGP bridge sends for teardown. Sibling of notify-cmd.ci, as the
+# session closes after its one NOTIFICATION. RFC 4271 Section 4.5: "The
+# contents of the Data field depend upon the Error Code and Error Subcode."
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Route announcement (1.1.0.0/16 next-hop 1.1.1.1)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040101010140050400000064100101
+# EOR for IPv4 unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# NOTIFICATION: UPDATE Message Error (03) Malformed Attribute List (01), Data 5C78E9FF as typed
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00190303015C78E9FF
+EOF_PEER
+
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external notify-hex-test {
+		run "le test fixture plugin/notify-hex-cmd"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	
+		attach process notify-hex-test {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

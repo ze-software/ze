@@ -128,6 +128,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: handleBgpPeerDetail},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-notify", Handler: handlePeerNotify, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-disable", Handler: handlePeerDisable, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-enable", Handler: handlePeerEnable, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true},
@@ -605,10 +606,10 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 		// the structured form of the " (not sent)" qualifier on last-error.
 		if p.LastNotifDirection != plugin.NotifNone {
 			row["last-notification"] = map[string]any{
-				"code":      p.LastNotifCode,
-				"subcode":   p.LastNotifSubcode,
-				"direction": p.LastNotifDirection.String(),
-				"time":      p.LastNotifTime.UTC().Format(time.RFC3339),
+				"code":       p.LastNotifCode,
+				fieldSubcode: p.LastNotifSubcode,
+				"direction":  p.LastNotifDirection.String(),
+				"time":       p.LastNotifTime.UTC().Format(time.RFC3339),
 			}
 		}
 		if !p.LastReadTime.IsZero() {
@@ -719,7 +720,25 @@ func handleTeardown(ctx *pluginserver.CommandContext, validated command.Validate
 		shutdownMsg = textbuf.Join(args[1:], " ")
 	}
 
-	if err := ctx.Reactor().TeardownPeer(addr, subcode, shutdownMsg); err != nil {
+	// Ze's teardown is a Cease whose communication rides only under
+	// Administrative Shutdown and Administrative Reset (RFC 9003 Section 2).
+	// When no message is typed Ze sends the subcode's name, so the peer's log
+	// says why: Ze's choice, as the RFC only says a zero length means no
+	// communication. teardown cuts a long message to the 128 octets of RFC 9003
+	// Section 3, on a UTF-8 boundary, and its answer shows what was sent;
+	// notify refuses one instead. Every other subcode sends no Data, so the
+	// text is dropped here rather than sent as Data.
+	var data []byte
+	if subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset {
+		text := shutdownMsg
+		if text == "" {
+			text = message.CeaseSubcodeString(subcode)
+		}
+		// RFC 9003 Section 2
+		data = message.BuildShutdownData(text)
+	}
+	// RFC 4486 Section 4
+	if err := ctx.Reactor().TeardownPeer(addr, uint8(message.NotifyCease), subcode, data); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("teardown failed: %v", err),
@@ -727,8 +746,8 @@ func handleTeardown(ctx *pluginserver.CommandContext, validated command.Validate
 	}
 
 	resp := map[string]any{
-		fieldPeer: addr.String(),
-		"subcode": subcode,
+		fieldPeer:    addr.String(),
+		fieldSubcode: subcode,
 	}
 	if shutdownMsg != "" && (subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset) {
 		// Show the truncated message that was actually sent on the wire (RFC 8203).

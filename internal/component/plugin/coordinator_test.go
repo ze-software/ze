@@ -118,7 +118,7 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 
 	// PeerController: returns ErrNoReactor
 	addr := netip.MustParseAddr("10.0.0.1")
-	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrNoReactor) {
+	if err := c.TeardownPeer(addr, 6, 2, nil); !errors.Is(err, ErrNoReactor) {
 		t.Errorf("expected ErrNoReactor, got %v", err)
 	}
 	if err := c.PausePeer(addr); !errors.Is(err, ErrNoReactor) {
@@ -167,7 +167,7 @@ func TestCoordinatorWithReactor(t *testing.T) {
 	}
 
 	addr := netip.MustParseAddr("10.0.0.1")
-	_ = c.TeardownPeer(addr, 2, "")
+	_ = c.TeardownPeer(addr, 6, 2, nil)
 	if !m.teardownCalled {
 		t.Error("expected TeardownPeer to delegate to reactor")
 	}
@@ -218,7 +218,7 @@ func TestCoordinatorUnsetReactor(t *testing.T) {
 		t.Fatal(err)
 	}
 	addr := netip.MustParseAddr("10.0.0.1")
-	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrNoReactor) {
+	if err := c.TeardownPeer(addr, 6, 2, nil); !errors.Is(err, ErrNoReactor) {
 		t.Errorf("expected ErrNoReactor after unset, got %v", err)
 	}
 }
@@ -371,7 +371,7 @@ func (m *mockReactor) GetPeerCapabilityConfigs() []PeerCapabilityConfig       { 
 func (m *mockReactor) Stop()                                                  {}
 func (m *mockReactor) DisablePeer(netip.Addr, string) error                   { return nil }
 func (m *mockReactor) EnablePeer(netip.Addr) error                            { return nil }
-func (m *mockReactor) TeardownPeer(netip.Addr, uint8, string) error {
+func (m *mockReactor) TeardownPeer(netip.Addr, uint8, uint8, []byte) error {
 	m.teardownCalled = true
 	return nil
 }

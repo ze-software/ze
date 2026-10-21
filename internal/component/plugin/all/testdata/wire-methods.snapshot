@@ -24,10 +24,13 @@ ze-bgp:peer-clear-soft
 ze-bgp:peer-create
 ze-bgp:peer-delete
 ze-bgp:peer-detail
+ze-bgp:peer-disable
+ze-bgp:peer-enable
 ze-bgp:peer-eorr
 ze-bgp:peer-flush
 ze-bgp:peer-history
 ze-bgp:peer-list
+ze-bgp:peer-notify
 ze-bgp:peer-pause
 ze-bgp:peer-raw
 ze-bgp:peer-refresh

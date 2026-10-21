@@ -53,7 +53,7 @@ func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig  
 func (m *mockReactor) Stop()                                                  {}
 func (m *mockReactor) DisablePeer(netip.Addr, string) error                   { return nil }
 func (m *mockReactor) EnablePeer(netip.Addr) error                            { return nil }
-func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8, _ string) error     { return nil }
+func (m *mockReactor) TeardownPeer(_ netip.Addr, _, _ uint8, _ []byte) error  { return nil }
 func (m *mockReactor) PausePeer(_ netip.Addr) error                           { return nil }
 func (m *mockReactor) ResumePeer(_ netip.Addr) error                          { return nil }
 func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
