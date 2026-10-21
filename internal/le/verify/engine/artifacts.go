@@ -45,6 +45,8 @@ type artifactStage struct {
 	Stage     string  `json:"stage"`
 	ExitCode  int     `json:"exit-code"`
 	DetailLog string  `json:"detail-log"`
+	Start     string  `json:"start"`
+	Seconds   float64 `json:"seconds"`
 	Groups    []Group `json:"groups,omitempty"`
 }
 
@@ -67,6 +69,7 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 	for _, stage := range report.Stages {
 		result := artifactStage{
 			Stage: stage.Identity.Name, ExitCode: stage.Code, DetailLog: stage.Log,
+			Start: stage.Start.UTC().Format(time.RFC3339), Seconds: stage.Seconds,
 		}
 		if stage.Code != 0 {
 			if declared, complete := DeclaredGroups(root, stage); complete {

@@ -8,9 +8,13 @@ package verifyengine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -103,5 +107,57 @@ func TestAFullDeviceIsUnjudgedAndAnyOtherWriteFailureIsABrokenRun(t *testing.T) 
 	}
 	if Defeated(nil) || Defeated(errors.New("no space left on device")) {
 		t.Fatal("a full device is recognized by its typed error, never by its text")
+	}
+}
+
+// TestEveryStageLogCarriesItsTimingBeforeItsResult proves each stage records
+// when it started and how long it ran, on its own line before an unchanged
+// result line, in the stage log, the report and the failure index.
+//
+// Method: a clock that advances 1.5s on every read drives a whole run of the
+// full population, so every stage's duration is exactly 1.5s. The result line
+// must stay the LAST line, spelled as before, because stageResult and three
+// fixtures read it; the timing line therefore goes before it.
+func TestEveryStageLogCarriesItsTimingBeforeItsResult(t *testing.T) {
+	root := t.TempDir()
+	base := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	reads := 0
+	clock := func() time.Time {
+		at := base.Add(time.Duration(reads) * 1500 * time.Millisecond)
+		reads++
+		return at
+	}
+	report := runMode(context.Background(), root, "abc", Mode, Part{Index: 1, Of: 1}, twoStageRunner(0, 0), Slot{}, clock)
+	if len(report.Stages) != len(StagesForMode(Mode)) {
+		t.Fatalf("ran %d stages, want the whole population %d", len(report.Stages), len(StagesForMode(Mode)))
+	}
+	for _, stage := range report.Stages {
+		if stage.Seconds != 1.5 || stage.Start.IsZero() {
+			t.Fatalf("stage %s start=%v seconds=%v, want a start and 1.5s", stage.Identity.Name, stage.Start, stage.Seconds)
+		}
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(stage.Log)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
+		timing := "### Stage timing: " + stage.Identity.Name + " start=" +
+			stage.Start.UTC().Format(time.RFC3339) + " seconds=1.500"
+		result := "### Stage result: " + stage.Identity.Name + " exit=0"
+		if len(lines) < 2 || lines[len(lines)-2] != timing || lines[len(lines)-1] != result {
+			t.Fatalf("stage log ends %q, want %q then %q", lines[max(0, len(lines)-2):], timing, result)
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(FailuresJSONPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var index artifactIndex
+	if err := json.Unmarshal(data, &index); err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range index.Stages {
+		if stage.Seconds != 1.5 || stage.Start == "" {
+			t.Fatalf("index stage %s start=%q seconds=%v", stage.Stage, stage.Start, stage.Seconds)
+		}
 	}
 }

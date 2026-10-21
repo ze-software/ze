@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -115,7 +116,11 @@ type StageReport struct {
 	Identity Identity `json:"identity"`
 	Code     int      `json:"code"`
 	Log      string   `json:"log"`
-	Failure  *Failure `json:"failure,omitempty"`
+	// Start is when the stage began and Seconds how long it ran, read from
+	// the run's clock around the action.
+	Start   time.Time `json:"start"`
+	Seconds float64   `json:"seconds"`
+	Failure *Failure  `json:"failure,omitempty"`
 }
 
 type Report struct {
@@ -348,13 +353,17 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, runner A
 
 		expected := cloneIdentity(current.Identity)
 		result := ActionResult{}
+		stageStarted := now()
 		if runner != nil {
 			stopBeat := beat(slot.Progress, expected.Name, heartbeatInterval)
 			result = runner(ctx, root, cloneIdentity(expected))
 			stopBeat()
 		}
+		stageSeconds := now().Sub(stageStarted).Seconds()
 		stageReport := validateResult(expected, result)
 		stageReport.Log = stageLogPath(report.LogDir, index+1, expected.Name)
+		stageReport.Start = stageStarted.UTC()
+		stageReport.Seconds = stageSeconds
 
 		stageStart := combined.Len()
 		combined.Str("### Stage ")
@@ -366,6 +375,13 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, runner A
 		if result.Output != "" && !strings.HasSuffix(result.Output, "\n") {
 			combined.Byte('\n')
 		}
+		// The timing line goes BEFORE the result line: the result line stays
+		// the last line of every stage log, spelled as it always was, because
+		// stageResult (internal/le/verify/reds.go) and the fixtures that
+		// write a stage log read it there.
+		combined.Str("### Stage timing: ").Str(current.Identity.Name).Str(" start=").
+			Str(stageReport.Start.Format(time.RFC3339)).Str(" seconds=").
+			Str(strconv.FormatFloat(stageSeconds, 'f', 3, 64)).Byte('\n')
 		combined.Str("### Stage result: ").Str(current.Identity.Name).Str(" exit=").
 			Int(int64(stageReport.Code)).Byte('\n')
 

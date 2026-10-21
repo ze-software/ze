@@ -249,3 +249,15 @@ func TestRedsGrammarPutsTheKeywordBeforeTheValue(t *testing.T) {
 	}
 	t.Errorf("reds is not in the verify area listing, so no reader discovers it")
 }
+
+// TestStageResultStillParsesALogWithATimingLine proves the timing line the
+// engine writes before the result line leaves stageResult's answer unchanged.
+func TestStageResultStillParsesALogWithATimingLine(t *testing.T) {
+	content := "### Stage 01/02: go lint run\nCommand: le go lint run\noutput\n" +
+		"### Stage timing: go lint run start=2026-10-21T03:00:00Z seconds=1771.250\n" +
+		"### Stage result: go lint run exit=1\n"
+	stage, code, ok := stageResult(content)
+	if !ok || stage != "go lint run" || code != 1 {
+		t.Fatalf("stageResult = %q, %d, %v; want go lint run, 1, true", stage, code, ok)
+	}
+}
