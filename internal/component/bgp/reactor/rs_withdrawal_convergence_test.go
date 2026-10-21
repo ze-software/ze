@@ -10,14 +10,19 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"runtime"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestOwedKeyPurgeBetweenLookupAndAdmission proves R-12 of
@@ -438,10 +443,648 @@ func adjOutOwnedBy(destination, source *Peer) int {
 	return owned
 }
 
+// adjOutPrefixOwner returns the source owning destination's Adj-RIB-Out
+// entry for an IPv4 unicast prefix, or nil when it holds none.
+func adjOutPrefixOwner(t *testing.T, destination *Peer, prefix netip.Prefix) *Peer {
+	t.Helper()
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	var key adjOutKey
+	raw := ownershipLiveNLRI([]netip.Prefix{prefix})
+	if err := fwdPathKeyFor(&key.path, family.IPv4Unicast, 0, raw, false, scratch[:]); err != nil {
+		t.Fatalf("key for %s: %v", prefix, err)
+	}
+	table := &destination.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	entry := table.routes[key]
+	if entry == nil {
+		return nil
+	}
+	return entry.owner.source
+}
+
 // adjOutOwedCount counts the destination's owed keys.
 func adjOutOwedCount(destination *Peer) int {
 	table := &destination.adjOut
 	table.mu.Lock()
 	defer table.mu.Unlock()
 	return len(table.owed)
+}
+
+// TestOwedKeyLivenessUnderChurn proves AC-15. A owns 10.9.0.0/24 at client C
+// and withdraws it; B is the survivor of choice. C's first lookup for the key
+// is held after bgp-rib answered, and while it is held:
+//
+//   - "other-keys": B announces 1000 other prefixes and E announces 1000
+//     more, all relayed to C, so B's session accepts UPDATEs after the round's
+//     cut and C's writer keeps writing;
+//   - "same-prefix": D, which announced the key earlier with a worse route
+//     and is not the chosen survivor, and E, which never announced it, each
+//     send 1000 withdrawals of the key, every one dropped at C's writer as a
+//     non-owner's.
+//
+// None of that traffic withdrew the chosen candidate's route, merged a
+// departure or ended a session, so the key is decided by its first round: it
+// reaches bgp-rib in exactly one lookup, and C receives B's route and no
+// withdrawal of the key.
+//
+// VALIDATES: AC-15, an owed key is decided within one round whatever the
+// traffic on other keys, other sources and non-candidate withdrawals.
+// PREVENTS: a busy survivor or a busy client postponing a replacement forever.
+func TestOwedKeyLivenessUnderChurn(t *testing.T) {
+	t.Run("other-keys", func(t *testing.T) { livenessUnderChurn(t, false) })
+	t.Run("same-prefix", func(t *testing.T) { livenessUnderChurn(t, true) })
+}
+
+func livenessUnderChurn(t *testing.T, samePrefix bool) {
+	const churn = 1000
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+		lowLiveSettings("192.0.2.4", 65000, 65005),
+		lowLiveSettings("192.0.2.5", 65000, 65006),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c, d, e := peers[0], peers[1], peers[2], peers[3], peers[4]
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	// RFC 4271 Section 9.1.2.2, step a: A's path is the shortest, then B's,
+	// then D's, so B is the survivor of choice once A withdraws.
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	attrsD := firstASAttrs(4, 65005, 65005, 65005)
+	attrsE := firstASAttrs(4, 65006)
+
+	ownershipLiveSend(t, d, nil, attrsD, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsD)
+	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsB)
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsA)
+
+	tap := &keyLookups{destination: c.peer.Settings().Address, key: ownershipLiveNLRI([]netip.Prefix{prefix}),
+		held: make(chan struct{}), hold: make(chan struct{})}
+	publishLookupTap(t, tap.after)
+
+	// C is sent thousands of churn UPDATEs, more than its wire capture
+	// keeps, so what C is sent for the key after A's withdrawal is read from
+	// the reactor's sent events.
+	sent := observeSentKey(t, a.peer.reactor, c.peer.Settings().Address, prefix)
+	ownershipLiveSend(t, a, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+	select {
+	case <-tap.held:
+	case <-time.After(5 * time.Second):
+		t.Fatal("C's recovery lookup for the owed key never ran")
+	}
+
+	churnB := churnPrefixes(40, churn)
+	churnE := churnPrefixes(50, churn)
+	for i := range churn {
+		if samePrefix {
+			ownershipLiveSend(t, d, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+			ownershipLiveSend(t, e, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+			continue
+		}
+		ownershipLiveSend(t, b, nil, attrsB, churnB[i]) // RFC 4271 Section 4.3.
+		ownershipLiveSend(t, e, nil, attrsE, churnE[i]) // RFC 4271 Section 4.3.
+	}
+	if !samePrefix {
+		// Every churn route is held at C: the churn reached C's writer while
+		// the round was held. The table is read, not the wire, because
+		// decoding thousands of frames per poll would stall C's reader.
+		waitOwnedBy(t, c.peer, b.peer, churn)
+		waitOwnedBy(t, c.peer, e.peer, churn)
+	}
+	close(tap.hold)
+
+	deadline := time.Now().Add(30 * time.Second)
+	for adjOutOwedCount(c.peer) != 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	for len(sent.announced()) == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	// RFC 4271 Section 9.2: "All newly installed routes and all newly
+	// unfeasible routes for which there is no replacement route SHALL be
+	// advertised to its peers by means of an UPDATE message."
+	announced, withdrawn := sent.announced(), sent.withdrawn()
+	if len(announced) != 1 || !bytes.Equal(announced[0], attrsB) {
+		t.Errorf("C was sent %x for %s after A's withdrawal, want B's route %x once", announced, prefix, attrsB)
+	}
+	if withdrawn != 0 {
+		t.Errorf("C was sent %d withdrawals of %s, want none", withdrawn, prefix)
+	}
+	if got := adjOutOwedCount(c.peer); got != 0 {
+		t.Errorf("C still owes %d keys", got)
+	}
+	if got := tap.count(); got != 1 {
+		t.Errorf("the owed key reached bgp-rib in %d lookups for C, want 1 (a retry without a fence reason)", got)
+	}
+	ownershipLiveEstablished(t, peers)
+}
+
+// waitOwnedBy waits up to 60 seconds, the churn's cost under -race, until
+// source owns want entries at destination.
+func waitOwnedBy(t *testing.T, destination, source *Peer, want int) {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for adjOutOwnedBy(destination, source) != want {
+		if time.Now().After(deadline) {
+			t.Fatalf("%s owns %d entries at %s, want %d", source.Settings().Address,
+				adjOutOwnedBy(destination, source), destination.Settings().Address, want)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// sentKeyObserver records what the reactor sends one destination for one
+// IPv4 prefix: each announcement's path attributes and the withdrawal count.
+// It wraps the reactor's message receiver and changes nothing; sent events
+// arrive on the reactor's goroutines, so its state is locked.
+type sentKeyObserver struct {
+	MessageReceiver
+	destination netip.Addr
+	tuple       []byte
+
+	mu          sync.Mutex
+	attrs       [][]byte
+	withdrawals int
+}
+
+// observeSentKey installs a sentKeyObserver until the test ends.
+func observeSentKey(t *testing.T, r *Reactor, destination netip.Addr, prefix netip.Prefix) *sentKeyObserver {
+	t.Helper()
+	r.mu.RLock()
+	prior := r.messageReceiver
+	r.mu.RUnlock()
+	observer := &sentKeyObserver{MessageReceiver: prior, destination: destination,
+		tuple: ownershipLiveNLRI([]netip.Prefix{prefix})}
+	r.setMessageReceiver(observer)
+	t.Cleanup(func() { r.setMessageReceiver(prior) })
+	return observer
+}
+
+// OnMessageSent decodes RFC 4271 Section 4.3's UPDATE body:
+//
+//	| Withdrawn Routes Length (2) | Withdrawn Routes | Total Path Attribute Length (2) | Path Attributes | NLRI |
+func (o *sentKeyObserver) OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage) {
+	o.MessageReceiver.OnMessageSent(peer, msg)
+	body := msg.RawBytes
+	if peer.Address != o.destination || len(body) < 4 {
+		return
+	}
+	withdrawnLen := int(body[0])<<8 | int(body[1])
+	if len(body) < 4+withdrawnLen {
+		return
+	}
+	withdrawn := body[2 : 2+withdrawnLen]
+	attrsLen := int(body[2+withdrawnLen])<<8 | int(body[3+withdrawnLen])
+	if len(body) < 4+withdrawnLen+attrsLen {
+		return
+	}
+	attrs := body[4+withdrawnLen : 4+withdrawnLen+attrsLen]
+	nlriField := body[4+withdrawnLen+attrsLen:]
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if sentFieldHolds(withdrawn, o.tuple) {
+		o.withdrawals++
+	}
+	if sentFieldHolds(nlriField, o.tuple) {
+		o.attrs = append(o.attrs, bytes.Clone(attrs))
+	}
+}
+
+func (o *sentKeyObserver) announced() [][]byte {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return slices.Clone(o.attrs)
+}
+
+func (o *sentKeyObserver) withdrawn() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.withdrawals
+}
+
+// sentFieldHolds reports whether an IPv4 prefix field (RFC 4271 Section 4.3,
+// length octet then prefix octets) holds tuple. A malformed field holds
+// nothing.
+func sentFieldHolds(field, tuple []byte) bool {
+	for len(field) > 0 {
+		octets := 1 + (int(field[0])+7)/8
+		if octets > len(field) {
+			return false
+		}
+		if bytes.Equal(field[:octets], tuple) {
+			return true
+		}
+		field = field[octets:]
+	}
+	return false
+}
+
+// churnPrefixes returns count distinct /24s under 10.<base>.0.0, one per
+// churn UPDATE.
+func churnPrefixes(base, count int) []netip.Prefix {
+	prefixes := make([]netip.Prefix, count)
+	for i := range prefixes {
+		prefixes[i] = netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(base + i/256), byte(i % 256), 0}), 24)
+	}
+	return prefixes
+}
+
+// keyLookups counts the recovery lookups for one destination that name one
+// key, and holds the first of them until the test closes hold, at most 30
+// seconds. It is a publishLookupTap hook, so its state is locked.
+type keyLookups struct {
+	destination netip.Addr
+	key         []byte
+	// held is closed when the first lookup naming the key is parked.
+	held chan struct{}
+	hold chan struct{}
+
+	mu      sync.Mutex
+	lookups int
+}
+
+func (k *keyLookups) after(request *ribevents.RecoveryRequest, outcomes []ribevents.RecoveryOutcome, err error) ([]ribevents.RecoveryOutcome, error) {
+	if request.Destination != k.destination {
+		return outcomes, err
+	}
+	named := false
+	for i := range request.Keys {
+		if bytes.Equal(request.Keys[i].NLRI, k.key) {
+			named = true
+		}
+	}
+	if !named {
+		return outcomes, err
+	}
+	k.mu.Lock()
+	k.lookups++
+	first := k.lookups == 1
+	k.mu.Unlock()
+	if first {
+		close(k.held)
+		select {
+		case <-k.hold:
+		case <-time.After(30 * time.Second):
+		}
+	}
+	return outcomes, err
+}
+
+func (k *keyLookups) count() int {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return k.lookups
+}
+
+// TestOwedKeyBufferShortageDefersKeys proves that a read-buffer shortage
+// inside a recovery admission defers keys rather than retiring the
+// destination. Each staged key holds a buffer of the 4K pool, which every
+// session's reads share, until its write completes, so a chunk of owed keys
+// can find the pool dry. A owns 300 prefixes at C and withdraws them while
+// C's first lookup is held; the test then pins the pool's byte budget at what
+// is allocated and holds every free buffer:
+//
+//   - "partial": it gives 50 buffers back before releasing the lookup, so
+//     each admission decides the keys it found buffers for and the next round
+//     takes the rest;
+//   - "stalled": it gives none back, so the first rounds decide nothing and
+//     the worker backs off; 300 ms later it returns them all.
+//
+// Either way every key is decided (B owns all 300 at C) and every session
+// stays Established: before this, the admission's buffer error retired C.
+//
+// VALIDATES: AC-12 and AC-21, a transient pool shortage costs time, never the
+// client's session.
+// PREVENTS: a route-server client reset because other sessions held buffers.
+func TestOwedKeyBufferShortageDefersKeys(t *testing.T) {
+	t.Run("partial", func(t *testing.T) { bufferShortageDefersKeys(t, 50) })
+	t.Run("stalled", func(t *testing.T) { bufferShortageDefersKeys(t, 0) })
+}
+
+func bufferShortageDefersKeys(t *testing.T, spare int) {
+	const keys = 300
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	prefixes := churnPrefixes(60, keys)
+	ownershipLiveSend(t, b, nil, attrsB, prefixes...) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefixes[keys-1], attrsB)
+	ownershipLiveSend(t, a, nil, attrsA, prefixes...) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefixes[keys-1], attrsA)
+	lowEventually(t, func() bool { return adjOutOwnedBy(c.peer, a.peer) == keys }, "A owns every prefix at C")
+
+	tap := &lookupSizes{destination: c.peer.Settings().Address, seen: make(map[string]struct{}),
+		hold: make(chan struct{})}
+	publishLookupTap(t, tap.after)
+	ownershipLiveSend(t, a, prefixes, nil) // RFC 4271 Section 4.3.
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == keys }, "C owes every withdrawn key")
+
+	held := drainReadPool(t)
+	for range min(spare, len(held)) {
+		returnReadBuffer(held[len(held)-1])
+		held = held[:len(held)-1]
+	}
+	close(tap.hold)
+	if spare == 0 {
+		time.Sleep(300 * time.Millisecond)
+		// The backoff (10, 20, 40, 80, 160 ms) allows about six rounds in
+		// 300 ms: an immediate retry would ask hundreds of times.
+		if requests, _, _ := tap.result(); requests < 2 || requests > 8 {
+			t.Errorf("C's worker asked bgp-rib %d times while the pool was dry, want 2 to 8", requests)
+		}
+		if got := adjOutOwedCount(c.peer); got != keys {
+			t.Errorf("C decided %d keys with no buffer free, want 0", keys-got)
+		}
+		if got := c.peer.SessionState(); got != fsm.StateEstablished {
+			t.Fatalf("C session = %s while the pool was dry, want Established", got)
+		}
+		for _, h := range held {
+			returnReadBuffer(h)
+		}
+		held = nil
+	}
+	waitOwnedBy(t, c.peer, b.peer, keys)
+	for _, h := range held {
+		returnReadBuffer(h)
+	}
+	// A record leaves the owed set once its write is flushed, just after
+	// the entry changed owner.
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	ownershipLiveEstablished(t, peers)
+}
+
+// rsLiveRouter is lowLiveRouter for the scenarios of this spec that hold
+// many read buffers in flight. The read pools and their byte budget are
+// process globals that earlier tests of this binary leave grown against the
+// budget the router installs (plan/journal/registry-contamination.md). These
+// scenarios do not test the budget, so it is lifted for their run; a test
+// that does pins it again (drainReadPool).
+func rsLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
+	t.Helper()
+	peers := lowLiveRouter(t, settings...)
+	unboundedReadPool(t)
+	return peers
+}
+
+// unboundedReadPool lifts the shared byte budget of the read pools for the
+// test, and restores it at cleanup.
+func unboundedReadPool(t *testing.T) {
+	t.Helper()
+	bufMuxStd.mux.mu.Lock()
+	budget := bufMuxStd.mux.budget
+	bufMuxStd.mux.mu.Unlock()
+	if budget == nil {
+		return // No budget: the pools are unbounded already.
+	}
+	previous := budget.maxBytes.Swap(0)
+	t.Cleanup(func() { budget.maxBytes.Store(previous) })
+}
+
+// drainReadPool pins the shared byte budget at what the pools have allocated,
+// so neither can grow, and takes every free 4K buffer. Cleanup returns any
+// buffer the test still holds and restores the budget.
+func drainReadPool(t *testing.T) []BufHandle {
+	t.Helper()
+	bufMuxStd.mux.mu.Lock()
+	budget := bufMuxStd.mux.budget
+	bufMuxStd.mux.mu.Unlock()
+	if budget == nil {
+		t.Fatal("the read pools carry no shared budget")
+	}
+	previous := budget.maxBytes.Load()
+	budget.maxBytes.Store(budget.allocated.Load())
+	var held []BufHandle
+	for {
+		h := getReadBuf(false)
+		if h.Buf == nil {
+			break
+		}
+		held = append(held, h)
+	}
+	t.Cleanup(func() { budget.maxBytes.Store(previous) })
+	return held
+}
+
+// TestOwedKeyStormKeepsSourceAndForwardWorkerMoving proves AC-16 at the
+// reactor boundary. A owns 200 prefixes at client C (B offers them too); C's
+// recovery lookup is held inside bgp-rib's answer until the test releases it.
+// A then withdraws all 200 in a storm of UPDATEs, on bgp-rs's cached rail and,
+// separately, on the reactor fast path. While C's worker is held:
+//
+//   - A's read goroutine keeps reading: A's later announcement of X reaches
+//     the other client D's wire;
+//   - C's forward worker keeps writing: B's announcement of Y reaches C's
+//     wire;
+//   - no goroutine is created per withdrawal.
+//
+// Once released, every owed key is decided: B owns all 200 at C. The provider
+// is released before the sessions are torn down, because the in-process
+// lookup takes no context.
+//
+// VALIDATES: AC-16, the owe never blocks the source or the destination's
+// forward worker.
+// PREVENTS: one slow election stalling a source's reads or a client's writes.
+func TestOwedKeyStormKeepsSourceAndForwardWorkerMoving(t *testing.T) {
+	t.Run("cached-rail", func(t *testing.T) { stormKeepsMoving(t, false) })
+	t.Run("fast-path", func(t *testing.T) { stormKeepsMoving(t, true) })
+}
+
+func stormKeepsMoving(t *testing.T, fastPath bool) {
+	const keys = 200
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+		lowLiveSettings("192.0.2.4", 65000, 65005),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+		setting.RSFastPath = fastPath
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c, d := peers[0], peers[1], peers[2], peers[3]
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	prefixes := churnPrefixes(70, keys)
+	ownershipLiveSend(t, b, nil, attrsB, prefixes...) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefixes[keys-1], attrsB)
+	ownershipLiveSend(t, a, nil, attrsA, prefixes...) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefixes[keys-1], attrsA)
+	lowEventually(t, func() bool { return adjOutOwnedBy(c.peer, a.peer) == keys }, "A owns every prefix at C")
+
+	tap := &lookupSizes{destination: c.peer.Settings().Address, seen: make(map[string]struct{}),
+		hold: make(chan struct{})}
+	publishLookupTap(t, tap.after)
+	released := false
+	release := func() {
+		if !released {
+			released = true
+			close(tap.hold)
+		}
+	}
+	t.Cleanup(release)
+
+	// The storm: one UPDATE per ten withdrawals.
+	for start := 0; start < keys; start += 10 {
+		ownershipLiveSend(t, a, prefixes[start:start+10], nil) // RFC 4271 Section 4.3.
+	}
+	lowEventually(t, func() bool {
+		requests, _, _ := tap.result()
+		return requests >= 1
+	}, "C's recovery lookup is held")
+	baseline := runtime.NumGoroutine()
+	for start := 0; start < keys; start += 10 {
+		// A second storm over the same keys merges into the records.
+		ownershipLiveSend(t, a, prefixes[start:start+10], nil) // RFC 4271 Section 4.3.
+	}
+
+	x := netip.MustParsePrefix("10.9.200.0/24")
+	// D and C are each sent hundreds of UPDATEs, more than their wire
+	// captures keep, so arrival is read from their Adj-RIB-Out tables.
+	ownershipLiveSend(t, a, nil, attrsA, x) // RFC 4271 Section 4.3.
+	lowEventually(t, func() bool { return adjOutPrefixOwner(t, d.peer, x) == a.peer }, "A's X at D")
+	y := netip.MustParsePrefix("10.9.201.0/24")
+	ownershipLiveSend(t, b, nil, attrsB, y) // RFC 4271 Section 4.3.
+	lowEventually(t, func() bool { return adjOutPrefixOwner(t, c.peer, y) == b.peer }, "B's Y at C")
+	if got := adjOutOwnedBy(c.peer, b.peer); got != 1 {
+		t.Errorf("B owns %d entries at C while C's lookup is held, want 1 (Y only)", got)
+	}
+	// A goroutine per withdrawal would add 200 here; the bound leaves room
+	// for the transient workers of the two forwards above.
+	if grown := runtime.NumGoroutine() - baseline; grown > 20 {
+		t.Errorf("goroutines grew by %d during a storm of %d withdrawals", grown, keys)
+	}
+
+	release()
+	waitOwnedBy(t, c.peer, b.peer, keys+1)
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	ownershipLiveEstablished(t, peers)
+}
+
+// TestOwedKeyBufferStallsCountOnlyConsecutive proves the stall count, and
+// with it the backoff and the retire bound, covers only consecutive rounds
+// that decided nothing. Six times over, A withdraws 100 prefixes C holds from
+// A while C's lookups are held, the test holds every free read buffer,
+// releases the lookups for 300 ms of stalled rounds, then returns the buffers
+// so the round decides B, and A re-announces. Each phase's backoff restarts
+// at 10 ms, so each phase asks about five times; a count kept across phases
+// would wait a second per round by the third phase and, over a long session,
+// reach recoveryStallMax and reset a healthy client.
+//
+// VALIDATES: a decided round resets the stall count.
+// PREVENTS: stalls accumulating over a session's life until a healthy client
+// is reset.
+func TestOwedKeyBufferStallsCountOnlyConsecutive(t *testing.T) {
+	const keys = 100
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	prefixes := churnPrefixes(80, keys)
+	ownershipLiveSend(t, b, nil, attrsB, prefixes...) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefixes[keys-1], attrsB)
+	gate := &lookupGate{destination: c.peer.Settings().Address}
+	publishLookupTap(t, gate.after)
+	t.Cleanup(gate.open)
+
+	for phase := range 6 {
+		ownershipLiveSend(t, a, nil, attrsA, prefixes...) // RFC 4271 Section 4.3.
+		waitOwnedBy(t, c.peer, a.peer, keys)
+		gate.close()
+		ownershipLiveSend(t, a, prefixes, nil) // RFC 4271 Section 4.3.
+		lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == keys }, "C owes every withdrawn key")
+		held := drainReadPool(t)
+		before := gate.count()
+		gate.open()
+		time.Sleep(300 * time.Millisecond)
+		// A backoff that restarts at 10 ms asks about five times in 300 ms;
+		// one that kept growing across phases would ask once a second.
+		if dry := gate.count() - before; dry < 3 {
+			t.Errorf("phase %d: %d lookups while the pool was dry, want at least 3 (the backoff did not restart)", phase, dry)
+		}
+		if got := c.peer.SessionState(); got != fsm.StateEstablished {
+			t.Fatalf("phase %d: C session = %s while the pool was dry, want Established", phase, got)
+		}
+		for _, h := range held {
+			returnReadBuffer(h)
+		}
+		waitOwnedBy(t, c.peer, b.peer, keys)
+		lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	}
+	ownershipLiveEstablished(t, peers)
+}
+
+// lookupGate parks every recovery lookup for one destination while closed.
+// It is a publishLookupTap hook, so its state is locked; a parked lookup
+// waits at most 10 seconds.
+type lookupGate struct {
+	destination netip.Addr
+
+	mu      sync.Mutex
+	gate    chan struct{}
+	lookups int
+}
+
+func (g *lookupGate) close() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.gate == nil {
+		g.gate = make(chan struct{})
+	}
+}
+
+func (g *lookupGate) count() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.lookups
+}
+
+func (g *lookupGate) open() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.gate != nil {
+		close(g.gate)
+		g.gate = nil
+	}
+}
+
+func (g *lookupGate) after(request *ribevents.RecoveryRequest, outcomes []ribevents.RecoveryOutcome, err error) ([]ribevents.RecoveryOutcome, error) {
+	if request.Destination != g.destination {
+		return outcomes, err
+	}
+	g.mu.Lock()
+	gate := g.gate
+	g.lookups++
+	g.mu.Unlock()
+	if gate != nil {
+		select {
+		case <-gate:
+		case <-time.After(10 * time.Second):
+		}
+	}
+	return outcomes, err
 }

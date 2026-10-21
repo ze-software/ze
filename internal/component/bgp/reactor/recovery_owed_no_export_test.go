@@ -1,5 +1,5 @@
 // Design: docs/architecture/update-building.md -- owed keys and the recovery worker
-// Related: relay_recovery.go -- queueRecovery: an egress-denied survivor withdraws
+// Related: relay_recovery.go -- queueRecoveryOutcome: a survivor the destination may not receive is stepped past
 // Related: forward_pool.go -- fwdBatchHandler settles every recovery admission
 //
 // VALIDATES: an owed key at an external destination whose only survivor

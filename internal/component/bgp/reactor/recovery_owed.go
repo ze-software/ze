@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -29,6 +30,18 @@ const recoveryLookupKeysMax = 500
 const recoveryCommandName = "request bgp rib recovery"
 
 var errRecoveryOwnerGone = errors.New("source-DOWN recovery owner left while keys were owed")
+
+// recoveryStallMax bounds the consecutive rounds that decide nothing because
+// the read buffer pool is exhausted. The wait between them doubles from
+// recoveryStallWaitMin to recoveryStallWaitMax, so the worker gives the pool
+// about 25 seconds, plus the rounds' own time, before it retires the
+// destination: a key left owed longer would leave the client holding a route
+// its source withdrew.
+const (
+	recoveryStallMax     = 32
+	recoveryStallWaitMin = 10 * time.Millisecond
+	recoveryStallWaitMax = time.Second
+)
 
 // recoveryWorker decides the keys one destination session owes: one
 // long-lived goroutine per destination session, never one per event.
@@ -194,10 +207,26 @@ func (w *recoveryWorker) logOwnerless() {
 // before the worker existed is never stranded.
 func (w *recoveryWorker) run() {
 	defer close(w.done)
+	stalls := 0
 	for {
 		again, err := w.round()
 		if w.ctx.Err() != nil {
 			return
+		}
+		if !errors.Is(err, errRecoveryBufferStalled) {
+			stalls = 0 // Only consecutive rounds that decided nothing count.
+		}
+		if errors.Is(err, errRecoveryBufferPartial) {
+			continue // The decided keys returned their buffers.
+		}
+		if errors.Is(err, errRecoveryBufferStalled) {
+			stalls++
+			if stalls < recoveryStallMax {
+				if !w.stallWait(stalls) {
+					return
+				}
+				continue
+			}
 		}
 		if errors.Is(err, errRecoveryDestinationClosed) {
 			// The session already left Established: its close drops the owed
@@ -222,6 +251,23 @@ func (w *recoveryWorker) run() {
 	}
 }
 
+// stallWait waits before the round after the stalls-th consecutive round that
+// decided nothing. It reports false when the worker was stopped meanwhile.
+func (w *recoveryWorker) stallWait(stalls int) bool {
+	wait := recoveryStallWaitMax
+	if stalls < 8 {
+		wait = min(recoveryStallWaitMin<<(stalls-1), recoveryStallWaitMax)
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case <-w.ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
 // retire ends a destination session whose owed keys cannot be decided. A key
 // left owed would leave the client with a route its source withdrew.
 func (w *recoveryWorker) retire(err error) {
@@ -233,17 +279,29 @@ func (w *recoveryWorker) retire(err error) {
 
 // round decides every key owed when it started, one family and one bounded
 // chunk at a time. It reports again when a key of its snapshot is still owed
-// after its admission: left owed on a moved epoch or a withdrawn candidate,
-// or re-owed with a source excluded. Each such key changed since the
-// snapshot, and each change is bounded, so this cannot hot-loop.
+// after its admission: left owed on a moved epoch, or on a candidate that
+// withdrew or re-announced the key, or re-owed with a source excluded. Each
+// such retry needs a merge, an exclusion or a new write of that key by the
+// chosen candidate since the snapshot, so rounds are paced by those UPDATEs
+// and cannot hot-loop on their own.
 func (w *recoveryWorker) round() (bool, error) {
 	owed := w.snapshot()
+	decided := false
 	for fam, keys := range owed {
 		for start := 0; start < len(keys); start += recoveryLookupKeysMax {
 			chunk := keys[start:min(start+recoveryLookupKeysMax, len(keys))]
-			if err := w.decide(fam, chunk); err != nil {
+			err := w.decide(fam, chunk)
+			if errors.Is(err, errRecoveryBufferStalled) && decided {
+				// An earlier chunk of this round was decided, so the round
+				// is partial, not a stall.
+				return false, errRecoveryBufferPartial
+			}
+			if err != nil {
+				// A buffer shortage ends the round too: its undecided keys
+				// stay owed, and run starts the next round.
 				return false, err
 			}
+			decided = true
 		}
 	}
 	return w.stillOwed(owed), nil

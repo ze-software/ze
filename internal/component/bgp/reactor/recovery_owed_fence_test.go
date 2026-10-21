@@ -303,11 +303,11 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		require.True(t, moved, "the re-owe moves the epoch")
 	})
 	// (k): the chosen survivor's live source accepted an UPDATE of another
-	// prefix between the round's cut and the admission. The lookup may
-	// predate it, so the key is left owed for a fresh round, and the source
-	// is NOT excluded: it still holds the route, and excluding it would
-	// withdraw the key at the destination.
-	t.Run("survivor-source-advanced-leaves-owed", func(t *testing.T) {
+	// prefix between the round's cut and the admission. That traffic is not a
+	// fence (AC-15): an UPDATE of the key itself reaches this writer as a
+	// mover or as a later write, so the survivor is written, the key is
+	// decided by this round, and no source is excluded.
+	t.Run("survivor-source-advanced-is-written", func(t *testing.T) {
 		r, source, destination, conn, _ := newSyncOrderRail(t)
 		destination.sendingInitialRoutes.Store(0)
 		session := destination.currentSession()
@@ -320,45 +320,78 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 			sources: map[*Peer]recoverySourceReceipt{source: {generation: generation, cut: source.receiveCut()}},
 			keys: []recoveryAdmitKey{{key: key, record: record, epoch: epoch,
 				candidate: adjOutPath{source: source}}}}
-		admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
-			receivedPeer: source, receivedGeneration: generation}}
+		admission.items = []fwdItem{{peer: destination, session: session, authority: adjOutRecovery,
+			rawBodies: [][]byte{syncOrderAnnounceBody}, receivedPeer: source, receivedGeneration: generation}}
 		admission.mark(0)
 		source.acceptedReceive(2) // A later UPDATE on the same live session.
 		r.fwdPool.safeBatchHandle(fwdKey{peerAddr: destination.Settings().PeerKey()},
 			[]fwdItem{{peer: destination, recovery: admission}})
 		<-admission.done
-		require.Empty(t, conn.written(), "a possibly stale candidate is not written")
-		require.Equal(t, recoveryKeyLeftOwed, admission.keys[0].outcome)
-		require.Same(t, record, recoveryOwedRecord(destination, key), "the key stays owed")
+		require.Equal(t, recoveryKeyWrite, admission.keys[0].outcome)
+		require.NoError(t, admission.err)
+		require.NotEmpty(t, conn.written(), "the live survivor is written")
+		require.Nil(t, recoveryOwedRecord(destination, key), "the key is decided by this round")
 		table := &destination.adjOut
 		table.mu.Lock()
-		excluded, moved := slices.Clone(record.excluded), record.epoch != epoch
+		excluded := slices.Clone(record.excluded)
 		table.mu.Unlock()
 		require.Empty(t, excluded, "a live source is never excluded")
-		require.False(t, moved, "leaving a key owed moves no epoch")
 	})
 	// (l): the same advance seen by queueRecovery, before any section is
-	// staged. The next round asks again with no source excluded and writes
-	// the survivor.
-	t.Run("survivor-source-advanced-before-staging-rechooses", func(t *testing.T) {
+	// staged. The round writes the survivor and asks the RIB nothing more.
+	t.Run("survivor-source-advanced-before-staging-writes", func(t *testing.T) {
 		rail := newOwedRail(t)
 		p := []byte{24, 192, 0, 2}
 		rail.source.acceptedReceive(1).complete(1)
 		rail.forward(t, false, p)
 		rail.forward(t, true, p)
-		before := rail.record(t)
 		rail.request(t)
 		rail.source.acceptedReceive(2).complete(2) // After the round's cut.
 		rail.release <- owedSurvivor(rail.source.Settings().Address, p)
-		request := rail.request(t)
-		require.Empty(t, request.Keys[0].Excluded, "a live source that advanced is not excluded")
-		after := rail.record(t)
-		require.Same(t, before.record, after.record, "the key stays owed")
-		require.Equal(t, before.epoch, after.epoch, "leaving a key owed moves no epoch")
-		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1, "nothing written by the stale round")
-		rail.release <- owedSurvivor(rail.source.Settings().Address, p)
-		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decides")
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decides the key")
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the survivor is written")
+		select {
+		case request := <-rail.requests:
+			t.Fatalf("the decided key was asked again: %+v", request)
+		case <-time.After(100 * time.Millisecond):
+		}
+	})
+	// (q): the chosen candidate re-announces the owed key after the round's
+	// snapshot, and its forward reaches the destination's writer before the
+	// admission, while the RIB answered with the older revision. The
+	// re-announcement is a mover, so the stale answer is not written over the
+	// newer route: the key is left owed, and the next round's answer, the
+	// newer revision, is what the destination holds.
+	t.Run("chosen-candidate-reannounced", func(t *testing.T) {
+		rail := newOwedRail(t)
+		p := []byte{24, 192, 0, 2}
+		rail.forward(t, false, p)
+		rail.forward(t, true, p)
+		rail.request(t)
+		newer := ownershipRailBody(family.IPv4Unicast, false, p, 2)
+		require.NoError(t, ownershipWriterForward(t, rail.destination, rail.source, newer, false))
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the re-announcement is written")
+		mover := rail.record(t)
+		rail.release <- owedSurvivor(rail.source.Settings().Address, p) // The older revision.
+		request := rail.request(t)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
+			"the answer that predates the re-announcement is not written over it")
+		require.Same(t, mover.record, rail.record(t).record, "the key is left owed")
+		require.Empty(t, request.Keys[0].Excluded, "a mover excludes no source")
+		// RFC 4271 Section 5.1.4: MULTI_EXIT_DISC, optional non-transitive,
+		// marks the newer revision the next round answers with.
+		med := []byte{0x80, 0x04, 0x04, 0, 0, 0, 2}
+		newerAttrs := append([]byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 192, 0, 2, 1}, med...)
+		source := rail.source.Settings().Address
+		rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
+			return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source,
+				NLRI: p, Attributes: newerAttrs, NextHop: []byte{192, 0, 2, 1}, MessageID: 8})
+		}
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decides")
+		updates := recoveryWrittenUpdates(t, rail.conn.written())
+		require.Len(t, updates, 3)
+		require.True(t, bytes.Contains(updates[2].PathAttributes, med),
+			"the decision written is the newer revision: %x", updates[2].PathAttributes)
 	})
 	t.Run("survivor-gone-reowes", func(t *testing.T) {
 		rail := newOwedRail(t)

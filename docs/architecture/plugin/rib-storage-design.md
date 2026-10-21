@@ -276,18 +276,22 @@ staged in one destination admission, each section tagged with the owed key it
 decides. The destination worker decides each key under `writeMu` against the
 record, session and epoch its round read, the movers noted since the snapshot,
 and the source generations and received-publication cuts. A stale record or
-epoch, or a chosen candidate that withdrew, leaves the key owed for the next
-round, and so does a survivor whose live source accepted another UPDATE since
-the round's cut, with no source excluded, because the lookup may predate that
-UPDATE while the source still holds the route; a survivor whose source session
-changed owes only its own key again, with that source excluded. Siblings do not invalidate one another, and
+epoch, or a chosen candidate that withdrew or re-announced the key, leaves the
+key owed for the next round. A survivor whose live source accepted more UPDATEs
+since the round's cut is still written: an UPDATE of the key itself reaches the
+destination's writer as a mover or as a later write, so a busy source never
+postpones the decision. A survivor whose source session changed owes only its own key again,
+with that source excluded. Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release
 answers one completion after releasing all child resources, including
 cancellation and pool shutdown, and a canceled or unrun admission leaves its
-keys owed. A hard deadline, write or flush error retires the destination
+keys owed. A read-buffer shortage while staging defers the unstaged keys to a
+later round and backs off when nothing could be staged, retiring the
+destination only after 32 such rounds in a row (`docs/architecture/update-building.md`).
+A hard deadline, write or flush error retires the destination
 session, whose table reset completes every owed key, even when a sibling key
 was already owed again. Sent callbacks remain asynchronous.
-<!-- source: internal/component/bgp/reactor/receive_publication.go -- receivePublicationCut.wait, current -->
+<!-- source: internal/component/bgp/reactor/receive_publication.go -- receivePublicationCut.wait, state -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce delivery publication -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- acceptedReceive, synchronous publication -->
 

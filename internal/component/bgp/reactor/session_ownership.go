@@ -32,8 +32,8 @@ type adjOutWrite struct {
 	owners    map[adjOutKey]adjOutPath
 	withdrawn map[adjOutKey]struct{}
 	// owes, movers and refused stage this write's effects on owed keys:
-	// the owner withdrawals it leaves to recovery, the forwarded withdrawals
-	// of keys already owed, and the replays refused at an owed key. allow
+	// the owner withdrawals it leaves to recovery, the forwarded writes of
+	// keys already owed, and the replays refused at an owed key. allow
 	// runs twice for a filtered body, so it stages per key, never applies;
 	// applyStaged applies once after the last pass. An owe's bytes live in
 	// oweNLRI, never in the body: see stageOwe.
@@ -194,10 +194,12 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			if owner.source == nil {
 				return false, errAdjOutProvenance
 			}
+			// RFC 4271 Section 9.2: a withdrawal of a key whose replacement
+			// is being elected may kill the chosen route, and a
+			// re-announcement may supersede the revision the RIB answered
+			// with, so either makes its source a mover of the record.
+			w.stageMover(key, owner)
 			if withdraw {
-				// RFC 4271 Section 9.2: a withdrawal of a key whose
-				// replacement is being elected may kill the chosen route.
-				w.stageMover(key, owner)
 				if entry == nil {
 					return owner.synthesized, nil
 				}
@@ -335,9 +337,10 @@ func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool 
 	return w.session.recoveryOwedFor(entry.owner.source)
 }
 
-// stageMover notes a forwarded withdrawal of a key owed before this write.
-// The owe this write itself stages is applied after the last pass, so the
-// withdrawal that creates a record is never its own mover.
+// stageMover notes a forwarded write (a withdrawal or an announcement) of a
+// key owed before this write. The owe this write itself stages is applied
+// after the last pass, so the withdrawal that creates a record is never its
+// own mover.
 func (w *adjOutWrite) stageMover(key adjOutKey, owner adjOutPath) {
 	if w.table.owed[key] == nil {
 		return

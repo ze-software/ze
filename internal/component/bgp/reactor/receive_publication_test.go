@@ -88,8 +88,8 @@ func TestReceivePublicationBroadcast(t *testing.T) {
 			}
 			if mode == "complete" {
 				peer.acceptedReceive(42)
-				if got := cut.state(peer); got != receiveCutAdvanced {
-					t.Fatalf("a later accepted receive left the cold cut in state %d, want advanced", got)
+				if got := cut.state(peer); got != receiveCutCurrent {
+					t.Fatalf("a later accepted receive left the cold cut in state %d, want current", got)
 				}
 			}
 		})

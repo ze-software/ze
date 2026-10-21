@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -428,4 +429,114 @@ func TestAdjOutOwedAuthorities(t *testing.T) {
 		raw := rail.conn.written()
 		require.Len(t, recoveryWrittenUpdates(t, raw), 2, "the owner withdrawal is written as before")
 	})
+}
+
+// TestOwedKeyNoRecoveryOwnerWritesWithdrawal proves AC-10's last sentence and
+// AC-11's ownerless departure. The destination runs a recovery worker, but no
+// process registers `request bgp rib recovery` (an external forwarder running
+// without bgp-rib), so nothing can elect a replacement. Each owner withdrawal
+// of three prefixes is then written in order, as before this spec, nothing is
+// owed and the RIB is never asked. A departure in the same state cannot tell
+// the client which route replaces the departed one, so it retires the
+// destination session. The one warning per destination session is the
+// worker's ownerLog sync.Once; the subsystem logger writes to the process's
+// stderr and has no test seam, so the count is carried by that structure.
+//
+// VALIDATES: AC-10 (no recovery owner: the withdrawal is written as today) and
+// AC-11 (a departure with no owner retires the destination).
+// PREVENTS: a withdrawal held for an election nobody can run.
+func TestOwedKeyNoRecoveryOwnerWritesWithdrawal(t *testing.T) {
+	r, source, destination, conn, _ := newSyncOrderRail(t)
+	r.clock = clock.RealClock{}
+	r.api = newBorrowedPluginServer(t, New(&Config{ListenAddr: "127.0.0.1:0"}))
+	require.Nil(t, r.api.Dispatcher().Registry().Lookup(recoveryCommandName), "guard: no recovery owner")
+	destination.reactor = r
+	destination.sendingInitialRoutes.Store(0)
+	requests := make(chan ribevents.RecoveryRequest, 8)
+	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+		requests <- request
+		return recoveryWithdrawAnswer(request), nil
+	})
+	session := destination.currentSession()
+	session.startRecovery(destination)
+	t.Cleanup(func() {
+		session.joinRecovery()
+		owner.Close()
+	})
+	require.NotNil(t, session.recovery.Load(), "guard: the destination runs a worker")
+	rail := &owedRail{r: r, source: source, destination: destination, conn: conn}
+
+	prefixes := [][]byte{{24, 192, 0, 2}, {24, 192, 0, 3}, {24, 192, 0, 4}}
+	for _, p := range prefixes {
+		rail.forward(t, false, p)
+		rail.forward(t, true, p)
+	}
+	updates := recoveryWrittenUpdates(t, conn.written())
+	require.Len(t, updates, 2*len(prefixes), "every announcement and every withdrawal is written")
+	for i, p := range prefixes {
+		require.True(t, bytes.Equal(p, updates[2*i+1].WithdrawnRoutes), "write %d withdraws %x", 2*i+1, p)
+	}
+	require.Empty(t, rail.owed(), "nothing is owed without a recovery owner")
+	select {
+	case request := <-requests:
+		t.Fatalf("the worker asked the RIB about %d keys with no recovery owner", len(request.Keys))
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	rail.forward(t, false, prefixes[0])
+	err := recoveryDepart(t, r, destination, source.Settings().Address, "192.0.2.0/24")
+	require.Error(t, err, "an ownerless departure reports that no owner can elect")
+	require.True(t, session.tearingDown.Load(), "an ownerless departure retires the destination")
+}
+
+// TestOwedKeyOwnerGoneAfterOweRetires proves AC-11's third failure: the
+// recovery owner leaves after a key was owed. P is owed and its round is held
+// inside the lookup; Q is owed meanwhile; then `request bgp rib recovery` is
+// unregistered, as when bgp-rib's process dies. P's held round still lands,
+// and the round for Q finds no owner, so no election can decide Q: the
+// destination is retired with Cease, never left holding Q's withdrawn route
+// on a session that stays up, and Q's withdrawal is never written bare.
+//
+// VALIDATES: AC-11, the owner gone between owe and lookup retires the
+// destination.
+// PREVENTS: a key left owed forever, or decided without an election.
+func TestOwedKeyOwnerGoneAfterOweRetires(t *testing.T) {
+	rail := newOwedRail(t)
+	p := []byte{24, 192, 0, 2}
+	q := []byte{24, 192, 0, 3}
+	rail.forward(t, false, p)
+	rail.forward(t, false, q)
+	rail.forward(t, true, p)
+	rail.request(t) // P's round, held.
+	rail.forward(t, true, q)
+	require.Len(t, rail.owed(), 2, "P and Q are owed")
+
+	registry := rail.r.api.Dispatcher().Registry()
+	command := registry.Lookup(recoveryCommandName)
+	require.NotNil(t, command)
+	registry.Unregister(command.Process, []string{recoveryCommandName})
+	require.Nil(t, registry.Lookup(recoveryCommandName), "guard: the owner is gone")
+
+	rail.release <- nil // P's round answers WITHDRAW.
+	session := rail.destination.currentSession()
+	lowEventually(t, func() bool { return session.tearingDown.Load() }, "the destination is retired")
+	// RFC 4271 Section 4.1: each frame carries its own length; the retirement
+	// leaves a NOTIFICATION after the UPDATEs.
+	raw := rail.conn.written()
+	for len(raw) >= message.HeaderLen {
+		length := int(raw[16])<<8 | int(raw[17])
+		require.GreaterOrEqual(t, length, message.HeaderLen)
+		require.LessOrEqual(t, length, len(raw))
+		if raw[18] == 2 { // UPDATE
+			update, err := message.UnpackUpdate(raw[message.HeaderLen:length])
+			require.NoError(t, err)
+			require.False(t, bytes.Equal(q, update.WithdrawnRoutes), "Q's withdrawal is never written without an election")
+		}
+		raw = raw[length:]
+	}
+	select {
+	case request := <-rail.requests:
+		t.Fatalf("the RIB was asked about %d keys after its owner left", len(request.Keys))
+	case <-time.After(50 * time.Millisecond):
+	}
 }

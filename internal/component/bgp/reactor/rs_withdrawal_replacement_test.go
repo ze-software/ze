@@ -9,11 +9,13 @@ import (
 	"errors"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -315,4 +317,294 @@ func TestRSOwnerWithdrawalLookupFailureRetiresDestination(t *testing.T) {
 			t.Errorf("source %s session = %s, want Established", source.peer.Settings().Address, got)
 		}
 	}
+}
+
+// TestRSDepartureWritesOnlyWhereSourceOwns proves round-2 B-1 for bgp-rs: a
+// source's departure decides a key at a client only where that source owns
+// the client's route. A also announces Q, which only A offers, so C's
+// withdrawal of Q proves C's share of A's departure was decided; P's history
+// at C is then read against its state before the departure.
+//
+//   - "owner-stays": A then B announce P, B owns C's route; A departs and
+//     nothing is written to C for P.
+//   - "owner-stays-preferred-third": E, A, then B announce P, B owns C's
+//     route and E's is the RIB's best; A departs and nothing is written to C
+//     for P either: forward-all is not overridden by an unrelated departure.
+//   - "owner-departs": B then A announce P, A owns C's route; A departs and
+//     C receives B's route, never a withdrawal.
+//
+// VALIDATES: round-2 B-1, AC-10 for bgp-rs, a departure owes only its own
+// session's keys.
+// PREVENTS: a departure re-electing, or withdrawing, a route another source
+// still owns at the client.
+func TestRSDepartureWritesOnlyWhereSourceOwns(t *testing.T) {
+	t.Run("owner-stays", func(t *testing.T) { departureWritesOnlyWhereSourceOwns(t, false, false) })
+	t.Run("owner-stays-preferred-third", func(t *testing.T) { departureWritesOnlyWhereSourceOwns(t, false, true) })
+	t.Run("owner-departs", func(t *testing.T) { departureWritesOnlyWhereSourceOwns(t, true, false) })
+}
+
+func departureWritesOnlyWhereSourceOwns(t *testing.T, sourceOwns, withE bool) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	if withE {
+		settings = append(settings, lowLiveSettings("192.0.2.5", 65000, 65006))
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	only := netip.MustParsePrefix("10.9.1.0/24")
+	// RFC 4271 Section 9.1.2.2, step a: the shorter AS_PATH is preferred.
+	// The owner of C's route has the shorter of A's and B's paths, and E,
+	// when present, the shortest of all.
+	attrsA := firstASAttrs(4, 65002, 65002, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	if sourceOwns {
+		attrsA = firstASAttrs(4, 65002, 65002)
+		attrsB = firstASAttrs(4, 65003, 65003, 65003)
+	}
+	attrsE := firstASAttrs(4, 65006)
+
+	first, second := a, b
+	firstAttrs, secondAttrs := attrsA, attrsB
+	if sourceOwns {
+		first, second = b, a
+		firstAttrs, secondAttrs = attrsB, attrsA
+	}
+	if withE {
+		ownershipLiveSend(t, peers[3], nil, attrsE, prefix) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, c, prefix, attrsE)
+	}
+	ownershipLiveSend(t, first, nil, firstAttrs, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, firstAttrs)
+	ownershipLiveSend(t, second, nil, secondAttrs, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, secondAttrs)
+	ownershipLiveSend(t, a, nil, attrsA, only) // RFC 4271 Section 4.3.
+	before := ownershipLiveThrough(t, c, only, attrsA)
+
+	_ = a.remote.Close() // A's session ends with no NOTIFICATION: a departure.
+
+	view := ownershipLiveDecided(t, c, only)
+	if sourceOwns {
+		deadline := time.Now().Add(5 * time.Second)
+		for !bytes.Equal(view.routes[prefix], attrsB) && time.Now().Before(deadline) {
+			time.Sleep(time.Millisecond)
+			view = ownershipLiveRead(t, c)
+		}
+		// RFC 4271 Section 9.2: "All newly installed routes and all newly
+		// unfeasible routes for which there is no replacement route SHALL be
+		// advertised to its peers by means of an UPDATE message."
+		ownershipLiveRoute(t, view, prefix, attrsB)
+		ownershipLiveWithdrawals(t, view, prefix, 0)
+		ownershipLiveAnnouncements(t, view, prefix, attrsB, attrsA, attrsB)
+	}
+
+	// A later marker from B passes C's writer after every decision for P.
+	marker := netip.MustParsePrefix("10.9.255.0/24")
+	ownershipLiveSend(t, b, nil, attrsB, marker) // RFC 4271 Section 4.3.
+	settled := ownershipLiveThrough(t, c, marker, attrsB)
+	if sourceOwns {
+		ownershipLiveAnnouncements(t, settled, prefix, attrsB, attrsA, attrsB)
+	} else {
+		// Nothing for P since before A's departure: B still owns C's route.
+		ownershipLiveRoute(t, settled, prefix, before.routes[prefix])
+		ownershipLiveAnnouncements(t, settled, prefix, before.announcements[prefix]...)
+	}
+	ownershipLiveWithdrawals(t, settled, prefix, 0)
+	ownershipLiveEstablished(t, []*lowLivePeer{b, c})
+}
+
+// policyDenyASNs installs a policy seam that rejects, at destination's export
+// chain "test:deny", every UPDATE whose text names one of asns, and accepts
+// every other UPDATE. The seam is set before any route is sent; the reactor
+// reads it on goroutines that each first read a later socket write.
+func policyDenyASNs(r *Reactor, destination netip.Addr, asns ...string) {
+	r.policyFilterSeam = func(_, filterName, _, peer string, _ uint32, updateText string) PolicyResponse {
+		if filterName != "deny" || peer != destination.String() {
+			return PolicyResponse{Action: PolicyAccept}
+		}
+		for _, asn := range asns {
+			if strings.Contains(updateText, asn) {
+				return PolicyResponse{Action: PolicyReject}
+			}
+		}
+		return PolicyResponse{Action: PolicyAccept}
+	}
+}
+
+// TestRSOwnerWithdrawalPolicyDeniedReplacement proves AC-5's no-survivor half.
+// A owns 10.9.0.0/24 at client C; B's route, the only survivor, is denied by
+// C's export policy, so C never held it. A withdraws: the election's only
+// candidate cannot be sent to C, so C receives the withdrawal exactly once,
+// never B's denied route and never A's stale one.
+//
+// VALIDATES: AC-5, an egress-denied survivor is not a replacement.
+// PREVENTS: a client sent a route its policy refuses, or kept on a withdrawn
+// one.
+func TestRSOwnerWithdrawalPolicyDeniedReplacement(t *testing.T) {
+	policyDeniedSurvivors(t, false, true)
+}
+
+// TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor proves AC-5 with three
+// sources. B, E then A announce 10.9.0.0/24; A's AS_PATH is the shortest, then
+// B's, then E's, so A owns C's route and the election orders the survivors B,
+// E. C's export policy denies B. A withdraws: B is stepped past and C
+// receives E's route with E's received attributes, no withdrawal. With E
+// denied too, C receives the withdrawal exactly once.
+//
+// VALIDATES: AC-5, the egress check steps through the election order.
+// PREVENTS: a client withdrawn while a permitted survivor exists.
+func TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor(t *testing.T) {
+	t.Run("next-permitted", func(t *testing.T) { policyDeniedSurvivors(t, true, false) })
+	t.Run("all-denied", func(t *testing.T) { policyDeniedSurvivors(t, true, true) })
+}
+
+func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	if withE {
+		settings = append(settings, lowLiveSettings("192.0.2.5", 65000, 65006))
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	settings[2].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	denied := []string{"65003"}
+	if denyE {
+		denied = append(denied, "65006")
+	}
+	policyDenyASNs(a.peer.reactor, c.peer.Settings().Address, denied...)
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	// RFC 4271 Section 9.1.2.2, step a: A, then B, then E.
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	attrsE := firstASAttrs(4, 65006, 65006, 65006)
+	marker := netip.MustParsePrefix("10.9.255.0/24")
+
+	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	if withE {
+		ownershipLiveSend(t, peers[3], nil, attrsE, prefix) // RFC 4271 Section 4.3.
+	}
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	// A denied announcement reaches C as a withdrawal of a route C never
+	// held; only the withdrawals after A's route count below.
+	before := ownershipLiveThrough(t, c, prefix, attrsA).withdrawals[prefix]
+	ownershipLiveSend(t, a, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+	ownershipLiveSend(t, a, nil, attrsA, marker)         // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, marker, attrsA)
+
+	permitted := withE && !denyE
+	deadline := time.Now().Add(5 * time.Second)
+	view := ownershipLiveRead(t, c)
+	for time.Now().Before(deadline) {
+		if permitted && bytes.Equal(view.routes[prefix], attrsE) {
+			break
+		}
+		if _, held := view.routes[prefix]; !permitted && !held {
+			break
+		}
+		time.Sleep(time.Millisecond)
+		view = ownershipLiveRead(t, c)
+	}
+	// Let any late write for the prefix land before the history is judged.
+	later := netip.MustParsePrefix("10.9.254.0/24")
+	ownershipLiveSend(t, a, nil, attrsA, later) // RFC 4271 Section 4.3.
+	view = ownershipLiveThrough(t, c, later, attrsA)
+	for _, attrs := range view.announcements[prefix] {
+		if bytes.Equal(attrs, attrsB) {
+			t.Errorf("C was sent B's route, which its export policy denies")
+		}
+	}
+	// RFC 4271 Section 9.2: "All newly installed routes and all newly
+	// unfeasible routes for which there is no replacement route SHALL be
+	// advertised to its peers by means of an UPDATE message."
+	if permitted {
+		ownershipLiveRoute(t, view, prefix, attrsE)
+		ownershipLiveWithdrawals(t, view, prefix, before)
+	} else {
+		ownershipLiveAbsent(t, view, prefix)
+		ownershipLiveWithdrawals(t, view, prefix, before+1)
+	}
+	ownershipLiveEstablished(t, peers)
+}
+
+// TestRSOwnerWithdrawalDeniedCandidateReannounces proves the fence over a
+// stepped-past candidate. A owns 10.9.0.0/24 at C; C's export policy denies
+// B's two-AS route, and E's four-AS route is permitted. A withdraws and C's
+// lookup is held after bgp-rib answered B then E. Meanwhile B re-announces a
+// three-AS route C permits, which reaches C's writer before the admission.
+// The held answer would step past the denied B and write E over B's newer,
+// permitted route; B's write of the key is a mover, so the key is left owed
+// and the next round elects B's newer route, which C ends on.
+//
+// VALIDATES: AC-5 with AC-26 (b): a candidate stepped past for policy that
+// rewrites the key since the snapshot makes the decision stale.
+// PREVENTS: a client moved off a better permitted route onto a worse one.
+func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+		lowLiveSettings("192.0.2.5", 65000, 65006),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	settings[2].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c, e := peers[0], peers[1], peers[2], peers[3]
+	policyDenyASNs(a.peer.reactor, c.peer.Settings().Address, "[65003 65003]")
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	// RFC 4271 Section 9.1.2.2, step a: A, then B's two-AS and three-AS
+	// routes, then E.
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	attrsBNewer := firstASAttrs(4, 65003, 65003, 65003)
+	attrsE := firstASAttrs(4, 65006, 65006, 65006, 65006)
+
+	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveSend(t, e, nil, attrsE, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsE)
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsA)
+
+	tap := &keyLookups{destination: c.peer.Settings().Address, key: ownershipLiveNLRI([]netip.Prefix{prefix}),
+		held: make(chan struct{}), hold: make(chan struct{})}
+	publishLookupTap(t, tap.after)
+	t.Cleanup(func() {
+		select {
+		case <-tap.hold:
+		default:
+			close(tap.hold)
+		}
+	})
+	ownershipLiveSend(t, a, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+	select {
+	case <-tap.held:
+	case <-time.After(5 * time.Second):
+		t.Fatal("C's recovery lookup for the owed key never ran")
+	}
+	ownershipLiveSend(t, b, nil, attrsBNewer, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsBNewer)
+	close(tap.hold)
+
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	later := netip.MustParsePrefix("10.9.254.0/24")
+	ownershipLiveSend(t, a, nil, attrsA, later) // RFC 4271 Section 4.3.
+	view := ownershipLiveThrough(t, c, later, attrsA)
+	ownershipLiveRoute(t, view, prefix, attrsBNewer)
+	if got := tap.count(); got < 2 {
+		t.Errorf("the owed key reached bgp-rib in %d lookups, want a second round after B's write", got)
+	}
+	ownershipLiveEstablished(t, peers)
 }

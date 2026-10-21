@@ -28,11 +28,16 @@ var errRecoveryNotWritten = errors.New("source-DOWN recovery operation was not w
 // owning the keys is closing, and its close drops the owed set.
 var errRecoveryDestinationClosed = errors.New("source-DOWN recovery destination session closed before the write")
 
-// errRecoverySourceAdvanced: the candidate's live source accepted UPDATEs
-// after the round's cut, so the lookup may predate one of them. The key is
-// decided again from a fresh cut, and no source is excluded: the source still
-// holds its routes.
-var errRecoverySourceAdvanced = errors.New("source-DOWN recovery candidate's source accepted UPDATEs after the lookup")
+// errRecoveryBufferPartial: the read buffer pool had no buffer for a key of
+// the admission. The keys staged before it were decided; the rest stay owed,
+// and the worker's next round asks for them once this admission's buffers are
+// back in the pool.
+var errRecoveryBufferPartial = errors.New("source-DOWN recovery deferred keys: read buffer pool exhausted")
+
+// errRecoveryBufferStalled: the read buffer pool had no buffer for the first
+// key of the admission, so nothing was decided. Other writes hold the buffers,
+// and the worker backs off before its next round (recoveryStallMax).
+var errRecoveryBufferStalled = errors.New("source-DOWN recovery decided nothing: read buffer pool exhausted")
 
 // recoveryAdmission owns every route and post-policy section from one lookup
 // of one destination session's owed keys. Producers MUST stage all items
@@ -70,9 +75,9 @@ const (
 	// recoveryKeyGone: the record left before the admission (a new owner, a
 	// decision, a table reset); nothing is left owed.
 	recoveryKeyGone
-	// recoveryKeyLeftOwed: the epoch moved, the chosen candidate withdrew
-	// since the snapshot, or the candidate's live source accepted UPDATEs
-	// after the round's cut; the next round decides the record as it stands.
+	// recoveryKeyLeftOwed: the epoch moved, or the chosen candidate withdrew
+	// or re-announced the key since the snapshot; the next round decides the
+	// record as it stands.
 	recoveryKeyLeftOwed
 	// recoveryKeyReowed: the chosen survivor's session ended or restarted;
 	// the key is owed again with that source excluded.
@@ -91,6 +96,11 @@ type recoveryAdmitKey struct {
 	outcome   recoveryKeyOutcome
 	// gone is the source a re-owe excludes, for recoveryKeyReowed only.
 	gone netip.Addr
+	// skipped are the candidates ranked above the decision that the
+	// destination's export policy denied. A write of the key by one of them
+	// since the snapshot (a re-announcement it may now permit) makes the
+	// decision stale, as the chosen candidate's own write does.
+	skipped []adjOutPath
 }
 
 // mark assigns key k to every item staged since the previous mark.
@@ -112,11 +122,10 @@ func (admission *recoveryAdmission) settleGone() {
 // admit decides, under the destination's writeMu, which keys of the admission
 // are written. Per key the owed record must still be the one the round read,
 // belong to this session, and carry the round's epoch; the chosen candidate
-// must not have withdrawn since the snapshot, and its source must still be the
-// session the round captured, with nothing accepted since the round's cut. It
-// reports false when the admission belongs to
-// another session, whose table reset dropped every key, or when the session
-// is tearing down.
+// must not have withdrawn or re-announced the key since the snapshot, and its
+// source must still be the live session the round captured. It reports false
+// when the admission belongs to another session, whose table reset dropped
+// every key, or when the session is tearing down.
 func (admission *recoveryAdmission) admit(session *Session) bool {
 	if admission.session != session {
 		admission.settleGone()
@@ -151,19 +160,20 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 		if key.outcome == recoveryKeyReowed {
 			continue
 		}
-		if key.outcome == recoveryKeyLeftOwed {
-			continue // The candidate's source advanced past the lookup.
-		}
 		if key.candidate.source != nil && record.moved(key.candidate) {
+			key.outcome = recoveryKeyLeftOwed
+			continue
+		}
+		if recoverySkippedMoved(record, key.skipped) {
 			key.outcome = recoveryKeyLeftOwed
 			continue
 		}
 		key.outcome = recoveryKeyWrite
 	}
 	// Fence every source before writing any section: a source whose session
-	// ended or restarted re-owes its own key with that source excluded, and a
-	// live source that accepted UPDATEs since the cut leaves its key owed for
-	// a fresh lookup. Either touches that key only.
+	// ended or restarted re-owes its own key with that source excluded, and
+	// touches that key only. A live source is current whatever it accepted
+	// since the cut (receiveCutState).
 	for j := range admission.items {
 		section := &admission.items[j]
 		if admission.keys[admission.itemKeys[j]].outcome != recoveryKeyWrite {
@@ -171,8 +181,6 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 		}
 		switch admission.sourceState(section) {
 		case receiveCutCurrent:
-		case receiveCutAdvanced:
-			admission.keys[admission.itemKeys[j]].outcome = recoveryKeyLeftOwed
 		case receiveCutEnded:
 			admission.reowe(j)
 		case receiveCutUnspecified:
@@ -478,11 +486,26 @@ func (a *reactorAPIAdapter) admitRecovery(admission *recoveryAdmission, outcomes
 			a.r.fwdPool.releaseRecoveryItems(admission)
 		}
 	}()
+	partial := false
 	for k := range outcomes {
-		if err := a.queueRecoveryOutcome(&outcomes[k], k, fam, admission, sender); err != nil {
+		err := a.queueRecoveryOutcome(&outcomes[k], k, fam, admission, sender)
+		if errors.Is(err, errRelayBufferPool) {
+			// Each staged key holds a read buffer until its write completes,
+			// so a pool shared with every session's reads can run dry inside
+			// one chunk. A buffer shortage is transient: the keys not staged
+			// stay owed for a later round, and only the decided ones leave.
+			a.releaseRecoveryTail(admission)
+			admission.keys = admission.keys[:k]
+			partial = true
+			break
+		}
+		if err != nil {
 			return err
 		}
 		admission.mark(k)
+	}
+	if len(admission.keys) == 0 {
+		return errRecoveryBufferStalled
 	}
 	// One queue entry decides every key under one writeMu hold, so a key
 	// with nothing to write is settled in the same section as its siblings.
@@ -493,19 +516,40 @@ func (a *reactorAPIAdapter) admitRecovery(admission *recoveryAdmission, outcomes
 	}
 	select {
 	case <-admission.done:
-		return admission.err
 	case <-admission.ctx.Done():
 		return admission.ctx.Err()
 	}
+	if admission.err != nil {
+		return admission.err
+	}
+	if partial {
+		return errRecoveryBufferPartial
+	}
+	return nil
+}
+
+// releaseRecoveryTail releases the items staged for a key that was not
+// marked: a key whose staging failed part way, such as an ADD-PATH withdrawal
+// whose second identifier found no buffer, is decided by a later round.
+func (a *reactorAPIAdapter) releaseRecoveryTail(admission *recoveryAdmission) {
+	marked := len(admission.itemKeys)
+	for i := marked; i < len(admission.items); i++ {
+		if done := admission.items[i].done; done != nil {
+			done()
+		}
+		a.r.fwdPool.releaseItem(&admission.items[i])
+	}
+	admission.items = admission.items[:marked]
 }
 
 // queueRecoveryOutcome stages key k's decision. WITHDRAW withdraws the
 // record's advertisement, or at an ADD-PATH destination each identifier the
-// RIB names; SURVIVORS writes the first candidate in election order. A
-// survivor whose session ended or restarted since the round's receipt is
-// written nowhere: the key is re-owed with that source excluded, so the next
-// round elects over the survivors without it, and the admission's other keys
-// are still decided.
+// RIB names; SURVIVORS writes the first candidate, in election order, that
+// the destination's export policy permits, and the withdrawal when it permits
+// none. A survivor whose session ended or restarted since the round's receipt
+// is written nowhere: the key is re-owed with that source excluded, so the
+// next round elects over the survivors without it, and the admission's other
+// keys are still decided.
 // RFC 4271 Section 6: replacement and withdrawal have disjoint owners.
 func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutcome, k int, fam family.Family, admission *recoveryAdmission, sender plugin.Sender) error {
 	key := &admission.keys[k]
@@ -523,38 +567,96 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 		}
 		return nil
 	}
-	survivor := &outcome.Survivors[0]
-	stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
-		NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
-		NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
-		NLRIFraming: rpc.NLRIFramingSourceWire}
-	first := len(admission.items)
-	err := a.queueRecovery(admission.peer, &stored, fam, admission, admission.sources, sender)
-	if errors.Is(err, errRecoverySourceAdvanced) {
-		key.outcome = recoveryKeyLeftOwed
-		return nil
-	}
-	if errors.Is(err, errRelayNoSource) {
-		key.outcome, key.gone = recoveryKeyReowed, survivor.Source
-		return nil
-	}
-	if errors.Is(err, errForwardNoSource) {
-		key.outcome, key.gone = recoveryKeyReowed, survivor.Source
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if n := len(admission.items); n > first {
-		// An egress-denied survivor stages a withdrawal, which has no source.
+	// Bounded by the RIB's candidates for one key.
+	for i := range outcome.Survivors {
+		survivor := &outcome.Survivors[i]
+		stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
+			NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
+			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
+			NLRIFraming: rpc.NLRIFramingSourceWire}
+		first := len(admission.items)
+		err := a.queueRecovery(admission.peer, &stored, fam, admission, admission.sources, sender)
+		if errors.Is(err, errAllDestinationsSuppressed) {
+			// The forward rail refused the candidate outright, as RFC 4456's
+			// reflection rules refuse a non-client route to a non-client
+			// (AC-25): the next candidate in election order is tried.
+			a.skipRecoveryCandidate(key, survivor)
+			continue
+		}
+		if errors.Is(err, errRelayNoSource) {
+			key.outcome, key.gone = recoveryKeyReowed, survivor.Source
+			return nil
+		}
+		if errors.Is(err, errForwardNoSource) {
+			key.outcome, key.gone = recoveryKeyReowed, survivor.Source
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if !recoveryStagedAnnouncement(admission.items[first:]) {
+			// The destination may not receive this candidate (an export
+			// policy, a well-known community, a next-hop refusal): the rail
+			// staged only its synthesized withdrawal, which is no
+			// replacement. RFC 7947 Section 2.1: "The route server SHOULD
+			// forward UPDATE messages from its Loc-RIB or Loc-RIBs to its
+			// clients as determined by local policy." The next candidate in
+			// election order is tried (AC-5).
+			a.releaseRecoveryTail(admission)
+			a.skipRecoveryCandidate(key, survivor)
+			continue
+		}
+		n := len(admission.items)
 		key.candidate = adjOutPath{source: admission.items[n-1].receivedPeer,
 			received: survivor.PathID, addPath: survivor.AddPath}
+		return nil
 	}
-	return nil
+	// RFC 4271 Section 9.1.3: an advertised route the destination may not
+	// receive is withdrawn; here no candidate may be sent.
+	withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(admission.nlri), Withdraw: true}
+	return a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission)
 }
 
-// queueRecovery admits a replacement on its surviving source's ordinary rail;
-// an egress-denied replacement withdraws the destination's advertisement.
+// skipRecoveryCandidate notes a candidate stepped past for key, so the
+// admission's fence sees a later write of the key by its source.
+func (a *reactorAPIAdapter) skipRecoveryCandidate(key *recoveryAdmitKey, survivor *ribevents.RecoveryRoute) {
+	a.r.mu.RLock()
+	source, found := a.r.findPeerByAddr(survivor.Source)
+	a.r.mu.RUnlock()
+	if !found {
+		return // A source no longer configured writes nothing more.
+	}
+	key.skipped = append(key.skipped, adjOutPath{source: source, received: survivor.PathID, addPath: survivor.AddPath})
+}
+
+// recoverySkippedMoved reports whether a stepped-past candidate wrote the key
+// since the snapshot. MUST be called with the table mutex held.
+func recoverySkippedMoved(record *adjOutOwed, skipped []adjOutPath) bool {
+	for i := range skipped {
+		if record.moved(skipped[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// recoveryStagedAnnouncement reports whether a candidate's staged sections
+// carry its announcement. The forward rail stages a policy-denied candidate as
+// a synthesized withdrawal under adjOutRecovery authority, and a permitted one
+// under adjOutForwarded.
+func recoveryStagedAnnouncement(items []fwdItem) bool {
+	for i := range items {
+		if items[i].authority != adjOutRecovery {
+			return true
+		}
+	}
+	return false
+}
+
+// queueRecovery admits a replacement on its surviving source's ordinary rail.
+// A replacement the destination's export policy denies is staged as its
+// synthesized withdrawal, or not at all (errAllDestinationsSuppressed); the
+// caller then tries the next candidate.
 // RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message."
@@ -577,9 +679,6 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 	}
 	switch receipt.cut.state(source.info.peer) {
 	case receiveCutCurrent:
-	case receiveCutAdvanced:
-		// The source is live: excluding it would withdraw a route it holds.
-		return errRecoverySourceAdvanced
 	case receiveCutEnded:
 		return errRelayNoSource
 	case receiveCutUnspecified:
@@ -592,13 +691,7 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 	}
 	defer a.r.recentUpdates.Release(id)
 	source.info.sender, source.info.recovery = sender, admission
-	err = a.forwardUpdateCore(update, id, []*Peer{destination}, source.info)
-	if errors.Is(err, errAllDestinationsSuppressed) {
-		withdraw := rpc.StoredRoute{Family: route.Family, NLRIHex: hex.EncodeToString(admission.nlri), Withdraw: true}
-		// RFC 4271 Section 9.1.3: an export-excluded advertised route is withdrawn.
-		return a.queueRecoveryWithdrawal(destination, &withdraw, fam, admission)
-	}
-	return err
+	return a.forwardUpdateCore(update, id, []*Peer{destination}, source.info)
 }
 
 // queueRecoveryWithdrawal uses destination framing, including the advertised

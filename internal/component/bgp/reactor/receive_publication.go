@@ -60,20 +60,19 @@ func (p *Peer) receiveCut() receivePublicationCut {
 }
 
 // receiveCutState is what became of a source since a cold recovery captured
-// its cut. The two stale states call for opposite answers, so they are never
-// one false: a session that ended is excluded from the key, while a live
-// session that accepted more UPDATEs only makes the round's lookup possibly
-// stale for the keys those UPDATEs touched, and excluding it would withdraw a
-// route the source still holds.
+// its cut. A session that ended is excluded from the key. A live session that
+// accepted more UPDATEs since the cut is still current: each of those UPDATEs
+// reaches the destination's writer on the forward rail, so one about a key the
+// round decides is either a mover the admission sees or a write that follows
+// it. Treating that traffic as a fence would postpone a replacement for as long
+// as the survivor stays busy (AC-15 of spec-bgp-rs-replacement-on-withdrawal).
 type receiveCutState uint8
 
 const (
 	receiveCutUnspecified receiveCutState = iota
-	// receiveCutCurrent: same publication, nothing accepted since the cut.
+	// receiveCutCurrent: the same live publication, whatever it accepted
+	// since the cut.
 	receiveCutCurrent
-	// receiveCutAdvanced: the same live publication accepted UPDATEs since
-	// the cut; decide again from a fresh cut.
-	receiveCutAdvanced
 	// receiveCutEnded: the publication was replaced (the session ended or
 	// restarted) or failed, so its received routes are no candidates.
 	receiveCutEnded
@@ -91,9 +90,6 @@ func (cut receivePublicationCut) state(peer *Peer) receiveCutState {
 	}
 	if publication.failed.Load() {
 		return receiveCutEnded
-	}
-	if publication.accepted.Load() != cut.messageID {
-		return receiveCutAdvanced
 	}
 	return receiveCutCurrent
 }

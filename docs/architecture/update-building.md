@@ -597,20 +597,33 @@ excludes it; the destination is not retired for it. The RIB's answer is staged
 as one admission on the destination's forward worker, which decides each key
 under `writeMu`. A key whose record left, belongs to another session, or
 carries a newer epoch is not written. A key whose chosen candidate withdrew
-since the snapshot is left owed, and so is a key whose survivor's source is
-still the same live session but accepted another UPDATE since the round's cut:
-the lookup may predate that UPDATE, so the next round asks again from a fresh
-cut, with no source excluded, because excluding a live source would withdraw a
-route it still holds. A key whose survivor's source session ended or
+or re-announced it since the snapshot is left owed: every forwarded write of an
+owed key records its source as a mover, so a RIB answer older than the
+candidate's newer revision is never written over it. A survivor whose source is still the same
+live session is written whatever that session accepted since the round's cut:
+an UPDATE of the key itself reaches the destination's writer on the forward
+rail, as a mover before the admission or as a write after it, so traffic on
+other keys never postpones the decision, and a busy survivor cannot hold a
+replacement back. A key whose survivor's source session ended or
 restarted since the round's receipt, or whose received publication failed, at
 reconstruction or at the final writer, is owed again with that source excluded. Every other key is written: the first
-survivor as the new owner, or the withdrawal when no candidate survives. A
+survivor, in election order, that the destination's export policy permits, as
+the new owner (a denied candidate is stepped past, never written), or the
+withdrawal when no candidate survives or every one is denied. A
 written decision removes its record when its epoch has not moved, and that
 completes its waiters; a table reset drops every record and completes them too.
 An admission that reaches the forward worker when the destination has no
 Established session, or no connection, writes nothing and settles as
 destination-closed; the worker then ends without resetting the session, because
-that session is already closing and its close drops the owed set. Any other
+that session is already closing and its close drops the owed set. Each staged
+key holds a 4K read buffer until its write completes, and that pool is shared
+with every session's reads, so a chunk can find it dry. A buffer shortage is
+transient and costs time, never the session: the admission stops staging at
+the first key with no buffer, writes the keys it staged, and leaves the rest
+owed. After such a partial admission the next round runs at once; when the
+first key already found no buffer, the worker waits 10 ms, doubling to 1 s,
+and resets the destination only after 32 consecutive rounds decided nothing,
+about 25 seconds plus the rounds' own time. Any other
 admission the worker cannot decide resets the destination session. Every
 teardown path seals the session, and sealing stops the worker without
 waiting. `Peer.runOnce`'s deferred cleanup, after the down has been announced,
@@ -618,8 +631,8 @@ joins it. Every write that installs an owner also records the owner's source
 session generation, which ownership equality ignores.
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, stageMover, applyStaged -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutOwed, owe, exclude, removeOwed, dropOwed -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle -->
-<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle, admitRecovery -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker, run, stallWait -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, closeRecoveryWrites -->
 
 Ordinary UPDATE sizing follows the final policy and next-hop result, after AIGP

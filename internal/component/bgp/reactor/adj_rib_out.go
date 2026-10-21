@@ -99,10 +99,11 @@ type adjOutOwed struct {
 	// is excluded), so an admission answering an older question leaves the
 	// key owed for the next round instead of writing a stale answer.
 	epoch uint64
-	// movers are the owner identities of forwarded withdrawals of the key
-	// since the last round's snapshot. Only the chosen candidate's own
-	// withdrawal makes a decision dead, so the admission compares the
-	// candidate with this set. Bounded by the distinct paths that withdrew.
+	// movers are the owner identities of forwarded writes of the key, a
+	// withdrawal or a re-announcement, since the last round's snapshot. Only
+	// the chosen candidate's own write makes a decision stale (its route is
+	// gone, or newer than the RIB's answer), so the admission compares the
+	// candidate with this set. Bounded by the distinct paths that wrote.
 	movers []adjOutPath
 	// done is closed when the record leaves the owed set, whatever removed
 	// it: a decision, an originated announcement, or a table reset. A
@@ -137,7 +138,8 @@ func (o *adjOutOwed) exclude(source netip.Addr) {
 	o.excluded = append(o.excluded, source)
 }
 
-// noteMover records a forwarded withdrawal of the key by owner.
+// noteMover records a forwarded write (a withdrawal or an announcement) of
+// the key by owner.
 func (o *adjOutOwed) noteMover(owner adjOutPath) {
 	for i := range o.movers {
 		if adjOutSameOwner(o.movers[i], owner) {
@@ -147,7 +149,8 @@ func (o *adjOutOwed) noteMover(owner adjOutPath) {
 	o.movers = append(o.movers, owner)
 }
 
-// moved reports whether candidate withdrew the key since the snapshot.
+// moved reports whether candidate withdrew or re-announced the key since the
+// snapshot.
 func (o *adjOutOwed) moved(candidate adjOutPath) bool {
 	for i := range o.movers {
 		if adjOutSameOwner(o.movers[i], candidate) {
