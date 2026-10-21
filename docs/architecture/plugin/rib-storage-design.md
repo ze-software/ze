@@ -1026,6 +1026,8 @@ the leaf, the check runs.
 <!-- test: internal/component/bgp/reactor/forward_validation_test.go TestForwardValidationSplitsRedirectRefusedRules -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_refused_wire_test.go TestFlowSpecRedirectRefusedRouteServer -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_refused_wire_test.go TestFlowSpecRedirectRefusedReplay -->
+<!-- test: test/plugin/flowspec-redirect-check-refused.ci -->
+<!-- test: test/plugin/flowspec-redirect-check-disabled.ci -->
 
 `reconcileFlowSpecs` recomputes authorization after received-route changes,
 unicast best-path changes, validation changes, withdrawals and session removal.
