@@ -1963,3 +1963,27 @@ Left, in order, for a fresh closure agent:
    (citer edits ride in a commit before it), then `./le spec release` and `./le spec citation`.
 4. `le-placement-answers.ci` is red only on another session's uncommitted
    `nlri/mup/types.go` (three exported symbols with no caller); not this spec's.
+
+## Closing spec-rfc-verdict-fix-bgp, commit A (2026-10-21, agent a9299db3)
+
+Claim re-taken under agent marker `+a9299db32d905ab90` (session 8385ff13). Committed:
+`13bc1a99af` (citers of the spec, MUP-SAFI-3.1-1 out of update-propagation AC-5, ISD rows to
+unowned-rows AC-9; their "closed 2026-10-21" wording is true once commit B lands) and
+`1d410c3810` (commit A: closure sections, Blocked-by row removed, AC-C2 counts, round-1
+table; D-7 measurement in the evidence-strength umbrella). The MUP test strengthening and its
+record had already landed inside `32ff59085b`.
+
+AC-C2 counts (60 stems of the 2026-09-28 population): 336/336 moved verdicts carry a record;
+807 enforced in all, 230 with none, none moved by this child. Literal every-unit reading: 47/336
+(722 of 1538 unit tags unrecorded). Closure takes the change-scoped reading; owner may rule.
+
+Owed before commit B, in order:
+1. Independent re-judge and re-record of draft-ietf-bess-mup-safi after `32ff59085b` changed its
+   fixtures: STALE 3.1-1, 3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1/-2/-3/-6/-7/-9/-10,
+   3.1.4-1, 3.1.4.1-1; SHIFTED 3.1.4.1-3 (reseal); 33 revert records no longer verify (re-take
+   with `./le rfc discriminate-record`). 3.1-1's re-judge (`audit-stamp ... mode rejudge`) must be
+   by a reader who did not write `retainMUPCounts`.
+2. RFC8955-4-3 STALE from `2dfb23ed0b` (flow-encode.ci); SHIFTED RFC5575-4-8, RFC8955-6-1/-3,
+   RFC8956-5-1 once the FlowSpec agent commits `rib_flowspec_validation_test.go` (reseal).
+3. Fresh round-2 `/ze-review`, `./le spec review record ... verdict CLEAN rounds 2`, then commit B
+   (`remove plan/pre-release/spec-rfc-verdict-fix-bgp.md`) and `./le spec release`.
