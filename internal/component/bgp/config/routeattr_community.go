@@ -161,7 +161,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 	var allBytes []byte
 	var allIPv6Bytes []byte
 
-	// Process parts, looking ahead for two-word formats (action, mark, redirect-to-nexthop).
+	// Process parts, looking ahead for two-word formats (action, mark, redirect-to-nexthop, copy-to-nexthop IP).
 	for i := 0; i < len(parts); i++ {
 		p := parts[i]
 
@@ -194,7 +194,24 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 				// 20-octet IPv6-address-specific one (RFC 5701 Section 2).
 				// Deciding it twice is what left the IPv6 encoder unreachable:
 				// this parser refused the string before the second decision ran.
-				ec8, ec20, err := parseFlowSpecRedirectNextHop(parts[i+1])
+				ec8, ec20, err := parseFlowSpecRedirectNextHop(flowSpecRedirectNextHop, parts[i+1], false)
+				if err != nil {
+					return ExtendedCommunity{}, err
+				}
+				allBytes = append(allBytes, ec8...)
+				allIPv6Bytes = append(allIPv6Bytes, ec20...)
+				i++ // skip next part
+				continue
+			case flowSpecCopyNextHop:
+				// "copy-to-nexthop IP" is the same redirect-to-IP community with
+				// its copy bit set (draft-ietf-idr-flowspec-redirect-ip-16
+				// Section 2). Bare `copy-to-nexthop` stays the one-word 0x0800
+				// action with the copy bit (FlowSpecActionKeyword), so the word
+				// takes the next part only when that part is an address.
+				if _, err := netip.ParseAddr(parts[i+1]); err != nil {
+					break
+				}
+				ec8, ec20, err := parseFlowSpecRedirectNextHop(flowSpecCopyNextHop, parts[i+1], true)
 				if err != nil {
 					return ExtendedCommunity{}, err
 				}
@@ -220,7 +237,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 // Supports formats:
 //   - Hex format: 0x0002fde800000001 (16 hex chars = 8 bytes wire format)
 //   - Named format: target:ASN:NN, origin:ASN:NN
-//   - FlowSpec actions: rate-limit:N, rate-limit:N:packets, rate-limit-packets:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
+//   - FlowSpec actions: rate-limit:N, rate-limit:N:packets, rate-limit-packets:N, redirect-to-nexthop-draft, copy-to-nexthop, redirect-to-nexthop IP, copy-to-nexthop IP, mark N
 //   - FlowSpec interface set: interface-set:[transitive|non-transitive:]DIR:ASN:GROUP
 //   - VPLS Layer2 Info: l2info:encaps:control:mtu:reserved (RFC 4761 Section 3.2.4)
 //   - Generic format: ASN:NN, IP:NN
@@ -495,26 +512,27 @@ func parseFlowSpecMark(dscpStr string) (attribute.ExtendedCommunity, error) {
 }
 
 // parseFlowSpecRedirectNextHop parses the address of a `redirect-to-nexthop IP`
-// action into the community its address family needs.
+// or `copy-to-nexthop IP` action into the community its address family needs.
+// keyword names the action in the error, and copyTraffic sets the copy bit.
 //
 // It returns the 8-octet community for an IPv4 address and the 20-octet one for
 // an IPv6 address, and exactly one of the two is ever non-empty. They travel in
 // different attributes: 16 for the first, 25 for the second (RFC 5701).
-func parseFlowSpecRedirectNextHop(ipStr string) (ipv4Bytes, ipv6Bytes []byte, err error) {
+func parseFlowSpecRedirectNextHop(keyword, ipStr string, copyTraffic bool) (ipv4Bytes, ipv6Bytes []byte, err error) {
 	ip, err := netip.ParseAddr(ipStr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid %s address %q: %w", flowSpecRedirectNextHop, ipStr, err)
+		return nil, nil, fmt.Errorf("invalid %s address %q: %w", keyword, ipStr, err)
 	}
 
 	if ip.Is4() {
-		ec, err := attribute.FlowSpecRedirectToIPv4(ip)
+		ec, err := attribute.FlowSpecRedirectToIPv4(ip, copyTraffic)
 		if err != nil {
 			return nil, nil, err
 		}
 		return ec[:], nil, nil
 	}
 
-	ec, err := attribute.FlowSpecRedirectToIPv6(ip)
+	ec, err := attribute.FlowSpecRedirectToIPv6(ip, copyTraffic)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -590,7 +590,7 @@ func TestFlowSpecIPv6ActionReplacementAndReplay(t *testing.T) {
 	path := flowValidationPath(2, 65001)
 	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(path, netip.Addr{}, 0, nil), false)
-	redirect, err := attribute.FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"))
+	redirect, err := attribute.FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"), false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -304,15 +304,43 @@ func flowSpecRedirect4ByteAS(asn uint32, value string) (ExtendedCommunity, error
 //
 // The action is not RFC 8955 Section 7.4's rt-redirect, which names a VRF by
 // route-target. It sends the matched traffic to one address, and it comes from
-// draft-ietf-idr-flowspec-redirect-ip, where the 2-octet local administrator is
-// a flags field whose low bit is the copy semantic. Ze writes that field zero:
-// redirect, do not copy.
+// draft-ietf-idr-flowspec-redirect-ip-16 Section 2: "For the IPv4 address-
+// specific extended community [RFC4360], the IANA-assigned sub-type value 0x0c
+// indicates that the Global Administrator and Local Administrator fields encode
+// a flow-spec "redirect-to-IPv4" action."
 const flowSpecSubtypeRedirectToIP = 0x0c
+
+// flowSpecRedirectToIPFlags returns the 2-octet local administrator of a
+// redirect-to-IP community: every bit zero but the copy bit.
+//
+// draft-ietf-idr-flowspec-redirect-ip-16 Section 2: "In the local administrator
+// field the least-significant bit is defined as the "C" (or copy) bit.  When the
+// "C" bit is set to 1 the redirection applies to copies of the matching packets
+// and not to the original traffic stream." and "All bits other than the "C" bit
+// in the local administrator field MUST be set to 0 by the originating BGP
+// speaker and ignored by receiving BGP speakers."
+func flowSpecRedirectToIPFlags(copyTraffic bool) byte {
+	if copyTraffic {
+		return 0x01
+	}
+	return 0x00
+}
 
 // FlowSpecRedirectToIPv4 returns the redirect-to-IP extended community for an
 // IPv4 next hop: an IPv4-address-specific community (type 0x01) carrying the
-// address and a zero flags field.
-func FlowSpecRedirectToIPv4(addr netip.Addr) (ExtendedCommunity, error) {
+// address and a flags field whose copy bit is copyTraffic. `redirect-to-nexthop
+// <IPv4>` writes it clear and `copy-to-nexthop <IPv4>` writes it set.
+//
+// draft-ietf-idr-flowspec-redirect-ip-16 Section 2: "In the encoding of this
+// action, the 4-octet Global Administrator field encodes the IPv4 unicast
+// address that is the redirection target address and the 2-octet local
+// administrator field is formatted as shown in Figure 1."
+//
+//	 0       1       2       3       4       5       6       7
+//	+-------+-------+-------+-------+-------+-------+-------+-------+
+//	| 0x01  | 0x0c  |      IPv4 redirection target  |Rsvd   |Rsvd |C|
+//	+-------+-------+-------+-------+-------+-------+-------+-------+
+func FlowSpecRedirectToIPv4(addr netip.Addr, copyTraffic bool) (ExtendedCommunity, error) {
 	if !addr.Is4() {
 		return ExtendedCommunity{}, fmt.Errorf("redirect-to-nexthop %s is not an IPv4 address", addr)
 	}
@@ -320,20 +348,30 @@ func FlowSpecRedirectToIPv4(addr netip.Addr) (ExtendedCommunity, error) {
 	return ExtendedCommunity{
 		0x01, flowSpecSubtypeRedirectToIP,
 		ip[0], ip[1], ip[2], ip[3],
-		0x00, 0x00,
+		0x00, flowSpecRedirectToIPFlags(copyTraffic),
 	}, nil
 }
 
 // FlowSpecRedirectToIPv6 returns the redirect-to-IP community for an IPv6 next
-// hop.
+// hop, with the copy bit set when copyTraffic is.
 //
 // It is 20 octets, not 8, so it rides the IPV6_EXTENDED_COMMUNITIES attribute
 // (code 25) rather than EXTENDED_COMMUNITIES. RFC 5701 Section 2 gives the
 // layout: a first octet of 0x00 for a transitive sub-type, the sub-type, a
 // 16-octet global administrator holding the address, and a 2-octet local
 // administrator, which here is the same flags field FlowSpecRedirectToIPv4
-// writes zero.
-func FlowSpecRedirectToIPv6(addr netip.Addr) (IPv6ExtendedCommunity, error) {
+// writes.
+//
+// draft-ietf-idr-flowspec-redirect-ip-16 Section 2: "In this encoding, the
+// 16-octet Global Administrator field contains the IPv6 unicast address that is
+// the redirection target address and the 2-octet local administrator field is
+// again formatted as shown in Figure 1."
+//
+//	octet 0     1      2 .. 17                    18     19
+//	+------+------+--------------------------+------+--------+
+//	| 0x00 | 0x0c | IPv6 redirection target  | Rsvd | Rsvd |C|
+//	+------+------+--------------------------+------+--------+
+func FlowSpecRedirectToIPv6(addr netip.Addr, copyTraffic bool) (IPv6ExtendedCommunity, error) {
 	var ec IPv6ExtendedCommunity
 	if !addr.Is6() || addr.Is4In6() {
 		return ec, fmt.Errorf("redirect-to-nexthop %s is not an IPv6 address", addr)
@@ -346,6 +384,6 @@ func FlowSpecRedirectToIPv6(addr netip.Addr) (IPv6ExtendedCommunity, error) {
 	ec[1] = flowSpecSubtypeRedirectToIP
 	copy(ec[2:18], ip[:])
 	ec[18] = 0x00
-	ec[19] = 0x00
+	ec[19] = flowSpecRedirectToIPFlags(copyTraffic)
 	return ec, nil
 }

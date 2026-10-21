@@ -142,7 +142,7 @@ func TestSelectedFlowSpecIPv6ActionsRemovePreviousRule(t *testing.T) {
 	change := selectedFixture(t, "10.1.0.0/24", discardTrafficRate)
 	b.handleSelected(change)
 	require.True(t, selectedKernelAction[firewall.Drop](b.rules.buildTable()))
-	redirect, err := attribute.FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"))
+	redirect, err := attribute.FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"), false)
 	require.NoError(t, err)
 	change.ExtendedCommunities = nil
 	change.IPv6ExtendedCommunities = redirect[:]

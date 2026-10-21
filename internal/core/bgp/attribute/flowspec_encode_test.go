@@ -79,18 +79,18 @@ func TestFlowSpecTrafficMarkingBound(t *testing.T) {
 func TestFlowSpecRedirectToIPRefusesTheWrongFamily(t *testing.T) {
 	t.Parallel()
 
-	_, err := FlowSpecRedirectToIPv4(netip.MustParseAddr("2001:db8::1"))
+	_, err := FlowSpecRedirectToIPv4(netip.MustParseAddr("2001:db8::1"), false)
 	require.Error(t, err)
 
-	_, err = FlowSpecRedirectToIPv6(netip.MustParseAddr("1.2.3.4"))
+	_, err = FlowSpecRedirectToIPv6(netip.MustParseAddr("1.2.3.4"), false)
 	require.Error(t, err)
 
-	_, err = FlowSpecRedirectToIPv6(netip.MustParseAddr("::ffff:1.2.3.4"))
+	_, err = FlowSpecRedirectToIPv6(netip.MustParseAddr("::ffff:1.2.3.4"), false)
 	require.Error(t, err, "an IPv4-in-IPv6 address is an IPv4 next hop")
 
 	// RFC 5701 Section 2: 0x00 marks a transitive sub-type, then the sub-type,
 	// then 16 octets of global administrator and 2 of local administrator.
-	ec, err := FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"))
+	ec, err := FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"), false)
 	require.NoError(t, err)
 	assert.Equal(t, byte(0x00), ec[0])
 	assert.Equal(t, byte(0x0c), ec[1])

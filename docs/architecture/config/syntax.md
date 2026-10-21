@@ -1344,10 +1344,11 @@ update {
 | `rate-limit:<pps>:packets` | Rate limit in packets per second |
 | `redirect:<asn>:<value>` | Redirect to the VRF that imports this route-target. A 2-octet AS takes type 0x80 with a 4-octet value; a 4-octet AS takes type 0x82 with a 2-octet value |
 | `redirect:<ipv4>:<value>` | The same redirect with an IPv4-address route-target: type 0x81 with a 2-octet value |
-| `redirect-to-nexthop <ipv4>` | Redirect to one IPv4 address |
+| `redirect-to-nexthop <ipv4>` | Redirect to one IPv4 address: the draft-ietf-idr-flowspec-redirect-ip community, type 0x01 sub-type 0x0c, copy bit clear |
 | `redirect-to-nexthop <ipv6>` | Redirect to one IPv6 address. This community is 20 octets, so it travels in IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701) instead of attribute 16 |
-| `redirect-to-nexthop-draft` | Redirect to next-hop (draft) |
-| `copy-to-nexthop` | Copy to next-hop |
+| `copy-to-nexthop <ipv4>`, `copy-to-nexthop <ipv6>` | Copy the matched traffic to one address: the same community as `redirect-to-nexthop <address>` with the copy ("C") bit of its local administrator set (draft-ietf-idr-flowspec-redirect-ip Section 2) |
+| `redirect-to-nexthop-draft` | Redirect to the route's next hop: community 0x0800 (draft-simpson-idr-flowspec-redirect), which carries the target in the MP_REACH_NLRI next hop |
+| `copy-to-nexthop` | Copy to the route's next hop: community 0x0800 with its copy bit. Only an address after the word selects the IETF form above |
 | `action sample`, `action terminal`, `action sample-terminal`, `action none` | Sampling and terminal action bits. A word outside this set is refused |
 | `mark <dscp>` | Set DSCP value, 0 to 63. RFC 8955 Section 7.5 gives the DSCP six bits, so a larger value is refused instead of truncated |
 
