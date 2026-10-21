@@ -1,90 +1,65 @@
-# Handover 13: ze-image-docker-host, Phase 1 continuation
+# Handover 13: ze-image-docker-host, Phase 1 done, Phase 2 next
 
-Spec: `plan/spec-ze-image-docker-host.md` (Status in-progress, Phase 1/6).
-Written 2026-10-21 by the Phase 1 agent at its 100-call budget. Phase 1 is NOT
-finished: the code and its unit tests are committed, the AC-1 proof is not.
+Spec: `plan/spec-ze-image-docker-host.md` (Status in-progress). Rewritten
+2026-10-21 by the third Phase 1 agent. Phase 1 (AC-1) is proven and
+committed; the next agent starts Phase 2.
 
-## Committed in this chunk
+## Phase 1 commits
 
-| File | What it holds |
-|------|---------------|
-| `gokrazy/kernel/runtime.config`, `runtime.require` | AC-4 options with reasons: VSOCKETS, VIRTIO_VSOCKETS, INET_UDP_DIAG, VIRTIO_FS, VHOST_NET, BINFMT_MISC, VIRTIO_CONSOLE, plus MACVTAP=y (see Finding 1) |
-| `internal/appliance/instance/prepare.go` | `Options.Instance` (required, one directory name, `checkInstanceName`); `Name` stays the appliance's instance |
-| `internal/appliance/kernelargs.go` | appliance build passes `instance.Name` |
-| `internal/le/build/gokrazy/gokrazy.go` | `instanceOf` takes gok's `-i`/`--instance`; refuses a parent dir with no instance |
-| `internal/le/build/gosum/gokrazygosum.go` | `inInstanceBuilddir`: every `gokrazy/<instance>/builddir/` is judged |
-| `gokrazy/docker-host/config.json`, `builddir/` | second instance: `cmd/ze-docker-host`, randomd, dhcp; no baked machine id; `console=hvc0`; `ExtraFilePaths {"/": "extrafiles"}` (resolved as `extrafiles_<arch>.tar` in the instance dir, gitignored) |
-| `cmd/ze-docker-host/main.go` | argv[0] `systemctl` runs the shim, else `RunGuest` |
-| `internal/appliance/dockerhost/` | `cidata.go` (ParseCidata + validation), `boot.go` (Boot over a root, System interface, BootScript), `accounts.go`, `supervise.go`, `unitfile.go`, `systemctl.go` (verbs table, Serve, RunShim), `peeruid_{linux,darwin}.go`, `guest_linux.go` (RunGuest, bin tmpfs + busybox links, sshd config and host key, Linux System, FindCidata by ISO 9660 volume id) |
-| `docs/architecture/appliance/docker-host.md` (new), `gokrazy-build-pins.md`, `README.md` | pages for the above |
+| SHA | What |
+|-----|------|
+| 81fab69967 | Phase 1 code: docker-host gokrazy instance, `cmd/ze-docker-host`, `internal/appliance/dockerhost/`, kernel options |
+| fcfb8cbd73 | `/etc` tmpfs over the read-only squashfs `/etc` (A-3 fallback), `/perm/home` 0755, systemctl `reload` (SIGHUP), busybox applet links, exit 125 on a half-applied boot, lint fixes |
+| 72fc76c29b | `ze-docker-host: kernel <proc/version>` first console line; spec AC-1 evidence, A-7/A-8/A-9 outcomes, AC-1 text corrected |
 
-Tests green (`go test -race`): `TestPrepareTakesTheInstanceName`,
-`TestCidataParsesLimaFiles`, `TestCidataRefusesUnsafeValues` (boundaries),
-`TestDockerHostBootSequenceOverATempRoot`, `TestSystemctlShimLimaAndColimaVerbs`,
-`TestSystemctlRefusesAChangeFromANonAdmin`, `TestEveryInstanceBuilddirIsJudged`,
-plus the existing `internal/appliance/instance`, `internal/le/build/gokrazy`,
-`internal/le/build/gosum` packages. Red was a build failure (symbols undefined)
-before the code. `GOOS=linux GOARCH=arm64 go vet` clean on the guest packages.
+AC-1 evidence is pasted in the spec under Implementation Steps, Phase 1.
+Assumptions A-1, A-2, A-7, A-8, A-9 confirmed; A-3 broken with the fallback
+taken. The Lima instance `zp` and `~/.cache/ze/lp-e1f0` are deleted.
 
-## Left for the continuation (Phase 1 is not done until all of these are)
+## How the proof was run (reproducible on this Mac only)
 
-1. arm64 runtime kernel build with the new options:
-   `./ze-host appliance kernel --target runtime --arch arm64` (docker builder).
-   First run refused `CONFIG_VHOST_NET did not resolve to =y`; the MACVTAP fix
-   was in flight when this was written. Confirm the emitted config shows every
-   AC-4 symbol `=y`; amd64 build too (AC-4).
-2. Static OpenSSH 9.9p2 (`--without-openssl --without-zlib`,
-   `--libexecdir=/usr/lib/ze-docker-host`, privsep `/var/empty` user `sshd`,
-   `LDFLAGS=-static`; targets sshd sshd-session ssh-keygen sftp-server) and sudo
-   1.9.16p2 (`--without-pam --disable-shared --enable-static-sudoers
-   --with-noexec=no --disable-zlib`) built in `alpine:3.22` pinned by digest;
-   Result of that run: sshd, sshd-session (and ssh-keygen, sftp-server) came
-   out static aarch64; **sudo came out a dynamically linked PIE against
-   `/lib/ld-musl-aarch64.so.1`** although `LDFLAGS=-static` was given (libtool
-   drops it). Rebuild sudo fully static (for example `CC="gcc -static"
-   --disable-pie`, then `file` must say "statically linked") before it enters
-   the image. Record the source sha256 and builder digest for Phase 2's
-   `binaries.json`.
-3. Assemble `gokrazy/docker-host/extrafiles_arm64.tar`:
-   `usr/lib/ze-docker-host/{busybox,sshd,sshd-session,ssh-keygen,sftp-server,sudo}`
-   (sudo mode 04755, owner 0), busybox from
-   `cmd/ze-serial-shell/_gokrazy/extrafiles_arm64.tar`, and directory entries
-   `bin/ sbin/ usr/bin/ usr/sbin/ home/ mnt/lima-cidata/ usr/local/bin/`
-   (the program mounts tmpfs or overlays on them; they must exist in squashfs).
-4. Build the image: `./le build gokrazy --parent_dir gokrazy -i docker-host
-   overwrite --full <scratch>/docker-host-arm64.img` (gok `--target_storage_bytes`
-   as needed).
-5. AC-1: `LIMA_HOME=<scratch>/lima limactl start` on a template with the raw
-   image under `images:`, `vmType: vz`, `containerd: {system: false, user:
-   false}`. Paste: `limactl list` Running (not Degraded), `limactl shell <i> cat
-   /run/lima-boot-done` == meta-data instance id, `uname -r` ending `-ze`, the
-   serial log lines (systemd-boot, kernel banner, `LIMA ... Exiting with code`,
-   every `WARNING: Failed to execute` checked against R-2 and A-11). Then
-   `limactl delete --force`. Never touch `~/.colima/default`.
-6. Write A-1, A-2, A-3, A-7, A-8, A-9 outcomes into the spec's Assumptions
-   table. A-1 failing stops the spec (design gate re-opens).
-7. Gates owed, not run: `./le go lint run` (the write hook reported lint issues
-   on `guest_linux.go`, `systemctl.go`, `supervise.go`; read them),
-   `./le test unit all`, `./le build gosum`.
+Scripts live in the session scratch of e1f02c94 and are machine-local:
+`rebuild-boot.sh` (`GOARCH=arm64 ./le build gokrazy --parent_dir gokrazy -i
+docker-host overwrite --full <img> --target_storage_bytes 2147483648`, then
+homebrew `mkfs.ext4 -F -E offset=1157627904 <img> 966639` for `/perm`, then
+`limactl start --tty=false --name zp --timeout 8m <template>`),
+`assemble-extrafiles.sh` (builds `gokrazy/docker-host/extrafiles_arm64.tar`:
+busybox, sshd, sshd-session, ssh-keygen, sftp-server, sudo 04755 root),
+`static-build/sudo.sh` (sudo needs `make LDFLAGS=-all-static`). Template:
+`vmType: vz`, raw image under `images:`, `containerd: {system: false, user:
+false}`, `mounts: []`. `LIMA_HOME` must be short (UNIX_PATH_MAX 104), so it
+went under `~/.cache/ze/`.
 
-## Findings
+## Open items for Phase 2 (and later), each owed
 
-1. `CONFIG_VHOST_NET` cannot be `=y` while `TAP=m`: Kconfig "depends on TAP ||
-   !TAP", and arm64 defconfig sets `MACVTAP=m`, which selects `TAP=m`.
-   `CONFIG_MACVTAP=y` was added with that reason. This also affects
-   `plan/spec-lab-kernel-features-in-setup.md` AC-4.
-2. gokrazy's extra files tar keeps the tar header mode as the squashfs inode
-   mode (`packer.go` FileInfo.Mode from `header.Mode`; squashfs `uint16(mode)`),
-   so a 04755 sudo in the tar should stay setuid: A-9 is likely to hold, unproven
-   until the guest shows `ls -l /usr/lib/ze-docker-host/sudo`.
+1. **Boot time: busybox `modprobe` costs 48 to 86 s.** Lima's `00-modprobe.sh`
+   calls it 21 times; each call parses `modules.dep` and `modules.alias`
+   (`modprobe tun`: 7.8 s, 6 s user CPU), and every one of those modules is in
+   `modules.builtin`, so each answers "not found" after the work. The guest
+   agent only starts after this, and R-1 gives Colima one minute. Fix in the
+   image (for example a modprobe that answers a `modules.builtin` entry at
+   once), with a test; never a script edit.
+2. **`/perm` is unformatted on darwin.** gok does not run mkfs there; the proof
+   ran it by hand. Phase 3: le's `docker-host` build formats it, reading the
+   partition offset from the image.
+3. **Lima resizes the raw disk** (2 to 4 GiB) and leaves the backup GPT header
+   mid-disk; the kernel warns (`GPT:Alternate GPT header not at the end of the
+   disk`) and boots. Phase 3 decides whether le sizes the image to the profile.
+4. **gokrazy's web server listens on :80** in the guest and Lima tries to
+   forward it (`failed to listen tcp 0.0.0.0:80` on the host). Phase 2 decides
+   whether the docker-host instance turns it off.
+5. `20-rootless-base.sh` fails (R-2): no `/etc/sysctl.d`, busybox `sysctl` has
+   no `--system`, no logind. Accepted by AC-1; revisit only if rootless docker
+   is ever wanted.
+6. Phase 2 proper: pins file and source builds (`binaries.json`, record the
+   OpenSSH 9.9p2 and sudo 1.9.16p2 sha256 and the Alpine builder digest),
+   dockerd and containerd supervision, seeded containerd config, A-5 read of
+   moby's nftables backend; AC-5, AC-11, AC-12. AC-4 amd64 kernel build is
+   still unrun.
 
-## Do not assume
+## Gates owed (not run by this agent: over five minutes)
 
-- A restarted `ze-docker-host` (gokrazy restarts an exited program) skips the
-  boot sequence and boot.sh and serves the supervisor only; services the first
-  instance started are orphaned and reported inactive. Acceptable for AC-1; a
-  Phase 2 decision if dockerd supervision needs it.
-- `TestSystemctlShimLimaAndColimaVerbs` covers Lima's verbs and the AC-11 exit
-  codes on the guest-agent unit; containerd and docker units are Phase 2.
-- The docker gid is 1000; a Lima uid of 1000 makes docker the user's primary
-  group (`groupLines`).
+`./le go lint run` (scoped golangci-lint over dockerhost, cmd/ze-docker-host,
+le/build/gokrazy: 0 issues darwin and linux/arm64), `./le test unit all`,
+`./le verify worktree`. Commits carried `structural-red-ok`: staticcheck parts
+2 and 3 were red in the 12:27Z verify run, before these changes.
