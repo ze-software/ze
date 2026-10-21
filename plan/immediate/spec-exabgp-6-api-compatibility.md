@@ -166,7 +166,7 @@ CHANGELOG sentence of that producer.
 | ExaBGP bridge | `convertAnnounceSRPolicy` still appends `preference ...`, `segment-list ...` to `mp ipv4/sr-policy add`, so every SR Policy announce with an attribute is refused by the API |
 | Parser that carries the attributes | `srpolicy.parseConfigRoute`, reached from config through `registry.ConfigRouteParserByFamily` and from `ze bgp encode` through `EncodeRoute`; not from the API |
 | Journal row | `plan/journal/parser-refuses-a-form-its-producer-emits.md`, 2026-10-14 row; repointed to this spec |
-| Citing spec | `plan/immediate/spec-bgp-sr-policy-rfc-defects.md` Known Limitations and its 2026-10-14 log row; repointed to this spec |
+| Citing spec | `spec-bgp-sr-policy-rfc-defects` (closed 2026-10-21) Known Limitations and its 2026-10-14 log row; repointed to this spec |
 
 **Per-item Ze state:**
 

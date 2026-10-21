@@ -43,7 +43,7 @@ not a complete conformance inventory or an exclusion of other applicable rows.
 |----------|----------|
 | Existing BGP receive processing | Proved by the BGP child spec-rfc-verdict-fix-bgp (closed 2026-10-21), including RFC9012-13-10/12 transit-processing proof and 13-13/14 special-purpose endpoint rejection; their verdicts and records live in `rfc/audit/rfc9012.json` and `rfc/discrimination/rfc9012.json`, and this spec does not reopen them |
 | Structural framing and endpoint count | Remain in the BGP child; this spec does not excuse malformed received updates |
-| RFC 9830 SR Policy defects | Remain in `plan/immediate/spec-bgp-sr-policy-rfc-defects.md`; its AC-4/5 do not own general RFC 9012 header construction |
+| RFC 9830 SR Policy defects | Fixed by `spec-bgp-sr-policy-rfc-defects` (closed 2026-10-21); its AC-4/5 did not own general RFC 9012 header construction |
 | Optional origin-AS ownership validation | No implementation authorization was given by the consumer ownership decision |
 | Runtime configuration, supported tunnel types and backend | Require a separate design decision; no new command, tunnel mode or backend is selected here |
 | Requirement accounting | Retain permanent identities, obligation levels and applicable gaps; no automatic enforced or not-applicable verdict |

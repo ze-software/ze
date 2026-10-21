@@ -398,10 +398,10 @@ proof, 6 C present, 7 session up.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | GoBGP v3.31.0 negotiates and displays `ipv4-srpolicy` / `ipv6-srpolicy` with BSID and segment labels in `-j` output | GoBGP's documented SR Policy family support; not yet run against Ze | Interop must use FRR instead, whose SAFI 73 support in bgpd is also unverified here | first run of the scenario's GoBGP side with a static policy, before writing the checker | unvalidated |
+| A-1 | GoBGP v3.31.0 negotiates and displays `ipv4-srpolicy` / `ipv6-srpolicy` with BSID and segment labels in `-j` output | GoBGP's documented SR Policy family support; not yet run against Ze | Interop must use FRR instead, whose SAFI 73 support in bgpd is also unverified here | first run of the scenario's GoBGP side with a static policy, before writing the checker | broken 2026-10-20: no `-a` switch names SAFI 73 and v3.31.0 apiutil corrupts SR Policy; checker reads binary ListPath (`gobgp-paths`, `65651c27e0`) |
 | A-2 | A treat-as-withdraw result recorded by `validateMPNLRIField` reaches the same synthesis and dispatch path as an attribute-level one, when the UPDATE carries reachable NLRI | `ValidateUpdateRFC7606AddPath` records non-reset results through `recordError` inside its attribute walk; `applyRFC7606` handles every non-`syntaxField` result as attribute-level | D3 needs reactor plumbing | `TestRFC9830NLRILengthReceiveVerdicts` asserts the delivered body is the synthesized withdrawal | confirmed 2026-10-14: `TestSRPolicyMalformedWithdrawalSynthesis` receives the dispatched synthesized MP_UNREACH through `processMessage`, with no reactor plumbing added |
 | A-3 | No live config or test uses a Binding SID label 0..15 or any label above 1048575 | grep over `internal`, `test`, `docs`, `etc` for `binding-sid mpls` / `type-a mpls` found only 24000, 16001, 16002, 1048575 | an existing test would go red on refusal | the same grep re-run at implementation | validated 2026-10-13 by grep; re-run 2026-10-14 at implementation: out-of-range values occur only in the new `config_test.go` refusal cases |
-| A-4 | Every reactor fixture that sends SAFI 73 MP_REACH already carries attribute 23 and 12/24-octet NLRIs, except `TestReceivePrefixLimitShortAddPathEntry` | grep of reactor tests for `SAFISRPolicy`: `teSRPolicyBody`, `teSRPolicyValue` users carry type 15 and 96/192-bit lengths | more fixtures change | package test run of `internal/component/bgp/reactor` after the change | unvalidated |
+| A-4 | Every reactor fixture that sends SAFI 73 MP_REACH already carries attribute 23 and 12/24-octet NLRIs, except `TestReceivePrefixLimitShortAddPathEntry` | grep of reactor tests for `SAFISRPolicy`: `teSRPolicyBody`, `teSRPolicyValue` users carry type 15 and 96/192-bit lengths | more fixtures change | package test run of `internal/component/bgp/reactor` after the change | confirmed: reactor tests green across review rounds 1 to 3, only `TestReceivePrefixLimitShortAddPathEntry` rewritten (R-3) |
 | A-5 | ADD-PATH CAN be negotiated for SAFI 73 by production config, so the rule and `SplitSRPolicy` honour `addPath` | `parseAddPathFromTree` applies the default direction to every `capability.Multiprotocol` with no family exclusion; YANG `add-path` description "The default direction applies to every negotiated multiprotocol family"; RFC 9830 does not forbid a path identifier; `TestReceivePrefixLimitShortAddPathEntry` already builds a negotiated ADD-PATH receive context for ipv4/sr-policy | (assumption replaced: the earlier "never negotiated" reading was wrong) | AC-8 tests | validated 2026-10-14 at the producer |
 
 ### Risks
@@ -624,7 +624,7 @@ with field offsets.
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/bgp-sr-policy-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (verdict `clean`, rounds 3, 49 files, machine-local) |
-| `./le spec review check` | OK after round 3 (0 BLOCKER, 0 ISSUE); interop revert-reds (N-3) still owed |
+| `./le spec review check` | OK after round 3 (0 BLOCKER, 0 ISSUE). Re-pinned at closure 2026-10-21 over the same 49 files, verdict and rounds unchanged: three pinned files had moved, `test/plugin/update-text-sr-policy-addpath.ci` (the N-7 comment-only fix), `internal/le/interoplab/bgp/check_extras.go` (comment only: the scenario comment claimed GoBGP resets its session on a bad NLRI length, which revert-red (a) disproved for v3.31.0) and `internal/component/bgp/config/loader_routes.go` (another session's `3cc1e2a56a`, which deletes the unused `flowSpecRedirectNextHop` const and leaves this spec's `PathID` line alone); check OK. Interop revert-reds (N-3) done in `f40f1fea9b` |
 | Rounds | 3. Round 3 (2026-10-21, a third independent reviewer, narrow: the round 2 fixes `4e01d13a6e`, `7d6406fb5d`, `49f53c4a9f`, `cb7a3ca68f`, `ce9193df5d`, `11e72ea79e`, plus `69088b9fd5`). Round 1 (2026-10-20, independent reviewer, over commits `6ca8175fbc`, `8da63d389a`, `02b886d7b1`, `b73176e7ea`, `ca5ae1feaa`, `65ecdbf014` as at HEAD `df7d3abc23`). Round 2 (2026-10-21, a second independent reviewer, narrow: the round 1 fixes `7052b662a4`, `55be07dd57`, `11ea7bebde` and what they touch) |
 | Reviewer lenses used | Round 1: wiring + functional coverage; logic + removed-behavior + test rewrites; RFC 9830 / RFC 7911 + docs drift. Round 2: disposition verification at the producer; RFC 7911 framing logic per rail and family; test discrimination of each new line. Round 3: disposition verification at the producer; removed-behavior (parser at `4e01d13a6e^` against HEAD); test discrimination by mutation in an export; docs drift |
 
@@ -719,3 +719,155 @@ RFC9830-2.1-3 producer-changed record (`reactor_api_batch.go::planBatchAttrs`, r
 | N-3 | Still owed: the interop revert-reds of `bgp-sr-policy-malformed-receive-gobgp`, run separately. Owed evidence, not a finding |
 
 Round 3 verdict: 0 BLOCKER, 0 ISSUE, 3 NOTE. The code review is clean. The artifact is re-recorded `clean`, rounds 3, 49 code files of this spec's commits, `./le spec review check` OK; `internal/component/bgp/plugins/nlri/mup/encode.go` is left out of the pin because it holds another session's uncommitted hunk (it does not touch the framing line). Still owed before closure: the interop revert-reds (N-3) and `./le verify worktree` (verification debt `9ce43bcc`).
+
+### Notes disposed at closure (2026-10-21)
+| # | Disposition |
+|---|-------------|
+| N-3 | Done in `f40f1fea9b`: green and both revert-reds in the macOS Ze-kernel QEMU guest (Interop Tests above) |
+| N-5 | Accepted as is: correct on the wire, more UPDATEs only where routes differ in `path-information` on a session without ADD-PATH |
+| N-6 | Fixed: `docs/architecture/wire/nlri.md` row now names both refusers (`add` run: config-route parser; `del` run: `parseSRPolicyNLRIArgs`), anchor gains `parseSRPolicyNLRIArgs` |
+| N-7 | Fixed: the two comments in `test/plugin/update-text-sr-policy-addpath.ci` write the NLRI as `60 00000000 0000012C 0A000003` (12 octets) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| B-1 | BLOCKER | Receive walk skipped a path identifier Ze's own SR Policy origination never wrote | `reactor/peer_initial_sync.go::sendPluginRoutesVia`, `message.PluginNLRI` | `7052b662a4` |
+| I-1 | ISSUE | No `.ci` with ADD-PATH negotiated for sr-policy | `test/encode/addpath-srpolicy-pathid.ci` | `7052b662a4` |
+| I-2 | ISSUE | `nlrisyntax` had no `ai/INDEX.md` row | `ai/INDEX.md` | `55be07dd57` |
+| I-3 | ISSUE | SR Policy ADD-PATH refusal false after B-1 | `update/update_text_nlri.go::parseRegistryNLRISection` | `4e01d13a6e`, `7d6406fb5d` |
+| I-4 | ISSUE | `ze bgp encode -i` framing in flowspec, mup, vpls untested | `encode_addpath_test.go` in each package | `11ea7bebde`, `ce9193df5d` |
+| I-5 | ISSUE | `pluginRouteGroupKey` PathID field unproven | `TestPluginRouteGroupSplitsOnPathID` | `49f53c4a9f` |
+| re-record | - | RFC 2545 records producer-changed | `rfc/discrimination/rfc2545.json` | `cb7a3ca68f` |
+| test | - | FlowSpec redirect hex wrong about what it asserts | test fix | `69088b9fd5` |
+
+## Implementation Summary
+
+### What Was Implemented
+- D2: `srpolicy/config.go::parseConfigRoute` and `parseSegmentList` refuse a Binding SID label outside 16..1048575 and a Type A label above 1048575, naming token, value and range, on config, `ze bgp encode` and (since `af18a709d8`) `update text`
+- D3: per-family NLRI syntax registry `internal/core/bgp/nlri/nlrisyntax`; `message/rfc7606.go::validateMPNLRISyntax` consults it; `srpolicy/split.go::srPolicySyntaxRule` (judge + retain, ADD-PATH-aware walk `srPolicyNLRIBounds` shared with `SplitSRPolicy`), registered for both families in `srpolicy/register.go`; BGP-LS and EVPN moved onto the registry, `NLRISyntaxRuled` and the `isEVPN` literal deleted (Q6 (b)); `reactor/session_validation_nlritype.go::typedNLRIEdit` asks the registered retain answer (Q2 (a))
+- D4: `reactor/session_tunnel_encap.go::applyTunnelEncap` treats a SAFI 73 MP_REACH with NLRI and no attribute 23 as treat-as-withdraw (`srPolicyAnnounced`)
+- Shared ADD-PATH framing for plugin routes (`message.PluginNLRI`, `sendPluginRoutesVia`, `pluginRouteGroupKey`), `update text` path identifiers for sr-policy, from review round 1 and 2
+
+### Bugs Found/Fixed
+- B-1 and I-3 to I-5 above, each with the test named in Findings fixed
+- GoBGP v3.31.0 apiutil corrupts SR Policy read back from API form: `gobgp-paths` reader (`65651c27e0`), journal `plan/journal/field-carries-two-meanings.md`
+
+### Documentation Updates
+- `docs/architecture/wire/nlri.md` (NLRI Receive Validation, `update text` sr-policy rows), `docs/architecture/wire/attributes.md`, `docs/architecture/wire/messages.md`, `docs/architecture/wire/nlri-bgpls.md`, `docs/architecture/wire/nlri-evpn.md`, `docs/features/bgp-protocol.md`, `rfc/short/rfc9830.md`, `ai/INDEX.md`, in the implementation commits; N-6 row at closure
+- `./le doc check verify` 2026-10-21: one red, `../gh-pages/reference/command-equivalents/clear-bgp-rib-advertised/index.{html,md}` missing in the sibling gh-pages checkout, not produced by this spec; every other stage green
+
+### Deviations from Plan
+- A-1: GoBGP CLI cannot show SAFI 73; the checker reads gRPC ListPath binary (`gobgp-paths`)
+- Red (a) went red at A's absence step, not by session reset: GoBGP v3.31.0 disables the AFI/SAFI. The "session up proves no 13-octet NLRI reached GoBGP" clause does not hold for v3.31.0
+- RFC 7606 Section 5.2 MP_UNREACH-only exemption was fixed by `99ed958ec5` outside this spec, so that shape is treat-as-withdraw (Known Limitations, corrected)
+- No two-Ze ADD-PATH `.ci`; `addpath-srpolicy-pathid.ci` pins the send side, `TestRFC9830NLRILengthReceiveVerdicts` the receive side
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Expected reds read from GoBGP v4.4.0 source predicted SESSION_RESET | v3.31.0 applies AFI/SAFI disable, session stays up | revert-red (a) on the Mac, `f40f1fea9b` | recorded in Interop Tests; A's absence is the discriminating step |
+| assumption | A-1: GoBGP v3.31.0 shows SR Policy in `gobgp global rib -a ... -j` | no release names SAFI 73 in `-a`; its apiutil corrupts NLRI length and BSID | first scenario run on Linux | `gobgp-paths` binary reader (`65651c27e0`), journal `field-carries-two-meanings.md` |
+| approach | Receive walk honoured ADD-PATH while origination wrote no path identifier | both sides must frame the same way | review round 1 B-1 | shared `message.PluginNLRI` framing |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1 flags | Done | `a936e853c7` | pre-existing fix, AC-1 |
+| D2 label range | Done | `srpolicy/config.go::parseConfigRoute`, `parseSegmentList` | |
+| D3 NLRI length on receipt | Done | `srpolicy/split.go::srPolicySyntaxRule`, `message/rfc7606.go::validateMPNLRISyntax` | |
+| D4 absent attribute 23 | Done | `reactor/session_tunnel_encap.go::applyTunnelEncap` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC9830BindingSIDSubTLV`, RFC9830-2.4.2-6 enforced | no new work |
+| AC-2 | Done | `srpolicy-binding-sid-label-range.ci`, `cli-bgp-encode-srpolicy-label-range.ci`, `bgp-srpolicy-3-encode.ci`, `TestRFC9830BindingSIDLabelRange`, `TestSRPolicyLabelWidthRefused` | |
+| AC-3 | Done | `TestRFC9830NLRILengthReceiveVerdicts`, `TestSRPolicyMalformedWithdrawalSynthesis`, `srpolicy-receive-nlri-length.ci` | MP_UNREACH-only is treat-as-withdraw since `99ed958ec5` |
+| AC-4 | Done | RFC9830-4.2.1-2 audit verdict `enforced` (re-judged 2026-10-18) over `TestRFC9830NLRILengthReceiveVerdicts` | |
+| AC-5 | Done | RFC9830-4.2.1-7 audit verdict `enforced` over `TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed`, `TestRFC9830SRPolicyTunnelTypeNot15IsMalformed`; `srpolicy-receive-no-tunnel-encap.ci` | |
+| AC-6 | Done | `TestSRPolicySyntaxRuleVerdicts`, `TestRFC9830NLRILengthReceiveVerdicts` unwalkable cases (3/1) | |
+| AC-7 | Done | `rfc/short/rfc9830.md` rows 2.4.2-11, 4.2.1-3, 5-4 carry no marker | |
+| AC-8 | Done | ADD-PATH cases of `TestRFC9830NLRILengthReceiveVerdicts` and `TestSRPolicySyntaxRuleVerdicts`; `addpath-srpolicy-pathid.ci` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestNLRISyntaxRegistry` | Done | `internal/core/bgp/nlri/nlrisyntax/nlrisyntax_test.go` | |
+| `TestValidateMPNLRISyntaxConsultsRegistry` | Done | `message/rfc7606_nlrisyntax_test.go` | |
+| `TestSRPolicySyntaxRuleVerdicts` | Done | `srpolicy/split_test.go` | |
+| `TestRFC9830NLRILengthReceiveVerdicts`, `TestSRPolicyMalformedWithdrawalSynthesis` | Done | `reactor/rfc9830_nlri_receive_test.go` | |
+| `TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed` | Done | `reactor/rfc9830_tunnel_receive_test.go` | |
+| `TestTypedNLRIEditConsultsRegistry` | Done | `reactor/session_validation_nlritype_test.go` | |
+| `TestRFC9830BindingSIDLabelRange`, `TestSRPolicyLabelWidthRefused` | Done | `srpolicy/rfc9830_test.go`, `config_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create lists | Done | all present (Files Exist below); `docs/architecture/core-design.md` untouched as planned |
+
+### Audit Summary
+- **Total items:** 4 requirements, 8 AC
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** A-1 checker route and the red (a) mechanism (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze never sends a label it was not configured with | functional + interop | `test/encode/bgp-srpolicy-3-encode.ci` exact hex; `bgp-sr-policy-gobgp` GREEN on Linux (`65651c27e0`), GoBGP reads 1048575 back via `gobgp-paths` |
+| Ze never sends a reserved or out-of-range BSID label, on every entry point carrying one | functional | `test/parse/srpolicy-binding-sid-label-range.ci` (config refused), `test/parse/cli-bgp-encode-srpolicy-label-range.ci` (exit 1, no hex) |
+| A malformed SR Policy NLRI does not enter the RIB or reach peers as a route | interop with recorded red | `bgp-sr-policy-malformed-receive-gobgp` GREEN on Linux (`65651c27e0`) and macOS QEMU (`f40f1fea9b`); red (a) with the length rule removed fails at assertion 4 (A stays at GoBGP); `test/plugin/srpolicy-receive-nlri-length.ci` |
+| An SR Policy without its Tunnel Encapsulation attribute is not accepted | interop with recorded red | same scenario; red (b) with the D4 branch disabled fails at assertion 5 (B stays at GoBGP) (`f40f1fea9b`); `test/plugin/srpolicy-receive-no-tunnel-encap.ci` |
+| A conforming ADD-PATH peer's SR Policies are not misjudged | unit through `processMessage` + functional | ADD-PATH cases of `TestRFC9830NLRILengthReceiveVerdicts`; `test/encode/addpath-srpolicy-pathid.ci` (`7052b662a4`) |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC done; Route Target / NO_ADVERTISE criterion (RFC9830-4.2.1-4/-5) stays a recorded gap by owner decision Q3 (a), not in scope | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/bgp/nlri/nlrisyntax/nlrisyntax.go`, `_test.go` | yes | ls 2026-10-21 |
+| `reactor/rfc9830_nlri_receive_test.go`, `reactor/session_validation_nlritype_test.go` | yes | ls 2026-10-21 |
+| the five planned `.ci` plus `addpath-srpolicy-pathid.ci`, `update-text-sr-policy-addpath.ci` | yes | ls 2026-10-21 |
+| `test/interop/scenarios/bgp-sr-policy-gobgp/{ze.conf,gobgp.toml}`, `bgp-sr-policy-malformed-receive-gobgp/{ze.conf,gobgp.toml,inject.msg,inject-args}` | yes | ls 2026-10-21 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2 | range check in parser | `grep bindingSIDLabelMin` hits `srpolicy/config.go` |
+| AC-3, AC-6, AC-8 | rule registered for both families | `srpolicy/register.go::init` calls `nlrisyntax.Register(one.fam, srPolicySyntaxRule(one.nlriBits))` |
+| AC-4, AC-5 | verdicts enforced | `rfc/audit/rfc9830.json` RFC9830-4.2.1-2 and -4.2.1-7 `verdict: enforced` |
+| AC-5 | D4 branch | `session_tunnel_encap.go::applyTunnelEncap` calls `srPolicyAnnounced(attrs, &result.MPReachNLRI)` |
+| AC-7 | no-layering | `grep -rn 'NLRISyntaxRuled\|isEVPN' internal/` returns nothing |
+| all | unit and functional | `./le verify worktree` run once at closure, 2026-10-21, over HEAD `35b24fbbc8` plus the working tree; its verdict and the attribution of each red are in the body of the closure commit (commit B), because this spec text lands in commit A before the run ends |
+| AC-7 | summary rows hold | `./le rfc check` 2026-10-21: 21 violations, none for RFC 9830; all belong to other sessions' in-flight work (RFC 4760 NEXT_HOP `485edca9`: rfc4659, rfc8277, `rfc4760_mp_no_next_hop_send_test.go`; FlowSpec ExaBGP 6 work: rfc8955, rfc8956; YANG leafref `6713dc5fe2`: rfc7950; `rfc7313_local_resend_test.go`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| config label refusal | `test/parse/srpolicy-binding-sid-label-range.ci` | read: config load expected to fail naming token and range |
+| peer sends malformed / attribute-less SR Policy | `test/plugin/srpolicy-receive-nlri-length.ci`, `srpolicy-receive-no-tunnel-encap.ci` | live session through the reactor |
+| injector to Ze to GoBGP | `bgp-sr-policy-malformed-receive-gobgp` | green plus two recorded reds (`f40f1fea9b`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | GoBGP CLI has no SAFI 73 switch and apiutil corrupts it; checker reads binary ListPath (`65651c27e0`); Deviations and Mistake Log |
+| A-2 | confirmed | `TestSRPolicyMalformedWithdrawalSynthesis` |
+| A-3 | confirmed | grep re-run 2026-10-14 |
+| A-4 | confirmed | reactor package tests green in review rounds 1 to 3 with only `TestReceivePrefixLimitShortAddPathEntry` rewritten (R-3) |
+| A-5 | confirmed | validated 2026-10-14 at `parseAddPathFromTree` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `nlri.md` `del`-run refusal (N-6) | `srpolicy/encode.go::parseSRPolicyNLRIArgs` default arm refuses any key but distinguisher, color, endpoint | yes |
+| RFC status | `rfc/short/rfc9830.md` rows carry no marker for 2.4.2-11, 4.2.1-3, 5-4 | yes |
+| `./le spec citation` | OK after the citers were repointed to the bare stem | yes |

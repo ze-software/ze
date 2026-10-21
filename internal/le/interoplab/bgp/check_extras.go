@@ -91,9 +91,12 @@ var scenarioExtras = map[string][]operation{
 	// a 13-octet NLRI is treat-as-withdraw, then B without attribute 23 is.
 	// Each absence carries C as its proof, so a dead Ze-GoBGP session or a
 	// reset injector session (Ze withdraws C with it, and the injector takes
-	// one connection only) fails the step instead of passing it. GoBGP resets
-	// its session on an NLRI of a length other than 96 or 192 bits, so the
-	// session holding at the end is the proof no 13-octet NLRI reached it.
+	// one connection only) fails the step instead of passing it. GoBGP v3.31.0
+	// answers an NLRI of a length other than 96 or 192 bits with AFI/SAFI
+	// disable and keeps the session, so the final session check proves nothing
+	// about relayed bytes: A's absence is the step that goes red when Ze relays
+	// the 13-octet NLRI, because GoBGP then refuses the UPDATE and keeps A
+	// (revert-red recorded 2026-10-21, commit f40f1fea9b).
 	scenarioSRPolicyMalformedReceiveGoBGP: {
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyReceivedA, srPolicyReceivedB, srPolicyReceivedControl}, timeout: 120 * time.Second},
 		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, absent: []string{srPolicyReceivedA}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},

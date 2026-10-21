@@ -51,7 +51,7 @@ origination path. Whether to route the API through `parseConfigRoute` or to
 extend `parseSRPolicySection` is a design question for this spec;
 `ai/rules/no-layering.md` forbids keeping both parsers for one grammar.
 
-Found by `plan/immediate/spec-bgp-sr-policy-rfc-defects.md` (design review r3,
+Found by `spec-bgp-sr-policy-rfc-defects` (closed 2026-10-21; design review r3,
 B-1, 2026-10-14). Created as a skeleton on the owner's answer of 2026-10-14
 ("Do what you think is right": accept the recommendation on every open owner
 question), which homes the API-attributes question here instead of in the SR
@@ -69,7 +69,7 @@ Recorded by `spec-bgp-sr-policy-rfc-defects` and re-read at the producers on
 | ExaBGP bridge | `convertAnnounceSRPolicy` (`internal/exabgp/bridge/bridge_command.go`) appends ExaBGP's leftover tokens (`preference 100` ...) to `nlri ipv4/sr-policy add`, which the API parser refuses |
 | Parser that carries the attributes | `parseConfigRoute` (`internal/component/bgp/plugins/nlri/srpolicy/config.go`), reached from config through `registry.ConfigRouteParserByFamily` and from `ze bgp encode` through `registry.RouteEncoderByFamily` / `EncodeRoute`; not reached from the API |
 | Journal row | `plan/journal/parser-refuses-a-form-its-producer-emits.md`, 2026-10-14 row (spec-bgp-sr-policy-rfc-defects, design review r3 B-1); its status reads "open: no spec", and this spec is that home |
-| Citing spec | `plan/immediate/spec-bgp-sr-policy-rfc-defects.md`, Known Limitations (API entry) |
+| Citing spec | `spec-bgp-sr-policy-rfc-defects` (closed 2026-10-21), Known Limitations (API entry) |
 
 ## Required Reading
 

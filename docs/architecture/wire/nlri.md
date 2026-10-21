@@ -699,7 +699,7 @@ registered `EncodeNLRIHex`, which reads the three NLRI fields alone.
 | an `endpoint` of the other address family than the NLRI's AFI | refused by `validateSRPolicyEndpoint`, as the config path refuses it |
 | a top-level `path-information` | accepted; the SR-Policy NLRI goes out with that Path Identifier ahead of it (RFC 7911 Section 3), as a config route's `path-information` does |
 | a `path-information` right after the family, before `add` or `del` | refused as a missing `add` or `del`, as for every registry family |
-| a `path-information` inside the run | refused by the config-route parser as a word it does not take |
+| a `path-information` inside the run | refused: in an `add` run by the config-route parser as a word it does not take, in a `del` run by `parseSRPolicyNLRIArgs`, which takes only distinguisher, color and endpoint |
 | a `path-information` inside another family's section of the same command | accepted; that section's NLRI carries it, the SR-Policy NLRI carries none |
 
 The SR-Policy NLRI the plugin builds holds no Path Identifier; the sender frames
@@ -707,7 +707,7 @@ one ahead of it, `update text` from the accumulated `path-information`
 (`wireNLRI`) and the config rail from the route's (`message.PluginNLRI`).
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection, wireNLRI -->
 <!-- test: test/plugin/update-text-sr-policy-addpath.ci -->
-<!-- source: internal/component/bgp/plugins/nlri/srpolicy/encode.go -- EncodeNLRIHex, validateSRPolicyEndpoint -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/encode.go -- EncodeNLRIHex, parseSRPolicyNLRIArgs, validateSRPolicyEndpoint -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- parseConfigRoute -->
 <!-- source: internal/component/plugin/registry/registry.go -- SectionRouteParserFor, NLRISectionCarriesAttributes -->
 
