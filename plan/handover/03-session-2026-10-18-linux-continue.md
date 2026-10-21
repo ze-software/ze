@@ -2500,3 +2500,38 @@ Owed: re-take discrimination records staled by the edited tagged tests
 Interop `bgp-flowspec-redirect-check-frr` (task 2 of the brief) NOT started:
 the shape in the fsr4 section stands; first check for an ExaBGP image under
 `test/interop/scenarios/bgp-exabgp-*`.
+
+## 2026-10-21 fsr6 agent: single export landed, rs cut decided, one .ci defect open
+
+Landed: `4f0134cacd` (fsr5's fix + the rs edit + shard `test/weakened/fbb21666.md`
++ debt `plan/verification-debt/fbb21666.md`, which owes the owner's approval of
+the two tagged tests' drive change), `129396605b` (reseal of RFC8955-4.2.2.x).
+rs cut: the gap is real. `TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp`
+(rs/server_validation_test.go) processes the ValidationChange before the target
+is up, then peer-up with cut 42 below the rule's msgID 43: red under HEAD's cut
+(target gets only EOR), green without it. Cut removal kept;
+`rib-storage-design.md` and the `ForwardFrom` comment say so.
+`test/weakened/9f4f57f3.md` (fsr5's shard in the wrong session) is superseded
+and untracked: delete it.
+
+OPEN, not load: both redirect-check `.ci` hang intermittently (3 of 50 under
+`-c 25`, and one in a plain pair run at load 40; never under `ze_log=debug`).
+The one timed-out peer log captured: the receiver got the RULE and never the
+UNICAST route (seq 3, `02020000FDEA0000FDF1`) in 90 s; no rs WARN (catch-up
+budget not hit). The runner's "all expected messages received" line is wrong
+there. Not yet root-caused: suspect the unicast's path to the receiver (live
+forward held behind the replay fence, or the adj-rib-in replay below the cut),
+not FlowSpec. Next: capture a failing run with rs/reactor debug that does not
+mask the race (`ze_log=debug` does), per-iteration `-s` dirs
+(`./le test bgp plugin --pattern flowspec-redirect-check -s <dir>` in a bounded
+loop, break on failure).
+
+Records: `rfc/discrimination/rfc8955.json` holds the three re-taken RFC8955-4-3
+records (TestFlowSpecForwardingOmitsNextHop pos/neg, KeepsLegacyNextHop neg)
+UNCOMMITTED, because the same file carries another session's CheckMatchable
+re-records against its uncommitted `unmatchable.go`: land it with that session.
+`rfc/audit/rfc5575.json` holds a reseal of RFC5575-4-1 fingerprinted over that
+session's uncommitted `plugin_test.go`: same. Still owed: `/ze-rfc-audit` re-read
+of RFC8955-4-3 and RFC5575-4-8 (stale-unit, reseal refuses).
+Green: rs, rr, rib packages; reactor `-run FlowSpec|Validation|Forward`;
+`./le test bgp plugin --pattern flowspec` 13/13 (5 skipped).
