@@ -5,11 +5,15 @@
 package engine
 
 import (
+	"encoding/binary"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -163,10 +167,10 @@ func TestChildRekeyTransportAnswerCarriesUseTransportMode(t *testing.T) {
 // one. RFC 7296 Section 1.3.1: "If the responder declines the request, the Child SA will
 // be established in tunnel mode. If this is unacceptable to the initiator, the initiator
 // MUST delete the SA." The replacement inherits the retired SA's transport mode, so a
-// tunnel answer is unacceptable; the refusal reaches the default branch of the rekey
-// response handler (inbound.go), which deletes the pair the peer installed. Method: the
-// peer's Child SA runs tunnel mode, so its real respondChildRekey answers without the
-// notify.
+// tunnel answer is unacceptable; the rekey response handler's errChildRekeyTransportDeclined
+// branch (inbound.go) deletes the pair the peer installed, which
+// TestChildRekeyTransportRefusalDeletesThePairAndHolds proves. Method: the peer's Child SA
+// runs tunnel mode, so its real respondChildRekey answers without the notify.
 //
 // PREVENTS: the two ends of one Child SA running different modes after a rekey.
 func TestChildRekeyInitiatorRefusesATunnelAnswerToATransportRekey(t *testing.T) {
@@ -198,4 +202,71 @@ func TestChildRekeyInitiatorRefusesATunnelAnswerToATransportRekey(t *testing.T) 
 	if child != nil {
 		t.Error("a refused rekey answer returned a replacement Child SA")
 	}
+}
+
+// VALIDATES: through the owner loop, ze answers a tunnel-mode answer to its transport-mode
+// rekey with an ESP Delete of the new pair, keeps the Child SA in use, and holds the next
+// attempt for the refusal wait.
+//
+// Goal: the refusal deletes what the peer installed and does not repeat every second. RFC
+// 7296 Section 1.3.1: "If this is unacceptable to the initiator, the initiator MUST delete
+// the SA." The peer's configuration decides the answer, so an immediate retry draws the
+// same one, and the owed rebind rekey is a level trigger on the one-second tick. Method:
+// the rebind fixture with a transport-mode Child SA owes a rekey; the peer, whose Child SA
+// runs tunnel mode, answers through its real respondChildRekey; the answer is delivered to
+// handleOwnedInbound, and the next tick runs.
+//
+// PREVENTS: a CREATE_CHILD_SA and a Delete every second against a peer configured for
+// tunnel mode, until the Child SA's hard lifetime.
+func TestChildRekeyTransportRefusalDeletesThePairAndHolds(t *testing.T) {
+	f := rbOwner(t, rbOptions{transport: true})
+	f.peerChild.Mode = modeTunnel
+	f.dpd(t, f.movedTr, false)
+	f.tick()
+	if f.ps.pendingRekey == nil {
+		t.Fatal("the owed rekey sent no request")
+	}
+	newInbound := f.ps.pendingRekey.newInboundSPI
+	req := mbReceive(t, f.movedTr)
+	answer, peerReplacement, err := respondChildRekey(f.peer, mbDecrypt(t, f.peer, req.Data), f.peerChild,
+		parseMsg(t, req.Data).Header.MessageID, nil, slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("the peer answers the Child SA rekey: %v", err)
+	}
+	defer peerReplacement.Clear()
+	f.ps.handleOwnedInbound(f.local, transport.Packet{
+		Data: answer, RemoteAddr: nttPeerAddr(t, f.movedTr), LocalAddr: nttPeerAddr(t, f.myTr), NATT: true,
+	}, f.myTr, f.dp, f.log)
+
+	if f.ps.getChildSA() != f.child {
+		t.Fatal("a refused tunnel-mode answer replaced the Child SA in use")
+	}
+	del := mbReceive(t, f.movedTr)
+	if !ctrDeletesESP(mbDecrypt(t, f.peer, del.Data), newInbound) {
+		t.Errorf("the peer received no ESP Delete for the new pair's SPI %#x", newInbound)
+	}
+	f.wantLog(t, childRekeyFixTransport)
+	if !rekeyHeld(f.ps.childRekeyRefusedUntil, time.Now()) {
+		t.Fatal("the refusal set no rekey hold")
+	}
+	f.tick()
+	if f.ps.pendingRekey != nil {
+		t.Fatal("the next tick sent the refused rekey again inside the hold")
+	}
+}
+
+// ctrDeletesESP reports whether a payload chain carries an ESP Delete naming spi.
+func ctrDeletesESP(inner []wire.PayloadEntry, spi uint32) bool {
+	for i := range inner {
+		del, ok := inner[i].Payload.(*wire.PayloadDelete)
+		if !ok || del.ProtocolID != wire.ProtocolESP {
+			continue
+		}
+		for off := 0; off+4 <= len(del.SPIs); off += 4 {
+			if binary.BigEndian.Uint32(del.SPIs[off:]) == spi {
+				return true
+			}
+		}
+	}
+	return false
 }

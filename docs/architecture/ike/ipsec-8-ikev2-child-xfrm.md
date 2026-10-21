@@ -575,8 +575,9 @@ then skips its own Section 2.23.1 substitution: strongSwan 5.9.14 answered such 
 rekey with TS_UNACCEPTABLE after a NAT rebind. An answer to a transport-mode rekey
 that leaves the notification out established a tunnel-mode SA at the peer (Section
 1.3.1), so `applyChildRekeyResponse` refuses it with
-`errChildRekeyTransportDeclined`, and the handler deletes the new pair and logs
-`childRekeyFixTransport`.
+`errChildRekeyTransportDeclined`, and the handler deletes the new pair, holds the
+next attempt for `rekeyRefusedWait` (the peer's configuration decides the answer,
+so an immediate retry draws the same one), and logs `childRekeyFixTransport`.
 
 <!-- source: internal/component/ike/engine/rekey.go -- initiateChildRekey, applyChildRekeyResponse, respondChildRekey, errChildRekeyTransportDeclined -->
 

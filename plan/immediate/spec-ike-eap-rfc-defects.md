@@ -851,6 +851,9 @@ Approved by the owner on 2026-10-13 (Q-4). The gate reads approvals from the com
 | Walk M2: `rebindChildSAs` returns at once | RED as predicted (tunnel scenario, rebind step; Ze logged the adoption 4 times, never the migration) | 19:21 |
 | Walk M3: D1b adoption line in `handleResponderEAP` removed | STAYED GREEN | the earlier EAP rounds reach `handleOwnedInbound`, which adopts the endpoint after decrypt (`inbound.go`), so `sa.peerEndpoint` is already set when AUTH-from-MSK builds the Child SA. No interop red is reachable for D1b in this topology; the unit test carries it |
 | `TestRFC3948InstalledStateCarriesTheIKEPeerPort` | PASS (not SKIP), `./le test qemu run` on runtime kernel `7.2.9-runtime-arm64-runtime-docker-387d6b76` | 19:31 |
+| `real-nat-port-translated-transport-ze-responder` over `9d60c1d841` (the USE_TRANSPORT_MODE rekey fix), `git archive` export | GREEN 20:55, phase one and the rebind (row 2, rekeyed onto dport 14501) | AC-14 met on the wire. The export needs the ignored generated `gokrazy/docker-host/builddir/github.com/ze-software/ze/go.sum` copied in (else the docker-host image build fails, `GOPROXY=off`), and a checkout path short enough for the forwarded Docker socket (103 bytes): the run went through a symlink `~/.zt/ikw` to the scratch export |
+| Walk M4: the request's USE_TRANSPORT_MODE hunk disabled in `initiateChildRekey` | RED 20:59 as predicted | ze logs "peer refused the rekey with TS_UNACCEPTABLE (38)" every ~14 s, charon logs "no acceptable traffic selectors found", dport 14501 never appears. Fix restored, export deleted |
+| `responder-eap-tls12` peer with RFC 7627 EMS | NONE EXISTS | strongSwan 5.9.14 to 6.1.0 and master define only the constant `TLS_EXT_EXTENDED_MASTER_SECRET` (`src/libtls/tls.h`); `tls_peer.c` never sends it and `tls_crypto.c` `derive_master` uses the RFC 5246 seed; Libreswan's EAP-TLS has "no initiator code" (`programs/pluto/ikev2_eap.c`); OpenIKED: "The only supported EAP type is currently MSCHAP-V2"; `eapol_test` is an 802.1X supplicant over RADIUS. Owner decision owed |
 
 The nat.conf format gains an optional third column (public port for the peer's UDP 4500) read by `readNATConfig`; `natSetupScript` emits, for such a row, a port SNAT for UDP source port 4500 before the address SNAT and NO DNAT. The rebind step is a checker action in `checkers.go`: it replaces that port SNAT with one to a second public port and deletes the NAT box's UDP conntrack entries (A-8). `docs/architecture/testing/interop.md` documents the column and the step.
 
@@ -1204,7 +1207,7 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 |-------|-------|
 | Artifact | REVIEW-ARTIFACT |
 | `./le spec review check` | REVIEW-CHECK |
-| Rounds | 4 |
+| Rounds | 5 (round 6, owed for the round-5 fixes, needs Thomas) |
 | Reviewer lenses used | logic and wiring, RFC 3948 / RFC 7296 conformance, rebind state machine, security of the endpoint adoption |
 
 ### Findings fixed
@@ -1213,6 +1216,8 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 | 1 | BLOCKER | a rekey after a NAT rebind kept the retired pair's peer address | `rebind.go`, `rekey.go`, `create_child.go` | `5754eac4f4` |
 | 2-7 | ISSUE | round 1 two, round 2 four (address-move handling, log wording, test coverage of the address case) | `rebind.go`, `child.go`, `xfrm_linux.go`, pages | `5754eac4f4` |
 | 8-9 | ISSUE | round 3 two (the rebind log names the installed mode and the fix command) | `rebind.go`, `ipsec-9-ikev2-eap-nat.md` | `25938b3000` |
+| 10 | ISSUE | round 5 (over `9d60c1d841`): the `errChildRekeyTransportDeclined` branch set no rekey hold, so a tunnel-mode peer drew a rekey and a Delete every second | `inbound.go` | the hold `rekeyRefusedWait`, `TestChildRekeyTransportRefusalDeletesThePairAndHolds` (red with the hold line removed); the same gap in the `errChildEncapPort` and `default` branches is journaled (`silent-fall-through.md`) |
+| 11 | ISSUE | round 5: a test comment said the refusal reaches the default branch | `rfc7296_child_rekey_transport_test.go` | comment corrected |
 
 Round 4: 0 BLOCKER, 0 ISSUE, three NOTEs (the "ze defect" refusal in `installChildSA` names no next step; the lost-tunnel row has no configured-remote qualifier; a constant comment says "the peer declined it", which fits only the initiator). The round 1 to 4 findings files were session scratch; their content is summarised here and in `plan/handover/14-ike-eap-rfc-defects-closure.md`.
 

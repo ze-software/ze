@@ -439,9 +439,17 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 					// RFC 7296 Section 1.3.1: "If this is unacceptable to the initiator,
 					// the initiator MUST delete the SA." The peer installed a tunnel-mode
 					// half of the new pair; it is deleted and the old Child SA stays in use.
+					//
+					// The peer's configuration decides this answer, so the next attempt
+					// draws the same one. The soft lifetime and an owed rebind rekey are
+					// level triggers on a one-second tick, so without a hold ze would send
+					// a rekey and a Delete every second; the refusal hold spaces them as
+					// for a peer that refused every proposal (rekeyRefusedWait).
 					ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)
+					wait := rekeyRefusedWait - lifetimeJitter(rekeyRefusedWait)
+					ps.childRekeyRefusedUntil = time.Now().Add(wait)
 					log.Warn("child-sa: rekey response refused, the peer answered a transport-mode rekey in tunnel mode, deleting the new pair",
-						"peer", ps.peerName, "error", err, "fix", childRekeyFixTransport)
+						"peer", ps.peerName, "error", err, "retry-after", wait, "fix", childRekeyFixTransport)
 				case errors.Is(err, errChildEncapPort):
 					// The peer accepted the rekey and installed its half of the new
 					// pair, which this node will not install without a port to
