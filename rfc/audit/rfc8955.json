@@ -12,6 +12,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -173,7 +174,7 @@
       "requirement_sha": "0f57ab4586d8f6b2",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -224,7 +225,7 @@
       "requirement_sha": "be10025decf5c2c3",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -237,7 +238,7 @@
       "requirement_sha": "fc598b483c50d2eb",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -250,7 +251,7 @@
       "requirement_sha": "ede78e78a8974f4c",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
