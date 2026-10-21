@@ -400,6 +400,25 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 				text.Reset().Str("verify-worktree: logs saved to ").Str(logs).String())
 		}
 	}
+	// The failure index follows the certificate to the checkout, and follows
+	// the log save, because a red run's index is rewritten to name the saved
+	// copy of the logs rather than the worktree that is about to be removed.
+	// Commit preparation charges structural reds from this file, so a run
+	// that cannot publish it is defeated like one that cannot publish its
+	// certificate.
+	switch publishErr := verifyengine.PublishFailureIndex(path, root, relativeLogs(root, report.Logs)); {
+	case publishErr == nil:
+		report.Diagnostics = append(report.Diagnostics, text.Reset().
+			Str("verify-worktree: failure index published to ").Str(verifyengine.FailuresJSONPath).String())
+	case errors.Is(publishErr, os.ErrNotExist):
+		report.Diagnostics = append(report.Diagnostics, text.Reset().
+			Str("verify-worktree: no failure index to publish (").Err(publishErr).Byte(')').String())
+	default:
+		report.Code = defeatedCode(report.Code, publishErr)
+		report.Failure = &verifyengine.Failure{Kind: "index-publish", Message: publishErr.Error()}
+		report.Diagnostics = append(report.Diagnostics,
+			text.Reset().Str("verify-worktree: publish failure index failed: ").Err(publishErr).String())
+	}
 	if options.Keep {
 		cleanup = false
 		report.Kept = true
@@ -407,6 +426,22 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 			text.Reset().Str("verify-worktree: kept ").Str(path).String())
 	}
 	return report
+}
+
+// relativeLogs answers the saved-logs directory relative to root, in slash
+// form, or empty when no logs were saved or the directory is not under root.
+func relativeLogs(root, logs string) string {
+	if logs == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(root, logs)
+	if err != nil {
+		return ""
+	}
+	if strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	return filepath.ToSlash(rel)
 }
 
 // admitWorktree claims this lifecycle's slot in the shared job registry.

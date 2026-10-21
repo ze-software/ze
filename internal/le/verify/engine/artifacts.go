@@ -113,6 +113,77 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 	return nil
 }
 
+// PublishFailureIndex copies the failure index a run wrote under source to
+// target, so the checkout that asked for a worktree run reads that run's index.
+// The commit gate charges structural reds from the checkout's index
+// (structuralGateReds in internal/le/commit), and before this copy existed the
+// worktree's index was deleted with the worktree: the 2026-10-18 run went red
+// in lint and the gate charged nothing.
+//
+// logs names, relative to target, where the run's tmp/verify tree now lives
+// (the saved-logs copy of a red worktree run). Every log path in the index is
+// moved from tmp/verify to it, so a reader opens a file that exists. An empty
+// logs keeps the paths as written: a green worktree run saves no logs, and
+// its index points at nothing red. A source with no index answers an error
+// wrapping os.ErrNotExist, which the caller reports and does not charge.
+func PublishFailureIndex(source, target, logs string) error {
+	content, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(FailuresJSONPath))) //nolint:gosec // the path is a verification artifact under the source root
+	if err != nil {
+		return fmt.Errorf("read %s: %w", FailuresJSONPath, err)
+	}
+	var index artifactIndex
+	if err := json.Unmarshal(content, &index); err != nil {
+		return fmt.Errorf("parse %s: %w", FailuresJSONPath, err)
+	}
+	if logs != "" {
+		move := func(path string) string { return movedLogPath(path, logs) }
+		index.RunDir = move(index.RunDir)
+		index.CombinedLog = move(index.CombinedLog)
+		for stageIndex := range index.Stages {
+			stage := &index.Stages[stageIndex]
+			stage.DetailLog = move(stage.DetailLog)
+			for groupIndex := range stage.Groups {
+				stage.Groups[groupIndex].DetailLog = move(stage.Groups[groupIndex].DetailLog)
+			}
+		}
+	}
+	data, err := json.MarshalIndent(index, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal verify failure index: %w", err)
+	}
+	data = append(data, '\n')
+	if err := atomicWrite(target, FailuresJSONPath, data); err != nil {
+		return fmt.Errorf("publish %s: %w", FailuresJSONPath, err)
+	}
+	if err := atomicWrite(target, FailuresLogPath, []byte(failureIndexText(index))); err != nil {
+		return fmt.Errorf("publish %s: %w", FailuresLogPath, err)
+	}
+	if index.Mode == Mode {
+		if err := atomicWrite(target, FullJSONPath, data); err != nil {
+			return fmt.Errorf("publish %s: %w", FullJSONPath, err)
+		}
+	}
+	return nil
+}
+
+// movedLogPath answers path with its tmp/verify prefix replaced by logs, and
+// path unchanged when it does not lie under tmp/verify (a stage that declared
+// a detail log elsewhere).
+func movedLogPath(path, logs string) string {
+	const runLogs = "tmp/verify"
+	rest, found := strings.CutPrefix(path, runLogs)
+	if !found {
+		return path
+	}
+	if rest == "" {
+		return logs
+	}
+	if rest[0] != '/' {
+		return path
+	}
+	return logs + rest
+}
+
 // DeclaredGroups reads back the failure groups one stage log declares, and
 // reports whether the declaration is COMPLETE: the log carries exactly one
 // count marker and that count matches the groups read.

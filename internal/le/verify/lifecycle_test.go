@@ -14,6 +14,7 @@ package verify
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -886,5 +887,98 @@ func TestACutRunPublishesItsPieceAndNeverAWholeVerification(t *testing.T) {
 	}
 	if freshness := verifyengine.CheckCertificate(repo.root, []string{"tracked.txt"}); freshness.Fresh {
 		t.Fatalf("one piece reads as a whole verification: %#v", freshness)
+	}
+}
+
+// TestAWorktreeRunPublishesItsFailureIndex proves the checkout's failure index
+// is the worktree run's own, for a red run and for a green one.
+//
+// Before this the worktree wrote its index under the throwaway tree and nothing
+// copied it, so commit preparation read whatever an in-place run left at the
+// checkout, or nothing: the 2026-10-18 worktree run went red in lint, a
+// structural stage, and structuralGateReds charged nothing. On a red run the
+// index names the saved-logs copy, because the worktree paths it was written
+// with are deleted with the worktree.
+func TestAWorktreeRunPublishesItsFailureIndex(t *testing.T) {
+	repo := newFixtureRepo(t)
+
+	red := Run(context.Background(), repo.root, Options{}, failingRunner())
+	if red.Code != 1 || red.Logs == "" {
+		t.Fatalf("red run = %#v", red)
+	}
+	index := readPublishedIndex(t, repo.root)
+	if index.ExitCode != 1 || index.Mode != verifyengine.Mode {
+		t.Fatalf("published index = %#v, want the red full run", index)
+	}
+	savedPrefix := "tmp/verify-worktree-logs/" + filepath.Base(red.Worktree) + "/"
+	if !strings.HasPrefix(index.RunDir, savedPrefix) {
+		t.Fatalf("run-dir %q does not name the saved logs under %s", index.RunDir, savedPrefix)
+	}
+	mustExistUnder(t, repo.root, index.RunDir)
+	reds := 0
+	for _, stage := range index.Stages {
+		if !strings.HasPrefix(stage.DetailLog, savedPrefix) {
+			t.Fatalf("stage %s detail-log %q is not under the saved logs", stage.Stage, stage.DetailLog)
+		}
+		mustExistUnder(t, repo.root, stage.DetailLog)
+		if stage.ExitCode != 0 {
+			reds++
+		}
+		for _, group := range stage.Groups {
+			mustExistUnder(t, repo.root, group.DetailLog)
+		}
+	}
+	if reds != 1 {
+		t.Fatalf("published index holds %d red stages, want the one the runner failed", reds)
+	}
+	text, err := os.ReadFile(filepath.Join(repo.root, filepath.FromSlash(verifyengine.FailuresLogPath)))
+	if err != nil || !strings.Contains(string(text), savedPrefix) {
+		t.Fatalf("failure log at the checkout does not name the saved logs (%v): %s", err, text)
+	}
+	if !strings.Contains(red.Text(), "verify-worktree: failure index published to "+verifyengine.FailuresJSONPath) {
+		t.Fatalf("the run does not say it published its index: %s", red.Text())
+	}
+
+	green := Run(context.Background(), repo.root, Options{}, passingRunner)
+	if green.Code != 0 {
+		t.Fatalf("green run = %#v", green)
+	}
+	index = readPublishedIndex(t, repo.root)
+	if index.ExitCode != 0 {
+		t.Fatalf("after a green run the checkout's index still reads exit %d", index.ExitCode)
+	}
+}
+
+type publishedIndex struct {
+	Mode     string `json:"mode"`
+	ExitCode int    `json:"exit-code"`
+	RunDir   string `json:"run-dir"`
+	Stages   []struct {
+		Stage     string `json:"stage"`
+		ExitCode  int    `json:"exit-code"`
+		DetailLog string `json:"detail-log"`
+		Groups    []struct {
+			DetailLog string `json:"detail-log"`
+		} `json:"groups"`
+	} `json:"stages"`
+}
+
+func readPublishedIndex(t *testing.T, root string) publishedIndex {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(verifyengine.FailuresJSONPath)))
+	if err != nil {
+		t.Fatalf("the checkout holds no failure index: %v", err)
+	}
+	var index publishedIndex
+	if err := json.Unmarshal(data, &index); err != nil {
+		t.Fatalf("parse published index: %v", err)
+	}
+	return index
+}
+
+func mustExistUnder(t *testing.T, root, rel string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+		t.Fatalf("published path %s does not exist at the checkout: %v", rel, err)
 	}
 }
