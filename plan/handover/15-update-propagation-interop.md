@@ -43,7 +43,12 @@ behind `if false &&` (D2), `ValidateNLRI` failure answering `Keep` in
 | Review note: RFC 7999 policy-added BLACKHOLE | a25881cc5e: journal row only (`guard-added-to-one-half-of-a-pair.md`); the fix needs the destination at the COMMUNITY AttrModHandler |
 | Audit | 399ee383e1: independent rejudge of MUP 3.1.3.1-6, -7, -10 (enforced); a second rejudge is owed after 897ac54217 renamed a field the tagged unit reads |
 | Closure review round 1 | 1 BLOCKER, 2 ISSUE: held generations could grow an UPDATE past 65535; 2 allocs per refresh; hold lost on a GR reconnect. All three fixed in 897ac54217 (withdraw bodies sized to the limit, visitors bound once, hold on the Peer with RFC 4724 lifetime). Round 2 runs next |
-| Interop trees | `scratch/iopg2` (HEAD 897ac54217, only the five scenarios) and `scratch/iopr2` (five `RED-TREE` mutations as listed below) under this session's scratch; one boot runs all five with no selector. Logs `scratch/interop-green2.log`, `scratch/interop-red2.log` |
+| Review rounds 2 to 3 | round 2: 2 ISSUE (same-UPDATE announce and withdraw, RFC 4271 Section 4.3; no wiring test), fixed in 2b6976ddd2; round 3: 0 BLOCKER, 0 ISSUE. Artifact recorded, `./le spec review check` OK. Round 4 runs over 0bd7a50667 and 05ea9ac55d |
+| D4 cause | 0bd7a50667: the injector's KEEPALIVE expects closed its session when Ze sent the RS-Client its static route (`le test peer` mismatch); `option=linger`. Ze has no defect |
+| D2 cannot go red at GoBGP | GoBGP removes LARGE_COMMUNITY repeats on receipt (RFC 8092 Section 3), so the red run passed. 05ea9ac55d adds the native speaker with oracle `no-repeated-large-community` |
+| Red run at 897ac54217 trees | D1 red (assertion 3, route never at GoBGP), D2 pass (the reason above), D3 red (assertion 4), D4 red (assertion 4, its own), D5 red (assertion 5, its own) |
+| Final runs | `scratch/iopg4` and `scratch/iopr4` at 05ea9ac55d; logs `interop-green4.log`, `interop-red4.log`. Closure (commit A and B, `./le verify worktree`) follows them |
+| Interop trees (older) | `scratch/iopg2` (HEAD 897ac54217, only the five scenarios) and `scratch/iopr2` (five `RED-TREE` mutations as listed below) under this session's scratch; one boot runs all five with no selector. Logs `scratch/interop-green2.log`, `scratch/interop-red2.log` |
 | R-1 benchmark (indicative, loaded machine) | `BenchmarkWriteUpdateBodyEgressWalk` 9 allocs/op in every case both before D1 (020457d0f7^) and after: the walk adds none, the 9 are the writer's own. ns/op noisy (a foreign verify ran); the owner's quiet run is still owed |
 
 ## Outstanding, in order
