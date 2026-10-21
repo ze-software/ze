@@ -2361,3 +2361,55 @@ Still owed:
   `rib_flowspec_validation_test.go` (15c484a543's refactor). Not approved here.
 - Gates: `./le verify worktree` over 27edca2c3f..4cf6dd6152 (debt rows in
   `plan/verification-debt/8675d4bc.md`), and `./le test functional parse`.
+
+## 2026-10-21 fsr4 agent: redirect-check functional proof landed, interop owed (budget)
+
+Landed: da23dcee89, BLOCKER 2a functional half.
+- `test/plugin/flowspec-redirect-check-refused.ci`: two ze-peers (conn_map,
+  127.0.0.1 AS 65002 source, 127.0.0.2 AS 65003 receiver, both `rs-client`),
+  bgp-rib + bgp-rs + bgp-adj-rib-in. Source sends 192.0.2.0/24 AS_PATH
+  65002 65009, then the rule (dest 192.0.2.0/24, 0x0800, NH 192.0.2.77). The
+  receiver gets the rule exactly `...0032 02 0000001B 800E0B0001850000050118C00002
+  40010100 40020602010000FDEA` (NH length 0, no EXT_COMMUNITY). Green 3 of 3.
+  Red under the `refusedoff` overlay (`flowSpecRedirectRefused` returns false):
+  the receiver got `800E0F00018504C000024D...` with the community.
+- `test/plugin/flowspec-redirect-check-disabled.ci`: same with
+  `flowspec-redirect-check { enabled false }` on the source. The receiver gets
+  NH 192.0.2.77 and C010080800000000000000 (exact hex). Green 2 of 2. Red under
+  `switchignored` (`parseFlowSpecRedirectConfig` stores every peer enabled).
+- Overlay sources were under the parent session's scratch `ov/` (not
+  portable): each is a one-line edit of
+  `internal/component/bgp/plugins/rib/rib_flowspec_redirect.go`, the final
+  `return` of `flowSpecRedirectRefused` made `false && (...)`, and
+  `cfg.peers[key] = enabled` made `enabled || true`. The plugin runner honours
+  `GOFLAGS=-overlay=...` (it rebuilt ze, "building... ready").
+- Found while writing it, and why seq 3 is loose: the route server sends the
+  rule twice, live and again on the RIB's ValidationChange (every new path is
+  a change, `emitFlowSpecChanges`). The live copy is a WITHDRAWAL when the
+  forward gate asks before the RIB has judged that UPDATE, otherwise a
+  duplicate announcement. Seq 3 matches either by NLRI, seq 4 is exact.
+- `.ci` mechanics learned: a conn_map peer serves connections IN TURN and only
+  moves to the next one after the current connection's last EXPECTATION is
+  met, so sends go first on conn 1 and ze's End-of-RIB expect last; seq numbers
+  are global across conns; the daemon must be stopped (`action=sigterm`) because
+  the batch waits for the daemon to close every connection.
+
+Still owed:
+- BLOCKER 2b interop, not started. Finding that changes the brief: neither FRR
+  (receive-only FlowSpec) nor GoBGP (its redirect actions are the 0x8008 /
+  0x8108 / 0x8208 route-target forms, not draft-simpson 0x0800; confirm in
+  GoBGP source before relying on it) can ORIGINATE a 0x0800 redirect-to-IP
+  rule. Proposed shape, modelled on `test/interop/scenarios/bgp-flowspec-gobgp`:
+  the raw injector (`inject.msg`, `inject-args --asn 65004`) sends the
+  other-AS cover and the rule to ze; ze relays to FRR (which decodes 0x0800 as
+  redirect IP NH), and the checker in `internal/le/interoplab/bgp` requires the
+  rule in `show bgp ipv4 flowspec detail json` with no redirect action. Name it
+  e.g. `bgp-flowspec-redirect-check-frr`; register via a
+  `register_<name>.go` init into `specialCheckers` or the op table
+  (`checkers.go`), never a new central case. Note `helper.go` already holds a
+  per-scenario `switch` (pre-existing). Red with the `refusedoff` overlay
+  through the QEMU docker-lab recipe above; inventory row in
+  `docs/architecture/testing/interop.md`. The owner may prefer an ExaBGP
+  sender instead of the injector: ask only if the injector shape is refused.
+- Gates for da23dcee89: `./le test functional plugin` (debt row in
+  `plan/verification-debt/de91e90f.md`).
