@@ -4,6 +4,31 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-21 evening: AC-19 purge defect fixed, review round 7 owed
+
+- `2624ccf8bf` fixes the bgp-rib defect behind the AC-19 flake (journal row
+  in `negotiated-family-lost-at-retention-boundary.md`, now `fixed:`). Cause,
+  read at the producer: bgp-rib runs commands and events on different
+  goroutines, so A's forward to C can sit in the event channel while
+  purge-stale or release-routes runs; the removal finds no A entry at C and the
+  late projection keeps A there. Fix: `sourceApplied` fence per source, and
+  `projectForwardedWriteLocked` for a forwarded write whose received message a
+  lifecycle removal followed. Spec Design Insights, last entry, has the reds.
+- STOPPED HERE: this is production code and needs independent review round 7,
+  which is Thomas's decision (six rounds used). Nothing after it was started:
+  AC-9 (ADD-PATH live fixture), the AC-10 change and discrimination re-record
+  of `TestRFC8654FatalLengthReelectsAlternateBest`, then 3b, 3a (AC-6, AC-18),
+  4, 5, 6 all remain as listed below.
+- HELD, uncommitted in the working tree: the R-12 paragraph of
+  `docs/architecture/plugin/rib-storage-design.md` that describes the
+  forwarded-write check. The same file carries another session's RR hunk
+  (spec-bgp-update-propagation-rfc-defects) whose `source:` names
+  `rr.go` `sendPeerDown, recoverRouteSel`, absent from HEAD, so the file cannot
+  be committed until that RR work lands. Commit the page right after it does.
+- Live reproduction note: the flake showed 2 of 12 only while another lab job
+  loaded the Mac, and 0 of 56 with stderr probes; the deterministic red is the
+  unit test.
+
 ## Landed 2026-10-21 (package d, tests only)
 
 `TestOwedKeyPurgeBetweenLookupAndAdmission` and `TestOwedKeyLookupChunked` in
@@ -56,12 +81,9 @@ spec is still `design`, no `rpc.ReasonNotification` in the tree), so the Phase
   owed, and it is the SIXTH implementation round of this spec. Thomas
   authorised it ("round 6", relayed by the main session); it came back
   0 BLOCKER, 0 ISSUE. A seventh round needs Thomas again.
-- NEXT (blocks AC-19): `TestOwedKeyGRPurgeRecoversSurvivor` (landed, about
-  1 in 16 red in end-of-rib/survivor) hits the open row in
-  `plan/journal/negotiated-family-lost-at-retention-boundary.md`: fix the
-  producer (R-12's path-presence check extended to forwarded sent events,
-  `plugins/rib/`), then `-count=20` green and a discrimination red. Spec
-  Design Insights, last entry, has the detail.
+- DONE in `2624ccf8bf` (see the STATE section at the top): the AC-19 flake's
+  producer defect. `TestOwedKeyGRPurgeRecoversSurvivor` is green
+  `-race -count=20`; its review is round 7.
 - Phase 3 rows landed since: AC-14 `TestRSOwnerSynthesizedWithdrawalRecovers`
   (`a740edfa20`), AC-12 `TestOwedKeyRealRIBConvergence` (`2affaf0809`). Still
   owed in Phase 3 (the property test landed in `bb50dfc36f`): AC-19
