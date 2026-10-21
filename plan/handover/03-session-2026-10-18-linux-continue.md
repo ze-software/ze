@@ -2014,3 +2014,23 @@ Owed before commit B, in order:
    RFC8956-5-1 once the FlowSpec agent commits `rib_flowspec_validation_test.go` (reseal).
 3. Fresh round-2 `/ze-review`, `./le spec review record ... verdict CLEAN rounds 2`, then commit B
    (`remove plan/pre-release/spec-rfc-verdict-fix-bgp.md`) and `./le spec release`.
+
+### ExaBGP 6 FlowSpec part B (2026-10-21, Mac)
+
+Spec `plan/immediate/spec-exabgp-6-api-compatibility.md`. Committed:
+
+- `3cc1e2a56a`: `update text` redirect-to-nexthop and copy-to-nexthop take an address. One
+  table, `attribute.ParseFlowSpecRedirectToIP`; an IPv6 target goes in attribute 25 through
+  `Builder.AddIPv6ExtendedCommunity`.
+- `068f67cee0`: the ExaBGP bridge's flow redirect and copy follow the 6.0 grammar.
+
+Owed:
+1. An API compat case under `test/exabgp-compat/api/` for the 6.0 redirect/copy forms, green on
+   ze and on the pin, red on ze with the bridge mapping removed.
+2. Lint over attribute, route, config, `cmd update` and the bridge.
+3. `./le rfc check`.
+4. The functional flowspec plugin cases.
+5. Config package redistribute/ospf tests fail "unknown top-level keyword: ospf" (likely a
+   missing build tag); not yet investigated.
+6. Watchdog: `internal/component/bgp/plugins/watchdog/config.go` ignores a parse error on
+   extended-community (silent fall-through); fix with a refusal (M4) or journal it.
