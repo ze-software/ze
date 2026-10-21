@@ -17,6 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // maxUpdateBody is the largest complete UPDATE body on the wire.
@@ -825,6 +828,19 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 //	at most ONE MP_UNREACH_NLRI (code 15, optional, non-transitive):
 //	  AFI(2) SAFI(1), then the source MP_UNREACH NLRI, then the source MP_REACH NLRI
 //
+// The two MP halves are copied as they are for every family whose
+// announcement and withdrawal share one framing. A labeled family (SAFI 4,
+// SAFI 128) announces a label stack where its withdrawal carries the one
+// Compatibility field, so both halves go through the family's
+// nlrisplit.WithdrawalWriter under the SOURCE's ADD-PATH state, read from
+// source, the source's receive context: the MP_REACH half announcement framed,
+// the MP_UNREACH half withdrawal framed. RFC 8277 Section 2.4: "Upon
+// transmission, the Compatibility field SHOULD be set to 0x800000." A copied
+// stack of two or more labels would make a receiver that frames the withdrawal
+// per Section 2.4 read the extra labels as prefix bits. A nil source answers 0
+// for a labeled family, because its ADD-PATH framing is then unknown; for any
+// other family source is never read.
+//
 // RFC 7606 Section 3(g): "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
 // [RFC4760] attribute appears more than once in the UPDATE message, then a
 // NOTIFICATION message MUST be sent". So the two MP halves share one attribute,
@@ -836,17 +852,20 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // AFI/SAFI only, which is the RFC 4724 End-of-RIB marker.
 //
 // The result is written into buf, which MUST hold len(payload)+4 octets: the
-// result drops every attribute but one MP_UNREACH_NLRI header, so it is never
-// longer than the source plus one extended attribute header. Allocation-free.
+// result drops every attribute but one MP_UNREACH_NLRI header, and a labeled
+// conversion only shrinks the halves, so it is never longer than the source
+// plus one extended attribute header. Allocation-free.
 //
 // Returns the octets written, or 0 if the payload is malformed, withdraws
-// nothing once converted, is the two-family shape above, or buf is too small.
-func buildWithdrawalPayload(payload, buf []byte) int {
+// nothing once converted, is the two-family shape above, carries a labeled
+// NLRI the writer refuses or a labeled family with a nil source, or buf is
+// too small.
+func buildWithdrawalPayload(payload, buf []byte, source *bgpctx.EncodingContext) int {
 	withdrawn, announced, mp, ok := withdrawalLayout(payload)
 	if !ok {
 		return 0
 	}
-	return writeWithdrawal(buf, withdrawn, announced, mp)
+	return writeWithdrawal(buf, withdrawn, announced, mp, source)
 }
 
 // withdrawalLayout finds what buildWithdrawalPayload withdraws: the legacy
@@ -949,7 +968,7 @@ func (w *fwdWithdrawal) of(update *ReceivedUpdate, base *wireu.WireUpdate) *wire
 		returnReadBuffer(h)
 		h = bufMuxExt.Get()
 	}
-	n := buildWithdrawalPayload(payload, h.Buf)
+	n := buildWithdrawalPayload(payload, h.Buf, bgpctx.Registry.Get(base.SourceCtxID()))
 	if n == 0 {
 		returnReadBuffer(h)
 		return nil
@@ -1074,25 +1093,33 @@ func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
 }
 
 // writeWithdrawal writes the withdrawal buildWithdrawalPayload lays out into
-// buf and returns the bytes written, or 0 when buf is too small or the
-// MP_UNREACH_NLRI value would exceed the uint16 attribute length. The caller
-// bounds len(withdrawn)+len(announced) to 65535.
-func writeWithdrawal(buf, withdrawn, announced []byte, mp withdrawalMPHalves) int {
+// buf and returns the bytes written, or 0 when buf is too small, the
+// MP_UNREACH_NLRI value would exceed the uint16 attribute length, or a
+// labeled half cannot be converted. The caller bounds
+// len(withdrawn)+len(announced) to 65535.
+//
+// The header size and the need check come from the UNCONVERTED halves, a bound
+// the converted value never exceeds, so no sizing walk runs; both length
+// fields are written last from the octets actually written. For a family with
+// no writer the two are equal and every byte is the copy's. A bound above 255
+// over a converted value under 256 keeps the Extended Length header: RFC 4271
+// Section 4.3 defines the bit as "whether the Attribute Length is one octet
+// (if set to 0) or two octets (if set to 1)", and requires neither form.
+func writeWithdrawal(buf, withdrawn, announced []byte, mp withdrawalMPHalves, source *bgpctx.EncodingContext) int {
 	legacyLen := len(withdrawn) + len(announced)
-	mpValLen := 0
+	mpValBound := 0
 	attrHdrLen := 0
 	if mp.afiSAFI != nil {
-		mpValLen = 3 + len(mp.unreach) + len(mp.reach)
-		if mpValLen > 65535 {
+		mpValBound = 3 + len(mp.unreach) + len(mp.reach)
+		if mpValBound > 65535 {
 			return 0
 		}
 		attrHdrLen = 3
-		if mpValLen > 255 {
+		if mpValBound > 255 {
 			attrHdrLen = 4
 		}
 	}
-	attrTotalLen := attrHdrLen + mpValLen
-	need := 2 + legacyLen + 2 + attrTotalLen
+	need := 2 + legacyLen + 2 + attrHdrLen + mpValBound
 	if len(buf) < need {
 		return 0
 	}
@@ -1101,24 +1128,62 @@ func writeWithdrawal(buf, withdrawn, announced []byte, mp withdrawalMPHalves) in
 	w := 2
 	w += copy(buf[w:], withdrawn)
 	w += copy(buf[w:], announced)
-	binary.BigEndian.PutUint16(buf[w:w+2], uint16(attrTotalLen)) //nolint:gosec // G115: bounded by the 65535 check above
+	attrLenAt := w
 	w += 2
 	if mp.afiSAFI == nil {
+		binary.BigEndian.PutUint16(buf[attrLenAt:attrLenAt+2], 0)
 		return w
 	}
-	buf[w+1] = uint8(attribute.AttrMPUnreachNLRI)
-	if attrHdrLen == 4 {
-		buf[w] = 0x90                                              // Optional, Extended Length.
-		binary.BigEndian.PutUint16(buf[w+2:w+4], uint16(mpValLen)) //nolint:gosec // G115: bounded above
-	} else {
-		buf[w] = 0x80 // Optional.
-		buf[w+2] = byte(mpValLen)
-	}
+	attrAt := w
 	w += attrHdrLen
+	valueAt := w
 	w += copy(buf[w:], mp.afiSAFI)
-	w += copy(buf[w:], mp.unreach)
-	w += copy(buf[w:], mp.reach)
+	n := writeWithdrawalHalves(buf[w:need], mp, source)
+	if n < 0 {
+		return 0
+	}
+	w += n
+
+	mpValLen := w - valueAt
+	binary.BigEndian.PutUint16(buf[attrLenAt:attrLenAt+2], uint16(attrHdrLen+mpValLen)) //nolint:gosec // G115: at most the 65535 bound above
+	buf[attrAt+1] = uint8(attribute.AttrMPUnreachNLRI)
+	if attrHdrLen == 4 {
+		buf[attrAt] = 0x90                                                   // Optional, Extended Length.
+		binary.BigEndian.PutUint16(buf[attrAt+2:attrAt+4], uint16(mpValLen)) //nolint:gosec // G115: bounded above
+	} else {
+		buf[attrAt] = 0x80 // Optional.
+		buf[attrAt+2] = byte(mpValLen)
+	}
 	return w
+}
+
+// writeWithdrawalHalves writes the source MP_UNREACH NLRI, then the source
+// MP_REACH NLRI, into dst in withdrawal framing, and returns the octets
+// written, or -1 when a labeled half cannot be converted. dst holds at least
+// both halves unconverted.
+func writeWithdrawalHalves(dst []byte, mp withdrawalMPHalves, source *bgpctx.EncodingContext) int {
+	fam := family.Family{AFI: family.AFI(binary.BigEndian.Uint16(mp.afiSAFI)), SAFI: family.SAFI(mp.afiSAFI[2])}
+	writer := nlrisplit.GetWithdrawalWriter(fam)
+	if writer == nil {
+		w := copy(dst, mp.unreach)
+		return w + copy(dst[w:], mp.reach)
+	}
+	// The ADD-PATH state is the source's receive state: a nil context cannot
+	// say whether each NLRI leads with a path identifier, and EncodingContext's
+	// nil answer of false would frame an identifier as a prefix.
+	if source == nil {
+		return -1
+	}
+	addPath := source.AddPath(fam)
+	w, err := writer(dst, mp.unreach, addPath, true)
+	if err != nil {
+		return -1
+	}
+	n, err := writer(dst[w:], mp.reach, addPath, false)
+	if err != nil {
+		return -1
+	}
+	return w + n
 }
 
 // safeAttrModHandler runs an AttrModHandler with panic recovery.

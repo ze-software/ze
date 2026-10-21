@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"slices"
 	"testing"
 
@@ -9,6 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // buildModTestPayload constructs a minimal UPDATE payload for testing:
@@ -825,4 +830,227 @@ func TestBuildWithdrawalPayload_Nil(t *testing.T) {
 	assert.Nil(t, r)
 	r = withdrawalOf([]byte{0, 0, 0}) // too short for attr_len
 	assert.Nil(t, r)
+}
+
+// labeledWithdrawFamily is one labeled family the forward rail converts,
+// with the next hop its MP_REACH_NLRI carries and the RD its NLRIs carry.
+type labeledWithdrawFamily struct {
+	fam     family.Family
+	nextHop []byte
+	rd      []byte
+}
+
+var labeledWithdrawFamilies = []labeledWithdrawFamily{
+	{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}, []byte{192, 0, 2, 1}, nil},
+	{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel}, make([]byte, 16), nil},
+	{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, append(make([]byte, 8), 192, 0, 2, 1), []byte{0, 0, 0xfd, 0xe8, 0, 0, 0, 1}},
+	{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}, make([]byte, 24), []byte{0, 0, 0xfd, 0xe8, 0, 0, 0, 1}},
+}
+
+// labeledAnnounce is one announced labeled NLRI: [id?][length][labels][rd][prefix].
+func labeledAnnounce(id []byte, labels int, rd []byte, bits int, prefix []byte) []byte {
+	out := append([]byte(nil), id...)
+	out = append(out, byte(24*labels+8*len(rd)+bits))
+	for i := range labels {
+		s := byte(0)
+		if i == labels-1 {
+			s = 1
+		}
+		out = append(out, 0x00, byte(0x10+i), 0x40|s)
+	}
+	out = append(out, rd...)
+	return append(out, prefix...)
+}
+
+// labeledWithdrawn is one withdrawn labeled NLRI carrying compat in its one
+// Compatibility field: [id?][length][compat(3)][rd][prefix].
+func labeledWithdrawn(id []byte, compat uint32, rd []byte, bits int, prefix []byte) []byte {
+	out := append([]byte(nil), id...)
+	out = append(out, byte(24+8*len(rd)+bits), byte(compat>>16), byte(compat>>8), byte(compat))
+	out = append(out, rd...)
+	return append(out, prefix...)
+}
+
+// labeledMPAttr builds a path attribute of code with an extended header when value
+// needs one.
+func labeledMPAttr(code byte, value []byte) []byte {
+	if len(value) > 255 {
+		out := []byte{0x90, code, byte(len(value) >> 8), byte(len(value))}
+		return append(out, value...)
+	}
+	return append([]byte{0x80, code, byte(len(value))}, value...)
+}
+
+// labeledWithdrawPayload is an UPDATE payload carrying ORIGIN, an MP_REACH_NLRI
+// of fam with reach, and, when unreach is non-nil, an MP_UNREACH_NLRI of fam.
+func labeledWithdrawPayload(fam labeledWithdrawFamily, reach, unreach []byte) []byte {
+	afiSAFI := []byte{byte(fam.fam.AFI >> 8), byte(fam.fam.AFI), byte(fam.fam.SAFI)}
+	attrs := makeAttr(0x40, 1, []byte{0x00})
+	value := append(append([]byte(nil), afiSAFI...), byte(len(fam.nextHop)))
+	value = append(value, fam.nextHop...)
+	value = append(value, 0)
+	attrs = append(attrs, labeledMPAttr(14, append(value, reach...))...)
+	if unreach != nil {
+		attrs = append(attrs, labeledMPAttr(15, append(append([]byte(nil), afiSAFI...), unreach...))...)
+	}
+	return buildModTestPayload(attrs, nil)
+}
+
+// wantWithdrawal is the withdrawal payload carrying one MP_UNREACH_NLRI of
+// afiSAFI and nlri under a header of hdr octets.
+func wantWithdrawal(afiSAFI, nlri []byte, hdr int) []byte {
+	value := append(append([]byte(nil), afiSAFI...), nlri...)
+	attr := []byte{0x80, 15, byte(len(value))}
+	if hdr == 4 {
+		attr = []byte{0x90, 15, byte(len(value) >> 8), byte(len(value))}
+	}
+	attr = append(attr, value...)
+	out := []byte{0, 0, byte(len(attr) >> 8), byte(len(attr))}
+	return append(out, attr...)
+}
+
+// TestFwdWithdrawalLabelledCompatibility checks the withdrawal the forward rail
+// sends a withheld destination for a labeled route (AC-27). Goal: the route A
+// announced with a three-label stack is withdrawn with the one RFC 8277
+// Section 2.4 Compatibility field 0x800000, its length octet 48 bits lower and
+// its host bits cleared, never with A's stack, while a unicast withdrawal stays
+// byte for byte what it was. Method: run buildWithdrawalPayload over SAFI 4
+// and SAFI 128 payloads, with and without the source's ADD-PATH, and compare
+// the whole result as bytes built by hand here, then cover the backfilled
+// extended header, a nil source context, refusal, the buffer bound and
+// allocation.
+func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
+	for _, lf := range labeledWithdrawFamilies {
+		afiSAFI := []byte{byte(lf.fam.AFI >> 8), byte(lf.fam.AFI), byte(lf.fam.SAFI)}
+		for _, addPath := range []bool{false, true} {
+			name := lf.fam.String()
+			var idA, idB, idC []byte
+			if addPath {
+				name += "/add-path"
+				idA, idB, idC = []byte{0, 0, 0, 1}, []byte{0, 0, 0, 2}, []byte{0, 0, 0, 3}
+			}
+			t.Run(name, func(t *testing.T) {
+				caps := &capability.EncodingCaps{}
+				if addPath {
+					caps.AddPathMode = map[family.Family]capability.AddPathMode{lf.fam: capability.AddPathBoth}
+				}
+				source := bgpctx.NewEncodingContext(nil, caps, bgpctx.DirectionRecv)
+				// A re-announces 10.1.4.0/22 with three labels and host bits
+				// set in its last octet, announces 10.2.3.0/24 with one label,
+				// and already withdraws 10.9.0.0/16 with a Compatibility field
+				// other than 0x800000.
+				reach := append(labeledAnnounce(idA, 3, lf.rd, 22, []byte{10, 1, 7}),
+					labeledAnnounce(idB, 1, lf.rd, 24, []byte{10, 2, 3})...)
+				unreach := labeledWithdrawn(idC, 0x123456, lf.rd, 16, []byte{10, 9})
+				payload := labeledWithdrawPayload(lf, reach, unreach)
+
+				nlri := labeledWithdrawn(idC, 0x800000, lf.rd, 16, []byte{10, 9})
+				nlri = append(nlri, labeledWithdrawn(idA, 0x800000, lf.rd, 22, []byte{10, 1, 4})...)
+				nlri = append(nlri, labeledWithdrawn(idB, 0x800000, lf.rd, 24, []byte{10, 2, 3})...)
+				want := wantWithdrawal(afiSAFI, nlri, 3)
+
+				buf := make([]byte, len(payload)+4)
+				n := buildWithdrawalPayload(payload, buf, source)
+				require.NotZero(t, n, "labeled payload refused")
+				assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:n]))
+
+				// The bytes after the identifier are the per-key inverse's for
+				// the same route, so the owe and bgp-rib's sent identity agree.
+				head := len(idA)
+				scratch := make([]byte, nlrisplit.PrefixKeyScratchSize)
+				key, err := nlrisplit.GetPrefixKey(lf.fam)(reach[head:head+1+9+len(lf.rd)+3], scratch, false)
+				require.NoError(t, err)
+				one := make([]byte, len(key)+3)
+				k, err := nlrisplit.WithdrawalNLRIFromKey(lf.fam, key, one)
+				require.NoError(t, err)
+				assert.Equal(t, labeledWithdrawn(nil, 0x800000, lf.rd, 22, []byte{10, 1, 4}), one[:k])
+
+				assert.Zero(t, buildWithdrawalPayload(payload, buf, nil), "a nil source context frames a labeled family")
+
+				allocs := testing.AllocsPerRun(100, func() {
+					buildWithdrawalPayload(payload, buf, source)
+				})
+				assert.Zero(t, allocs, "buildWithdrawalPayload allocates")
+			})
+		}
+	}
+
+	t.Run("extended header backfilled under 256", func(t *testing.T) {
+		lf := labeledWithdrawFamilies[2] // IPv4 VPN.
+		var reach, nlri []byte
+		for i := range 13 {
+			reach = append(reach, labeledAnnounce(nil, 3, lf.rd, 24, []byte{10, 3, byte(i)})...)
+			nlri = append(nlri, labeledWithdrawn(nil, 0x800000, lf.rd, 24, []byte{10, 3, byte(i)})...)
+		}
+		payload := labeledWithdrawPayload(lf, reach, nil)
+		require.Greater(t, 3+len(reach), 255, "guard: the unconverted value needs the extended header")
+		require.Less(t, 3+len(nlri), 256, "guard: the converted value fits one octet")
+		buf := make([]byte, len(payload)+4)
+		n := buildWithdrawalPayload(payload, buf, bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv))
+		want := wantWithdrawal([]byte{0, 1, 128}, nlri, 4)
+		assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:n]))
+	})
+
+	t.Run("unicast unchanged", func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			afiSAFI []byte
+			nh      []byte
+			entry   func(i int) []byte
+			count   int
+		}{
+			{"ipv4", []byte{0, 1, 1}, []byte{192, 0, 2, 1}, func(i int) []byte { return []byte{24, 10, 4, byte(i)} }, 3},
+			{"ipv4 extended", []byte{0, 1, 1}, []byte{192, 0, 2, 1}, func(i int) []byte { return []byte{24, 10, 4, byte(i)} }, 80},
+			{"ipv6", []byte{0, 2, 1}, make([]byte, 16), func(i int) []byte { return []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0, byte(i)} }, 3},
+			{"ipv6 extended", []byte{0, 2, 1}, make([]byte, 16), func(i int) []byte { return []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0, byte(i)} }, 50},
+		} {
+			var reach []byte
+			for i := range tc.count {
+				reach = append(reach, tc.entry(i)...)
+			}
+			value := append(append([]byte(nil), tc.afiSAFI...), byte(len(tc.nh)))
+			value = append(append(value, tc.nh...), 0)
+			attrs := append(makeAttr(0x40, 1, []byte{0x00}), labeledMPAttr(14, append(value, reach...))...)
+			payload := buildModTestPayload(attrs, nil)
+			hdr := 3
+			if 3+len(reach) > 255 {
+				hdr = 4
+			}
+			want := wantWithdrawal(tc.afiSAFI, reach, hdr)
+			buf := make([]byte, len(payload)+4)
+			n := buildWithdrawalPayload(payload, buf, nil)
+			assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:n]), tc.name)
+			assert.LessOrEqual(t, n, len(payload)+4, tc.name)
+		}
+	})
+
+	t.Run("malformed labeled NLRI refused", func(t *testing.T) {
+		lf := labeledWithdrawFamilies[0]
+		// A two-entry stack with no bottom-of-stack bit.
+		reach := []byte{56, 0, 0x10, 0x40, 0, 0x11, 0x40, 10}
+		payload := labeledWithdrawPayload(lf, reach, nil)
+		buf := make([]byte, len(payload)+4)
+		assert.Zero(t, buildWithdrawalPayload(payload, buf, bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv)))
+	})
+}
+
+// BenchmarkBuildWithdrawalPayloadLabelled measures the forward rail's
+// conversion of a SAFI 128 MP_REACH_NLRI of 100 three-label NLRIs. Goal: the
+// labeled conversion stays allocation-free on the per-UPDATE path; 0
+// allocs/op is the pinned figure.
+func BenchmarkBuildWithdrawalPayloadLabelled(b *testing.B) {
+	lf := labeledWithdrawFamilies[2]
+	var reach []byte
+	for i := range 100 {
+		reach = append(reach, labeledAnnounce(nil, 3, lf.rd, 24, []byte{10, byte(i >> 8), byte(i)})...)
+	}
+	payload := labeledWithdrawPayload(lf, reach, nil)
+	buf := make([]byte, len(payload)+4)
+	source := bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv)
+	b.ReportAllocs()
+	for b.Loop() {
+		if buildWithdrawalPayload(payload, buf, source) == 0 {
+			b.Fatal("refused")
+		}
+	}
 }

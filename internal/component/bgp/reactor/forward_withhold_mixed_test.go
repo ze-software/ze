@@ -464,7 +464,8 @@ func TestUnspecifiedGlobalPairWithdrawnFromMultihopPeer(t *testing.T) {
 // hop unchanged, to a destination more than one IP hop away, on both rails.
 //
 // VALIDATES: it is announced nothing and written the VPN-IPv6 MP_UNREACH_NLRI
-// that withdraws the route. Of a multihop external peer, draft Section 4 says:
+// that withdraws the route, its label replaced by the Compatibility field
+// 0x800000. Of a multihop external peer, draft Section 4 says:
 // "If a Global IPv6 next hop is not included, the route MUST NOT be advertised
 // to the external peer (treat-as-withdraw)."
 // PREVENTS: the RD-prefixed form escaping the Link-Local-only gate that the
@@ -489,7 +490,11 @@ func TestVPNLinkLocalOnlyNextHopWithdrawnFromMultihopPeer(t *testing.T) {
 			assert.False(t, m.hasReach, "%s: no Link-Local-only next hop crosses: %x", rail, m.reachNH)
 			unreach = append(unreach, m.unreach...)
 		}
-		assert.Equal(t, mixedUnreachValue(2, 128, nlri), unreach, "%s: the VPN route is withdrawn", rail)
+		// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field
+		// SHOULD be set to 0x800000." The withdrawal carries it where the
+		// announcement carried label 16.
+		withdrawn := append([]byte{nlri[0], 0x80, 0x00, 0x00}, nlri[4:]...)
+		assert.Equal(t, mixedUnreachValue(2, 128, withdrawn), unreach, "%s: the VPN route is withdrawn", rail)
 	}
 }
 

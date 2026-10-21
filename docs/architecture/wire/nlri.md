@@ -474,18 +474,30 @@ length.
 
 The field is one three-octet field whatever the label count, so a producer that
 starts from a label stack builds the withdrawal with one field. An `update text`
-`del` naming `label [ a b ]` keeps the first label only. A withdrawal built from
-an announcement, a static route taken back or an RFC 7606 treat-as-withdraw,
-goes through `nlrisplit.LabeledWithdrawal`, which replaces each NLRI's stack
-with the field and lowers its length octet by 24 bits per label dropped, so the
-receiver and Ze's own route key (`keyLabeled` with `withdraw`) find the prefix
-the announcement named. The withdrawal a withheld forward destination receives
-(`writeWithdrawal`) still copies the announcement's NLRI, so a route announced
-with two or more labels is withdrawn with the stack: recorded in the journal
-`guard-added-to-one-half-of-a-pair`.
+`del` naming `label [ a b ]` keeps the first label only. Every other withdrawal
+Ze writes for SAFI 4 or SAFI 128 is built by one `nlrisplit` step,
+`writeWithdrawalNLRI`, which writes `[length + 24][0x80 0x00 0x00][RD?][prefix]`
+with the prefix's host bits cleared (RFC 4271 Section 4.3: "Note that the value
+of trailing bits is irrelevant."). Two entry points reach it:
+
+| Entry point | Input | Callers |
+|-------------|-------|---------|
+| `nlrisplit.GetWithdrawalWriter(fam)` | One MP NLRI field, announcement or withdrawal framed, under the ADD-PATH state of the session that framed it | The forward rail's withheld-destination withdrawal (`writeWithdrawal`, both MP halves under the source's receive context), and the RFC 7606 treat-as-withdraw (`mpReachToUnreach`) |
+| `nlrisplit.WithdrawalNLRIFromKey(fam, key, dst)` | A native route key, `[bits][RD?][prefix]`, as `keyLabeled` and `keyVPN` return it | bgp-rib's sent identity (`recoverySentNLRI`) and the reactor's Adj-RIB-Out withdrawal (`adjOutWithdrawalNLRI`) |
+
+Each NLRI keeps its path identifier, its label stack becomes the one field, and
+its length octet drops 24 bits per label beyond the first, so the receiver and
+Ze's own route key (`keyLabeled` with `withdraw`) find the prefix the
+announcement named. The writer allocates nothing and never writes past its
+destination; it refuses an NLRI the route key refuses. The set of families both
+entry points answer for is declared once, beside the Compatibility splitter
+(`compatibilityFamilies`); every other family's announcement and withdrawal
+are the same bytes, and the key inverse answers `ErrUnsupported` for it.
 <!-- source: internal/core/bgp/nlri/nlrisplit/nlrisplit.go -- SplitWithdrawn -->
 <!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetWithdraw, keyLabeled, CompatibilitySplitter -->
-<!-- source: internal/core/bgp/nlri/nlrisplit/labeled.go -- LabeledWithdrawal -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetWithdrawalWriter, WithdrawalNLRIFromKey, writeWithdrawalField, writeWithdrawalNLRI -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySentNLRI -->
+<!-- source: internal/component/bgp/reactor/reactor_api_advertised.go -- adjOutWithdrawalNLRI -->
 <!-- source: internal/component/bgp/message/rfc7606_withdraw.go -- mpReachToUnreach -->
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- writeWithdrawal -->

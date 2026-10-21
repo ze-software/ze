@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -541,4 +542,77 @@ func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
 	for _, outcome := range outcomes {
 		require.Empty(t, outcome.Sent)
 	}
+}
+
+// TestRecoverySentNLRIUsesRegisteredWithdrawal checks bgp-rib's sent withdrawal
+// identity for a labeled route. Goal: the withdrawal the RIB hands the reactor
+// for a sent labeled path is the one nlrisplit framing (RFC 8277 Section 2.4,
+// one Compatibility field 0x800000), whatever stack the route was announced
+// with, so it names the same route as the forward rail's converted withdrawal.
+// Method: key a three-label announcement with host bits set, for SAFI 4 and
+// SAFI 128, IPv4 and IPv6, with and without ADD-PATH; compare
+// recoverySentNLRI with bytes built by hand here and with the inverse over the
+// same key, then run the departure ADD-PATH answer and read its Sent bytes.
+func TestRecoverySentNLRIUsesRegisteredWithdrawal(t *testing.T) {
+	rd := []byte{0, 0, 0xfd, 0xe8, 0, 0, 0, 1}
+	for _, tc := range []struct {
+		fam family.Family
+		rd  []byte
+	}{
+		{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}, nil},
+		{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel}, nil},
+		{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, rd},
+		{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}, rd},
+	} {
+		for _, addPath := range []bool{false, true} {
+			name := tc.fam.String()
+			var id []byte
+			if addPath {
+				name += "/add-path"
+				id = []byte{0, 0, 0, 7}
+			}
+			t.Run(name, func(t *testing.T) {
+				// Three labels, then the RD, then 10.1.7 as a /22: host bits set.
+				announced := append([]byte(nil), id...)
+				announced = append(announced, byte(72+8*len(tc.rd)+22), 0, 0x10, 0x40, 0, 0x11, 0x40, 0, 0x12, 0x41)
+				announced = append(append(announced, tc.rd...), 10, 1, 7)
+				want := append([]byte(nil), id...)
+				want = append(want, byte(24+8*len(tc.rd)+22), 0x80, 0, 0)
+				want = append(append(want, tc.rd...), 10, 1, 4)
+
+				key, ok := ribOutRouteKey(tc.fam, announced, addPath)
+				require.True(t, ok)
+				sent, err := recoverySentNLRI(tc.fam, key, ribOutEntry{AddPath: addPath})
+				require.NoError(t, err)
+				require.Equal(t, want, sent)
+				inverse := make([]byte, len(key.Native)+3)
+				n, err := nlrisplit.WithdrawalNLRIFromKey(tc.fam, []byte(key.Native), inverse)
+				require.NoError(t, err)
+				require.Equal(t, inverse[:n], sent[len(id):], "the RIB's bytes are the inverse's")
+
+				if !addPath {
+					return
+				}
+				r := newTestRIBManager(t)
+				recoveryTestCleanup(t, r)
+				failed := netip.MustParseAddr("192.0.2.10")
+				dest := netip.MustParseAddr("192.0.2.20")
+				event := nativeSentEvent(t, dest, tc.fam, announced, nativeSentAttrs(), true, false)
+				event.RouteMeta["source-peer"] = failed.String()
+				event.RouteMeta["source-message-id"] = float64(80)
+				r.handleSent(event)
+				outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: tc.fam,
+					Keys: []ribevents.RecoveryKey{recoveryKey(announced[4:], failed)}, SentAddPath: true})
+				require.NoError(t, err)
+				require.Len(t, outcomes, 1)
+				require.Equal(t, [][]byte{want}, outcomes[0].Sent, "the departure answer carries the registered framing")
+			})
+		}
+	}
+	// IPv4 unicast keeps its prefix form.
+	key, ok := ribOutRouteKey(family.IPv4Unicast, []byte{24, 198, 51, 100}, false)
+	require.True(t, ok)
+	sent, err := recoverySentNLRI(family.IPv4Unicast, key, ribOutEntry{})
+	require.NoError(t, err)
+	require.Equal(t, []byte{24, 198, 51, 100}, sent)
 }

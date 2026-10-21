@@ -46,37 +46,62 @@ func splitVPN(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error)
 // rejecting a length above maxBits. The walk is bounded by len(data): every
 // entry advances the offset by at least the length octet.
 func splitByBitLength(data []byte, addPath bool, maxBits int, fn func(nlri []byte) bool) (int, error) {
+	head := 0
+	if addPath {
+		head = 4
+	}
 	count := 0
 	offset := 0
 	for offset < len(data) {
 		start := offset
-		var prefixLen, nlriLen int
-
-		if addPath {
-			if start+5 > len(data) {
-				return count, fmt.Errorf("nlrisplit: truncated ADD-PATH NLRI at offset %d", start)
-			}
-			prefixLen = int(data[start+4])
-			nlriLen = 4 + 1 + (prefixLen+7)/8
-		} else {
-			prefixLen = int(data[start])
-			nlriLen = 1 + (prefixLen+7)/8
-		}
-
-		if prefixLen > maxBits {
-			return count, fmt.Errorf("nlrisplit: invalid prefix length %d (max %d)", prefixLen, maxBits)
-		}
-		if start+nlriLen > len(data) {
-			return count, fmt.Errorf("nlrisplit: NLRI at offset %d extends past data", start)
+		end := bitLengthEntryEnd(data, start, head, maxBits)
+		if end > len(data) {
+			return count, bitLengthEntryError(data, start, head, maxBits)
 		}
 
 		count++
 		if fn != nil {
-			if !fn(data[start : start+nlriLen]) {
+			if !fn(data[start:end]) {
 				return count, nil
 			}
 		}
-		offset = start + nlriLen
+		offset = end
 	}
 	return count, nil
+}
+
+// bitLengthEntryEnd frames the NLRI that starts at data[start] as
+// [path-id(head octets)][length(1 octet, in bits)][value((length+7)/8 octets)]
+// and returns the offset just past it. head is 4 under ADD-PATH and 0
+// otherwise; start MUST be below len(data). An end past len(data) refuses the
+// entry: data ends before its length octet, the length exceeds maxBits, or the
+// value runs past data; bitLengthEntryError words which.
+//
+// It is the one per-entry framing of this layout, shared by splitByBitLength
+// and the labeled withdrawal writer (writeWithdrawalField). It returns one
+// int and holds no formatting call, so it inlines into splitByBitLength and
+// the unicast walk keeps HEAD's branch count (BenchmarkSplitCIDR).
+func bitLengthEntryEnd(data []byte, start, head, maxBits int) int {
+	at := start + head
+	if at >= len(data) {
+		return len(data) + 1
+	}
+	prefixLen := int(data[at])
+	if prefixLen > maxBits {
+		return len(data) + 1
+	}
+	return at + 1 + (prefixLen+7)/8
+}
+
+// bitLengthEntryError words why bitLengthEntryEnd refused the entry at
+// data[start]. It runs only on that refusal, out of the walk's loop.
+func bitLengthEntryError(data []byte, start, head, maxBits int) error {
+	at := start + head
+	if at >= len(data) {
+		return fmt.Errorf("nlrisplit: truncated ADD-PATH NLRI at offset %d", start)
+	}
+	if prefixLen := int(data[at]); prefixLen > maxBits {
+		return fmt.Errorf("nlrisplit: invalid prefix length %d (max %d)", prefixLen, maxBits)
+	}
+	return fmt.Errorf("nlrisplit: NLRI at offset %d extends past data", start)
 }

@@ -58,7 +58,7 @@ func SynthesizeWithdraw(body []byte, addPath bool) ([]byte, bool) {
 //   - trailing IPv4 NLRI moves into the Withdrawn Routes field
 //   - MP_REACH_NLRI becomes MP_UNREACH_NLRI for the same AFI/SAFI (next hop dropped);
 //     a labeled NLRI (SAFI 4, SAFI 128) trades its label stack for the one Compatibility
-//     field of RFC 8277 Section 2.4 (nlrisplit.LabeledWithdrawal)
+//     field of RFC 8277 Section 2.4 (the family's nlrisplit.GetWithdrawalWriter)
 //   - an existing MP_UNREACH_NLRI is kept as-is
 //   - every other path attribute is dropped: a withdrawal carries none, and those
 //     attributes are the very thing that failed validation
@@ -233,13 +233,15 @@ func mpReachToUnreach(value []byte, addPath func(afi uint16, safi uint8) bool) (
 
 	afi := binary.BigEndian.Uint16(value[0:2])
 	safi := value[2]
-	if !nlrisplit.CarriesCompatibility(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}) {
+	writer := nlrisplit.GetWithdrawalWriter(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
+	if writer == nil {
 		return out, true
 	}
 	pathID := addPath != nil && addPath(afi, safi)
 	// RFC 8277 Section 2.4: "This encoding is used whether or not the Multiple Labels
-	// Capability has been sent or received on the session."
-	n, err := nlrisplit.LabeledWithdrawal(out[mpReachAFISAFILen:], pathID)
+	// Capability has been sent or received on the session." The writer converts
+	// the copied field in place: each NLRI only shrinks.
+	n, err := writer(out[mpReachAFISAFILen:], out[mpReachAFISAFILen:], pathID, false)
 	if err != nil {
 		return nil, false
 	}

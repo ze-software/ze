@@ -42,7 +42,7 @@ func TestOwedWithdrawalKeepsItsNLRIWhenTheBodyIsRewritten(t *testing.T) {
 	original := fwdPackUpdateBody(&message.Update{WithdrawnRoutes: p,
 		PathAttributes: bytes.Clone(syncOrderAnnounceBody[4:24]), NLRI: q})
 	scratch := make([]byte, len(original)+4)
-	n := buildWithdrawalPayload(original, scratch)
+	n := buildWithdrawalPayload(original, scratch, nil)
 	require.NotZero(t, n, "the refused UPDATE converts to a withdrawal")
 	withdrawal := scratch[:n]
 	require.NoError(t, owedRailSynthesized(rail, original, withdrawal))

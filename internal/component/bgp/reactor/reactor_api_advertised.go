@@ -160,21 +160,15 @@ func adjOutWithdrawalNLRI(key adjOutKey, entry *adjRIBOutRoute) ([]byte, error) 
 	}
 	var wire []byte
 	switch {
-	case nlrisplit.CarriesCompatibility(key.path.family):
-		if len(keyBytes) == 0 {
-			return nil, fmt.Errorf("family %s: empty table key", key.path.family)
-		}
-		if int(keyBytes[0])+24 > 255 {
-			return nil, fmt.Errorf("family %s: a %d-bit key has no room for the Compatibility field", key.path.family, keyBytes[0])
-		}
+	case nlrisplit.GetWithdrawalWriter(key.path.family) != nil:
 		wire = make([]byte, head+len(keyBytes)+3)
-		// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field
-		// SHOULD be set to 0x800000." The length octet counts it: "to determine
-		// the prefix length of a prefix in an MP_UNREACH_NLRI, the length of the
-		// Compatibility field must be subtracted from the length of the NLRI."
-		wire[head] = keyBytes[0] + 24
-		wire[head+1], wire[head+2], wire[head+3] = 0x80, 0x00, 0x00
-		copy(wire[head+4:], keyBytes[1:])
+		// RFC 8277 Section 2.4: the withdrawal carries the Compatibility field
+		// where the key dropped the label stack.
+		n, err := nlrisplit.WithdrawalNLRIFromKey(key.path.family, keyBytes, wire[head:])
+		if err != nil {
+			return nil, fmt.Errorf("family %s: table key %x has no withdrawal framing: %w", key.path.family, keyBytes, err)
+		}
+		wire = wire[:head+n]
 	case entry.exactNLRI != nil:
 		return append([]byte(nil), entry.exactNLRI...), nil
 	default:

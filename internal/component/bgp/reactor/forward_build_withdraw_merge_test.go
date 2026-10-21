@@ -20,7 +20,7 @@ import (
 // payload it refuses.
 func withdrawalOf(payload []byte) []byte {
 	buf := make([]byte, len(payload)+4)
-	n := buildWithdrawalPayload(payload, buf)
+	n := buildWithdrawalPayload(payload, buf, nil)
 	if n == 0 {
 		return nil
 	}

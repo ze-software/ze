@@ -105,3 +105,32 @@ func TestRegistryDispatch(t *testing.T) {
 	_, err = Split(unregistered, data, false)
 	assert.ErrorIs(t, err, ErrUnsupported)
 }
+
+// BenchmarkSplitCIDR measures splitCIDR, the unicast NLRI hot path, over a
+// full IPv4 and IPv6 field. Its goal is to show the per-entry framing step that
+// splitByBitLength shares with the labeled withdrawal writer costs the unicast
+// path no call: run it before and after that step moved, and compare.
+func BenchmarkSplitCIDR(b *testing.B) {
+	v4 := make([]byte, 0, 4*1000)
+	for i := range 1000 {
+		v4 = append(v4, 24, 10, byte(i>>8), byte(i))
+	}
+	v6 := make([]byte, 0, 9*500)
+	for i := range 500 {
+		v6 = append(v6, 64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, byte(i>>8), byte(i))
+	}
+	visit := func([]byte) bool { return true }
+	for _, field := range []struct {
+		name string
+		data []byte
+	}{{"ipv4", v4}, {"ipv6", v6}} {
+		b.Run(field.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := splitCIDR(field.data, false, visit); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}

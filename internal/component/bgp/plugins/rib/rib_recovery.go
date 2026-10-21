@@ -4,6 +4,7 @@ package rib
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -13,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/store"
@@ -44,7 +46,9 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 		// RFC 7911 Section 3: ADD-PATH already advertised the surviving paths,
 		// so no election runs; each excluded source's sent identifiers,
 		// including zero, are withdrawn.
-		recoverySentAddPathLocked(&request, identities, r.ribOut[request.Destination][request.Family], outcomes)
+		if err := recoverySentAddPathLocked(&request, identities, r.ribOut[request.Destination][request.Family], outcomes); err != nil {
+			return nil, err
+		}
 		return outcomes, nil
 	}
 	for i := range request.Keys {
@@ -66,8 +70,10 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 // than once per key. An identifier the departed source's reconnected session
 // advertised is named too: the RIB holds no session generation, and the
 // reactor's writer withdraws only an identifier no current session owns.
-// The caller MUST hold peerMu.
-func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []ribOutKey, entries map[ribOutKey]ribOutEntry, outcomes []ribevents.RecoveryOutcome) {
+// A sent identity that cannot be written back as a withdrawal fails the whole
+// request: the reactor treats a failed lookup as no answer, never as "nothing
+// owned". The caller MUST hold peerMu.
+func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []ribOutKey, entries map[ribOutKey]ribOutEntry, outcomes []ribevents.RecoveryOutcome) error {
 	keysByIdentity := make(map[ribOutKey][]int, len(identities))
 	for i, identity := range identities {
 		outcomes[i].Withdraw = true
@@ -90,11 +96,15 @@ func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []
 			}
 			if sent == nil {
 				// RFC 7911 Section 3: withdrawal names the advertised identifier.
-				sent = recoverySentNLRI(request.Family, sentKey, entry)
+				var err error
+				if sent, err = recoverySentNLRI(request.Family, sentKey, entry); err != nil {
+					return err
+				}
 			}
 			outcomes[i].Sent = append(outcomes[i].Sent, sent)
 		}
 	}
+	return nil
 }
 
 // recoveryExcludes reports whether the sent owner is in the key's excluded set.
@@ -262,26 +272,28 @@ func recoveryCandidate(fam family.Family, prefix netip.Prefix, best *Candidate) 
 // recoverySentNLRI retains destination path identity, not source framing.
 // RFC 7911 Section 3: "The combination of the address prefix and the Path
 // Identifier can be used to identify a route advertised by a BGP speaker."
-// RFC 8277 Section 2.4: "The value of the Compatibility field SHOULD be set
-// to 0x800000." Its three octets replace the complete announcement label stack.
-func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) []byte {
+// A labeled family's native key dropped the label stack, so its withdrawal is
+// written by nlrisplit.WithdrawalNLRIFromKey, the one declaration of the RFC
+// 8277 Section 2.4 framing; every other family's stored NLRI is already its
+// withdrawal framing.
+func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) ([]byte, error) {
 	if !key.Prefix.IsValid() {
-		if fam.SAFI != family.SAFIMPLSLabel && fam.SAFI != family.SAFIVPN {
-			return []byte(entry.NativeNLRI)
-		}
 		head := 0
 		if entry.AddPath {
 			head = 4
 		}
-		// Native identity is [prefix-bits][RD?][prefix], with labels removed.
-		// Wire is [path-id?][bits+24][Compatibility(3)][RD?][prefix].
 		raw := make([]byte, head+3+len(key.Native))
+		n, err := nlrisplit.WithdrawalNLRIFromKey(fam, []byte(key.Native), raw[head:])
+		if errors.Is(err, nlrisplit.ErrUnsupported) {
+			return []byte(entry.NativeNLRI), nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("recovery: sent %s key %x has no withdrawal framing: %w", fam, key.Native, err)
+		}
 		if entry.AddPath {
 			binary.BigEndian.PutUint32(raw, key.PathID)
 		}
-		raw[head], raw[head+1] = key.Native[0]+24, 0x80
-		copy(raw[head+4:], key.Native[1:])
-		return raw
+		return raw[:head+n], nil
 	}
 	var scratch [cidrKeyOctetsMax]byte
 	head := 0
@@ -290,7 +302,7 @@ func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) []byt
 		head = 4
 	}
 	raw := store.PrefixToNLRIInto(key.Prefix, scratch[head:])
-	return bytes.Clone(scratch[:head+len(raw)])
+	return bytes.Clone(scratch[:head+len(raw)]), nil
 }
 
 // recoveryCommand exposes the same cold batched lookup to an external RIB. Its
