@@ -5,6 +5,11 @@
 
 package attribute
 
+import (
+	"fmt"
+	"net/netip"
+)
+
 // FlowSpec traffic actions that are written as ONE word, with no colon.
 //
 // Every other extended community carries its value after a colon
@@ -115,4 +120,80 @@ func (e ExtendedCommunity) redirectsToNextHop() bool {
 		return false
 	}
 	return e[1] == flowSpecRedirectNextHopSubtype
+}
+
+// flowSpecRedirectToIPKeywords are the words that take an address and write the
+// redirect-to-IP community of draft-ietf-idr-flowspec-redirect-ip-16, mapped to
+// the copy bit each sets. Section 2: "The redirect-to-IP extended community
+// also contains a flag called 'C' (copy)."
+//
+// One table, read by both parsers through ParseFlowSpecRedirectToIP
+// (config/routeattr_community.go ParseExtendedCommunity,
+// route/route_community.go ParseExtendedCommunities). Only the config knew
+// these words once, so `update text` could not send what the config could.
+var flowSpecRedirectToIPKeywords = map[string]bool{
+	"redirect-to-nexthop": false,
+	"copy-to-nexthop":     true,
+}
+
+// FlowSpecRedirectToIP is one redirect-to-IP action: the redirection target and
+// whether the copy bit is set. Only ParseFlowSpecRedirectToIP builds one, so
+// Addr is always a valid address.
+type FlowSpecRedirectToIP struct {
+	Addr netip.Addr
+	Copy bool
+}
+
+// ParseFlowSpecRedirectToIP reads the two-word action `<word> <next>`, where
+// word is `redirect-to-nexthop` or `copy-to-nexthop` and next is the target
+// address. next is "" when word is the last token.
+//
+// matched is false when word is not one of the two, and when next is not an
+// address and word also has a one-word meaning in flowSpecActionKeywords: bare
+// `copy-to-nexthop` is the 0x0800 copy action of
+// draft-simpson-idr-flowspec-redirect-02, and the caller reads it as that one
+// word. `redirect-to-nexthop` has no one-word meaning, so without an address it
+// is matched and refused, naming what it needs.
+func ParseFlowSpecRedirectToIP(word, next string) (FlowSpecRedirectToIP, bool, error) {
+	copyTraffic, ok := flowSpecRedirectToIPKeywords[word]
+	if !ok {
+		return FlowSpecRedirectToIP{}, false, nil
+	}
+
+	addr, err := netip.ParseAddr(next)
+	if err == nil {
+		return FlowSpecRedirectToIP{Addr: addr.Unmap(), Copy: copyTraffic}, true, nil
+	}
+	if _, oneWord := flowSpecActionKeywords[word]; oneWord {
+		return FlowSpecRedirectToIP{}, false, nil
+	}
+	if next == "" {
+		return FlowSpecRedirectToIP{}, true, fmt.Errorf(
+			"%s needs the redirection target address after it: write %s <ip>", word, word)
+	}
+	return FlowSpecRedirectToIP{}, true, fmt.Errorf(
+		"%s needs the redirection target address after it, and %q is not an address: write %s <ip>",
+		word, next, word)
+}
+
+// AppendTo appends the action's community to the list its address family
+// needs and returns both lists: an IPv4 target is the 8-octet community of
+// EXTENDED_COMMUNITIES (attribute 16), an IPv6 target the 20-octet community of
+// IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2), so exactly one
+// list grows.
+func (r FlowSpecRedirectToIP) AppendTo(ec []ExtendedCommunity, ec6 []IPv6ExtendedCommunity) ([]ExtendedCommunity, []IPv6ExtendedCommunity, error) {
+	if r.Addr.Is4() {
+		// draft-ietf-idr-flowspec-redirect-ip-16 Section 2
+		one, err := FlowSpecRedirectToIPv4(r.Addr, r.Copy)
+		if err != nil {
+			return ec, ec6, err
+		}
+		return append(ec, one), ec6, nil
+	}
+	// draft-ietf-idr-flowspec-redirect-ip-16 Section 2
+	one, err := FlowSpecRedirectToIPv6(r.Addr, r.Copy)
+	if err != nil {
+		return ec, ec6, err
+	}
+	return ec, append(ec6, one), nil
 }

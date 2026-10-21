@@ -457,7 +457,7 @@ func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptype
 
 	builder := attribute.NewBuilder()
 	builder.SetOrigin(0) // IGP
-	ecs, consumed, err := route.ParseExtendedCommunities(actionArgs)
+	ecs, ecs6, consumed, err := route.ParseExtendedCommunityAttributes(actionArgs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid flowspec action: %w", err)
 	}
@@ -471,6 +471,9 @@ func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptype
 	}
 	for _, ec := range ecs {
 		builder.AddExtendedCommunity(ec)
+	}
+	for _, ec := range ecs6 {
+		builder.AddIPv6ExtendedCommunity(ec)
 	}
 
 	opts, err := parseTrailingOpts(optArgs)

@@ -189,7 +189,8 @@ Where an RFC or Ze's own grammar DOES decide, Ze changed instead of folding: a
 two-octet AS Route Origin renders its 4-octet local administrator as a dotted
 quad in both projects, and so do `l2info` and the FlowSpec redirect-to-IP
 communities, because Ze's config parser already read those spellings and its
-renderer wrote something the parser refuses.
+renderer wrote something the parser refuses. `update text` reads the redirect-to-IP
+spellings too, so a received community can be sent back as written.
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpRD, exabgpPathInformation, exabgpFlowComponentName -->
 <!-- source: internal/exabgp/bridge/bridge_wire_json.go -- exabgpCommunitySpellings, exabgpInterfaceSet -->
 

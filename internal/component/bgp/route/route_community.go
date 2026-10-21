@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	errTrafficRateRequiresAsnRate = errors.New("traffic-rate requires <asn> <rate> [bytes|packets]")
-	errRedirectRequiresAsnTarget  = errors.New("redirect requires <asn> <target>")
-	errTrafficMarkingRequiresDscp = errors.New("traffic-marking requires <dscp>")
-	errEmptyExtendedCommunity     = errors.New("empty extended community")
+	errTrafficRateRequiresAsnRate      = errors.New("traffic-rate requires <asn> <rate> [bytes|packets]")
+	errRedirectRequiresAsnTarget       = errors.New("redirect requires <asn> <target>")
+	errTrafficMarkingRequiresDscp      = errors.New("traffic-marking requires <dscp>")
+	errEmptyExtendedCommunity          = errors.New("empty extended community")
+	errIPv6ExtendedCommunityNotCarried = errors.New("a redirect-to-IP action with an IPv6 target needs IPV6_EXTENDED_COMMUNITIES (attribute 25), which this command does not carry: use an IPv4 target here")
 )
 
 // parseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
@@ -60,7 +61,21 @@ func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error
 	return lcomms, consumed, nil
 }
 
-// ParseExtendedCommunities parses extended communities in format [type:value:value ...].
+// ParseExtendedCommunities is ParseExtendedCommunityAttributes for a caller
+// that carries EXTENDED_COMMUNITIES alone. An IPv6 redirect-to-IP target needs
+// attribute 25, so it is refused by name rather than dropped from the answer.
+func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
+	comms, comms6, consumed, err := ParseExtendedCommunityAttributes(args)
+	if err != nil {
+		return nil, consumed, err
+	}
+	if len(comms6) > 0 {
+		return nil, consumed, errIPv6ExtendedCommunityNotCarried
+	}
+	return comms, consumed, nil
+}
+
+// ParseExtendedCommunityAttributes parses extended communities in format [type:value:value ...].
 // RFC 4360 (Extended Communities), RFC 8955 (FlowSpec Actions).
 //
 // Supported formats:
@@ -79,38 +94,86 @@ func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error
 //   - discard - Sugar for traffic-rate 0 0
 //   - redirect <asn> <target> - Redirect to VRF
 //   - traffic-marking <dscp> - Set DSCP value
-func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
+//   - redirect-to-nexthop <ip>, copy-to-nexthop <ip> - Redirect or copy to an
+//     address (draft-ietf-idr-flowspec-redirect-ip-16 Section 2), also inside a list
+//
+// The 8-octet communities ride EXTENDED_COMMUNITIES (attribute 16). The second
+// list holds the 20-octet IPv6-address-specific ones, which ride
+// IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2): only the
+// redirect-to-IP action with an IPv6 target writes one. A caller with no
+// attribute 25 to fill calls ParseExtendedCommunities, which refuses one.
+func ParseExtendedCommunityAttributes(args []string) ([]attribute.ExtendedCommunity, []attribute.IPv6ExtendedCommunity, int, error) {
 	if len(args) == 0 {
-		return nil, 0, errMissingExtendedCommunityValue
+		return nil, nil, 0, errMissingExtendedCommunityValue
+	}
+
+	// The two-word redirect-to-IP actions, read by the table the config parser
+	// reads too (attribute.ParseFlowSpecRedirectToIP).
+	if action, matched, err := attribute.ParseFlowSpecRedirectToIP(strings.ToLower(args[0]), nextToken(args, 0)); matched {
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		comms, comms6, err := action.AppendTo(nil, nil)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		return comms, comms6, 2, nil
 	}
 
 	// Check for function-style syntax (FlowSpec actions)
 	firstToken := strings.ToLower(args[0])
 	switch firstToken {
 	case "traffic-rate":
-		return parseTrafficRateFunction(args)
+		return withNoIPv6(parseTrafficRateFunction(args))
 	case "traffic-rate-packets":
-		return parseTrafficRatePacketsFunction(args)
+		return withNoIPv6(parseTrafficRatePacketsFunction(args))
 	case flowspecActionDiscard:
-		return parseDiscardFunction()
+		return withNoIPv6(parseDiscardFunction())
 	case flowspecActionRedirect:
-		return parseRedirectFunction(args)
+		return withNoIPv6(parseRedirectFunction(args))
 	case "traffic-marking":
-		return parseTrafficMarkingFunction(args)
+		return withNoIPv6(parseTrafficMarkingFunction(args))
 	}
 
 	// Fall back to list syntax
 	tokens, consumed := attribute.ParseBracketedList(args)
 	comms := make([]attribute.ExtendedCommunity, 0, len(tokens))
-	for _, tok := range tokens {
-		ec, err := parseExtendedCommunity(tok)
+	var comms6 []attribute.IPv6ExtendedCommunity
+	for i := 0; i < len(tokens); i++ {
+		action, matched, err := attribute.ParseFlowSpecRedirectToIP(strings.ToLower(tokens[i]), nextToken(tokens, i))
 		if err != nil {
-			return nil, consumed, err
+			return nil, nil, consumed, err
+		}
+		if matched {
+			comms, comms6, err = action.AppendTo(comms, comms6)
+			if err != nil {
+				return nil, nil, consumed, err
+			}
+			i++ // the address
+			continue
+		}
+		ec, err := parseExtendedCommunity(tokens[i])
+		if err != nil {
+			return nil, nil, consumed, err
 		}
 		comms = append(comms, ec)
 	}
 
-	return comms, consumed, nil
+	return comms, comms6, consumed, nil
+}
+
+// nextToken answers the token after index i, or "" when i is the last one.
+func nextToken(tokens []string, i int) string {
+	if i+1 < len(tokens) {
+		return tokens[i+1]
+	}
+	return ""
+}
+
+// withNoIPv6 lifts a function-form parser, which only ever writes 8-octet
+// communities, to the ParseExtendedCommunityAttributes answer.
+func withNoIPv6(comms []attribute.ExtendedCommunity, consumed int, err error) ([]attribute.ExtendedCommunity, []attribute.IPv6ExtendedCommunity, int, error) {
+	return comms, nil, consumed, err
 }
 
 // parseTrafficRateFunction parses: traffic-rate <asn> <rate> [bytes|packets]

@@ -4,6 +4,7 @@
 package route
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -158,4 +159,75 @@ func TestParseFlowSpecArgsRecordsZeroValuedActions(t *testing.T) {
 
 	_, err = ParseFlowSpecArgs([]string{"match", "destination-ipv4", "10.0.0.0/8", "then", "mark", "64"})
 	require.Error(t, err, "a DSCP above the six-bit field must be refused at parse time")
+}
+
+// TestParseExtendedCommunitiesRedirectToIP verifies `update text` reads the
+// redirect-to-IP words the config reads.
+//
+// VALIDATES: draft-ietf-idr-flowspec-redirect-ip-16 Section 2 through the API
+// parser: `redirect-to-nexthop <ip>` and `copy-to-nexthop <ip>`, as the
+// function form and inside a list, give the 8-octet community for IPv4 and the
+// 20-octet one for IPv6, the copy word with the C bit; bare `copy-to-nexthop`
+// stays the 0x0800 copy action of draft-simpson-idr-flowspec-redirect-02.
+// PREVENTS: the ExaBGP bridge having no command for ExaBGP 6.0's `redirect
+// <ip>` and `copy <ip>`, because only the config knew these words.
+func TestParseExtendedCommunitiesRedirectToIP(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		args     []string
+		consumed int
+		want4    []string
+		want6    []string
+	}{
+		{"function form IPv4", []string{"redirect-to-nexthop", "192.0.2.1", "nlri"}, 2, []string{"010cc00002010000"}, nil},
+		{"function form copy IPv4", []string{"copy-to-nexthop", "192.0.2.1"}, 2, []string{"010cc00002010001"}, nil},
+		{"function form IPv6", []string{"redirect-to-nexthop", "2001:db8::1"}, 2, nil, []string{"000c20010db80000000000000000000000010000"}},
+		{"list form copy IPv6 and a rate", []string{"[", "rate-limit:0", "copy-to-nexthop", "2001:db8::1", "]"}, 5,
+			[]string{"8006000000000000"}, []string{"000c20010db80000000000000000000000010001"}},
+		{"list form IPv4", []string{"[redirect-to-nexthop", "192.0.2.1]"}, 2, []string{"010cc00002010000"}, nil},
+		{"bare copy stays Simpson", []string{"[copy-to-nexthop]"}, 1, []string{"0800000000000001"}, nil},
+		{"bare copy before another word stays Simpson", []string{"[", "copy-to-nexthop", "rate-limit:0", "]"}, 4,
+			[]string{"0800000000000001", "8006000000000000"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			comms, comms6, consumed, err := ParseExtendedCommunityAttributes(tc.args)
+			require.NoError(t, err)
+			assert.Equal(t, tc.consumed, consumed)
+			var got4, got6 []string
+			for _, ec := range comms {
+				got4 = append(got4, hex.EncodeToString(ec[:]))
+			}
+			for _, ec := range comms6 {
+				got6 = append(got6, hex.EncodeToString(ec[:]))
+			}
+			assert.Equal(t, tc.want4, got4)
+			assert.Equal(t, tc.want6, got6)
+		})
+	}
+
+	for _, args := range [][]string{
+		{"redirect-to-nexthop"},
+		{"[redirect-to-nexthop]"},
+		{"[", "redirect-to-nexthop", "rate-limit:0", "]"},
+		{"redirect-to-nexthop", "not-an-address"},
+	} {
+		_, _, _, err := ParseExtendedCommunityAttributes(args)
+		require.Error(t, err, "%v", args)
+		assert.Contains(t, err.Error(), "redirect-to-nexthop")
+	}
+
+	// A caller with no attribute 25 to fill is refused the IPv6 target by name
+	// rather than handed a list with the community missing.
+	_, _, err := ParseExtendedCommunities([]string{"copy-to-nexthop", "2001:db8::1"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "IPV6_EXTENDED_COMMUNITIES")
+	comms, consumed, err := ParseExtendedCommunities([]string{"copy-to-nexthop", "192.0.2.1"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, consumed)
+	require.Len(t, comms, 1)
+	assert.Equal(t, "010cc00002010001", hex.EncodeToString(comms[0][:]))
 }

@@ -186,40 +186,36 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 				allBytes = append(allBytes, ec[:]...)
 				i++ // skip next part
 				continue
-			case flowSpecRedirectNextHop:
-				// "redirect-to-nexthop IP". This is the ONE place that decides
-				// which form the string names, because the two forms land in
-				// different attributes: an IPv4 next hop is an 8-octet
-				// IPv4-address-specific community, and an IPv6 next hop is a
-				// 20-octet IPv6-address-specific one (RFC 5701 Section 2).
-				// Deciding it twice is what left the IPv6 encoder unreachable:
-				// this parser refused the string before the second decision ran.
-				ec8, ec20, err := parseFlowSpecRedirectNextHop(flowSpecRedirectNextHop, parts[i+1], false)
-				if err != nil {
-					return ExtendedCommunity{}, err
-				}
-				allBytes = append(allBytes, ec8...)
-				allIPv6Bytes = append(allIPv6Bytes, ec20...)
-				i++ // skip next part
-				continue
-			case flowSpecCopyNextHop:
-				// "copy-to-nexthop IP" is the same redirect-to-IP community with
-				// its copy bit set (draft-ietf-idr-flowspec-redirect-ip-16
-				// Section 2). Bare `copy-to-nexthop` stays the one-word 0x0800
-				// action with the copy bit (FlowSpecActionKeyword), so the word
-				// takes the next part only when that part is an address.
-				if _, err := netip.ParseAddr(parts[i+1]); err != nil {
-					break
-				}
-				ec8, ec20, err := parseFlowSpecRedirectNextHop(flowSpecCopyNextHop, parts[i+1], true)
-				if err != nil {
-					return ExtendedCommunity{}, err
-				}
-				allBytes = append(allBytes, ec8...)
-				allIPv6Bytes = append(allIPv6Bytes, ec20...)
-				i++ // skip next part
-				continue
 			}
+		}
+
+		// "redirect-to-nexthop IP" and "copy-to-nexthop IP", the redirect-to-IP
+		// action of draft-ietf-idr-flowspec-redirect-ip-16 Section 2. The
+		// attribute package holds the words and decides the attribute: an IPv4
+		// target is an 8-octet community, an IPv6 one a 20-octet community that
+		// rides attribute 25 (RFC 5701 Section 2). `update text` reads the same
+		// table (route/route_community.go ParseExtendedCommunities). Bare
+		// `copy-to-nexthop` is not matched and stays the one-word 0x0800 action.
+		next := ""
+		if i+1 < len(parts) {
+			next = parts[i+1]
+		}
+		if action, matched, err := attribute.ParseFlowSpecRedirectToIP(p, next); matched {
+			if err != nil {
+				return ExtendedCommunity{}, err
+			}
+			ec8, ec20, err := action.AppendTo(nil, nil)
+			if err != nil {
+				return ExtendedCommunity{}, err
+			}
+			for _, ec := range ec8 {
+				allBytes = append(allBytes, ec[:]...)
+			}
+			for _, ec := range ec20 {
+				allIPv6Bytes = append(allIPv6Bytes, ec[:]...)
+			}
+			i++ // the address
+			continue
 		}
 
 		// Single-word extended community
@@ -509,34 +505,6 @@ func parseFlowSpecMark(dscpStr string) (attribute.ExtendedCommunity, error) {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid DSCP %q in mark: %w", dscpStr, err)
 	}
 	return attribute.FlowSpecTrafficMarking(dscp)
-}
-
-// parseFlowSpecRedirectNextHop parses the address of a `redirect-to-nexthop IP`
-// or `copy-to-nexthop IP` action into the community its address family needs.
-// keyword names the action in the error, and copyTraffic sets the copy bit.
-//
-// It returns the 8-octet community for an IPv4 address and the 20-octet one for
-// an IPv6 address, and exactly one of the two is ever non-empty. They travel in
-// different attributes: 16 for the first, 25 for the second (RFC 5701).
-func parseFlowSpecRedirectNextHop(keyword, ipStr string, copyTraffic bool) (ipv4Bytes, ipv6Bytes []byte, err error) {
-	ip, err := netip.ParseAddr(ipStr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid %s address %q: %w", keyword, ipStr, err)
-	}
-
-	if ip.Is4() {
-		ec, err := attribute.FlowSpecRedirectToIPv4(ip, copyTraffic)
-		if err != nil {
-			return nil, nil, err
-		}
-		return ec[:], nil, nil
-	}
-
-	ec, err := attribute.FlowSpecRedirectToIPv6(ip, copyTraffic)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nil, ec[:], nil
 }
 
 // parseFlowSpecRedirect parses redirect:ADMIN:VALUE for FlowSpec

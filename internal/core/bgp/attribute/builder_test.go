@@ -361,3 +361,37 @@ func TestBuilderRawWirePassthrough(t *testing.T) {
 	assert.Empty(t, b.AppendAttributes(scratch[:0]),
 		"a raw-wire builder is a base section, not a list of attributes")
 }
+
+// TestBuilderIPv6ExtendedCommunities verifies the builder carries the
+// IPV6_EXTENDED_COMMUNITIES attribute.
+//
+// VALIDATES: RFC 5701 Section 2, "a new transitive, optional BGP attribute"
+// of code 25, is emitted with flags 0xC0 and its 20-octet values, after
+// EXTENDED_COMMUNITIES (16) and before AIGP (26) in ascending type-code order;
+// IsEmpty and Reset see it.
+// PREVENTS: `update text` having nowhere to put the IPv6 redirect-to-IP
+// community, which is why it could not send one.
+func TestBuilderIPv6ExtendedCommunities(t *testing.T) {
+	t.Parallel()
+	ec6, err := FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"), false)
+	require.NoError(t, err)
+
+	b := NewBuilder()
+	b.AddIPv6ExtendedCommunity(ec6)
+	assert.False(t, b.IsEmpty())
+	b.AddExtendedCommunity(ExtendedCommunity{0x80, 0x06, 0, 0, 0, 0, 0, 0})
+	b.SetAIGP(7)
+
+	wire := b.Build()
+	require.Equal(t, b.Len(), len(wire))
+	// EXTENDED_COMMUNITIES: flags, code, length, 8 octets.
+	require.Equal(t, []byte{0xc0, 16, 8}, wire[0:3])
+	// IPV6_EXTENDED_COMMUNITIES: flags 0xC0, code 25, length 20, then the value.
+	require.Equal(t, []byte{0xc0, 25, 20}, wire[11:14])
+	require.Equal(t, ec6[:], wire[14:34])
+	// AIGP (26) follows.
+	require.Equal(t, byte(26), wire[35])
+
+	b.Reset()
+	assert.True(t, b.IsEmpty())
+}

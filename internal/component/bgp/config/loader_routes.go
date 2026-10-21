@@ -12,13 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 )
 
-// FlowSpec action names.
-const flowSpecRedirectNextHop = "redirect-to-nexthop"
-
-// flowSpecCopyNextHop is the keyword of the redirect-to-IP action with its copy
-// bit set when an address follows it, and of the one-word 0x0800 copy otherwise.
-const flowSpecCopyNextHop = "copy-to-nexthop"
-
 // sortExtCommunities sorts extended communities by type for RFC 4360 compliance.
 // Each extended community is 8 bytes. Sorting by the 64-bit value puts lower
 // type codes first (e.g., origin 0x0003 before redirect 0x8008).

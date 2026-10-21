@@ -592,17 +592,18 @@ keyword and answers with the flat form to use.
 | `community` | `[ <comm>... ]` | COMMUNITY (8) | RFC 1997 |
 | `originator-id` | `<ipv4>` | ORIGINATOR_ID (9) | RFC 4456 Section 8 |
 | `cluster-list` | `[ <ipv4>... ]` | CLUSTER_LIST (10) | RFC 4456 Section 8 |
-| `extended-community` | `[ <ec>... ]` | EXTENDED_COMMUNITIES (16) | RFC 4360 |
+| `extended-community` | `[ <ec>... ]` | EXTENDED_COMMUNITIES (16), and IPV6_EXTENDED_COMMUNITIES (25) for an IPv6 redirect-to-IP target | RFC 4360, RFC 5701 |
 | `aigp` | `<uint64>` | AIGP (26) | RFC 7311 Section 3 |
 | `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 
-An `<ec>` in `extended-community` takes one of five forms.
+An `<ec>` in `extended-community` takes one of six forms.
 
 | Form | Example | Meaning |
 |------|---------|---------|
 | named | `target:65000:1`, `origin:65000:1.2.3.4` | the type keyword picks the encoding |
 | FlowSpec action | `discard`, `copy-to-nexthop`, `rate-limit:1000` | RFC 8955 Section 7 |
+| FlowSpec redirect to IP | `redirect-to-nexthop 192.0.2.1`, `copy-to-nexthop 2001:db8::1` | draft-ietf-idr-flowspec-redirect-ip-16 Section 2: two words, the redirect-to-IP community holding the address, with the C (copy) bit for `copy-to-nexthop`. An IPv4 address is an 8-octet community (type 0x010C) in EXTENDED_COMMUNITIES; an IPv6 address is a 20-octet one (0x000C) in IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2). Written alone, `copy-to-nexthop` is the one-word 0x0800 copy action of draft-simpson-idr-flowspec-redirect-02, which copies to the route's next hop; `redirect-to-nexthop-draft` is its redirect. `redirect-to-nexthop` with no address is refused. It works as the first word (`extended-community redirect-to-nexthop 192.0.2.1`) and inside a list |
 | FlowSpec interface set | `interface-set:transitive:input:1234:10`, `interface-set:non-transitive:output:65000:3` | draft-ietf-idr-flowspec-interfaceset Section 5: apply the filter on interface group 3 (0 to 16383) of AS 65000, inbound, outbound or both (`input-output`). Type 0x07, or 0x47 non-transitive; `interface-set:input:1234:10` is transitive |
 | VPLS Layer2 Info | `l2info:19:0:1500:111` | RFC 4761 Section 3.2.4: `l2info:<encaps>:<control>:<mtu>:<reserved>`, type 0x800A. Encaps and control are 0 to 255, MTU and the last field 0 to 65535; the last field is written as given, because ExaBGP sends a VPLS multihoming preference there |
 | raw | `0x0002FDE900000001` | the 8 octets verbatim |
@@ -611,9 +612,10 @@ The raw form is `0x` followed by exactly 16 hex digits, because RFC 4360 Section
 encodes "each Extended Community as an 8-octet quantity". It is how an operator
 writes a community Ze has no keyword for, and it is the form ExaBGP writes. Any
 other digit count is refused by name rather than padded or truncated. The config
-file accepts the same four forms.
+file accepts the same forms, from the same tables.
 <!-- source: internal/core/bgp/attribute/extcomm_hex.go -- ParseExtendedCommunityHex -->
 <!-- source: internal/core/bgp/attribute/extcomm_keyword.go -- parseInterfaceSet -->
+<!-- source: internal/core/bgp/attribute/flowspec_action.go -- ParseFlowSpecRedirectToIP -->
 
 Ze emits the attributes in ascending type-code order, whatever order the command
 wrote them in (RFC 4271 Section 5).

@@ -29,21 +29,22 @@ import (
 //	b.AddCommunity(65000, 100)
 //	wireBytes := b.Build()
 type Builder struct {
-	origin           *Origin
-	nextHop          *NextHop // IPv4 next-hop (type 3)
-	localPref        *LocalPref
-	med              *MED
-	asPath           *ASPath
-	asPathASNs       []uint32
-	communities      Communities
-	largeCommunities LargeCommunities
-	extCommunities   ExtendedCommunities
-	atomicAggregate  bool
-	aggregator       *Aggregator
-	originatorID     *OriginatorID
-	clusterList      ClusterList
-	aigp             *AIGP
-	prefixSID        []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
+	origin             *Origin
+	nextHop            *NextHop // IPv4 next-hop (type 3)
+	localPref          *LocalPref
+	med                *MED
+	asPath             *ASPath
+	asPathASNs         []uint32
+	communities        Communities
+	largeCommunities   LargeCommunities
+	extCommunities     ExtendedCommunities
+	ipv6ExtCommunities IPv6ExtendedCommunities // attribute 25, RFC 5701
+	atomicAggregate    bool
+	aggregator         *Aggregator
+	originatorID       *OriginatorID
+	clusterList        ClusterList
+	aigp               *AIGP
+	prefixSID          []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
 
 	// Pre-built wire bytes (for forwarding received attributes)
 	wire []byte
@@ -138,6 +139,15 @@ func (b *Builder) AddExtendedCommunity(ec ExtendedCommunity) *Builder {
 	return b
 }
 
+// AddIPv6ExtendedCommunity adds a 20-octet IPv6-address-specific extended
+// community. RFC 5701 Section 2 carries it in its own attribute,
+// IPV6_EXTENDED_COMMUNITIES (code 25), because its 16-octet global
+// administrator does not fit the 8-octet form of RFC 4360.
+func (b *Builder) AddIPv6ExtendedCommunity(ec IPv6ExtendedCommunity) *Builder {
+	b.ipv6ExtCommunities = append(b.ipv6ExtCommunities, ec)
+	return b
+}
+
 // SetAtomicAggregate marks the ATOMIC_AGGREGATE attribute present.
 //
 // RFC 4271 Section 4.3 f): "ATOMIC_AGGREGATE is a well-known discretionary
@@ -213,9 +223,9 @@ func (b *Builder) setWire(wire []byte) *Builder { //nolint:unparam // fluent-bui
 // builderInlineAttrs is the number of attributes AppendAttributes can produce.
 // It is the setter count, so a caller's scratch array never spills: ORIGIN,
 // AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE, AGGREGATOR, COMMUNITY,
-// ORIGINATOR_ID, CLUSTER_LIST, EXTENDED_COMMUNITY, AIGP, LARGE_COMMUNITY,
-// PREFIX_SID.
-const builderInlineAttrs = 14
+// ORIGINATOR_ID, CLUSTER_LIST, EXTENDED_COMMUNITY, IPV6_EXTENDED_COMMUNITIES, AIGP,
+// LARGE_COMMUNITY, PREFIX_SID.
+const builderInlineAttrs = 15
 
 // AppendAttributes appends the builder's attributes to dst in ASCENDING type-code
 // order and returns the extended slice.
@@ -271,6 +281,9 @@ func (b *Builder) AppendAttributes(dst []Attribute) []Attribute {
 	}
 	if len(b.extCommunities) > 0 {
 		dst = append(dst, b.extCommunities)
+	}
+	if len(b.ipv6ExtCommunities) > 0 {
+		dst = append(dst, b.ipv6ExtCommunities)
 	}
 	if b.aigp != nil {
 		dst = append(dst, b.aigp)
@@ -349,6 +362,7 @@ func (b *Builder) IsEmpty() bool {
 		len(b.communities) == 0 &&
 		len(b.largeCommunities) == 0 &&
 		len(b.extCommunities) == 0 &&
+		len(b.ipv6ExtCommunities) == 0 &&
 		!b.atomicAggregate &&
 		b.aggregator == nil &&
 		b.originatorID == nil &&
@@ -369,6 +383,7 @@ func (b *Builder) Reset() {
 	b.communities = nil
 	b.largeCommunities = nil
 	b.extCommunities = nil
+	b.ipv6ExtCommunities = nil
 	b.atomicAggregate = false
 	b.aggregator = nil
 	b.originatorID = nil
@@ -437,6 +452,11 @@ func (b *Builder) ToAttributes() []Attribute {
 	// EXTENDED_COMMUNITIES
 	if len(b.extCommunities) > 0 {
 		result = append(result, b.extCommunities)
+	}
+
+	// IPV6_EXTENDED_COMMUNITIES
+	if len(b.ipv6ExtCommunities) > 0 {
+		result = append(result, b.ipv6ExtCommunities)
 	}
 
 	// AIGP

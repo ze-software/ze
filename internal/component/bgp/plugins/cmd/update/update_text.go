@@ -192,12 +192,16 @@ type parsedAttrs struct {
 	Communities         []uint32
 	LargeCommunities    []bgptypes.LargeCommunity
 	ExtendedCommunities []attribute.ExtendedCommunity
-	AtomicAggregate     bool
-	Aggregator          *attribute.Aggregator
-	OriginatorID        netip.Addr
-	ClusterList         []uint32
-	AIGP                *uint64
-	PrefixSID           []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
+	// IPv6ExtendedCommunities is IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC
+	// 5701), which the `extended-community` keyword fills beside
+	// ExtendedCommunities when a redirect-to-IP action names an IPv6 target.
+	IPv6ExtendedCommunities []attribute.IPv6ExtendedCommunity
+	AtomicAggregate         bool
+	Aggregator              *attribute.Aggregator
+	OriginatorID            netip.Addr
+	ClusterList             []uint32
+	AIGP                    *uint64
+	PrefixSID               []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
 
 	// VPN/labeled NLRI modifiers.
 	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families.
@@ -321,6 +325,9 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 	}
 	for _, ec := range a.ExtendedCommunities {
 		b.AddExtendedCommunity(ec)
+	}
+	for _, ec := range a.IPv6ExtendedCommunities {
+		b.AddIPv6ExtendedCommunity(ec)
 	}
 	if a.AtomicAggregate {
 		b.SetAtomicAggregate()
@@ -493,11 +500,12 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		}
 		// Use route.ParseExtendedCommunities which handles both function syntax
 		// (traffic-rate, discard, redirect, traffic-marking) and list syntax.
-		ecs, consumed, err := route.ParseExtendedCommunities(args[idx+1:])
+		ecs, ecs6, consumed, err := route.ParseExtendedCommunityAttributes(args[idx+1:])
 		if err != nil {
 			return 0, err
 		}
 		attrs.ExtendedCommunities = ecs
+		attrs.IPv6ExtendedCommunities = ecs6
 		return consumed, nil
 
 	case textparse.KWAggregator:

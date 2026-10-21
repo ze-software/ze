@@ -537,3 +537,44 @@ func TestAPISRPolicyAttributesReachParseConfigRoute(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bogus")
 }
+
+// TestExtendedCommunityRedirectToIPReachesTheWire verifies `update text` sends
+// the redirect-to-IP community in the attribute its address family needs.
+//
+// VALIDATES: `extended-community [ redirect-to-nexthop 192.0.2.1 ]` puts the
+// 8-octet community 010cc00002010000 in EXTENDED_COMMUNITIES, and
+// `extended-community copy-to-nexthop 2001:db8::1` puts the 20-octet one with
+// the C bit in IPV6_EXTENDED_COMMUNITIES (RFC 5701 Section 2, code 25), as
+// draft-ietf-idr-flowspec-redirect-ip-16 Section 2 lays them out.
+// PREVENTS: the IPv6 community having no attribute to ride in `update text`,
+// so the ExaBGP bridge could not send ExaBGP 6.0's `redirect <ipv6>`.
+func TestExtendedCommunityRedirectToIPReachesTheWire(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "[", "redirect-to-nexthop", "192.0.2.1", "]",
+		"nlri", "add", "1.4.0.0/16",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	ecs := testExtractExtCommunities(t, result.Groups[0].Wire)
+	require.Len(t, ecs, 1)
+	assert.Equal(t, "010cc00002010000", hex.EncodeToString(ecs[0][:]))
+
+	result, err = ParseUpdateText([]string{
+		"extended-community", "copy-to-nexthop", "2001:db8::1",
+		"nlri", "add", "1.4.0.0/16",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	attrs, err := result.Groups[0].Wire.All()
+	require.NoError(t, err)
+	var got []string
+	for _, a := range attrs {
+		if ecs6, ok := a.(attribute.IPv6ExtendedCommunities); ok {
+			for _, ec := range ecs6 {
+				got = append(got, hex.EncodeToString(ec[:]))
+			}
+		}
+	}
+	assert.Equal(t, []string{"000c20010db80000000000000000000000010001"}, got)
+	assert.Empty(t, testExtractExtCommunities(t, result.Groups[0].Wire))
+}

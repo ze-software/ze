@@ -278,8 +278,8 @@ func appendExtCommLayer2Info(buf []byte, e ExtendedCommunity) []byte {
 // (flowspec_encode.go) writes it zero, and a peer is free to set it.
 //
 // The words are Ze's own input grammar, which reads `redirect-to-nexthop
-// 1.2.3.4` as two whitespace-separated parts (parseExtendedCommunitySpec,
-// component/bgp/config/routeattr_community.go). Until this arm existed the
+// 1.2.3.4` as two whitespace-separated parts in the config and in `update text`
+// alike (ParseFlowSpecRedirectToIP, flowspec_action.go). Until this arm existed the
 // community came back as "0x010c:010203040000", which that parser refuses, so
 // a FlowSpec redirect an operator configured could not be read back.
 func appendExtCommRedirectToIPv4(buf []byte, e ExtendedCommunity) []byte {

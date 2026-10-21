@@ -192,6 +192,10 @@ func deepCopyAttrs(src *parsedAttrs) *parsedAttrs {
 		dst.ExtendedCommunities = make([]attribute.ExtendedCommunity, len(src.ExtendedCommunities))
 		copy(dst.ExtendedCommunities, src.ExtendedCommunities)
 	}
+	if src.IPv6ExtendedCommunities != nil {
+		dst.IPv6ExtendedCommunities = make([]attribute.IPv6ExtendedCommunity, len(src.IPv6ExtendedCommunities))
+		copy(dst.IPv6ExtendedCommunities, src.IPv6ExtendedCommunities)
+	}
 	if src.Labels != nil {
 		dst.Labels = make([]uint32, len(src.Labels))
 		copy(dst.Labels, src.Labels)
@@ -216,6 +220,7 @@ func clearAttr(attrs *parsedAttrs, keyword string) {
 		attrs.LargeCommunities = nil
 	case kwExtendedCommunity:
 		attrs.ExtendedCommunities = nil
+		attrs.IPv6ExtendedCommunities = nil
 	case textparse.KWNextHop:
 		attrs.NextHop = netip.Addr{}
 		attrs.NextHopSelf = false
