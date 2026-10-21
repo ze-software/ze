@@ -6,6 +6,7 @@
 package bridge
 
 import (
+	"log/slog"
 	"maps"
 	"math"
 	"os"
@@ -13,8 +14,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// bridgeLog is the bridge's logger for what an encoder leaves out of a
+// script's line, under the subsystem the bridge plugin logs as.
+var bridgeLog = slogutil.LazyLogger("exabgp-bridge")
 
 // Version is the ExaBGP 6.0 JSON envelope, which a script held to API 6, and an
 // undecided script whose encoder is json, reads (FormatV6JSON). A script held
@@ -264,7 +270,7 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 		neighbor["state"] = state
 
 	case msgTypeUpdate:
-		neighbor["message"] = updateMessageJSON(e.Data, format)
+		neighbor["message"] = updateMessageJSON(e.Data, format, e.Peer)
 
 	case msgTypeOpen:
 		neighbor[msgTypeOpen] = e.openJSON(format)
@@ -386,14 +392,17 @@ func hostname() string {
 // member was dropped and the script met an `update` event with no message in
 // it: test/exabgp-compat/etc/run/api-api.receive.run classifies each line it
 // reads and took its failure branch on that one.
-func updateMessageJSON(data map[string]any, format Format) map[string]any {
+//
+// peer names the session in the warning convertUpdateIPC2 logs for an
+// operation it cannot render.
+func updateMessageJSON(data map[string]any, format Format, peer string) map[string]any {
 	// A literal rather than msgTypeEOR, for the reason convertUpdateIPC2 spells
 	// `announce` and `withdraw` as literals: this one names a key in ExaBGP's
 	// own UPDATE JSON, and a rename of ze's event kind must not follow it here.
 	if afi, safi, ok := eorFamilyParts(data); ok {
 		return map[string]any{"eor": map[string]any{"afi": afi, "safi": safi}}
 	}
-	return map[string]any{msgTypeUpdate: convertUpdateIPC2(data, format)}
+	return map[string]any{msgTypeUpdate: convertUpdateIPC2(data, format, peer)}
 }
 
 // eorFamilyParts answers the AFI and the SAFI of an End-of-RIB marker, and
@@ -419,7 +428,9 @@ func eorFamilyParts(data map[string]any) (afi, safi string, ok bool) {
 // convertUpdateIPC2 converts ze-bgp JSON UPDATE event data to ExaBGP format.
 // ze-bgp JSON: attr in "attr" object, nlri in "nlri" object with family keys.
 // format decides the NLRI shapes that differ between the APIs (exabgpNLRIObject).
-func convertUpdateIPC2(eventData map[string]any, format Format) map[string]any {
+// An operation whose NLRI field did not split is left out and logged
+// (unsplitOperation), with peer naming the session.
+func convertUpdateIPC2(eventData map[string]any, format Format, peer string) map[string]any {
 	update := make(map[string]any)
 
 	// Convert NLRI sections from "nlri" object
@@ -441,6 +452,9 @@ func convertUpdateIPC2(eventData map[string]any, format Format) map[string]any {
 				if !ok {
 					continue
 				}
+				if unsplitOperation(bridgeLog(), peer, fam, entry) {
+					continue
+				}
 
 				action, _ := entry["action"].(string)
 				nlriList, _ := entry["nlri"].([]any)
@@ -456,11 +470,14 @@ func convertUpdateIPC2(eventData map[string]any, format Format) map[string]any {
 					if nhKey == "" {
 						nhKey = "no-nexthop"
 					}
-					if announce[exabgpFamily] == nil {
-						announce[exabgpFamily] = make(map[string][]any)
-					}
-
 					for _, nlri := range nlriList {
+						// The family is created with its first route, never
+						// before: an operation that names no route would
+						// otherwise publish the family as an empty object,
+						// an announce of nothing.
+						if announce[exabgpFamily] == nil {
+							announce[exabgpFamily] = make(map[string][]any)
+						}
 						if s, ok := nlri.(string); ok {
 							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], map[string]any{bridgeUpdateNLRI: s})
 						} else {
@@ -512,6 +529,29 @@ func convertUpdateIPC2(eventData map[string]any, format Format) map[string]any {
 	}
 
 	return update
+}
+
+// unsplitOperation answers whether one family operation of a ze UPDATE event
+// carries the error member in place of its nlri list, and logs the operation
+// on log when it does.
+//
+// ze writes `{"action": ..., "error": ..., "parsed": false, "raw": ...}` for
+// an NLRI field that did not split into routes (appendNLRISplitErrorJSON in
+// internal/component/bgp/format/text_update.go, appendFamiliesJSON in
+// text_json.go). Neither ExaBGP encoding has a member for an NLRI field it
+// could not read, so the encoders leave the operation out. The warning is what
+// keeps that from being silent: it names the session, the family, the reason
+// and the bytes.
+func unsplitOperation(log *slog.Logger, peer, family string, operation map[string]any) bool {
+	reason, failed := operation["error"].(string)
+	if !failed {
+		return false
+	}
+	action, _ := operation["action"].(string)
+	raw, _ := operation["raw"].(string)
+	log.Warn("exabgp-bridge: an NLRI field did not split into routes; the script is not told about it",
+		"peer", peer, "family", family, "action", action, "error", reason, "raw", raw)
+	return true
 }
 
 // flowComponentOrder is the order ExaBGP prints a flow's components in its

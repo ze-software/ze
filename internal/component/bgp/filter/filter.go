@@ -15,13 +15,8 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-// filterLogger is the filter subsystem logger (lazy initialization).
-// Controlled by ze.log.bgp.filter environment variable.
-var filterLogger = slogutil.LazyLogger("bgp.filter")
 
 // Filter keywords.
 const (
@@ -220,11 +215,18 @@ type FamilyNLRI struct {
 	Family  family.Family
 	NextHop netip.Addr  // next-hop for this family
 	NLRIs   []nlri.NLRI // NLRIs with path-id (replaces Prefixes)
+
+	// SplitErr is set when the family's NLRI field did not split into routes.
+	// NLRIs is then nil and Raw holds the field's bytes, so a consumer can say
+	// the family was present and why it holds no route, rather than lose it.
+	SplitErr error
+	Raw      []byte
 }
 
 // AnnouncedByFamily returns announced NLRI grouped by address family.
 // Each FamilyNLRI has its own next-hop per RFC 4760.
 // Returns entries from both MP-BGP path and legacy IPv4 path.
+// A family whose NLRI field does not split is returned with SplitErr set.
 // RFC 7911: ctx provides ADD-PATH state per family. If ctx is nil, ADD-PATH is disabled.
 func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLRI {
 	var result []FamilyNLRI
@@ -240,7 +242,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(fam)
 		nlris, err := mp.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger().Debug("NLRI parse error", "family", fam, "error", err)
+			result = append(result, FamilyNLRI{Family: fam, NextHop: mp.NextHop(), SplitErr: err, Raw: mp.NLRIBytes()})
 			continue
 		}
 		if len(nlris) == 0 {
@@ -258,7 +260,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(family.IPv4Unicast)
 		nlris, err := r.IPv4Announced.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger().Debug("IPv4 NLRI parse error", "error", err)
+			result = append(result, FamilyNLRI{Family: family.IPv4Unicast, NextHop: r.IPv4Announced.NextHop(), SplitErr: err, Raw: r.IPv4Announced.NLRISlice()})
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
 				Family:  family.IPv4Unicast,
@@ -273,6 +275,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 // WithdrawnByFamily returns withdrawn NLRI grouped by address family.
 // Withdrawn NLRI has no next-hop (NextHop will be invalid).
+// A family whose withdrawn field does not split is returned with SplitErr set.
 // RFC 7911: ctx provides ADD-PATH state per family. If ctx is nil, ADD-PATH is disabled.
 func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLRI {
 	var result []FamilyNLRI
@@ -288,7 +291,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(fam)
 		nlris, err := mp.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger().Debug("NLRI parse error", "family", fam, "error", err)
+			result = append(result, FamilyNLRI{Family: fam, SplitErr: err, Raw: mp.WithdrawnBytes()})
 			continue
 		}
 		if len(nlris) == 0 {
@@ -305,7 +308,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(family.IPv4Unicast)
 		nlris, err := r.IPv4Withdrawn.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger().Debug("IPv4 withdrawn parse error", "error", err)
+			result = append(result, FamilyNLRI{Family: family.IPv4Unicast, SplitErr: err, Raw: r.IPv4Withdrawn.WithdrawnSlice()})
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
 				Family: family.IPv4Unicast,

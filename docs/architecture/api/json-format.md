@@ -249,7 +249,27 @@ Each address family has an array of operations under `nlri`:
 - `next-hop`: Present only for "add" operations
 - `action`: "add" (announce) or "del" (withdraw)
 - `nlri`: Array of NLRI values
-<!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON -->
+- When the NLRI field of an MP_REACH_NLRI or MP_UNREACH_NLRI does not split
+  into routes, the operation carries no `nlri` member. It carries the error
+  convention instead: `"error"` names why, `"parsed": false`, and `"raw"` holds
+  the field's bytes in uppercase hex, for example
+  `{"action": "del", "error": "parsing NLRI at offset 0: nlri: short read", "parsed": false, "raw": "402001"}`.
+  An empty `nlri` list is never written for a field that failed to split, because
+  it would read as an operation on no route.
+
+Two producers write this member, and both write it the same way. The parsed
+JSON event with no attribute or NLRI filter is written straight from the wire
+(`appendParsedUpdateJSONDirect`); it covers the MP_REACH_NLRI and
+MP_UNREACH_NLRI fields, an IPv4 unicast MP_REACH_NLRI included. Every other
+JSON form, `format=full` and a selective attribute or NLRI filter included, is
+written from the filter's result (`appendFilterResultJSON`), whose families
+carry the split failure (`FamilyNLRI.SplitErr`); it also covers the IPv4 NLRI
+and Withdrawn Routes fields of the UPDATE body. The text event form has no
+spelling for a field that did not split and writes no route for it.
+<!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON, appendFamiliesJSON -->
+<!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect, appendNLRISplitErrorJSON -->
+<!-- source: internal/component/bgp/filter/filter.go -- FamilyNLRI, AnnouncedByFamily, WithdrawnByFamily -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
 ### Attributes
 

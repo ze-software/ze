@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -388,17 +389,24 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 			nh := mpReach.NextHop()
 			buf = append(buf, `{"next-hop":"`...)
 			buf = nh.AppendTo(buf)
-			buf = append(buf, `","action":"add","nlri":[`...)
+			buf = append(buf, `","action":"add",`...)
 			mpNLRIs, err := mpReach.NLRIs(ipv4AddPath)
-			if err == nil {
+			if err != nil {
+				// The same answer as the non-IPv4 MP_REACH arm below: an NLRI
+				// field that does not split names no route, so it carries the
+				// error and the bytes rather than "nlri":[].
+				buf = appendNLRISplitErrorJSON(buf, err, mpReach.NLRIBytes())
+				buf = append(buf, '}')
+			} else {
+				buf = append(buf, `"nlri":[`...)
 				for j, n := range mpNLRIs {
 					if j > 0 {
 						buf = append(buf, ',')
 					}
 					buf = appendNLRIJSONValue(buf, n, family.IPv4Unicast, false)
 				}
+				buf = append(buf, `]}`...)
 			}
-			buf = append(buf, `]}`...)
 			opFirst = false
 		}
 
@@ -430,18 +438,26 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 		buf = append(buf, `":[{"next-hop":"`...)
 		nh := mpReach.NextHop()
 		buf = nh.AppendTo(buf)
-		buf = append(buf, `","action":"add","nlri":[`...)
+		buf = append(buf, `","action":"add",`...)
 		mpNLRIs, err := mpReach.NLRIs(mpAddPath)
-		if err == nil {
+		if err != nil {
+			// An NLRI field that does not split names no route. Rendering
+			// "nlri":[] would read as an announce of nothing, so the operation
+			// carries the error and the bytes instead.
+			buf = appendNLRISplitErrorJSON(buf, err, mpReach.NLRIBytes())
+			buf = append(buf, `}]`...)
+			famFirst = false
+		} else {
+			buf = append(buf, `"nlri":[`...)
 			for j, n := range mpNLRIs {
 				if j > 0 {
 					buf = append(buf, ',')
 				}
 				buf = appendNLRIJSONValue(buf, n, fam, false)
 			}
+			buf = append(buf, `]}]`...)
+			famFirst = false
 		}
-		buf = append(buf, `]}]`...)
-		famFirst = false
 	}
 
 	// MP_UNREACH families.
@@ -452,7 +468,19 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 			mpAddPath = ctx.AddPathFor(fam)
 		}
 		mpWdNLRIs, err := mpUnreach.NLRIs(mpAddPath)
-		if err == nil && len(mpWdNLRIs) > 0 {
+		if err != nil {
+			// A withdrawn field that does not split still names a family the
+			// peer withdrew from. Dropping the member would hide the
+			// withdrawal, so the operation carries the error and the bytes.
+			if !famFirst {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, '"')
+			buf = fam.AppendTo(buf)
+			buf = append(buf, `":[{"action":"del",`...)
+			buf = appendNLRISplitErrorJSON(buf, err, mpUnreach.WithdrawnBytes())
+			buf = append(buf, `}]`...)
+		} else if len(mpWdNLRIs) > 0 {
 			if !famFirst {
 				buf = append(buf, ',')
 			}
@@ -472,6 +500,18 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 	buf = append(buf, '}') // close nlri
 	buf = append(buf, "}}}\n"...)
 	return buf
+}
+
+// appendNLRISplitErrorJSON writes the members of a family operation whose NLRI
+// field did not split into routes: the reason and the field's bytes, in the
+// event format's error convention ({"error":...,"parsed":false,"raw":...}),
+// in place of the "nlri" list a consumer would read as holding no route.
+func appendNLRISplitErrorJSON(buf []byte, err error, raw []byte) []byte {
+	buf = append(buf, `"error":"`...)
+	buf = appendJSONString(buf, err.Error())
+	buf = append(buf, `","parsed":false,"raw":"`...)
+	buf = textbuf.HexUpper(buf, raw)
+	return append(buf, '"')
 }
 
 // appendIPv4PrefixesFromWire iterates raw IPv4 NLRI wire bytes and appends

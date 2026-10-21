@@ -44,6 +44,12 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 
 	// Announced routes: next <nh> nlri <fam> add <nlri>[,<nlri>]...
 	for _, fam := range announced {
+		if fam.SplitErr != nil {
+			// The text grammar has no spelling for a field that did not split
+			// (the JSON form carries it as an error member), so it writes no
+			// route for it rather than an empty list.
+			continue
+		}
 		buf = append(buf, ' ')
 		buf = append(buf, textparse.ShortNext...)
 		buf = append(buf, ' ')
@@ -56,6 +62,9 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 
 	// Withdrawn routes: nlri <fam> del <nlri>[,<nlri>]...
 	for _, fam := range withdrawn {
+		if fam.SplitErr != nil {
+			continue
+		}
 		buf = append(buf, " nlri "...)
 		buf = fam.Family.AppendTo(buf)
 		buf = append(buf, " del "...)

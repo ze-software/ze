@@ -140,6 +140,9 @@ func (e Event) appendUpdateText(buf []byte) []byte {
 			if !ok {
 				continue
 			}
+			if unsplitOperation(bridgeLog(), e.Peer, family, operation) {
+				continue
+			}
 			buf = appendUpdateOperation(buf, prefix, operation, attributes)
 		}
 	}

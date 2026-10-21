@@ -95,6 +95,19 @@ keywords and takes its failure branch.
 <!-- source: internal/exabgp/bridge/bridge_event.go -- ReadEvent, Event, ExabgpJSON, the eor arm of the update case -->
 <!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.AppendText, TextForm -->
 
+A family operation whose NLRI field did not split into routes reaches the bridge
+as ze writes it, with an `error` member, `"parsed": false` and the field's bytes
+in place of its `nlri` list (`docs/architecture/api/json-format.md`, "Operation
+Format"). Neither ExaBGP encoding has a member for that, so both encoders leave
+the operation out, and the bridge logs a warning on the `exabgp-bridge` logger
+naming the peer, the family, the action, the reason and the bytes. The JSON
+encoder creates an `announce` family only with its first route. It used to
+create the family before reading any route, so the error operation reached a
+script as `"ipv6 unicast": {}`, an announce of nothing.
+
+<!-- source: internal/exabgp/bridge/bridge_event.go -- convertUpdateIPC2, unsplitOperation -->
+<!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.appendUpdateText -->
+
 ## The text encoder is ExaBGP's own, ported
 
 A process declaring `encoder text` gets ExaBGP's line format, ported from

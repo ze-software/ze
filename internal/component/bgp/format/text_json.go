@@ -164,6 +164,14 @@ func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI)
 				buf = nh.AppendTo(buf)
 				buf = append(buf, `",`...)
 			}
+			if announced[i].SplitErr != nil {
+				// The fast path's answer (appendParsedUpdateJSONDirect): a field
+				// that did not split carries the error, never an empty list.
+				buf = append(buf, `"action":"add",`...)
+				buf = appendNLRISplitErrorJSON(buf, announced[i].SplitErr, announced[i].Raw)
+				buf = append(buf, '}')
+				continue
+			}
 			buf = append(buf, `"action":"add","nlri":[`...)
 			for j, n := range announced[i].NLRIs {
 				if j > 0 {
@@ -182,6 +190,12 @@ func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI)
 				buf = append(buf, ',')
 			}
 			opFirst = false
+			if withdrawn[i].SplitErr != nil {
+				buf = append(buf, `{"action":"del",`...)
+				buf = appendNLRISplitErrorJSON(buf, withdrawn[i].SplitErr, withdrawn[i].Raw)
+				buf = append(buf, '}')
+				continue
+			}
 			buf = append(buf, `{"action":"del","nlri":[`...)
 			for j, n := range withdrawn[i].NLRIs {
 				if j > 0 {

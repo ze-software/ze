@@ -19,8 +19,10 @@ import (
 //
 // VALIDATES: the announce member for "ipv4 mpls-vpn" names 10.0.0.0/24 with
 // its route distinguisher and path identifier.
-// PREVENTS: the sighting during the old-commands sweep that such an UPDATE
-// rendered "ipv4 mpls-vpn":{} while the registry decoder read it.
+// PREVENTS: a well-formed ADD-PATH VPN announce rendering "ipv4 mpls-vpn":{}.
+// The old-commands sweep saw that output, but from malformed input whose NLRI
+// did not split, not from an UPDATE like this one. That split failure is
+// TestSplitErrorFamilyIsNotRendered.
 func TestAddPathVPNAnnounceRenders(t *testing.T) {
 	t.Parallel()
 
@@ -63,5 +65,66 @@ func TestAddPathVPNAnnounceRenders(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("the document lacks %s:\n%s", want, text)
 		}
+	}
+}
+
+// TestSplitErrorFamilyIsNotRendered renders an UPDATE whose ipv6 unicast
+// MP_REACH_NLRI, then one whose MP_UNREACH_NLRI, names a 64-bit prefix and
+// carries two of its octets, so the field does not split into routes and the
+// ze event carries the error member in place of an nlri list.
+//
+// Each UPDATE carries one of the two attributes. An UPDATE carrying both for
+// one family makes the ze document state that family twice, and the second
+// member hid the first when the document was read, so the announce never
+// reached the converter: RFC 7606 Section 5.1 forbids a sender from putting
+// both in one UPDATE.
+//
+// VALIDATES: the ExaBGP JSON names no "ipv6 unicast" family under announce or
+// withdraw: ExaBGP never hands a script an NLRI it could not parse.
+// PREVENTS: convertUpdateIPC2 creating the announce family before reading any
+// route, so the error operation rendered "ipv6 unicast":{}, a family with no
+// next hop and no route.
+func TestSplitErrorFamilyIsNotRendered(t *testing.T) {
+	t.Parallel()
+
+	facts := SessionFacts{
+		Local: oldLocalAddress, Peer: oldLocalAddress,
+		LocalAS: 65533, PeerAS: 65533, RouterID: 0x0a000002,
+		Encoding: &capability.EncodingCaps{
+			ASN4:     true,
+			Families: []capability.Family{{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}},
+		},
+	}
+	cases := []struct {
+		name  string
+		code  byte
+		value []byte
+	}{
+		// AFI 2, SAFI 1, next hop length 16 (2001:db8::1), reserved, then
+		// NLRI [64][FD AB]: a length the two octets cannot hold.
+		{"mp_reach", 14, []byte{0, 2, 1, 16, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 64, 0xfd, 0xab}},
+		// AFI 2, SAFI 1, withdrawn [64][FD AB].
+		{"mp_unreach", 15, []byte{0, 2, 1, 64, 0xfd, 0xab}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, tc.code, byte(len(tc.value))}
+			attrs = append(attrs, tc.value...)
+			body := append([]byte{0, 0, 0, byte(len(attrs))}, attrs...)
+
+			document, err := WireUpdateToExabgpJSON(body, facts, rpc.DirectionReceived)
+			if err != nil {
+				t.Fatalf("render: %v", err)
+			}
+			encoded, err := json.Marshal(document)
+			if err != nil {
+				t.Fatalf("encode: %v", err)
+			}
+			if text := string(encoded); strings.Contains(text, `"ipv6 unicast"`) {
+				t.Fatalf("a family whose NLRI did not split reached the script:\n%s", text)
+			}
+		})
 	}
 }
