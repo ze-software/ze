@@ -646,6 +646,9 @@ and send the 0x0800 `redirect-to-nexthop-draft` or `copy-to-nexthop`; a bare
 `redirect-to-nexthop` and `redirect-to-nexthop-simpson` send
 `redirect-to-nexthop-draft`. An IPv6 address goes in IPV6_EXTENDED_COMMUNITIES
 (`docs/architecture/api/update-syntax.md`).
+`test/exabgp-compat/api/api-flow-redirect.ci` holds `redirect <ipv4>`,
+`copy <ipv4>`, `redirect [<ipv6>]` and `redirect-simpson <ipv4>` to the octets
+the ExaBGP pin sends.
 <!-- source: internal/exabgp/bridge/bridge_flow.go -- readRedirect, readIETFRedirect, readSimpson -->
 
 ## What the bridge refuses, and what it keeps
@@ -660,6 +663,8 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | `flow route` with no `match` | refused |
 | `flow route` with `mark` or `action`, or `redirect [<ipv6>]:<nn>` (the IPv6 route-target redirect) | refused, naming the word: `update text` has no spelling for it |
 | `copy`, `redirect-simpson`, `copy-simpson` or `redirect-to-nexthop-ietf` given something that is not an address | refused, naming the value |
+| An `interface-set:` item inside `extended-community`, on a flow route or any other route | refused, naming the `interface-set` keyword to write it with: ExaBGP has no such extended community type |
+| An interface-set whose transitivity is neither `transitive` nor `non-transitive`, or whose AS number holds a period | refused, transitivity judged first as ExaBGP does |
 | An attribute written with no value (`path-information`) | refused, naming the value to write |
 | A prefix whose mask is no number (`10.0.0.0/x`) | refused, naming the mask |
 | `announce operational` with an unknown kind, or none | refused, naming the command and the kinds |

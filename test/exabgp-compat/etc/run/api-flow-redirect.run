@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""ExaBGP 6.0 flow redirect and copy forms (draft-ietf-idr-flowspec-redirect-ip).
+
+`redirect <v4>` and `copy <v4>` are the IETF community with the address in it,
+`redirect [<v6>]` the IPv6 one in attribute 25, and `redirect-simpson <v4>` the
+0x0800 community with the address as the route's next hop.
+"""
+
+import sys
+import time
+
+from exabgp_api import send, wait_for_shutdown
+
+
+def main() -> None:
+    messages = [
+        'announce flow route { match { destination 10.0.0.1/32; } then { redirect 192.0.2.1; } }',
+        'announce flow route { match { destination 10.0.0.2/32; } then { copy 192.0.2.2; } }',
+        'announce flow route { match { destination 10.0.0.3/32; } then { redirect [2001:db8::3]; } }',
+        'announce flow route { match { destination 10.0.0.4/32; } then { redirect-simpson 192.0.2.4; } }',
+    ]
+
+    time.sleep(0.2)  # let the EOR pass
+
+    for message in messages:
+        try:
+            send(message)
+        except IOError:
+            sys.stderr.write('IOError - ExaBGP exited ? ')
+            sys.stderr.write('Could not write message: %s\n' % message)
+            sys.stderr.flush()
+
+    wait_for_shutdown(timeout=1.0)
+
+
+if __name__ == '__main__':
+    main()
