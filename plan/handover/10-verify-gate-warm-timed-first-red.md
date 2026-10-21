@@ -66,3 +66,15 @@ Still owed (same package):
 ## Owed to the main thread
 
 Review (independent), `./le go lint run`, `./le test unit all`, `./le test functional gating`, `./le doc check verify`, the full `./le verify worktree`, and the AC-16 two-run measurement.
+
+## Part 3 (continuation agent, 2026-10-21)
+
+Landed: 41a2edc8fd (part 2's owed items 1 to 3), d5c39a49a1 (journal row, foreign cache defect).
+
+- `test/runner/verify-first-red-stops.ci`, driver `verifyFirstRedStopsDriver` (`internal/test/fixture/misc_fixture_runner_first_red.go`): seeds `tmp/ze-verify-stage-times.tsv` so `arch tier/check` (red: no `internal/component`) runs first, then asserts the stop line, the combined log marker with one stage result, the failure index naming an unreached stage, one appended history line, and `verify status check` answering `STALE: last verify failed`.
+- `./le test functional runner`: both first-red scenarios PASS. Red recorded: with `plan.FirstRed && stageReport.Code != 0` in `RunMode` made false, `verify-first-red-stops` FAILed (the run went on to stage 02 `go lint/run`); restored, no diff.
+- Foreign red in that suite: `verify-scope-selector` (the scope selector widens to `./...`, partial `cache/stdpatch/398fc62f…` GOROOT; journal row in `gate-verdict-depends-on-the-machine.md`).
+- Spec: TDD, Wiring, Deliverables and Implementation Steps carry the real test names; Decisions added for GOFLAGS in `Toolchain.Environment`, `Plan.History`, and `part`/`of` on `verify worktree`. `TestStageResultStillParsesALogWithATimingLine` exists in `internal/le/verify/reds_test.go`.
+- Scoped: fixture package `go test -race` green; `./le cli grammar` OK; `./le doc check verify` red only on `../gh-pages/reference/command-equivalents/clear-bgp-rib-advertised` (foreign, published site surface).
+
+Still owed to the main thread: independent review, `./le go lint run` (the stop driver was written from the shell, so the edit-time lint saw only part of it), `./le test unit all`, `./le test functional gating`, the full `./le verify worktree`, and the AC-16 measurement.
