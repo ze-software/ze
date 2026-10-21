@@ -62,6 +62,9 @@ type PeerState struct {
 	//   msgID <= ForwardFrom  -> the peer's Adj-RIB-In replay delivers it
 	//   msgID >  ForwardFrom  -> the live forward delivers it
 	//
+	// FlowSpec is outside this partition: the live forward carries no FlowSpec
+	// rule, so replayFlowSpecs replays every current path regardless of the cut.
+	//
 	// MessageID is the right quantity because it is the only one bgp-rs and
 	// bgp-adj-rib-in both observe per route (reactor.nextMsgID stamps it on the
 	// RawMessage both plugins are handed). A wall-clock instant or either

@@ -1062,8 +1062,14 @@ peer, it fetches the mandatory RIB's authorized paths before reporting ready;
 it stands down for a delegated owner, including the per-peer unheld-role
 exception. Its bounded relay preserves source identity and generation and uses
 the reactor's destination session, family and export checks. Route-server
-snapshots retain the received-generation cut; RS and RR also reject stale
-destination replay generations.
+snapshots carry every current path, including a generation received after the
+destination's peer-up cut: the live forward carries no FlowSpec rule, and the
+RIB's ValidationChange for that generation is not ordered against the route
+server's peer-up, so it can be processed before the destination is a target.
+A rule judged in that window can reach the destination twice as the same
+announcement, never not at all. RS and RR also reject stale destination
+replay generations.
+<!-- test: internal/component/bgp/plugins/rs/server_validation_test.go TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp -->
 Retained attribute reconstruction includes the separately pooled Extended
 Communities field. Authorization recovery therefore keeps a rule's traffic-rate
 action rather than advertising the same NLRI as a no-action rule when the first

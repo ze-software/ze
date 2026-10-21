@@ -449,7 +449,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 		// the replay itself succeeded, failed transiently, or was skipped
 		// because adj-rib-in is not loaded. Without this, any replay-failure
 		// path left the peer waiting for EOR that would never come.
-		rs.replayFlowSpecs(peerAddr, gen, cut)
+		rs.replayFlowSpecs(peerAddr, gen)
 		rs.sendEOR(peerAddr, gen, initialReplay)
 		return
 	}
@@ -528,7 +528,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 
 	// Send End-of-RIB per negotiated family (RFC 4271).
 	// Re-check generation: peer may have reconnected during the delta loop.
-	rs.replayFlowSpecs(peerAddr, gen, cut)
+	rs.replayFlowSpecs(peerAddr, gen)
 	rs.sendEOR(peerAddr, gen, initialReplay)
 }
 

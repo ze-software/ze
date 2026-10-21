@@ -47,7 +47,7 @@ func TestFlowSpecForwardingKeepsLegacyNextHop(t *testing.T) {
 			body = append(body, prefix...)
 			original := bytes.Clone(body)
 			id := f.receive(t, body)
-			f.forward(t, id)
+			f.forwardViaRIB(t, id)
 			forwardSocketBarrier(t, f.r)
 			bodies := aigpSocketBodies(t, f.conn)
 			if len(bodies) != 2 {

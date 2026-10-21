@@ -307,7 +307,8 @@ func TestForwardValidationSplitsRedirectRefusedRules(t *testing.T) {
 	wu := wireu.NewWireUpdate(body, ctxID)
 	wu.SetMessageID(21)
 	source := netip.MustParseAddr("192.0.2.1")
-	update := &ReceivedUpdate{WireUpdate: wu, SourcePeerIP: source}
+	// A stored relay: only a relay carries FlowSpec rules (flowSpecSection).
+	update := &ReceivedUpdate{WireUpdate: wu, SourcePeerIP: source, validationReplay: true, validationMsgID: 21}
 	defer update.returnFwdHandles()
 	key := func(rd byte) ribevents.ValidationRoute {
 		return ribevents.ValidationRoute{Peer: source, Family: fam, NLRI: ribevents.FlowSpecKey(rule(rd))}

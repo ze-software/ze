@@ -85,7 +85,16 @@ func (rs *routeServer) processValidation(key workerKey, route ribevents.Validati
 // replayFlowSpecs supplies every peer-up snapshot from the mandatory RIB.
 // The optional Adj-RIB-In excludes these families, preventing duplicate replay.
 // Each reconstruction still crosses authorization and egress policies.
-func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
+//
+// It replays every current path, including a generation received after the
+// destination's peer-up cut. The live forward carries no FlowSpec rule
+// (reactor flowSpecSection), and the RIB's ValidationChange for a post-cut
+// generation is not ordered against this route server's peer-up event, so it
+// can be processed before the destination is a target and reach nobody. A
+// generation judged inside that window can then reach the destination twice,
+// as the same announcement, and never not at all. The reflector's peer-up
+// replay has no cut either.
+func (rs *routeServer) replayFlowSpecs(destination string, gen uint64) {
 	// A timed-out optional-store replay must not cancel this independent phase.
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
@@ -107,9 +116,6 @@ func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
 		path, present := ribevents.LookupFlowSpecPath(key)
 		if !present {
 			continue
-		}
-		if path.MsgID != 0 && path.MsgID > cut {
-			continue // The post-cut generation belongs to live forwarding.
 		}
 		route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,

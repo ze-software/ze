@@ -197,7 +197,22 @@ FlowSpec uses the same gate with a full native NLRI key rather than a CIDR
 prefix. Its selecting RIB publishes per-path generation and authorization after
 checking the associated unicast table; a missing provider is ineligible. The
 partitioner splits SAFI 133/134 NLRIs, preserves permitted siblings and turns
-infeasible paths into MP_UNREACH. When optional receive validation is disabled,
+infeasible paths into MP_UNREACH.
+
+The live forward of a received UPDATE carries no FlowSpec rule, announced or
+withdrawn: the partitioner keeps the rules only for a stored-route relay. The
+RIB judges each received generation from its own copy of the UPDATE event, so
+the live forward may already have asked before it judged, and it publishes a ValidationChange for every new
+generation, every removal and every later verdict change. That event is what
+exports the rule, once. Forwarding it live as well sent each rule twice, and
+when the live forward asked before the RIB had judged the generation its copy
+was a withdrawal, so a rule the RIB then accepted flapped on the wire. A
+forwarder that relays FlowSpec therefore replays on ValidationChange, as the
+route server and the reflector do. Unicast siblings in the same UPDATE still
+leave on the live forward.
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- flowSpecSection -->
+
+When optional receive validation is disabled,
 non-FlowSpec sections pass through unchanged, including explicit unicast
 withdrawals in a mixed UPDATE. Mandatory FlowSpec authorization supplies no
 unicast eligibility verdict.

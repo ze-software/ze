@@ -137,6 +137,7 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 		msgID:   update.sourceMessageID(),
 		ctx:     bgpctx.Registry.Get(wu.SourceCtxID()),
 		scratch: scratch.Buf,
+		replay:  update.validationReplay,
 	}
 	v4Withdraw, _, err := selection.section(withdrawn, family.IPv4Unicast, false)
 	if err != nil {
@@ -203,6 +204,10 @@ type validationSelection struct {
 	ctx     *bgpctx.EncodingContext
 	scratch []byte
 	changed bool
+	// replay is true for a stored-route relay (ReceivedUpdate.validationReplay)
+	// and false for the live forward of a received UPDATE. Only a replay
+	// carries FlowSpec rules (flowSpecSection).
+	replay bool
 	// refused holds the announced FlowSpec rules whose redirect-to-IP action
 	// the RIB refused, framed as received, in a region of scratch.
 	refused []byte
@@ -289,7 +294,22 @@ func flowSpecUpdate(wu *wireu.WireUpdate) bool {
 	return err == nil && unreach != nil && ribevents.IsFlowSpec(unreach.Family())
 }
 
+// flowSpecSection keeps the rules a stored relay may send. A live forward of a
+// received UPDATE keeps none: the selecting RIB judges each received generation
+// after this forward may already have run, and its ValidationChange for that
+// generation, for a removal, and for every later verdict change drives the
+// export through RelayStoredRoute (validationReplay). Forwarding the rule live
+// as well sent it twice, and when the gate asked before the RIB had judged the
+// generation the live copy was a withdrawal, so a rule the RIB then accepted
+// flapped on the wire. A forwarder that relays FlowSpec MUST therefore replay
+// on ribevents.ValidationChange, as the route server and the reflector do.
 func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, announce bool) ([]byte, []byte, error) {
+	if !s.replay {
+		if len(data) > 0 {
+			s.changed = true
+		}
+		return nil, nil, nil
+	}
 	if len(data) > len(s.scratch) {
 		return nil, nil, errRelayBufferPool
 	}

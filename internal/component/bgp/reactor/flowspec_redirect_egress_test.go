@@ -39,7 +39,7 @@ func flowRedirectForward(t *testing.T, fam family.Family, raw, payload []byte, s
 	ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key }, nil, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 	id := f.receive(t, payload)
-	f.forward(t, id)
+	f.forwardViaRIB(t, id)
 	forwardSocketBarrier(t, f.r)
 	return aigpSocketBodies(t, f.conn)
 }

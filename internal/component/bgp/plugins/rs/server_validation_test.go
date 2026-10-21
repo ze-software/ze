@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -96,7 +98,9 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
 				NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 			// The selecting RIB can be one event ahead of this forwarding
-			// consumer. Its post-cut sibling belongs to the live rail.
+			// consumer. The live forward carries no FlowSpec rule, so the
+			// post-cut sibling is the peer-up replay's to deliver as well
+			// (TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp).
 			newer := key
 			newer.PathID = 7
 			attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11,
@@ -132,10 +136,10 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			})
 			bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
 				if destination != target || len(routes) != 1 || routes[0].SourcePeer != source ||
-					routes[0].MsgID != 42 || routes[0].NLRIHex != "0501180a0000" || routes[0].Withdraw {
+					routes[0].NLRIHex != "0501180a0000" || routes[0].Withdraw {
 					t.Errorf("wrong pre-existing FlowSpec replay: %s %+v", destination, routes)
 				}
-				delivered = append(delivered, "rule")
+				delivered = append(delivered, "rule-"+strconv.FormatUint(routes[0].MsgID, 10))
 				return nil
 			})
 			bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
@@ -166,16 +170,96 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("peer-up replay never completed")
 			}
-			if !slices.Equal(delivered, []string{"rule", "eor", "ready"}) {
+			if !slices.Equal(delivered, []string{"rule-42", "rule-43", "eor", "ready"}) {
 				t.Fatalf("initial FlowSpec delivery order = %v", delivered)
 			}
 			rs.mu.Lock()
 			rs.peers[target].ReplayGen++
 			rs.mu.Unlock()
 			rs.replayForPeer(target, 1, 42, 17, make(chan struct{}))
-			if !slices.Equal(delivered, []string{"rule", "eor", "ready"}) {
+			if !slices.Equal(delivered, []string{"rule-42", "rule-43", "eor", "ready"}) {
 				t.Fatalf("old-session replay reached reconnected peer: %v", delivered)
 			}
 		})
+	}
+}
+
+// TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp proves that a FlowSpec
+// rule received after a target's peer-up cut still reaches that target. The
+// live forward carries no FlowSpec rule, so the rule's only other export is
+// the RIB's ValidationChange, and that event is not ordered against this route
+// server's peer-up event: it can be processed while the target is not yet a
+// forward target. Method: process the ValidationChange first (it must reach
+// nobody), then bring the target up with a cut below the rule's MessageID, and
+// require the peer-up replay to deliver the rule before End-of-RIB.
+func TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp(t *testing.T) {
+	const source, target = "192.0.2.1", "192.0.2.2"
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	rule := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
+		NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
+	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11,
+		0, 1, 133, 0, 0, 5, 1, 24, 10, 0, 0}
+	ribevents.RegisterFlowSpecLookup(
+		func(route ribevents.ValidationRoute, id uint64) bool { return route == rule && id == 43 },
+		func(route ribevents.ValidationRoute) bool { return route == rule },
+		func(route ribevents.ValidationRoute) (ribevents.FlowSpecPath, bool) {
+			return ribevents.FlowSpecPath{Attributes: attrs, MsgID: 43}, route == rule
+		},
+		func() []ribevents.ValidationRoute { return []ribevents.ValidationRoute{rule} })
+	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
+	bridge := rpc.NewDirectBridge()
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = engineEnd.Close() })
+	plugin := sdk.NewWithConn("rs-flowspec-cut-test", rpc.NewBridgedConn(pluginEnd, bridge))
+	t.Cleanup(func() { _ = plugin.Close() })
+	var mu sync.Mutex
+	var delivered []string
+	record := func(item string) {
+		mu.Lock()
+		delivered = append(delivered, item)
+		mu.Unlock()
+	}
+	done := make(chan struct{}, 1)
+	bridge.SetDispatchCommandArgs(func(context.Context, string, []string, string) (*rpc.DispatchCommandOutput, error) {
+		return nil, errors.New("unknown command: request bgp adj-rib-in replay")
+	})
+	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+		for _, route := range routes {
+			record(destination + " rule-" + strconv.FormatUint(route.MsgID, 10))
+		}
+		return nil
+	})
+	bridge.SetDispatchRPC(func(context.Context, string, json.RawMessage) (json.RawMessage, error) {
+		record(target + " eor")
+		return json.RawMessage(`{"result":{"announced":0,"withdrawn":0}}`), nil
+	})
+	bridge.SetDispatchCommand(func(context.Context, string) (*rpc.DispatchCommandOutput, error) {
+		done <- struct{}{}
+		return &rpc.DispatchCommandOutput{Status: statusDone}, nil
+	})
+	bridge.SetReady()
+	// seenMsgID 42: this route server has not yet seen the UPDATE (43) the
+	// RIB has already judged, so the target's cut lands below the rule.
+	rs := &routeServer{plugin: plugin, seenMsgID: 42, peers: map[string]*PeerState{
+		source: {Address: source, Up: true, StateSeen: true},
+		target: {Address: target, Families: map[family.Family]bool{fam: true}},
+	}}
+	rs.processValidation(workerKey{sourcePeer: source}, rule)
+	mu.Lock()
+	early := slices.Clone(delivered)
+	mu.Unlock()
+	if len(early) != 0 {
+		t.Fatalf("validation change reached a peer that was not up: %v", early)
+	}
+	rs.handleState(&Event{PeerAddr: target, State: "up", InitialReplay: 17})
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("peer-up replay never completed")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Equal(delivered, []string{target + " rule-43", target + " eor"}) {
+		t.Fatalf("rule judged before peer-up reached the target as %v; want it replayed before End-of-RIB", delivered)
 	}
 }

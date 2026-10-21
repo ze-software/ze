@@ -356,7 +356,7 @@ func TestForwardFlowSpecOnlyGatePreservesUnicastSections(t *testing.T) {
 			n := writeMPReach(mp[:], 0, fam, nil, rule)
 			attrs = append(attrs, mp[:n]...)
 			body := makeUpdateBody([]byte{24, 10, 0, 0}, attrs, []byte{24, 10, 0, 1})
-			f.forward(t, f.receive(t, body))
+			f.forwardViaRIB(t, f.receive(t, body))
 			forwardSocketBarrier(t, f.r)
 			bodies := aigpSocketBodies(t, f.conn)
 			announced, withdrawn := validationParts(t, bodies[1:])

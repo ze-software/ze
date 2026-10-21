@@ -56,7 +56,7 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 				return tc.refused && got == key && msgID == id
 			})
 			t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
-			f.forward(t, id)
+			f.forwardViaRIB(t, id)
 			forwardSocketBarrier(t, f.r)
 			bodies := aigpSocketBodies(t, f.conn)
 			if len(bodies) != 1 {

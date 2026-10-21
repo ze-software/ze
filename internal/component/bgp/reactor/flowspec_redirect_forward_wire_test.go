@@ -87,7 +87,7 @@ func TestFlowSpecRedirectForwardNextHop(t *testing.T) {
 				ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key }, nil, nil, nil)
 				t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 				id := f.receive(t, flowRedirectPayload(t, tc.fam, raw, tc.received.AsSlice()))
-				f.forward(t, id)
+				f.forwardViaRIB(t, id)
 				forwardSocketBarrier(t, f.r)
 				bodies := aigpSocketBodies(t, f.conn)
 				if len(bodies) != 1 {

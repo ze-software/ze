@@ -44,14 +44,13 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0041020000002A40010
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # Receiver, seq 3: the unicast route (AS_PATH 65002 65009, kept by the route
-# server) and a first UPDATE for the rule. The route server forwards the rule
-# live and again when the RIB's ValidationChange for the new path replays it,
-# and the live copy is a withdrawal when the forward gate asks before the RIB
-# has judged that UPDATE. So the first copy is an announcement or a withdrawal,
-# and only the NLRI (length 5, destination 192.0.2.0/24) is common to both.
+# server), forwarded live. The live forward carries no FlowSpec rule: the RIB's
+# ValidationChange for the new path is the one export of the rule, so the
+# receiver gets it exactly once, as an announcement, and never a withdrawal
+# (flowSpecSection, reactor/forward_validation.go).
 expect=bgp:conn=2:seq=3:contains=02020000FDEA0000FDF1
-expect=bgp:conn=2:seq=3:contains=050118C00002
-# seq 4: the replayed rule, exactly: MP_REACH ipv4/flow with next-hop length 0
+reject=bgp:conn=2:scope=withdrawn:pattern=050118C00002
+# seq 4: the rule, once and exactly: MP_REACH ipv4/flow with next-hop length 0
 # (800E0B 0001 85 00 00 050118C00002), ORIGIN, AS_PATH 65002, no EXT_COMMUNITY.
 expect=bgp:conn=2:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0032020000001B800E0B0001850000050118C000024001010040020602010000FDEA
 reject=bgp:conn=2:pattern=10080800000000000000

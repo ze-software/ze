@@ -152,7 +152,7 @@ func forwardPreferredWidth(t *testing.T, body, want []byte) {
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 	// RFC 8955 Sections 4.2.2.5/6/8/10: observe the actual forwarding sink.
 	id := f.receive(t, body)
-	f.forward(t, id)
+	f.forwardViaRIB(t, id)
 	forwardSocketBarrier(t, f.r)
 	bodies := aigpSocketBodies(t, f.conn)
 	if len(bodies) != 1 {

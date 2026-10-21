@@ -58,7 +58,7 @@ func TestFlowSpecForwardingOmitsNextHop(t *testing.T) {
 						hop = netip.MustParseAddr("2001:db8::dead").AsSlice()
 					}
 					id := f.receive(t, flowForwardPayload(t, tc.fam, raw, hop))
-					f.forward(t, id)
+					f.forwardViaRIB(t, id)
 					forwardSocketBarrier(t, f.r)
 					bodies := aigpSocketBodies(t, f.conn)
 					if len(bodies) != 1 {

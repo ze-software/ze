@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -45,8 +46,9 @@ func flowForwardParts(t *testing.T, bodies [][]byte) (announced, withdrawn []byt
 }
 
 // A raw RS fast-path request must defer even when no RPKI validator is active.
-// Cached forwarding and retained-route recovery both pass the mandatory gate,
-// including withdrawal on loss and re-advertisement without a new UPDATE.
+// Cached forwarding sends no FlowSpec rule, so an unauthorized one leaves no
+// trace, and retained-route recovery passes the mandatory gate, including
+// withdrawal on loss and re-advertisement without a new UPDATE.
 func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 	for _, rail := range []string{"cached", "batch"} {
 		t.Run(rail, func(t *testing.T) {
@@ -73,22 +75,21 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			if skipped, delivered := reactorForwardRS(api.r, update, id, src.Settings().Address, src); len(skipped) != 0 || delivered != 0 {
 				t.Fatalf("raw fast path bypassed authorization: %v/%d", skipped, delivered)
 			}
+			var forwardErr error
 			if rail == "batch" {
-				if err := api.ForwardUpdatesDirect([]uint64{id}, []netip.AddrPort{dst.Settings().PeerKey()}, "test-plugin", plugin.OperatorSender()); err != nil {
-					t.Fatal(err)
-				}
+				forwardErr = api.ForwardUpdatesDirect([]uint64{id}, []netip.AddrPort{dst.Settings().PeerKey()}, "test-plugin", plugin.OperatorSender())
 			} else {
 				sel, err := selector.Parse(dst.Settings().Address.String())
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := api.ForwardUpdate(sel, id, "test-plugin", plugin.OperatorSender()); err != nil {
-					t.Fatal(err)
-				}
+				forwardErr = api.ForwardUpdate(sel, id, "test-plugin", plugin.OperatorSender())
 			}
-			announced, withdrawn := flowForwardParts(t, validationBodies(t, api, capture))
-			if len(announced) != 0 || !bytes.Equal(withdrawn, raw) {
-				t.Fatalf("missing authorization = add %x del %x", announced, withdrawn)
+			if forwardErr != nil && !errors.Is(forwardErr, errAllDestinationsSuppressed) {
+				t.Fatal(forwardErr)
+			}
+			if live := validationBodies(t, api, capture); len(live) != 0 {
+				t.Fatalf("missing authorization: live forward sent %x", live)
 			}
 			key := ribevents.ValidationRoute{Peer: src.Settings().Address, Family: fam, NLRI: string(raw)}
 			eligible, present := true, true
@@ -106,7 +107,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 				return validationBodies(t, api, capture)
 			}
 			valid := relay()
-			announced, withdrawn = flowForwardParts(t, valid)
+			announced, withdrawn := flowForwardParts(t, valid)
 			if !bytes.Equal(announced, raw) || len(withdrawn) != 0 || len(valid) != 1 || !bytes.Contains(valid[0], actions) {
 				t.Fatalf("authorized retained actions not exported: %x", valid)
 			}
@@ -294,5 +295,83 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 	}
 	if binary.BigEndian.Uint32(wire[:4]) == binary.BigEndian.Uint32(advertised[:4]) {
 		t.Fatal("removed FlowSpec path retained an obsolete identifier")
+	}
+}
+
+// The live forward of a received FlowSpec UPDATE carries no rule: the selecting
+// RIB judges every new generation and its ValidationChange drives the one export
+// through RelayStoredRoute. Method: forward a live announcement whose generation
+// the RIB has already authorized (the duplicate case), a live announcement it
+// has not judged yet (the withdrawal case), and a live withdrawal of a path the
+// RIB already removed, each on both cached rails. None may reach the
+// destination. The stored relay of the authorized generation then sends exactly
+// one announcement.
+func TestFlowSpecLiveForwardDefersToRIBVerdict(t *testing.T) {
+	for _, rail := range []string{"cached", "batch"} {
+		t.Run(rail, func(t *testing.T) {
+			api, src, dst, capture := validationForwardFixture(t, false)
+			fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+			for _, peer := range []*Peer{src, dst} {
+				peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{fam: true}})
+				peer.refreshForwardFacts()
+			}
+			raw := []byte{5, 1, 24, 10, 0, 0}
+			attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe9}
+			var mp [64]byte
+			n := writeMPReach(mp[:], 0, fam, nil, raw)
+			announce := append(append([]byte{0, 0}, 0, byte(len(attrs)+n)), attrs...)
+			announce = append(announce, mp[:n]...)
+			unreach := append([]byte{0x80, 15, byte(3 + len(raw)), 0, 1, 133}, raw...)
+			withdraw := append([]byte{0, 0, 0, byte(len(unreach))}, unreach...)
+			key := ribevents.ValidationRoute{Peer: src.Settings().Address, Family: fam, NLRI: string(raw)}
+			var judged uint64
+			present := true
+			ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
+				return got == key && present && judged != 0 && (msgID == 0 || msgID == judged)
+			}, func(got ribevents.ValidationRoute) bool { return got == key && present }, nil, nil)
+			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
+			forward := func(payload []byte, verdict func(id uint64)) uint64 {
+				t.Helper()
+				update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
+				update.WireUpdate.SetSourceID(src.SourceID())
+				verdict(id)
+				var err error
+				if rail == "batch" {
+					err = api.ForwardUpdatesDirect([]uint64{id}, []netip.AddrPort{dst.Settings().PeerKey()}, "test-plugin", plugin.OperatorSender())
+				} else {
+					sel, parseErr := selector.Parse(dst.Settings().Address.String())
+					if parseErr != nil {
+						t.Fatal(parseErr)
+					}
+					err = api.ForwardUpdate(sel, id, "test-plugin", plugin.OperatorSender())
+				}
+				if err != nil && !errors.Is(err, errAllDestinationsSuppressed) {
+					t.Fatal(err)
+				}
+				return id
+			}
+			forward(announce, func(uint64) {})
+			if live := validationBodies(t, api, capture); len(live) != 0 {
+				t.Fatalf("live forward of an unjudged generation sent %x", live)
+			}
+			id := forward(announce, func(id uint64) { judged = id })
+			if live := validationBodies(t, api, capture); len(live) != 0 {
+				t.Fatalf("live forward of an authorized generation sent %x", live)
+			}
+			route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), Family: fam.String(),
+				NLRIHex: hex.EncodeToString(raw), AttrHex: hex.EncodeToString(attrs), MsgID: id, NLRIFraming: rpc.NLRIFramingPrefixOnly}
+			if err := api.RelayStoredRoute(dst.Settings().Address, []rpc.StoredRoute{route}, plugin.OperatorSender()); err != nil {
+				t.Fatal(err)
+			}
+			replayed := validationBodies(t, api, capture)
+			announced, withdrawn := flowForwardParts(t, replayed)
+			if len(replayed) != 1 || !bytes.Equal(announced, raw) || len(withdrawn) != 0 {
+				t.Fatalf("RIB-driven export = %d UPDATEs, add %x del %x", len(replayed), announced, withdrawn)
+			}
+			forward(withdraw, func(uint64) { present = false })
+			if live := validationBodies(t, api, capture); len(live) != 0 {
+				t.Fatalf("live forward of a removed path sent %x", live)
+			}
+		})
 	}
 }
