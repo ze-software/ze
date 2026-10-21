@@ -3,7 +3,6 @@
 package ribevents
 
 import (
-	"net/netip"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -96,22 +95,26 @@ func FlowSpecRoutes() []ValidationRoute {
 }
 
 // FlowSpecRedirectRefused answers whether the selecting RIB refused the
-// redirect-to-IP action (0x0800) of the FlowSpec UPDATE msgID received from
-// peer, under draft-simpson-idr-flowspec-redirect-02 Section 3's EBGP check. A
-// forward rail asks it once per UPDATE and, on true, removes every 0x0800
-// community from the copy it sends. With no provider the answer is false: the
-// eligibility gate (RouteEligible) already forwards no FlowSpec route then.
-func FlowSpecRedirectRefused(peer netip.Addr, msgID uint64) bool {
+// redirect-to-IP action (0x0800) of one received FlowSpec rule, route, in its
+// received generation msgID, under draft-simpson-idr-flowspec-redirect-02
+// Section 3's EBGP check. The verdict is per rule, because the longest match
+// for the redirect address is looked up in the rule's own domain, and two
+// rules of one flow-vpn UPDATE can carry two Route Distinguishers. route is
+// keyed as RouteEligible keys it (FlowSpecKey, ADD-PATH removed). A forward
+// rail asks it for each rule it sends and moves a refused rule to a copy
+// without 0x0800. With no provider the answer is false: the eligibility gate
+// (RouteEligible) already forwards no FlowSpec route then.
+func FlowSpecRedirectRefused(route ValidationRoute, msgID uint64) bool {
 	refused := flowSpecRedirect.Load()
-	return refused != nil && (*refused)(peer, msgID)
+	return refused != nil && (*refused)(route, msgID)
 }
 
-var flowSpecRedirect atomic.Pointer[func(netip.Addr, uint64) bool]
+var flowSpecRedirect atomic.Pointer[func(ValidationRoute, uint64) bool]
 
 // RegisterFlowSpecRedirectLookup installs the RIB's redirect verdict beside
 // RegisterFlowSpecLookup, with the same register and unregister contract. nil
 // unregisters it.
-func RegisterFlowSpecRedirectLookup(refused func(peer netip.Addr, msgID uint64) bool) {
+func RegisterFlowSpecRedirectLookup(refused func(route ValidationRoute, msgID uint64) bool) {
 	if refused == nil {
 		flowSpecRedirect.Store(nil)
 		return

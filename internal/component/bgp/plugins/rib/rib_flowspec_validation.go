@@ -43,14 +43,6 @@ type flowSpecVerdict struct {
 	redirectRefused bool
 }
 
-// flowSpecMessage names one received FlowSpec UPDATE, the unit the redirect
-// verdict is asked about: X, the communities and the peer's AS are all
-// UPDATE-wide, so every rule of the UPDATE shares the answer.
-type flowSpecMessage struct {
-	peer  netip.Addr
-	msgID uint64
-}
-
 type flowSpecWinner struct {
 	key             ribevents.ValidationRoute
 	communities     []byte
@@ -63,9 +55,6 @@ type flowSpecWinner struct {
 type flowSpecState struct {
 	paths map[ribevents.ValidationRoute]flowSpecVerdict
 	best  map[flowSpecRule]*flowSpecWinner
-	// redirectRefused holds the UPDATEs whose redirect-to-IP action the EBGP
-	// check refused; nil while there is none.
-	redirectRefused map[flowSpecMessage]struct{}
 }
 
 type flowSpecRoute struct {
@@ -299,14 +288,16 @@ func (r *RIBManager) flowSpecEligible(key ribevents.ValidationRoute, msgID uint6
 	return ok && verdict.eligible && (msgID == 0 || verdict.msgID == msgID)
 }
 
-// flowSpecRedirectRefusedFor answers ribevents.FlowSpecRedirectRefused.
-func (r *RIBManager) flowSpecRedirectRefusedFor(peer netip.Addr, msgID uint64) bool {
+// flowSpecRedirectRefusedFor answers ribevents.FlowSpecRedirectRefused from the
+// rule's own verdict, the one the local install strips by, so the wire and the
+// install agree rule by rule. A verdict for another generation answers false.
+func (r *RIBManager) flowSpecRedirectRefusedFor(key ribevents.ValidationRoute, msgID uint64) bool {
 	state := r.flowSpec.Load()
-	if state == nil || state.redirectRefused == nil {
+	if state == nil {
 		return false
 	}
-	_, refused := state.redirectRefused[flowSpecMessage{peer: peer, msgID: msgID}]
-	return refused
+	verdict, ok := state.paths[key]
+	return ok && verdict.redirectRefused && verdict.msgID == msgID
 }
 
 func (r *RIBManager) flowSpecPresent(key ribevents.ValidationRoute) bool {
@@ -491,12 +482,6 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		eligible := flow.matchable && flowSpecAuthorized(flow, unicast)
 		refused := eligible && flow.redirectTarget.IsValid() && flowSpecRedirectRefused(flow, unicast)
 		next.paths[flow.key] = flowSpecVerdict{msgID: flow.entry.MsgID, eligible: eligible, redirectRefused: refused}
-		if refused {
-			if next.redirectRefused == nil {
-				next.redirectRefused = make(map[flowSpecMessage]struct{})
-			}
-			next.redirectRefused[flowSpecMessage{peer: flow.key.Peer, msgID: flow.entry.MsgID}] = struct{}{}
-		}
 		if !eligible {
 			continue
 		}

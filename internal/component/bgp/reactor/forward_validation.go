@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -39,7 +40,7 @@ func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updat
 		srcInfo.peer.validationForwardMu.Lock()
 		defer srcInfo.peer.validationForwardMu.Unlock()
 	}
-	selected, withdrawn, err := forwardValidationWire(update)
+	selected, withdrawn, refused, err := forwardValidationWire(update)
 	if err != nil {
 		return err
 	}
@@ -58,6 +59,17 @@ func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updat
 		}
 		dispatched = dispatched || err == nil
 	}
+	if refused != nil {
+		// draft-simpson-idr-flowspec-redirect-02 Section 3: the rules whose
+		// redirect-to-IP action the RIB refused leave without it.
+		refusedInfo := srcInfo
+		refusedInfo.flowSpecRedirectRefused = true
+		err := a.forwardUpdateSelected(update, updateID, matchingPeers, refusedInfo, refused)
+		if err != nil && !errors.Is(err, errAllDestinationsSuppressed) {
+			return err
+		}
+		dispatched = dispatched || err == nil
+	}
 	if dispatched {
 		return nil
 	}
@@ -66,54 +78,58 @@ func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updat
 
 // forwardValidationWire partitions individual paths without changing the cache's
 // received bytes. Output buffers MUST be adopted by update; cache eviction MUST
-// return them after all destination workers release their references.
+// return them after all destination workers release their references. The third
+// UPDATE carries the announced FlowSpec rules whose redirect-to-IP action the
+// RIB refused (ribevents.FlowSpecRedirectRefused), with the received
+// attributes; the caller sends it without the action. It is nil when no rule
+// was refused.
 //
 // Draft ASPA verification -28 Section 5.7: "If the AS_PATH is determined to be
 // Invalid, then the route SHOULD be considered ineligible for route selection
 // (see Section 3) and MUST be kept in the Adj-RIB-In for potential future
 // re-evaluation (see [RFC9324]).".
-func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.WireUpdate, error) {
+func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.WireUpdate, *wireu.WireUpdate, error) {
 	wu := update.WireUpdate
 	if !ribevents.ValidationEnabled() && !flowSpecUpdate(wu) {
-		return wu, nil, nil
+		return wu, nil, nil, nil
 	}
 	if _, eor := wu.IsEOR(); eor {
-		return wu, nil, nil
+		return wu, nil, nil, nil
 	}
 	payload := wu.Payload()
 	withdrawn, err := wu.Withdrawn()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	announced, err := wu.NLRI()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	attrStart := 4 + len(withdrawn)
 	if attrStart > len(payload) {
-		return nil, nil, wireu.ErrUpdateTruncated
+		return nil, nil, nil, wireu.ErrUpdateTruncated
 	}
 	attrEnd := attrStart + int(binary.BigEndian.Uint16(payload[attrStart-2:attrStart]))
 	if attrEnd > len(payload) {
-		return nil, nil, wireu.ErrUpdateTruncated
+		return nil, nil, nil, wireu.ErrUpdateTruncated
 	}
 	var spanBuf [16]relayAttrSpan
 	spans, ok := scanAttrBlock(spanBuf[:0], payload[attrStart:attrEnd])
 	if !ok {
-		return nil, nil, wireu.ErrUpdateTruncated
+		return nil, nil, nil, wireu.ErrUpdateTruncated
 	}
 	mpReach, err := wu.MPReach()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	mpUnreach, err := wu.MPUnreach()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	scratch := getReadBuf(len(payload) > 4077)
 	if scratch.Buf == nil {
-		return nil, nil, errRelayBufferPool
+		return nil, nil, nil, errRelayBufferPool
 	}
 	defer returnReadBuffer(scratch)
 	selection := validationSelection{
@@ -124,11 +140,11 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 	}
 	v4Withdraw, _, err := selection.section(withdrawn, family.IPv4Unicast, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	v4Announce, v4Denied, err := selection.section(announced, family.IPv4Unicast, true)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var mpAnnounce, mpWithdraw, mpDenied, nextHop []byte
 	var reachFamily, unreachFamily family.Family
@@ -138,26 +154,26 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 		data := []byte(mpReach)
 		off := 5 + len(nextHop)
 		if off > len(data) {
-			return nil, nil, wireu.ErrUpdateTruncated
+			return nil, nil, nil, wireu.ErrUpdateTruncated
 		}
 		mpAnnounce, mpDenied, err = selection.section(data[off:], reachFamily, true)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 	if mpUnreach != nil {
 		unreachFamily = mpUnreach.Family()
 		data := []byte(mpUnreach)
 		if len(data) < 3 {
-			return nil, nil, wireu.ErrUpdateTruncated
+			return nil, nil, nil, wireu.ErrUpdateTruncated
 		}
 		mpWithdraw, _, err = selection.section(data[3:], unreachFamily, false)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 	if !selection.changed {
-		return wu, nil, nil
+		return wu, nil, nil, nil
 	}
 	// A nil UPDATE is the outcome "nothing to send": selection removed every
 	// NLRI from that side, so no UPDATE is built for it.
@@ -165,13 +181,20 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 	if len(v4Withdraw)+len(v4Announce)+len(mpWithdraw)+len(mpAnnounce) > 0 {
 		selected, err = validationBuildWire(update, spans, payload[attrStart:attrEnd], v4Withdraw, v4Announce, mpWithdraw, mpAnnounce, unreachFamily, reachFamily, nextHop)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 	if len(v4Denied)+len(mpDenied) > 0 {
 		denied, err = validationBuildWire(update, nil, nil, v4Denied, nil, mpDenied, nil, reachFamily, family.Family{}, nil)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
-	return selected, denied, err
+	var refused *wireu.WireUpdate
+	if len(selection.refused) > 0 {
+		refused, err = validationBuildWire(update, spans, payload[attrStart:attrEnd], nil, nil, nil, selection.refused, family.Family{}, reachFamily, nextHop)
+	}
+	return selected, denied, refused, err
 }
 
 type validationSelection struct {
@@ -180,6 +203,9 @@ type validationSelection struct {
 	ctx     *bgpctx.EncodingContext
 	scratch []byte
 	changed bool
+	// refused holds the announced FlowSpec rules whose redirect-to-IP action
+	// the RIB refused, framed as received, in a region of scratch.
+	refused []byte
 }
 
 // section scans at most len(data) bytes. Kept prefixes grow from the front and
@@ -269,7 +295,9 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 	}
 	buf := s.scratch[:len(data)]
 	s.scratch = s.scratch[len(data):]
-	front, back := 0, len(buf)
+	// Kept rules fill [0, split), refused ones [split, front), and denied
+	// ones grow down from the back.
+	split, front, back := 0, 0, len(buf)
 	addPath := s.ctx != nil && s.ctx.AddPath(fam)
 	var keyErr error
 	_, err := nlrisplit.SplitFlowSpec(data, addPath, func(wire []byte) bool {
@@ -292,7 +320,17 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 			keep = ribevents.RouteEligible(key, s.msgID)
 		}
 		if keep {
-			front += copy(buf[front:], wire)
+			if announce {
+				// draft-simpson-idr-flowspec-redirect-02 Section 3
+				if ribevents.FlowSpecRedirectRefused(key, s.msgID) {
+					front += copy(buf[front:], wire)
+					return true
+				}
+			}
+			n := copy(buf[front:], wire)
+			rotateFlowSpecKept(buf[split:front+n], n)
+			split += n
+			front += n
 			return true
 		}
 		s.changed = true
@@ -308,7 +346,26 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 	if keyErr != nil {
 		return nil, nil, keyErr
 	}
-	return buf[:front], buf[back:], nil
+	if split < front {
+		s.refused = buf[split:front]
+		s.changed = true
+	}
+	return buf[:split], buf[back:], nil
+}
+
+// rotateFlowSpecKept moves the last n bytes of region, a rule just kept, in
+// front of the refused rules that precede it, keeping the order of both runs
+// with three in-place reversals: no allocation, and the kept rules stay
+// contiguous at the front of the scratch region while the refused ones follow
+// them. With no refused rule before it the region is the rule alone and
+// nothing moves.
+func rotateFlowSpecKept(region []byte, n int) {
+	if n == len(region) {
+		return
+	}
+	slices.Reverse(region[:len(region)-n])
+	slices.Reverse(region[len(region)-n:])
+	slices.Reverse(region)
 }
 
 // validationBuildWire uses the RFC 4271 Section 4.3 body layout:

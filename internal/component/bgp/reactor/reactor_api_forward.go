@@ -534,6 +534,12 @@ type forwardSourceInfo struct {
 	// replay fence (Peer.forwardOrderHold). Only the relay rail sets it, from
 	// rpc.StoredRoute.InitialUpdate.
 	initialUpdate bool
+	// flowSpecRedirectRefused is true when the forward carries only FlowSpec
+	// rules whose redirect-to-IP action the RIB refused under
+	// draft-simpson-idr-flowspec-redirect-02 Section 3, so every destination
+	// receives them without the action. Only forwardUpdateValidated sets it,
+	// for the copy forwardValidationWire split those rules into.
+	flowSpecRedirectRefused bool
 }
 
 // forwardUpdateSection dispatches one received-next-hop section through every
@@ -663,7 +669,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// something rewrites it for that destination (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
 	srcNextHop := payloadNextHop(sourceWire.Payload())
-	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, update.sourceMessageID())
+	srcNextHop.mpRedirectRefused = srcNextHop.mpRedirect && srcInfo.flowSpecRedirectRefused
 	srcAIGP := payloadAIGP(sourceWire.Payload())
 	srcAIGPNextHop := srcNextHop
 	metricRevision := aigpRevision()

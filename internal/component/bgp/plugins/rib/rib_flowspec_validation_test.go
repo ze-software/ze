@@ -753,7 +753,7 @@ func TestFlowSpecRedirectToIPEBGPCheck(t *testing.T) {
 			if !ribevents.RouteEligible(key, 3) {
 				t.Fatal("the redirect check refused the rule instead of its action")
 			}
-			if got := ribevents.FlowSpecRedirectRefused(peer, 3); got != tc.refused {
+			if got := ribevents.FlowSpecRedirectRefused(key, 3); got != tc.refused {
 				t.Fatalf("redirect refused = %v, want %v", got, tc.refused)
 			}
 			events := flowValidationEvents(bus)
@@ -768,6 +768,61 @@ func TestFlowSpecRedirectToIPEBGPCheck(t *testing.T) {
 				t.Fatalf("installed communities = % x, want % x", got, want)
 			}
 		})
+	}
+}
+
+// Two rules of one flow-vpn UPDATE carry two Route Distinguishers, and the
+// redirect-to-IP verdict is per rule: X resolves, to a route the peer
+// originated, in the first rule's domain only. The second rule's action is
+// refused, the first's stands, and the install strips 0x0800 from the second
+// rule alone, as the forward rails do (reactor
+// TestForwardValidationSplitsRedirectRefusedRules).
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "if the last AS in the
+// AS_PATH or AS4_PATH attribute of the longest prefix match for X does not
+// match the AS of the EBGP peer."
+func TestFlowSpecRedirectVPNVerdictPerRule(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	redirect := []byte{0x08, 0, 0, 0, 0, 0, 0, 0}
+	flowFamily := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}
+	vpnFamily := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
+	rd := func(n byte) []byte { return []byte{0, 0, 0xfd, 0xe9, 0, 0, 0, n} }
+	rule := func(n byte) []byte { return append(append([]byte{13}, rd(n)...), 1, 24, 10, 0, 0) }
+	vpn := func(n byte, prefix ...byte) []byte {
+		return append(append([]byte{prefix[0] + 88, 0, 1, 1}, rd(n)...), prefix[1:]...)
+	}
+	r, bus := flowValidationFixture(t)
+	ribevents.RegisterFlowSpecRedirectLookup(r.flowSpecRedirectRefusedFor)
+	t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
+	path := flowValidationPath(2, 65001)
+	attrs := flowValidationAttrs(path, netip.Addr{}, 0, nil)
+	flowValidationReceive(t, r, peer, 65001, 1, vpnFamily, vpn(1, 24, 10, 0, 0), attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 2, vpnFamily, vpn(2, 24, 10, 0, 0), attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 3, vpnFamily, vpn(1, 24, 198, 51, 100), attrs, false)
+	raw := append(rule(1), rule(2)...)
+	flowValidationReceiveNextHop(t, r, peer, 65001, 4, flowFamily, raw, flowValidationAttrs(path, netip.Addr{}, 100, redirect), false, []byte{198, 51, 100, 1})
+	for n, refused := range map[byte]bool{1: false, 2: true} {
+		key := ribevents.ValidationRoute{Peer: peer, Family: flowFamily, NLRI: ribevents.FlowSpecKey(rule(n))}
+		if !ribevents.RouteEligible(key, 4) {
+			t.Fatalf("rule in RD %d not eligible", n)
+		}
+		if got := ribevents.FlowSpecRedirectRefused(key, 4); got != refused {
+			t.Fatalf("rule in RD %d: redirect refused = %v, want %v", n, got, refused)
+		}
+		var installed []byte
+		found := false
+		for _, event := range flowValidationEvents(bus) {
+			if bytes.Equal(event.NLRI, rule(n)) {
+				installed, found = event.ExtendedCommunities, true
+			}
+		}
+		want := redirect
+		if refused {
+			want = nil
+		}
+		if !found || !bytes.Equal(installed, want) {
+			t.Fatalf("rule in RD %d: installed communities = % x (found %v), want % x", n, installed, found, want)
+		}
 	}
 }
 
@@ -791,6 +846,7 @@ func TestFlowSpecRedirectConfigSwitchRejudges(t *testing.T) {
 	flowValidationReceive(t, r, other, 65002, 2, family.IPv4Unicast, []byte{24, 198, 51, 100}, flowValidationAttrs(flowValidationPath(2, 65001, 65009), netip.Addr{}, 0, nil), false)
 	raw := flowspecNLRI(16, 10, 1)
 	flowValidationReceiveNextHop(t, r, peer, 65001, 3, flowspecFamily, raw, flowValidationAttrs(path, netip.Addr{}, 100, redirect), false, []byte{198, 51, 100, 1})
+	key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
 	for _, step := range []struct {
 		enabled string
 		refused bool
@@ -808,7 +864,7 @@ func TestFlowSpecRedirectConfigSwitchRejudges(t *testing.T) {
 			}
 			r.installConfig(cfg, false)
 		}
-		if got := ribevents.FlowSpecRedirectRefused(peer, 3); got != step.refused {
+		if got := ribevents.FlowSpecRedirectRefused(key, 3); got != step.refused {
 			t.Fatalf("enabled %q: redirect refused = %v, want %v", step.enabled, got, step.refused)
 		}
 		events := flowValidationEvents(bus)

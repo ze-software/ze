@@ -52,8 +52,8 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 			ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key }, nil, nil, nil)
 			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 			id := f.receive(t, flowRedirectPayload(t, fam, raw, received))
-			ribevents.RegisterFlowSpecRedirectLookup(func(peer netip.Addr, msgID uint64) bool {
-				return tc.refused && peer == source && msgID == id
+			ribevents.RegisterFlowSpecRedirectLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
+				return tc.refused && got == key && msgID == id
 			})
 			t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
 			f.forward(t, id)
@@ -83,8 +83,9 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 // AS_PATH or AS4_PATH attribute of the longest prefix match for X does not
 // match the AS of the EBGP peer."
 //
-// MUTATION: drop flowSpecRedirectRefusal from reactorForwardRSSection (the
-// client receives the action and the received address).
+// MUTATION: drop the refused copy's flowSpecRedirectRefused from
+// forwardUpdateValidated (the client receives the action and the received
+// address).
 func TestFlowSpecRedirectRefusedRouteServer(t *testing.T) {
 	peers := flowForwardLiveRouter(t, "auto")
 	peers[0].send(t, flowForwardFrame(mustHex(t, "000000184001010040020a02020000fdea0000fdf1400304c000020118c00002")))
@@ -113,8 +114,8 @@ func TestFlowSpecRedirectRefusedRouteServer(t *testing.T) {
 // action stands; the client then replaces it with one originated by 65009,
 // so the verdict flips to refused with no new FlowSpec UPDATE; then back.
 //
-// MUTATION: ask flowSpecRedirectRefusal with updateID, the forward cache id,
-// on the general rail (the replayed route keeps its action).
+// MUTATION: set validationSelection.msgID from the forward cache id in
+// forwardValidationWire (the replayed route keeps its action).
 func TestFlowSpecRedirectRefusedReplay(t *testing.T) {
 	peers := flowForwardLiveRouter(t, "auto")
 	ownOrigin := mustHex(t, "000000144001010040020602010000fdea400304c000020118c00002")

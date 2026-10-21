@@ -244,9 +244,12 @@ func TestForwardValidationMPPathIdentity(t *testing.T) {
 		return key.Family == family.IPv6Unicast && key.PathID == 7 && (generation == 0 || generation == 17)
 	}, nil)
 	t.Cleanup(func() { ribevents.RegisterValidationLookup(nil, nil) })
-	selected, denied, err := forwardValidationWire(update)
+	selected, denied, refused, err := forwardValidationWire(update)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if refused != nil {
+		t.Fatal("unicast paths produced a redirect-refused copy")
 	}
 	if selected == nil || denied == nil {
 		t.Fatal("mixed MP paths did not produce both selected and withdrawn routes")
@@ -258,5 +261,87 @@ func TestForwardValidationMPPathIdentity(t *testing.T) {
 	unreach, err := denied.MPUnreach()
 	if err != nil || unreach == nil || !bytes.Equal(unreach[3:], nlri[11:]) {
 		t.Fatalf("denied MP_UNREACH = %x, err %v", unreach, err)
+	}
+}
+
+// TestForwardValidationSplitsRedirectRefusedRules proves the redirect-to-IP
+// verdict is applied rule by rule on the wire, the way the RIB strips it rule
+// by rule from the local install. Four flow-vpn rules of one UPDATE carry four
+// Route Distinguishers; the RIB refused the action of the first and the third,
+// so the selected UPDATE carries the second and the fourth, the refused copy
+// the first and the third, each in received order and each with the received
+// attributes, and the forward rail sends the refused copy without 0x0800.
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "the BGP speaker SHOULD
+// discard the redirect-to-ip extended community (and not propagate it further
+// with the flow-spec route) if the last AS in the AS_PATH or AS4_PATH
+// attribute of the longest prefix match for X does not match the AS of the
+// EBGP peer." The longest match is looked up in the rule's own domain, so the
+// verdict differs per Route Distinguisher.
+//
+// MUTATION: answer the first rule's verdict for every rule of the UPDATE in
+// flowSpecSection (every rule lands in one copy).
+func TestForwardValidationSplitsRedirectRefusedRules(t *testing.T) {
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}
+	rule := func(rd byte) []byte {
+		// length(1) | RD(8) | destination component 10.0.0.0/24
+		return []byte{13, 0, 0, 0xfd, 0xe9, 0, 0, 0, rd, 1, 24, 10, 0, 0}
+	}
+	var nlri []byte
+	for rd := byte(1); rd <= 4; rd++ {
+		nlri = append(nlri, rule(rd)...)
+	}
+	hop := []byte{198, 51, 100, 1}
+	attrs := mustHex(t, "40010100c010080800000000000000")
+	mp := append([]byte{0, 1, byte(fam.SAFI), byte(len(hop))}, hop...)
+	mp = append(mp, 0)
+	mp = append(mp, nlri...)
+	attrs = append(attrs, 0x80, 14, byte(len(mp)))
+	attrs = append(attrs, mp...)
+	body := binary.BigEndian.AppendUint16([]byte{0, 0}, uint16(len(attrs)))
+	body = append(body, attrs...)
+	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetMessageID(21)
+	source := netip.MustParseAddr("192.0.2.1")
+	update := &ReceivedUpdate{WireUpdate: wu, SourcePeerIP: source}
+	defer update.returnFwdHandles()
+	key := func(rd byte) ribevents.ValidationRoute {
+		return ribevents.ValidationRoute{Peer: source, Family: fam, NLRI: ribevents.FlowSpecKey(rule(rd))}
+	}
+	ribevents.RegisterFlowSpecLookup(func(ribevents.ValidationRoute, uint64) bool { return true }, nil, nil, nil)
+	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
+	ribevents.RegisterFlowSpecRedirectLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
+		return msgID == 21 && (got == key(1) || got == key(3))
+	})
+	t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
+	selected, denied, refused, err := forwardValidationWire(update)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if denied != nil {
+		t.Fatal("an eligible rule was withdrawn")
+	}
+	for _, tc := range []struct {
+		name string
+		wire *wireu.WireUpdate
+		want []byte
+	}{
+		{"selected", selected, append(rule(2), rule(4)...)},
+		{"refused", refused, append(rule(1), rule(3)...)},
+	} {
+		if tc.wire == nil {
+			t.Fatalf("%s copy missing", tc.name)
+		}
+		reach, err := tc.wire.MPReach()
+		if err != nil || reach == nil || !bytes.Equal(reach.NextHopBytes(), hop) || !bytes.Equal(reach[5+len(hop):], tc.want) {
+			t.Fatalf("%s MP_REACH = %x, err %v; want rules %x", tc.name, reach, err, tc.want)
+		}
+		if !bytes.Contains(tc.wire.Payload(), mustHex(t, "c010080800000000000000")) {
+			t.Fatalf("%s copy lost the received communities: %x", tc.name, tc.wire.Payload())
+		}
 	}
 }

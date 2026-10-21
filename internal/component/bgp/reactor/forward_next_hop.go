@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -75,23 +74,11 @@ type nextHopValue struct {
 
 	// mpRedirectRefused records that the selecting RIB refused this UPDATE's
 	// redirect action under draft-simpson-idr-flowspec-redirect-02 Section 3's
-	// EBGP check (ribevents.FlowSpecRedirectRefused, flowSpecRedirectRefusal).
-	// Valid only beside mpRedirect.
+	// EBGP check for every rule this UPDATE carries
+	// (ribevents.FlowSpecRedirectRefused, read per rule by forwardValidationWire,
+	// which splits the refused rules into their own UPDATE). Valid only beside
+	// mpRedirect.
 	mpRedirectRefused bool
-}
-
-// flowSpecRedirectRefusal asks the selecting RIB, once per UPDATE, whether the
-// redirect-to-IP EBGP check refused the action of the FlowSpec UPDATE msgID
-// received from source. A route with no redirect action never asks. msgID is
-// the received generation the RIB judged (ReceivedUpdate.sourceMessageID),
-// never the forward cache id: a validation replay forwards the stored route
-// under a fresh cache id, and asking by that id finds no refusal.
-//
-// draft-simpson-idr-flowspec-redirect-02 Section 3
-func flowSpecRedirectRefusal(n *nextHopValue, source netip.Addr, msgID uint64) {
-	if n.mpRedirect {
-		n.mpRedirectRefused = ribevents.FlowSpecRedirectRefused(source, msgID)
-	}
 }
 
 // has reports whether any address this UPDATE offers is addr.

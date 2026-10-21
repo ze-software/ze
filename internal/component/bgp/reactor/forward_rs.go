@@ -390,8 +390,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	// hop untouched, so the client that OWNS that address is the everyday way a
 	// peer gets told to send traffic to itself (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
+	// A FlowSpec UPDATE never reaches this rail (sourceUsesCachedForward sends
+	// it to the general rail), so the redirect-to-IP EBGP refusal, which the
+	// general rail's validation split carries, has nothing to act on here.
 	srcNextHop := payloadNextHop(wire.Payload())
-	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, update.sourceMessageID())
 
 	// RFC 1997 needs one scan per UPDATE, not one per client; see the identical
 	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay

@@ -1000,19 +1000,30 @@ and an empty path refuse too. "Last AS" is read as the origin because the
 draft's authors restate the check in draft-ietf-idr-flowspec-redirect-ip-02 as
 "the best matching route to X is not a BGP route with origin AS matching the
 peer AS". FRR and BIRD do not implement this check. A refused rule stays
-feasible. The selected install loses its 0x0800 values, and the snapshot
-records the refused UPDATE (`ribevents.FlowSpecRedirectRefused`, keyed by peer
-and message id). Both forward rails ask the snapshot once per UPDATE and remove
-every 0x0800 community, sending the zero next-hop length
-(`discardRedirectAction`). A change of the verdict alone is a validation change,
-so the path is sent again. `flowspec-redirect-check { enabled false; }` at the
+feasible. The verdict is per rule, because two rules of one flow-vpn UPDATE can
+carry two Route Distinguishers and so two domains. The selected install loses
+its 0x0800 values, and the snapshot records the refusal on the rule's own
+verdict (`ribevents.FlowSpecRedirectRefused`, keyed by the rule and its received
+generation). The forward rail's validation split (`forwardValidationWire`) asks
+it for every announced rule and moves the refused rules into a copy of the
+UPDATE with the received attributes. Every destination receives that copy
+without any 0x0800 community and with the zero next-hop length
+(`discardRedirectAction`), so the wire and the install agree rule by rule. The
+split asks by the received generation, never by the forward cache id, so a
+validation replay of the stored route carries the verdict too. FlowSpec never
+takes the route-server fast rail (`sourceUsesCachedForward`). A change of the
+verdict alone is a validation change, so the path is sent again. `flowspec-redirect-check { enabled false; }` at the
 bgp, group or peer level turns the check off for a session. The peer's value
 beats the group's, and the group's beats the bgp level's. When no level states
 the leaf, the check runs.
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- flowSpecRedirectRefused, parseFlowSpecRedirectConfig -->
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- flowSpecRedirectRefusal, discardRedirectAction -->
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardValidationWire, flowSpecSection -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- discardRedirectAction -->
 <!-- test: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go TestFlowSpecRedirectToIPEBGPCheck -->
+<!-- test: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go TestFlowSpecRedirectVPNVerdictPerRule -->
+<!-- test: internal/component/bgp/reactor/forward_validation_test.go TestForwardValidationSplitsRedirectRefusedRules -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_refused_wire_test.go TestFlowSpecRedirectRefusedRouteServer -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_refused_wire_test.go TestFlowSpecRedirectRefusedReplay -->
 
 `reconcileFlowSpecs` recomputes authorization after received-route changes,
 unicast best-path changes, validation changes, withdrawals and session removal.
