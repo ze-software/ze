@@ -2979,3 +2979,59 @@ recorded UPDATEs and compare routes; corpora need a home under testdata, with
 
 F: no Go committed by this agent, so no lint owed for it. C's Go still owes
 `./le go lint run` on bridge, cmd/peer, reactor, message once it lands.
+
+## 2026-10-21 ExaBGP 6 Phase 7 exa12 agent handoff (item E, X-35)
+
+Committed: 9e538f581f. Corpora at
+`internal/exabgp/bridge/testdata/exabgp-old/` (pin 685f772e, README.md has
+provenance; BSD 3-clause notice kept as LICENCE-ExaBGP.txt; commands gzipped
+57K/35K, responses as is 343K/243K). `old_commands_test.go`
+(TestOldCommands50/42, `//go:build ze_bgp`, run with the feature tag set):
+Translator.Line, then `update.ParseUpdateText`, packed with the reactor's iBGP
+defaults (ORIGIN IGP, empty AS_PATH, LOCAL_PREF 100, `self` = 127.0.0.1), both
+sides decoded by WireUpdateToExabgpJSON and compared per route as the pin's
+`test_old_commands` does (lists canonical-sorted, read without then with
+ADD-PATH). `old_allowed_test.go` = the pin's ALLOWED, verbatim; the
+`(?!...label)` row carries `unless` (RE2). RED by design: 5.0 3539/4250, 4.2
+2230/2541 at the commit. `ZE_OLD_VERBOSE=1` lists every failure.
+
+NOT committed, owes independent review (non-test Go): aggregator group form.
+`bridge_attribute.go`: aggregator arity `arityGroup` and the group unwrapped
+before ze's `aggregator <asn>:<ip>`; source AggregatorType in
+configuration/grammar/types/bgp.py at the pin ("in brackets or not"). Red-first
+test `bridge_aggregator_test.go` (red before, green after; bridge package green
+untagged and tagged except TestOldCommands*). With it: 5.0 3582/4250, 4.2
+2249/2541.
+
+Remaining failure classes (5.0 count / 4.2 count), each a ze defect to fix or
+an ALLOWED row to argue with a quoted source:
+- routes differ 229/69: (a) `extended-community` given twice: the bridge keeps
+  the first (X-26/X-27 "keeps the first"), but 5.0 sent both and the pin's
+  4.2 ALLOWED row says "this tree sends both", so X-27's "keeps the old
+  behaviour" means merge for extended-community: read the pin's
+  `add_attribute` for which attributes merge before fixing; (b)
+  bgp-prefix-sid l3-service endpoint_behavior: ze sends 0, 5.0 0xFFFF
+  (RFC 9252 check owed); others unsampled.
+- `\n` inside the line, 44+18+... (e.g. `med 100\n nlri`): 5.0 sent the
+  attribute; how the pin reads a literal backslash-n is not yet found
+  (reactor/api/tokeniser.py `formated` does not).
+- `mup` extended community unknown to update text (30/0); `origin:<n>:<n>`
+  with a large number read as IPv4 (23/0); `watchdog`/`name` with no value
+  (18/6 each); `bgp-prefix-sid` as a prefix (16/16); path-information with
+  `\n` (13/8); flowspec duplicate `destination-ipv4` (11/11); IPv6 flow
+  prefixes with an offset `/128/120` refused (several); `ipv4 nlri-mpls`
+  family unknown (7/7); generic `attribute [ ... ]` refused by the bridge
+  (errAttributeNotEncodable, about 70/40: ExaBGP's escape hatch, ze has
+  `update hex`); route-refresh and operational lines become non-update
+  commands the judge cannot pack (needs a judge branch, not a defect by itself);
+  `announce eor l2vpn vpls`, `route-refresh l2vpn evpn` and `bgp-ls bgp-ls`
+  refused by the bridge's family reader.
+- 99 unreadable per release: the same count in both, check it is not the
+  judge.
+
+Not started: TestOldResponses50/42 (AC-38). Each entry maps a config text to
+event → {json, text}; the judge is the pin's `qa/bin/test_old_responses`
+(JSON compared parsed minus time, host, pid, ppid, counter; text as is; its
+ALLOWED to port). Needs the bridge encoders driven per config.
+
+Gates owed: `./le go lint run` (bridge), `./le verify worktree`.
