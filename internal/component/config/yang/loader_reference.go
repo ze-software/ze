@@ -54,6 +54,49 @@ func (v *Validator) checkEntryReferences(module string, e *yang.Entry, errs *[]e
 	}
 }
 
+// RFC 7950 Section 6.4.1: "The node representing the operation being
+// defined has the operation's input parameters as children."
+//
+// reparentOperationParams gives every rpc and action entry at and below e an
+// input and output of its own, parented to it. goyang copies the entries a
+// grouping use or a submodule include instantiates without copying their RPC
+// field, so every copy shares the input and output built under the original,
+// whose parent is the grouping or the submodule. A path from a parameter then
+// climbs to the wrong node, and goyang's InstantiatingModule panics on a
+// grouping parent. The recursion is bounded by the depth of the loaded
+// modules.
+func reparentOperationParams(e *yang.Entry) {
+	for _, child := range e.Dir {
+		reparentOperationParams(child)
+	}
+	if e.RPC == nil {
+		return
+	}
+	rpc := &yang.RPCEntry{Input: e.RPC.Input, Output: e.RPC.Output}
+	if rpc.Input != nil && rpc.Input.Parent != e {
+		rpc.Input = copyEntry(rpc.Input, e)
+	}
+	if rpc.Output != nil && rpc.Output.Parent != e {
+		rpc.Output = copyEntry(rpc.Output, e)
+	}
+	e.RPC = rpc
+}
+
+// copyEntry answers a copy of e under parent, each descendant copied with
+// its parent fixed up, as goyang copies an entry for a grouping use. The
+// recursion is bounded by the depth of the loaded modules.
+func copyEntry(e, parent *yang.Entry) *yang.Entry {
+	copied := *e
+	copied.Parent = parent
+	if e.Dir != nil {
+		copied.Dir = make(map[string]*yang.Entry, len(e.Dir))
+		for name, child := range e.Dir {
+			copied.Dir[name] = copyEntry(child, &copied)
+		}
+	}
+	return &copied
+}
+
 // referenceMembers answers the leafref types a type is or holds as a union
 // member, at any union depth.
 func referenceMembers(t *yang.YangType) []*yang.YangType {

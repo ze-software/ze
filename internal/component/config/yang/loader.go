@@ -318,6 +318,11 @@ func (l *Loader) Resolve() (*Resolved, error) {
 		return nil, err
 	}
 	resolved := &Resolved{modules: l.modules, patterns: patterns}
+	for _, name := range resolved.ModuleNames() {
+		if root := resolved.GetEntry(name); root != nil {
+			reparentOperationParams(root)
+		}
+	}
 	if err := checkReferences(resolved); err != nil {
 		return nil, err
 	}

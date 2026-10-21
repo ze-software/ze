@@ -285,13 +285,14 @@ func (v *Validator) instanceSchema(leaf *yang.Entry, steps []instanceStep) ([]*y
 	// are not resolved through imports here: the context carries no
 	// statement, the first step is found by its local name, and each step's
 	// prefix is compared with the module of the node it matched.
-	parents := topLevelParents(&pathContext{leaf: leaf}, steps[0].node)
+	ctx := operationContext(leaf)
+	parents := topLevelParents(ctx, steps[0].node)
 	for _, step := range steps {
 		prefix := nodePrefix(step.node)
 		if prefix == "" {
 			return nil, refError(tb.Str("node ").Quoted(step.node).Str(" has no module prefix: write every node as prefix:name (RFC 7950 Section 9.13.2)"))
 		}
-		node := childOf(parents, localName(step.node))
+		node := ctx.childOf(parents, localName(step.node))
 		if node == nil {
 			return nil, refError(tb.Str("names no node ").Quoted(step.node).Str(": correct the path to an existing node"))
 		}

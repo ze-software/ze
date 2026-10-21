@@ -64,11 +64,47 @@ func isSchemaGroup(e *yang.Entry) bool {
 	return e.IsCase()
 }
 
+// isOperation reports whether e is an rpc, an action or a notification.
+// goyang keeps each in its parent's Dir, but none is a data node: an
+// accessible tree holds one only as the operation being defined
+// (pathContext.child, RFC 7950 Section 6.4.1).
+func isOperation(e *yang.Entry) bool {
+	switch e.Node.(type) {
+	case *yang.RPC, *yang.Action, *yang.Notification:
+		return true
+	}
+	return false
+}
+
+// isPathTransparent reports whether a "../" step passes through e: a choice
+// or a case (Section 6.5), or an rpc or action input or output, whose
+// parameters are children of the operation node itself (Section 6.4.1: "The
+// node representing the operation being defined has the operation's input
+// parameters as children.").
+func isPathTransparent(e *yang.Entry) bool {
+	if isSchemaGroup(e) {
+		return true
+	}
+	return isOperationParams(e)
+}
+
+// isOperationParams reports whether e is the input or output of an rpc or an
+// action, which goyang keeps beside the operation's Dir rather than in it.
+func isOperationParams(e *yang.Entry) bool {
+	//exhaustive:ignore // a predicate over the two entry kinds goyang gives input and output
+	switch e.Kind {
+	case yang.InputEntry, yang.OutputEntry:
+		return true
+	}
+	return false
+}
+
 // schemaChild answers the data node called name under parent, looking
-// through choice and case nodes. The recursion is bounded by the nesting depth
-// of the loaded modules, which Ze builds from its own sources.
+// through choice and case nodes, and never an rpc, action or notification
+// (isOperation). The recursion is bounded by the nesting depth of the loaded
+// modules, which Ze builds from its own sources.
 func schemaChild(parent *yang.Entry, name string) *yang.Entry {
-	if child, ok := parent.Dir[name]; ok && !isSchemaGroup(child) {
+	if child, ok := parent.Dir[name]; ok && !isSchemaGroup(child) && !isOperation(child) {
 		return child
 	}
 	for _, child := range parent.Dir {
@@ -82,11 +118,12 @@ func schemaChild(parent *yang.Entry, name string) *yang.Entry {
 	return nil
 }
 
-// dataParent answers the data node above e, past any choice or case, and nil
-// at a module root.
+// dataParent answers the node a "../" step reaches from e, past any choice,
+// case, input or output (isPathTransparent), and nil at a module root. From
+// an rpc or action parameter that is the operation node.
 func dataParent(e *yang.Entry) *yang.Entry {
 	parent := e.Parent
-	for parent != nil && isSchemaGroup(parent) {
+	for parent != nil && isPathTransparent(parent) {
 		parent = parent.Parent
 	}
 	return parent
@@ -118,8 +155,9 @@ func leafNamespaceRoot(leaf *yang.Entry) *yang.Entry {
 }
 
 // topLevel answers every top-level data node called name that Ze's config
-// data holds under one key: the node under own, the root of the referring
-// node's namespace when there is one, and that of every conf module. Ze's
+// data holds under one key, from two sources: the node under own, the root of
+// the referring node's namespace when there is one, and the node under the
+// root of every conf module. Ze's
 // config text carries no namespace, so a section several conf modules
 // contribute to is one data node (see ValidateTreeAllModules), and the
 // reference walk reads it through every schema node it stands for. Path
@@ -202,11 +240,17 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 	}
 	var node *yang.Entry
 	for i, step := range path.steps {
-		node = childOf(parents, localName(step.node))
+		node = ctx.childOf(parents, localName(step.node))
 		if node == nil {
 			tb.Str("leafref path ").Quoted(typ.Path).Str(" names no node ").Quoted(step.node)
 			if fix := rootPathFix(ctx, path.steps, i); fromRoot && fix != "" {
 				return nil, path, refError(tb.Str(fix))
+			}
+			if i == 0 && fromRoot && nodePrefix(step.node) == "" {
+				// RFC 7950 Section 6.4.1: the unprefixed first step was
+				// looked up in the referring node's module alone.
+				tb.Str(": an unprefixed name names a node of module ").Str(ctx.namespace).
+					Str(" (RFC 7950 Section 6.4.1), whose top level holds none called ").Quoted(step.node)
 			}
 			return nil, path, refError(tb.Str(": correct the path to name an existing leaf"))
 		}
@@ -271,17 +315,17 @@ func topLevelParents(ctx *pathContext, nodeID string) []*yang.Entry {
 	name := localName(nodeID)
 	if nodePrefix(nodeID) != "" {
 		if root := prefixedModuleRoot(ctx, nodeID); root != nil {
-			if schemaChild(root, name) != nil {
+			if ctx.child(root, name) != nil {
 				return []*yang.Entry{root}
 			}
 		}
-		return loadedTopLevelParents(ctx.leaf, name)
+		return loadedTopLevelParents(ctx, name)
 	}
 	root := namespaceRoot(ctx.leaf, ctx.namespace)
 	if root == nil {
 		return nil
 	}
-	node := schemaChild(root, name)
+	node := ctx.child(root, name)
 	if node == nil {
 		return nil
 	}
@@ -315,11 +359,11 @@ func prefixedModuleRoot(ctx *pathContext, nodeID string) *yang.Entry {
 }
 
 // loadedTopLevelParents answers the root of every loaded module whose top
-// level holds a data node called name, in module name order so the first
-// match is the same on every load. A module goyang lists under both its name
-// and its name with a revision answers once.
-func loadedTopLevelParents(leaf *yang.Entry, name string) []*yang.Entry {
-	modules := leaf.Modules().Modules
+// level holds a node of ctx's accessible tree called name (pathContext.child),
+// in module name order so the first match is the same on every load. A module
+// goyang lists under both its name and its name with a revision answers once.
+func loadedTopLevelParents(ctx *pathContext, name string) []*yang.Entry {
+	modules := ctx.leaf.Modules().Modules
 	names := make([]string, 0, len(modules))
 	for modName := range modules {
 		names = append(names, modName)
@@ -333,7 +377,7 @@ func loadedTopLevelParents(leaf *yang.Entry, name string) []*yang.Entry {
 			continue
 		}
 		seen[mod] = true
-		if child := schemaChild(yang.ToEntry(mod), name); child != nil {
+		if child := ctx.child(yang.ToEntry(mod), name); child != nil {
 			parents = append(parents, dataParentOrRoot(child))
 		}
 	}
@@ -410,7 +454,7 @@ func keyExprTarget(ctx *pathContext, key pathKey) (*yang.Entry, error) {
 	}
 	var target *yang.Entry
 	for _, nodeID := range key.nodes {
-		target = childOf(parents, localName(nodeID))
+		target = ctx.childOf(parents, localName(nodeID))
 		if target == nil {
 			return nil, refError(tb.Str("current() expression names no node ").Quoted(nodeID))
 		}
@@ -435,11 +479,85 @@ func keyExprTarget(ctx *pathContext, key pathKey) (*yang.Entry, error) {
 // The two differ when the path comes from a typedef of another module or a
 // deviation, and stmt is nil when Ze cannot find that statement. namespace is
 // the module of leaf, the namespace an unprefixed name of the path takes
-// (RFC 7950 Section 6.4.1).
+// (RFC 7950 Section 6.4.1). operation is the rpc, action or notification leaf
+// is defined in, nil for a data node, and params the entry holding the
+// parameters the accessible tree gives it: the input or output leaf is
+// under, or the notification itself.
 type pathContext struct {
 	leaf      *yang.Entry
 	stmt      *yang.Type
 	namespace string
+	operation *yang.Entry
+	params    *yang.Entry
+}
+
+// operationContext answers the context of leaf with no path statement or
+// namespace yet: leaf and the operation it is defined in, the nearest input,
+// output or notification above it.
+func operationContext(leaf *yang.Entry) *pathContext {
+	ctx := &pathContext{leaf: leaf}
+	for node := leaf.Parent; node != nil; node = node.Parent {
+		if isOperationParams(node) {
+			ctx.operation, ctx.params = node.Parent, node
+			return ctx
+		}
+		if _, ok := node.Node.(*yang.Notification); ok {
+			ctx.operation, ctx.params = node, node
+			return ctx
+		}
+	}
+	return ctx
+}
+
+// RFC 7950 Section 6.4.1: "If the notification is defined on the top level
+// in a module, then the root node has the node representing the notification
+// being defined and all top-level data nodes in all modules as children."
+// RFC 7950 Section 6.4.1: "Additionally, for an RPC, the root node also has
+// the node representing the RPC operation being defined as a child.  The node
+// representing the operation being defined has the operation's input
+// parameters as children." (and "output parameters" for an output).
+// RFC 7950 Section 7.15.2: the action instance "MUST contain all containers
+// and list nodes in the direct path from the top level down to the list or
+// container containing the action."
+//
+// child answers the node of ctx's accessible tree called name under parent:
+// a data node, or the operation being defined when parent is the node that
+// holds it, which for an rpc or a top-level notification is the module root,
+// and for an action or a nested notification the data node it is defined
+// in, whose instance the accessible tree carries. Under the operation node,
+// the children are the parameters of ctx.params alone, so an input path never
+// reads an output parameter. No other rpc, action or notification is in the
+// tree, including another use of the grouping that defines this one: the
+// operation is matched by its entry, which reparentOperationParams makes
+// the parent of its own input and output.
+func (ctx *pathContext) child(parent *yang.Entry, name string) *yang.Entry {
+	if ctx.operation == nil {
+		return schemaChild(parent, name)
+	}
+	if parent == ctx.operation {
+		return schemaChild(ctx.params, name)
+	}
+	if child := schemaChild(parent, name); child != nil {
+		return child
+	}
+	if ctx.operation.Name != name {
+		return nil
+	}
+	if dataParentOrRoot(ctx.operation) != parent {
+		return nil
+	}
+	return ctx.operation
+}
+
+// childOf answers the node of ctx's accessible tree called name under any of
+// parents (child).
+func (ctx *pathContext) childOf(parents []*yang.Entry, name string) *yang.Entry {
+	for _, parent := range parents {
+		if child := ctx.child(parent, name); child != nil {
+			return child
+		}
+	}
+	return nil
 }
 
 // newPathContext builds the context a leafref typ of leaf is resolved
@@ -451,7 +569,9 @@ func newPathContext(leaf *yang.Entry, typ *yang.YangType) (*pathContext, error) 
 		var tb textbuf.Buffer
 		return nil, refError(tb.Str("the module of the referring leaf ").Str(leaf.Path()).Str(" is not known: ").Str(err.Error()))
 	}
-	return &pathContext{leaf: leaf, stmt: pathStatement(leaf, typ), namespace: namespace}, nil
+	ctx := operationContext(leaf)
+	ctx.stmt, ctx.namespace = pathStatement(leaf, typ), namespace
+	return ctx, nil
 }
 
 // pathStatement answers the type statement that writes the path of typ, one
@@ -665,13 +785,14 @@ func rootStepsFix(ctx *pathContext, steps []pathStep) string {
 		}
 	}
 	written := yang.RootNode(ctx.stmt)
-	for _, parent := range loadedTopLevelParents(ctx.leaf, localName(steps[0].node)) {
-		nodes := localChain(parent, steps)
+	for _, parent := range loadedTopLevelParents(ctx, localName(steps[0].node)) {
+		nodes := localChain(ctx, parent, steps)
 		if nodes == nil {
 			continue
 		}
 		var path textbuf.Buffer
-		missing, holder := "", ""
+		var missing []string
+		holder := ""
 		for _, node := range nodes {
 			owner, err := node.InstantiatingModule()
 			if err != nil {
@@ -681,28 +802,39 @@ func rootStepsFix(ctx *pathContext, steps []pathStep) string {
 				holder = owner
 			}
 			prefix, imported := writtenPrefix(written, owner)
-			if !imported && missing == "" {
-				missing = "import " + owner + " { prefix " + prefix + "; }"
+			if imp := "import " + owner + " { prefix " + prefix + "; }"; !imported && !slices.Contains(missing, imp) {
+				missing = append(missing, imp)
 			}
 			path.Byte('/').Str(prefix).Byte(':').Str(node.Name)
 		}
 		var tb textbuf.Buffer
-		tb.Str(": an unprefixed name names a node of module ").Str(ctx.namespace).
-			Str(" (RFC 7950 Section 6.4.1), and module ").Str(holder).Str(" holds this path: ")
-		if missing != "" {
-			tb.Str("add ").Quoted(missing).Str(" to module ").Str(belongingModule(written)).Str(" and ")
+		if holder == ctx.namespace {
+			tb.Str(": module ").Str(holder).Str(", the module of the referring node, holds this path: ")
+		} else {
+			tb.Str(": an unprefixed name names a node of module ").Str(ctx.namespace).
+				Str(" (RFC 7950 Section 6.4.1), and module ").Str(holder).Str(" holds this path: ")
+		}
+		if len(missing) > 0 {
+			tb.Str("add ")
+			for i, imp := range missing {
+				if i > 0 {
+					tb.Str(" and ")
+				}
+				tb.Quoted(imp)
+			}
+			tb.Str(" to module ").Str(belongingModule(written)).Str(" and ")
 		}
 		return tb.Str("write ").Quoted(path.String()).String()
 	}
 	return ""
 }
 
-// localChain answers the schema nodes steps name by their local names, the
-// first under parent, and nil when a step names no node.
-func localChain(parent *yang.Entry, steps []pathStep) []*yang.Entry {
+// localChain answers the nodes of ctx's accessible tree steps name by their
+// local names, the first under parent, and nil when a step names no node.
+func localChain(ctx *pathContext, parent *yang.Entry, steps []pathStep) []*yang.Entry {
 	nodes := make([]*yang.Entry, 0, len(steps))
 	for _, step := range steps {
-		node := schemaChild(parent, localName(step.node))
+		node := ctx.child(parent, localName(step.node))
 		if node == nil {
 			return nil
 		}
