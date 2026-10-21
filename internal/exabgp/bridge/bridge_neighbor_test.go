@@ -6,21 +6,23 @@ import (
 	"testing"
 )
 
-// TestNeighborTeardownCarriesTheCeaseSubcode holds the one ExaBGP neighbor
-// lifecycle command ze performs.
+// TestNeighborTeardownCarriesTheCeaseSubcode holds the ExaBGP teardown grammar
+// the bridge carries to ze's own teardown.
 //
-// GOAL: `neighbor <ip> teardown <code>` reaches ze's own teardown with the
-// subcode the script wrote, so api-teardown gets the Cease NOTIFICATION it
-// asserts on the wire.
-// METHOD: translate the line and compare the whole command string, because the
-// subcode is a positional argument and a dropped one is invisible in a substring
-// match.
+// GOAL: every `neighbor <ip> teardown [<code>] [<subcode>] [<text>]` form the
+// pinned ExaBGP accepts and ze can send reaches `request peer <ip> teardown
+// <subcode> [<text>]`, so the script's Cease goes on the wire with its subcode
+// and its text.
+// METHOD: translate each line and compare the whole command string, because the
+// subcode is positional and the text keeps its case; a dropped or lowercased
+// word is invisible in a substring match. The forms are the pin's
+// teardown_notification (reactor/api/command/neighbor.py): no number is Cease,
+// Administrative Shutdown; one number is a Cease subcode; two are a code and a
+// subcode; the rest, shlex-split and joined with one space, is the text.
 //
-// VALIDATES: the command is `request peer <selector> teardown <subcode>`, the
-// selector travels with it, and no UPDATE is claimed.
-// PREVENTS: a teardown translated to a bare session close, which sends a
-// NOTIFICATION with the wrong subcode and passes every test that reads only the
-// session state.
+// VALIDATES: the command, the selector travelling with it, and no UPDATE claimed.
+// PREVENTS: a teardown with text or with no number refused, which a script
+// written for ExaBGP 6 meets as an error where ExaBGP closes the session.
 func TestNeighborTeardownCarriesTheCeaseSubcode(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -33,6 +35,12 @@ func TestNeighborTeardownCarriesTheCeaseSubcode(t *testing.T) {
 		{"widest subcode", "10.0.0.1", "teardown 255", "request peer 10.0.0.1 teardown 255"},
 		{"every peer", bridgeEveryPeer, "teardown 6", "request peer * teardown 6"},
 		{"upper case verb", "10.0.0.1", "TEARDOWN 2", "request peer 10.0.0.1 teardown 2"},
+		{"no number is administrative shutdown", "10.0.0.1", "teardown", "request peer 10.0.0.1 teardown 2"},
+		{"code and subcode", "10.0.0.1", "teardown 6 4", "request peer 10.0.0.1 teardown 4"},
+		{"subcode and text", "10.0.0.1", "teardown 2 Back Soon", "request peer 10.0.0.1 teardown 2 Back Soon"},
+		{"code, subcode and text", "10.0.0.1", "teardown 6 2 going away", "request peer 10.0.0.1 teardown 2 going away"},
+		{"quoted text starting with a digit", "10.0.0.1", "teardown 2 '42 is   it'", "request peer 10.0.0.1 teardown 2 42 is   it"},
+		{"third number is text", "10.0.0.1", "teardown 6 2 1", "request peer 10.0.0.1 teardown 2 1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -59,27 +67,39 @@ func TestNeighborTeardownCarriesTheCeaseSubcode(t *testing.T) {
 	}
 }
 
-// TestNeighborTeardownRefusesASubcodeTheWireCannotCarry pins the boundary the
-// NOTIFICATION field sets.
+// TestNeighborTeardownRefusals pins the forms the pin refuses, with its text,
+// and the one form ze refuses because its teardown sends only a Cease.
 //
-// GOAL: a subcode ze cannot put in one octet is refused where the script wrote
-// it, rather than sent on to a handler as text.
-// METHOD: drive each malformed form and require the named error, so the refusal
-// is one a caller can recognize instead of a message it can only print.
+// GOAL: a teardown that names no octet value, an unclosed quote, or a code
+// other than Cease is refused where the script wrote it.
+// METHOD: drive each form and compare the whole error text, because the pin's
+// texts are what a script written against ExaBGP 6 matches.
 //
-// VALIDATES: a non-numeric, an out-of-range and a missing subcode each answer
-// errTeardownSubcode, and none of them produces a command.
-// PREVENTS: `teardown` translated with no subcode at all, which ze's handler
-// would read as a usage error long after the bridge could name the line.
-func TestNeighborTeardownRefusesASubcodeTheWireCannotCarry(t *testing.T) {
-	for _, rest := range []string{"teardown", "teardown abc", "teardown 256", "teardown -1", "teardown 4 now"} {
-		t.Run(rest, func(t *testing.T) {
-			translation, ok, err := convertNeighborControl("127.0.0.1", rest)
+// VALIDATES: the pin's three refusals word for word, and the Cease-only refusal.
+// PREVENTS: a non-Cease code silently sent as a Cease subcode.
+func TestNeighborTeardownRefusals(t *testing.T) {
+	cases := []struct {
+		rest string
+		want string
+	}{
+		{"teardown abc", "expected a code or a subcode, got 'abc'"},
+		{"teardown -1", "expected a code or a subcode, got '-1'"},
+		{"teardown 256", "'256' is not a value from 0 to 255"},
+		{"teardown 6 300", "'300' is not a value from 0 to 255"},
+		{"teardown 2 'open", "No closing quotation"},
+		{"teardown 3 1", "ze sends a teardown as a Cease (code 6) only, got code 3: write the Cease subcode alone, teardown <subcode> [<text>]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.rest, func(t *testing.T) {
+			translation, ok, err := convertNeighborControl("127.0.0.1", tc.rest)
 			if !ok {
 				t.Fatalf("the line names teardown, so it is ours to refuse, got ok=false")
 			}
-			if !errors.Is(err, errTeardownSubcode) {
-				t.Fatalf("error = %v, want errTeardownSubcode", err)
+			if err == nil {
+				t.Fatalf("want error %q, got command %q", tc.want, onlyCommand(translation))
+			}
+			if err.Error() != tc.want {
+				t.Errorf("error = %q, want %q", err.Error(), tc.want)
 			}
 			if onlyCommand(translation) != "" {
 				t.Errorf("a refused line carries no command, got %q", onlyCommand(translation))

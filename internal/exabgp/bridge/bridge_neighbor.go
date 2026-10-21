@@ -68,9 +68,23 @@ var (
 // the bridge reads the `encoder text` setting a script's config can carry.
 var errNeighborReceive = errors.New("`receive` names an event ze sends up to the script, not a command a script sends down")
 
-// errTeardownSubcode is the answer for a teardown whose subcode the
-// NOTIFICATION field cannot carry.
-var errTeardownSubcode = errors.New("teardown takes one BGP cease subcode, 0 to 255")
+// errTeardownNotCease answers a teardown whose code is not Cease. ExaBGP 6 sends
+// any code a wire octet holds; ze's teardown (handleTeardown,
+// internal/component/bgp/plugins/cmd/peer/peer.go) sends a Cease and nothing
+// else, so the line is refused rather than sent with its code dropped.
+var errTeardownNotCease = errors.New("ze sends a teardown as a Cease (code 6) only")
+
+// The two NOTIFICATION values the teardown grammar names. The bridge is always
+// linked and the BGP message package is gated by ze_bgp, so the values are
+// stated here with their sources rather than imported.
+const (
+	// RFC 4271 Section 4.5, the Error Code table row: "6 Cease".
+	teardownCodeCease uint8 = 6
+	// RFC 4486 Section 4, the subcode table row: "2 Administrative Shutdown",
+	// the pin's default
+	// subcode (_TEARDOWN_DEFAULT, reactor/api/command/neighbor.py).
+	teardownSubcodeAdminShutdown uint8 = 2
+)
 
 // convertNeighborControl translates the ExaBGP neighbor lifecycle commands
 // that are not routes. It reports false when the line is not one of them.
@@ -108,7 +122,7 @@ func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 	// enumeration: exempt (these are ExaBGP's own neighbor control words, not the CLI verb vocabulary)
 	switch {
 	case verb == "teardown":
-		return convertTeardown(selector, lowerFields(fields))
+		return convertTeardown(selector, rest)
 	case verb == "disable":
 		return convertDisable(selector, rest)
 	case verb == "enable":
@@ -123,47 +137,56 @@ func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 	return Translation{}, false, nil
 }
 
-// lowerFields answers a lowercased copy, for the converters that compare every
-// token and carry none of them through.
-func lowerFields(fields []string) []string {
-	lowered := make([]string, len(fields))
-	for i, field := range fields {
-		lowered[i] = strings.ToLower(field)
-	}
-	return lowered
-}
-
-// convertTeardown writes the ze command that closes a session with the cease
-// subcode the script chose.
+// convertTeardown writes the ze command that closes a session with the Cease
+// subcode and the text the script chose.
 //
-// ze sends Cease (RFC 4271 error code 6) with this subcode, and it supplies the
-// RFC 8203 shutdown communication itself when none is given: Session.teardown
-// (internal/component/bgp/reactor/session_connection.go) defaults the message to
-// CeaseSubcodeString(subcode). So the ExaBGP grammar, which carries a subcode
-// and nothing else, needs no message invented for it here.
+// The grammar is the pinned ExaBGP's teardown_notification
+// (reactor/api/command/neighbor.py): `teardown [<code>] [<subcode>] [<text>]`.
+// The words after the verb are shlex-split; up to two leading all-digit words
+// are numbers, each one octet; no number is Cease, Administrative Shutdown
+// (6, 2), one is a Cease subcode, two are a code and a subcode; the remaining
+// words joined with one space are the text. The refusals carry the pin's own
+// texts, which a script may match.
 //
-// The subcode is converted at this boundary rather than passed on as the token
-// the script wrote. ze's handler checks the range again
-// (handleTeardown, internal/component/bgp/plugins/cmd/peer/peer.go), and the
-// pair is deliberate: this one names the ExaBGP line in the refusal, and that
-// one guards every other caller.
-func convertTeardown(selector string, fields []string) (Translation, bool, error) {
-	// ExaBGP's teardown carries the subcode alone: its handler reads the rest of
-	// the line as one string and refuses it unless every character is a digit
-	// (src/exabgp/reactor/api/command/neighbor.py, teardown). A trailing word is
-	// therefore not a shutdown message a script can write, however well ze's own
-	// command would carry one.
-	if len(fields) != 2 {
-		return Translation{}, true, fmt.Errorf("%w, got %d words", errTeardownSubcode, len(fields)-1)
+// ze sends Cease (RFC 4271 error code 6) with this subcode and the text as its
+// RFC 9003 Shutdown Communication (Session.teardown,
+// internal/component/bgp/reactor/session_connection.go). The words go to ze
+// unquoted: ze's handler joins its tokens with one space, the same join the pin
+// makes. ze's handler checks the subcode range again (handleTeardown,
+// internal/component/bgp/plugins/cmd/peer/peer.go): this check names the
+// ExaBGP line in the refusal, that one guards every other caller.
+func convertTeardown(selector, rest string) (Translation, bool, error) {
+	_, after, _ := strings.Cut(strings.TrimSpace(rest), " ")
+	words, err := shlexSplit(after)
+	if err != nil {
+		return Translation{}, true, err
 	}
 
 	// RFC 4271 Section 4.5: "This 1-octet unsigned integer provides more
-	// specific information about the nature of the reported error." One octet is
-	// what the wire carries, so a value outside 0 to 255 names no subcode and is
-	// refused here rather than sent on as text.
-	subcode, err := strconv.ParseUint(fields[1], 10, 8)
-	if err != nil {
-		return Translation{}, true, fmt.Errorf("%w, got %q", errTeardownSubcode, fields[1])
+	// specific information about the nature of the reported error." Two numbers
+	// at most, each one octet, as the pin reads them.
+	numbers := make([]uint8, 0, 2)
+	for len(words) > 0 && len(numbers) < 2 && allDigits(words[0]) {
+		value, err := strconv.ParseUint(words[0], 10, 8)
+		if err != nil {
+			return Translation{}, true, fmt.Errorf("%s is not a value from 0 to 255", pyRepr(words[0]))
+		}
+		numbers = append(numbers, uint8(value))
+		words = words[1:]
+	}
+	if len(numbers) == 0 && len(words) > 0 {
+		return Translation{}, true, fmt.Errorf("expected a code or a subcode, got %s", pyRepr(words[0]))
+	}
+
+	subcode := teardownSubcodeAdminShutdown
+	switch len(numbers) {
+	case 1:
+		subcode = numbers[0]
+	case 2:
+		if numbers[0] != teardownCodeCease {
+			return Translation{}, true, fmt.Errorf("%w, got code %d: write the Cease subcode alone, teardown <subcode> [<text>]", errTeardownNotCease, numbers[0])
+		}
+		subcode = numbers[1]
 	}
 
 	// A wildcard selector reaches ze's own refusal rather than a second copy of
@@ -171,10 +194,36 @@ func convertTeardown(selector string, fields []string) (Translation, bool, error
 	// answers "teardown requires one specific peer", which states the rule where
 	// it is decided; restating it in the bridge would be a copy that can drift.
 	var tb textbuf.Buffer
-	return Translation{
-		Commands: textCommands(tb.Str("request peer ").Str(selector).Str(" teardown ").Uint8(uint8(subcode)).String()),
-		Selector: selector,
-	}, true, nil
+	tb.Str("request peer ").Str(selector).Str(" teardown ").Uint8(subcode)
+	for _, word := range words {
+		tb.Str(" ").Str(word)
+	}
+	return Translation{Commands: textCommands(tb.String()), Selector: selector}, true, nil
+}
+
+// allDigits reports whether word is one or more ASCII digits, the test the
+// pin's str.isdigit makes for the words an ExaBGP script writes.
+func allDigits(word string) bool {
+	if word == "" {
+		return false
+	}
+	for i := range len(word) {
+		if word[i] < '0' || word[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// pyRepr quotes word as Python's repr quotes a str, so a refusal reads as the
+// pin's: single quotes, or double quotes when the word holds a single quote and
+// no double one.
+func pyRepr(word string) string {
+	quote := "'"
+	if strings.Contains(word, "'") && !strings.Contains(word, `"`) {
+		quote = `"`
+	}
+	return quote + word + quote
 }
 
 // errEnableArgument is the answer for an enable that carries a word, which

@@ -360,17 +360,25 @@ gets.
 
 | ExaBGP line | Answer |
 |---|---|
-| `neighbor <ip> teardown <subcode>` | `request peer <ip> teardown <subcode>` |
+| `neighbor <ip> teardown [<code>] [<subcode>] [<text>]` | `request peer <ip> teardown <subcode> [<text>]` |
 | `neighbor <ip> disable [<message>]` | `request peer <ip> disable [<message>]` |
 | `neighbor <ip> enable` | `request peer <ip> enable` |
 | `create neighbor <ip> ...` | `create bgp peer <ip> asn <asn> ...` |
 | `delete neighbor <ip>` | `delete bgp peer <ip>` |
 | `neighbor <ip> receive update ...` | refused: this is an event, not a command |
 
-The teardown carries a BGP cease subcode, and that subcode is what goes on the
-wire. ze sends Cease, which is RFC 4271 error code 6, and it supplies the RFC
-8203 shutdown communication itself when the command gives none. So the ExaBGP
-grammar, which carries a subcode and nothing else, needs no message added to it.
+The teardown grammar is the pinned ExaBGP's `teardown_notification`
+(`neighbor.py`). The words after the verb are split the way ExaBGP splits them
+(quotes group words). Up to two leading all-digit words are numbers, each from
+0 to 255: none means Cease, Administrative Shutdown (6, 2), one is a Cease
+subcode, two are a code and a subcode. The words left, joined with one space,
+are the text, which ze sends as the RFC 9003 Shutdown Communication. ze's
+teardown sends a Cease only, so two numbers whose code is not 6 are refused
+(`errTeardownNotCease`). The other refusals carry ExaBGP's own text: `expected
+a code or a subcode, got '<word>'`, `'<n>' is not a value from 0 to 255`, and
+`No closing quotation`. The differences on the wire are in
+`docs/exabgp/exabgp-differences.md`, "Neighbor teardown".
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertTeardown, errTeardownNotCease -->
 
 ExaBGP 6 `disable` and `enable` (`neighbor.py`) map one to one: `disable` holds the
 peer down and sends Cease subcode 2 with the rest of the line, split the way

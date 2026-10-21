@@ -121,6 +121,21 @@ config side matches too: `shutdown true` migrates to the peer `shutdown {}`
 container (`exabgp-migration.md`).
 <!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertDisable, convertEnable -->
 
+## Neighbor teardown -- Cease only, and the Data field
+
+`neighbor <ip> teardown [<code>] [<subcode>] [<text>]` is read as ExaBGP 6
+reads it and reaches `request peer <ip> teardown <subcode> [<text>]`
+(`exabgp-bridge.md`). Three things differ from what ExaBGP puts on the wire:
+
+| Line | ExaBGP 6 | Ze |
+|------|----------|----|
+| `teardown <code> <subcode>` with a code other than 6 | sends that NOTIFICATION | refused: Ze's teardown sends a Cease only |
+| `teardown <subcode> <text>` with a subcode other than 2 or 4 | the text, as ASCII, is the Data field | no Data field (RFC 9003 defines one only for subcodes 2 and 4) |
+| `teardown`, or `teardown 2` or `4` with no text | an empty Data field | the subcode's name as the Shutdown Communication |
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertTeardown, errTeardownNotCease -->
+<!-- source: internal/component/bgp/message/notification.go -- BuildCeaseData -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- teardown -->
+
 ## Neighbor Qualifier Syntax (Multi-Session)
 
 **ExaBGP behavior:**
