@@ -2784,3 +2784,39 @@ Owed next, in order:
 7. Not started: X-35 (TestOldCommands50/42, TestOldResponses50/42), X-37/AC-39
    (IPv4 route with an IPv6 next hop: extended-nexthop entry, capability and
    warning in migrate), AC-37/38, old-4.2/old-5.0 population runs.
+
+Update, exa8 agent (budget reached): items 1 to 4 are done and committed as
+72a56ddfbf "bgp: hold a peer administratively down (ExaBGP 6 disable/enable)".
+- Vet with every feature tag over cmd/ze, plugin, bgp/plugins, exabgp, reactor:
+  clean. `./le yang glue check` and `./le doc yang-contract command-contract`
+  green (peer-disable, peer-enable listed) after `./le --update` refreshed a
+  stale bin/le.
+- The update/ batch mock's two methods live in update/mock_reactor_test.go;
+  update_text_test.go keeps only another session's FlowSpec hunks, uncommitted.
+- `test/plugin/peer-admin-shutdown.ci` (config hold reads idle-hold, enable
+  brings the session up, `disable back soon` sends
+  `...001F030602096261636B20736F6F6E`) and
+  `test/plugin/peer-admin-shutdown-inbound.ci` (dialed connection answered
+  `...0015030605`): both green, both RED with the run-loop hold overlaid away
+  (idle-hold never seen; OPEN mismatch). Run one with
+  `./le test bgp plugin <name>`.
+- ze-peer: under `option=open:value=inspect-open-message` a NOTIFICATION in
+  place of the OPEN is now judged as the first expectation
+  (`internal/test/peer/peer.go` doOpenHandshake,
+  `preopen_notification_test.go`); ci-format.md row updated.
+- Docs: configuration.md "Holding a peer administratively down",
+  command-reference.md, exabgp-bridge.md, exabgp-migration.md,
+  exabgp-differences.md.
+
+Still owed, in order:
+1. `./le rfc check` over 72a56ddfbf and re-take any staled records.
+2. `./le doc check verify` reports the gh-pages command-equivalents pages for
+   request-peer-disable and request-peer-enable missing: the next site build
+   publishes them. Its 4 missing-short-help rows are another session's
+   flowspec-redirect-check.
+3. Journal row or fix: the ExaBGP pin's teardown takes `[code] [subcode]
+   [text]` but convertTeardown refuses more than one word (not started).
+4. Spec "Phase 7 state" line; then X-35, X-37/AC-39, AC-37/38 and the
+   old-4.2/old-5.0 population runs (not started).
+5. Gates for the main thread: reactor `-race -count=20` on peer_admin, `./le go
+   lint run` scoped to the touched packages, `./le verify worktree`.
