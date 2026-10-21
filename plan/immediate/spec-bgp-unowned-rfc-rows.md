@@ -7,14 +7,14 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-12 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The BGP child of the rfc-verdict pass (`plan/pre-release/spec-rfc-verdict-fix-bgp.md`,
-"Gap accounting", around line 975) closed with eleven requirement rows that are
+The BGP child of the rfc-verdict pass (spec-rfc-verdict-fix-bgp, closed 2026-10-21; its
+"Gap accounting" section survives in git history) closed with eleven requirement rows that are
 canonically `unimplemented` and that no spec owned. Owner decision, 2026-10-11:
 "10 give it a spec". This spec took them and two `partial` RFC 9514 rows; the
 owner then answered its open questions and split it: "Split into three"
@@ -42,6 +42,9 @@ quote and comparison rows stay traceable across the three specs.
 | 5 | `RFC2545-3-6` | RFC 2545 §3 | defect (fix needs a source Ze lacks) | Sends a third-party global next hop on a common subnet in 16 octets, without the Link-Local of that next hop |
 | 9 | `RFC9830-2.4.2-12` | RFC 9830 §2.4.2 | gap: feature absent, owner OUT (reversed 2026-10-18: implemented, see AC-6) | Before 2026-10-18: never signals an SRv6 BSID in the type-13 Binding SID sub-TLV (uses the RECOMMENDED type 20) and decodes no type 13 on receipt |
 | 10 | `RFC7606-5.1-1` | RFC 7606 §5.1 | defect | Emits MP_REACH_NLRI at its type-code position, after ORIGIN and AS_PATH, in every UPDATE builder, the splitter, and a forward that adds an attribute |
+| 13 | `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1` | draft-ietf-bess-mup-safi §3.3.3 | defect (moved here 2026-10-21 from the closing spec-rfc-verdict-fix-bgp) | Stores a received Interwork Segment Discovery (ISD) route without checking that its Address field is an address of the originator of the Prefix-SID locator |
+| 14 | `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3` | draft-ietf-bess-mup-safi §3.3.3 | defect (moved here 2026-10-21 from the closing spec-rfc-verdict-fix-bgp) | Stores a received ISD route that carries no Prefix-SID attribute |
+| 15 | `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4` | draft-ietf-bess-mup-safi §3.3.3 | defect (moved here 2026-10-21 from the closing spec-rfc-verdict-fix-bgp) | Never detects a mismatch between an ISD route's next hop and the Prefix-SID locator originator |
 
 The class column follows `ai/rules/rfc-compliance.md`: "Behavior that violates an
 applicable RFC requirement in a capability Ze implements is a defect; a capability Ze
@@ -210,7 +213,7 @@ defects because it needs no code.
 - A-1 → Decision: `nlritype.Recognizer` is `func(nlriBytes []byte, addPath bool) bool` and its package contract says it "answers about the TYPE only", so giving it attributes would break its contract for every family. The engine call site, `(*Session).typedNLRIEdit`, already holds `pathAttrs` and already carves each NLRI. Rows 1-2 add a SIBLING registry beside `nlritype` (per family, registered from the MUP plugin's `init()` next to its `nlritype.Register` call): a check that takes one carved NLRI plus the UPDATE's path attributes and MP next hop and answers keep or treat-as-withdraw. The engine names no family; a family with no check is unaffected
 - A-1 → Constraint: the draft says "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message" (§3.3.6), so the verdict is per NLRI, and it is WITHDRAW, not the §5.4 discard `typedNLRIEdit` does today: a DSD route stored earlier under the same key must leave the Adj-RIB-In. The rejected NLRIs therefore leave as their own withdraw-only body, one MP_UNREACH_NLRI of the MUP family built by `message.SynthesizeWithdrawNLRI` and dispatched by the `session_read.go` multi-body loop (Design resolutions, I1), never into the dropped count
 - A-1 → Constraint: the RFC 8669 §4 EBGP Prefix-SID discard (`session_validation_receive.go`) runs first. A DSD route from an EBGP peer not configured to accept the Prefix-SID therefore arrives at the MUP check with no Prefix-SID and is treated as withdrawn. AC-2 states it, and a functional test covers it
-- A-1 → Constraint: the ISD rows `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1/-3/-4` carry the same `{gap}` and the same mechanism would serve them; they are not this spec's rows (`plan/pre-release/spec-rfc-verdict-fix-bgp.md` lists them). The check is written so an ISD rule is a second registration, not a second mechanism
+- A-1 → Constraint: the ISD rows `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1/-3/-4` carry the same `{gap}` and the same mechanism would serve them; they became this spec's rows 13 to 15 on 2026-10-21, when spec-rfc-verdict-fix-bgp closed and an absent requirement of an implemented draft stayed work to do (owner M2, `ai/META-DECISIONS.md`); AC-9 carries them. The check is written so an ISD rule is a second registration, not a second mechanism
 - A-2 → Decision: `linkScope` holds prefixes only and `network.InterfacePrefixes` reads `net.InterfaceAddrs`, which returns no interface names; sessions run over global addresses (`reactor_peers.go` refuses a Link-Local `local-address`). The link-scope snapshot gains the NAME of the interface whose connected prefix contains the peer, read at the same cadence as today (session establishment and reload, never per UPDATE, from `net.Interfaces` with each interface's addresses). A multihop peer, or one no single interface reaches, has no interface, and its Link-Local next hops are treated as withdrawn with a Warn (the FRR behavior `bgp_attr.c` shows). This field is the ONE-HOP interface and the receive side reads only it: `plan/immediate/spec-bgp-link-local-only-next-hop.md` adds a separate source-interface field (the interface holding the session's local address, for a one-hop and a multihop peer alike, FRR's choice; that spec's Transformation Path step 1 uses the same words, round-8 N7), read only to choose Ze's own next hop, never by this receive side (that spec's round-7 I2, owner, 2026-10-12)
 - A-2 → Constraint: the RIB plugin, not the reactor, publishes the best change to sysrib, so the interface crosses the engine-to-plugin boundary with the received route (an event field), and sysrib already accepts it (`protocolRoute.nextHopInterface` from the candidate's `Interface`). No new sysrib field is needed
 - A-3 → Decision: holds. Each send path emits at most one MP attribute per UPDATE: the withdrawal writers (`forward_build.go::writeWithdrawal`, `reactor_wire.go`, `reactor_api_relay.go`) emit MP_UNREACH alone; `update_split.go::splitUpdateWithMP` emits MP_UNREACH chunks and MP_REACH chunks as separate UPDATEs; the forward loop splits any received UPDATE that `MixesNLRIFields` reports before it goes out (`forward_body.go`, both rails). So "very first" has one candidate in every UPDATE Ze sends, and no second §5.1 defect or journal row arises. `OrderAttributes` still accepts a list holding both, so AC-7's unit test feeds it one
@@ -273,6 +276,7 @@ the FSM and EPE specs.
 | AC-6 (row 9) | The type-13 SRv6 BSID form (owner: OUT 2026-10-11, IN 2026-10-18) | REVERSED 2026-10-18 by the owner (`plan/rfc-gap-difficulty-2026-10-18.md`, "Owner decisions", #7: "Bring up to date: the 2026-10-11 decline is reversed, implement the type-13 SRv6 form"). Now: `binding-sid srv6 <ipv6-address>` writes the type-13 Binding SID sub-TLV at Length 18 (`config.go::buildBindingSIDSRv6SubTLV`), `srv6-binding-sid` (type 20) stays the default, `ze bgp decode` reads a received type 13 by its length (`attr_json.go::bindingSIDToJSON`); the row carries no annotation and is tagged by `rfc9830_bsid_srv6_test.go`, with `test/encode/bgp-srpolicy-bsid-srv6-encode.ci`, `test/decode/bgp-srpolicy-bsid-srv6-decode.ci`, `test/parse/srpolicy-binding-sid-srv6.ci` and the `bgp-sr-policy-gobgp` interop scenario. The 2026-10-11 text, superseded: No code changes. `rfc/short/rfc9830.md` row `RFC9830-2.4.2-12` changes from `{gap}` to `{feature-declined}` with the RFC 9830 §2.4.2 RECOMMENDED and backward-compatibility sentences as its quote and `config.go::buildSRv6BindingSIDSubTLV` as its producer; the summary's `Support status` / `Support remaining` name the type-13 SRv6 form as an implementation gap; the row is not counted conformant; `./le rfc check` exits clean for `rfc9830` |
 | AC-7 (row 10) | Ze sends any UPDATE carrying MP_REACH_NLRI or MP_UNREACH_NLRI, from any writer A-3 lists: `OrderAttributes`, `packAttributesOrderedInto` and the family builders on it, `buildRIBRouteUpdate`, `buildWireModeUpdate`, the splitter, the forward merge-insert, and a forward of a received UPDATE whose MP attribute was not first | That attribute is the first path attribute on the wire; the same route through every builder yields identical bytes; `OrderAttributes` given a list holding both MP attributes still puts one first; a forward of a source that already complies stays byte-identical; the `.ci` and Go test expectations, `docs/architecture/wire/mp-nlri-ordering.md` and the public RFC 7606 status row change in the same commit |
 | AC-8 (ledger) | Each row once its AC is met | The row in `rfc/short/` loses `{gap}` (row 9: takes `{feature-declined}`), carries tags in both polarities where Ze can observe the behavior, and carries a discrimination record (`./le rfc discriminate-record`); `./le rfc check` exits clean for the five stems `draft-ietf-bess-mup-safi`, `draft-ietf-idr-linklocal-capability`, `rfc2545`, `rfc9830`, `rfc7606` |
+| AC-9 (rows 13 to 15) | An ISD route arrives with no Prefix-SID attribute (row 14), or with one whose locator originator, resolved as AC-1 resolves it, does not hold the ISD Address field (row 13) or the next hop (row 15) | Per §3.3.3, "the "Treat-as-withdraw procedure of [RFC7606] is applied": the NLRI is treated as withdrawn as in AC-1 and the other NLRIs of the UPDATE are processed; a matching ISD route with a Prefix-SID is stored (positive polarity). Registered on the same check as rows 1 and 2, never a second mechanism (A-1). AC-8 then applies to each row |
 
 ## End-to-End User Stories
 
@@ -509,7 +513,7 @@ Defects land first, each in its own commit, so no defect waits on another.
 
 ## Known Limitations
 - Row 9: the type-13 SRv6 BSID form is declined by the owner and stays disclosed as an implementation gap, never counted conformant.
-- The ISD rows `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1/-3/-4` share row 1's mechanism but are owned by `plan/pre-release/spec-rfc-verdict-fix-bgp.md`.
+- The ISD rows `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1/-3/-4` share row 1's mechanism and are this spec's rows 13 to 15 (AC-9) since 2026-10-21.
 
 ## RFC Documentation (Scope: protocol)
 

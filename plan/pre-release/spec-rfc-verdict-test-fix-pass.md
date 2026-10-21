@@ -81,7 +81,7 @@ closes on its own when its packages have no `weak` or `wrong` verdict.
 
 Progress, 2026-10-06: the BGP child's Linux continuation records the verified
 chunks, outstanding evidence and owner-approved AIGP carrier replacement in
-`plan/pre-release/spec-rfc-verdict-fix-bgp.md`, "Linux continuation".
+spec-rfc-verdict-fix-bgp, "Linux continuation" (that child closed 2026-10-21; the section survives in git history).
 The RR, initial-sync unwind, normalized OPEN, ModCopy carrier, OSPF oracle and
 authored RFC records/corrections are committed; evidence limits remain explicit.
 Neither child nor parent is closed. The owner requested a pause after the current
@@ -879,7 +879,7 @@ The children's functional and interop tests are per D-8 fix and are planned in e
 - the children's files (tests, `rfc/short/`, `rfc/audit/`, `rfc/discrimination/`, `rfc/corrections/`, `rfc/extraction/`, D-8 producers) are named in each child
 
 ## Files to Create
-- `plan/pre-release/spec-rfc-verdict-fix-bgp.md`, `-bfd.md`, `-ospf.md`, `-vrrp.md`, `-ike-eap.md`, `-access.md`, `-routing.md`, `-services.md` - the eight children (AC-8)
+- the eight children (AC-8) under `plan/pre-release/`: spec-rfc-verdict-fix-bgp (closed 2026-10-21) and `spec-rfc-verdict-fix-` `-bfd.md`, `-ospf.md`, `-vrrp.md`, `-ike-eap.md`, `-access.md`, `-routing.md`, `-services.md`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

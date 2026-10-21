@@ -13,8 +13,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The BGP child of the rfc-verdict pass (`plan/pre-release/spec-rfc-verdict-fix-bgp.md`,
-"Gap accounting", around line 975) closed with requirement rows that no spec owned.
+The BGP child of the rfc-verdict pass (spec-rfc-verdict-fix-bgp, closed 2026-10-21; its
+"Gap accounting" section survives in git history) closed with requirement rows that no spec owned.
 One spec took them (`plan/immediate/spec-bgp-unowned-rfc-rows.md`). On 2026-10-11 the
 owner put DelayOpen and Event 3 IN and split the work: "Split into three". This
 spec owns the two RFC 4271 FSM rows. The defects stay in the immediate spec; the
@@ -172,7 +172,7 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 |----------|--------|
 | What breaks if this is wrong? | Row 6: session establishment timing with `timer delay-open` set (OPEN held, Event 18 in Active). Row 7: restart pacing and the ConnectRetryCounter |
 | How is it reverted? | Each row lands as its own commit, revertible alone |
-| Who else touches this path? | `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (ledger rows, the R50 re-pointed tags), `plan/immediate/spec-bgp-open-session-rfc-defects.md` (OPEN and session handling), `spec-bgp-live-receive-binding-and-bfd-keep-session` (closed 2026-10-13; BFD strict-mode and session work in flight on 2026-10-11; row 6s edits `session_bfd_strict.go` and the strict-mode FSM arms it may also touch, so this spec's row 6s phase starts after that spec lands or coordinates file by file) |
+| Who else touches this path? | the rfc-verdict pass `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (ledger rows, the R50 re-pointed tags its closed BGP child spec-rfc-verdict-fix-bgp landed), `plan/immediate/spec-bgp-open-session-rfc-defects.md` (OPEN and session handling), `spec-bgp-live-receive-binding-and-bfd-keep-session` (closed 2026-10-13; BFD strict-mode and session work in flight on 2026-10-11; row 6s edits `session_bfd_strict.go` and the strict-mode FSM arms it may also touch, so this spec's row 6s phase starts after that spec lands or coordinates file by file) |
 | Row 6s | A peer with `bfd strict` and `delay-open` both set: wrong sub-state handling holds the session in Connect or Active until the BfdHoldTimer or the HoldTimer ends it |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)

@@ -68,7 +68,7 @@ untagged, with no enforced verdict claimed.
 Each row re-read at its producer at HEAD `3e2770062b`. Verdicts read from
 `rfc/audit/<stem>.json`. `./le rfc check` (rc 0) names none of these IDs as a
 residual: the weak verdicts live in the audit JSON and in the "Blocked by" table of
-`plan/pre-release/spec-rfc-verdict-fix-bgp.md`, whose rows point here. No other
+the BGP child spec-rfc-verdict-fix-bgp (closed 2026-10-21), whose rows pointed here. No other
 session holds this spec: no state file under `tmp/session/*/state/` names it, and
 its last commit is `d09deeecf3` (2026-10-04, D6 closure).
 
@@ -312,11 +312,11 @@ Q-D4 is D4's question and Q-D5 is D5's. Q-5 is answered by the owner on 2026-10-
 | AC-2 | LARGE_COMMUNITY with a repeated value | forwarded once per value |
 | AC-3 | MUP ST1 route with truncated mandatory fields or a bad TLV | treat-as-withdraw |
 | AC-4 | D4, D5 | as the owner rules |
-| AC-5 | the `weak` verdicts of RFC4271-4.3-3, RFC4271-4.3-4, RFC8092-3-1, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10, RFC9234-3.1-1, RFC7999-3.1-2 and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1, -4-2, -4-4, -4-7, -4-9, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. D6 covers missing-global internal and external multihop cases, loss of usable next hops at a directly attached external peer, withdrawal of an already advertised generation, and usable-global controls. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3; original transfer 2026-09-28, missing-next-hop extension 2026-10-02). Added 2026-10-21 at that spec's closure: the `weak` verdict of DRAFT-IETF-BESS-MUP-SAFI-3.1-1 (Section 3.1: "Any other Route Types MUST be silently ignored upon a receipt if a BGP speaker supports only 3gpp-5G architecture type."). Its audit finding (2026-10-14, kept 2026-10-15) is test strength, not a known producer defect: `TestMUPOtherRouteTypesSilentlyIgnoredAtIngress` counts `r.Discarded + r.WithdrawnCount`, so it cannot tell a silent ignore from a treat-as-withdraw; asserting `r.Discarded == 4` and `r.WithdrawnCount == 0` restores the discrimination, then a discrimination record and an independent re-judge |
+| AC-5 | the `weak` verdicts of RFC4271-4.3-3, RFC4271-4.3-4, RFC8092-3-1, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10, RFC9234-3.1-1, RFC7999-3.1-2 and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1, -4-2, -4-4, -4-7, -4-9, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. D6 covers missing-global internal and external multihop cases, loss of usable next hops at a directly attached external peer, withdrawal of an already advertised generation, and usable-global controls. Moved here from the "Blocked by" table of the BGP child spec-rfc-verdict-fix-bgp, closed 2026-10-21 (parent `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` P-3; original transfer 2026-09-28, missing-next-hop extension 2026-10-02). |
 
 ### Detailed acceptance criteria (design, 2026-10-13)
 
-AC-1 to AC-5 above keep their IDs: `plan/pre-release/spec-rfc-verdict-fix-bgp.md` cites AC-5. The rows below make AC-1 to AC-4 testable and add the proof each owes.
+AC-1 to AC-5 above keep their IDs: the parent `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` and the closed BGP child spec-rfc-verdict-fix-bgp cite AC-5. The rows below make AC-1 to AC-4 testable and add the proof each owes.
 
 | AC ID | Refines | Input / Condition | Expected Behavior | Proof |
 |-------|---------|-------------------|-------------------|-------|

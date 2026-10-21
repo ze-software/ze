@@ -65,8 +65,8 @@ Verdicts, read from `rfc/audit/rfc4724.json` and `rfc/audit/rfc9494.json` on 202
 
 `./le rfc check` at HEAD reports 2 violations, both RFC 4456 SHIFTED verdicts
 from another session's `check_special.go` edit; none for RFC 4724 or 9494.
-`plan/pre-release/spec-rfc-verdict-fix-bgp.md` routes all five weak verdicts
-here in its "Blocked by" table (AC-4).
+The BGP child spec-rfc-verdict-fix-bgp (closed 2026-10-21) routed all five weak
+verdicts here from its "Blocked by" table (AC-4), which now owns them alone.
 
 ### RFC text read for this design (`rfc/full/`)
 
@@ -351,7 +351,7 @@ Rejected alternative: keep one field and make `purge-stale` delete only retentio
 | AC-1 | GR peer torn down by a NOTIFICATION sent or received | routes flushed, no stale retention |
 | AC-2 | reconnect during LLGR with each Section 4.2 purge condition | that family's stale routes removed |
 | AC-3 | route received with LLGR_STALE from an LLGR neighbour | least preferred; not advertised to a non-LLGR neighbour; community kept on further advertisement |
-| AC-4 | the `weak` verdicts of RFC4724-4-2, RFC9494-4.2-6, RFC9494-4.2-8, RFC9494-4.3-1 and RFC9494-4.3-3, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28; RFC9494-4.3-3 transfer completed 2026-10-05) |
+| AC-4 | the `weak` verdicts of RFC4724-4-2, RFC9494-4.2-6, RFC9494-4.2-8, RFC9494-4.3-1 and RFC9494-4.3-3, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from the "Blocked by" table of the BGP child spec-rfc-verdict-fix-bgp, closed 2026-10-21 (P-3 of `plan/pre-release/spec-rfc-verdict-test-fix-pass.md`, 2026-09-28; RFC9494-4.3-3 transfer completed 2026-10-05) |
 | AC-5 | GR peer whose TCP session is lost with no NOTIFICATION exchanged (D1 negative polarity) | routes retained and marked stale level 1, Restart Time timer armed, exactly as today |
 | AC-6 | any Established -> non-Established transition after a NOTIFICATION was sent or received in that session | the state-down event's reason is `rpc.ReasonNotification` ("notification") on both the structured and the JSON plugin paths and in FSM history; a session without one keeps "session closed" / "connection lost"; peer removal keeps "removed" |
 | AC-7 | reconnect, family F in its LLGR period, new GR lists F with F bit set, new LLGR lists F with F bit clear | F's stale routes purged at once (RFC9494-4.2-8 bullet 1) |
@@ -762,7 +762,7 @@ Detailed phases (each: failing test, fix, pass, page edit in the same phase):
 |----------|--------|
 | What breaks if this is wrong? | routes kept or dropped wrongly across restarts; stale routes selected or leaked to neighbours; communities leaking past `send-community none` |
 | How is it reverted? | single commit revert per phase; no config or wire format migration |
-| Who else touches this path? | `plan/immediate/spec-bgp-llgr-per-family-config.md` (same GR plugin, skeleton); `plan/spec-gr-advanced.md` (N bit on top of D1); `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (AC-4 parent); `plan/immediate/spec-bgp-update-propagation-rfc-defects.md` (its D2 edits `filter_community/handler.go::genericCommunityHandler` and `filter_community/filter.go`, the handler D5 and Q-7 change) |
+| Who else touches this path? | `plan/immediate/spec-bgp-llgr-per-family-config.md` (same GR plugin, skeleton); `plan/spec-gr-advanced.md` (N bit on top of D1); `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (AC-4 parent, through its closed BGP child spec-rfc-verdict-fix-bgp); `plan/immediate/spec-bgp-update-propagation-rfc-defects.md` (its D2 edits `filter_community/handler.go::genericCommunityHandler` and `filter_community/filter.go`, the handler D5 and Q-7 change) |
 | Shared producer with the rs spec | `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (Phase 2b, Data Flow 5, Blast Radius "Depends on GR D1") depends on D1 and shares two sites with it: D1's teardown reason producer in `reactor/peer_run.go`, and the no-retention check in `gr.go::handleStructuredState` / `handleStateEvent`. (a) It adds a second input to that producer, `receivePublication.failed`, reported as a second declared close reason `rpc.ReasonAdjRIBInInvalid` beside `rpc.ReasonNotification` (spelling is the rs spec's own Q-6, distinct from this spec's Q-6), and one declared predicate `rpc.ReasonForbidsRetention` in `pkg/plugin/rpc/enums.go`, true for `rpc.ReasonNotification`, `rpc.ReasonAdjRIBInInvalid` and `rpc.ReasonPeerRemoved`, which `gr.go` calls in place of a reason comparison. (b) It moves the down event, and the reason producer with it, from the FSM leave-Established callback to `Peer.runOnce` after `<-deliveryDone`, so a session's buffered UPDATEs reach every plugin before its down event. Whichever spec lands second carries the move: if D1 lands first, rs Phase 2b moves D1's producer; if rs Phase 2b lands first, D1 writes its producer at the `runOnce` site |
 
 ## Known Limitations

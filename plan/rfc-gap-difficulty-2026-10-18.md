@@ -52,7 +52,7 @@ still needs its own spec or commit under `ai/rules/planning.md`.
 | 9 | RFC2131-4.1-7 | RFC 2131 4.1 | 2 | 1.5 d (shared 9-10) | | | spec-rfc-verdict-fix-services |
 | 10 | RFC2131-4.1-15 | RFC 2131 4.1 | 2 | with #9 | | #9 | none |
 | 11 | RFC7950-7.2.2-1 | RFC 7950 7.2.2 | 2 | 1 d | | | pre-release/spec-config-yang-loader-structural-checks |
-| 12 | RFC7432-8.2.1-4 | RFC 7432 8.2.1 | 2 | 1.5 d | | | spec-rfc-verdict-fix-bgp |
+| 12 | RFC7432-8.2.1-4 | RFC 7432 8.2.1 | 2 | 1.5 d | | | none needed: re-judged `enforced` 2026-10-18 after `0411b53e91` (`rfc/audit/rfc7432.json`); the former owner spec-rfc-verdict-fix-bgp closed 2026-10-21 |
 | 13 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 | draft-ietf-idr-linklocal-capability 6 | 2 | 1.5 d | | | spec-bgp-unowned-rfc-rows |
 | 14 | DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5 | draft-ietf-bess-mup-safi 3.3.6 | 2 | 1.5 d | | | spec-bgp-unowned-rfc-rows |
 | 15 | RFC5216-5.3-5 | RFC 5216 5.3 | 2 | 1.5 d | | | none |
@@ -61,7 +61,7 @@ still needs its own spec or commit under `ai/rules/planning.md`.
 | 18 | RFC4271-8.2.2-20 | RFC 4271 8.2.2 | 3 | 2 d | | | spec-bgp-fsm-delayopen-and-automatic-start |
 | 19 | RFC7606-5.1-1 | RFC 7606 5.1 | 3 | 3 d | | | spec-bgp-unowned-rfc-rows |
 | 20 | DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4 | draft-ietf-bess-mup-safi 3.3.6 | 3 | 3 d | | #14 | spec-bgp-unowned-rfc-rows |
-| 21 | RFC9136-3.1-4 | RFC 9136 3.1 | 3 | 3 d | | | spec-rfc-verdict-fix-bgp |
+| 21 | RFC9136-3.1-4 | RFC 9136 3.1 | 3 | 3 d | | | none needed: re-judged `enforced` 2026-10-19 after `4283f8d2e3` (`rfc/audit/rfc9136.json`); the former owner spec-rfc-verdict-fix-bgp closed 2026-10-21 |
 | 22 | RFC4659-3.2.1.1-3 | RFC 4659 3.2.1.1 | 3 | 4 d | | | none |
 | 23 | RFC9552-5.3.2.7-1 | RFC 9552 5.3.2.7 | 3 | 3 d | scope (optional TLV policy) | | none |
 | 24 | RFC7752-3.3.2.7-1 | RFC 7752 3.3.2.7 | 3 | with #23 | scope | #23 | none |
@@ -84,7 +84,7 @@ still needs its own spec or commit under `ai/rules/planning.md`.
 | 41 | RFC4271-8.2.2-13 | RFC 4271 8.2.2 | 4 | 1.5 w | scope (DelayOpen optional) | #18 | spec-bgp-fsm-delayopen-and-automatic-start |
 | 42 | RFC9252-5-2 | RFC 9252 5 | 4 | 2 w | | | immediate/spec-srv6-bestpath-resolvability |
 | 43 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2 | draft-ietf-idr-linklocal-capability 1 | 4 | 2 w | | | spec-bgp-unowned-rfc-rows |
-| 44 | RFC2545-3-6 | RFC 2545 3 | 4 | 2 w | | #43 helps | spec-rfc-verdict-fix-bgp |
+| 44 | RFC2545-3-6 | RFC 2545 3 | 4 | 2 w | | #43 helps | spec-bgp-unowned-rfc-rows (row 5, AC-5) |
 | 45 | RFC8277-3.2.2-3 | RFC 8277 3.2.2 | 4 | 2 w | scope (Multiple Labels capability) | RFC8277-3.2.1-4 | none |
 | 46 | RFC9086-7-2 | RFC 9086 7 | 4 | 3 w | scope (owner R3) | | spec-bgp-epe-peer-segments-and-srv6-peernode |
 | 47 | RFC9012-13-16 | RFC 9012 13 | 4 | 3 w (consumer) | scope | | spec-bgp-tunnel-encapsulation-consumption |
