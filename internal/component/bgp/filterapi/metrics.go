@@ -52,13 +52,29 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		),
 	})
 
+	// The hooks are copied under the lock and called after it is released: a
+	// hook that called Register would wait on the write lock this goroutine
+	// holds, and one that only read would still deadlock behind a writer
+	// queued between the two read locks (sync.RWMutex forbids recursive read
+	// locking for that reason).
+	for _, hook := range metricsHooks() {
+		hook(reg)
+	}
+}
+
+// metricsHooks answers the ConfigureMetrics hook of every registered filter
+// that declares one, copied so the caller can run them without holding mu.
+func metricsHooks() []func(metrics.Registry) {
 	mu.RLock()
 	defer mu.RUnlock()
+
+	hooks := make([]func(metrics.Registry), 0, len(filters))
 	for _, f := range filters {
 		if f.ConfigureMetrics != nil {
-			f.ConfigureMetrics(reg)
+			hooks = append(hooks, f.ConfigureMetrics)
 		}
 	}
+	return hooks
 }
 
 // RecordEditSpill counts one destination whose edit set outgrew an inline store.

@@ -653,7 +653,9 @@ type Filter struct {
 	// naming its package. SetMetricsRegistry calls it once, from the reactor's
 	// metrics-enable block, with a non-nil registry; a build with metrics
 	// disabled never calls it. It is no pipeline contribution: a filter that
-	// declares only this is refused by Register. Nil = no metrics.
+	// declares only this is refused by Register. It runs without the
+	// registry lock held, so it may call back into this package. Nil = no
+	// metrics.
 	ConfigureMetrics func(metrics.Registry)
 }
 

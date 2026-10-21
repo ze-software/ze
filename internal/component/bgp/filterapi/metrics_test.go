@@ -2,6 +2,7 @@ package filterapi
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -188,4 +189,57 @@ func TestSetMetricsRegistryWiresRegisteredFilterMetrics(t *testing.T) {
 	SetMetricsRegistry(reg)
 	assert.Equal(t, 1, calls)
 	assert.Same(t, reg, got)
+}
+
+// TestSetMetricsRegistryHookMayCallRegister proves a ConfigureMetrics hook runs
+// outside the filter registry lock.
+//
+// VALIDATES: a hook that registers another filter returns, and the filter it
+// registered is in the registry afterwards. Method: the call runs in a
+// goroutine and the test waits a bounded time, so a deadlock fails the test
+// rather than hanging it.
+// PREVENTS: SetMetricsRegistry calling the hooks under mu.RLock, where a hook
+// calling Register waits forever on the write lock. Not parallel: it writes
+// the package filter registry.
+func TestSetMetricsRegistryHookMayCallRegister(t *testing.T) {
+	const name = "test-metrics-hook-registers"
+	const inner = "test-metrics-hook-registered"
+	accept := func(PeerFilterInfo, []byte, map[string]any) (bool, []byte) { return true, nil }
+	var innerErr error
+	require.NoError(t, Register(Filter{
+		Name:    name,
+		Ingress: accept,
+		ConfigureMetrics: func(metrics.Registry) {
+			innerErr = Register(Filter{Name: inner, Ingress: accept})
+		},
+	}))
+	wedged := false
+	t.Cleanup(func() {
+		attrModMetricsPtr.Store(nil)
+		if wedged {
+			return // the stuck goroutine holds mu; taking it would hang the binary
+		}
+		mu.Lock()
+		delete(filters, name)
+		delete(filters, inner)
+		mu.Unlock()
+	})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		SetMetricsRegistry(metrics.NewPrometheusRegistry())
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		wedged = true
+		t.Fatal("SetMetricsRegistry did not return: the hook's Register deadlocked on the registry lock")
+	}
+
+	require.NoError(t, innerErr)
+	mu.RLock()
+	_, registered := filters[inner]
+	mu.RUnlock()
+	assert.True(t, registered, "the filter the hook registered is missing")
 }

@@ -113,8 +113,10 @@ block with a non-nil registry, hands each declaring filter the daemon's
 registry, so a filter that counts what it does (loop detection) builds its own
 metrics without the reactor naming its package. A build with metrics disabled
 never calls it. It is no pipeline contribution: `filterapi.Register` refuses a
-filter that declares only this.
+filter that declares only this. The hooks run after the filter registry lock
+is released, so a hook may call back into `filterapi`.
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- Filter.ConfigureMetrics -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry, metricsHooks -->
 
 ## The setup record: a plugin's second declaration
 
