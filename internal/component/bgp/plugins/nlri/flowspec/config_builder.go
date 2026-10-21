@@ -109,15 +109,16 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*f
 
 	if vals, ok := matchCriteria[flowspec.KwTCPFlags]; ok {
 		seen[flowspec.KwTCPFlags] = true
-		if matches := parseFlowTCPFlagMatchesSlice(vals); len(matches) > 0 {
-			add(flowspec.KwTCPFlags, flowspec.NewFlowNumericComponent(flowspec.FlowTCPFlags, matches))
+		matches, err := parseFlowBitmaskMatches(vals, flowspec.TCPFlagNameToValue)
+		if err != nil {
+			dropped = append(dropped, flowspec.KwTCPFlags+" "+err.Error())
 		} else {
-			dropped = append(dropped, flowspec.KwTCPFlags)
+			add(flowspec.KwTCPFlags, flowspec.NewFlowTCPFlagsMatchComponent(matches))
 		}
 	}
 	if vals, ok := matchCriteria[flowspec.KwFragment]; ok {
 		seen[flowspec.KwFragment] = true
-		matches, err := parseFlowFragmentMatches(vals)
+		matches, err := parseFlowBitmaskMatches(vals, flowspec.FragmentFlagNameToValue)
 		if err != nil {
 			dropped = append(dropped, flowspec.KwFragment+" "+err.Error())
 		} else {
@@ -257,87 +258,32 @@ var icmpCodeNames = map[string]uint8{
 	"ip-header-bad":           2,
 }
 
-// parseFlowFragmentMatches parses the values of a fragment criterion with the
-// update text grammar (parseBitmaskValue), so config and update text read one
-// modifier table: `[ first-fragment last-fragment ]`, `!is-fragment`,
-// `=dont-fragment`, and `&` to AND a term with the one before it.
+// parseFlowBitmaskMatches parses the values of a bitmask criterion (tcp-flags,
+// fragment) with the update text grammar (parseBitmaskTermsText), so config
+// and update text read one table: `syn&ack` (SYN set AND ACK set),
+// `[ syn ack ]` (SYN set OR ACK set), `syn+ack` (one mask of both bits),
+// `!rst`, `=syn`, `!=fin`. names maps a flag name to its bit.
 //
-// RFC 8955 Section 4.2.2.12: "Encoding: <type (1 octet), [bitmask_op,
-// bitmask]+>". A term is refused with its reason, never skipped: a fragment
-// criterion with a term missing would match packets the operator excluded.
-func parseFlowFragmentMatches(vals []string) ([]flowspec.FlowMatch, error) {
+// RFC 8955 Section 4.2.2.9: "Encoding: <type (1 octet), [bitmask_op,
+// bitmask]+>", and Section 4.2.2.12 the same for fragment. A term is refused
+// with its reason, never skipped: a criterion with a term missing would match
+// packets the operator excluded.
+func parseFlowBitmaskMatches(vals []string, names map[string]uint8) ([]flowspec.FlowMatch, error) {
 	var matches []flowspec.FlowMatch
 	for _, v := range vals {
 		for token := range strings.FieldsSeq(strings.ToLower(strings.Trim(v, "[]"))) {
 			// RFC 8955 Section 4.2.1.2
-			op, flags, and, err := parseBitmaskValue(token, flowspec.FragmentFlagNameToValue)
+			terms, err := parseBitmaskTermsText(token, len(matches) > 0, names)
 			if err != nil {
 				return nil, err
 			}
-			if and && len(matches) == 0 {
-				return nil, fmt.Errorf("%q starts with &, which joins a term to the one before it, and no term comes before it: drop the &", token)
-			}
-			matches = append(matches, flowspec.FlowMatch{Op: op, Value: uint64(flags), And: and})
+			matches = append(matches, terms...)
 		}
 	}
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("has no value: write one or more flags (%s), as in [ first-fragment last-fragment ]", strings.Join(slices.Sorted(maps.Keys(flowspec.FragmentFlagNameToValue)), ", "))
+		return nil, fmt.Errorf("has no value: write one or more flags (%s), as in [ %s ]", strings.Join(slices.Sorted(maps.Keys(names)), ", "), strings.Join(slices.Sorted(maps.Keys(names))[:2], " "))
 	}
 	return matches, nil
-}
-
-// parseFlowTCPFlagMatches parses TCP flags with AND and NOT operators.
-// TCP flags use bitmask matching:
-//   - 0x01 = MATCH (exact match)
-//   - 0x02 = NOT (negate)
-//   - 0x40 = AND (AND with previous)
-func parseFlowTCPFlagMatches(s string) []flowspec.FlowMatch {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowMatch
-
-	for _, p := range parts {
-		// Handle combined flags like "RST&FIN&!=push"
-		flagParts := strings.Split(p, "&")
-		for i, fp := range flagParts {
-			var op flowspec.FlowOperator
-			isAnd := i > 0 // Parts after & are AND-ed
-
-			// Check for != (NOT+MATCH)
-			if strings.HasPrefix(fp, "!=") {
-				op = 0x02 | 0x01 // NOT | MATCH
-				fp = strings.TrimPrefix(fp, "!=")
-			}
-			// For simple flags, use no operator (INCLUDE)
-
-			if isAnd {
-				op |= 0x40 // AND
-			}
-
-			fp = strings.ToLower(fp)
-			f, ok := flowspec.TCPFlagNameToValue[fp]
-			if !ok {
-				return nil
-			}
-			result = append(result, flowspec.FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
-		}
-	}
-	return result
-}
-
-// --- Slice helpers for map[string][]string NLRI format ---
-
-// parseFlowTCPFlagMatchesSlice parses TCP flag matches from a pre-split slice.
-func parseFlowTCPFlagMatchesSlice(vals []string) []flowspec.FlowMatch {
-	result := make([]flowspec.FlowMatch, 0, len(vals))
-	for _, v := range vals {
-		matches := parseFlowTCPFlagMatches(v)
-		if len(matches) == 0 {
-			return nil
-		}
-		result = append(result, matches...)
-	}
-	return result
 }
 
 // prefixCriterion answers the criterion an operator wrote for one prefix

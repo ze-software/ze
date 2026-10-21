@@ -68,7 +68,8 @@ func (c *numericComponent) Bytes() []byte {
 // String returns command-style format: "<type> <op><value>...".
 // For bitmask types (TCP flags, Fragment), uses named flags instead of numbers.
 // Example: "destination-port =80 =443" (80 OR 443), "destination-port
-// >8080&<8088" (an AND range) or "tcp-flags syn&ack".
+// >8080&<8088" (an AND range), "tcp-flags syn&ack" (SYN set AND ACK set) or
+// "tcp-flags syn+ack" (one operand of two bits).
 func (c *numericComponent) String() string {
 	// Handle bitmask types specially
 	if c.compType == FlowTCPFlags || c.compType == FlowFragment {
@@ -161,7 +162,8 @@ func bitmaskToString(flags uint8, names map[uint8]string) string {
 	if len(set) == 0 {
 		return "0"
 	}
-	return textbuf.Join(set, "&")
+	// "+" joins the bits of one operand; "&" would read back as AND-joined terms.
+	return textbuf.Join(set, "+")
 }
 
 // tcpFlagsToString converts TCP flags byte to named flags.

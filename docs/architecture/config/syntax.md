@@ -1344,9 +1344,16 @@ term before it, and a value that is neither a number nor a known name are each
 refused at load with the criterion, the value and the fix. A bare value means
 `=`. Successive terms are ORed; `&` inside a token ANDs the next term with the
 one before it, so `[ >8080&<8088 =3128 ]` is (>8080 AND <8088) OR =3128.
-`tcp-flags` keeps its own config parser, in which `syn&ack` is two terms ANDed
-(SYN and ACK set), while update text reads `syn&ack` as one mask term (SYN or
-ACK set). That divergence is open.
+The bitmask criteria, `tcp-flags` and `fragment`, take one grammar in config
+and in update text through one parser (`parseBitmaskTermsText`), ExaBGP 6.0's.
+`&` ANDs the next term with the one before it and successive terms are ORed,
+as for numeric criteria: `syn&ack` is SYN set AND ACK set, `[ syn ack ]` is SYN
+set OR ACK set. `+` names several bits of one operand: `syn+ack` is SYN or ACK
+set, and `=syn+ack` both set. A term may lead with `=` (all the operand's bits
+set, RFC 8955 Section 4.2.1.2 match bit), `!` (none set) or `!=` (not all set),
+and its operand is a flag name or a number from 0 to 255. A leading `&` with no
+term before it, an `&` or `+` with nothing after it, and an unknown flag are
+refused at load with the criterion and the fix.
 
 #### FlowSpec Actions (Extended Communities)
 

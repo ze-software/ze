@@ -41,12 +41,16 @@ func TestConfigProtocolNamesResolve(t *testing.T) {
 // TestConfigTCPFlagAliasesResolve drives the config parser over every TCP flag
 // spelling, aliases included.
 //
-// VALIDATES: parseFlowTCPFlagMatches reads TCPFlagNameToValue.
+// VALIDATES: parseFlowBitmaskMatches reads TCPFlagNameToValue.
 // PREVENTS: the config parser accepting `reset` and `urgent` while the text
 // encoder rejected them, which is how the two tables differed.
 func TestConfigTCPFlagAliasesResolve(t *testing.T) {
 	for name, value := range flowspec.TCPFlagNameToValue {
-		matches := parseFlowTCPFlagMatches(name)
+		matches, err := parseFlowBitmaskMatches([]string{name}, flowspec.TCPFlagNameToValue)
+		if err != nil {
+			t.Errorf("tcp flag %q: refused: %v", name, err)
+			continue
+		}
 		if len(matches) != 1 {
 			t.Errorf("tcp flag %q: got %d matches, want 1", name, len(matches))
 			continue
@@ -60,13 +64,13 @@ func TestConfigTCPFlagAliasesResolve(t *testing.T) {
 // TestConfigFragmentFlagsResolve drives the config parser over every fragment
 // flag spelling, the short aliases included.
 //
-// VALIDATES: parseFlowFragmentMatches reads FragmentFlagNameToValue, so the
+// VALIDATES: parseFlowBitmaskMatches reads FragmentFlagNameToValue, so the
 // four short aliases the text encoder accepts are not refused by config.
 // PREVENTS: `fragment df` parsing to nothing, which drops the component and
 // widens the rule in silence.
 func TestConfigFragmentFlagsResolve(t *testing.T) {
 	for name, value := range flowspec.FragmentFlagNameToValue {
-		matches, err := parseFlowFragmentMatches([]string{name})
+		matches, err := parseFlowBitmaskMatches([]string{name}, flowspec.FragmentFlagNameToValue)
 		if err != nil {
 			t.Errorf("fragment flag %q: refused: %v", name, err)
 			continue

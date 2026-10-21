@@ -1287,7 +1287,6 @@ func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                 
 func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                 { return nil }
 func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                          { return nil }
 func (m *mockReactorBatch) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { return nil }
-func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8, _ string) error     { return nil }
 func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                           { return nil }
 func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                          { return nil }
 func (m *mockReactorBatch) FlushForwardPool(_ context.Context) error               { return nil }
@@ -2877,7 +2876,14 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 		{
 			name:     "syn_and_ack",
 			flags:    []string{"syn&ack"},
-			wantOps:  []flowspec.FlowOperator{0}, // Combined in single match
+			wantOps:  []flowspec.FlowOperator{0, 0}, // Two terms: SYN set AND ACK set
+			wantAnds: []bool{false, true},
+			wantVals: []uint64{0x02, 0x10},
+		},
+		{
+			name:     "syn_plus_ack",
+			flags:    []string{"syn+ack"},
+			wantOps:  []flowspec.FlowOperator{0}, // One operand of two bits
 			wantAnds: []bool{false},
 			wantVals: []uint64{0x12}, // SYN(0x02) | ACK(0x10) = 0x12
 		},
@@ -2904,7 +2910,7 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 		},
 		{
 			name:     "ece_cwr",
-			flags:    []string{"ece&cwr"},
+			flags:    []string{"ece+cwr"},
 			wantOps:  []flowspec.FlowOperator{0},
 			wantAnds: []bool{false},
 			wantVals: []uint64{0xC0}, // ECE(0x40) | CWR(0x80) = 0xC0
@@ -3327,12 +3333,12 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 		{
 			name:    "invalid_tcp_flag",
 			args:    []string{"mp", "ipv4/flow", "add", "tcp-flags", "unknown"},
-			wantErr: "unknown flag",
+			wantErr: "is not a flag",
 		},
 		{
 			name:    "invalid_fragment_type",
 			args:    []string{"mp", "ipv4/flow", "add", "fragment", "unknown"},
-			wantErr: "unknown flag",
+			wantErr: "is not a flag",
 		},
 		{
 			name:    "missing_destination_value",

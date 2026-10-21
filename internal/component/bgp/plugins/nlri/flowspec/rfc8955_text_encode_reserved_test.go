@@ -8,17 +8,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 // TestRFC8955TextLeadingAndEncodedUnset drives the text encoder with a
-// tcp-flags operand spelled with a leading "&". It is one of the two bitmask
-// text forms (tcp-flags, fragment) whose parser hands the encoder a first
-// {op, value} pair asking for AND.
+// tcp-flags component whose first {op, value} pair asks for AND. The text
+// grammar (parseBitmaskTermsText) refuses a leading "&" with no term before it,
+// so the pair is built directly, the shape any other producer of FlowMatch
+// lists can still hand the encoder.
 //
-// VALIDATES: parseTCPFlagsComponentText sets FlowMatch.And from the token's own
-// "&" prefix, so "&syn" reaches numericComponent.writeToAFI (core
-// types_numeric.go) as a first match with And set, and the encoder alone keeps
-// the 'a' bit (0x40) off the first operator octet.
+// VALIDATES: numericComponent.writeToAFI (core types_numeric.go), given a
+// first match with And set, keeps the 'a' bit (0x40) off the first operator
+// octet, and the text encoder refuses "&syn" rather than encoding it.
 //
 // PREVENTS: a leading AND bit on the wire, which RFC 8955 Section 4.2.1.1
 // forbids and which a peer reads as an AND against no previous term.
@@ -31,10 +33,13 @@ import (
 func TestRFC8955TextLeadingAndEncodedUnset(t *testing.T) {
 	t.Parallel()
 
-	// RFC requirement: RFC8955-4.2.1.1-2 positive -- the text tcp-flags operand "&syn" asks for AND on the first pair, and the encoded NLRI is exactly 03 09 80 02: the first operator octet is 0x80 (end-of-list only) with the AND bit 0x40 clear (§4.2.1.1).
-	leading, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"tcp-flags", "&syn"})
-	require.NoError(t, err)
-	require.Equal(t, []byte{0x03, 0x09, 0x80, 0x02}, leading)
+	// RFC requirement: RFC8955-4.2.1.1-2 positive -- a tcp-flags component whose first pair asks for AND encodes as exactly 03 09 80 02: the first operator octet is 0x80 (end-of-list only) with the AND bit 0x40 clear (§4.2.1.1).
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowTCPFlagsMatchComponent([]flowspec.FlowMatch{{Value: 0x02, And: true}})))
+	require.Equal(t, []byte{0x03, 0x09, 0x80, 0x02}, fs.Bytes())
+
+	_, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"tcp-flags", "&syn"})
+	require.Error(t, err, "a leading & joins to no term and is refused")
 
 	// The same encoder does write the AND bit where it is allowed, so the
 	// assertion above is about position, not about an encoder that never sets it.
@@ -46,7 +51,7 @@ func TestRFC8955TextLeadingAndEncodedUnset(t *testing.T) {
 // TestRFC8955TextFragmentIPv4ReservedBitsCleared drives the text encoder with
 // numeric fragment operands whose reserved high nibble is set.
 //
-// VALIDATES: parseBitmaskValue accepts any numeric fragment operand from 0 to
+// VALIDATES: parseBitmaskOperand accepts any numeric fragment operand from 0 to
 // 255, so "fragment 242" (0xf2) and "fragment 255" (0xff) reach the IPv4 NLRI
 // encoder with the reserved bits set, and numericComponent.writeToAFI (core
 // types_numeric.go) masks the value with fragmentMask(AFIIPv4) = 0x0f: the

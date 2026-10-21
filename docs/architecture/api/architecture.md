@@ -1002,7 +1002,7 @@ the keyword (`port >80&<100 port >443&<500`) adds another OR group to the same
 component. A leading `&` on the first value, or an `&` with no term after it, is
 refused.
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- parseNumericComponentText, parseNumericTermsText -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- parseNumericComponentText, parseNumericTermsText, parseBitmaskTermsText -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_decode.go -- jsonToTextComponents, normalizeJSONValue -->
 
 **Value Ranges (validated at parse time):**
@@ -1017,12 +1017,14 @@ refused.
 
 | Syntax | Meaning | Wire Op |
 |--------|---------|---------|
-| `flag` | match if ANY of the flags are set | 0x00 (INCLUDE) |
-| `=flag` | match if EXACTLY these flags are set | 0x01 (Match) |
-| `!flag` | match if flag is NOT set | 0x02 (Not) |
-| `!=flag` | match if NOT exactly these flags | 0x03 (Not+Match) |
-| `flag1&flag2` | combine flags in same match | combined value |
-| `&flag` | AND with previous match (vs OR) | 0x40 (And bit) |
+| `flag` | match if ANY of the operand's bits is set | 0x00 (INCLUDE) |
+| `=flag` | match if ALL of the operand's bits are set; other bits may be set too, `(data AND value) == value` | 0x01 (Match) |
+| `!flag` | match if NONE of the operand's bits is set | 0x02 (Not) |
+| `!=flag` | match if NOT all of the operand's bits are set | 0x03 (Not+Match) |
+| `flag1+flag2` | one operand holding both bits: `syn+ack` is SYN or ACK set, `=syn+ack` is SYN and ACK set | combined value |
+| `term1&term2` | two terms, the second ANDed with the first: `syn&ack` is SYN set AND ACK set, `=syn&!rst` is SYN set AND RST clear | 0x40 (And bit) on the second |
+| `term1 term2` | two terms ORed: `syn ack` is SYN set OR ACK set | And bit clear |
+| `&term` | as its own token, AND with the previous token's last term; refused with no term before it | 0x40 (And bit) |
 
 **Examples:**
 ```
@@ -1044,9 +1046,12 @@ mp ipv4/flowspec add destination-port >8080&<8088 =3128
 
 # TCP flags with operators
 mp ipv4/flowspec add tcp-flags syn          # SYN is set (any)
-mp ipv4/flowspec add tcp-flags =syn         # ONLY SYN is set (exact)
+mp ipv4/flowspec add tcp-flags =syn         # SYN is set (all of the operand's bits)
 mp ipv4/flowspec add tcp-flags !rst         # RST is NOT set
-mp ipv4/flowspec add tcp-flags =syn&ack     # exactly SYN+ACK
+mp ipv4/flowspec add tcp-flags syn&ack      # SYN is set AND ACK is set
+mp ipv4/flowspec add tcp-flags =syn+ack     # the same, as one operand of two bits
+mp ipv4/flowspec add tcp-flags syn+ack      # SYN or ACK is set
+mp ipv4/flowspec add tcp-flags =syn&!ack    # SYN set AND ACK clear
 
 # Fragment matching
 mp ipv4/flowspec add fragment !is-fragment  # NOT a fragment

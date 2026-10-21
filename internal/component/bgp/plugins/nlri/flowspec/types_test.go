@@ -1070,8 +1070,8 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				mustAddComponent(f, tcpFlagsComponent(0x12)) // SYN+ACK
 				return f
 			}(),
-			// Parser expects: tcp-flags syn&ack
-			expected: "flow tcp-flags syn&ack",
+			// One operand of two bits: the parser reads "+" as that, "&" as AND.
+			expected: "flow tcp-flags syn+ack",
 		},
 		{
 			name: "full rule",
@@ -1122,7 +1122,7 @@ func TestBitmaskComponentString(t *testing.T) {
 		{
 			name:     "tcp-flags syn+ack",
 			comp:     tcpFlagsComponent(0x12),
-			expected: "tcp-flags syn&ack",
+			expected: "tcp-flags syn+ack",
 		},
 		{
 			name:     "fragment dont-fragment",
@@ -1648,7 +1648,7 @@ func TestRFC8955FragmentReservedBitsIgnoredOnDecode(t *testing.T) {
 // TestRFC8955TCPFlagsBitmaskSingleOctet verifies a Type-9 TCP flags component encodes its
 // bitmask in one octet.
 //
-// VALIDATES: parseFlowTCPFlagMatches (config_builder.go) resolves flag names to 8-bit
+// VALIDATES: parseFlowBitmaskMatches (config_builder.go) resolves flag names to 8-bit
 // values, and numericComponent.Bytes() (core types_numeric.go) picks lenCode 0 / one octet for
 // any value <= 0xFF, so the emitted bitmask is always within the RFC's 1-2 octet range.
 //
@@ -1704,7 +1704,7 @@ func TestRFC8955DSCPValueSingleOctet(t *testing.T) {
 // TestRFC8955FragmentBitmaskSingleOctet verifies a Type-12 fragment component encodes its
 // bitmask in exactly one octet.
 //
-// VALIDATES: parseFlowFragmentMatches (config_builder.go), through parseBitmaskValue,
+// VALIDATES: parseFlowBitmaskMatches (config_builder.go), through parseBitmaskTermsText,
 // resolves fragment names to the low-nibble FlowFragmentFlag constants (core types.go)
 // and holds every bitmask in a uint8, so numericComponent.Bytes() selects
 // lenCode 0 (one octet) for every fragment value.

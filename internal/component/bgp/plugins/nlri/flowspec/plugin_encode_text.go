@@ -270,73 +270,51 @@ func parseNumericTermsText(token string, hasPrevious bool, maxValue uint64, name
 	return terms, nil
 }
 
-// parseTCPFlagsComponentText parses TCP flags with bitmask operators.
+// parseTCPFlagsComponentText parses the values of a tcp-flags component with
+// the bitmask grammar (parseBitmaskTermsText).
 func parseTCPFlagsComponentText(args []string) (flowspec.FlowComponent, int, error) {
-	var matches []flowspec.FlowMatch
-	consumed := 0
-
-	for i := range args {
-		token := strings.ToLower(args[i])
-		if isComponentKeyword(token) {
-			break
-		}
-
-		// Parse modifiers and flags
-		op, flags, hasAndPrefix, err := parseBitmaskValue(token, flowspec.TCPFlagNameToValue)
-		if err != nil {
-			if consumed == 0 {
-				return nil, 0, fmt.Errorf("invalid tcp-flags: %w", err)
-			}
-			break
-		}
-
-		matches = append(matches, flowspec.FlowMatch{
-			Op:    op,
-			Value: uint64(flags),
-			And:   hasAndPrefix, // AND only if explicit & prefix
-		})
-		consumed++
+	matches, consumed, err := parseBitmaskComponentText(args, flowspec.KwTCPFlags, flowspec.TCPFlagNameToValue)
+	if err != nil {
+		return nil, 0, err
 	}
-
 	if len(matches) == 0 {
 		return nil, 0, errTcpFlagsRequiresValue
 	}
-
 	return flowspec.NewFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
 }
 
-// parseFragmentComponentText parses fragment flags.
+// parseFragmentComponentText parses the values of a fragment component with
+// the bitmask grammar (parseBitmaskTermsText).
 func parseFragmentComponentText(args []string) (flowspec.FlowComponent, int, error) {
-	var matches []flowspec.FlowMatch
-	consumed := 0
-
-	for i := range args {
-		token := strings.ToLower(args[i])
-		if isComponentKeyword(token) {
-			break
-		}
-
-		op, flags, hasAndPrefix, err := parseBitmaskValue(token, flowspec.FragmentFlagNameToValue)
-		if err != nil {
-			if consumed == 0 {
-				return nil, 0, fmt.Errorf("invalid fragment: %w", err)
-			}
-			break
-		}
-
-		matches = append(matches, flowspec.FlowMatch{
-			Op:    op,
-			Value: uint64(flags),
-			And:   hasAndPrefix, // AND only if explicit & prefix
-		})
-		consumed++
+	matches, consumed, err := parseBitmaskComponentText(args, flowspec.KwFragment, flowspec.FragmentFlagNameToValue)
+	if err != nil {
+		return nil, 0, err
 	}
-
 	if len(matches) == 0 {
 		return nil, 0, errFragmentRequiresValue
 	}
-
 	return flowspec.NewFlowFragmentMatchComponent(matches), consumed + 1, nil
+}
+
+// parseBitmaskComponentText reads the tokens of one bitmask component up to the
+// next component keyword. A token that is not a keyword is a value of this
+// component, so a malformed one is refused here, by this component's name.
+func parseBitmaskComponentText(args []string, kw string, names map[string]uint8) ([]flowspec.FlowMatch, int, error) {
+	var matches []flowspec.FlowMatch
+	consumed := 0
+	for _, arg := range args {
+		token := strings.ToLower(arg)
+		if isComponentKeyword(token) {
+			break
+		}
+		terms, err := parseBitmaskTermsText(token, len(matches) > 0, names)
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid %s value: %w", kw, err)
+		}
+		matches = append(matches, terms...)
+		consumed++
+	}
+	return matches, consumed, nil
 }
 
 // isComponentKeyword checks if token is a component keyword.
@@ -434,17 +412,56 @@ func operatorValueError(token string, names map[string]uint8) error {
 	return fmt.Errorf("%q is not <op><value>: write a number or a name (%s) after the operator, as in =%s", token, strings.Join(known, ", "), known[0])
 }
 
-// parseBitmaskValue parses bitmask with modifiers like "!syn", "=ack", "syn&ack", "&!is-fragment".
-// Returns operator, flags value, whether token had AND prefix, and error.
-func parseBitmaskValue(token string, nameToValue map[string]uint8) (flowspec.FlowOperator, uint8, bool, error) {
+// parseBitmaskTermsText parses one token of a bitmask component (tcp-flags,
+// fragment), the grammar config and update text share and ExaBGP 6.0 reads:
+//
+//   - "&" joins a term to the one before it with the AND bit, and a leading
+//     "&" joins the token's first term to the previous token's last one:
+//     `syn&ack` is SYN set AND ACK set.
+//   - successive tokens are alternatives, ORed: `syn ack` is SYN set OR ACK set.
+//   - "+" names several bits of ONE operand: `syn+ack` is one term whose mask
+//     holds both bits, true when either is set, or both with `=`.
+//   - "=", "!" and "!=" lead a term and set its match bit, its NOT bit, or both.
+//   - an operand is a flag name from names or a number from 0 to 255.
+//
+// hasPrevious says whether a term comes before this token. A leading "&" with
+// nothing before it is refused, as is an "&" or a "+" with nothing after it.
+//
+// RFC 8955 Section 4.2.1.2: "not (NOT bit): If set, logical negation of
+// operation." and "m (Match bit): If set, this is a bitwise match operation
+// defined as "(data AND value) == value"; if unset, (data AND value) evaluates
+// to TRUE if any of the bits in the value mask are set in the data.". The AND
+// bit is the numeric operator's, RFC 8955 Section 4.2.1.1: "a - and bit. If
+// unset, the result of the previous {operator, value} pair is ORed with the
+// current one. If set, it is ANDed.".
+func parseBitmaskTermsText(token string, hasPrevious bool, names map[string]uint8) ([]flowspec.FlowMatch, error) {
+	joined := strings.HasPrefix(token, "&")
+	if joined && !hasPrevious {
+		return nil, fmt.Errorf("%q starts with &, which joins a term to the one before it, and no term comes before it: drop the &", token)
+	}
+	body := strings.TrimPrefix(token, "&")
+
+	var terms []flowspec.FlowMatch
+	for part := range strings.SplitSeq(body, "&") {
+		if part == "" {
+			return nil, fmt.Errorf("%q holds an & with no term after it: write a flag after each &, as in syn&ack", token)
+		}
+		op, value, err := parseBitmaskOperand(part, names)
+		if err != nil {
+			return nil, err
+		}
+		// RFC 8955 Section 4.2.1.1: the a bit ANDs this term with the previous one.
+		terms = append(terms, flowspec.FlowMatch{Op: op, Value: uint64(value), And: joined})
+		joined = true
+	}
+	return terms, nil
+}
+
+// parseBitmaskOperand parses one bitmask term, `[!|=|!=]<flag>[+<flag>...]`,
+// into its operator bits and its mask.
+func parseBitmaskOperand(part string, names map[string]uint8) (flowspec.FlowOperator, uint8, error) {
 	var op flowspec.FlowOperator
-	s := token
-
-	// Handle leading & (AND connector with previous) - strip it first
-	hasAndPrefix := strings.HasPrefix(s, "&")
-	s = strings.TrimPrefix(s, "&")
-
-	// Parse modifiers (!, =) that may come after & prefix
+	s := part
 	if strings.HasPrefix(s, "!") {
 		op |= flowspec.FlowOpNot
 		s = s[1:]
@@ -453,28 +470,27 @@ func parseBitmaskValue(token string, nameToValue map[string]uint8) (flowspec.Flo
 		op |= flowspec.FlowOpMatch
 		s = s[1:]
 	}
-
-	// Parse flag names (may be combined with &)
-	var flags uint8
-	for part := range strings.SplitSeq(s, "&") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		if val, ok := nameToValue[part]; ok {
-			flags |= val
-		} else {
-			// Try numeric
-			num, err := parseUint8(part)
-			if err != nil {
-				known := strings.Join(slices.Sorted(maps.Keys(nameToValue)), ", ")
-				return 0, 0, false, fmt.Errorf("%q is not a flag: write one of %s, or a number from 0 to 255", part, known)
-			}
-			flags |= num
-		}
+	known := strings.Join(slices.Sorted(maps.Keys(names)), ", ")
+	if s == "" {
+		return 0, 0, fmt.Errorf("%q has no flag after its operator: write one of %s, or a number from 0 to 255", part, known)
 	}
 
-	return op, flags, hasAndPrefix, nil
+	var flags uint8
+	for name := range strings.SplitSeq(s, "+") {
+		if val, ok := names[name]; ok {
+			flags |= val
+			continue
+		}
+		if name == "" {
+			return 0, 0, fmt.Errorf("%q holds a + with no flag after it: write a flag after each +, as in syn+ack", part)
+		}
+		num, err := parseUint8(name)
+		if err != nil {
+			return 0, 0, fmt.Errorf("%q is not a flag: write one of %s, or a number from 0 to 255", name, known)
+		}
+		flags |= num
+	}
+	return op, flags, nil
 }
 
 func parseUint8(s string) (uint8, error) {

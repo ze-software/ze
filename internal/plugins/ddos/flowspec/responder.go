@@ -41,8 +41,9 @@ type routeDispatcher interface {
 const flowspecSelector = "*"
 
 // tcpFlagBits maps each TCP-flag bit to its canonical FlowSpec token, low bit
-// first. The parser (parseFlowTCPFlagMatches) accepts symbolic names ONLY -- no
-// numeric form -- so tcp-flags MUST render as names, AND-joined with '&'.
+// first. The flags render as names AND-joined with '&', one term per bit, so
+// the rule matches a packet carrying every flag the vector saw
+// (parseBitmaskTermsText in nlri/flowspec reads "syn&ack" as SYN set AND ACK set).
 var tcpFlagBits = []struct {
 	bit  uint8
 	name string
