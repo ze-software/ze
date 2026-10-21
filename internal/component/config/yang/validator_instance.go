@@ -459,10 +459,14 @@ func (w *referenceWalk) stepNodes(leaf *yang.Entry, nodes []dataNode, name strin
 	return next
 }
 
-// childEntries answers the schema nodes of node's child called name.
+// childEntries answers the schema nodes of node's child called name. At the
+// root, they are those of the section name stands for in Ze's config data
+// (topLevel), with the top level of the referring leaf's namespace, which for
+// a leaf another module augments in is the augmenting module (RFC 7950
+// Section 4.2.8), not the module holding the augment target.
 func (v *Validator) childEntries(leaf *yang.Entry, node dataNode, name string) []*yang.Entry {
 	if node.entries == nil {
-		return v.topLevel(leaf, name)
+		return v.topLevel(leafNamespaceRoot(leaf), name)
 	}
 	if child := childOf(node.entries, name); child != nil {
 		return []*yang.Entry{child}

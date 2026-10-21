@@ -285,7 +285,7 @@ func (v *Validator) instanceSchema(leaf *yang.Entry, steps []instanceStep) ([]*y
 	// are not resolved through imports here: the context carries no
 	// statement, the first step is found by its local name, and each step's
 	// prefix is compared with the module of the node it matched.
-	parents := v.topLevelParents(&pathContext{leaf: leaf}, steps[0].node)
+	parents := topLevelParents(&pathContext{leaf: leaf}, steps[0].node)
 	for _, step := range steps {
 		prefix := nodePrefix(step.node)
 		if prefix == "" {
