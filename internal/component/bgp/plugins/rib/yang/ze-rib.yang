@@ -181,6 +181,7 @@ module ze-rib {
                              one EBGP session, which is what this container is for. A route from an IBGP
                              peer, whose AS is the local AS, is never checked; a session whose local AS
                              is unknown is checked.";
+            ze:help "FlowSpec redirect-to-IP origin check on this EBGP session.";
             leaf enabled {
                 type boolean;
                 description "true runs the check on this session and false turns it off. The leaf has no
