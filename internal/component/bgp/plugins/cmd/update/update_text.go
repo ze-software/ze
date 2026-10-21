@@ -22,8 +22,8 @@
 //	<attribute>    := <attr-name> <value> | atomic-aggregate
 //	<attr-name>    := origin | med | local-preference | as-path | community |
 //	                  large-community | extended-community | aggregator |
-//	                  originator-id | cluster-list | aigp | bgp-prefix-sid-srv6 |
-//	                  nhop | path-information | rd | label
+//	                  originator-id | cluster-list | aigp | bgp-prefix-sid |
+//	                  bgp-prefix-sid-srv6 | nhop | path-information | rd | label
 //	<nlri-section> := nlri [<modifier>]* <nlri-op>+ | nlri eor
 //	                | mp <family> [<modifier>]* <nlri-op>+ | mp <family> eor
 //	<modifier>     := path-information <id> | rd <value> | label <value>
@@ -87,6 +87,7 @@ var (
 	errMissingClusterListValue          = errors.New("missing cluster-list value")
 	errMissingAIGPValue                 = errors.New("missing aigp value")
 	errMissingPrefixSIDValue            = errors.New("missing bgp-prefix-sid-srv6 value")
+	errMissingPrefixSIDIndexValue       = errors.New("missing bgp-prefix-sid value: write bgp-prefix-sid [ <label-index> ]")
 	errEmptyClusterList                 = errors.New("cluster-list requires at least one cluster id")
 	errRestoreConfiguredAfterNLRI       = errors.New("restore-configured must precede the nlri and mp sections: it says how the whole command withdraws, so write `update text restore-configured nlri del <prefix>` or `update text restore-configured mp <family> del <prefix>`")
 	errSetDelKeywordsRemovedUseNext     = errors.New("set/del keywords removed; use: next-hop <address|self>")
@@ -159,7 +160,7 @@ func isAttributeKeyword(token string) bool {
 		kwCommunity, kwLargeCommunity, kwExtendedCommunity,
 		textparse.KWAtomicAggregate, textparse.KWAggregator,
 		textparse.KWOriginatorID, textparse.KWClusterList, textparse.KWAIGP,
-		textparse.KWPrefixSIDSRv6:
+		textparse.KWPrefixSID, textparse.KWPrefixSIDSRv6:
 		return true
 	}
 	return false
@@ -567,6 +568,25 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		attrs.AIGP = &metric
 		return 1, nil
 
+	case textparse.KWPrefixSID:
+		if idx+1 >= len(args) {
+			return 0, errMissingPrefixSIDIndexValue
+		}
+		// RFC 8669 Section 3.1 Label-Index TLV and Section 3.2 Originator SRGB
+		// TLV. The bracketed tokens are rejoined and handed to the SAME encoder
+		// the config file reaches (attribute.EncodePrefixSID), so both
+		// spellings produce one attribute.
+		value, consumed, err := route.ParseBracketedValue(args[idx+1:])
+		if err != nil {
+			return 0, fmt.Errorf("invalid bgp-prefix-sid: %w", err)
+		}
+		tlvs, err := attribute.EncodePrefixSID(value)
+		if err != nil {
+			return 0, fmt.Errorf("invalid bgp-prefix-sid: %w", err)
+		}
+		attrs.PrefixSID = tlvs
+		return consumed, nil
+
 	case textparse.KWPrefixSIDSRv6:
 		if idx+1 >= len(args) {
 			return 0, errMissingPrefixSIDValue
@@ -960,7 +980,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 				i += 1 + extra
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid-srv6, next-hop (next), path-information (info), rd, label, nlri, mp, watchdog", token)
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid, bgp-prefix-sid-srv6, next-hop (next), path-information (info), rd, label, nlri, mp, watchdog", token)
 		}
 	}
 

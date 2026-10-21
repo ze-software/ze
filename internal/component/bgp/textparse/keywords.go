@@ -24,6 +24,10 @@ const (
 	// KWPrefixSIDSRv6 takes a parenthesized value, `( l3-service <sid> [0xNN] [struct] )`,
 	// which is the spelling ExaBGP writes (RFC 9252 SRv6 Service TLV).
 	KWPrefixSIDSRv6 = "bgp-prefix-sid-srv6"
+	// KWPrefixSID takes a bracketed value, `[ <index> ]` or
+	// `[ <index>, [ ( <base>,<range> ) ... ] ]`, the label-index form the config
+	// file and ExaBGP write (RFC 8669 Label-Index and Originator SRGB TLVs).
+	KWPrefixSID = "bgp-prefix-sid"
 
 	// Structure keywords.
 	KWNLRI            = "nlri"

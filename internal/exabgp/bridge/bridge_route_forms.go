@@ -191,7 +191,9 @@ func familyForAttributes(attrs routeAttributes, prefix string) string {
 	case attrs.Has("rd"):
 		safi = bridgeVPNSAFI
 	case attrs.Has(bridgeAttrLabel):
-		safi = bridgeLabeledSAFI
+		// ze's word for SAFI 4: the family goes into update text, which
+		// knows no `nlri-mpls`.
+		safi = zeLabeledSAFI
 	}
 	var tb textbuf.Buffer
 	return tb.Str(afi).Byte('/').Str(safi).String()
@@ -204,10 +206,13 @@ func familyForAttributes(attrs routeAttributes, prefix string) string {
 // 10.0.1.0/24`, mvpn writes `shared-join rp 10.99.199.1 group 239.251.255.228`,
 // and flowspec writes a match block. Their bare addresses are FIELD VALUES, so
 // giving one a prefix length would corrupt the route rather than complete it.
+//
+// It is keyed by ze's SAFI word, because defaultPrefixLengths reads the family
+// the bridge has already built for update text.
 var bridgePrefixSAFI = map[string]bool{
 	bridgeUnicastSAFI:   true,
 	bridgeMulticastSAFI: true,
-	bridgeLabeledSAFI:   true,
+	zeLabeledSAFI:       true,
 	bridgeVPNSAFI:       true,
 }
 

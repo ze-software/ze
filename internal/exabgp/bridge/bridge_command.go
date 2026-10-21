@@ -40,6 +40,7 @@ const (
 	bridgeAttrRouteDist        = "route-distinguisher"
 	bridgeAttrPathInformation  = "path-information"
 	bridgeAttrWatchdog         = "watchdog"
+	bridgeAttrRouteName        = "name"
 )
 
 // The two keys an UPDATE's body carries in ze JSON: its path attributes and its
@@ -767,7 +768,7 @@ func familyOfRoute(routeStr string) string {
 	case attrs.Has("rd"):
 		return safiFamily(afi, bridgeVPNSAFI)
 	case attrs.Has(bridgeAttrLabel):
-		return safiFamily(afi, bridgeLabeledSAFI)
+		return safiFamily(afi, zeLabeledSAFI)
 	}
 	return safiFamily(afi, bridgeUnicastSAFI)
 }

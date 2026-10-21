@@ -230,8 +230,11 @@ reuses that parser. So `announce route 1.2.3.4 next-hop 5.6.7.8` means
 
 Ze reads a prefix, and answered `invalid prefix: 1.2.3.4`. The bridge therefore
 completes the token before it builds the command. It does so only for the SAFIs
-whose NLRI is a plain prefix: `unicast`, `multicast`, `nlri-mpls` and
-`mpls-vpn`. A family whose NLRI is a field list is left alone, because `mvpn`
+whose NLRI is a plain prefix: `unicast`, `multicast`, `mpls-label` and
+`mpls-vpn`. The set is keyed by ze's family words, because the bridge has
+already built the family for update text: a route with a bare `label` and no
+`rd` is sent under `mpls-label`, ze's name for SAFI 4, which ExaBGP calls
+`nlri-mpls`. A family whose NLRI is a field list is left alone, because `mvpn`
 writes `shared-join rp 10.99.199.1 group 239.251.255.228` and those bare
 addresses are values rather than prefixes.
 
@@ -723,6 +726,7 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | `label`, `rd` or `path-information` written twice | the last is sent, the line is done, no warning |
 | A route line holding a `\u` escape without four hexadecimal digits | refused, naming the escape and the two ways to write it |
 | `split /<n>` shorter than the prefix | the prefix is sent whole, the line is done, a warning says so |
+| `watchdog` or `name` as the last word of a route line | the route is sent with neither, as ExaBGP reads the empty word there; for `watchdog` a warning says so and names the fix, `watchdog <name>` |
 
 The route with no carrying peer is refused by Ze itself, as ExaBGP refuses it:
 `update text` asks the reactor whether any selected peer is configured for each
@@ -766,7 +770,13 @@ opaque SRv6 Endpoint Behavior (i.e., value 0xFFFF) MAY be used when the
 advertising router wishes to abstract the actual behavior of its locally
 instantiated SRv6 SID."
 
-`api-refusals-v4` and `api-repeated-attributes-v4` are the cases.
+The label-index Prefix-SID, `bgp-prefix-sid [ <index> ]` or
+`bgp-prefix-sid [ <index>, [ ( <base>,<range> ) ... ] ]`, is passed through
+unchanged: update text reads the same keyword in the same spelling and writes
+the Label-Index and Originator SRGB TLVs (RFC 8669 Sections 3.1 and 3.2).
+
+`api-refusals-v4`, `api-repeated-attributes-v4` and `api-route-forms-v4` are
+the cases.
 
 <!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- terminatorResult -->
 <!-- source: internal/component/bgp/reactor/reactor_api_carry.go -- SelectedPeersCarry -->

@@ -87,3 +87,62 @@ func TestParseExtendedCommunitiesFourByteASNumberLimit(t *testing.T) {
 		})
 	}
 }
+
+// TestParseExtendedCommunityOriginAndMUP verifies that the route origin and
+// MUP spellings ExaBGP 4.2, 5.0 and 6.0 write reach the same octets through
+// `update text` as through the config file.
+//
+// The method is a byte comparison against parseExtendedCommunity, which
+// defers to attribute.ParseSingleExtCommunity for these keywords. RFC 4360
+// Section 5: "When the value of the high-order octet of the Type field is 0x00
+// or 0x02, the Local Administrator sub-field contains a number from a
+// numbering space", so `origin:2345:101124105` writes the same four octets as
+// 6.7.8.9. RFC 5668 Section 2 gives the four-octet AS form a "Local
+// Administrator sub-field: 2 octets", so a number past 65535 is refused.
+// draft-ietf-bess-mup-safi Section 3.2 puts the Direct-Type Segment Identifier
+// under type 0x0c sub-type 0x00.
+//
+// VALIDATES: the decimal local administrator, the 4-octet AS origin, its
+// 65535 limit, and `mup:10:10`.
+// PREVENTS: the route parser's own origin reader, deleted with this change,
+// refusing `origin:2345:101124105` and `origin:70500:5000`.
+func TestParseExtendedCommunityOriginAndMUP(t *testing.T) {
+	t.Parallel()
+
+	accepted := []struct {
+		name  string
+		input string
+		want  attribute.ExtendedCommunity
+	}{
+		{
+			name:  "origin with a 2-byte AS and a decimal local administrator",
+			input: "origin:2345:101124105",
+			want:  attribute.ExtendedCommunity{0x00, 0x03, 0x09, 0x29, 0x06, 0x07, 0x08, 0x09},
+		},
+		{
+			name:  "origin with a 4-byte AS",
+			input: "origin:70500:5000",
+			want:  attribute.ExtendedCommunity{0x02, 0x03, 0x00, 0x01, 0x13, 0x64, 0x13, 0x88},
+		},
+		{
+			name:  "mup segment identifier",
+			input: "mup:10:10",
+			want:  attribute.ExtendedCommunity{0x0C, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x0A},
+		},
+	}
+
+	for _, tt := range accepted {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := parseExtendedCommunity(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+
+	t.Run("origin with a 4-byte AS and a local administrator past 65535", func(t *testing.T) {
+		t.Parallel()
+		_, err := parseExtendedCommunity("origin:70500:65536")
+		require.Error(t, err)
+	})
+}

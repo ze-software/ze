@@ -237,8 +237,9 @@ func TestParseCommunityAppendBehavior(t *testing.T) {
 // reaches. The method parses the same route target in each spelling and
 // compares the eight encoded bytes.
 //
-// VALIDATES: parseRouteTargetExtCommunity calls
-// attribute.ParseExtCommunityAdmin (AC-1).
+// VALIDATES: parseExtendedCommunity hands a route target to
+// attribute.ParseSingleExtCommunity, which reads the administrator with
+// ParseExtCommunityAdmin (AC-1).
 // PREVENTS: "invalid ASN in target: 1.10" for an AS number an operator read on
 // a show output.
 func TestExtendedCommunityAsdotThroughCommand(t *testing.T) {

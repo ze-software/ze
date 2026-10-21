@@ -6,7 +6,6 @@ package route
 import (
 	"errors"
 	"fmt"
-	"net/netip"
 	"strconv"
 	"strings"
 
@@ -282,8 +281,8 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 //
 // Formats:
 //   - 0xNNNNNNNNNNNNNNNN -> the 8 octets verbatim, for a community with no keyword
-//   - origin:ASN:IP     -> Type 0x00, Subtype 0x03 (2-byte ASN + 4-byte IP)
-//   - origin:IP:ASN     -> Type 0x01, Subtype 0x03 (4-byte IP + 2-byte ASN)
+//   - target:ADMIN:value, origin:ADMIN:value, mup:N:N -> read by
+//     attribute.ParseSingleExtCommunity, the one reader of that vocabulary
 //   - redirect:ADMIN:value -> Sub-type 0x08; ADMIN picks type 0x80, 0x81 or 0x82
 //   - rate-limit:bps    -> Type 0x80, Subtype 0x06 (IEEE 754 float rate)
 //   - rate-limit:pps:packets -> Type 0x80, Subtype 0x0c (IEEE 754 float rate)
@@ -335,10 +334,14 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	value := after
 
 	switch typePrefix {
-	case "target":
-		return parseRouteTargetExtCommunity(value)
-	case "origin":
-		return parseOriginExtCommunity(value)
+	case "target", "origin", "mup":
+		// RFC 4360 Section 3.1, RFC 5668 Section 2 and draft-ietf-bess-mup-safi
+		// Section 3.2. attribute.ParseSingleExtCommunity reads every form ze
+		// renders and ExaBGP writes: an IPv4 or AS administrator, a decimal or
+		// dotted-quad local administrator, and the 4-octet AS form. A second
+		// copy here refused `origin:2345:101124105` and `origin:70500:5000`,
+		// which config and ExaBGP both accept.
+		return attribute.ParseSingleExtCommunity(s)
 	case flowspecActionRedirect:
 		return parseRedirectExtCommunity(value)
 	case flowspecActionRateLimit:
@@ -348,122 +351,6 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	default:
 		return attribute.ExtendedCommunity{}, fmt.Errorf("unknown extended community type: %s", typePrefix)
 	}
-}
-
-// parseRouteTargetExtCommunity parses route target extended community.
-// RFC 4360: Route Target (subtype 0x02).
-// Format: target:ASN:NN (Type 0x00 for 2-byte ASN, Type 0x02 for 4-byte ASN).
-//
-// The two forms split the 6-octet value field differently. RFC 4360 Section 3.1
-// gives type 0x00 a 2-octet global administrator and a 4-octet local
-// administrator; RFC 5668 Section 2 gives type 0x02 a 4-octet global
-// administrator and a 2-octet local administrator. So the number a four-byte AS
-// can carry stops at 65535, and a larger one is refused rather than truncated.
-func parseRouteTargetExtCommunity(value string) (attribute.ExtendedCommunity, error) {
-	parts := strings.Split(value, ":")
-	if len(parts) != 2 {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid target format: %s", value)
-	}
-
-	// RFC 4360 Section 3.2: "This is an extended type with Type Field composed
-	// of 2 octets and Value Field composed of 6 octets... The value of the
-	// high-order octet of this extended type is either 0x01 or 0x41." The global
-	// administrator is then a four-octet IPv4 address and the local
-	// administrator two octets, which is the third route-target form.
-	//
-	// It is the form an operator writes as `target:192.168.94.12:5`. Reading the
-	// administrator as a decimal ASN refused it by name, so a route target ze
-	// can encode perfectly well was unreachable from every text surface.
-	if addr, addrErr := netip.ParseAddr(parts[0]); addrErr == nil && addr.Is4() {
-		num, numErr := strconv.ParseUint(parts[1], 10, 16)
-		if numErr != nil {
-			return attribute.ExtendedCommunity{}, fmt.Errorf(
-				"invalid value in target: %s (IPv4 administrator format max 65535)", parts[1])
-		}
-		octets := addr.As4()
-		return attribute.ExtendedCommunity{
-			0x01, 0x02,
-			octets[0], octets[1], octets[2], octets[3],
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// attribute.ParseExtCommunityAdmin is the one reader of this field: every
-	// RFC 5396 spelling, and the `L` suffix that forces the 4-octet form.
-	number, forced4Byte, err := attribute.ParseExtCommunityAdmin(parts[0])
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in target: %s", parts[0])
-	}
-	asn := uint64(number)
-
-	if forced4Byte || asn > 0xFFFF {
-		num, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid value in target: %s (4-byte ASN format max 65535)", parts[1])
-		}
-		return attribute.ExtendedCommunity{
-			0x02, 0x02,
-			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	num, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid value in target: %s", parts[1])
-	}
-	return attribute.ExtendedCommunity{
-		0x00, 0x02,
-		byte(asn >> 8), byte(asn),
-		byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-	}, nil
-}
-
-// parseOriginExtCommunity parses origin extended community.
-// RFC 4360/7153: Origin can be:
-//   - Type 0x00: 2-byte ASN + 4-byte IPv4 (origin:ASN:IP)
-//   - Type 0x01: 4-byte IPv4 + 2-byte ASN (origin:IP:ASN)
-func parseOriginExtCommunity(value string) (attribute.ExtendedCommunity, error) {
-	parts := strings.Split(value, ":")
-	if len(parts) != 2 {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid origin format: %s", value)
-	}
-
-	// Try to determine format: ASN:IP or IP:ASN
-	// If first part contains '.', it's IP:ASN format
-	if strings.Contains(parts[0], ".") {
-		// Type 0x01: IP:ASN format
-		addr, err := netip.ParseAddr(parts[0])
-		if err != nil || !addr.Unmap().Is4() {
-			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid IPv4 in origin: %s", parts[0])
-		}
-		asn, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in origin: %s", parts[1])
-		}
-		ip4 := addr.Unmap().As4()
-		return attribute.ExtendedCommunity{
-			0x01, 0x03, // Type=1, Subtype=3 (Origin)
-			ip4[0], ip4[1], ip4[2], ip4[3], // IPv4 address
-			byte(asn >> 8), byte(asn), // 2-byte ASN
-		}, nil
-	}
-
-	// Type 0x00: ASN:IP format
-	asn, err := strconv.ParseUint(parts[0], 10, 16)
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in origin: %s", parts[0])
-	}
-	addr, err := netip.ParseAddr(parts[1])
-	if err != nil || !addr.Unmap().Is4() {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid IPv4 in origin: %s", parts[1])
-	}
-	ip4 := addr.Unmap().As4()
-	return attribute.ExtendedCommunity{
-		0x00, 0x03, // Type=0, Subtype=3 (Origin)
-		byte(asn >> 8), byte(asn), // 2-byte ASN
-		ip4[0], ip4[1], ip4[2], ip4[3], // IPv4 address
-	}, nil
 }
 
 // parseRedirectExtCommunity parses the FlowSpec rt-redirect extended community.

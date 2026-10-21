@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Route forms ExaBGP 4.2, 5.0 and the 6.0 pin read on the API that ze's update text spells
+differently, each sent as the pin sends it.
+
+A route with a bare label and no rd is a labeled route (SAFI 4, `nlri-mpls` on ExaBGP,
+`mpls-label` in ze). The label-index BGP Prefix-SID (RFC 8669 Sections 3.1 and 3.2) is
+written in brackets with its SRGB ranges. `watchdog` and `name` at the end of a line take
+the empty word, so the route is sent with neither. An origin extended community takes a
+decimal local administrator (RFC 4360 Section 5) and a 4-octet AS (RFC 5668 Section 2)."""
+
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def read() -> str:
+    line = sys.stdin.readline()
+    if not line:
+        sys.stderr.write('ERROR: stdin closed\n')
+        sys.exit(1)
+    return line.strip()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        lines.append(read())
+        if lines[-1] in ('done', 'error'):
+            return lines
+
+
+def expect_done(command: str) -> None:
+    send(command)
+    got = answer()
+    if got != ['done']:
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want done\n')
+        sys.exit(1)
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EORs pass
+    # The wire carries MP_REACH_NLRI for ipv4 SAFI 4 with label 800001.
+    expect_done('announce route 198.51.100.100/32 next-hop 1.1.1.1 label 800001')
+    # The wire carries the Label-Index TLV (index 300) and the Originator SRGB TLV.
+    expect_done('announce route 198.51.100.101/32 next-hop 1.1.1.1 label 800002 '
+                'bgp-prefix-sid [ 300, [ ( 800000,4096 ) , ( 1000000,5000 ) ] ]')
+    # The wire carries the route with no watchdog: the line ends at the keyword.
+    expect_done('announce route 10.0.1.0/24 next-hop 1.1.1.1 watchdog')
+    # The wire carries the route: `name` never reaches a peer.
+    expect_done('announce route 10.0.2.0/24 next-hop 1.1.1.1 name')
+    # The wire carries origin 2345:6.7.8.9 (type 0x00) and origin 70500:5000 (type 0x02).
+    expect_done('announce route 10.0.3.0/24 next-hop 1.1.1.1 '
+                'extended-community [ origin:2345:101124105 origin:70500:5000 ]')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()

@@ -32,6 +32,8 @@ var (
 	errMissingAIGPValue               = errors.New("missing aigp value")
 	errEmptyArgsForParenthesizedValue = errors.New("empty args for parenthesized value")
 	errUnclosedParenthesisInValue     = errors.New("unclosed parenthesis in value")
+	errExpectedBracketedValue         = errors.New("expected a value in brackets, such as [ 777 ]")
+	errUnclosedBracketInValue         = errors.New("unclosed bracket in value: close it with ]")
 )
 
 // Errors for route parsing.
@@ -464,6 +466,28 @@ func ParseParenthesizedValue(args []string) (string, int, error) {
 	}
 
 	return "", 0, errUnclosedParenthesisInValue
+}
+
+// ParseBracketedValue reads a bracket-delimited value from args, nested
+// brackets included, and returns it joined with single spaces, brackets kept,
+// with the count of tokens it consumed.
+//
+// Used for bgp-prefix-sid `[ 300, [ ( 800000,4096 ) ( 1000000,5000 ) ] ]`.
+// The brackets are counted inside each token, not matched as whole tokens,
+// because ExaBGP spaces them both ways (`[777]` and `[ 777 ]`). The scan stops
+// at the end of args, so its bound is the command length.
+func ParseBracketedValue(args []string) (string, int, error) {
+	if len(args) == 0 || !strings.HasPrefix(args[0], "[") {
+		return "", 0, errExpectedBracketedValue
+	}
+	depth := 0
+	for i, arg := range args {
+		depth += strings.Count(arg, "[") - strings.Count(arg, "]")
+		if depth == 0 {
+			return textbuf.Join(args[:i+1], " "), i + 1, nil
+		}
+	}
+	return "", 0, errUnclosedBracketInValue
 }
 
 // ErrMissingNLRI is returned when nlri keyword or prefixes are missing.

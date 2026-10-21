@@ -221,12 +221,11 @@ func appendExtCommInterfaceSet(buf []byte, e ExtendedCommunity, transitive bool)
 // administrator>".
 //
 // The two-octet AS specific Route Origin is the one place the 4-octet local
-// administrator is written as an address rather than a number, and it is Ze's
-// own input grammar that says so: parseOriginExtCommunity
-// (component/bgp/route/route_community.go) REFUSES "origin:100:1000" and reads
-// "origin:100:0.0.3.232" into these same four octets. Rendering the number
-// broke that round trip in one direction only, so a community an operator
-// configured came back in a spelling Ze itself will not accept.
+// administrator is written as an address rather than a number. Ze's readers
+// (ParseSingleExtCommunity through parseExtCommunityLocalAdmin4) take both
+// "origin:100:1000" and "origin:100:0.0.3.232" into these same four octets,
+// so either rendering round-trips; the address form is kept because ExaBGP
+// writes it.
 //
 // RFC 4360 Section 3.1 calls the field "a number from a numbering space which
 // is administered by the organization identified by the Global Administrator

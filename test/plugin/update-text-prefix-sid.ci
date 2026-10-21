@@ -1,0 +1,61 @@
+# update-text-prefix-sid -- the label-index BGP Prefix-SID through `update text`, at the daemon.
+#
+# A plugin sends ONE `update text` command carrying `bgp-prefix-sid [ 300, [ ( 800000,4096 ) ,
+# ( 1000000,5000 ) ] ]` on a labeled route, spelled as ExaBGP writes it on the API (a comma
+# between the range groups). The peer must receive attribute 40 holding the Label-Index TLV
+# (RFC 8669 Section 3.1: type 1, length 7, index 300) and the Originator SRGB TLV (Section 3.2:
+# type 3, length 14, bases 800000 and 1000000, ranges 4096 and 5000), byte for byte the frame
+# test/encode/prefix-sid.ci builds from the config file.
+#
+# Before the keyword existed `update text` read `bgp-prefix-sid` as a prefix and refused the
+# command, so this frame never arrived.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00570200000040800E1100010404C63364020038C35021C63364654001010040020040050400000064C0281B0100070000000000012C03000E00000C35000010000F4240001388
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external update-text-prefix-sid {
+		run "le test fixture plugin/update-text-prefix-sid"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 198.51.100.200
+			family {
+				ipv4/mpls-label { prefix { maximum 10000; } }
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process update-text-prefix-sid {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

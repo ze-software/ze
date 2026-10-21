@@ -104,9 +104,9 @@ func ParseCommunity(s string) (uint32, error) {
 //
 // Four parsers used to read it, in four packages, each with its own answer to
 // the same question: `attribute.ParseSingleExtCommunity`,
-// `attribute.FlowSpecRedirect`, `bgpconfig.parseExtCommunityASN` and
-// `route.parseRouteTargetExtCommunity`. They agreed only because all four were
-// wrong in the same direction.
+// `attribute.FlowSpecRedirect`, `bgpconfig.parseExtCommunityASN` and a route
+// target parser in `route` that now defers to ParseSingleExtCommunity. They
+// agreed only because all four were wrong in the same direction.
 //
 // The AS number is read in every RFC 5396 spelling. RFC 5668 Section 2 gives
 // the 4-octet AS specific extended community a "4-octet Autonomous System

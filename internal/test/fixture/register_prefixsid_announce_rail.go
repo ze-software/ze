@@ -40,12 +40,11 @@ func prefixSIDAnnounceRail(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 
-	// The wire form, because the text form has no token for a raw attribute:
-	// `send bgp <selector> update text` accepts origin, med, local-preference,
-	// as-path, the three community kinds, next-hop, path-information, rd, label,
-	// nlri and watchdog, and none of them writes attribute 40. `update hex` takes
-	// the attribute block itself, which is the same base the LLGR readvertise
-	// replays onto this rail.
+	// The wire form, because RFC 8669 Section 8 governs the attribute however it
+	// was written: `update text` can write attribute 40 through `bgp-prefix-sid`,
+	// but only through ze's own encoder, while `update hex` takes the attribute
+	// block itself, which is the same base the LLGR readvertise replays onto this
+	// rail.
 	//
 	//   40010100                    ORIGIN, IGP
 	//   C0280A 01000700000000000064 flags 0xC0 optional transitive, code 40

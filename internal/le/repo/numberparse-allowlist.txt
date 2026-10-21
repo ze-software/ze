@@ -61,7 +61,6 @@
 1 internal/component/bgp/plugins/watchdog/server.go
 1 internal/component/bgp/reactor/config.go
 3 internal/component/bgp/reactor/filter_delta.go
-1 internal/component/bgp/route/route_community.go
 2 internal/component/bgp/route/route_flowspec.go
 2 internal/component/bgp/route/route_labeled.go
 1 internal/component/config/cli/cmd_validate.go

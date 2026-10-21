@@ -335,3 +335,53 @@ func TestParseUpdateText_ReflectionAttributesAfterNLRIRefused(t *testing.T) {
 		})
 	}
 }
+
+// TestParseUpdateText_PrefixSIDLabelIndex checks the label-index BGP
+// Prefix-SID, in the bracketed spelling the config file and ExaBGP both write.
+//
+// VALIDATES: RFC 8669 Section 3: the BGP Prefix-SID is "an optional,
+// transitive BGP path attribute" (flags 0xC0, code 40). Section 3.1: the
+// Label-Index TLV is Type 1, Length 7, an 8-bit RESERVED, 16 bits of Flags and
+// a 32-bit Label Index. Section 3.2: the Originator SRGB TLV is Type 3, 16 bits
+// of Flags, then 3-octet base and 3-octet range pairs.
+// PREVENTS: `bgp-prefix-sid` being read as a prefix, which refused every
+// ExaBGP 4.2 and 5.0 command that carried one, while the config file encoded it.
+func TestParseUpdateText_PrefixSIDLabelIndex(t *testing.T) {
+	cases := []struct {
+		name  string
+		value []string
+		want  string
+	}{
+		{"index alone", []string{"[", "777", "]"}, "c0280a" + "01000700" + "0000" + "00000309"},
+		{"index alone unspaced", []string{"[777]"}, "c0280a" + "01000700" + "0000" + "00000309"},
+		{
+			"index and two SRGB ranges",
+			[]string{"[", "300,", "[", "(", "800000,4096", ")", "(", "1000000,5000", ")", "]", "]"},
+			"c0281b" + "01000700" + "0000" + "0000012c" + "03000e" + "0000" + "0c3500" + "001000" + "0f4240" + "001388",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"bgp-prefix-sid"}, tc.value...)
+			assert.Equal(t, tc.want, testAttributeHex(t, testCommand(args...)...))
+		})
+	}
+}
+
+// TestParseUpdateText_PrefixSIDRefusals checks the values the encoder cannot
+// represent are refused by name, never sent as an empty attribute.
+//
+// VALIDATES: an unclosed bracket and a non-numeric index are errors.
+// PREVENTS: the collector running to the end of the command and swallowing
+// the NLRI section.
+func TestParseUpdateText_PrefixSIDRefusals(t *testing.T) {
+	for _, value := range [][]string{
+		{"[", "777"},
+		{"[", "index", "]"},
+		{},
+	} {
+		args := append([]string{"bgp-prefix-sid"}, value...)
+		_, err := ParseUpdateText(testCommand(args...))
+		assert.Error(t, err, "%q", value)
+	}
+}

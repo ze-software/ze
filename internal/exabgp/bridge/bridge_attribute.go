@@ -66,6 +66,14 @@ type bridgeRouteAttr struct {
 	// consuming it and writing nothing is the whole translation. `name` is the
 	// only one: ExaBGP labels the route for its own `show` output.
 	WireSilent bool
+	// EmptyAtEnd marks an attribute ExaBGP reads with the empty word when the
+	// line ends at its keyword: the pin's Words.take answers the empty token at
+	// the end (configuration/grammar/words.py) and lists '' among WATCHDOG's
+	// examples, and 4.2 and 5.0 took the empty tokeniser() answer as the name
+	// (watchdog and name, configuration/static/parser.py). Neither empty
+	// value reaches a peer: `name` never does, and no `announce watchdog
+	// <name>` can name the empty watchdog, so the route is sent without one.
+	EmptyAtEnd bool
 }
 
 // bridgeAttrPrefixSIDSRv6 is ExaBGP's SRv6 service SID attribute, which ze's
@@ -90,8 +98,8 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	"rd":                      {Ze: "rd", Arity: arityValue},
 	bridgeAttrRouteDist:       {Ze: "rd", Arity: arityValue},
 	bridgeAttrPathInformation: {Ze: bridgeAttrPathInformation, Arity: arityValue},
-	bridgeAttrWatchdog:        {Ze: bridgeAttrWatchdog, Arity: arityValue},
-	"name":                    {Arity: arityValue, WireSilent: true},
+	bridgeAttrWatchdog:        {Ze: bridgeAttrWatchdog, Arity: arityValue, EmptyAtEnd: true},
+	bridgeAttrRouteName:       {Arity: arityValue, WireSilent: true, EmptyAtEnd: true},
 
 	// `split` is not an attribute: it re-cuts the prefix into smaller ones, so
 	// the parser carries its length out to the caller that owns the NLRI
@@ -99,6 +107,10 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	"split": {Arity: arityValue},
 
 	bridgeAttrPrefixSIDSRv6: {Ze: bridgeAttrPrefixSIDSRv6, Arity: arityGroup},
+	// The label-index Prefix-SID, `[ <index> ]` or `[ <index>, [ ( <base>,<range> )
+	// ... ] ]` (prefix_sid, configuration/static/mpls.py in 4.2.25 and 5.0.1),
+	// which ze's update text reads under the same name and spelling.
+	"bgp-prefix-sid": {Ze: "bgp-prefix-sid", Arity: arityList},
 
 	// ze has no update-text spelling for this one, so a line carrying it is
 	// REFUSED rather than announced without it. `attribute` is ExaBGP's generic
@@ -197,6 +209,14 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 				ErrLineNotTranslated, parts[i], textbuf.Join(bridgeAttrNames(), ", "))
 		}
 
+		if attr.EmptyAtEnd && i+1 == len(parts) {
+			if !attr.WireSilent {
+				out.Warnings = append(out.Warnings, "the line ends at "+key+
+					" with no name, so the route is sent without one; write "+key+
+					" <name> to tie it to a watchdog")
+			}
+			break
+		}
 		value, next, err := takeAttrValue(attr.Arity, parts, i+1)
 		if err != nil {
 			return routeAttributes{}, fmt.Errorf("%w: %s %w; write %s %s",

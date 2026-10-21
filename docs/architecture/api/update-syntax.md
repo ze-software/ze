@@ -565,7 +565,8 @@ keyword and answers with the flat form to use.
 <attr-name>    := origin | med | local-preference | as-path | origin-as |
                   community | large-community | extended-community |
                   aggregator | originator-id | cluster-list | aigp |
-                  bgp-prefix-sid-srv6 | next-hop | path-information | rd | label
+                  bgp-prefix-sid | bgp-prefix-sid-srv6 | next-hop |
+                  path-information | rd | label
 
 <nlri-section> := nlri [<modifier>]* <nlri-op>+ | nlri eor
                | mp <family> [<modifier>]* <nlri-op>+ | mp <family> eor
@@ -595,13 +596,14 @@ keyword and answers with the flat form to use.
 | `extended-community` | `[ <ec>... ]` | EXTENDED_COMMUNITIES (16), and IPV6_EXTENDED_COMMUNITIES (25) for an IPv6 redirect-to-IP target | RFC 4360, RFC 5701 |
 | `aigp` | `<uint64>` | AIGP (26) | RFC 7311 Section 3 |
 | `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
+| `bgp-prefix-sid` | `[ <index> ]` or `[ <index>, [ ( <base>,<range> ) ... ] ]` | BGP Prefix-SID (40) | RFC 8669 Sections 3.1 and 3.2 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 
 An `<ec>` in `extended-community` takes one of six forms.
 
 | Form | Example | Meaning |
 |------|---------|---------|
-| named | `target:65000:1`, `origin:65000:1.2.3.4` | the type keyword picks the encoding |
+| named | `target:65000:1`, `origin:65000:1.2.3.4`, `origin:2345:101124105`, `origin:70500:5000`, `mup:10:10` | the type keyword picks the encoding (`target`, `origin`, `mup`). The administrator picks the type: an IPv4 address is 0x01, an AS above 65535 or written with `L` is 0x02 (RFC 5668 Section 2) with a 2-octet value, any other AS is 0x00 with a 4-octet value written as a number or a dotted quad (RFC 4360 Sections 3.1 and 5). `mup:<2-octet>:<4-octet>` is type 0x0C sub-type 0x00 (draft-ietf-bess-mup-safi Section 3.2) |
 | FlowSpec action | `discard`, `copy-to-nexthop`, `rate-limit:1000` | RFC 8955 Section 7 |
 | FlowSpec redirect to IP | `redirect-to-nexthop 192.0.2.1`, `copy-to-nexthop 2001:db8::1` | draft-ietf-idr-flowspec-redirect-ip-16 Section 2: two words, the redirect-to-IP community holding the address, with the C (copy) bit for `copy-to-nexthop`. An IPv4 address is an 8-octet community (type 0x010C) in EXTENDED_COMMUNITIES; an IPv6 address is a 20-octet one (0x000C) in IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2). Written alone, `copy-to-nexthop` is the one-word 0x0800 copy action of draft-simpson-idr-flowspec-redirect-02, which copies to the route's next hop; `redirect-to-nexthop-draft` is its redirect. `redirect-to-nexthop` with no address is refused. It works as the first word (`extended-community redirect-to-nexthop 192.0.2.1`) and inside a list |
 | FlowSpec interface set | `interface-set:transitive:input:1234:10`, `interface-set:non-transitive:output:65000:3` | draft-ietf-idr-flowspec-interfaceset Section 5: apply the filter on interface group 3 (0 to 16383) of AS 65000, inbound, outbound or both (`input-output`). Type 0x07, or 0x47 non-transitive; `interface-set:input:1234:10` is transitive |
@@ -707,7 +709,7 @@ request bgp watchdog withdraw <name>   # withdraw all routes in pool from peers
 
 | Type | Attributes |
 |------|------------|
-| **Scalar** | `origin`, `med`, `local-preference`, `origin-as`, `aggregator`, `originator-id`, `aigp`, `bgp-prefix-sid-srv6`, `next-hop`, `path-information`, `rd`, `label` |
+| **Scalar** | `origin`, `med`, `local-preference`, `origin-as`, `aggregator`, `originator-id`, `aigp`, `bgp-prefix-sid`, `bgp-prefix-sid-srv6`, `next-hop`, `path-information`, `rd`, `label` |
 | **List** | `as-path`, `community`, `large-community`, `extended-community`, `cluster-list` |
 | **Flag** | `atomic-aggregate` |
 
