@@ -281,7 +281,11 @@ func (v *Validator) validateInstanceIdentifier(path string, leaf *yang.Entry, ya
 func (v *Validator) instanceSchema(leaf *yang.Entry, steps []instanceStep) ([]*yang.Entry, error) {
 	var tb textbuf.Buffer
 	nodes := make([]*yang.Entry, 0, len(steps))
-	parents := v.topLevelParents(leaf, localName(steps[0].node))
+	// An instance-identifier value is written in no module, so its prefixes
+	// are not resolved through imports here: the context carries no
+	// statement, the first step is found by its local name, and each step's
+	// prefix is compared with the module of the node it matched.
+	parents := v.topLevelParents(&pathContext{leaf: leaf}, steps[0].node)
 	for _, step := range steps {
 		prefix := nodePrefix(step.node)
 		if prefix == "" {

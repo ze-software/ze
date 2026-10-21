@@ -171,7 +171,8 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 	if err != nil {
 		return nil, leafrefPath{}, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(" does not parse: ").Str(err.Error()))
 	}
-	parents, err := v.pathStart(leaf, path)
+	ctx := &pathContext{leaf: leaf, stmt: pathStatement(leaf, typ)}
+	parents, err := v.pathStart(ctx, path)
 	if err != nil {
 		return nil, path, err
 	}
@@ -181,10 +182,10 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 		if node == nil {
 			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(" names no node ").Quoted(step.node).Str(": correct the path to name an existing leaf"))
 		}
-		if err := checkPathPrefix(leaf, step.node, node); err != nil {
+		if err := checkPathPrefix(ctx, step.node, node); err != nil {
 			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(": ").Str(err.Error()))
 		}
-		if err := v.checkPathKeys(leaf, typ.Path, node, step); err != nil {
+		if err := v.checkPathKeys(ctx, typ.Path, node, step); err != nil {
 			return nil, path, err
 		}
 		if i < len(path.steps)-1 {
@@ -200,11 +201,11 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 // pathStart answers the schema nodes a path's first step is looked up
 // under: the top level for an absolute path, the node "../" climbs to for a
 // relative one. The context node of the path is leaf itself (Section 9.9.2).
-func (v *Validator) pathStart(leaf *yang.Entry, path leafrefPath) ([]*yang.Entry, error) {
+func (v *Validator) pathStart(ctx *pathContext, path leafrefPath) ([]*yang.Entry, error) {
 	if path.up == 0 {
-		return v.topLevelParents(leaf, localName(path.steps[0].node)), nil
+		return v.topLevelParents(ctx, path.steps[0].node), nil
 	}
-	node := leaf
+	node := ctx.leaf
 	for range path.up {
 		node = dataParent(node)
 		if node == nil {
@@ -213,20 +214,60 @@ func (v *Validator) pathStart(leaf *yang.Entry, path leafrefPath) ([]*yang.Entry
 		}
 	}
 	if node.Parent == nil {
-		return v.topLevelParents(leaf, localName(path.steps[0].node)), nil
+		return v.topLevelParents(ctx, path.steps[0].node), nil
 	}
 	return []*yang.Entry{node}, nil
 }
 
-// topLevelParents answers the module roots whose top level holds name, so
-// childOf finds the first step in any of them.
-func (v *Validator) topLevelParents(leaf *yang.Entry, name string) []*yang.Entry {
-	nodes := v.topLevel(leaf, name)
+// RFC 7950 Section 6.4.1: "The root node has all top-level configuration
+// data nodes in all modules as children."
+//
+// topLevelParents answers the module roots whose top level holds nodeID, so
+// childOf finds the first step in any of them. A prefixed nodeID names one
+// module, resolved in the module the path is written in, and the root of
+// that module answers when it holds the node, wherever it sits among the
+// loaded modules. When it does not, or the prefix is not declared, the
+// unprefixed lookup answers, so the step resolves by its local name and
+// checkPathPrefix refuses the prefix with the fix.
+func (v *Validator) topLevelParents(ctx *pathContext, nodeID string) []*yang.Entry {
+	name := localName(nodeID)
+	if root := prefixedModuleRoot(ctx, nodeID); root != nil {
+		if schemaChild(root, name) != nil {
+			return []*yang.Entry{root}
+		}
+	}
+	nodes := v.topLevel(ctx.leaf, name)
 	parents := make([]*yang.Entry, 0, len(nodes))
 	for _, node := range nodes {
 		parents = append(parents, dataParentOrRoot(node))
 	}
 	return parents
+}
+
+// prefixedModuleRoot answers the entry root of the module the prefix of
+// nodeID names in the module the path is written in, and nil for an
+// unprefixed nodeID, an undeclared prefix, or a path whose statement is not
+// known. A submodule's prefix names the module it belongs to, whose entry
+// holds the submodule's nodes.
+func prefixedModuleRoot(ctx *pathContext, nodeID string) *yang.Entry {
+	prefix := nodePrefix(nodeID)
+	if prefix == "" {
+		return nil
+	}
+	if ctx.stmt == nil {
+		return nil
+	}
+	mod := yang.FindModuleByPrefix(ctx.stmt, prefix)
+	if mod == nil {
+		return nil
+	}
+	if mod.BelongsTo != nil {
+		mod = mod.Modules.Modules[mod.BelongsTo.Name]
+		if mod == nil {
+			return nil
+		}
+	}
+	return yang.ToEntry(mod)
 }
 
 // dataParentOrRoot answers the entry whose Dir holds node: its parent, which
@@ -245,7 +286,7 @@ func dataParentOrRoot(node *yang.Entry) *yang.Entry {
 // RFC 7950 Section 9.9.2: "Predicates are used only for constraining the
 // values for the key nodes for list entries.  Each predicate consists of
 // exactly one equality test per key".
-func (v *Validator) checkPathKeys(leaf *yang.Entry, text string, node *yang.Entry, step pathStep) error {
+func (v *Validator) checkPathKeys(ctx *pathContext, text string, node *yang.Entry, step pathStep) error {
 	var tb textbuf.Buffer
 	if len(step.keys) == 0 {
 		return nil
@@ -263,10 +304,10 @@ func (v *Validator) checkPathKeys(leaf *yang.Entry, text string, node *yang.Entr
 			return refError(tb.Str("leafref path ").Quoted(text).Str(" tests key ").Quoted(name).Str(" twice: give one equality test per key"))
 		}
 		seen[name] = true
-		if err := checkPathPrefix(leaf, key.node, schemaChild(node, name)); err != nil {
+		if err := checkPathPrefix(ctx, key.node, schemaChild(node, name)); err != nil {
 			return refError(tb.Str("leafref path ").Quoted(text).Str(": ").Str(err.Error()))
 		}
-		if _, err := v.keyExprTarget(leaf, key); err != nil {
+		if _, err := v.keyExprTarget(ctx, key); err != nil {
 			return refError(tb.Str("leafref path ").Quoted(text).Str(": ").Str(err.Error()))
 		}
 	}
@@ -274,9 +315,9 @@ func (v *Validator) checkPathKeys(leaf *yang.Entry, text string, node *yang.Entr
 }
 
 // keyExprTarget resolves a predicate's "current()/../x" to the leaf it reads.
-func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, error) {
+func (v *Validator) keyExprTarget(ctx *pathContext, key pathKey) (*yang.Entry, error) {
 	var tb textbuf.Buffer
-	node := leaf
+	node := ctx.leaf
 	for range key.up {
 		node = dataParent(node)
 		if node == nil {
@@ -285,7 +326,7 @@ func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, e
 	}
 	parents := []*yang.Entry{node}
 	if node.Parent == nil {
-		parents = v.topLevelParents(leaf, localName(key.nodes[0]))
+		parents = v.topLevelParents(ctx, key.nodes[0])
 	}
 	var target *yang.Entry
 	for _, nodeID := range key.nodes {
@@ -293,7 +334,7 @@ func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, e
 		if target == nil {
 			return nil, refError(tb.Str("current() expression names no node ").Quoted(nodeID))
 		}
-		if err := checkPathPrefix(leaf, nodeID, target); err != nil {
+		if err := checkPathPrefix(ctx, nodeID, target); err != nil {
 			return nil, err
 		}
 		parents = []*yang.Entry{target}
@@ -302,6 +343,78 @@ func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, e
 		return nil, refError(tb.Str("current() expression ends at ").Quoted(target.Name).Str(", which is not a leaf"))
 	}
 	return target, nil
+}
+
+// pathContext is what a leafref path is resolved against: leaf, the
+// referring node, is the context node every relative step and current()
+// climbs from (RFC 7950 Section 9.9.2), and stmt is the type statement the
+// path is written in, whose module declares the prefixes the path may use.
+// The two differ when the path comes from a typedef of another module, and
+// stmt is nil when Ze cannot find that statement.
+type pathContext struct {
+	leaf *yang.Entry
+	stmt *yang.Type
+}
+
+// pathStatement answers the type statement that writes the path of typ, one
+// leafref type of leaf: the statement holding the path substatement, reached
+// from leaf's own type statement through union members and the typedefs each
+// names. It answers nil when leaf has no type statement holding typ, as
+// after a deviation replaced the type.
+func pathStatement(leaf *yang.Entry, typ *yang.YangType) *yang.Type {
+	var stmt *yang.Type
+	switch node := leaf.Node.(type) {
+	case *yang.Leaf:
+		stmt = node.Type
+	case *yang.LeafList:
+		stmt = node.Type
+	default:
+		return nil
+	}
+	return findPathStatement(stmt, typ)
+}
+
+// findPathStatement answers the statement under t that writes the path of
+// typ. goyang shares a union member's YangType between the union statement
+// and every type that copies it, so typ is found by identity. The recursion
+// is bounded by the union nesting and typedef chain of the loaded modules,
+// which goyang resolved without a loop.
+func findPathStatement(t *yang.Type, typ *yang.YangType) *yang.Type {
+	if t == nil {
+		return nil
+	}
+	if t.YangType == typ {
+		return pathDefinition(t)
+	}
+	for _, member := range t.Type {
+		if found := findPathStatement(member, typ); found != nil {
+			return found
+		}
+	}
+	return findPathStatement(typedefStatement(t), typ)
+}
+
+// pathDefinition answers the statement that holds the path t's type
+// carries: t itself when it writes one, otherwise the type statement of the
+// typedef t names, followed down the typedef chain.
+func pathDefinition(t *yang.Type) *yang.Type {
+	for t != nil && t.Path == nil {
+		t = typedefStatement(t)
+	}
+	return t
+}
+
+// typedefStatement answers the type statement of the typedef t names, and
+// nil when t names a built-in type.
+func typedefStatement(t *yang.Type) *yang.Type {
+	if t.YangType == nil {
+		return nil
+	}
+	base := t.YangType.Base
+	if base == t {
+		return nil
+	}
+	return base
 }
 
 // RFC 7950 Section 6.4: "The XPath expressions MUST be syntactically
@@ -313,14 +426,12 @@ func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, e
 // "namespace" statement's URI."
 //
 // checkPathPrefix checks the prefix of nodeID, one node-identifier of a
-// leafref path of leaf, against node, the schema node its local name matched:
-// the prefix is declared in the module the leaf is written in, and names the
-// module whose namespace holds node. An unprefixed name belongs to the
-// namespace of the referring node (Section 6.4.1), which the local-name match
-// already follows. The context is the statement of leaf, where an inline
-// leafref type is written; a leafref typedef of another module is resolved in
-// the using module too, and no Ze module declares one.
-func checkPathPrefix(leaf *yang.Entry, nodeID string, node *yang.Entry) error {
+// leafref path, against node, the schema node its local name matched: the
+// prefix is declared in the module the path is written in (ctx.stmt), which
+// for a typedef is the module defining it, and names the module whose
+// namespace holds node. An unprefixed name belongs to the namespace of the
+// referring node (Section 6.4.1), which the local-name match already follows.
+func checkPathPrefix(ctx *pathContext, nodeID string, node *yang.Entry) error {
 	prefix := nodePrefix(nodeID)
 	if prefix == "" {
 		return nil
@@ -329,24 +440,73 @@ func checkPathPrefix(leaf *yang.Entry, nodeID string, node *yang.Entry) error {
 	if node == nil {
 		return refError(tb.Str("names no node ").Quoted(nodeID))
 	}
-	if leaf.Node == nil {
-		return refError(tb.Str("the module ").Quoted(leaf.Name).Str(" is written in is not known, so prefix ").Quoted(prefix).Str(" cannot be resolved: this is a Ze defect, report it"))
-	}
-	if yang.RootNode(leaf.Node) == nil {
-		return refError(tb.Str("the module ").Quoted(leaf.Name).Str(" is written in is not known, so prefix ").Quoted(prefix).Str(" cannot be resolved: this is a Ze defect, report it"))
-	}
-	declared := yang.FindModuleByPrefix(leaf.Node, prefix)
-	if declared == nil {
-		return refError(tb.Str("prefix ").Quoted(prefix).Str(" of ").Quoted(nodeID).Str(" is neither this module's prefix nor an imported one: import the module defining ").Quoted(node.Name).Str(" and use its prefix"))
+	if ctx.stmt == nil {
+		return refError(tb.Str("Ze cannot find the type statement that writes the path of ").Str(ctx.leaf.Path()).Str(", so prefix ").Quoted(prefix).Str(" cannot be resolved: this is a Ze defect, report it with the module text"))
 	}
 	owner, err := node.InstantiatingModule()
 	if err != nil {
 		return refError(tb.Str("the module of ").Quoted(node.Name).Str(" is not known: ").Str(err.Error()))
 	}
-	if declaredName := belongingModule(declared); declaredName != owner {
-		return refError(tb.Str("prefix ").Quoted(prefix).Str(" names module ").Str(declaredName).Str(", but ").Quoted(node.Name).Str(" belongs to module ").Str(owner).Str(": write the prefix this module imports ").Str(owner).Str(" under"))
+	declared := yang.FindModuleByPrefix(ctx.stmt, prefix)
+	if declared == nil {
+		tb.Str("prefix ").Quoted(prefix).Str(" of ").Quoted(nodeID).Str(" is neither the prefix of module ").Str(belongingModule(yang.RootNode(ctx.stmt))).Str(", where the path is written, nor one it imports: ")
+		return refError(prefixFix(&tb, ctx, owner, localName(nodeID)))
 	}
-	return nil
+	declaredName := belongingModule(declared)
+	if declaredName == owner {
+		return nil
+	}
+	tb.Str("prefix ").Quoted(prefix).Str(" names module ").Str(declaredName).Str(", but ").Quoted(node.Name).Str(" belongs to module ").Str(owner).Str(": ")
+	return refError(prefixFix(&tb, ctx, owner, localName(nodeID)))
+}
+
+// RFC 7950 Section 6.4.1: "Names without a namespace prefix belong to the
+// same namespace as the identifier of the current node.  Inside a grouping,
+// that namespace is affected by where the grouping is used (see Section
+// 7.13)."
+//
+// prefixFix writes to tb the fix that names local in module owner from the
+// module the path is written in. Inside a grouping used in owner, that is the
+// bare name, because a prefix there names the module defining the grouping.
+// Otherwise it is the written module's own prefix, or the prefix it imports
+// owner under, and where it imports owner under none, the import to add.
+func prefixFix(tb *textbuf.Buffer, ctx *pathContext, owner, local string) *textbuf.Buffer {
+	written := yang.RootNode(ctx.stmt)
+	writtenName := belongingModule(written)
+	if writtenName == owner {
+		return tb.Str("write ").Quoted(written.GetPrefix() + ":" + local)
+	}
+	if usedInOwner(ctx, owner) {
+		return tb.Str("the path is written in a grouping of module ").Str(writtenName).Str(" used in module ").Str(owner).Str(", where an unprefixed name takes the namespace of the using module: write ").Quoted(local).Str(" with no prefix")
+	}
+	for _, imp := range written.Import {
+		if imp.Name == owner {
+			return tb.Str("write ").Quoted(imp.Prefix.Name + ":" + local)
+		}
+	}
+	ownerPrefix := owner
+	if mod := written.Modules.Modules[owner]; mod != nil {
+		ownerPrefix = mod.GetPrefix()
+	}
+	return tb.Str("module ").Str(writtenName).Str(" does not import ").Str(owner).Str(": add ").Quoted("import " + owner + " { prefix " + ownerPrefix + "; }").Str(" to module ").Str(writtenName).Str(" and write ").Quoted(ownerPrefix + ":" + local)
+}
+
+// usedInOwner reports whether the path is written inside a grouping that the
+// referring leaf was instantiated from in module owner.
+func usedInOwner(ctx *pathContext, owner string) bool {
+	leafModule, err := ctx.leaf.InstantiatingModule()
+	if err != nil {
+		return false
+	}
+	if leafModule != owner {
+		return false
+	}
+	for node := ctx.stmt.ParentNode(); node != nil; node = node.ParentNode() {
+		if _, ok := node.(*yang.Grouping); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // belongingModule answers the name of the module whose namespace mod's
