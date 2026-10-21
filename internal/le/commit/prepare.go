@@ -330,8 +330,12 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 					strings.Join(reds.Unattributed, ", ")
 			}
 			if len(reds.Unreached) != 0 {
-				detail += "\n  not reached, because the run stopped at its first red: " +
-					strings.Join(reds.Unreached, ", ") +
+				why := "\n  not run by the recorded verify run, which held only part of the population " +
+					"(a piece of a cut, the fast population, or a run that broke): "
+				if reds.StoppedAt != "" {
+					why = "\n  not reached, because the run stopped at its first red: "
+				}
+				detail += why + strings.Join(reds.Unreached, ", ") +
 					"\n  run every stage with: le verify worktree"
 			}
 			return nil, "", fmt.Errorf(

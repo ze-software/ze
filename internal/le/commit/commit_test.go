@@ -252,6 +252,43 @@ func TestAnUnreachedStructuralStageIsCharged(t *testing.T) {
 	}
 }
 
+// TestAPublishedPieceIndexStillChargesAStructuralStageOutsideIt proves the
+// commit gate fails closed over a piece of a cut run. The piece's index is the
+// checkout's latest, so it replaces whatever an earlier full run published:
+// when it listed only its own stages, a lint red the full run had recorded
+// disappeared and the commit went through with lint never run on the tree.
+//
+// Method: run part 2 of 3 green through the engine, publish its index into a
+// commit checkout the way a worktree run does, and require `go lint/run`
+// (dealt to part 1) to be charged as not reached, with the refusal naming it.
+func TestAPublishedPieceIndexStillChargesAStructuralStageOutsideIt(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "piece-index-fixture")
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	worktree := t.TempDir()
+	passing := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	piece := verifyengine.RunPart(context.Background(), worktree, "abc", verifyengine.Mode,
+		verifyengine.Part{Index: 2, Of: 3}, verifyengine.Plan{}, passing, verifyengine.Slot{})
+	if piece.Code != 0 {
+		t.Fatalf("piece run = %#v", piece.Failure)
+	}
+	if err := verifyengine.PublishFailureIndex(worktree, root, ""); err != nil {
+		t.Fatal(err)
+	}
+	reds := structuralGateReds(root, []string{"mine.txt"})
+	if !slices.Contains(reds.Charged, "go lint/run") || !slices.Contains(reds.Unreached, "go lint/run") {
+		t.Fatalf("structuralGateReds over a published piece = %#v, want go lint/run charged as not reached", reds)
+	}
+	options := Options{Subject: "after a piece", Files: []string{"mine.txt"}, DryRun: true}
+	_, err := Create(root, &options)
+	if err == nil || !strings.Contains(err.Error(), "not run by the recorded verify run") ||
+		!strings.Contains(err.Error(), "go lint/run") {
+		t.Fatalf("Create after a published piece = %v, want a refusal naming go lint/run as not run", err)
+	}
+}
+
 func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 	t.Parallel()
 	block := commitBlock{

@@ -41,10 +41,12 @@ type Group struct {
 	Excerpt   []string `json:"excerpt,omitempty"`
 }
 
-// artifactStage is one stage of the population in the failure index. Reached
-// is false for a stage a first-red run stopped before: it carries no exit, no
-// log and no time, and a reader MUST NOT read its zero exit as a green
-// (structuralGateReds in internal/le/commit charges it instead).
+// artifactStage is one stage of the full population in the failure index.
+// Reached is false for a stage the run never started (a first-red stop, a
+// piece of a cut run, the fast population, a run that broke part way): it
+// carries no exit, no log and no time, and a reader MUST NOT read its zero
+// exit as a green (structuralGateReds in internal/le/commit charges it
+// instead, and withUnrunStages says why every run lists the whole population).
 type artifactStage struct {
 	Stage     string  `json:"stage"`
 	Reached   bool    `json:"reached"`
@@ -101,6 +103,7 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 	for _, unreached := range report.Unreached {
 		index.Stages = append(index.Stages, artifactStage{Stage: unreached.Name})
 	}
+	index.Stages = withUnrunStages(index.Stages)
 	failureText := failureIndexText(index)
 	data, err := json.MarshalIndent(index, "", "  ")
 	if err != nil {
@@ -126,6 +129,32 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 		}
 	}
 	return nil
+}
+
+// withUnrunStages answers stages followed by one not-reached entry for every
+// stage of the uncut full population that stages does not name.
+//
+// The commit gate charges only the structural stages an index lists
+// (structuralGateReds in internal/le/commit), and the checkout's index is
+// whichever run wrote last. A piece of a cut run, a fast run, and a run that
+// broke or was interrupted part way each list only the stages they held, so
+// when they replaced a full run's index a structural red that run recorded
+// vanished, and the stages that would have judged it were never run. Naming
+// every stage this run did not start makes the gate fail closed on each
+// structural one exactly as on a first-red stop. The full population is the
+// reference because it is what a commit carrying Go owes; the fast population
+// is a subset of it, so fast-only stages cannot exist.
+func withUnrunStages(stages []artifactStage) []artifactStage {
+	named := make(map[string]bool, len(stages))
+	for index := range stages {
+		named[stages[index].Stage] = true
+	}
+	for _, stage := range StagesForMode(Mode) {
+		if !named[stage.Identity.Name] {
+			stages = append(stages, artifactStage{Stage: stage.Identity.Name})
+		}
+	}
+	return stages
 }
 
 // PublishFailureIndex copies the failure index a run wrote under source to
@@ -256,13 +285,24 @@ func failureIndexText(index artifactIndex) string {
 	text.Str("Run directory: ").Str(index.RunDir).Byte('\n')
 	text.Str("Combined log: ").Str(index.CombinedLog).Str("\n\n")
 	if index.StoppedAt != "" {
-		text.Str("Stopped at first red: ").Str(index.StoppedAt).Str("; not reached:")
-		for _, stage := range index.Stages {
-			if !stage.Reached {
-				text.Byte(' ').Str(stage.Stage)
-			}
+		text.Str("Stopped at first red: ").Str(index.StoppedAt).Str("\n")
+	}
+	unrun := 0
+	for _, stage := range index.Stages {
+		if stage.Reached {
+			continue
 		}
-		text.Str("\n\n")
+		if unrun == 0 {
+			text.Str("Not run by this run, so not judged:")
+		}
+		unrun++
+		text.Byte(' ').Str(stage.Stage)
+	}
+	if unrun != 0 {
+		text.Byte('\n')
+	}
+	if index.StoppedAt != "" || unrun != 0 {
+		text.Byte('\n')
 	}
 	failed := 0
 	for _, stage := range index.Stages {

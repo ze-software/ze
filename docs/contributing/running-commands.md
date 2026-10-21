@@ -912,7 +912,10 @@ A stopped run is never a pass. Its exit is the stopping stage's (1, or 3 when
 that stage could not judge), its certificate is STALE for every path list, the
 failure index names the stage under `stopped-at` and lists every stage it did
 not start with `reached: false`, and the commit gate charges each unreached
-structural stage as not reached until every stage has run. The run prints
+structural stage as not reached until every stage has run. Every run's index
+names the whole full population this way, so a piece of a cut run or a fast
+run marks the stages it never held `reached: false` and the gate charges the
+structural ones too. The run prints
 `stopped at <stage>, <n> stages not run` and the command that runs them all.
 `./le verify reds` over a stopped run answers `undetermined` and says the
 pending stages will never report. A first-red run is separate work in the job

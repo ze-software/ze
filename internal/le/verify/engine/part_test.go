@@ -8,6 +8,9 @@ package verifyengine
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"testing"
@@ -151,4 +154,74 @@ func TestACutRunKeepsTheDealtOrder(t *testing.T) {
 			t.Fatalf("cut run started %q, want the dealt order", started)
 		}
 	}
+}
+
+// TestAnIndexNamesEveryFullStageItDidNotRun proves a piece of a cut run, and a
+// fast run, publish an index that names every stage of the uncut full
+// population they never started as not reached. The commit gate charges only
+// the structural stages an index lists, so an index that lists only the stages
+// its own run held let a piece replace an earlier full run's lint red and the
+// commit go through with lint never run.
+//
+// Method: run part 2 of 3 and the fast population with a passing runner, read
+// each index back, and require every full-population stage to appear once:
+// reached when the run started it, reached false otherwise. `go lint/run` is
+// dealt to part 1, and `verify deps/evidence-vet` is a structural stage the
+// fast population drops, so each run has a structural stage it never ran.
+func TestAnIndexNamesEveryFullStageItDidNotRun(t *testing.T) {
+	cases := []struct {
+		name       string
+		mode       string
+		part       Part
+		structural string
+	}{
+		{name: "piece", mode: Mode, part: Part{Index: 2, Of: 3}, structural: "go lint/run"},
+		{name: "fast", mode: FastMode, part: Uncut(), structural: "verify deps/evidence-vet"},
+	}
+	full := StagesForMode(Mode)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			started := make([]string, 0)
+			report := RunPart(context.Background(), root, "abc", tc.mode, tc.part, Plan{}, recordingRunner("", 0, &started), Slot{})
+			if report.Code != 0 {
+				t.Fatalf("run = %#v", report.Failure)
+			}
+			index := readIndex(t, root)
+			reached := map[string]bool{}
+			for _, stage := range index.Stages {
+				if _, twice := reached[stage.Stage]; twice {
+					t.Fatalf("index names %s twice", stage.Stage)
+				}
+				reached[stage.Stage] = stage.Reached
+			}
+			for _, stage := range full {
+				name := stage.Identity.Name
+				was, listed := reached[name]
+				if !listed {
+					t.Fatalf("index does not name %s, a full-population stage this run never started", name)
+				}
+				if was != slices.Contains(started, name) {
+					t.Fatalf("index says %s reached=%v, and the run started %v", name, was, started)
+				}
+			}
+			if reached[tc.structural] {
+				t.Fatalf("structural %s reads as reached in a run that never started it", tc.structural)
+			}
+		})
+	}
+}
+
+// readIndex answers the failure index a run wrote under root.
+func readIndex(t *testing.T, root string) artifactIndex {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(FailuresJSONPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var index artifactIndex
+	if err := json.Unmarshal(data, &index); err != nil {
+		t.Fatal(err)
+	}
+	return index
 }

@@ -36,14 +36,20 @@ type structuralReds struct {
 	Charged      []string
 	Unattributed []string
 	Foreign      []string
-	// Unreached names the structural stages a first-red run stopped before.
+	// Unreached names the structural stages the recorded run never started:
+	// a first-red run stopped before them, or the run held only part of the
+	// population (a piece of a cut, the fast population, a run that broke).
 	// Each is also in Charged: a stage that never ran proved nothing, so the
 	// gate fails closed on it exactly as on a red.
 	Unreached []string
+	// StoppedAt names the stage a first-red run stopped after, and is empty
+	// when the unreached stages were never part of the run.
+	StoppedAt string
 }
 
 type failureIndex struct {
-	Stages []json.RawMessage `json:"stages"`
+	StoppedAt string            `json:"stopped-at"`
+	Stages    []json.RawMessage `json:"stages"`
 }
 
 type failureStage struct {
@@ -77,7 +83,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 		}
 	}
 	structural := structuralStages()
-	var result structuralReds
+	result := structuralReds{StoppedAt: index.StoppedAt}
 	for _, rawStage := range index.Stages {
 		var stage failureStage
 		if json.Unmarshal(rawStage, &stage) != nil {
