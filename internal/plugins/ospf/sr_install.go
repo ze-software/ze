@@ -3,13 +3,15 @@
 // remote SR capabilities (RI LSAs) and Prefix-SIDs (Extended Prefix LSAs) from the
 // LSDB, computes each outgoing label from the SPF NEXT-HOP router's advertised SRGB
 // (RFC 8665 §5: the pushed/swapped label is SRGB(next-hop).Label(index)), applies the
-// NP/E PHP/Explicit-NULL rules ONLY when the next-hop IS the SID originator (this
-// node is the penultimate hop) and swaps unconditionally at a transit hop, decides PHP
+// NP/E PHP/Explicit-NULL rules ONLY when the next-hop router itself advertised the SID
+// (this node is the penultimate hop), with that router's own flags whether or not the
+// best path ends at it, and swaps unconditionally at a transit hop, decides PHP
 // for a Mapping Server SID (M-Flag) from the route type and A-Flag advertisers, and emits
 // an mpls-fib push/swap/pop toward the SPF next-hop. Stale FECs are withdrawn
 // idempotently. Shared logic; only the LSDB carriage the maps are built from differs
 // by address family.
-// RFC: rfc/short/rfc8665.md (§5 outgoing label); rfc/short/rfc8666.md (§6)
+// RFC: rfc/short/rfc8665.md -- §5 outgoing label
+// RFC: rfc/short/rfc8666.md -- §6 outgoing label
 
 package ospf
 
@@ -47,11 +49,35 @@ type srRoute struct {
 
 // srRemotePrefixSID is a Prefix-SID received for one prefix, with its originator
 // and a Duplicate marker (RFC 8665 §5: multiple Prefix-SIDs for the same prefix,
-// topology and algorithm are all ignored).
+// topology and algorithm are all ignored). Also lists every other router whose own
+// surviving Prefix-SID binds the same SID to the prefix (an anycast prefix, or ABRs
+// propagating one Prefix-SID), each with the flags that router advertised, so the
+// installer can apply a next hop's own flags whichever advertiser the best path reaches.
 type srRemotePrefixSID struct {
 	Originator types.RouterID
 	SID        sr.PrefixSID
+	Also       []srPrefixSIDAdvertisement
 	Duplicate  bool
+}
+
+// srPrefixSIDAdvertisement is one router's own Prefix-SID for a prefix.
+type srPrefixSIDAdvertisement struct {
+	Router types.RouterID
+	SID    sr.PrefixSID
+}
+
+// advertisedBy returns the Prefix-SID router itself advertised for the prefix, and false
+// when router advertised none that survived the duplicate rules.
+func (rs *srRemotePrefixSID) advertisedBy(router types.RouterID) (sr.PrefixSID, bool) {
+	if router == rs.Originator {
+		return rs.SID, true
+	}
+	for _, adv := range rs.Also {
+		if adv.Router == router {
+			return adv.SID, true
+		}
+	}
+	return sr.PrefixSID{}, false
 }
 
 // srInstaller programs SR MPLS forwarding for one address family. It tracks the
@@ -140,21 +166,29 @@ func (s *srInstaller) installRoutes(
 // toward a received Prefix-SID (RFC 8665 §5 / RFC 8666 §6). The pushed/swapped label
 // is computed from the SRGB of the NEXT-HOP router (the far end of the first hop),
 // NOT the SID originator: a SID index is global and each hop maps it through its own
-// SRGB. The NP/E PHP/Explicit-NULL rules apply ONLY when the next-hop IS the
-// originator (this node is the penultimate hop); at a transit hop the label is swapped
-// unconditionally (ActionKeep). A Mapping Server SID (M-Flag set) has its NP and E
-// ignored, and srMappedSIDAction decides PHP from the route instead. A next-hop that
-// advertised no SRGB is not SR-capable (R-13): no install toward it. An out-of-range
-// index yields no label.
+// SRGB. The NP/E PHP/Explicit-NULL rules apply ONLY when the next-hop router itself
+// advertised the SID for the prefix, and then with the flags IT advertised, whether or not
+// the best path ends at it; at a transit hop the label is swapped unconditionally
+// (ActionKeep). A Mapping Server SID (M-Flag set) has its NP and E ignored, and
+// srMappedSIDAction decides PHP from the route instead. A next-hop that advertised no
+// SRGB is not SR-capable (R-13): no install toward it. An out-of-range index yields no
+// label.
+//
+// RFC 8665 Section 5 / RFC 8666 Section 6: "When calculating the outgoing label for the
+// prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags
+// advertised by the next-hop router if that router advertised the SID for the prefix.
+// This MUST be done regardless of whether the next-hop router contributes to the best
+// path to the prefix." advertisedBy finds that router's own advertisement.
 func (s *srInstaller) forwarding(r *srRoute, rs srRemotePrefixSID, nh srNextHop, remoteCaps map[types.RouterID]sr.SRGB) (uint32, sr.OutgoingAction, bool) {
+	own, advertised := rs.advertisedBy(nh.Router)
 	if rs.SID.IsLabel {
-		// An absolute local label (V=1/L=1) is assigned by the originator and is only
-		// meaningful where the next-hop is that originator (directly attached). Apply the
-		// originator's NP/E/M flags; a transit next-hop cannot map an absolute label.
-		if nh.Router != rs.Originator {
+		// An absolute local label (V=1/L=1) is assigned by its advertiser and is only
+		// meaningful where the next-hop is that advertiser (directly attached). Apply the
+		// next-hop's own NP/E/M flags; a transit next-hop cannot map an absolute label.
+		if !advertised {
 			return 0, sr.ActionKeep, false
 		}
-		return rs.SID.Label, sr.OutgoingActionFor(rs.SID.Flags), true
+		return own.Label, sr.OutgoingActionFor(own.Flags), true
 	}
 	srgb, ok := remoteCaps[nh.Router]
 	if !ok || srgb.Empty() {
@@ -165,16 +199,19 @@ func (s *srInstaller) forwarding(r *srRoute, rs srRemotePrefixSID, nh srNextHop,
 		srMetrics.Load().observeComputeError(s.af, "index-out-of-range")
 		return 0, sr.ActionKeep, false
 	}
-	// RFC 8665 Section 5: "When the M-Flag is set, the NP-Flag and the E-Flag MUST be
-	// ignored on reception."
+	// Penultimate hop (the next-hop advertised the SID): apply the PHP/E rules of its own
+	// advertisement. RFC 8665 Section 5: "When the M-Flag is set, the NP-Flag and the
+	// E-Flag MUST be ignored on reception."
+	if advertised {
+		if own.Flags.M {
+			return label, srMappedSIDAction(r, nh), true
+		}
+		return label, sr.OutgoingActionFor(own.Flags), true
+	}
 	if rs.SID.Flags.M {
 		return label, srMappedSIDAction(r, nh), true
 	}
-	// Penultimate hop (next-hop == originator): apply the advertised PHP/E rules.
 	// Transit hop: swap the label on unconditionally (ActionKeep).
-	if nh.Router == rs.Originator {
-		return label, sr.OutgoingActionFor(rs.SID.Flags), true
-	}
 	return label, sr.ActionKeep, true
 }
 

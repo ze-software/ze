@@ -35,6 +35,23 @@ stepped in election order). Spec Design Insights,
 spec is still `design`, no `rpc.ReasonNotification` in the tree), so the Phase
 2b second half still waits.
 
+### Update 2026-10-21 afternoon (items 1 and 2 below are DONE)
+
+- Item 1 closed in `6607a280a3` and `c8989803ee`. Causes: a product deadlock
+  (`Reactor.cleanup` held `r.mu` while `fwdPool.Stop` waited for a worker
+  firing `onResumed` -> `emitCongestionEvent` -> `r.mu.RLock`; fixed, pool
+  stops first, `TestReactorStopsWithACongestedForwardWorker`), read-pool
+  contamination (an RFC 8654 test's 64K block shrinks the next reactor's
+  auto budget to 128 4K buffers and the weight tracker undid the lift;
+  `rsLiveRouter` now sets `ze.fwd.pool.maxbytes` before `New`), and two test
+  races (sources sent on three sessions with no wait; B's own recovery
+  returning buffers into the dry window). Proof: `-race -count=3` wide run,
+  363 passes. Details: spec Design Insights, 2026-10-21 entries.
+- Item 2 closed in `6f18c55e24`: `TestOwedKeyPartialRoundSkipsBackoff`, red
+  656 to 675 ms with the conversion broken, green 13 to 35 ms.
+- Item 3 (review round 4) scope is written in the spec; check the spec's last
+  Design Insights entries for its result.
+
 ### OPEN at hand-off (do these first)
 
 Review round 3 (fresh subagent) ran over the round-2 fixes; fixed since:

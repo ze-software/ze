@@ -51,6 +51,8 @@ func TestRFC5250Type11LooksUpOriginatorRoutingEntry(t *testing.T) {
 	// a Type-11 LSA from 10.0.0.2 (Router-LSA installed) is delivered not usable; after SPF has
 	// run, one from 10.0.0.2 is still not usable, because 10.0.0.2 is reached but carries no
 	// E-bit and so has no ASBR entry; one from 10.0.0.9 (no Router-LSA, no entry) is not usable.
+	// RFC requirement: RFC5250-5-4 positive -- a Type-11 LSA whose originator has no ASBR routing
+	// table entry is left alone: it is delivered not usable, before SPF and after it.
 	if deliver(peer) {
 		t.Fatal("a Type-11 LSA was delivered usable before SPF computed any entry for its originator")
 	}
@@ -65,6 +67,8 @@ func TestRFC5250Type11LooksUpOriginatorRoutingEntry(t *testing.T) {
 	// RFC requirement: RFC5250-5-1 positive -- once 10.0.0.2 announces itself an AS boundary
 	// router (Router-LSA E-bit) and SPF has computed its ASBR routing table entry, the router
 	// finds that entry: a Type-11 LSA from 10.0.0.2 is delivered usable.
+	// RFC requirement: RFC5250-5-4 negative -- the do-nothing rule does not reach an originator that
+	// has an ASBR routing table entry: its Type-11 LSA is delivered usable below.
 	toSelf := packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{10, 0, 0, 1},
 		LinkData: [4]byte{10, 0, 0, 2}, Metric: 10}
 	asbr := bgplsReachabilityRouter(peer, toSelf)

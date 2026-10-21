@@ -80,8 +80,13 @@ func (e *engine) graceOnReceive(r opaqueReceived) {
 // X is the neighbor whose interface address the IP interface address TLV carries, whatever
 // the Advertising Router field says; a Grace-LSA without that TLV, or naming an address no
 // neighbor holds, identifies nobody. FRR (ospf_process_grace_lsa, ospf_nbr_lookup_by_addr) and
-// BIRD (ospf_neigh_notify_grace_lsa, find_neigh_by_ip) both identify X this way. OSPFv3 never
-// reaches here: RFC 5340 identifies every OSPFv3 neighbor by Router ID.
+// BIRD (ospf_neigh_notify_grace_lsa, find_neigh_by_ip) both identify X this way. A flushed
+// (MaxAge) Grace-LSA is matched the same way, so on shared media a flush without the IP
+// interface address TLV, or naming an address no neighbor holds, is ignored: no helper session
+// ends, and the helper keeps helping until the grace period expires (RFC 3623 Section 3.2,
+// exit event 2). FRR does the same (ospf_process_maxage_grace_lsa returns when
+// ospf_nbr_lookup_by_addr finds no neighbor). OSPFv3 never reaches here: RFC 5340 identifies
+// every OSPFv3 neighbor by Router ID.
 func (e *engine) graceRestarterV4(iface string, advRouter ospftypes.RouterID, body ospfpacket.GraceLSA) (ospftypes.RouterID, bool) {
 	e.mu.Lock()
 	ic, running := e.running[iface]

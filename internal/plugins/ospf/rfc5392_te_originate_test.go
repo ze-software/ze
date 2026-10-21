@@ -249,6 +249,8 @@ func TestInterAsTEOriginateScopePolicy(t *testing.T) {
 			}
 			// RFC requirement: RFC5392-3.2.1-4 positive -- origination always emits the REQUIRED
 			// Remote AS Number sub-TLV (21) for an inter-AS TE link (§3.2.1, §3.3.1).
+			// RFC requirement: RFC5392-3.3.1-2 positive -- every originated inter-AS Link TLV carries the
+			// Remote AS Number sub-TLV.
 			// RFC requirement: RFC5392-3.3.2-1 positive -- origination emits the IPv4 Remote ASBR
 			// ID sub-TLV (22) when remote-asbr-ipv4 is configured on the inter-AS link (§3.3.2).
 			if !l.HasRemoteAS || l.RemoteAS != 65001 || !l.HasRemoteASBRv4 {

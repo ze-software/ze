@@ -261,10 +261,8 @@
     {
       "id": "6:9",
       "quote": "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Second sentence of the same paragraph; RFC8666-6-8 already carries 'regardless of whether the next-hop router contributes to the best path' as part of the outgoing-label rule.",
-      "mapped-to": "RFC8666-6-8"
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-18"
     },
     {
       "id": "6:10",

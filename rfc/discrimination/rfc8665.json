@@ -57,6 +57,28 @@
       "break": "body of DecodeRangeValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8665-3.2-15",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes",
+      "unit-sha": "f650ee2b08292e2b",
+      "claim-sha": "ae5088ff256f91c6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri_registry.go::riTLVBuildersForScope",
+      "producer-sha": "9d33f19653bfe131",
+      "break": "body of riTLVBuildersForScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-3.2-15",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped",
+      "unit-sha": "405d3e5af69c21b1",
+      "claim-sha": "a29489c5b00cae98",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/register_sr.go::srRegisterWire",
+      "producer-sha": "987008a6dd27f413",
+      "break": "body of srRegisterWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-3.2-5",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart",
@@ -110,6 +132,28 @@
       "producer": "internal/plugins/ospf/sr/srgb.go::Label",
       "producer-sha": "dd16f1f3f00491a7",
       "break": "body of Label replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-3.3-10",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes",
+      "unit-sha": "f650ee2b08292e2b",
+      "claim-sha": "7c0ae590e45c2738",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri_registry.go::riTLVBuildersForScope",
+      "producer-sha": "9d33f19653bfe131",
+      "break": "body of riTLVBuildersForScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-3.3-10",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped",
+      "unit-sha": "405d3e5af69c21b1",
+      "claim-sha": "410b99b7f1beab24",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/register_sr.go::srRegisterWire",
+      "producer-sha": "987008a6dd27f413",
+      "break": "body of srRegisterWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8665-5-12",
@@ -233,6 +277,28 @@
       "break": "body of srRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8665-5-16",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665NextHopFlagsAppliedOffBestPath",
+      "unit-sha": "af623400d3288d47",
+      "claim-sha": "f3a2ea5de33f1a2f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::forwarding",
+      "producer-sha": "423fc2948aa8cbb7",
+      "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-16",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop",
+      "unit-sha": "dce8d7d4d7711af8",
+      "claim-sha": "55deff67c50c377f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::forwarding",
+      "producer-sha": "423fc2948aa8cbb7",
+      "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-5-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero",
@@ -306,7 +372,7 @@
       "claim-sha": "a23bf59d8f7af977",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
-      "producer-sha": "232c081ddb95a2ba",
+      "producer-sha": "be407fb21636aa8d",
       "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +416,7 @@
       "claim-sha": "2b08acbe07dd6506",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
-      "producer-sha": "232c081ddb95a2ba",
+      "producer-sha": "be407fb21636aa8d",
       "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -361,7 +427,7 @@
       "claim-sha": "c2d76fd29dd5f5a0",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
-      "producer-sha": "232c081ddb95a2ba",
+      "producer-sha": "be407fb21636aa8d",
       "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +449,7 @@
       "claim-sha": "c6d58fd08b1c93cd",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_install.go::forwarding",
-      "producer-sha": "38697233e4a239e2",
+      "producer-sha": "423fc2948aa8cbb7",
       "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -394,7 +460,7 @@
       "claim-sha": "e71a1f202161e0c9",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_install.go::forwarding",
-      "producer-sha": "38697233e4a239e2",
+      "producer-sha": "423fc2948aa8cbb7",
       "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -98,6 +98,11 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		// summaries), so the border router installs the default rather than
 		// skipping it: an implementation that skipped every Type-7 default on a
 		// border router fails here.
+		//
+		// RFC requirement: RFC3101-2.4-7 positive -- an NSSA border router
+		// installs a received Type-7 default LSA whose P-bit is set: the
+		// calculation returns exactly one route, for 0.0.0.0/0 (ComputeExternalWith,
+		// external.go).
 		routes := ComputeExternal(ExternalInput{
 			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,
@@ -134,6 +139,11 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 
 		// The P-bit clear condition of section 2.5 step (3): the border router
 		// does not install a received Type-7 default whose P-bit is clear.
+		//
+		// RFC requirement: RFC3101-2.4-7 negative -- an NSSA border router does
+		// not install a received Type-7 default LSA whose P-bit is clear, in an
+		// NSSA that imports summaries: the calculation returns no route
+		// (ComputeExternalWith, external.go).
 		routes := ComputeExternal(ExternalInput{
 			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,

@@ -13,6 +13,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -87,6 +88,19 @@
       "units": {
         "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "19e5f5f7b72be51b",
         "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "9695b633b187bbe8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3101-2.3-4": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Quote is item 1 of RFC 3101 Section 2.3's list ('Type-7 LSAs are identical to Type-5 LSAs except for the following'), the item dropped beside RFC3101-2.3-2. The positive checks h.Type, the stored LSA's wire type octet and the decoded header type are all 7. The negative originates the same route as Type-5: its type octet is 5, and its body is byte-identical to the Type-7 body, so only the type field separates them, as the list says.",
+      "requirement_sha": "8939113858382ed6",
+      "tests": {
+        "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type5HeaderTypeIsNot7": "a66d19cc18abb09b",
+        "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type7HeaderTypeIs7": "a66d19cc18abb09b"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type5HeaderTypeIsNot7": "f5a78ec0c701b29c",
+        "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type7HeaderTypeIs7": "0df6875028469408"
       },
       "verdict": "enforced"
     },
@@ -171,23 +185,36 @@
       },
       "verdict": "enforced"
     },
+    "RFC3101-2.4-7": {
+      "note": "Judged 2026-10-21 against RFC 3101 Section 2.4 text. Producer ComputeExternalWith (spf/external.go) skips a Type-7 default on an NSSA border router when rec.Pref == prefType7P0 (P-bit clear), so a P-set default proceeds to externalCandidateFrom. TestOSPFNSSABorderRouterDefaultPBit: positive subtest 'P-bit set' with summaries imported requires exactly one route, 0.0.0.0/0; negative subtest 'P-bit clear', same inputs except the P-bit, asserts no route. Both directions of 'if and only if' are pinned with only the P-bit varied, so dropping the P-clear skip reddens the negative and skipping every default reddens the positive. The Section 2.5 summary-suppression skip is held apart (summaries imported in both subtests). Revert records on ComputeExternalWith are whole-body panics; the clause-level discrimination was judged by reading.",
+      "requirement_sha": "960c2de340874728",
+      "tests": {
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9e221b200c0db55d",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9e221b200c0db55d"
+      },
+      "units": {
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "e8f9f080f58f79cc",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "e8f9f080f58f79cc"
+      },
+      "verdict": "enforced"
+    },
     "RFC3101-2.5-1": {
-      "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): both skip conditions of section 2.5 step (3) now carry tags: positives TestOSPFNSSABorderRouterDefaultPBit / TestOSPFv3NSSABorderRouterDefaultPBit skip a P-set default under summary suppression and (P-bit clear subtest) a P-clear default with summaries imported; negatives in the same units install a P-set default with summaries imported, and TestOSPFNSSANonBorderRouterInstallsPClearDefault (v4, v6) show both conditions bind a border router only. Six revert records on spf/external.go::ComputeExternalWith, observed red; the ComputeExternalWith comment now names 2.5-1 for the P-clear skip.",
+      "note": "Re-judged 2026-10-21 after TestOSPFNSSABorderRouterDefaultPBit gained RFC3101-2.4-7 tags; its assertions are unchanged. ComputeExternalWith performs both step (3) skips for a border router: P-clear default (prefType7P0) and NoSummary policy. v4 and v6: positive 'summary import suppressed' asserts no route for a P-set default; the 'P-bit clear' subtest in the same unit asserts no route for a P-clear default with summaries imported; negative 'P-bit set' requires the one default route; TestOSPF(v3)NSSANonBorderRouterInstallsPClearDefault shows a non-border router installs a P-clear default under suppression, so both conditions bind a border router only. Removing either skip or the border-router guard reddens a distinct assertion. Records are whole-body reverts of ComputeExternalWith.",
       "requirement_sha": "736cc5e7e9acddb1",
       "tests": {
         "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "f93dfb172fe49a83",
         "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "f93dfb172fe49a83",
         "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "f93dfb172fe49a83",
-        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "3f77f8e2f0df1040",
-        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "3f77f8e2f0df1040",
-        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "3f77f8e2f0df1040"
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9e221b200c0db55d",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9e221b200c0db55d",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "9e221b200c0db55d"
       },
       "units": {
         "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "b60fee1eef468443",
         "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "b60fee1eef468443",
         "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "ccc74ac5a45aa007",
-        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9621c391127ac046",
-        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9621c391127ac046",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "e8f9f080f58f79cc",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "e8f9f080f58f79cc",
         "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "ef2dede7da97f98a"
       },
       "verdict": "enforced"
@@ -215,7 +242,7 @@
       "tests": {
         "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
         "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d",
-        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "3f77f8e2f0df1040"
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "9e221b200c0db55d"
       },
       "units": {
         "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",

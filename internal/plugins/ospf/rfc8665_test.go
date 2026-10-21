@@ -86,6 +86,10 @@ func TestRFC8665NoSRAlgorithmTLVWhenSRUnconfigured(t *testing.T) {
 // (14) capability TLVs are registered for AREA-scoped flooding, so the RI originator emits them
 // only into the area-scoped RI LSA (srRegisterWire, register_sr.go:24-34; the scope filter is
 // riTLVBuildersForScope, ri_registry.go:79-90).
+// RFC requirement: RFC8665-3.2-15 positive -- the SID/Label Range TLV (9) is registered for
+// area-scoped flooding, so the area-scoped RI LSA carries it.
+// RFC requirement: RFC8665-3.3-10 positive -- the SRLB TLV (14) is registered for area-scoped
+// flooding, so the area-scoped RI LSA carries it.
 func TestRFC8665SRCapabilityTLVsAreAreaScoped(t *testing.T) {
 	srTestReset(t)
 	got := srRITypes(OpaqueScopeArea)
@@ -105,6 +109,10 @@ func TestRFC8665SRCapabilityTLVsAreAreaScoped(t *testing.T) {
 // RFC requirement: RFC8665-3.1-7 negative -- the same capability TLVs are absent from the AS and
 // link flooding scopes, so an RI LSA at another scope carries none of them: the required
 // area-scoped flooding is enforced by the registration, not merely documented.
+// RFC requirement: RFC8665-3.2-15 negative -- the SID/Label Range TLV is absent from the AS and
+// link flooding scopes, so no RI LSA at another scope carries it.
+// RFC requirement: RFC8665-3.3-10 negative -- the SRLB TLV is absent from the AS and link
+// flooding scopes, so no RI LSA at another scope carries it.
 func TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes(t *testing.T) {
 	srTestReset(t)
 	for _, scope := range []OpaqueScope{OpaqueScopeAS, OpaqueScopeLink} {

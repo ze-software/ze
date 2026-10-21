@@ -28,6 +28,11 @@ func lastDD(t *testing.T, sender *fakeSender) packet.DBDesc {
 }
 
 // RFC requirement: RFC2328-10.6-1 positive -- as slave, the router replies to the master's Database Description with one of its own carrying the master's sequence number, and answers an exact duplicate of that master DD by repeating the last DD it sent, byte for byte the same sequence and flags (handleDBDesc sameDD branch and resendLastDDLocked, dd.go).
+// RFC requirement: RFC2328-10.6-2 positive -- the slave adopts the master's DD sequence number,
+// answers with that same number, and reads a repeat of it as a duplicate rather than as out of
+// sequence.
+// RFC requirement: RFC2328-10.6-3 positive -- the slave answers the master's accepted DD with a
+// Database Description packet of its own.
 func TestRFC2328SlaveRepliesAndRepeatsOnDuplicate(t *testing.T) {
 	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
@@ -60,6 +65,10 @@ func TestRFC2328SlaveRepliesAndRepeatsOnDuplicate(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-10.6-1 negative -- as slave, a master Database Description whose sequence number is not the next expected one is not processed in sequence: it is refused with the SeqNumberMismatch reason, the adjacency falls back to ExStart, and the slave does not repeat its last DD for it (handleExchangeDDLocked, dd.go).
+// RFC requirement: RFC2328-10.6-2 negative -- a DD whose sequence number skips ahead is refused
+// with SeqNumberMismatch and the neighbor falls back to ExStart.
+// RFC requirement: RFC2328-10.6-3 negative -- a refused out-of-sequence DD draws no reply: the
+// slave restarts the exchange with a fresh Init DD instead.
 func TestRFC2328SlaveRefusesOutOfSequenceDD(t *testing.T) {
 	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}

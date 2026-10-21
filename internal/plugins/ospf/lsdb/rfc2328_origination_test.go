@@ -424,14 +424,19 @@ func TestOSPFOriginateMaxMetric(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-13.4-1 positive -- a received self-originated LSA newer than the instance this router last originated is detected by Advertising Router == own Router ID and answered by re-originating with the LS sequence number advanced one past the received one (handleSelfReceived, origination.go:787-833).
+// RFC requirement: RFC2328-13.4-2 positive -- a received self-originated router-LSA two LS sequence numbers past the instance this router originated is answered by originating a new instance: the database copy is at LS age 0 with the LS sequence number one past the received one, and an LS Update carrying that instance (sequence received+1, below MaxAge) is flooded (handleSelfReceived, origination.go).
 func TestOSPFOriginateSelfReceivedHigherSeq(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
+	db.SetTopology(floodTopology)
 	in := OriginInput{AreaID: area("0.0.0.0"), RouterID: rid("1.1.1.1"), Options: types.OptionE, Interfaces: originTopology()}
 	h, ok := db.OriginateRouter(in)
 	if !ok {
 		t.Fatalf("originate false")
 	}
+	clock.now = clock.now.Add(10 * time.Second)
+	tx := &txRecorder{}
+	db.SetTx(tx.Send)
 	newer := routerLSA(t, rid("1.1.1.1"), h.Sequence.Next().Next(), 10)
 	if !db.handleSelfReceived(in.AreaID, newer) {
 		t.Fatalf("self-received not handled")
@@ -439,5 +444,22 @@ func TestOSPFOriginateSelfReceivedHigherSeq(t *testing.T) {
 	got, _ := db.Lookup(in.AreaID, h.Key())
 	if got.Sequence != newer.Header.Sequence.Next() {
 		t.Fatalf("self reorig sequence = %v want %v", got.Sequence, newer.Header.Sequence.Next())
+	}
+	if got.Age != 0 {
+		t.Fatalf("new instance LS age = %v, want 0: a newly originated instance starts at age 0", got.Age)
+	}
+	flooded := false
+	for i := range tx.sends {
+		if tx.sends[i].pkt.LSUpdate == nil {
+			continue
+		}
+		for _, l := range tx.sends[i].pkt.LSUpdate.LSAs {
+			if l.Header.Key() == h.Key() && l.Header.Sequence == newer.Header.Sequence.Next() && !l.Header.Age.IsMaxAge() {
+				flooded = true
+			}
+		}
+	}
+	if !flooded {
+		t.Fatalf("no LS Update carried the new instance at sequence %v below MaxAge (%d packets sent)", newer.Header.Sequence.Next(), len(tx.sends))
 	}
 }

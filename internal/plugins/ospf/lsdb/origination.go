@@ -210,7 +210,7 @@ func virtualLinkFull(iface InterfaceInfo) bool {
 // RFC 2328 Section 12.4.1.1: "For numbered point-to-point networks, the Link
 // Data should specify the IP interface address. For unnumbered point-to-point
 // networks, the Link Data field should specify the interface's MIB-II [Ref8]
-// ifIndex value."
+// ifIndex value." Link Data is local for a numbered link and the ifIndex otherwise.
 func p2pLinkData(iface *InterfaceInfo, local [4]byte) [4]byte {
 	if !iface.Unnumbered {
 		return local
@@ -610,11 +610,12 @@ func (d *LSDB) flushStaleNetworkLSAs(area types.AreaID, router types.RouterID, k
 	return count
 }
 
-// flushReceivedSelfLSA flushes a self-originated LSA this router has no local record of
-// originating -- typically a stale instance neighbors still flood after this router
-// restarted (RFC 2328 §13.4). It re-originates the received body at MaxAge with a sequence
-// greater than the received instance, so neighbors accept the flush as the newest copy and
-// purge the stale instance from the routing domain.
+// flushReceivedSelfLSA flushes a received self-originated LSA this router no longer wishes
+// to originate, or holds no local record of originating (a stale instance neighbors still
+// flood after this router restarted). It installs the received instance at MaxAge with the
+// received LS sequence number and refloods it. An instance at MaxAge is more recent than
+// one at the same sequence below MaxAge (RFC 2328 Section 13.1), so neighbors accept the
+// flush and purge the stale instance from the routing domain.
 func (d *LSDB) flushReceivedSelfLSA(area types.AreaID, lsa packet.LSA) bool {
 	if lsa.Header.Age.IsMaxAge() {
 		return true // already a flush in flight; normal flooding propagates it
@@ -622,13 +623,13 @@ func (d *LSDB) flushReceivedSelfLSA(area types.AreaID, lsa packet.LSA) bool {
 	key := lsa.Header.Key()
 	body := make([]byte, len(lsa.Body))
 	copy(body, lsa.Body)
-	next := lsa.Header.Sequence.Next()
-	if lsa.Header.Sequence.IsMax() {
-		next = types.MaxSequenceNumber
-	}
 	h := lsa.Header
+	// RFC 2328 Section 13.4: "the LSA should be flushed from the routing domain by
+	// incrementing the received LSA's LS age to MaxAge and reflooding (see Section 14.1)."
+	// RFC 2328 Section 14.1: "An LSA can be flushed from the routing domain by setting its
+	// LS age to MaxAge, while leaving its LS sequence number alone, and then reflooding
+	// the LSA."
 	h.Age = types.LSAge(types.MaxAge)
-	h.Sequence = next
 	h.Checksum = 0
 	res, ok := d.install(area, packet.LSA{Header: h, Body: body}, true, false)
 	if ok && res.Entry != nil {
@@ -638,7 +639,7 @@ func (d *LSDB) flushReceivedSelfLSA(area types.AreaID, lsa packet.LSA) bool {
 			own = make(map[types.LSAKey]ownRecord)
 			d.own[area] = own
 		}
-		own[key] = ownRecord{sequence: next, last: d.now()}
+		own[key] = ownRecord{sequence: h.Sequence, last: d.now()}
 		d.mu.Unlock()
 		d.floodExcept("", types.RouterID{}, area, key)
 		d.notifyChange(area)
@@ -842,6 +843,16 @@ func (d *LSDB) handleSelfReceived(area types.AreaID, lsa packet.LSA) bool {
 	}
 	if CompareHeaders(lsa.Header, local) != Newer {
 		return true
+	}
+	// RFC 2328 Section 13.4: "In all these cases, instead of updating the LSA, the LSA
+	// should be flushed from the routing domain by incrementing the received LSA's LS age
+	// to MaxAge and reflooding (see Section 14.1)." The database copy is at MaxAge only
+	// when this router has already flushed its own instance (a withdrawn summary-LSA or
+	// AS-external-LSA, a network-LSA it no longer originates as DR), so it no longer
+	// wishes to originate the LSA: re-originating the old body at age 0 would bring the
+	// withdrawn LSA back to life.
+	if local.Age.IsMaxAge() {
+		return d.flushReceivedSelfLSA(area, lsa)
 	}
 	current, ok := d.LookupLSA(area, key)
 	if !ok {

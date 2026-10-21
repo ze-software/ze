@@ -115,6 +115,7 @@ func TestOSPFAuthExtendedSequence(t *testing.T) {
 
 // RFC requirement: RFC2328-D.3-2 positive -- an accepted packet's sequence number becomes the stored value for that neighbor, so a later, higher sequence is accepted against it (authStore.verify, auth_keystore.go:352-362).
 // RFC requirement: RFC2328-D.3-2 negative -- the sequence is treated as non-decreasing: a packet whose sequence is below the last accepted value is discarded as a replay, while an equal sequence is accepted (authStore.verify, replayedSequence).
+// RFC requirement: RFC2328-D.3-4 negative -- the sequence number each packet carries is what protects against a replay: a cryptographically authenticated Hello whose sequence (5, then 10) is below the last accepted value from that neighbor (11) is discarded with reason "replay" even though its digest verifies (authStore.verify, replayedSequence).
 func TestOSPFAuthReplay(t *testing.T) {
 	s := newAuthStore()
 	s.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret"}))
@@ -130,18 +131,16 @@ func TestOSPFAuthReplay(t *testing.T) {
 		return signed
 	}
 
-	// RFC requirement: RFC7474-2-5 positive -- a strictly-increasing sequence (10 then 11) is accepted against the per-neighbor/per-type high-water mark (authStore.verify auth_keystore.go:354-361).
+	// RFC requirement: RFC2328-D.3-4 positive -- on the AuType 2 path a Hello whose sequence does not decrease is accepted: sequence 10, then 11, then 11 again each verify, because the sequence is non-decreasing rather than strictly increasing (authStore.verify, replayedSequence).
 	_, ok := s.verify("eth0", peer, [4]byte{}, mk(10))
 	require.True(t, ok, "seq 10 accepted")
 	_, ok2 := s.verify("eth0", peer, [4]byte{}, mk(11))
 	require.True(t, ok2, "seq 11 (>10) accepted")
-	// RFC requirement: RFC7474-2-5 negative -- a sequence lower than the last accepted (5 < 11) is dropped as a replay (authStore.verify auth_keystore.go:357-359).
-	// RFC requirement: RFC7474-2-6 negative -- a same-type sequence at or below the per-type high-water mark is rejected, proving the mark actually gates packets of that type (authStore.verify auth_keystore.go:357-359).
 	// RFC requirement: RFC5709-3.1-3 negative -- the 32-bit Cryptographic Sequence Number is enforced per RFC 2328 App D on the AuType 2 path: a packet carrying a sequence below the last accepted (5 < 11) is dropped as a replay, so the sequence field is load-bearing anti-replay state (authStore.verify auth_keystore.go:357-359).
 	reason, replayOK := s.verify("eth0", peer, [4]byte{}, mk(5))
 	assert.False(t, replayOK, "seq 5 (< last accepted 11) rejected as replay")
 	assert.Equal(t, "replay", reason)
-	// RFC 2328 Section D.4.3 (2) discards only a sequence "less than" the recorded one, so on
+	// RFC 2328 Section D.5.3 (2) discards only a sequence "less than" the recorded one, so on
 	// AuType 2 an EQUAL sequence is accepted (Section D.3: "non-decreasing").
 	_, eqOK := s.verify("eth0", peer, [4]byte{}, mk(11))
 	assert.True(t, eqOK, "AuType 2: seq 11 (== last accepted) accepted")
@@ -152,7 +151,7 @@ func TestOSPFAuthReplay(t *testing.T) {
 }
 
 // TestOSPFAuthReplayEqualSequenceByAuType drives authStore.verify with an equal sequence on
-// both cryptographic AuTypes: RFC 2328 Section D.4.3 accepts it on AuType 2, RFC 7474 Section 2
+// both cryptographic AuTypes: RFC 2328 Section D.5.3 accepts it on AuType 2, RFC 7474 Section 2
 // drops it on AuType 3, whose sequence MUST be strictly greater.
 func TestOSPFAuthReplayEqualSequenceByAuType(t *testing.T) {
 	peer := ridOf("2.2.2.2")
@@ -190,30 +189,54 @@ func TestOSPFAuthReplayEqualSequenceByAuType(t *testing.T) {
 	assert.Equal(t, "replay", reason)
 }
 
-func TestOSPFAuthReplayPerType(t *testing.T) {
-	// RFC 7474 §2: the high-water mark is per packet type, so a lower-sequence packet of
-	// a DIFFERENT type is not a false replay.
-	s := newAuthStore()
-	s.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "k"}))
-	peer := ridOf("2.2.2.2")
-	key := packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("k")}
+// TestOSPFAuthReplayPerNeighborAuType2 proves the AuType 2 replay check compares against the
+// one sequence number recorded for the sending neighbor, whatever the packet type or key.
+// Method: for keyed MD5 and for HMAC-SHA-256, a Hello at sequence 100 is accepted, then an LS
+// Ack from the same neighbor is fed at a lower sequence (dropped), at an equal sequence and
+// at a higher one (both accepted), and an LS Ack signed with the chain's second key at a
+// lower sequence is dropped too. RFC 7474 Section 2 keeps a mark per packet type for AuType 3
+// only; TestRFC7474ReplayMarkPerNeighborAndType holds that side.
+func TestOSPFAuthReplayPerNeighborAuType2(t *testing.T) {
+	for _, algo := range []string{"md5", "hmac-sha-256"} {
+		t.Run(algo, func(t *testing.T) {
+			s := newAuthStore()
+			s.configure(authCfg(
+				keyConfig{KeyID: 1, Algorithm: algo, Secret: "k1"},
+				keyConfig{KeyID: 2, Algorithm: algo, Secret: "k2"},
+			))
+			peer := ridOf("2.2.2.2")
+			first := packet.AuthKey{KeyID: 1, Algorithm: algo, Secret: []byte("k1")}
+			second := packet.AuthKey{KeyID: 2, Algorithm: algo, Secret: []byte("k2")}
 
-	signType := func(p packet.Packet, seq uint64) []byte {
-		p.Header.AuType = packet.AuTypeCryptographic
-		buf := make([]byte, p.EncodedLen())
-		n := p.WriteTo(buf, 0)
-		signed, err := packet.Sign(buf[:n], packet.AuTypeCryptographic, key, seq, [4]byte{})
-		require.NoError(t, err)
-		return signed
+			sign := func(p packet.Packet, key packet.AuthKey, seq uint64) []byte {
+				p.Header.AuType = packet.AuTypeCryptographic
+				buf := make([]byte, p.EncodedLen())
+				n := p.WriteTo(buf, 0)
+				signed, err := packet.Sign(buf[:n], packet.AuTypeCryptographic, key, seq, [4]byte{})
+				require.NoError(t, err)
+				return signed
+			}
+			hello := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello}, Hello: &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}}
+			ack := packet.Packet{Header: packet.Header{Type: packet.PacketTypeLSAck}, LSAck: &packet.LSAck{}}
+
+			_, ok := s.verify("eth0", peer, [4]byte{}, sign(hello, first, 100))
+			require.True(t, ok, "Hello seq 100 accepted")
+
+			// RFC requirement: RFC2328-D.5.3-1 negative -- on AuType 2, after a Hello at sequence 100 is accepted from a neighbor, an LS Ack from the same neighbor at sequence 5 is discarded with reason "replay", for keyed MD5 and for HMAC-SHA-256, and so is an LS Ack at sequence 5 signed with the chain's other key (authStore.verify).
+			reason, ackOK := s.verify("eth0", peer, [4]byte{}, sign(ack, first, 5))
+			assert.False(t, ackOK, "LS Ack seq 5 after Hello seq 100 from the same neighbor is a replay")
+			assert.Equal(t, "replay", reason)
+			otherKeyReason, otherKeyOK := s.verify("eth0", peer, [4]byte{}, sign(ack, second, 5))
+			assert.False(t, otherKeyOK, "LS Ack seq 5 under key 2 is checked against the same neighbor sequence")
+			assert.Equal(t, "replay", otherKeyReason)
+
+			// RFC requirement: RFC2328-D.5.3-1 positive -- on AuType 2, after a Hello at sequence 100 is accepted from a neighbor, an LS Ack from the same neighbor at sequence 100 and then 101 is accepted, because only a sequence less than the recorded one is discarded (authStore.verify).
+			_, eqOK := s.verify("eth0", peer, [4]byte{}, sign(ack, first, 100))
+			assert.True(t, eqOK, "LS Ack seq 100 (equal to the neighbor's recorded sequence) accepted")
+			_, upOK := s.verify("eth0", peer, [4]byte{}, sign(ack, second, 101))
+			assert.True(t, upOK, "LS Ack seq 101 under key 2 accepted")
+		})
 	}
-	hello := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello}, Hello: &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}}
-	ack := packet.Packet{Header: packet.Header{Type: packet.PacketTypeLSAck}, LSAck: &packet.LSAck{}}
-
-	// RFC requirement: RFC7474-2-6 positive -- the high-water mark is per packet type: a Hello at seq 100 does not block an LS-Ack at the lower seq 5 from the same neighbor, so each packet type keeps its own mark.
-	_, ok := s.verify("eth0", peer, [4]byte{}, signType(hello, 100))
-	require.True(t, ok, "Hello seq 100 accepted")
-	_, ok2 := s.verify("eth0", peer, [4]byte{}, signType(ack, 5))
-	assert.True(t, ok2, "LS-Ack seq 5 accepted (different packet-type slot, not a replay)")
 }
 
 func TestOSPFAuthExtendedSequenceRequiresHMAC(t *testing.T) {
@@ -243,28 +266,39 @@ func TestAuType2KeyIDBoundary(t *testing.T) {
 	require.NoError(t, validateConfig(mk(true, 256)), "AuType 3 (extended) allows a 32-bit key-id")
 }
 
-// RFC requirement: RFC2328-D.3-2 positive -- the cryptographic sequence number is per-neighbor state that is reset when the neighbor goes Down, so a neighbor that restarts may re-establish with any sequence (authStore.resetNeighbor, auth_keystore.go:375-383, driven from nsmAdapter.NeighborDown, instance.go:1073).
+// TestNeighborDownResetsCryptoSeq proves the cryptographic sequence number is per-neighbor
+// state that is reset when the neighbor goes Down, so a neighbor that restarts may
+// re-establish with any sequence (authStore.resetNeighbor, driven from
+// nsmAdapter.NeighborDown). No RFC 2328 requirement row states the reset, so it carries no tag.
 func TestNeighborDownResetsCryptoSeq(t *testing.T) {
 	// AC-5 / RFC 2328 App D: when a neighbor goes Down its cryptographic receive-sequence
 	// high-water marks are forgotten so it can re-establish with any sequence (for example
 	// after its own restart). Drives nsmAdapter.NeighborDown -> authStore.resetNeighbor.
+	// The AuType 2 slot is the single per-neighbor replaySlotNeighbor (replaySlotFor); the
+	// per-type slots are AuType 3's (RFC 7474 Section 2). Both kinds are seeded.
 	s := newAuthStore()
 	peer := ridOf("2.2.2.2")
 	other := ridOf("3.3.3.3")
-	s.recvSeq[replayKey{iface: "eth0", rid: peer, keyID: 1, pktType: packet.PacketTypeHello}] = 100
-	s.recvSeq[replayKey{iface: "eth0", rid: peer, keyID: 1, pktType: packet.PacketTypeLSUpdate}] = 50
-	s.recvSeq[replayKey{iface: "eth0", rid: other, keyID: 1, pktType: packet.PacketTypeHello}] = 200
-	s.recvSeq[replayKey{iface: "eth1", rid: peer, keyID: 1, pktType: packet.PacketTypeHello}] = 10
+	s.recvSeq[replayKey{iface: "eth0", rid: peer, pktType: replaySlotNeighbor}] = 300
+	s.recvSeq[replayKey{iface: "eth1", rid: peer, pktType: replaySlotNeighbor}] = 30
+	s.recvSeq[replayKey{iface: "eth0", rid: peer, pktType: packet.PacketTypeHello}] = 100
+	s.recvSeq[replayKey{iface: "eth0", rid: peer, pktType: packet.PacketTypeLSUpdate}] = 50
+	s.recvSeq[replayKey{iface: "eth0", rid: other, pktType: packet.PacketTypeHello}] = 200
+	s.recvSeq[replayKey{iface: "eth1", rid: peer, pktType: packet.PacketTypeHello}] = 10
 
 	nsmAdapter{auth: s}.NeighborDown("eth0", peer)
 
-	_, h := s.recvSeq[replayKey{iface: "eth0", rid: peer, keyID: 1, pktType: packet.PacketTypeHello}]
+	_, n := s.recvSeq[replayKey{iface: "eth0", rid: peer, pktType: replaySlotNeighbor}]
+	assert.False(t, n, "neighbor-down cleared the AuType 2 per-neighbor slot for eth0/peer")
+	_, n1 := s.recvSeq[replayKey{iface: "eth1", rid: peer, pktType: replaySlotNeighbor}]
+	assert.True(t, n1, "the same neighbor's AuType 2 slot on a different interface is preserved")
+	_, h := s.recvSeq[replayKey{iface: "eth0", rid: peer, pktType: packet.PacketTypeHello}]
 	assert.False(t, h, "neighbor-down cleared the Hello replay slot for eth0/peer")
-	_, u := s.recvSeq[replayKey{iface: "eth0", rid: peer, keyID: 1, pktType: packet.PacketTypeLSUpdate}]
+	_, u := s.recvSeq[replayKey{iface: "eth0", rid: peer, pktType: packet.PacketTypeLSUpdate}]
 	assert.False(t, u, "neighbor-down cleared the LS-Update replay slot for eth0/peer")
-	_, o := s.recvSeq[replayKey{iface: "eth0", rid: other, keyID: 1, pktType: packet.PacketTypeHello}]
+	_, o := s.recvSeq[replayKey{iface: "eth0", rid: other, pktType: packet.PacketTypeHello}]
 	assert.True(t, o, "a different neighbor on the same interface is preserved")
-	_, e := s.recvSeq[replayKey{iface: "eth1", rid: peer, keyID: 1, pktType: packet.PacketTypeHello}]
+	_, e := s.recvSeq[replayKey{iface: "eth1", rid: peer, pktType: packet.PacketTypeHello}]
 	assert.True(t, e, "the same neighbor on a different interface is preserved")
 }
 
@@ -272,9 +306,9 @@ func TestInterfaceDownResetsAllCryptoSeq(t *testing.T) {
 	// AC-5: an interface going Down drops all its adjacencies; every replay slot on that
 	// interface is cleared. Drives nsmAdapter.InterfaceDown -> authStore.resetInterface.
 	s := newAuthStore()
-	s.recvSeq[replayKey{iface: "eth0", rid: ridOf("2.2.2.2"), keyID: 1, pktType: packet.PacketTypeHello}] = 1
-	s.recvSeq[replayKey{iface: "eth0", rid: ridOf("3.3.3.3"), keyID: 1, pktType: packet.PacketTypeHello}] = 1
-	s.recvSeq[replayKey{iface: "eth1", rid: ridOf("2.2.2.2"), keyID: 1, pktType: packet.PacketTypeHello}] = 1
+	s.recvSeq[replayKey{iface: "eth0", rid: ridOf("2.2.2.2"), pktType: packet.PacketTypeHello}] = 1
+	s.recvSeq[replayKey{iface: "eth0", rid: ridOf("3.3.3.3"), pktType: packet.PacketTypeHello}] = 1
+	s.recvSeq[replayKey{iface: "eth1", rid: ridOf("2.2.2.2"), pktType: packet.PacketTypeHello}] = 1
 
 	nsmAdapter{auth: s}.InterfaceDown("eth0")
 

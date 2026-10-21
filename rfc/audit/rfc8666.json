@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-21",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -146,6 +146,19 @@
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "e3beb9349250fa3b",
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "b6918d04acb1daca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-18": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8666 Section 6 (same sentence as RFC 8665 Section 5). The IPv6 mirror through newTestInstallerV6 checks that the next hop's own NP clear pops 18009 and its NP+E pushes the IPv6 Explicit NULL, and that a non-advertising next hop gets 17009 with no pop. The fix is the shared srInstaller.forwarding. Minor: the IPv6 Explicit NULL is compared with the sr.ExplicitNullV6 constant, not the literal 2.",
+      "requirement_sha": "4c6660e1a1c0f65a",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666NextHopFlagsAppliedOffBestPath": "a44dbeeeaadb4b4a",
+        "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666OffPathAdvertiserFlagsNotAppliedToNextHop": "a44dbeeeaadb4b4a"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666NextHopFlagsAppliedOffBestPath": "4b57725020cc9c19",
+        "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666OffPathAdvertiserFlagsNotAppliedToNextHop": "372f0090bb1548ad"
       },
       "verdict": "enforced"
     },

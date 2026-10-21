@@ -80,14 +80,23 @@ extended 64-bit cryptographic sequence).
 - **Replay treats an EQUAL sequence by AuType.** On AuType 3 (extended
   sequence) RFC 7474 Section 2 requires the received sequence to be strictly
   greater than the last accepted, so an equal sequence is a replay. On AuType 2
-  RFC 2328 Section D.4.3 discards only a sequence "less than" the recorded one,
+  RFC 2328 Section D.5.3 discards only a sequence "less than" the recorded one,
   and Section D.3 calls the sequence "non-decreasing", so an equal sequence is
   accepted. RFC 7474 defines its rule for its own AuType and leaves AuType 2
   unchanged.
   <!-- source: internal/plugins/ospf/auth_keystore.go -- replayedSequence -->
-- **The replay high-water mark is per OSPF PACKET TYPE**, not per neighbor and
-  key-id alone. A single slot drops a legitimately reordered packet of another
-  type as a false replay. Exercise an equal sequence AND a second packet type.
+- **The replay high-water mark is scoped by AuType.** On AuType 2 it is one
+  sequence per neighbor, whatever the packet type or the key: RFC 2328 Section
+  D.5.3 compares against "the cryptographic sequence number recorded in the
+  sending neighbor's data structure", and Section D.3 gives that structure one
+  such field. FRR (`ospf_check_md5_digest`, `nbr->crypt_seqnum`) and BIRD
+  (`ospf_pkt_checkauth2`, `n->csn`) keep one per neighbor too. On AuType 3 it is
+  one per neighbor AND per OSPF packet type, because RFC 7474 Section 2 compares
+  against "the last OSPF packet of that type accepted from the sending OSPF
+  neighbor", so a reordered packet of another type is not a false replay. Neither
+  RFC scopes it by key ID. Exercise an equal sequence AND a second packet type on
+  both AuTypes.
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- replaySlotFor -->
 - **The boot-count high word comes from the daemon's persistent store.** After
   its handshake, each runtime engine requests an atomic `state-increment` before
   interface subscriptions or packet processing. The daemon holds its write guard

@@ -89,6 +89,18 @@ func grIdentityNeighborFull(t *testing.T, e *engine, iface, networkType string, 
 // grIdentityReceive delivers a peer's OSPFv2 Grace-LSA through the production graceOnReceive
 // hook, with the IP interface address TLV carrying addr when withAddr is set.
 func grIdentityReceive(e *engine, iface string, advRouter ospftypes.RouterID, addr netip.Addr, withAddr bool) {
+	grIdentityDeliver(e, iface, advRouter, addr, withAddr, false)
+}
+
+// grIdentityFlush delivers a peer's flushed (MaxAge) OSPFv2 Grace-LSA through the production
+// graceOnReceive hook. A flushed LSA still carries its body, so the IP interface address TLV
+// names addr when withAddr is set.
+func grIdentityFlush(e *engine, iface string, advRouter ospftypes.RouterID, addr netip.Addr, withAddr bool) {
+	grIdentityDeliver(e, iface, advRouter, addr, withAddr, true)
+}
+
+// grIdentityDeliver is the one delivery both grIdentityReceive and grIdentityFlush use.
+func grIdentityDeliver(e *engine, iface string, advRouter ospftypes.RouterID, addr netip.Addr, withAddr, withdrawn bool) {
 	var raw [4]byte
 	if withAddr {
 		raw = addr.As4()
@@ -98,33 +110,46 @@ func grIdentityReceive(e *engine, iface string, advRouter ospftypes.RouterID, ad
 		Interface:         iface,
 		AdvertisingRouter: advRouter,
 		Body:              grV4Body(120, 1, raw, withAddr),
+		Withdrawn:         withdrawn,
 	})
 }
 
-// TestRFC3623HelperIdentifiesRestarterByInterfaceAddress pins which neighbor the helper helps.
-// Method: a broadcast segment carries two Full neighbors A and B. A Grace-LSA whose Advertising
-// Router is A but whose IP interface address TLV names B's address must make Ze help B, and
-// not A. On a point-to-point segment the same Grace-LSA (address naming another router) must
-// make Ze help A, the Advertising Router.
-//
-// RFC requirement: RFC3623-A-4 positive -- on a broadcast segment the helper uses the Grace-LSA's
-// IP interface address TLV to identify the restarting router: the Full neighbor at that address
-// is the one Ze helps, whatever the Advertising Router field says; on a point-to-point segment
-// the Advertising Router identifies X instead.
-func TestRFC3623HelperIdentifiesRestarterByInterfaceAddress(t *testing.T) {
-	e := grIdentityEngine(t, "eth0", ospftypes.NetworkBroadcast)
-	grIdentityNeighborFull(t, e, "eth0", ospftypes.NetworkBroadcast, grIdentityRIDA, grIdentityAddrA)
-	grIdentityNeighborFull(t, e, "eth0", ospftypes.NetworkBroadcast, grIdentityRIDB, grIdentityAddrB)
+// grIdentitySharedMedia is every segment type on which RFC 3623 Section 3.1 identifies X by the
+// IP interface address in the Grace-LSA body.
+var grIdentitySharedMedia = []string{
+	ospftypes.NetworkBroadcast,
+	ospftypes.NetworkNBMA,
+	ospftypes.NetworkPointToMultipoint,
+}
 
-	grIdentityReceive(e, "eth0", grIdentityRIDA, grIdentityAddrB, true)
-	if !e.gr.isHelping("eth0", grIdentityRIDB) {
-		t.Fatalf("broadcast: the Grace-LSA names B's address %s, Ze must help B (%s)", grIdentityAddrB, grIdentityRIDB)
-	}
-	if e.gr.isHelping("eth0", grIdentityRIDA) {
-		t.Fatalf("broadcast: Ze helps A (%s), the Advertising Router, which the IP interface address does not name", grIdentityRIDA)
-	}
-	if n := e.gr.helperSessionCount(); n != 1 {
-		t.Fatalf("broadcast: %d helper sessions, want exactly 1 (B)", n)
+// TestRFC3623HelperIdentifiesRestarterByInterfaceAddress pins which neighbor the helper helps.
+// Method: on each of a broadcast, an NBMA and a Point-to-MultiPoint segment, two Full neighbors
+// A and B. A Grace-LSA whose Advertising Router is A but whose IP interface address TLV names
+// B's address must make Ze help B, and not A. On a point-to-point segment the same Grace-LSA
+// (address naming another router) must make Ze help A, the Advertising Router.
+//
+// RFC requirement: RFC3623-A-4 positive -- on a broadcast, NBMA or Point-to-MultiPoint segment
+// the helper uses the Grace-LSA's IP interface address TLV to identify the restarting router:
+// the Full neighbor at that address is the one Ze helps, whatever the Advertising Router field
+// says; on a point-to-point segment the Advertising Router identifies X instead.
+func TestRFC3623HelperIdentifiesRestarterByInterfaceAddress(t *testing.T) {
+	for _, kind := range grIdentitySharedMedia {
+		t.Run(kind, func(t *testing.T) {
+			e := grIdentityEngine(t, "eth0", kind)
+			grIdentityNeighborFull(t, e, "eth0", kind, grIdentityRIDA, grIdentityAddrA)
+			grIdentityNeighborFull(t, e, "eth0", kind, grIdentityRIDB, grIdentityAddrB)
+
+			grIdentityReceive(e, "eth0", grIdentityRIDA, grIdentityAddrB, true)
+			if !e.gr.isHelping("eth0", grIdentityRIDB) {
+				t.Fatalf("%s: the Grace-LSA names B's address %s, Ze must help B (%s)", kind, grIdentityAddrB, grIdentityRIDB)
+			}
+			if e.gr.isHelping("eth0", grIdentityRIDA) {
+				t.Fatalf("%s: Ze helps A (%s), the Advertising Router, which the IP interface address does not name", kind, grIdentityRIDA)
+			}
+			if n := e.gr.helperSessionCount(); n != 1 {
+				t.Fatalf("%s: %d helper sessions, want exactly 1 (B)", kind, n)
+			}
+		})
 	}
 
 	p2p := grIdentityEngine(t, "eth1", ospftypes.NetworkPointToPoint)
@@ -136,25 +161,70 @@ func TestRFC3623HelperIdentifiesRestarterByInterfaceAddress(t *testing.T) {
 }
 
 // TestRFC3623HelperRefusesUnmatchedInterfaceAddress pins the refusal side of the same
-// identification. Method: a broadcast segment carries Full neighbor A. A Grace-LSA from A whose
-// IP interface address TLV names an address no neighbor holds, and one from A carrying no IP
-// interface address TLV at all, must each leave Ze helping nobody, although A's Router ID
-// matches a Full neighbor.
+// identification. Method: on each of a broadcast, an NBMA and a Point-to-MultiPoint segment,
+// Full neighbor A. A Grace-LSA from A whose IP interface address TLV names an address no
+// neighbor holds, and one from A carrying no IP interface address TLV at all, must each leave
+// Ze helping nobody, although A's Router ID matches a Full neighbor.
 //
-// RFC requirement: RFC3623-A-4 negative -- on a broadcast segment a Grace-LSA whose IP interface
-// address names no neighbor, or that omits the IP interface address TLV, identifies no
-// restarting router, so Ze enters helper mode for nobody, not for the Advertising Router.
+// RFC requirement: RFC3623-A-4 negative -- on a broadcast, NBMA or Point-to-MultiPoint segment a
+// Grace-LSA whose IP interface address names no neighbor, or that omits the IP interface address
+// TLV, identifies no restarting router, so Ze enters helper mode for nobody, not for the
+// Advertising Router.
 func TestRFC3623HelperRefusesUnmatchedInterfaceAddress(t *testing.T) {
-	e := grIdentityEngine(t, "eth0", ospftypes.NetworkBroadcast)
-	grIdentityNeighborFull(t, e, "eth0", ospftypes.NetworkBroadcast, grIdentityRIDA, grIdentityAddrA)
+	for _, kind := range grIdentitySharedMedia {
+		t.Run(kind, func(t *testing.T) {
+			e := grIdentityEngine(t, "eth0", kind)
+			grIdentityNeighborFull(t, e, "eth0", kind, grIdentityRIDA, grIdentityAddrA)
 
-	grIdentityReceive(e, "eth0", grIdentityRIDA, netip.MustParseAddr("192.0.2.99"), true)
-	if n := e.gr.helperSessionCount(); n != 0 {
-		t.Fatalf("unknown address: %d helper sessions, want 0 (no neighbor holds 192.0.2.99)", n)
+			grIdentityReceive(e, "eth0", grIdentityRIDA, netip.MustParseAddr("192.0.2.99"), true)
+			if n := e.gr.helperSessionCount(); n != 0 {
+				t.Fatalf("%s, unknown address: %d helper sessions, want 0 (no neighbor holds 192.0.2.99)", kind, n)
+			}
+
+			grIdentityReceive(e, "eth0", grIdentityRIDA, netip.Addr{}, false)
+			if n := e.gr.helperSessionCount(); n != 0 {
+				t.Fatalf("%s, no address TLV: %d helper sessions, want 0 (X cannot be identified)", kind, n)
+			}
+		})
 	}
+}
 
-	grIdentityReceive(e, "eth0", grIdentityRIDA, netip.Addr{}, false)
-	if n := e.gr.helperSessionCount(); n != 0 {
-		t.Fatalf("no address TLV: %d helper sessions, want 0 (X cannot be identified)", n)
+// TestRFC3623HelperFlushExitsNamedRestarter pins which helper session a flushed Grace-LSA ends.
+// RFC 3623 Section 3.2: "Router Y ceases to perform the helper function for its neighbor Router
+// X on a given segment when one of the following events occurs: 1) The grace-LSA originated by
+// X on the segment is flushed." On shared media Section 3.1 identifies X by the IP interface
+// address in the body, so the flush is matched the same way.
+// Method: on each of a broadcast, an NBMA and a Point-to-MultiPoint segment, Full neighbors A
+// and B, and Ze helping both. A flushed Grace-LSA whose Advertising Router is A but whose IP
+// interface address TLV names B's address must end the session for B and leave A's running.
+//
+// RFC requirement: RFC3623-A-4 positive -- on a broadcast, NBMA or Point-to-MultiPoint segment a
+// flushed Grace-LSA identifies the restarting router by its IP interface address TLV: Ze exits
+// helper mode for the Full neighbor at that address and keeps helping the Advertising Router,
+// whose address the TLV does not name.
+func TestRFC3623HelperFlushExitsNamedRestarter(t *testing.T) {
+	for _, kind := range grIdentitySharedMedia {
+		t.Run(kind, func(t *testing.T) {
+			e := grIdentityEngine(t, "eth0", kind)
+			grIdentityNeighborFull(t, e, "eth0", kind, grIdentityRIDA, grIdentityAddrA)
+			grIdentityNeighborFull(t, e, "eth0", kind, grIdentityRIDB, grIdentityAddrB)
+
+			grIdentityReceive(e, "eth0", grIdentityRIDA, grIdentityAddrA, true)
+			grIdentityReceive(e, "eth0", grIdentityRIDB, grIdentityAddrB, true)
+			if n := e.gr.helperSessionCount(); n != 2 {
+				t.Fatalf("%s: %d helper sessions before the flush, want 2 (A and B)", kind, n)
+			}
+
+			grIdentityFlush(e, "eth0", grIdentityRIDA, grIdentityAddrB, true)
+			if e.gr.isHelping("eth0", grIdentityRIDB) {
+				t.Fatalf("%s: the flushed Grace-LSA names B's address %s, Ze still helps B (%s)", kind, grIdentityAddrB, grIdentityRIDB)
+			}
+			if !e.gr.isHelping("eth0", grIdentityRIDA) {
+				t.Fatalf("%s: the flush names B's address, yet Ze stopped helping A (%s), the Advertising Router", kind, grIdentityRIDA)
+			}
+			if n := e.gr.helperSessionCount(); n != 1 {
+				t.Fatalf("%s: %d helper sessions after the flush, want exactly 1 (A)", kind, n)
+			}
+		})
 	}
 }

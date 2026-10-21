@@ -65,6 +65,8 @@ func TestRFC2328NormalAreaGetsNoDefaultSummary(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-12.4.3-1 positive -- an area border router originates into an attached area a summary-LSA for each intra-area route of its other areas, and condenses the routes that fall inside a configured area address range into one summary-LSA for the range carrying the range's mask (OriginateSummaries with applyAreaRanges, summary.go).
+// RFC requirement: RFC2328-12.4.3-2 positive -- the intra-area networks inside a configured
+// address range are condensed into the one Type 3 summary-LSA for that range.
 func TestRFC2328ABRSummarizesAndCondenses(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	other := areaID(t, "0.0.0.1")
@@ -99,6 +101,8 @@ func TestRFC2328ABRSummarizesAndCondenses(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-12.4.3-1 negative -- a route that lies inside a configured area address range is not advertised as its own summary-LSA: only the range's summary-LSA appears in the attached area, and a range configured not to advertise suppresses both (applyAreaRanges, summary.go).
+// RFC requirement: RFC2328-12.4.3-2 negative -- a network inside a configured range never
+// appears in a summary-LSA of its own: only the condensed range is advertised.
 func TestRFC2328ABRComponentNeverEscapesRange(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	other := areaID(t, "0.0.0.1")

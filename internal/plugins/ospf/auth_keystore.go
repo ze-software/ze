@@ -47,14 +47,43 @@ func (k *resolvedKey) acceptsAt(now time.Time) bool {
 	return started && notStopped
 }
 
-// replayKey identifies the anti-replay high-water-mark slot. RFC 7474 §2 requires it be
-// per OSPF packet type as well as per neighbor and key-id, so legitimately reordered
-// packets of different types are not dropped as false replays.
+// replayKey identifies the anti-replay high-water-mark slot of one neighbor on one
+// interface. The two cryptographic AuTypes scope it differently, and replaySlotFor is the
+// one place that decides:
+//
+//   - AuType 2 (RFC 2328 Appendix D, RFC 5709) keeps ONE sequence per neighbor, so pktType
+//     is replaySlotNeighbor for every packet type and every key.
+//   - AuType 3 (RFC 7474 Section 2) keeps one sequence per neighbor and per packet type, so
+//     legitimately reordered packets of different types are not dropped as false replays.
+//
+// Neither RFC scopes the sequence by Key ID, so the key the packet was signed with is not
+// part of the slot.
 type replayKey struct {
 	iface   string
 	rid     types.RouterID
-	keyID   uint32
 	pktType packet.PacketType
+}
+
+// replaySlotNeighbor is the pktType of the single per-neighbor AuType 2 slot. No OSPF
+// packet type is 0 (RFC 2328 Section A.3.1 numbers them 1 to 5), so it cannot collide with
+// an AuType 3 per-type slot of the same neighbor.
+const replaySlotNeighbor packet.PacketType = 0
+
+// replaySlotFor returns the replay slot a verified packet of type pktType, carrying
+// cryptographic AuType auType, is checked against and recorded in.
+func replaySlotFor(auType packet.AuType, iface string, rid types.RouterID, pktType packet.PacketType) replayKey {
+	if auType == packet.AuTypeCryptographicESN {
+		// RFC 7474 Section 2: "Upon reception, the sequence number MUST be greater than the
+		// sequence number in the last OSPF packet of that type accepted from the sending
+		// OSPF neighbor."
+		return replayKey{iface: iface, rid: rid, pktType: pktType}
+	}
+	// RFC 2328 Section D.5.3: "If the cryptographic sequence number found in the OSPF
+	// header (see Figure 18) is less than the cryptographic sequence number recorded in
+	// the sending neighbor's data structure, the OSPF packet is discarded." Section D.3
+	// gives each neighbor data structure one "cryptographic sequence number" field, so a
+	// Hello and an LS Ack from the same neighbor share one slot.
+	return replayKey{iface: iface, rid: rid, pktType: replaySlotNeighbor}
 }
 
 // authStore resolves per-interface key chains (with area `inherit`), selects the signing
@@ -463,7 +492,8 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 		if h.AuType == packet.AuTypeSimple {
 			return "", true
 		}
-		rk := replayKey{iface: iface, rid: rid, keyID: k.keyID, pktType: h.Type}
+		// RFC 2328 Section D.5.3, RFC 7474 Section 2
+		rk := replaySlotFor(h.AuType, iface, rid, h.Type)
 		s.mu.Lock()
 		last, seen := s.recvSeq[rk]
 		if seen && replayedSequence(h.AuType, seq, last) {
@@ -484,8 +514,8 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 }
 
 // replayedSequence reports whether a verified packet's cryptographic sequence number seq
-// is a replay against last, the highest sequence already accepted for the same neighbor,
-// key and packet type. The two cryptographic AuTypes carry different rules.
+// is a replay against last, the sequence recorded in the packet's replay slot
+// (replaySlotFor). The two cryptographic AuTypes carry different rules.
 func replayedSequence(auType packet.AuType, seq, last uint64) bool {
 	if auType == packet.AuTypeCryptographicESN {
 		// RFC 7474 Section 2: "Upon reception, the sequence number MUST be greater than the
@@ -493,7 +523,7 @@ func replayedSequence(auType packet.AuType, seq, last uint64) bool {
 		// neighbor. Otherwise, the OSPF packet is considered a replayed packet and dropped."
 		return seq <= last
 	}
-	// RFC 2328 Section D.4.3 (2): "If the cryptographic sequence number found in the OSPF
+	// RFC 2328 Section D.5.3 (2): "If the cryptographic sequence number found in the OSPF
 	// header (see Figure 18) is less than the cryptographic sequence number recorded in the
 	// sending neighbor's data structure, the OSPF packet is discarded." The AuType 2 sequence
 	// is "non-decreasing" (Section D.3), so an equal sequence is accepted.

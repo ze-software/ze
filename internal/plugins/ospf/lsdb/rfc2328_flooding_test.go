@@ -247,6 +247,8 @@ func TestRFC2328SequenceWrapRestartsAfterAck(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-12.4-1 positive -- a self-originated summary-LSA whose destination is no longer advertised is flushed: its LS age becomes MaxAge and the MaxAge instance is reflooded to the area (FlushStaleSummaryLSAs, origination.go).
+// RFC requirement: RFC2328-16.7-1 positive -- a summary-LSA whose entry is no longer advertised
+// is flushed: its LS age is set to MaxAge and it is reflooded.
 func TestRFC2328WithdrawnSummaryFlushedAtMaxAge(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -284,6 +286,8 @@ func TestRFC2328WithdrawnSummaryFlushedAtMaxAge(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-12.4-1 negative -- a summary-LSA whose destination is still advertised is not flushed: its age stays below MaxAge and no MaxAge instance is flooded (FlushStaleSummaryLSAs keeps every key in keep, origination.go).
+// RFC requirement: RFC2328-16.7-1 negative -- a summary-LSA whose entry is still advertised is
+// not flushed.
 func TestRFC2328AdvertisedSummaryNotFlushed(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -428,6 +432,7 @@ func nbmaTopology(a types.AreaID) func() []InterfaceInfo {
 }
 
 // RFC requirement: RFC2328-13.3-3 positive -- on an NBMA network a flooded Link State Update goes out as one unicast to each neighbor in state Exchange or greater, and a delayed Link State Acknowledgment is likewise unicast once to each such neighbor (floodExcept's nonBroadcast fan-out and FlushDelayedAcks, flooding.go).
+// RFC requirement: RFC2328-13.5-3 positive -- on an NBMA interface, one queued delayed acknowledgment is flushed as one Link State Acknowledgment unicast to each neighbor in state >= Exchange (10.0.0.2 Full, 10.0.0.3 Exchange) and to no other destination (FlushDelayedAcks nonbroadcast fan-out, flooding.go).
 func TestRFC2328NBMAUnicastsToEachAdjacency(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -462,6 +467,7 @@ func TestRFC2328NBMAUnicastsToEachAdjacency(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-13.3-3 negative -- on an NBMA network neither a Link State Update nor a delayed Link State Acknowledgment is sent to the AllSPFRouters multicast group or to a neighbor below Exchange (2-Way) (floodExcept skips isFloodEligibleNeighborState false and never uses floodDestination when nonBroadcast, flooding.go).
+// RFC requirement: RFC2328-13.5-3 negative -- on an NBMA interface, after a flood and a flush of a queued delayed acknowledgment, no packet (LS Update or LS Ack) goes to AllSPFRouters, AllDRouters, or the 2-Way neighbor 10.0.0.4, which is below Exchange (FlushDelayedAcks skips isFloodEligibleNeighborState false, flooding.go).
 func TestRFC2328NBMANeverMulticastsNorReachesTwoWay(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)

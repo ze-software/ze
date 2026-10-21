@@ -58,6 +58,8 @@ func TestTEReceiveMalformedNoEntry(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5392-3.3.1-2 negative -- a received inter-AS Link TLV without the Remote
+// AS Number sub-TLV is skipped and leaves no TED entry.
 func TestTEReceiveType6MissingRemoteASSkipped(t *testing.T) {
 	// RFC 5392 sec 3.2.1/3.3.1: the Remote AS Number sub-TLV (21) is REQUIRED in a type-6
 	// inter-AS Link TLV. A received type-6 Link TLV that lacks it is a spec violation: parsed,

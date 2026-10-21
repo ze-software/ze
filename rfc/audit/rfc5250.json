@@ -125,15 +125,15 @@
       "verdict": "enforced"
     },
     "RFC5250-5-1": {
-      "note": "Re-judged 2026-10-21. The seam-stubbed tags are gone. TestRFC5250Type11LooksUpOriginatorRoutingEntry uses the real SPF: not usable while SPF is pending, not usable for a reached router without the E-bit (no ASBR entry), not usable for an unknown originator, usable once the E-bit Router-LSA gives an ASBR entry. Records on reachability.go ASBRReachable.",
+      "note": "Re-judged 2026-10-21 (round 4 judge). Unit changed only by added 5-4 tag lines. Real SPF: not usable while SPF is pending, not usable for a reached router without the E-bit (no ASBR entry), not usable for an unknown originator, usable once the E-bit Router-LSA yields an ASBR entry; the verdict therefore comes from the ASBR routing table entry. Records on spf/reachability.go::ASBRReachable.",
       "requirement_sha": "23a09580e5b0c1fe",
       "tests": {
-        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "0246bf2f410b1f45",
-        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "0246bf2f410b1f45"
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "1aff1dc1dc617118",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "1aff1dc1dc617118"
       },
       "units": {
-        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "92cad95874215e04",
-        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "92cad95874215e04"
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "70ced49ed3fc8a16",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "70ced49ed3fc8a16"
       },
       "verdict": "enforced"
     },
@@ -162,6 +162,19 @@
         "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR": "c8b703d1392130c7",
         "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR#2": "c8b703d1392130c7",
         "internal/plugins/ospf/rfc5250_asbr_originator_test.go::TestRFC5250TwoRoutersType11OriginatorReachable": "583c4ee39142d081"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5250-5-4": {
+      "note": "First verdict 2026-10-21 (round 4 judge). Row is a verbatim span of RFC 5250 Section 5 (2). Positive: a Type-11 LSA whose originator has no ASBR entry (SPF pending, reached without E-bit, unknown originator) is delivered not usable; negative: an originator with an ASBR entry is delivered usable, so the do-nothing rule is bound to the missing entry. Consumers honouring the not-usable flag (TED) are proven by the RFC5250-5-2 tests. Records on ASBRReachable.",
+      "requirement_sha": "d5dde0844e65f6a1",
+      "tests": {
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "1aff1dc1dc617118",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "1aff1dc1dc617118"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "70ced49ed3fc8a16",
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "70ced49ed3fc8a16"
       },
       "verdict": "enforced"
     }

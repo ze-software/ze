@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-21",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Forbidden: a Network-LSA that omits a router attached to the link. TestRFC5340NetworkLSAListsAttachedRouters drives v6OriginateNetwork, decodes the installed Network-LSA and asserts got[self] (the DR) and got[full] (a Full neighbor), each red on omission; got[twoWay] false and Len 2 bound the list to the routers RFC 2328 12.4.2 counts as attached (fully adjacent), which RFC 5340 leaves unchanged.",
       "requirement_sha": "446d8d14acf2b688",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "8ffe65e2132664d4",
@@ -22,8 +23,8 @@
       "note": "Forbidden: a Link-LSA that omits one of the router's addresses on the link. TestRFC5340LinkLSAListsLinkAddresses decodes the originated Link-LSA and asserts the link-local fe80::1 and both global prefixes 2001:db8:1::/64 and 2001:db8:2::/64, each red on omission; the eth1 half asserts each link's LSA carries its own link-local and prefix and not the other link's.",
       "requirement_sha": "141188dcebe4f393",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "b794d2eb2e228f3e",
@@ -48,8 +49,8 @@
       "note": "Forbidden: a Hello sent without this interface's own Interface ID. TestRFC5340HelloCarriesInterfaceID sends real Hellos through SendHello and the v6 encoder and asserts Interface ID 42 on eth0 and 43 on eth1 (red on a missing or shared value), and after a neighbor Hello carrying 99 asserts the next sent Hello still carries 42 (red if the neighbor's value is copied in).",
       "requirement_sha": "1827062cd4cc934a",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "bcd73e2efe9c8eb7",
@@ -61,8 +62,8 @@
       "note": "Forbidden: a Hello whose E, N or DC bit does not follow the area type or the wish to suppress Hellos. TestRFC5340HelloOptionsBits sends Hellos through the real send path and asserts E set and N clear for a regular area, N set and E clear for NSSA, both clear for stub (both directions of each 'if and only if'), and DC zero in all three; ze has no demand-circuit support and never wishes to suppress Hellos, so DC clear is the only correct value.",
       "requirement_sha": "40197c708c35d7c9",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "bcbc0d7879b85f81",
@@ -74,8 +75,8 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestRFC5340DBDescOptionsBits tags now claim only the DC-bit: DDs of a regular and a stub area carry DC clear (Ze suppresses no Hellos, so 'if and only if' requires clear), and neutral Options carrying DC handed to the encoder still yield DC clear. Revert records on encoder_v6.go::neutralToV6Options observed red. The 'set when suppressing' direction has no Ze path (no demand circuits).",
       "requirement_sha": "156ed79b0cb0e1d6",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "9835fa21eb3735d5",
@@ -84,18 +85,18 @@
       "verdict": "enforced"
     },
     "RFC5340-A.3.1-2": {
-      "note": "Re-judged 2026-10-21. Receive: TestRFC5340ReservedHeaderOctetIgnoredOnReceive, a Hello with Reserved 0xFF forms the neighbor, record on v3 header DecodeHeader; the Instance ID negative tag is gone. Negative TestRFC5340ReservedOctetNeverReachesDecodedHeader: headers differing only in octet 15 decode identically, Instance ID still 7. Send: TestRFC5340ReservedHeaderOctetZeroOnSend (record EncodeHello).",
+      "note": "Re-judged 2026-10-21 after a comment-only spelling change (honoured to honored) in TestRFC5340ReservedHeaderOctetIgnoredOnReceive; its assertions are byte-identical. Receive: a Hello with Reserved 0xFF forms the neighbor (assert.Len 1), record on v3 DecodeHeader. Negative TestRFC5340ReservedOctetNeverReachesDecodedHeader: headers differing only in octet 15 decode identically. Send: TestRFC5340ReservedHeaderOctetZeroOnSend, record on EncodeHello. Earlier enforced judgement stands.",
       "requirement_sha": "34e76e291aebb156",
       "tests": {
         "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend": "509493c7b6b76283",
         "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend#2": "509493c7b6b76283",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "97ac5b220d5cc3bb",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "cdf4f5c0d8a37340",
         "internal/plugins/ospf/v3/packet/rfc5340_header_test.go::TestRFC5340ReservedOctetNeverReachesDecodedHeader": "e14535824f889d9c"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend": "9d93b6e2c67eb715",
         "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend#2": "9d93b6e2c67eb715",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "a84f9d1a7b4267d9",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "26154e96b7eab6f5",
         "internal/plugins/ospf/v3/packet/rfc5340_header_test.go::TestRFC5340ReservedOctetNeverReachesDecodedHeader": "4ccab91e72914f0c"
       },
       "verdict": "enforced"
@@ -111,8 +112,8 @@
       "tests": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding": "401d880094411be0",
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding#2": "401d880094411be0",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding": "b720288db81ad089",
@@ -133,8 +134,8 @@
       "tests": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorAdvertisesGlobalForwarding": "401d880094411be0",
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorAdvertisesGlobalForwarding#2": "401d880094411be0",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorAdvertisesGlobalForwarding": "91f210d793260f04",
@@ -152,8 +153,8 @@
         "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface#2": "3c59631f6bad7ed2",
         "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal": "0bd98dc3b818c09b",
         "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal#2": "0bd98dc3b818c09b",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface": "1a683acc97b73cb5",
@@ -171,8 +172,8 @@
       "tests": {
         "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay": "83d10a2a4d2496b8",
         "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay#2": "83d10a2a4d2496b8",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay": "fa5e8c7e98493ca8",
@@ -186,8 +187,8 @@
       "note": "Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.",
       "requirement_sha": "6dddca691c081f86",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "b93ef0d62e7e8927",
@@ -199,8 +200,8 @@
       "note": "Forbidden: accepting a neighbor whose RouterDeadInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts a matching RouterDeadInterval is accepted (empty reason) and DefaultDeadInterval+1 is dropped with reason dead-interval; accepting the mismatch turns it red. The 'multiple of the HelloInterval' clause is a lower-case should.",
       "requirement_sha": "629dfc0baf4601d4",
       "tests": {
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "97ac5b220d5cc3bb",
-        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "97ac5b220d5cc3bb"
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "cdf4f5c0d8a37340",
+        "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "cdf4f5c0d8a37340"
       },
       "units": {
         "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "b93ef0d62e7e8927",

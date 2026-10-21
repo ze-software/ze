@@ -212,6 +212,12 @@ func (t *srPrefixSIDTable) add(received srRemotePrefixSID, prefix netip.Prefix, 
 // SAME SID (an anycast prefix, RFC 8660 Section 2.5, or ABRs propagating one Prefix-SID,
 // RFC 8665 Section 7.1) are one binding and it is used; routers binding DIFFERENT SIDs
 // leave no binding to prefer, so every one of them is ignored.
+//
+// The first survivor is the binding's Originator, and every later router binding the
+// same SID is listed in Also with the flags it advertised, because the installer applies
+// a next hop's own E-, NP- and M-Flags whenever that router advertised the SID (RFC 8665
+// Section 5 / RFC 8666 Section 6, srInstaller.forwarding). A router surviving in two areas
+// is listed once, with the Prefix-SID received first.
 func (s *srPrefixSIDScope) resolve() srRemotePrefixSID {
 	var chosen srRemotePrefixSID
 	survivors := 0
@@ -222,10 +228,13 @@ func (s *srPrefixSIDScope) resolve() srRemotePrefixSID {
 		received := s.sid[adv]
 		if survivors > 0 && !srPrefixSIDEqual(chosen.SID, received.SID) {
 			chosen.Duplicate = true // Ze policy: differing SIDs from different routers
+			chosen.Also = nil
 			return chosen
 		}
 		if survivors == 0 {
 			chosen = received
+		} else if _, listed := chosen.advertisedBy(received.Originator); !listed {
+			chosen.Also = append(chosen.Also, srPrefixSIDAdvertisement{Router: received.Originator, SID: received.SID})
 		}
 		survivors++
 	}

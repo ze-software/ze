@@ -53,8 +53,8 @@
       "verdict": "enforced"
     },
     "RFC7684-5-1": {
-      "note": "Re-judged 2026-09-30: supplementary unit TestExtPrefixMalformedCounted changed only by the lookupPrefix area argument; the verdict rests unchanged on TestRFC7684MalformedPermutationsDetected (+ valid prefix and link bodies accepted by DecodeExt*LSA and ValidateExtLSABody; - nine single-fault permutations each refused by both paths, panic converted to t.Fatalf). Records on DecodeExtPrefixLSA (+) and decodeExtSubTLVs (-) observed red; older supplementary tags carry no record and are not relied on.",
-      "requirement_sha": "6500d989d77c9033",
+      "note": "Judged 2026-10-21 over current tags, units and records. Row text correction only ('sub- TLV' to 'sub-TLV', rfc/corrections/rfc7684.md), checked against RFC 7684 Section 5. Units unchanged: the malformed-permutation table and the fuzz targets detect without panic, and well-formed bodies decode.",
+      "requirement_sha": "d1c59e5e1cf965d3",
       "tests": {
         "internal/plugins/ospf/packet/rfc7684_ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
         "internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",

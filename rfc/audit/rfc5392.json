@@ -1,31 +1,31 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-21",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5392-3.2.1-1": {
-      "note": "Forbidden: a Type-6 Inter-AS-TE-v2 Link TLV that carries the Link ID sub-TLV (type 2). Red on it: TestInterAsTEOriginateScopePolicy asserts `if l.HasLinkID { t.Fatalf }` on the Link TLV teOriginateType6 emits, for both area and AS scope. Negative polarity: TestTEReceiveMalformedNoEntry feeds a type-6 Link TLV that is otherwise valid (Link Type, Remote AS, IPv4 Remote ASBR ID) plus a Link ID and asserts no TED entry (validateReceivedTELink rejects l.HasLinkID for InterAsTEOpaqueType).",
+      "note": "Judged 2026-10-21 over current tags, units and records. Stale only because RFC5392-3.3.1-2 tags were added in the same functions; assertions unchanged. Origination never emits Link ID in a type-6 Link TLV, and reception rejects one that carries it.",
       "requirement_sha": "dd74178bb777124d",
       "tests": {
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
-        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "42473d2278067787"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "4bb75eea7a38dce7"
       },
       "units": {
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde",
         "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "b5692fc2f1e9fd4d"
       },
       "verdict": "enforced"
     },
     "RFC5392-3.2.1-4": {
-      "note": "Row now quotes the verbatim span ending at 'the Inter-AS-TE-v2 LSA' (R3 split; the v3 clause is RFC5392-3.2.1-5, verified against rfc/full/rfc5392.txt lines 528-529). The obligation binds the originator: + TestInterAsTEOriginateScopePolicy fails unless every originated Inter-AS-TE-v2 Link TLV carries sub-TLV 21 with the configured AS 65001 (record on buildInterASTELink observed red); - per owner ruling 2, the handling of a peer's Link TLV lacking it: TestTEReceiveType6MissingRemoteASSkipped encodes an otherwise well-formed type-6 Link TLV (Link Type, IPv4 Remote ASBR ID) without sub-TLV 21 and asserts no TED link is stored (validateReceivedTELink's !HasRemoteAS branch; record observed red). Buffer isolated: Link Type present and no Link ID, so only the missing sub-TLV 21 can trip.",
+      "note": "Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.3.1-2 tags; assertions unchanged. Every originated Inter-AS-TE-v2 Link TLV carries Remote-AS (sub-TLV 21), and a received one without it is skipped.",
       "requirement_sha": "957e941a8b9d883b",
       "tests": {
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
-        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "42473d2278067787"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "4bb75eea7a38dce7"
       },
       "units": {
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
-        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "d7cb7e9d567c1705"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "ddb86636630eaf40"
       },
-      "upgrade_reason": "The units are unchanged; the row changed. The earlier weak verdict rested only on the unproven Inter-AS-TE-v3 clause, which the R3 split moved to the new gap row RFC5392-3.2.1-5. Re-read both tagged units against the new v2-only span: both polarities of the v2 clause are proven and each now carries an observed-red discrimination record.",
       "verdict": "enforced"
     },
     "RFC5392-3.2.1-5": {
@@ -47,14 +47,27 @@
       },
       "verdict": "enforced"
     },
-    "RFC5392-3.3.2-1": {
-      "note": "Forbidden: an OSPFv2 inter-AS advertisement that omits the IPv4 Remote ASBR ID sub-TLV (22) when the neighboring ASBR has an IPv4 address. Ze learns the remote ASBR's address only from config (remote-asbr-ipv4), so the observable case is a configured IPv4 remote ASBR ID. Red on it: TestInterAsTEOriginateScopePolicy configures remote-asbr-ipv4 203.0.113.9 and asserts `!l.HasRemoteASBRv4` fatal on the originated type-6 Link TLV. Positive only, covered by the row's {single-polarity: positive} marker.",
-      "requirement_sha": "f17a6f5232dee1c9",
+    "RFC5392-3.3.1-2": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 5392 Section 3.3.1 ('The Remote AS Number sub-TLV is REQUIRED in a Link TLV that advertises an inter-AS TE link'). The positive checks that every originated inter-AS Link TLV carries sub-TLV 21 (record on buildInterASTELink). The negative checks that a received one without it is skipped and leaves no TED entry (record on validateReceivedTELink).",
+      "requirement_sha": "16a1a5e1ffc30c7d",
       "tests": {
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "4bb75eea7a38dce7"
       },
       "units": {
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "ddb86636630eaf40"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5392-3.3.2-1": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.3.1-2 tags; the origination assertion of the IPv4 Remote ASBR ID sub-TLV 22 is unchanged (row keeps its single-polarity argument).",
+      "requirement_sha": "f17a6f5232dee1c9",
+      "tests": {
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde"
       },
       "verdict": "enforced"
     },
@@ -76,7 +89,7 @@
       "requirement_sha": "20168becb3d64f38",
       "tests": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "db1397ebe20dcae7"
       },
       "units": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
@@ -90,7 +103,7 @@
       "requirement_sha": "3c3921bb4f22f238",
       "tests": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
-        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "db1397ebe20dcae7"
       },
       "units": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",

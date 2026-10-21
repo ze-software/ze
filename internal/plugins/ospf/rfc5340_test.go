@@ -375,7 +375,7 @@ func TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress(t *testing.T) {
 // like one carrying zero, forming the neighbor (the decoded Header carries no Reserved field
 // and DecodeHeader never reads offReserved: v3/packet/header.go:95-104, 107-140).
 //
-// The test also checks that the adjacent Instance ID octet is still honoured (RFC 5340 sec 4.2.2,
+// The test also checks that the adjacent Instance ID octet is still honored (RFC 5340 sec 4.2.2,
 // a different rule, so it carries no A.3.1-2 tag). The A.3.1-2 negative is
 // TestRFC5340ReservedOctetNeverReachesDecodedHeader in v3/packet.
 func TestRFC5340ReservedHeaderOctetIgnoredOnReceive(t *testing.T) {

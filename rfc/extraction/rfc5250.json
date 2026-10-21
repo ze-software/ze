@@ -234,10 +234,8 @@
     {
       "id": "5:3",
       "quote": "If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Same numbered procedure (2): RFC5250-5-1 states both the routing-table lookup and 'if unreachable, do nothing with the LSA'.",
-      "mapped-to": "RFC5250-5-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC5250-5-4"
     },
     {
       "id": "5:4",

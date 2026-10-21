@@ -11,7 +11,23 @@ work survives a machine move (M9). Delete this file in the spec's closing commit
 | `b75f0355c6` | AC-C3 rows RFC3101-3.2-3, RFC7770-2.2-2, RFC7166-4.6-7 (+4.6-4 gap), first verdicts by an independent judge; journal row on the umbrella's false RFC 7166 claim |
 | `0de9b98e6c` | AC-C3 row RFC5709-3.2-6 (key storage persists), single-polarity, judged enforced |
 
-## In the working tree, uncommitted (2026-10-21, Mac)
+## Update 2026-10-21 afternoon
+
+`50044040c5` landed the judged record fixes, the GR helper identity fix and the
+extPrefixScope fix. Review round 1 (artifact `tmp/review/rfc-verdict-fix-ospf-*.md`)
+found 3 BLOCKER and 1 ISSUE; the working tree now holds their fixes, uncommitted:
+26 new split rows (RFC2328, 3101, 5250, 5392, 5709, 8665, 8666) with tests and records,
+dated corrections in `rfc/corrections/rfc2328.md`, `rfc3630.md`, `rfc7684.md`, GR flush
+tests over broadcast/NBMA/P2MP, and three more D-8 fixes: `sr_install.go::forwarding`
+(RFC 8665 §5 / RFC 8666 §6 next-hop flags off the best path), `lsdb/origination.go::handleSelfReceived`
+(RFC 2328 §13.4 flush of a withdrawn self LSA), and an AuType 2 per-neighbour replay fix
+(RFC 2328 §D.4.3) in progress. Still owed: first verdicts for the new rows and re-judges
+of the staled ones by a non-author judge, reseal, commit, review round 2, interop
+(the QEMU route `./le test qemu docker-lab lab 'test integration interop' env INTEROP_SCENARIO=<name>`;
+the plain Docker route refuses on the Mac's Colima kernel), verify, close.
+`internal/plugins/ospf/zz_probe_acc3_test.go` is an agent's throwaway probe: delete it, never commit it.
+
+## In the working tree, uncommitted (2026-10-21, Mac, morning; landed in 50044040c5)
 
 Three independent judges read the 118 AC-C2 sweep records of 2026-10-15. Every
 record is a whole-body revert, so many proved only reach. Two author agents then

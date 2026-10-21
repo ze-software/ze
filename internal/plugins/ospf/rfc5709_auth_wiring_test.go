@@ -181,24 +181,27 @@ func TestEngineReceiveSelectsSecurityAssociation(t *testing.T) {
 			bad:  packet.AuthKey{KeyID: 9, Algorithm: packet.AuthHMACSHA256, Secret: []byte("shared-key")},
 		},
 	}
-	for _, tc := range cases {
+	// RFC 2328 Section D.5.3 keeps one AuType 2 sequence per neighbor, whatever the key,
+	// so every case starts above the sequence the previous case left recorded.
+	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			base := uint64(i) * 1000
 			failures := rec.authFailures
-			valid := signedHelloWith(t, tc.good, 10)
+			valid := signedHelloWith(t, tc.good, base+10)
 			if !eng.verifyPacket(transport.RawPacket{IfIndex: handle.ifindex, Payload: valid}, h) {
 				t.Fatal("engine rejected the packet's configured security association")
 			}
 			if rec.authFailures != failures {
 				t.Fatal("engine counted a valid packet as an authentication failure")
 			}
-			forged := signedHelloWith(t, tc.bad, 100)
+			forged := signedHelloWith(t, tc.bad, base+100)
 			if eng.verifyPacket(transport.RawPacket{IfIndex: handle.ifindex, Payload: forged}, h) {
 				t.Fatal("engine accepted a packet outside its named security association")
 			}
 			if rec.authFailures != failures+1 {
 				t.Fatalf("authentication failures = %d, want %d", rec.authFailures, failures+1)
 			}
-			next := signedHelloWith(t, tc.good, 11)
+			next := signedHelloWith(t, tc.good, base+11)
 			if !eng.verifyPacket(transport.RawPacket{IfIndex: handle.ifindex, Payload: next}, h) {
 				t.Fatal("rejected packet poisoned the legitimate association's replay state")
 			}

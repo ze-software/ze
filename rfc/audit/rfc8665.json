@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -27,7 +28,7 @@
       "note": "single polarity (annotated, argument holds): the obligation binds only a node claiming Algorithm 1, and the only producer of that claim is srBuildAlgorithm. Forbidden precondition: advertising Algorithm 1; TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly decodes the emitted TLV and fails unless it is exactly {0}, so any Algorithm 1 claim goes red. With no claim there is no Algorithm 1 SPF for local policy to alter and no violating input exists",
       "requirement_sha": "59953f8d15f9e1b2",
       "tests": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly": "31a2982f80bad2ac"
@@ -38,8 +39,8 @@
       "note": "forbidden: using a later SR-Algorithm TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored feeds srDecodeRemoteCapabilities (the receive decode) one body with {0} then {1} and fails unless the result is exactly {0}, red on last-wins and on union; positive TestRFC8665SingleAlgorithmAndSRMSInstanceUsed pins the single-TLV case",
       "requirement_sha": "9155d796d7562864",
       "tests": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "4f0455a9b04e2cbb",
@@ -48,15 +49,15 @@
       "verdict": "enforced"
     },
     "RFC8665-3.1-7": {
-      "note": "forbidden: flooding the SR-Algorithm TLV at a non-area scope, or not at area scope. TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes fails if type 8 is registered at AS or link scope; TestRFC8665SRCapabilityTLVsAreAreaScoped fails if it is missing at area scope. riTLVBuildersForScope is the sole producer of each scope's TLV set: buildRIInstances (ri.go) reads it unconditionally for the RI LSA of that scope, so the registry assertion is the emitted-LSA content",
+      "note": "Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.2-15/3.3-10 tags; type 8 is registered at area scope and absent from AS and link scope.",
       "requirement_sha": "4214c177e8017624",
       "tests": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "7f2eeb6dac97643c"
       },
       "units": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "adc18815204b0dd2",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "e79a566912d4660e"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "4b5864b34ec78fa4",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "ec7fab55d9818e23"
       },
       "verdict": "enforced"
     },
@@ -87,6 +88,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC8665-3.2-15": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 3.2 ('For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is REQUIRED'), split from the 3.1-7 sentence that covered only SR-Algorithm. Type 9 is registered at area scope and absent at AS and link scope, and the negative record is on riTLVBuildersForScope.",
+      "requirement_sha": "f251182475182f1a",
+      "tests": {
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "7f2eeb6dac97643c"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "4b5864b34ec78fa4",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "ec7fab55d9818e23"
+      },
+      "verdict": "enforced"
+    },
     "RFC8665-3.2-3": {
       "note": "forbidden: using a range TLV that carries two SID/Label sub-TLVs. TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored builds two valid sub-TLVs and requires DecodeRangeValue to error, red on a decoder that picks one; the SRGB case of srDecodeRemoteCapabilities appends only on rerr == nil, so the error is the ignore. Positive TestRFC8665RangeWithSingleSIDLabelAccepted accepts exactly one",
       "requirement_sha": "f250cf734ca85788",
@@ -104,7 +118,7 @@
       "note": "single polarity (annotated, argument holds: srBuildSRGB emits one RITLV per configured range and cannot pack two). TestRFC8665EachRangeInItsOwnTLV requires two type-9 TLVs from two ranges, each decoding as a single-sub-TLV range with the expected base in order, red on packing",
       "requirement_sha": "c3398cf463352f50",
       "tests": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665EachRangeInItsOwnTLV": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665EachRangeInItsOwnTLV": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665EachRangeInItsOwnTLV": "37c0e453298487b6"
@@ -116,7 +130,7 @@
       "requirement_sha": "b2e55f70bb2d49c5",
       "tests": {
         "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart": "ff2ad4dd3deb0343",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart": "a07106b17e254da7",
@@ -165,6 +179,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC8665-3.3-10": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 3.3 ('For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED'). Type 14 is registered at area scope and absent at AS and link scope.",
+      "requirement_sha": "23190d73f525a885",
+      "tests": {
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "7f2eeb6dac97643c"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "4b5864b34ec78fa4",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "ec7fab55d9818e23"
+      },
+      "verdict": "enforced"
+    },
     "RFC8665-3.3-3": {
       "note": "forbidden: using an SRLB TLV that carries two SID/Label sub-TLVs. The V4TypeSRLB case of srDecodeRemoteCapabilities calls the same DecodeRangeValue and appends only on rerr == nil; TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored requires that decoder to reject the two-sub-TLV value, red on a decoder that picks one. Positive accepts exactly one",
       "requirement_sha": "7d877e03d312ab62",
@@ -195,8 +222,8 @@
       "note": "forbidden: using a later SRMS Preference TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored decodes an RI body with Preference 100 then 250 via srDecodeRemoteCapabilities and fails unless SRMSPref is 100, red on last-wins; positive pins the single-TLV case. The preference has no consumer (RFC8665-3.4-2 gap), so the decode is the only use",
       "requirement_sha": "ec77e72c6824bcc9",
       "tests": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "4f0455a9b04e2cbb",
@@ -283,6 +310,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC8665-5-16": {
+      "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 5: 'the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. This MUST be done regardless of whether the next-hop router contributes to the best path'. Product fix read: srInstaller.forwarding now applies the next hop's own advertisement (advertisedBy over Originator and Also), and sr_malformed resolve lists the other advertisers of the same SID. The positive has the best path end at 10.0.0.9 (NP set) with next hop 10.0.0.2 also advertising: NP clear must PHP-pop 18009 with no push, and NP+E must push 0, never 17009. The old originator-only code swapped 17009 and fails it. The negative checks that a next hop that advertised nothing gets 17009 with no pop, even though both other advertisers have NP clear.",
+      "requirement_sha": "27094f45d37eb7e9",
+      "tests": {
+        "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665NextHopFlagsAppliedOffBestPath": "431adf56914944df",
+        "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop": "431adf56914944df"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665NextHopFlagsAppliedOffBestPath": "c5eb41ff222b98cc",
+        "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop": "9e95abbfd0630227"
+      },
+      "verdict": "enforced"
+    },
     "RFC8665-5-2": {
       "note": "forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7",
       "requirement_sha": "4f5be94fdd9015e3",
@@ -317,8 +357,8 @@
       "note": "forbidden: installing a Prefix-SID whose algorithm the originator did not advertise. TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised drives installRoutes with the originator advertising {1} only and a usable SRGB and requires no mpls-fib entry at all; without the check the NP=0 penultimate-hop route would emit a pop entry, so the len == 0 assertion goes red. Positive with {0} requires push label 16009",
       "requirement_sha": "cfb9a27534da99af",
       "tests": {
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised": "e97387a7b3de9f4b",
@@ -345,8 +385,8 @@
       "tests": {
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate": "ef2971c9ee845d41",
         "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate#2": "ef2971c9ee845d41",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "ef458fe722880c10",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "7f2eeb6dac97643c",
         "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs": "1baa9102a5482995",
         "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs#2": "1baa9102a5482995",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored": "4dc005b115e8b238",
@@ -369,8 +409,8 @@
       "requirement_sha": "02d16f90eaa7e273",
       "tests": {
         "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "fe90cd16451cc24a",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "809375afe11f06d7",
@@ -397,8 +437,8 @@
       "requirement_sha": "16fad9c3653817ba",
       "tests": {
         "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink": "b123d9392ac3d3ba",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawKeyedByAdjacency": "ef458fe722880c10",
-        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops": "ef458fe722880c10"
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawKeyedByAdjacency": "7f2eeb6dac97643c",
+        "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops": "7f2eeb6dac97643c"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink": "2f34f5b92fc130a9",

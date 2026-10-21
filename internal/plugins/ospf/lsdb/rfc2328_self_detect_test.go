@@ -57,7 +57,7 @@ func selfDetectReceive(t *testing.T, lsa packet.LSA) (packet.LSAHeader, bool) {
 	return got, flushed
 }
 
-// RFC requirement: RFC2328-13.4-1 positive -- both detection rules fire on the receive path: a router-LSA advertised by this router's Router ID 1.1.1.1, and a network-LSA advertised by 9.9.9.9 whose Link State ID is this router's eth1 address 10.0.1.1 (or eth0 address 10.0.0.1), are each treated as self-originated: with no local copy each is installed at MaxAge with a higher sequence and flooded at MaxAge (handleSelfReceived, origination.go).
+// RFC requirement: RFC2328-13.4-1 positive -- both detection rules fire on the receive path: a router-LSA advertised by this router's Router ID 1.1.1.1, and a network-LSA advertised by 9.9.9.9 whose Link State ID is this router's eth1 address 10.0.1.1 (or eth0 address 10.0.0.1), are each treated as self-originated: with no local copy each is installed at MaxAge with the received sequence left alone and flooded at MaxAge (handleSelfReceived, origination.go).
 func TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress(t *testing.T) {
 	cases := []struct {
 		name string
@@ -70,8 +70,11 @@ func TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress(t *testing.T)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, flushed := selfDetectReceive(t, tc.lsa)
-			if !got.Age.IsMaxAge() || got.Sequence != tc.lsa.Header.Sequence.Next() {
-				t.Fatalf("database copy age %v sequence %v, want MaxAge at %v: not detected as self-originated", got.Age, got.Sequence, tc.lsa.Header.Sequence.Next())
+			if !got.Age.IsMaxAge() {
+				t.Fatalf("database copy age %v sequence %v, want MaxAge: not detected as self-originated", got.Age, got.Sequence)
+			}
+			if got.Sequence != tc.lsa.Header.Sequence {
+				t.Fatalf("database copy sequence %v, want the received %v: RFC 2328 Section 14.1 flushes leaving the LS sequence number alone", got.Sequence, tc.lsa.Header.Sequence)
 			}
 			if !flushed {
 				t.Fatal("the self-originated LSA was not flooded at MaxAge")

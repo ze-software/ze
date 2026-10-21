@@ -331,7 +331,7 @@
       "id": "3.2:10",
       "quote": "For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is REQUIRED.",
       "disposition": "mapped",
-      "mapped-to": "RFC8665-3.1-7"
+      "mapped-to": "RFC8665-3.2-15"
     },
     {
       "id": "3.3:1",
@@ -367,7 +367,7 @@
       "id": "3.3:6",
       "quote": "For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED.",
       "disposition": "mapped",
-      "mapped-to": "RFC8665-3.1-7"
+      "mapped-to": "RFC8665-3.3-10"
     },
     {
       "id": "3.4:1",
@@ -468,10 +468,8 @@
     {
       "id": "5:9",
       "quote": "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "The second sentence of the same paragraph, qualifying the obligation site 5:8 carries; row RFC8665-5-7 states the qualification in its own text (\"regardless of whether it contributes to the best path\").",
-      "mapped-to": "RFC8665-5-7"
+      "disposition": "mapped",
+      "mapped-to": "RFC8665-5-16"
     },
     {
       "id": "5:10",

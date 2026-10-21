@@ -68,6 +68,8 @@ func TestOSPFAuthSignVerifyCrypto(t *testing.T) {
 			assert.Equal(t, plen, int(readUint16(signed, offLength)), "Packet Length excludes the digest")
 			// RFC requirement: RFC5709-3.3-4 positive -- the Second-Hash (final HMAC output) is placed as the Authentication Data of length L in the trailer: len(signed)==plen+authDigestLen(algo) (Sign auth_verify.go:180, asserted here).
 			assert.Len(t, signed, plen+authDigestLen(algo), "digest appended after the body")
+			// RFC requirement: RFC5709-3.3-5 positive -- the signed trailer equals a digest built
+			// independently with Apad as 0x878FE1F3 repeated L/4 times.
 			if algo != AuthMD5 {
 				assert.Equal(t, rfc5709ReferenceDigest(t, algo, key.Secret, signed[:plen]), signed[plen:],
 					"the trailer equals an independently constructed RFC 5709 Second-Hash")
@@ -436,6 +438,8 @@ func TestRFC5709ReceiveIndependentDigest(t *testing.T) {
 // RFC requirement: RFC5709-3.3-3 negative -- Verify rejects an inner hash sent without the required outer hash.
 // RFC requirement: RFC5709-3.3-4 negative -- a length-L trailer carrying the inner hash instead of Second-Hash is rejected.
 // RFC requirement: RFC5709-3.4-1 negative -- recomputation rejects each incorrectly constructed digest and still accepts the independent valid packet at the same sequence.
+// RFC requirement: RFC5709-3.3-5 negative -- a digest computed with a zero-filled trailer in
+// place of the 0x878FE1F3 Apad is refused by Verify.
 func TestRFC5709ReceiveRejectsWrongHashConstruction(t *testing.T) {
 	secret := bytes.Repeat([]byte{0x5a}, 33)
 	key := AuthKey{KeyID: 7, Algorithm: AuthHMACSHA256, Secret: secret}

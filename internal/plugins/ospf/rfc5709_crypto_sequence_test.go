@@ -47,6 +47,10 @@ func TestRFC5709CryptoSequenceNonDecreasingOnInterface(t *testing.T) {
 	defer eng.shutdown()
 	eng.auth.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "firstkey"}))
 
+	// RFC requirement: RFC2328-D.3-4 positive -- every packet the engine signs on eth0 includes a
+	// Cryptographic Sequence Number, and over five Hellos signed through signPacket, across a
+	// reload that changes the key from Key ID 1 to Key ID 2, no packet's sequence is below the one
+	// signed before it.
 	// RFC requirement: RFC5709-3.1-3 positive -- five Hellos signed on eth0 through the
 	// engine's signer carry a non-decreasing 32-bit Cryptographic Sequence Number, and the
 	// two signed after a reload that changes the key from Key ID 1 to Key ID 2 are not below

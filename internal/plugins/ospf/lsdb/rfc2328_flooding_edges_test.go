@@ -64,8 +64,8 @@ func TestOSPFSelfOriginatedNoLocalCopyFlush(t *testing.T) {
 	if !got.Header.Age.IsMaxAge() {
 		t.Fatalf("flush must set MaxAge, got age %d", got.Header.Age)
 	}
-	if got.Header.Sequence != stale.Header.Sequence.Next() {
-		t.Fatalf("flush sequence = %v, want received.Next()", got.Header.Sequence)
+	if got.Header.Sequence != stale.Header.Sequence {
+		t.Fatalf("flush sequence = %v, want the received %v: RFC 2328 Section 14.1 leaves the LS sequence number alone", got.Header.Sequence, stale.Header.Sequence)
 	}
 	if len(tx.sends) == 0 {
 		t.Fatalf("flush was not flooded to neighbors")
