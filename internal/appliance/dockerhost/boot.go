@@ -98,6 +98,10 @@ func Boot(sys System, root string) (*Cidata, error) {
 		return nil, err
 	}
 
+	if err := mountShareRoots(sys); err != nil {
+		return nil, err
+	}
+
 	device, err := sys.FindCidata()
 	if err != nil {
 		return nil, err
@@ -130,6 +134,9 @@ func Boot(sys System, root string) (*Cidata, error) {
 	}
 	if err := os.WriteFile(guest(root, "/etc/hostname"), []byte(c.Hostname+"\n"), 0o644); err != nil { //nolint:gosec // /etc/hostname is world-readable
 		return nil, fmt.Errorf("write /etc/hostname: %w", err)
+	}
+	if err := mountShares(sys, root, c); err != nil {
+		return nil, err
 	}
 	if err := writeUserRuntime(sys, root, c); err != nil {
 		return nil, err
@@ -185,6 +192,69 @@ func mountWritableTrees(sys System, root string) error {
 		}
 	}
 	return nil
+}
+
+// shareRoots are the read-only squashfs directories Lima's shares are mounted
+// under, each covered by an empty tmpfs so the mount points can be created:
+// /mnt holds the cidata and Rosetta mounts, /Users a macOS host's home. A
+// Linux host's home lands under /home, which /perm/home backs. The image
+// carries both directories (le's extra files).
+var shareRoots = []string{"/mnt", "/Users"}
+
+// mountShareRoots covers each shareRoots directory with a tmpfs.
+func mountShareRoots(sys System) error {
+	for _, dir := range shareRoots {
+		if err := sys.Mount(MountRequest{Source: fsTmpfs, Target: dir, FSType: fsTmpfs, Data: "mode=0755"}); err != nil {
+			return fmt.Errorf("mount a tmpfs on %s for Lima's mount points: %w", dir, err)
+		}
+	}
+	return nil
+}
+
+// mountShares mounts each cloud-init `mounts` entry Lima wrote: the host's
+// home over virtiofs at the host's own path (spec R-7) and Rosetta's share.
+// cloud-init passes the options to mount(8), so the fstab-only words are
+// dropped here and `ro` becomes a read-only mount. A share marked `nofail`
+// that fails is reported on the console and the boot goes on, as mount(8)
+// would; any other failure stops the boot.
+func mountShares(sys System, root string, c *Cidata) error {
+	for _, share := range c.Mounts {
+		if err := os.MkdirAll(guest(root, share.Point), 0o755); err != nil { //nolint:gosec // a mount point every account reads through
+			return fmt.Errorf("create the mount point %s for %s: %w", share.Point, share.Tag, err)
+		}
+		request, nofail := shareRequest(share)
+		err := sys.Mount(request)
+		if err == nil {
+			continue
+		}
+		if !nofail {
+			return fmt.Errorf("mount %s %s at %s: %w", share.FSType, share.Tag, share.Point, err)
+		}
+		_, _ = os.Stderr.WriteString("ze-docker-host: nofail share " + share.Tag + " at " + share.Point + " not mounted: " + err.Error() + "\n") //nolint:errcheck // console line
+	}
+	return nil
+}
+
+// shareRequest turns one cloud-init mount entry into a mount request, and
+// answers whether the entry carries `nofail`.
+func shareRequest(share Mount) (MountRequest, bool) {
+	request := MountRequest{Source: share.Tag, Target: share.Point, FSType: share.FSType}
+	nofail := false
+	var data []string
+	for option := range strings.SplitSeq(share.Options, ",") {
+		switch {
+		case option == "nofail":
+			nofail = true
+		case option == "ro":
+			request.ReadOnly = true
+		case option == "", option == "defaults", option == "rw", option == "auto", option == "_netdev":
+		case strings.HasPrefix(option, "comment="), strings.HasPrefix(option, "x-"):
+		default:
+			data = append(data, option)
+		}
+	}
+	request.Data = strings.Join(data, ",")
+	return request, nofail
 }
 
 // persistMachineID keeps one machine id per guest disk: generated on the

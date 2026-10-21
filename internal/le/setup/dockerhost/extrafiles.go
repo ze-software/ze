@@ -35,7 +35,7 @@ const (
 // into each.
 var extraFileDirs = []string{
 	"bin", "sbin", "usr", "usr/bin", "usr/sbin", "usr/lib", guestLibDir, guestLibDir + "/docker",
-	"usr/local", "usr/local/bin", "home", "mnt", "mnt/lima-cidata",
+	"usr/local", "usr/local/bin", "home", "mnt", "mnt/lima-cidata", "Users",
 }
 
 // extraFileInputs are the files the tar is assembled from.

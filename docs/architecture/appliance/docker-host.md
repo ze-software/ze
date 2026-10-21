@@ -39,9 +39,12 @@ second into the boot, after the kernel printed its own banner. Then it:
    squashfs root gokrazy's `/etc` is read-only (its tmpfs `/etc` exists only
    for old FAT roots, `mount.go` `mountCompat`), and Lima and Colima write
    accounts, configs and unit files there;
-2. finds the disk whose ISO 9660 volume id is `cidata` (there is no udev, so no
-   `/dev/disk/by-label`) and mounts it read-only at `/mnt/lima-cidata`, the
-   path Lima's scripts read;
+2. covers `/mnt` and `/Users` with an empty tmpfs, because both are read-only
+   squashfs directories and Lima's mount points live under them (`/mnt` holds
+   the cidata and Rosetta mounts, `/Users` a macOS host's home; a Linux host's
+   home lands under `/home`), then finds the disk whose ISO 9660 volume id is
+   `cidata` (there is no udev, so no `/dev/disk/by-label`) and mounts it
+   read-only at `/mnt/lima-cidata`, the path Lima's scripts read;
 3. parses `lima.env`, `meta-data` and `user-data`, refusing a user, host name,
    home, key or mount point that would split a passwd or sudoers line or leave
    its directory;
@@ -62,8 +65,15 @@ second into the boot, after the kernel printed its own banner. Then it:
 6. writes `passwd`, `group` (a `docker` group, gid 1000, holding the Lima
    user), `shadow` (every account locked), `sudoers` and
    `sudoers.d/90-lima-users`, and the user's `authorized_keys`;
-7. sets the host name and creates `/run/user/<uid>/systemd/private`, the file
-   `boot.sh` waits for before it runs user provisioning scripts;
+7. sets the host name, mounts each `mounts` entry of `user-data` at its own
+   path (the host's home over virtiofs, so a bind mount of a host path such
+   as `./le setup docker-kernel check` makes resolves in the guest, and
+   Rosetta's share), and creates `/run/user/<uid>/systemd/private`, the file
+   `boot.sh` waits for before it runs user provisioning scripts. The mount
+   options cloud-init would hand to mount(8) are translated: `defaults`,
+   `rw`, `auto`, `_netdev`, `comment=` and `x-` words are dropped, `ro` makes
+   a read-only mount, and a `nofail` share that fails is reported on the
+   console while the boot goes on; any other share failure stops the boot;
 8. covers `/bin`, `/sbin`, `/usr/bin` and `/usr/sbin` with a tmpfs holding
    links to busybox's applets in those directories (an applet listed
    elsewhere, such as `/linuxrc`, is skipped), sudo, sshd, ssh-keygen and
@@ -79,7 +89,7 @@ sequence is half applied by then, and a restart would fail on an earlier step
 (the cidata volume is already mounted) and bury the first error. A program
 restarted after step 9 completed serves the supervisor only.
 
-<!-- source: internal/appliance/dockerhost/boot.go -- Boot -->
+<!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountShares, shareRequest -->
 <!-- source: internal/appliance/dockerhost/etc.go -- mountWritableEtc -->
 <!-- source: internal/appliance/dockerhost/applets.go -- appletLinks -->
 <!-- source: internal/appliance/dockerhost/cidata.go -- ParseCidata -->
