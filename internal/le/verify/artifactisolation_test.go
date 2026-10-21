@@ -41,7 +41,7 @@ func TestConcurrentRunsDoNotShareArtifactPaths(t *testing.T) {
 					Output: mark + " " + identity.Name + "\n",
 				}
 			}
-			reports[index] = runFast(context.Background(), repo.root, runner)
+			reports[index] = runFast(context.Background(), repo.root, false, runner)
 		})
 	}
 	group.Wait()

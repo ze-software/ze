@@ -1,0 +1,20 @@
+# An operator asks for a cut verification that stops at its first red, and is
+# refused before any work.
+#
+# A piece (`part <i> of <n>`) is dealt so debt clearing proves every stage in
+# it. A piece that stopped early would leave stages of it unproven while
+# reading as the piece that was asked for, so `first-red` with `part` is
+# refused with exit 2, the reason, and the two spellings that work: first-red
+# over the whole population, or every stage of one piece.
+#
+# The fixture runs the real `le verify worktree` action against a throwaway
+# checkout (ZE_REPO_ROOT), so a refusal that broke would start a worktree there
+# and never in the shared tree. Delete the check in Options.part
+# (internal/le/verify/lifecycle.go, firstRedWithPart) and seq=1 fails.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture runner/verify-first-red-refuses-a-cut
+expect=exit:code=0
+expect=stdout:contains=first-red-with-part-refused
+expect=stdout:contains=no-worktree-created

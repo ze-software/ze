@@ -36,6 +36,10 @@ type structuralReds struct {
 	Charged      []string
 	Unattributed []string
 	Foreign      []string
+	// Unreached names the structural stages a first-red run stopped before.
+	// Each is also in Charged: a stage that never ran proved nothing, so the
+	// gate fails closed on it exactly as on a red.
+	Unreached []string
 }
 
 type failureIndex struct {
@@ -43,7 +47,10 @@ type failureIndex struct {
 }
 
 type failureStage struct {
-	Stage    string          `json:"stage"`
+	Stage string `json:"stage"`
+	// Reached is absent from an index written before first-red existed, and
+	// every stage of such an index ran, so absent reads as reached.
+	Reached  *bool           `json:"reached"`
 	ExitCode int             `json:"exit-code"`
 	Groups   json.RawMessage `json:"groups"`
 }
@@ -76,7 +83,15 @@ func structuralGateReds(root string, paths []string) structuralReds {
 		if json.Unmarshal(rawStage, &stage) != nil {
 			continue
 		}
-		if stage.ExitCode == 0 || !structural[stage.Stage] {
+		if !structural[stage.Stage] {
+			continue
+		}
+		if stage.Reached != nil && !*stage.Reached {
+			result.Charged = append(result.Charged, stage.Stage)
+			result.Unreached = append(result.Unreached, stage.Stage)
+			continue
+		}
+		if stage.ExitCode == 0 {
 			continue
 		}
 		var groups []failureGroup

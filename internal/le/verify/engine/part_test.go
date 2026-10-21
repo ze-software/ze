@@ -9,6 +9,7 @@ package verifyengine
 import (
 	"context"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestACutRunStartsOnlyItsOwnPieceOfTheStages(t *testing.T) {
 		started = append(started, identity.Name)
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := RunPart(context.Background(), t.TempDir(), "abc", Mode, Part{Index: 2, Of: 3}, runner, Slot{})
+	report := RunPart(context.Background(), t.TempDir(), "abc", Mode, Part{Index: 2, Of: 3}, Plan{}, runner, Slot{})
 	if report.Code != 0 {
 		t.Fatalf("a green piece exited %d: %#v", report.Code, report.Failure)
 	}
@@ -90,7 +91,7 @@ func TestAPieceThatNamesNothingIsRefused(t *testing.T) {
 			started++
 			return ActionResult{Identity: identity, Registered: true, Completed: true}
 		}
-		report := RunPart(context.Background(), t.TempDir(), "abc", Mode, part, runner, Slot{})
+		report := RunPart(context.Background(), t.TempDir(), "abc", Mode, part, Plan{}, runner, Slot{})
 		if report.Code != 2 || report.Failure == nil || report.Failure.Kind != "unknown-part" {
 			t.Errorf("%s answered code %d failure %#v, want 2 and unknown-part", name, report.Code, report.Failure)
 		}
@@ -126,5 +127,28 @@ func TestACutCertificateIsNeverFresh(t *testing.T) {
 	}
 	if got := CheckCertificate(root, []string{"changed.txt"}); got.Fresh {
 		t.Errorf("a certificate written by part 2 of 6 reads fresh for a scoped path: %#v", got)
+	}
+}
+
+// TestACutRunKeepsTheDealtOrder proves a cut run ignores the history: its
+// piece runs in the dealt declared order even when the history would reverse it.
+func TestACutRunKeepsTheDealtOrder(t *testing.T) {
+	part := Part{Index: 1, Of: 2}
+	dealt, err := part.deal(StagesForMode(Mode))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkout := t.TempDir()
+	lines := make([]string, 0, len(dealt))
+	for position, stage := range dealt {
+		lines = append(lines, historyLine(stage.Identity.Name, strconv.Itoa(len(dealt)-position)))
+	}
+	writeHistory(t, checkout, lines...)
+	started := make([]string, 0, len(dealt))
+	RunPart(context.Background(), t.TempDir(), "abc", Mode, part, Plan{History: checkout}, recordingRunner("", 0, &started), Slot{})
+	for position, stage := range dealt {
+		if position >= len(started) || started[position] != stage.Identity.Name {
+			t.Fatalf("cut run started %q, want the dealt order", started)
+		}
 	}
 }

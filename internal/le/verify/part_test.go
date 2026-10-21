@@ -17,9 +17,9 @@ import (
 // code of piece one.
 func TestTwoPiecesOfOneCommitAreTwoJobs(t *testing.T) {
 	const sha = "0123456789abcdef0123456789abcdef01234567"
-	whole := worktreeArgv(sha, verifyengine.Uncut())
-	first := worktreeArgv(sha, verifyengine.Part{Index: 1, Of: 6})
-	second := worktreeArgv(sha, verifyengine.Part{Index: 2, Of: 6})
+	whole := worktreeArgv(sha, verifyengine.Uncut(), false)
+	first := worktreeArgv(sha, verifyengine.Part{Index: 1, Of: 6}, false)
+	second := worktreeArgv(sha, verifyengine.Part{Index: 2, Of: 6}, false)
 
 	if slices.Equal(first, second) {
 		t.Errorf("part 1 and part 2 of %s share one argv %v", sha[:12], first)

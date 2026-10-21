@@ -61,6 +61,9 @@ type Options struct {
 	// from one. Both zero is the uncut run, which is every stage.
 	Part  int `json:"part,omitempty"`
 	Parts int `json:"parts,omitempty"`
+	// FirstRed stops the run after the first stage that exits non-zero, with
+	// the uncut population in recorded-cost order. It is refused with a cut.
+	FirstRed bool `json:"first-red,omitempty"`
 }
 
 // part answers the piece of the stage population this run judges.
@@ -73,6 +76,9 @@ func (o Options) part() (verifyengine.Part, error) {
 	if o.Part == 0 && o.Parts == 0 {
 		return verifyengine.Uncut(), nil
 	}
+	if o.FirstRed {
+		return verifyengine.Part{}, errors.New(firstRedWithPart)
+	}
 	if o.Part == 0 || o.Parts == 0 {
 		return verifyengine.Part{}, fmt.Errorf(
 			"a cut run needs both numbers, got part %d of %d", o.Part, o.Parts)
@@ -80,6 +86,13 @@ func (o Options) part() (verifyengine.Part, error) {
 	part := verifyengine.Part{Index: o.Part, Of: o.Parts}
 	return part, part.Valid()
 }
+
+// firstRedWithPart is the refusal of first-red on a cut run. A piece is dealt so
+// debt clearing proves every stage in it, and a piece that stopped early would
+// leave stages of it unproven while reading as the piece that was asked for.
+const firstRedWithPart = "first-red cannot be combined with part: a piece is dealt for debt clearing, " +
+	"which needs every stage of the piece to run; use le verify worktree first-red for an early red " +
+	"over the whole population, or le verify worktree part <i> of <n> to run every stage of one piece"
 
 // CleanupFailure is one failed cleanup operation. Cleanup attempts continue so
 // one failure cannot prevent prune or hide another failure.
@@ -202,7 +215,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// three use the whole machine. A second worktree verification of this commit
 	// takes this one's verdict rather than materializing a second checkout of
 	// 22,439 files and judging it again.
-	ticket, err := admitWorktree(root, sha, part)
+	ticket, err := admitWorktree(root, sha, part, options.FirstRed)
 	if err != nil {
 		report.Failure = &verifyengine.Failure{Kind: failureAdmission, Message: err.Error()}
 		report.Diagnostics = append(report.Diagnostics,
@@ -330,7 +343,10 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
 		text.Reset().Str("verify-worktree: native ").Str(population).String(),
 	)
-	verification := verifyengine.RunPart(ctx, path, sha, verifyengine.Mode, part, actions, slot)
+	// The engine runs in the worktree and keeps its stage-time history at the
+	// checkout, which outlives the worktree and orders the next run.
+	verification := verifyengine.RunPart(ctx, path, sha, verifyengine.Mode, part,
+		verifyengine.Plan{History: root, FirstRed: options.FirstRed}, actions, slot)
 	report.Verify = &verification
 	report.Code = verification.Code
 	if verification.Failure != nil {
@@ -358,6 +374,12 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 			Str("verify-worktree: ").Str(population).Str(" red at ").Str(stage.Identity.Name).
 			Str(" exit=").Int(int64(stage.Code)).Str(", log ").
 			Str(filepath.Base(stage.Log)).String())
+	}
+	if verification.StoppedAt != "" {
+		report.Diagnostics = append(report.Diagnostics, text.Reset().
+			Str("verify-worktree: ").Str(population).Str(" stopped at ").Str(verification.StoppedAt).
+			Str(", ").Int(int64(len(verification.Unreached))).
+			Str(" stages not run; le verify worktree commit ").Str(sha).Str(" runs them all").String())
 	}
 	// The verdict is published to the checkout that asked for it. The engine
 	// wrote the certificate under the worktree, which the deferred cleanup
@@ -447,12 +469,12 @@ func relativeLogs(root, logs string) string {
 }
 
 // admitWorktree claims this lifecycle's slot in the shared job registry.
-func admitWorktree(root, sha string, part verifyengine.Part) (*job.Ticket, error) {
+func admitWorktree(root, sha string, part verifyengine.Part, firstRed bool) (*job.Ticket, error) {
 	admission, err := job.NewIn(root)
 	if err != nil {
 		return nil, err
 	}
-	return admission.Admit(jobLabel, worktreeArgv(sha, part))
+	return admission.Admit(jobLabel, worktreeArgv(sha, part, firstRed))
 }
 
 // worktreeArgv is what the registry fingerprints as this run's work. The commit
@@ -460,8 +482,14 @@ func admitWorktree(root, sha string, part verifyengine.Part) (*job.Ticket, error
 // trees, so they MUST NOT share one verdict, and the piece is part of it for
 // the same reason: two pieces of one commit run two stage sets, so a second
 // piece that attached to the first would record its own stages as proven
-// without starting one of them.
-func worktreeArgv(sha string, part verifyengine.Part) []string {
+// without starting one of them. A first-red run is different work again: it
+// stops early, so a whole run that attached to it would take a verdict over
+// stages nobody ran, and a first-red run that attached to a whole run would
+// wait hours for an answer it asked to have early.
+func worktreeArgv(sha string, part verifyengine.Part, firstRed bool) []string {
+	if firstRed {
+		return []string{"le", area, actionName, commitKeyword, sha, keywordFirstRed}
+	}
 	if !part.Cut() {
 		return []string{"le", area, actionName, commitKeyword, sha}
 	}

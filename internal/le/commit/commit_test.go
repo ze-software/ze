@@ -219,6 +219,39 @@ func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) 
 	}
 }
 
+// TestAnUnreachedStructuralStageIsCharged proves AC-11: a structural stage a
+// first-red run never reached proved nothing, so the commit gate charges it as
+// not reached and refuses the commit until structural-red-ok names a reason. A
+// non-structural unreached stage is not charged, and an index written before
+// first-red existed (no reached key) still reads every stage as run.
+func TestAnUnreachedStructuralStageIsCharged(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "unreached-structural-fixture")
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stopped-at":"rfc check","stages":[
+		{"stage":"rfc check","reached":true,"exit-code":1,"groups":[]},
+		{"stage":"doc wiring","reached":false,"exit-code":0},
+		{"stage":"go lint/run","exit-code":0},
+		{"stage":"test unit/cached","reached":false,"exit-code":0}
+	]}`)
+	reds := structuralGateReds(root, []string{"mine.txt"})
+	if !slices.Contains(reds.Charged, "doc wiring") || !slices.Equal(reds.Unreached, []string{"doc wiring"}) {
+		t.Fatalf("structuralGateReds = %#v, want doc wiring charged as not reached", reds)
+	}
+	if slices.Contains(reds.Charged, "go lint/run") || slices.Contains(reds.Charged, "test unit/cached") {
+		t.Fatalf("a stage with no reached key or a non-structural stage was charged: %#v", reds)
+	}
+	options := Options{Subject: "after a stopped run", Files: []string{"mine.txt"}, DryRun: true}
+	_, err := Create(root, &options)
+	if err == nil || !strings.Contains(err.Error(), "not reached, because the run stopped at its first red: doc wiring") {
+		t.Fatalf("Create after a stopped run = %v", err)
+	}
+	options.StructuralRedOK = "the stopped run's remaining stages run in the parent's full gate"
+	if _, err := Create(root, &options); err != nil {
+		t.Fatalf("structural-red-ok did not pass the unreached stage: %v", err)
+	}
+}
+
 func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 	t.Parallel()
 	block := commitBlock{

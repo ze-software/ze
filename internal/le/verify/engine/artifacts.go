@@ -41,22 +41,30 @@ type Group struct {
 	Excerpt   []string `json:"excerpt,omitempty"`
 }
 
+// artifactStage is one stage of the population in the failure index. Reached
+// is false for a stage a first-red run stopped before: it carries no exit, no
+// log and no time, and a reader MUST NOT read its zero exit as a green
+// (structuralGateReds in internal/le/commit charges it instead).
 type artifactStage struct {
 	Stage     string  `json:"stage"`
+	Reached   bool    `json:"reached"`
 	ExitCode  int     `json:"exit-code"`
 	DetailLog string  `json:"detail-log"`
-	Start     string  `json:"start"`
+	Start     string  `json:"start,omitempty"`
 	Seconds   float64 `json:"seconds"`
 	Groups    []Group `json:"groups,omitempty"`
 }
 
 type artifactIndex struct {
-	Mode        string          `json:"mode"`
-	ExitCode    int             `json:"exit-code"`
-	RunDir      string          `json:"run-dir"`
-	CombinedLog string          `json:"combined-log"`
-	GeneratedAt string          `json:"generated-at"`
-	Stages      []artifactStage `json:"stages"`
+	Mode        string `json:"mode"`
+	ExitCode    int    `json:"exit-code"`
+	RunDir      string `json:"run-dir"`
+	CombinedLog string `json:"combined-log"`
+	GeneratedAt string `json:"generated-at"`
+	// StoppedAt names the stage a first-red run stopped after; empty for a
+	// run that went to its end.
+	StoppedAt string          `json:"stopped-at,omitempty"`
+	Stages    []artifactStage `json:"stages"`
 }
 
 func writeRunArtifacts(root string, report Report, at time.Time) error {
@@ -64,11 +72,12 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 	index := artifactIndex{
 		Mode: report.Mode, ExitCode: report.Code, RunDir: report.LogDir,
 		CombinedLog: combinedLog, GeneratedAt: at.UTC().Format(time.RFC3339),
-		Stages: make([]artifactStage, 0, len(report.Stages)),
+		StoppedAt: report.StoppedAt,
+		Stages:    make([]artifactStage, 0, len(report.Stages)+len(report.Unreached)),
 	}
 	for _, stage := range report.Stages {
 		result := artifactStage{
-			Stage: stage.Identity.Name, ExitCode: stage.Code, DetailLog: stage.Log,
+			Stage: stage.Identity.Name, Reached: true, ExitCode: stage.Code, DetailLog: stage.Log,
 			Start: stage.Start.UTC().Format(time.RFC3339), Seconds: stage.Seconds,
 		}
 		if stage.Code != 0 {
@@ -88,6 +97,9 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 			}
 		}
 		index.Stages = append(index.Stages, result)
+	}
+	for _, unreached := range report.Unreached {
+		index.Stages = append(index.Stages, artifactStage{Stage: unreached.Name})
 	}
 	failureText := failureIndexText(index)
 	data, err := json.MarshalIndent(index, "", "  ")
@@ -243,6 +255,15 @@ func failureIndexText(index artifactIndex) string {
 	text.Str("Mode: ").Str(index.Mode).Byte('\n')
 	text.Str("Run directory: ").Str(index.RunDir).Byte('\n')
 	text.Str("Combined log: ").Str(index.CombinedLog).Str("\n\n")
+	if index.StoppedAt != "" {
+		text.Str("Stopped at first red: ").Str(index.StoppedAt).Str("; not reached:")
+		for _, stage := range index.Stages {
+			if !stage.Reached {
+				text.Byte(' ').Str(stage.Stage)
+			}
+		}
+		text.Str("\n\n")
+	}
 	failed := 0
 	for _, stage := range index.Stages {
 		if stage.ExitCode == 0 {

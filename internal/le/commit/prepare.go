@@ -329,6 +329,11 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 				detail = "\n  charged for want of path attribution: " +
 					strings.Join(reds.Unattributed, ", ")
 			}
+			if len(reds.Unreached) != 0 {
+				detail += "\n  not reached, because the run stopped at its first red: " +
+					strings.Join(reds.Unreached, ", ") +
+					"\n  run every stage with: le verify worktree"
+			}
 			return nil, "", fmt.Errorf(
 				"deterministic structural gate(s) are red for this commit: %s%s\n"+
 					"  fix the producer, use broken-head-fix for the sole compiles red, "+

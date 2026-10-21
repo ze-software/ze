@@ -374,7 +374,10 @@ func TestActionsDeclareWorktreeCurrentRedsAndList(t *testing.T) {
 	}
 	environment := map[string]string{"COMMIT": "abc123", "KEEP": "1"}
 	getenv := func(key string) string { return environment[key] }
-	options := optionsFrom(leactionArguments("commit", "override"), getenv)
+	options, err := optionsFrom(leactionArguments("commit", "override"), getenv)
+	if err != nil {
+		t.Fatalf("optionsFrom: %v", err)
+	}
 	if options.Commit != "override" || !options.Keep {
 		t.Fatalf("options = %#v", options)
 	}

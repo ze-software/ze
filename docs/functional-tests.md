@@ -37,27 +37,33 @@ the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
 Both modes use the shared admission code in `internal/le/job`. A verify run continues across top-level stage
 failures and writes:
 
-Each run writes its artifacts into its OWN directory, `tmp/verify/run-<start>-<mode>-<id>/`,
-so two sessions that verify at the same time never overwrite each other's log or
-failure index. The `run-dir` key in the failure index names the directory. At
-most ten run directories are kept: the newest ones, plus every directory a
-documented path below still points into. A run a published path points into is
-never removed for age, because only a full run writes `tmp/ze-verify-full.json`
-and ten cheaper `./le verify current fast` runs can follow it in one day.
-The documented paths below stay
-where they are: each is a symlink into the directory of the run that owns it.
-The combined log is published when the run starts, so a waiting session can
-follow it; the failure artifacts are published when the run ends.
+Each run writes its artifacts into its OWN directory, `tmp/verify/<mode>-<random>/`
+(`os.MkdirTemp` in `runMode`), so two sessions that verify at the same time never
+overwrite each other's stage logs. The `run-dir` key in the failure index names
+the directory. Nothing removes old run directories. Each stage log is written the
+moment its stage ends, which is what `./le verify reds` reads while a run is in
+flight, and a run holding a job slot copies each finished stage to the slot's
+progress log, which a waiting session follows. The documented paths below are
+COPIES, written whole to a temporary file and renamed into place when the run
+ends (`atomicWrite`), so a reader never meets a half-written one and the newest
+run to end owns each path. A worktree run copies its certificate, manifest and
+failure index to the checkout before the worktree is removed, and on a red run
+rewrites the index's log paths to the saved copy under
+`tmp/verify-worktree-logs/<name>/`.
+<!-- source: internal/le/verify/engine/run.go -- runMode -->
+<!-- source: internal/le/verify/engine/artifacts.go -- writeRunArtifacts, PublishFailureIndex -->
+<!-- source: internal/le/verify/engine/status.go -- atomicWrite, CopyCertificate -->
 
 | Artifact | Purpose |
 |----------|---------|
-| `tmp/verify/run-<start>-<mode>-<id>/` | One run's own artifacts: the combined log, the stage logs, and the failure index |
+| `tmp/verify/<mode>-<random>/` | One run's own artifacts: the combined log, the stage logs, and the failure index |
 | `tmp/ze-verify.log` | Combined log of the newest run |
-| `tmp/verify/run-<start>-<mode>-<id>/<nn>-<stage>.log` | Full log for one stage of that run. The failure index names it in `detail-log` |
+| `tmp/verify/<mode>-<random>/<nn>-<stage>.log` | Full log for one stage of that run. The failure index names it in `detail-log` |
 | `tmp/ze-verify-failures.log` | Compact failure index to read first |
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
 | `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current fast` run in another session republishes the shared path |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
+| `tmp/ze-verify-stage-times.tsv` | One line per reached stage of every run, appended at the checkout; the next uncut run orders its stages from it (`docs/contributing/running-commands.md`, "Stage times, and stopping at the first red") |
 | `tmp/ze-verify-manifest.txt` | One fingerprint per path that differs from `HEAD`, so a session can ask about its own file list rather than the whole tree |
 
 Several sessions share this checkout, so a whole-tree answer is STALE almost

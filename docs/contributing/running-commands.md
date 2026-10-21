@@ -875,6 +875,57 @@ the mtime of the job's log, never by elapsed time. `ZE_JOB_STALL_SECONDS`
 (`StallMin`, `StallMax`, `internal/le/job/job.go`). A value outside the range is
 refused before the job starts.
 
+## Stage times, and stopping at the first red
+
+Every verification run appends one line per stage it reached to
+`tmp/ze-verify-stage-times.tsv` at the checkout, green run or red, worktree or
+in place: the stage, its seconds, its exit, the mode, the commit and its start,
+tab-separated. A worktree run writes to the checkout's file, not the
+worktree's, because the worktree is removed when the run ends. Each run's lines
+go out in one write on a file opened for append, so two sessions appending at
+once never interleave inside a line. The reader keeps the latest line for each
+stage, skips any line that is not six columns with finite, non-negative
+seconds, an integer exit and an RFC 3339 start, and the run's combined log says
+how many it skipped. Nothing trims the file.
+<!-- source: internal/le/verify/engine/stagetimes.go -- StageTimesPath, ReadStageCosts, AppendStageTimes -->
+
+An uncut run reads that history before its first stage and runs the stages it
+has no time for first, in declared order, so a new stage is measured the first
+time it exists, then the rest from cheapest to dearest, a tie keeping declared
+order. The combined log's `Order:` line says which order the run used. A cut
+run (`part <i> of <n>`) keeps the dealt declared order, and `./le verify list`
+always prints the declared order, because CI deals its six shards from that
+list.
+<!-- source: internal/le/verify/engine/run.go -- planOrder -->
+<!-- source: internal/le/verify/engine/stagetimes.go -- costOrder -->
+
+`first-red` stops the run after the first stage that exits non-zero. It is an
+opt-in: without it a red stage never hides a later red.
+
+```
+./le verify current fast first-red      # in place, the changed-files stages
+./le verify current first-red           # the full population in a fresh worktree at HEAD
+./le verify worktree first-red          # the same, naming a commit with commit <rev>
+```
+
+A stopped run is never a pass. Its exit is the stopping stage's (1, or 3 when
+that stage could not judge), its certificate is STALE for every path list, the
+failure index names the stage under `stopped-at` and lists every stage it did
+not start with `reached: false`, and the commit gate charges each unreached
+structural stage as not reached until every stage has run. The run prints
+`stopped at <stage>, <n> stages not run` and the command that runs them all.
+`./le verify reds` over a stopped run answers `undetermined` and says the
+pending stages will never report. A first-red run is separate work in the job
+registry, so it never attaches to a whole run of the same commit, nor a whole
+run to it.
+<!-- source: internal/le/verify/lifecycle.go -- worktreeArgv, firstRedWithPart -->
+<!-- source: internal/le/commit/verification.go -- structuralGateReds -->
+
+`./le verify worktree part <i> of <n>` runs one dealt piece, every stage of it,
+as `./le commit debt-clear` does. `first-red` with `part` is refused with exit
+2, because a piece is dealt for debt clearing, which needs every stage of the
+piece.
+
 ## One verify at a time
 
 Parallel verify runs share the build cache, the ports, and the test binaries. An

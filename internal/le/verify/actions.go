@@ -3,8 +3,10 @@ package verify
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -35,6 +37,9 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			{Keyword: commitKeyword, Value: "revision", Requirement: leaction.Optional},
 			{Keyword: "keep"},
+			{Keyword: keywordFirstRed},
+			{Keyword: keywordPart, Value: "index", Requirement: leaction.Optional},
+			{Keyword: keywordOf, Value: "pieces", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runHere,
 	},
@@ -42,7 +47,7 @@ var actions = leaction.New(area,
 		Verb:       "current",
 		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: keywordFull}, {Keyword: keywordFast}},
+		Parameters: []leaction.Parameter{{Keyword: keywordFull}, {Keyword: keywordFast}, {Keyword: keywordFirstRed}},
 		AnswerArgs: currentHere,
 	},
 	leaction.Action{
@@ -85,7 +90,12 @@ func Subs() string { return actions.Subs() }
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func runHere(args leaction.Arguments) (any, int) {
-	return runWorktree(optionsFrom(args, os.Getenv))
+	options, err := optionsFrom(args, os.Getenv)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return runWorktree(options)
 }
 
 // runWorktree runs the full population in a fresh detached worktree. Both
@@ -107,7 +117,10 @@ func runWorktree(options Options) (any, int) {
 	return report, report.Code
 }
 
-func optionsFrom(args leaction.Arguments, getenv func(string) string) Options {
+// optionsFrom reads a `le verify worktree` line. A piece number that is not a
+// positive integer, a piece without its count, and first-red with a piece are
+// refused here, before any work, with the reason and the spellings that work.
+func optionsFrom(args leaction.Arguments, getenv func(string) string) (Options, error) {
 	commit := strings.TrimSpace(getenv("COMMIT"))
 	if args.Has(commitKeyword) {
 		commit = strings.TrimSpace(args.One(commitKeyword))
@@ -116,7 +129,40 @@ func optionsFrom(args leaction.Arguments, getenv func(string) string) Options {
 	if args.Has("keep") {
 		keep = true
 	}
-	return Options{Commit: commit, Keep: keep}
+	options := Options{Commit: commit, Keep: keep, FirstRed: args.Has(keywordFirstRed)}
+	var err error
+	if options.Part, err = pieceNumber(args, keywordPart); err != nil {
+		return Options{}, err
+	}
+	if options.Parts, err = pieceNumber(args, keywordOf); err != nil {
+		return Options{}, err
+	}
+	if _, err := options.part(); err != nil {
+		return Options{}, err
+	}
+	return options, nil
+}
+
+// pieceNumber reads the value of a part or of keyword, zero when it is absent.
+func pieceNumber(args leaction.Arguments, keyword string) (int, error) {
+	if !args.Has(keyword) {
+		return 0, nil
+	}
+	value := strings.TrimSpace(args.One(keyword))
+	number, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, notAPieceNumber(keyword, value)
+	}
+	if number < 1 {
+		return 0, notAPieceNumber(keyword, value)
+	}
+	return number, nil
+}
+
+func notAPieceNumber(keyword, value string) error {
+	var text textbuf.Buffer
+	return errors.New(text.Str("le verify worktree: ").Str(keyword).Str(" takes a positive number, got ").
+		Quoted(value).Str("; as in: le verify worktree part 1 of 6").String())
 }
 
 func signalContext() (context.Context, context.CancelFunc) {

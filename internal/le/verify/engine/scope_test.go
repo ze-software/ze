@@ -106,7 +106,7 @@ func runWatchingScope(t *testing.T, root string) (Report, []scopeSeenByStage) {
 		})
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := RunMode(context.Background(), root, "abc", Mode, runner, Slot{})
+	report := RunMode(context.Background(), root, "abc", Mode, Plan{}, runner, Slot{})
 	if len(seen) == 0 {
 		t.Fatal("the run started no stage")
 	}

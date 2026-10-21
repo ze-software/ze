@@ -21,6 +21,12 @@ import (
 const (
 	keywordFull = "full"
 	keywordFast = "fast"
+	// keywordFirstRed stops a run at its first red stage, cheapest stages
+	// first. Both entry points take it; a cut run refuses it.
+	keywordFirstRed = "first-red"
+	// keywordPart and keywordOf cut the worktree population into pieces.
+	keywordPart = "part"
+	keywordOf   = "of"
 )
 
 // jobLabel is the name a verification claims in the shared job registry.
@@ -74,7 +80,7 @@ func listCurrent(certificateMode string) stageList {
 // start a duplicate. A run that shares one returns the holder's verdict: the
 // holder judged this label's work over this tree, and the certificate on disk is
 // the one it wrote.
-func runFast(ctx context.Context, root string, runner verifyengine.ActionRunner) verifyengine.Report {
+func runFast(ctx context.Context, root string, firstRed bool, runner verifyengine.ActionRunner) verifyengine.Report {
 	certificateMode := verifyengine.FastMode
 	commit := job.Head(root)
 	if commit == job.Unknown {
@@ -87,7 +93,7 @@ func runFast(ctx context.Context, root string, runner verifyengine.ActionRunner)
 	if err != nil {
 		return admissionFailure(certificateMode, commit, err)
 	}
-	ticket, err := admission.Admit(jobLabel, fastArgv())
+	ticket, err := admission.Admit(jobLabel, fastArgv(firstRed))
 	if err != nil {
 		return admissionFailure(certificateMode, commit, err)
 	}
@@ -98,7 +104,8 @@ func runFast(ctx context.Context, root string, runner verifyengine.ActionRunner)
 	slot, closeSlot := slotFor(root, ticket)
 	defer closeSlot()
 
-	report := verifyengine.RunMode(ctx, root, commit, certificateMode, runner, slot)
+	report := verifyengine.RunMode(ctx, root, commit, certificateMode,
+		verifyengine.Plan{History: root, FirstRed: firstRed}, runner, slot)
 	ticket.Release(report.Code)
 	return report
 }
@@ -130,9 +137,14 @@ func attachedReport(mode, commit string, ticket *job.Ticket) verifyengine.Report
 
 // fastArgv is what the registry fingerprints as this run's work. A worktree run
 // judges a different stage population over a different tree, and its argv
-// names `worktree`, so the two MUST NOT and cannot share one verdict.
-func fastArgv() []string {
-	return []string{"le", area, "current", keywordFast}
+// names `worktree`, so the two MUST NOT and cannot share one verdict. A
+// first-red run stops early, so it is separate work from a run to the end.
+func fastArgv(firstRed bool) []string {
+	argv := []string{"le", area, "current", keywordFast}
+	if firstRed {
+		argv = append(argv, keywordFirstRed)
+	}
+	return argv
 }
 
 // admissionFailure answers the report for a run the registry could not admit.
@@ -193,7 +205,7 @@ type currentRuns struct {
 	// worktree runs the full population in a fresh detached worktree.
 	worktree func(Options) (any, int)
 	// inPlace runs the named population over the shared checkout.
-	inPlace func(certificateMode string) (any, int)
+	inPlace func(certificateMode string, firstRed bool) (any, int)
 }
 
 // routeCurrent decides where a `le verify current` line runs. Only the fast
@@ -205,18 +217,19 @@ func routeCurrent(args leaction.Arguments, runs currentRuns) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
+	firstRed := args.Has(keywordFirstRed)
 	if certificateMode == verifyengine.Mode {
 		var text textbuf.Buffer
 		text.Str("verify: le verify current runs the full population in a fresh detached worktree at HEAD, ").
 			Str("as le verify worktree does; le verify current fast runs the changed-files stages in place\n").
 			StdErr() //nolint:errcheck // CLI progress line
-		return runs.worktree(Options{})
+		return runs.worktree(Options{FirstRed: firstRed})
 	}
-	return runs.inPlace(certificateMode)
+	return runs.inPlace(certificateMode, firstRed)
 }
 
 // runInPlace runs the fast population over the shared checkout.
-func runInPlace(certificateMode string) (any, int) {
+func runInPlace(certificateMode string, firstRed bool) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
@@ -228,7 +241,13 @@ func runInPlace(certificateMode string) (any, int) {
 	}
 	ctx, stop := signalContext()
 	defer stop()
-	report := runFast(ctx, root, actionRunner())
+	report := runFast(ctx, root, firstRed, actionRunner())
+	if report.StoppedAt != "" {
+		var text textbuf.Buffer
+		text.Str("verify: ").Str(certificateMode).Str(" stopped at ").Str(report.StoppedAt).Str(", ").
+			Int(int64(len(report.Unreached))).Str(" stages not run; le verify current fast runs them all\n").
+			StdErr() //nolint:errcheck // CLI progress line
+	}
 	if report.Failure != nil && withoutStageLog(report.Code) {
 		leaction.ReportError(errors.New(report.Failure.Message))
 	}

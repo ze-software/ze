@@ -45,9 +45,9 @@ func TestFastAndFullPopulationsKeepTheirCertificates(t *testing.T) {
 			}
 			var report verifyengine.Report
 			if test.wantMode == verifyengine.FastMode {
-				report = runFast(context.Background(), repo.root, runner)
+				report = runFast(context.Background(), repo.root, false, runner)
 			} else {
-				report = verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), verifyengine.Mode, runner, verifyengine.Slot{})
+				report = verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), verifyengine.Mode, verifyengine.Plan{}, runner, verifyengine.Slot{})
 			}
 			if report.Code != 0 || !report.Completed || report.Mode != test.wantMode {
 				t.Fatalf("report = %#v", report)
@@ -158,7 +158,7 @@ func TestCurrentRoutesTheFullPopulationToAWorktree(t *testing.T) {
 					options = given
 					return nil, 0
 				},
-				inPlace: func(certificateMode string) (any, int) {
+				inPlace: func(certificateMode string, _ bool) (any, int) {
 					inPlaceCalls++
 					inPlaceMode = certificateMode
 					return nil, 0
@@ -208,7 +208,7 @@ func TestVerifyCurrentEntersAdmission(t *testing.T) {
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
-	report := runFast(context.Background(), repo.root, runner)
+	report := runFast(context.Background(), repo.root, false, runner)
 	if report.Code != 0 || !report.Completed {
 		t.Fatalf("report = %#v", report)
 	}
@@ -258,7 +258,7 @@ func TestNestedLintStageDoesNotQueueBehindItsParent(t *testing.T) {
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
-	report := runFast(context.Background(), repo.root, runner)
+	report := runFast(context.Background(), repo.root, false, runner)
 	if report.Code != 0 {
 		t.Fatalf("report = %#v", report)
 	}
@@ -311,7 +311,7 @@ func TestTwoVerifiesShareOneRun(t *testing.T) {
 	}
 
 	holder := make(chan verifyengine.Report, 1)
-	go func() { holder <- runFast(context.Background(), repo.root, holderRunner) }()
+	go func() { holder <- runFast(context.Background(), repo.root, false, holderRunner) }()
 	<-inStage
 
 	marker := filepath.Join(t.TempDir(), "follower-ran-a-stage")
@@ -366,7 +366,7 @@ func followerVerify(root, marker string) int {
 		}
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := runFast(context.Background(), root, runner)
+	report := runFast(context.Background(), root, false, runner)
 	if unwritable {
 		return markerUnwritable
 	}

@@ -127,7 +127,7 @@ func TestEveryStageLogCarriesItsTimingBeforeItsResult(t *testing.T) {
 		reads++
 		return at
 	}
-	report := runMode(context.Background(), root, "abc", Mode, Part{Index: 1, Of: 1}, twoStageRunner(0, 0), Slot{}, clock)
+	report := runMode(context.Background(), root, "abc", Mode, Part{Index: 1, Of: 1}, Plan{}, twoStageRunner(0, 0), Slot{}, clock)
 	if len(report.Stages) != len(StagesForMode(Mode)) {
 		t.Fatalf("ran %d stages, want the whole population %d", len(report.Stages), len(StagesForMode(Mode)))
 	}
@@ -159,5 +159,140 @@ func TestEveryStageLogCarriesItsTimingBeforeItsResult(t *testing.T) {
 		if stage.Seconds != 1.5 || stage.Start == "" {
 			t.Fatalf("index stage %s start=%q seconds=%v", stage.Stage, stage.Start, stage.Seconds)
 		}
+	}
+}
+
+// recordingRunner answers code for the stage named red and zero for every other
+// stage, and records the order the engine started them in.
+func recordingRunner(red string, code int, started *[]string) ActionRunner {
+	return func(_ context.Context, _ string, identity Identity) ActionResult {
+		*started = append(*started, identity.Name)
+		result := ActionResult{Identity: identity, Registered: true, Completed: true}
+		if identity.Name == red {
+			result.Code = code
+		}
+		return result
+	}
+}
+
+// writeHistory writes lines as the checkout's stage-time history.
+func writeHistory(t *testing.T, checkout string, lines ...string) {
+	t.Helper()
+	path := filepath.Join(checkout, filepath.FromSlash(StageTimesPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func historyLine(stage string, seconds string) string {
+	return stage + "\t" + seconds + "\t0\tfull\tabc\t2026-10-21T03:00:00Z"
+}
+
+// TestAnUncutRunRunsCheapestRecordedStageFirst proves the cost order of AC-9:
+// every stage with no recorded time runs first in declared order, then the
+// recorded stages by ascending latest seconds, a tie keeping declared order.
+//
+// Method: a history records the last three declared stages (the slowest, then
+// two tied, one of them recorded twice so only its latest line counts) and a
+// name the population does not hold. The run must start the unrecorded stages
+// in declared order and then the three in cost order, and must not start the
+// stranger.
+func TestAnUncutRunRunsCheapestRecordedStageFirst(t *testing.T) {
+	population := StagesForMode(Mode)
+	count := len(population)
+	last, beforeLast, third := population[count-1].Identity.Name,
+		population[count-2].Identity.Name, population[count-3].Identity.Name
+	checkout := t.TempDir()
+	writeHistory(t, checkout,
+		historyLine(third, "1.000"),
+		historyLine(last, "900.000"),
+		historyLine(third, "5.000"),
+		historyLine(beforeLast, "5.000"),
+		historyLine("no such stage", "0.001"),
+	)
+	started := make([]string, 0, count)
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode,
+		Plan{History: checkout}, recordingRunner("", 0, &started), Slot{})
+	if report.Code != 0 {
+		t.Fatalf("a green run exited %d: %#v", report.Code, report.Failure)
+	}
+	want := make([]string, 0, count)
+	for _, stage := range population[:count-3] {
+		want = append(want, stage.Identity.Name)
+	}
+	want = append(want, third, beforeLast, last)
+	if strings.Join(started, "|") != strings.Join(want, "|") {
+		t.Fatalf("started %q\nwant    %q", started, want)
+	}
+}
+
+// TestFirstRedStopsAndRecordsEveryUnreachedStage proves AC-10: with first-red
+// no stage starts after the first red, the run answers that stage's code, is
+// not complete, and the report and the failure index name the stop and every
+// stage the run never reached.
+//
+// Method: the third declared stage answers Unjudged-earning code 3 in a run
+// with no history (declared order), so exactly three stages start and the rest
+// of the population is unreached.
+func TestFirstRedStopsAndRecordsEveryUnreachedStage(t *testing.T) {
+	population := StagesForMode(Mode)
+	red := population[2].Identity.Name
+	root := t.TempDir()
+	started := make([]string, 0)
+	report := RunMode(context.Background(), root, "abc", Mode,
+		Plan{FirstRed: true}, recordingRunner(red, stageUnjudged, &started), Slot{})
+	if len(started) != 3 {
+		t.Fatalf("started %d stages %q, want 3: no stage after the red may start", len(started), started)
+	}
+	if report.Code != Unjudged {
+		t.Fatalf("a stop at an unjudged stage exited %d, want %d", report.Code, Unjudged)
+	}
+	if report.Completed {
+		t.Fatal("a stopped run reads as completed")
+	}
+	if report.StoppedAt != red {
+		t.Fatalf("stopped-at %q, want %q", report.StoppedAt, red)
+	}
+	if len(report.Unreached) != len(population)-3 || report.Unreached[0].Name != population[3].Identity.Name {
+		t.Fatalf("unreached %d stages starting %v, want %d starting %s",
+			len(report.Unreached), report.Unreached[:min(1, len(report.Unreached))], len(population)-3, population[3].Identity.Name)
+	}
+	if !strings.Contains(report.Console, StoppedMarker+red+", "+fmt.Sprint(len(population)-3)+" stages not run") {
+		t.Fatalf("combined log carries no stop line:\n%s", report.Console)
+	}
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(FailuresJSONPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var index artifactIndex
+	if err := json.Unmarshal(data, &index); err != nil {
+		t.Fatal(err)
+	}
+	if index.StoppedAt != red || len(index.Stages) != len(population) {
+		t.Fatalf("index stopped-at %q with %d stages, want %q with the whole population %d",
+			index.StoppedAt, len(index.Stages), red, len(population))
+	}
+	for position, stage := range index.Stages {
+		if stage.Reached != (position < 3) {
+			t.Fatalf("index stage %d %s reached=%v", position, stage.Stage, stage.Reached)
+		}
+	}
+	if !strings.Contains(string(data), `"reached": false`) {
+		t.Fatal("the index spells no unreached stage as reached: false")
+	}
+}
+
+// TestARunWithoutFirstRedStillRunsPastARed keeps the documented contract for
+// a run that did not opt in: a red stage does not hide later reds.
+func TestARunWithoutFirstRedStillRunsPastARed(t *testing.T) {
+	population := StagesForMode(Mode)
+	started := make([]string, 0)
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode,
+		Plan{}, recordingRunner(population[0].Identity.Name, 1, &started), Slot{})
+	if len(started) != len(population) || report.StoppedAt != "" || len(report.Unreached) != 0 {
+		t.Fatalf("a plain run started %d of %d stages, stopped-at %q", len(started), len(population), report.StoppedAt)
 	}
 }

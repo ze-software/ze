@@ -74,6 +74,9 @@ type Reds struct {
 	// Finished says the run's stage loop is over, so Pending will not shrink
 	// and waiting for the rest of this run will not answer anything more.
 	Finished bool `json:"finished"`
+	// StoppedAt names the stage a first-red run stopped after. Such a run
+	// is finished with stages pending, and those stages will never report.
+	StoppedAt string `json:"stopped-at,omitempty"`
 	// Verdict is one of the four constants above.
 	Verdict string `json:"verdict"`
 	// Naming holds the reds whose declared files cover Path.
@@ -134,6 +137,9 @@ func readReds(root, path string) Reds {
 	answer.Mode = runMode(run)
 	answer.Stages = len(verifyengine.StagesForMode(answer.Mode))
 	answer.Finished = fileExists(filepath.Join(root, filepath.FromSlash(run), "ze-verify.log"))
+	if answer.Finished {
+		answer.StoppedAt = stoppedAt(filepath.Join(root, filepath.FromSlash(run), "ze-verify.log"))
+	}
 	scanStages(root, run, path, &answer)
 	// A run directory can hold more whole logs than the mode's population when
 	// the population changed under a run in flight. Pending is a count of work
@@ -325,6 +331,26 @@ func runMode(run string) string {
 	return mode
 }
 
+// stoppedAt answers the stage a first-red run's combined log says it stopped
+// after, or empty when the log carries no stop line or cannot be read. The
+// engine writes the line once, after the last stage it ran
+// (verifyengine.StoppedMarker).
+func stoppedAt(combinedLog string) string {
+	content, err := os.ReadFile(combinedLog) //nolint:gosec // the path is a verification artifact under the checkout root
+	if err != nil {
+		return ""
+	}
+	for line := range strings.Lines(string(content)) {
+		rest, found := strings.CutPrefix(line, verifyengine.StoppedMarker)
+		if !found {
+			continue
+		}
+		stage, _, _ := strings.Cut(rest, ", ")
+		return strings.TrimSpace(stage)
+	}
+	return ""
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 
@@ -356,6 +382,10 @@ func (r Reds) Text() string {
 		text.Str(" (the run has ended, so the rest never reported)")
 	}
 	text.Byte('\n')
+	if r.StoppedAt != "" {
+		text.Str("the run stopped at its first red, ").Str(r.StoppedAt).
+			Str(", so its pending stages will never report; le verify worktree runs every stage\n")
+	}
 	appendReds(&text, "reds naming this path:", r.Naming)
 	appendReds(&text, "reds naming no file, so any of them can be about this path:", r.Unattributed)
 

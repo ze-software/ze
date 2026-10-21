@@ -120,7 +120,7 @@ func TestRunCertificateRecordsSkippedSuitesAsPartialEvidence(t *testing.T) {
 	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := RunMode(context.Background(), root, "abc", Mode, runner, Slot{})
+	report := RunMode(context.Background(), root, "abc", Mode, Plan{}, runner, Slot{})
 	if report.Code != 0 || !report.Completed {
 		t.Fatalf("run report = %#v", report)
 	}
@@ -149,7 +149,7 @@ func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) 
 		return result
 	}
 
-	report := RunMode(context.Background(), root, "abc", Mode, runner, Slot{})
+	report := RunMode(context.Background(), root, "abc", Mode, Plan{}, runner, Slot{})
 	if report.Code != 1 || calls != len(fullStages()) {
 		t.Fatalf("code=%d calls=%d, want code 1 and %d calls", report.Code, calls, len(fullStages()))
 	}
@@ -191,7 +191,7 @@ func TestEmptyAndUnregisteredAnswersFailClosed(t *testing.T) {
 		}, kind: "identity-mismatch"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			report := RunMode(context.Background(), t.TempDir(), "abc", Mode, test.run, Slot{})
+			report := RunMode(context.Background(), t.TempDir(), "abc", Mode, Plan{}, test.run, Slot{})
 			if report.Code != 2 || report.Completed || len(report.Stages) != 1 {
 				t.Fatalf("report = %#v", report)
 			}
@@ -212,7 +212,7 @@ func TestInterruptionStopsBeforeTheNextStageAndRecordsStatus(t *testing.T) {
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
-	report := RunMode(ctx, root, "abc", Mode, runner, Slot{})
+	report := RunMode(ctx, root, "abc", Mode, Plan{}, runner, Slot{})
 	if report.Code != Interrupted || report.Completed || calls != 1 {
 		t.Fatalf("report=%#v calls=%d", report, calls)
 	}
@@ -236,7 +236,7 @@ func TestRunnerRefusalReachesTheReport(t *testing.T) {
 		return ActionResult{Identity: identity, Registered: true, Code: 2,
 			Failure: &Failure{Kind: "killed", Stage: identity.Name, Message: "signal: killed"}}
 	}
-	report := RunMode(context.Background(), t.TempDir(), "abc", Mode, runner, Slot{})
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode, Plan{}, runner, Slot{})
 	if report.Code != 2 || report.Completed || len(report.Stages) != 1 {
 		t.Fatalf("report = %#v", report)
 	}
@@ -261,7 +261,7 @@ func TestInterruptionDuringAStageAnswersInterrupted(t *testing.T) {
 			return ActionResult{Identity: identity, Registered: true, Code: Interrupted,
 				Failure: &Failure{Kind: "interrupted", Stage: identity.Name, Message: "interrupted"}}
 		}
-		report := RunMode(ctx, t.TempDir(), "abc", Mode, runner, Slot{})
+		report := RunMode(ctx, t.TempDir(), "abc", Mode, Plan{}, runner, Slot{})
 		cancel()
 		if report.Code != Interrupted || report.Completed || calls != 1 {
 			t.Fatalf("cancelRun=%v report=%#v calls=%d", cancelRun, report, calls)
@@ -285,7 +285,7 @@ func TestCrashedStageIsARedStageAndTheRunContinues(t *testing.T) {
 		}
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := RunMode(context.Background(), t.TempDir(), "abc", Mode, runner, Slot{})
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode, Plan{}, runner, Slot{})
 	if report.Code != 1 || calls != len(fullStages()) {
 		t.Fatalf("code=%d calls=%d, want code 1 and %d calls", report.Code, calls, len(fullStages()))
 	}

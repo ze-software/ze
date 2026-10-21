@@ -5,6 +5,7 @@
 package verifyengine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -263,5 +264,33 @@ func TestScopedFreshnessRefusesAnUnjudgedDirtyPath(t *testing.T) {
 	got := CheckCertificate(root, []string{"other.txt"})
 	if got.Fresh || !strings.Contains(got.Reason, "no stage judged it") {
 		t.Fatalf("scoped check over a newly dirty path = %#v", got)
+	}
+}
+
+// TestAStoppedRunIsStaleForEveryPathList proves AC-12: a first-red run that
+// stopped can never certify, with no path list and with any path list.
+//
+// Method: the same fixture is first verified to the end and reads FRESH, so a
+// STALE afterwards is the stop and not the fixture; then a first-red run
+// stops at its first stage and the certificate it wrote is checked.
+func TestAStoppedRunIsStaleForEveryPathList(t *testing.T) {
+	root := statusFixture(t)
+	green := RunMode(context.Background(), root, job.Head(root), Mode, Plan{}, recordingRunner("", 0, new([]string)), Slot{})
+	if green.Code != 0 {
+		t.Fatalf("control run exited %d", green.Code)
+	}
+	if got := CheckCertificate(root, nil); !got.Fresh {
+		t.Fatalf("the green control reads %#v, so this test would pass for the wrong reason", got)
+	}
+	first := StagesForMode(Mode)[0].Identity.Name
+	stopped := RunMode(context.Background(), root, job.Head(root), Mode, Plan{FirstRed: true},
+		recordingRunner(first, 1, new([]string)), Slot{})
+	if stopped.StoppedAt != first {
+		t.Fatalf("the run did not stop at %s: %#v", first, stopped.StoppedAt)
+	}
+	for _, paths := range [][]string{nil, {"changed.txt"}, {"tracked.txt", "other.go"}} {
+		if got := CheckCertificate(root, paths); got.Fresh {
+			t.Errorf("a stopped run reads fresh for %q: %#v", paths, got)
+		}
 	}
 }

@@ -132,6 +132,11 @@ type Report struct {
 	StatusPath string        `json:"status-path"`
 	Stages     []StageReport `json:"stages"`
 	Failure    *Failure      `json:"failure,omitempty"`
+	// StoppedAt names the stage a first-red run stopped after, and Unreached
+	// every stage of the population it therefore never started, in run order.
+	// Both are empty for a run that went to its end.
+	StoppedAt string     `json:"stopped-at,omitempty"`
+	Unreached []Identity `json:"unreached,omitempty"`
 	// Attached is set when this run took another run's verdict instead of
 	// judging the tree, and is nil for a run that judged it.
 	Attached *Attached `json:"attached,omitempty"`
@@ -260,29 +265,33 @@ func beat(progress io.Writer, stage string, interval time.Duration) func() {
 	}
 }
 
-// RunMode executes the native stage population selected by mode, in order, at
-// root, and writes its logs and status there. A red stage does not hide later
-// reds; an interruption stops before another stage starts.
-func RunMode(ctx context.Context, root, commit, mode string, runner ActionRunner, slot Slot) Report {
-	return RunPart(ctx, root, commit, mode, Uncut(), runner, slot)
+// RunMode executes the native stage population selected by mode at root, and
+// writes its logs and status there. A red stage does not hide later reds unless
+// plan asks for the first red only; an interruption stops before another stage
+// starts. plan.History orders an uncut run by recorded cost and receives the
+// run's stage times (stagetimes.go).
+func RunMode(ctx context.Context, root, commit, mode string, plan Plan, runner ActionRunner, slot Slot) Report {
+	return RunPart(ctx, root, commit, mode, Uncut(), plan, runner, slot)
 }
 
 // RunPart executes one piece of the mode's stage population (part.go). The
-// uncut part is every stage, so RunPart with Uncut is RunMode.
-func RunPart(ctx context.Context, root, commit, mode string, part Part, runner ActionRunner, slot Slot) Report {
+// uncut part is every stage, so RunPart with Uncut is RunMode. A cut run keeps
+// the dealt declared order whatever the history says, because the piece is
+// dealt for debt clearing and CI balance, not for an early answer.
+func RunPart(ctx context.Context, root, commit, mode string, part Part, plan Plan, runner ActionRunner, slot Slot) Report {
 	leave, err := enterVerifyEnvironment()
 	if err != nil {
 		return Report{Mode: part.Name(mode), Commit: commit, Code: 2, Failure: failure("environment", "", err.Error())}
 	}
 	defer leave()
-	return runMode(ctx, root, commit, mode, part, runner, slot, time.Now)
+	return runMode(ctx, root, commit, mode, part, plan, runner, slot, time.Now)
 }
 
 func run(ctx context.Context, root, commit string, runner ActionRunner, now func() time.Time) Report {
-	return runMode(ctx, root, commit, Mode, Uncut(), runner, Slot{}, now)
+	return runMode(ctx, root, commit, Mode, Uncut(), Plan{}, runner, Slot{}, now)
 }
 
-func runMode(ctx context.Context, root, commit, mode string, part Part, runner ActionRunner, slot Slot, now func() time.Time) Report {
+func runMode(ctx context.Context, root, commit, mode string, part Part, plan Plan, runner ActionRunner, slot Slot, now func() time.Time) Report {
 	population := StagesForMode(mode)
 	// The report names the population it RAN. A cut run judged a subset, so it
 	// says so in every artifact it writes, the certificate included.
@@ -342,7 +351,9 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, runner A
 
 	var combined textbuf.Buffer
 	combined.Str("Ze verify protocol run: ").Str(started.UTC().Format(time.RFC3339)).
-		Str("\nMode: ").Str(report.Mode).Str("\nCommit: ").Str(commit).Str("\n\n")
+		Str("\nMode: ").Str(report.Mode).Str("\nCommit: ").Str(commit).Byte('\n')
+	stages = planOrder(&combined, stages, part, plan)
+	combined.Byte('\n')
 	report.Code = 0
 	for index, current := range stages {
 		if err := ctx.Err(); err != nil {
@@ -420,9 +431,22 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, runner A
 			report.Failure = stageReport.Failure
 			break
 		}
+		// First-red is the operator's opt-in to end the run at the first stage
+		// that judged the tree wrong. Every stage after it is named as not
+		// reached, so no artifact can read the run as covering them.
+		if plan.FirstRed && stageReport.Code != 0 {
+			report.StoppedAt = current.Identity.Name
+			for _, unreached := range stages[index+1:] {
+				report.Unreached = append(report.Unreached, cloneIdentity(unreached.Identity))
+			}
+			combined.Str(StoppedMarker).Str(report.StoppedAt).Str(", ").
+				Int(int64(len(report.Unreached))).Str(" stages not run\n")
+			break
+		}
 	}
 
 	report.Completed = len(report.Stages) == len(stages) && report.Failure == nil
+	recordStageTimes(&combined, plan, report)
 	if err := os.WriteFile(filepath.Join(logDir, "ze-verify.log"), combined.Bytes(), 0o600); err != nil {
 		report.Code = brokenCode(err)
 		report.Completed = false
@@ -444,6 +468,53 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, runner A
 		report.Failure = failure("status-write", "", err.Error())
 	}
 	return report
+}
+
+// StoppedMarker opens the line a first-red run writes into its combined log
+// when it stops: `### Run stopped at first red: <stage>, <n> stages not run`.
+// `le verify reds` reads it to say the run's pending stages will never report.
+const StoppedMarker = "### Run stopped at first red: "
+
+// planOrder answers the order an uncut run with a history runs its stages in,
+// and says on the combined log which order that is. A cut run and a run with
+// no history keep the dealt declared order. An unreadable history is reported
+// and leaves the declared order, because the order only decides how soon a
+// red is seen, never whether a stage runs.
+func planOrder(combined *textbuf.Buffer, stages []Stage, part Part, plan Plan) []Stage {
+	if part.Cut() {
+		combined.Str("Order: declared (a cut run keeps the dealt order)\n")
+		return stages
+	}
+	if plan.History == "" {
+		combined.Str("Order: declared\n")
+		return stages
+	}
+	costs, err := ReadStageCosts(plan.History)
+	if err != nil {
+		combined.Str("Order: declared (stage-time history unreadable: ").Err(err).Str(")\n")
+		return stages
+	}
+	combined.Str("Order: recorded cost, unrecorded stages first (").Str(StageTimesPath).Str(")\n")
+	if costs.Malformed != 0 {
+		combined.Str("Stage-time history: ").Int(int64(costs.Malformed)).
+			Str(" malformed lines skipped in ").Str(StageTimesPath).Byte('\n')
+	}
+	return costOrder(stages, costs)
+}
+
+// recordStageTimes appends the run's reached stages to the history and says on
+// the combined log whether it did. A history that cannot be written costs the
+// next run its order, not this run its verdict, so the failure is printed
+// rather than charged.
+func recordStageTimes(combined *textbuf.Buffer, plan Plan, report Report) {
+	if plan.History == "" {
+		return
+	}
+	if err := AppendStageTimes(plan.History, report); err != nil {
+		combined.Str("Stage times not recorded in ").Str(StageTimesPath).Str(": ").Err(err).Byte('\n')
+		return
+	}
+	combined.Str("Stage times recorded in ").Str(StageTimesPath).Byte('\n')
 }
 
 var verifyEnvironment struct {

@@ -29,7 +29,7 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 	}
 	// The full population runs in a worktree in production; the stage log names
 	// are the engine's, so the test drives the engine over the fixture directly.
-	report := verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), verifyengine.Mode, runner, verifyengine.Slot{})
+	report := verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), verifyengine.Mode, verifyengine.Plan{}, runner, verifyengine.Slot{})
 	if report.Code != 0 || !report.Completed {
 		t.Fatalf("report = %#v", report)
 	}
