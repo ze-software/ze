@@ -433,8 +433,11 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, plan Pla
 		}
 		// First-red is the operator's opt-in to end the run at the first stage
 		// that judged the tree wrong. Every stage after it is named as not
-		// reached, so no artifact can read the run as covering them.
-		if plan.FirstRed && stageReport.Code != 0 {
+		// reached, so no artifact can read the run as covering them. A red at
+		// the last stage stops nothing: the run went to its end, and naming a
+		// stop with no stage after it would tell every reader that stages it
+		// never had are pending.
+		if plan.FirstRed && stageReport.Code != 0 && index+1 < len(stages) {
 			report.StoppedAt = current.Identity.Name
 			for _, unreached := range stages[index+1:] {
 				report.Unreached = append(report.Unreached, cloneIdentity(unreached.Identity))

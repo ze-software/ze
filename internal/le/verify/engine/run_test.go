@@ -296,3 +296,28 @@ func TestARunWithoutFirstRedStillRunsPastARed(t *testing.T) {
 		t.Fatalf("a plain run started %d of %d stages, stopped-at %q", len(started), len(population), report.StoppedAt)
 	}
 }
+
+// TestAFirstRedAtTheLastStageIsNoStop proves a first-red run whose red is its
+// last stage reports an ordinary finished run. Nothing was left to stop
+// before, so a stop with no unreached stage made every surface say pending
+// stages "will never report" or "runs them all" about stages that do not exist.
+//
+// Method: run the full population with first-red and the red on the last
+// stage, and require no StoppedAt, no unreached stage, a completed run, the
+// red's exit, and no stop line in the combined log.
+func TestAFirstRedAtTheLastStageIsNoStop(t *testing.T) {
+	population := StagesForMode(Mode)
+	last := population[len(population)-1].Identity.Name
+	started := make([]string, 0)
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode,
+		Plan{FirstRed: true}, recordingRunner(last, 1, &started), Slot{})
+	if len(started) != len(population) || report.Code != 1 || !report.Completed {
+		t.Fatalf("started %d of %d, code %d, completed %v", len(started), len(population), report.Code, report.Completed)
+	}
+	if report.StoppedAt != "" || len(report.Unreached) != 0 {
+		t.Fatalf("a red at the last stage reads as a stop at %q with %d unreached", report.StoppedAt, len(report.Unreached))
+	}
+	if strings.Contains(report.Console, StoppedMarker) {
+		t.Fatalf("the combined log carries a stop line:\n%s", report.Console)
+	}
+}
