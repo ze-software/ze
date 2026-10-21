@@ -50,12 +50,15 @@ spec is still `design`, no `rpc.ReasonNotification` in the tree), so the Phase
 - Item 2 closed in `6f18c55e24`: `TestOwedKeyPartialRoundSkipsBackoff`, red
   656 to 675 ms with the conversion broken, green 13 to 35 ms.
 - Item 3: review round 4 ran (0 BLOCKER, 3 ISSUE, 2 NOTE), all fixed in
-  `2affaf0809`. Round 5 runs over `2affaf0809` and `a740edfa20`; its result
-  is the spec's last Design Insights entry. If no entry records it, run it
-  again (fresh `ze-review` subagent) before anything else.
+  `2affaf0809`. Round 5 ran over `2affaf0809` and `a740edfa20` (0 BLOCKER,
+  1 ISSUE: an invented RFC 4271 5.1.3 quote in the AC-14 test), fixed in
+  `bb50dfc36f` with the AC-12 property test. A round over `bb50dfc36f` is
+  owed, and it is the SIXTH implementation round of this spec: per
+  `ai/rules/planning.md` that round needs Thomas's authorisation
+  (`--owner-authorised`). Ask him before running it.
 - Phase 3 rows landed since: AC-14 `TestRSOwnerSynthesizedWithdrawalRecovers`
   (`a740edfa20`), AC-12 `TestOwedKeyRealRIBConvergence` (`2affaf0809`). Still
-  owed in Phase 3: `TestOwedKeyRealRIBConvergenceProperty`, AC-19
+  owed in Phase 3 (the property test landed in `bb50dfc36f`): AC-19
   `TestOwedKeyGRPurgeRecoversSurvivor`, AC-9 (needs an ADD-PATH live fixture),
   AC-18 and AC-6 (their expectation depends on Phase 3a, Q-3), the AC-10
   re-record of `TestRFC8654FatalLengthReelectsAlternateBest`, then 3b, 3a, 4,
