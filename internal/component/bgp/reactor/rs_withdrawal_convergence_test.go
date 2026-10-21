@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -1514,7 +1515,8 @@ func convergenceSettled(t *testing.T, c *lowLivePeer, prefix netip.Prefix, attrs
 // in [1, N] in a random order, each loss a withdrawal or a session down at
 // random, issued back-to-back or concurrently at random. C ends on the best
 // survivor's route with no withdrawal, or, when K = N, holds nothing after
-// exactly one. The seed is logged, so a failing case replays.
+// exactly one. The seed and each case (its N, losers, kinds and timing, in
+// the subtest name) are logged, so a failing case can be rebuilt.
 // Re-announcements by a lost source are Phase 3a's (Q-3): before it, the
 // newest write owns C's entry, not the RIB's best.
 //
@@ -1537,4 +1539,139 @@ func TestOwedKeyRealRIBConvergenceProperty(t *testing.T) {
 			convergeOnSurvivor(t, sources, losers, func(i int) convergenceLoss { return kinds[i] }, concurrent)
 		})
 	}
+}
+
+// grPurge is how a retained source's routes leave bgp-rib in
+// TestOwedKeyGRPurgeRecoversSurvivor.
+type grPurge uint8
+
+const (
+	grPurgeUnspecified grPurge = iota
+	// grPurgeEndOfRIB: "request bgp rib purge-stale", as the source's
+	// End-of-RIB after a reconnect sends it.
+	grPurgeEndOfRIB
+	// grPurgeRelease: "request bgp rib release-routes", as bgp-gr sends it.
+	grPurgeRelease
+	// grPurgeExpiry: the restart time given to mark-stale runs out.
+	grPurgeExpiry
+)
+
+// TestOwedKeyGRPurgeRecoversSurvivor proves AC-19 for bgp-rs against the real
+// bgp-rib, the lifecycle half. A owns 10.9.0.0/24 at C and B announces it
+// too. A's routes are retained (retain-routes, as bgp-gr asks before the
+// session drops), A's session ends with no NOTIFICATION, and its routes are
+// marked GR stale: C keeps A's route. Then the retained route is purged by
+// purge-stale, by release-routes, or by the restart time running out. C
+// receives B's route with B's received attributes and no withdrawal; with no
+// B, C receives the withdrawal exactly once. The negotiated-capability half
+// (bgp-gr driving these commands) is the functional test
+// bgp-rs-withdrawal-replacement-gr.
+//
+// VALIDATES: AC-19, a GR purge of the owner's retained route is decided like
+// an owner withdrawal.
+// PREVENTS: a client sent a bare withdrawal when a retained route expires
+// while a survivor exists.
+func TestOwedKeyGRPurgeRecoversSurvivor(t *testing.T) {
+	for _, purge := range []struct {
+		name string
+		how  grPurge
+	}{{"end-of-rib", grPurgeEndOfRIB}, {"release", grPurgeRelease}, {"expiry", grPurgeExpiry}} {
+		t.Run(purge.name+"/survivor", func(t *testing.T) { grPurgeRecovers(t, purge.how, true) })
+		t.Run(purge.name+"/no-survivor", func(t *testing.T) { grPurgeRecovers(t, purge.how, false) })
+	}
+}
+
+func grPurgeRecovers(t *testing.T, how grPurge, withB bool) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	r := a.peer.reactor
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	if withB {
+		ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, c, prefix, attrsB)
+	}
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	before := ownershipLiveThrough(t, c, prefix, attrsA).withdrawals[prefix]
+
+	source := a.peer.Settings().Address.String()
+	// RFC 4724 Section 4.2: "it MUST retain the routes received from the
+	// peer for all the address families that were previously received in
+	// the Graceful Restart Capability and MUST mark them as stale routing
+	// information."
+	purgeRIBCommand(t, r, "request bgp rib retain-routes", source, "ipv4/unicast")
+	// bgp-gr publishes which families it retains; bgp-rs asks it at
+	// departure and leaves a retained family to bgp-rib's purge.
+	retained := retention.Publish(func(peer string, fam family.Family) bool {
+		return peer == source && fam == family.IPv4Unicast
+	})
+	t.Cleanup(retained.Close)
+	_ = a.remote.Close() //nolint:errcheck // A departure: the session ends with no NOTIFICATION.
+	lowEventually(t, func() bool { return a.peer.SessionState() != fsm.StateEstablished }, "A's session ended")
+	restart := "0"
+	if how == grPurgeExpiry {
+		restart = "1"
+	}
+	// RFC 4724 Section 4.2, the marking half of the sentence above. Level 1
+	// is GR stale.
+	purgeRIBCommand(t, r, "request bgp rib mark-stale", source, restart, "1", "ipv4/unicast")
+	// The retained route stays at C until it is purged.
+	held := netip.MustParsePrefix("10.9.253.0/24")
+	ownershipLiveSend(t, b, nil, attrsB, held) // RFC 4271 Section 4.3.
+	view := ownershipLiveThrough(t, c, held, attrsB)
+	ownershipLiveRoute(t, view, prefix, attrsA)
+
+	switch how {
+	case grPurgeEndOfRIB:
+		purged, err := purgeRIBStale(r, a.peer.Settings().Address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if purged != 1 {
+			t.Fatalf("purge-stale purged %d of A's routes, want 1", purged)
+		}
+	case grPurgeRelease:
+		purgeRIBCommand(t, r, "request bgp rib release-routes", source)
+	case grPurgeExpiry:
+		// The restart time of one second runs out inside bgp-rib.
+	case grPurgeUnspecified:
+		t.Fatal("BUG: a purge with no kind")
+	}
+	// bgp-rib's expiry fires after the restart time plus its 5 s margin
+	// (grTimerMargin), so the wait allows 20 s.
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		route, present := ownershipLiveRead(t, c).routes[prefix]
+		if withB && bytes.Equal(route, attrsB) {
+			break
+		}
+		if !withB && !present {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	later := netip.MustParsePrefix("10.9.254.0/24")
+	ownershipLiveSend(t, b, nil, attrsB, later) // RFC 4271 Section 4.3.
+	view = ownershipLiveThrough(t, c, later, attrsB)
+	// RFC 4271 Section 9.2: "All newly installed routes and all newly
+	// unfeasible routes for which there is no replacement route SHALL be
+	// advertised to its peers by means of an UPDATE message."
+	if withB {
+		ownershipLiveRoute(t, view, prefix, attrsB)
+		ownershipLiveWithdrawals(t, view, prefix, before)
+	} else {
+		ownershipLiveAbsent(t, view, prefix)
+		ownershipLiveWithdrawals(t, view, prefix, before+1)
+	}
+	ownershipLiveEstablished(t, []*lowLivePeer{b, c})
 }

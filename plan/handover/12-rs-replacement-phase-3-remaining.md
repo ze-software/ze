@@ -53,9 +53,15 @@ spec is still `design`, no `rpc.ReasonNotification` in the tree), so the Phase
   `2affaf0809`. Round 5 ran over `2affaf0809` and `a740edfa20` (0 BLOCKER,
   1 ISSUE: an invented RFC 4271 5.1.3 quote in the AC-14 test), fixed in
   `bb50dfc36f` with the AC-12 property test. A round over `bb50dfc36f` is
-  owed, and it is the SIXTH implementation round of this spec: per
-  `ai/rules/planning.md` that round needs Thomas's authorisation
-  (`--owner-authorised`). Ask him before running it.
+  owed, and it is the SIXTH implementation round of this spec. Thomas
+  authorised it ("round 6", relayed by the main session); it came back
+  0 BLOCKER, 0 ISSUE. A seventh round needs Thomas again.
+- NEXT (blocks AC-19): `TestOwedKeyGRPurgeRecoversSurvivor` (landed, about
+  1 in 16 red in end-of-rib/survivor) hits the open row in
+  `plan/journal/negotiated-family-lost-at-retention-boundary.md`: fix the
+  producer (R-12's path-presence check extended to forwarded sent events,
+  `plugins/rib/`), then `-count=20` green and a discrimination red. Spec
+  Design Insights, last entry, has the detail.
 - Phase 3 rows landed since: AC-14 `TestRSOwnerSynthesizedWithdrawalRecovers`
   (`a740edfa20`), AC-12 `TestOwedKeyRealRIBConvergence` (`2affaf0809`). Still
   owed in Phase 3 (the property test landed in `bb50dfc36f`): AC-19
