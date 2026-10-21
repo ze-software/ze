@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-20 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -190,6 +190,22 @@ Owner decisions, 2026-10-21 ("Yes to 1, 2 and 3"): (1) a separate `ze` Colima pr
 | AC-5 (rerun) | QEMU guest, kernel 7.2.9, HVF | 7c4d35f36b | 2026-10-21 | A-5 holds on the guest dockerd and the summary line is now present: `interop: cleanup: no Ze lab resource on this Docker daemon`, no listing setup error, labeled build/network/run accepted (`interop: images ready (22s)`), and after the lab `interop guest: left behind: none`. Still exit 1: `44 passed, 6 failed`, the five journaled IPsec reds plus `initiator-rekey-answer-narrows` (a hard-lifetime timing race, journaled), none label- or cleanup-related |
 | AC-8 | colima 29.5.2 | 9ea1b56917, 05aeb4fd75 | 2026-10-20 | NOT PROVEN (R-6): `vpp-test` and `vpp-iface-test` each exit 1 on the same AppArmor refusal before their container; no verdict printed, nothing left. The route is the `docker-lab` guest once its kernel carries `CONFIG_VHOST_NET` (`plan/spec-lab-kernel-features-in-setup.md`) |
 | AC-2, AC-6, AC-8 (pointer) | the `ze` Colima profile: Ze's docker-host image, kernel `7.2.9-ze`, Rosetta (`plan/spec-ze-image-docker-host.md` AC-13 to AC-15) | 63d1b8561d (run), 7a98e14ab6 (vpp-iface-test fix) | 2026-10-21 | Run there, evidence in that spec's Phase 6. AC-2 PASS: both perf containers carry the lowercase IOPlatformUUID and `kern.bootsessionuuid`, `ze.lab.os` `darwin`, `ze.lab.pid` = the running le, no `ze.lab.pid-ns`. AC-6 PASS: one Ctrl-C, exit 1, no container or network of the run, only `ze-interop:latest`, `cleanup dry` clean. AC-8 (R-6 daemon: the `ze` profile, which passes the kernel check and holds `/dev/vhost-net`; VPP's amd64 image under Rosetta): `vpp-test` PASS; `vpp-iface-test` exposed two defects fixed in 7a98e14ab6, its Ctrl-C rerun is recorded in that spec |
+| AC-8 `vpp-iface-test` (closure rerun) | the `ze` Colima profile: `lima-colima-ze 29.9.2 7.2.9-ze`, Rosetta | f5ea135dd3 | 2026-10-21 | PASS. The Phase 6 rerun (19:50, `r2-p6-ac15-vpp-iface-test`) had sent its SIGINT while only a `ze-oneshot` alpine helper was listed, before the VPP container, so it never reached the `awaitFeature` path 7a98e14ab6 fixed and its run id was never read. The closure agent reran it with the SIGINT sent once the VPP container ran and the first scenario's ze printed `Ze running` (23:06:05): `ze-vpp-iface-94426` (`ligato/vpp-base:latest`) carried `ze.lab.os` `darwin`, `ze.lab.machine-id` `ee5d8926-...`, `ze.lab.boot-id` `bb515efb-...`, `ze.lab.pid` `94426` = the le job leader, `ze.lab.run` `ZSV3YXHS5QGNDI4ZQE3YWGTUCO`, no `ze.lab.pid-ns`. le exited 1 at once with `error: stage explicit ze configuration: docker exec ze-vpp-iface-94426 was canceled before it finished, by an interrupt or by the run stopping: context canceled`, and printed no `OK`, `FAIL` or `SKIP` line. For that run id `docker ps -a` and `docker network ls` print headers only and `docker image ls` prints nothing; `cleanup dry`: `cleanup: no Ze lab resource on this Docker daemon` |
+
+### Closure attempt, 2026-10-21 (not closed)
+
+A `/ze-close` agent (parent session e1f02c94, not the author f2de520e) stopped before commit A, because one AC is unmet as written.
+
+| Item | State |
+|------|-------|
+| AC-1, AC-2, AC-6, AC-8 | PASS (rows above; AC-2, AC-6 and `vpp-test` on the `ze` profile, `vpp-iface-test` by the closure rerun) |
+| AC-3 | not run, owner decision 2026-10-20 ("ignore ac-3"); A-2's "changes on every boot" half on macOS therefore rests on no Mac run |
+| AC-4, AC-7 | PASS on Colima; Docker Desktop halves dropped by the owner 2026-10-21 (decision 3), not a gap |
+| AC-5 | OPEN. Expected exit 0; both runs exited 1 (`44 passed, 6 failed` at 7c4d35f36b) on IPsec scenario reds journaled as unrelated to labels. Since then the `docker-lab` guest boots Ze's docker-host image instead of Alpine (ca386b6ae3), and IPsec fixes landed for those scenarios (09333fb1a1, a1cbd95e05, 9d60c1d841, 987a65fc65, 5754eac4f4). Owed: `./le test qemu docker-lab lab "test integration interop-ipsec" timeout 3600s` on the current guest, exit 0 with the `cleanup:` summary line. Not run at closure: the data volume had 5.1G free, and the guest's sparse image grows on the host disk with every image the lab builds (handover 16: the Phase 5 run died at 2.7G free) |
+| `./le go vet-platforms darwin` | pass at f5ea135dd3 (`1 action(s) passed`, exit 0) |
+| `./le doc check verify` | exit 1 at f5ea135dd3; every red is the published site behind the live command catalog (`../gh-pages/reference/command-equivalents/{request-peer-enable,request-peer-disable,request-peer-notify,clear-bgp-rib-advertised}`, `../gh-pages/llms.txt`, `../wiki/command-catalog.md`), BGP command surfaces this spec never touched. Source anchors, rules and digest anchors pass |
+| `./le commit audit base 01e3bad8e3~1` | no `[DELETED]` or `[WEAKENED]` finding in any file of this spec (`internal/le/`, `internal/test/perfrunner/`); the 72 findings in range are other sessions' BGP and flowspec tests |
+| `/ze-review` round 1 over the production code of 5d6ba2aa03, c992680c2b, 645acdeb5e, 59f9d595b2, 3bdae982f2, d844579a3d, 7c4d35f36b, 7a98e14ab6 (current state, after the docker-host spec's later edits) | 0 BLOCKER, 0 ISSUE. NOTE 1: `addPluginDir` (`internal/le/setup/buildx.go`) rewrites `~/.docker/config.json` with sorted keys and tab indentation; content is kept, layout is not. NOTE 2: the Phase 6 `vpp-iface-test` rerun interrupted a helper, not the VPP container (fixed by the closure rerun above). Not yet recorded with `./le spec review record`: the closer that lands AC-5 records it |
 
 ## 🧪 TDD Test Plan
 
