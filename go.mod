@@ -33,7 +33,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/gnmi v0.14.1
-	github.com/openconfig/goyang v1.6.3
+	github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
 	github.com/packetcap/go-pcap v0.0.0-20251215121130-f2cf9f991e7c
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2
@@ -297,10 +297,3 @@ require (
 	mvdan.cc/unparam v0.0.0-20260823230713-2fa3d841b0c8 // indirect
 	mvdan.cc/xurls/v2 v2.6.0 // indirect
 )
-
-// goyang v1.6.3 numbers an enum with no value after a negative value from 0,
-// against RFC 7950 Section 9.6.4.2, and refuses valid modules for it. The fork
-// carries the fix proposed upstream in
-// https://github.com/openconfig/goyang/pull/317. Remove this replace once a
-// goyang release contains that fix, and require that release instead.
-replace github.com/openconfig/goyang => github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98

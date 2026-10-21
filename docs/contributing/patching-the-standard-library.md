@@ -361,11 +361,43 @@ no longer applies.
 | Mirror the unexported struct layout with `unsafe` | The article measures this route for `net/netip`, and it needs tests to catch layout changes. Here it cannot work at all: the value is set inside an unexported method during the handshake, and the callbacks that run then (`GetConfigForClient`, `GetCertificate`) receive no pointer to the handshake state that holds the ServerHello |
 | Ask upstream for an API | Correct in the long term, and it does not fix the current release. If upstream adds the behavior, step 3 above deletes the patch |
 
-Ze changes vendored modules with a related mechanism: patches under
-`internal/le/vendorpatch/patches/`, with a guard test each and the same review
-stamp. The difference is that a vendored file is in the tree, so the patch is
-applied once and committed. A GOROOT file is not in the tree, so the patch is
-applied at build time.
+## Patching a vendored module
+
+A change Ze needs in a third-party Go module is a diff against the upstream
+release, never a fork (owner decision M11, `ai/META-DECISIONS.md`). `go.mod`
+requires the upstream module with no `replace`, and the diff lives in
+`internal/le/vendorpatch/patches/<name>.patch`, with paths relative to the
+checkout (`a/vendor/<module>/<file>`). Its leading text names the upstream pull
+request that carries the change, or says that none is opened yet, quotes the
+requirement it meets, and carries
+the review stamp `Ze-Reviewed-Against: <module path> <version>` (see "The review
+stamp"). One patch changes one module, the one its stamp names. A GitHub fork
+under ze-software exists only to open that pull request.
+
+The difference from a standard-library patch is that a vendored file is in the
+tree, so the patch is applied once and the patched file is committed. A GOROOT
+file is not in the tree, so that patch is applied at build time.
+
+| Part | Location | Role |
+|------|----------|------|
+| The patches | `internal/le/vendorpatch/patches/*.patch` | The set is the files present: adding a patch needs no edit anywhere else (`vendorpatch.Patches`) |
+| The re-vendor | `./le setup install` (`internal/le/setup`, `vendorGoDeps`) | Runs `go mod tidy` and `go mod vendor`, which return every vendored file to upstream, then checks each stamp and applies every patch (`applyVendorPatches`) |
+| The upstream check | `TestPatchedVendorModulesMatchUpstream` (`internal/le/vendorpatch`) | For each module a patch names, reverts its patches in a copy of `vendor/<module>` and requires every file to equal the module at the vendored version, as `go mod download` fetches it. A hand edit no patch records, a dropped patch and a half-applied one all turn it red. It reads the module from the Go module cache, which `./le setup install` fills; on a cold cache it needs network access to download the module |
+| The guard tests | `TestNetlinkXFRMPatchApplied`, `TestBubblesCursorPatchApplied` | Older per-patch guards (`assertVendorPatchApplied`), which check that each hunk is present with `git apply --reverse --check` and need no module cache |
+
+A plain `go mod vendor` drops every patch. Run `./le setup install` instead, or
+apply each patch with `git apply <patch>` afterwards; the upstream check names
+the module whose patches are missing either way.
+
+To add a change: vendor the upstream release, make the change in
+`vendor/<module>/`, write the diff with `git diff --no-index` between the
+upstream file (from `go mod download -json <module>@<version>`, field `Dir`) and
+the vendored one, rewrite its paths to `a/vendor/<module>/...` and
+`b/vendor/<module>/...`, and add the leading text and stamp. When the upstream
+release containing the change is required, delete the patch.
+<!-- source: internal/le/vendorpatch/stamp.go -- Patches -->
+<!-- source: internal/le/setup/install.go -- applyVendorPatches -->
+<!-- source: internal/le/vendorpatch/upstream_test.go -- TestPatchedVendorModulesMatchUpstream -->
 <!-- source: internal/le/vendorpatch/vendor_patch_test.go -- assertVendorPatchApplied -->
 
 ## Reference

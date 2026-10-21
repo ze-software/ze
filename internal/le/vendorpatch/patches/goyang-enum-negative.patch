@@ -1,0 +1,37 @@
+Ze-Reviewed-Against: github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
+
+goyang numbers an enum member with no value after a negative value from 0,
+against RFC 7950 Section 9.6.4.2: "If a value is not specified, then one will
+be automatically assigned. If the "enum" substatement is the first one
+defined, the assigned value is zero (0); otherwise, the assigned value is one
+greater than the current highest enum value (i.e., the highest enum value,
+implicit or explicit, prior to the current "enum" substatement in the parent
+"type" statement)". It then refuses valid modules
+with a duplicate value. Proposed upstream as
+https://github.com/openconfig/goyang/pull/317. Delete this patch once the
+goyang release go.mod requires contains that fix.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
+module".
+
+diff --git a/vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go b/vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go
+--- a/vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go
++++ b/vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go
+@@ -619,11 +619,14 @@ func (e *EnumType) Set(name string, value int64) error {
+ 	if value > e.max {
+ 		return fmt.Errorf("value %d for %s too large (maximum is %d)", value, name, e.max)
+ 	}
+-	e.ToString[value] = name
+-	e.ToInt[name] = value
+-	if value >= e.last {
++	// RFC 7950 section 9.6.4.2: an implicit value is one greater than the
++	// highest value assigned so far, whether that value is negative or not.
++	// The initial last of -1 only makes the first implicit value zero.
++	if len(e.ToInt) == 0 || value > e.last {
+ 		e.last = value
+ 	}
++	e.ToString[value] = name
++	e.ToInt[name] = value
+ 	return nil
+ }
+ 

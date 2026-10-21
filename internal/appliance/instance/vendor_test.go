@@ -25,9 +25,9 @@ func TestParseVendorModulesHeaderForms(t *testing.T) {
 		},
 		{
 			name: "module replacement",
-			data: "# github.com/openconfig/goyang v1.6.3 => github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98\n" +
-				"## explicit; go 1.21\ngithub.com/openconfig/goyang/pkg/yang\n",
-			want: []vendorModule{{path: "github.com/openconfig/goyang", version: "v1.6.3", goVersion: "1.21"}},
+			data: "# example.com/upstream v1.6.3 => example.com/fork/upstream v1.6.4-0.20261009101552-a3cf525c4f98\n" +
+				"## explicit; go 1.21\nexample.com/upstream/pkg\n",
+			want: []vendorModule{{path: "example.com/upstream", version: "v1.6.3", goVersion: "1.21"}},
 		},
 		{
 			name: "directory replacement",
