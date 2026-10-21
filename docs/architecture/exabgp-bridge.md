@@ -661,6 +661,7 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | A route no selected peer has the family of | refused with ze's reason |
 | A selector that names no peer this process feeds | refused, nothing dispatched |
 | `flow route` with no `match` | refused |
+| A flow route, braced or flat, announce or withdraw, matching an ICMP type or code and a port | refused before ze sees it, answered `error` as ExaBGP 6.0 answers it (its `propagated` drops the route as the line is parsed, so `api_flow` returns none), with a warning naming the route: RFC 8955 Section 4.2 says no packet matches it and it SHOULD NOT be propagated |
 | `flow route` with `mark` or `action`, or `redirect [<ipv6>]:<nn>` (the IPv6 route-target redirect) | refused, naming the word: `update text` has no spelling for it |
 | `copy`, `redirect-simpson`, `copy-simpson` or `redirect-to-nexthop-ietf` given something that is not an address | refused, naming the value |
 | An `interface-set:` item inside `extended-community`, on a flow route or any other route | refused, naming the `interface-set` keyword to write it with: ExaBGP has no such extended community type |

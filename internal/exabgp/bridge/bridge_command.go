@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -961,11 +962,13 @@ func convertFlowSpec(selector, family, routeStr, verb string) (Command, error) {
 
 // parseFlowSpecBridgeRoute splits a family-form flow route into its family, its
 // update-text attributes, its route distinguisher and its NLRI text. It reports
-// an extended-community item ExaBGP refuses (CheckExtendedCommunityList).
+// an extended-community item ExaBGP refuses (CheckExtendedCommunityList), and
+// a route no packet can match (flowRouteMatchable).
 func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string, error) {
 	parts := strings.Fields(strings.TrimSpace(routeStr))
 	attrs := make([]string, 0, 4)
 	nlri := make([]string, 0, len(parts))
+	types := make([]flowspec.FlowComponentType, 0, len(parts))
 	rd := ""
 	fam := family
 	currentComponent := ""
@@ -1012,7 +1015,8 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 			}
 		default:
 			token := normalizeFlowSpecComponentToken(fam, parts[i])
-			if isFlowSpecComponentKeyword(token) {
+			if componentType, ok := flowSpecComponentType(token); ok {
+				types = append(types, componentType)
 				currentComponent = strings.ToLower(token)
 				nlri = append(nlri, token)
 			} else {
@@ -1031,23 +1035,21 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 		}
 	}
 
+	// RFC 8955 Section 4.2
+	if err := flowRouteMatchable(routeStr, types); err != nil {
+		return "", nil, "", "", err
+	}
 	return fam, attrs, rd, textbuf.Join(nlri, " "), nil
 }
 
-// isFlowSpecComponentKeyword answers whether a token names a match component.
+// flowSpecComponentType answers the component type a token names, and false
+// for a token that names no match component. The core vocabulary is the one
+// statement of the keyword-to-type mapping (flowspec.KeywordComponentType).
 //
-// Its one caller tests the token AFTER normalizeFlowSpecComponentToken has run,
+// Its callers test the token AFTER normalizeFlowSpecComponentToken has run,
 // so the bare aliases never reach it and the qualified spellings always do.
-func isFlowSpecComponentKeyword(token string) bool {
-	switch strings.ToLower(token) {
-	case bridgeFlowDestIPv4, bridgeFlowDestIPv6, bridgeFlowSourceIPv4, bridgeFlowSourceIPv6,
-		"protocol", "next-header", "port", "destination-port", "source-port",
-		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
-		"fragment", "traffic-class", "flow-label":
-		return true
-	default:
-		return false
-	}
+func flowSpecComponentType(token string) (flowspec.FlowComponentType, bool) {
+	return flowspec.KeywordComponentType(strings.ToLower(token))
 }
 
 func normalizeFlowSpecComponentValue(component, token string) string {

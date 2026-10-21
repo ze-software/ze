@@ -1,6 +1,6 @@
 // Design: docs/architecture/exabgp-bridge.md — ExaBGP `flow route` to the ze update-text command
 // Overview: bridge_command.go — TranslateLine, the flat family forms, and the ze flowspec
-// spellings this file reuses (normalizeFlowSpecComponentToken, isFlowSpecComponentKeyword,
+// spellings this file reuses (normalizeFlowSpecComponentToken, flowSpecComponentType,
 // normalizeFlowSpecComponentValue, normalizeFlowSpecExtCommunityToken, flowSpecVPNFamily)
 // Related: bridge_event.go — the JSON direction, which renders the same actions back to ExaBGP
 
@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -95,7 +97,26 @@ func convertFlowRoute(selector, family, verb, body string) (Command, bool, error
 	if err := route.read(tokens); err != nil {
 		return Command{}, true, err
 	}
+	// RFC 8955 Section 4.2
+	if err := flowRouteMatchable(body, route.types); err != nil {
+		return Command{}, true, err
+	}
 	return route.command(selector, verb), true, nil
+}
+
+// flowRouteMatchable answers flowspec.ErrFlowSpecUnmatchable, naming the route
+// as the script wrote it, when types holds a combination no packet can match,
+// and nil when a packet can. The verb does not matter: ExaBGP 6.0 drops such a
+// route as it parses the line, before announce_flow or withdraw_flow sees it
+// (configuration/grammar/tree/flow.py, propagated), so api_flow returns no
+// route and both answer the script answer_error. The refusal is the bridge's
+// rather than ze's, so the log line names the ExaBGP route and nothing is sent.
+func flowRouteMatchable(route string, types []flowspec.FlowComponentType) error {
+	err := flowspec.CheckMatchable(func(t flowspec.FlowComponentType) bool { return slices.Contains(types, t) })
+	if err != nil {
+		return fmt.Errorf("exabgp flow route %q is not sent: %w", route, err)
+	}
+	return nil
 }
 
 // flowRoute is what one ExaBGP flow route body says, held in the words ze uses
@@ -113,6 +134,10 @@ type flowRoute struct {
 	// the order the body wrote them. ze sorts them by RFC 8955 type code when it
 	// encodes, so this order reaches no wire (types.go writeComponentsSorted).
 	nlri []string
+	// types holds the component type of each match component in nlri, so the
+	// route's matchability is judged on the components themselves rather than
+	// on a reading back of the words (flowRouteMatchable).
+	types []flowspec.FlowComponentType
 	// communities and largeCommunities pass through untouched: ze and ExaBGP
 	// spell both the same way.
 	communities      []string
@@ -482,7 +507,7 @@ func (r *flowRoute) readCommunity(word string, tokens []string, i int) (int, err
 // one rather than as a keyword whose value is missing.
 func (r *flowRoute) readComponent(tokens []string, i int) (int, error) {
 	word := strings.ToLower(tokens[i])
-	if !isFlowSpecComponentKeyword(normalizeFlowSpecComponentToken(r.family, word)) {
+	if _, ok := flowSpecComponentType(normalizeFlowSpecComponentToken(r.family, word)); !ok {
 		return 0, fmt.Errorf("exabgp flow route: unknown keyword %q", tokens[i])
 	}
 
@@ -497,7 +522,14 @@ func (r *flowRoute) readComponent(tokens []string, i int) (int, error) {
 		}
 	}
 
+	// The family can have moved since the keyword was checked above, and the
+	// keyword follows it (source-ipv4 to source-ipv6), so it is resolved again.
 	component := normalizeFlowSpecComponentToken(r.family, word)
+	componentType, ok := flowSpecComponentType(component)
+	if !ok {
+		return 0, fmt.Errorf("exabgp flow route: unknown keyword %q", tokens[i])
+	}
+	r.types = append(r.types, componentType)
 	r.nlri = append(r.nlri, component)
 	for _, item := range items {
 		r.nlri = append(r.nlri, normalizeFlowSpecComponentValue(component, item))

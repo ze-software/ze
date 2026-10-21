@@ -506,7 +506,7 @@ func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
 // into the family-qualified keyword ze speaks, and the route's family decides
 // which of the two spellings it means.
 // PREVENTS: a hand-written ExaBGP config using the alias reaching ze as a
-// keyword ze no longer has. isFlowSpecComponentKeyword refuses the bare word.
+// keyword ze no longer has. flowSpecComponentType refuses the bare word.
 // The token is then read as an argument of the component before it, and the
 // prefix leaves the announcement with no diagnostic.
 func TestExabgpToZebgpCommand_FlowSpecBarePrefixKeyword(t *testing.T) {
