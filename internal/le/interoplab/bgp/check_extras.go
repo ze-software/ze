@@ -1,5 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- scenario-specific peer evidence.
 // Related: checkers.go -- common session, route, and adjacency assertions.
+// RFC: rfc/short/rfc5709.md -- Section 3.2, the expired last key keeps verifying.
+// RFC: rfc/short/rfc3623.md -- Section 3.1, the broadcast helper names X by interface address.
 package bgp
 
 import (
@@ -21,6 +23,14 @@ const (
 	// all-zero GW IP. The A-D routes carry the same ESI, so the needle
 	// spans the prefix to pin it on the IP Prefix route.
 	gobgpEVPNOverlayNLRI = `"esi":"ESI_ARBITRARY | 01:02:03:04:05:06:07:08:09","etag":0,"prefix":"` + evpnOverlayPrefix + `","gateway":"0.0.0.0"`
+)
+
+// The ospf-gr-helper-broadcast-frr facts. FRR's router-id in frr.conf, which is
+// deliberately not its eth0 address, and the Ze counter whose "flushed" series
+// exists only after a helper session was entered and ended by the flush.
+const (
+	ospfGRBroadcastFRRRouterID = "10.255.0.3"
+	ospfGRHelperExitsMetric    = "ze_ospf_gr_helper_exits_total"
 )
 
 var ospfAdjacencyContinuity = operation{
@@ -253,6 +263,43 @@ var scenarioExtras = map[string][]operation{
 		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, absent: []string{ospfStateFull}, proof: []string{zeLabAddress}},
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf interface"), contains: []string{"\"neighbor-count\": 0"}},
 	},
+	// The interop proof for RFC 5709 Section 3.2 on receive. Ze's only key has a
+	// send-lifetime and an accept-lifetime that both closed in 2020, so it is the
+	// chain's expired last key: Ze keeps signing with it (selectSendKey) and keeps
+	// verifying FRR with it (lastKeyExtendedIndex). The base operation waits for
+	// FRR's Full; Ze's own neighbor table must agree, and the 45-second delay
+	// outlasts the 40-second dead interval, so a Full that verification could not
+	// hold would have dropped by then. Without the receive extension Ze refuses
+	// every FRR packet and FRR never leaves Init, so the base wait goes red.
+	"ospf-accept-lifetime-last-key-frr": {
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{zeOSPFNeighborFull}},
+		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 45 * time.Second},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{zeOSPFNeighborFull}},
+	},
+	// Ze as RFC 3623 helper on a broadcast segment, against FRR's real planned
+	// restart. FRR's router-id is not its eth0 address, so Ze finds the helped
+	// neighbor only by matching the Grace-LSA's IP interface address TLV against
+	// neighbor addresses (graceRestarterV4). No helper exit exists before the
+	// restart; after it, the flush of FRR's Grace-LSA must end a helper session
+	// with reason "flushed", which only a session that was entered and matched by
+	// the flushed body can produce. strict-lsa-checking is off in ze.conf, and the
+	// 100-second wait is shorter than the 120-second grace period, so neither a
+	// topology-change nor a grace-expiry exit can stand in for it. Both spellings
+	// of the series are accepted because the metrics text arrives inside a JSON
+	// string. This proves acceptance of FRR's Grace-LSA, not the 50044040c5
+	// identity fix: an honest FRR names itself in both the TLV and the Advertising
+	// Router, so the pre-fix lookup passes too (ze.conf header).
+	"ospf-gr-helper-broadcast-frr": {
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{zeOSPFNeighborFull, ospfGRBroadcastFRRRouterID}, timeout: 60 * time.Second},
+		{kind: opRequireAbsent, peer: "ze", command: zeCommand("show metrics values"), absent: []string{ospfGRHelperExitsMetric}, proof: []string{"ze_ospf_nsm_events_total"}},
+		{kind: opExec, peer: peerFRR, command: []string{cmdVtysh, "-c", "clear ip ospf process graceful-restart"}},
+		{kind: opWaitContainsAny, peer: "ze", command: zeCommand("show metrics values"), contains: []string{
+			ospfGRHelperExitsMetric + `{family=\"ipv4\",reason=\"flushed\"}`,
+			ospfGRHelperExitsMetric + `{family="ipv4",reason="flushed"}`,
+		}, timeout: 100 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 60 * time.Second},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{zeOSPFNeighborFull, ospfGRBroadcastFRRRouterID}},
+	},
 	// The interop proof for OSPF auto-cost: FRR reads the metric Ze derived out of
 	// Ze's Router-LSA. Ze sets no `cost` on eth0 and a reference-bandwidth of
 	// 470000 Mbit/s; eth0 is a Docker veth, whose driver declares 10 Gbit/s, so the
@@ -313,13 +360,18 @@ var scenarioExtras = map[string][]operation{
 	"ospfv3-debug-decode-frr": {
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 database detail"), contains: []string{"\"router\"", "\"scope\"", "\"decoded\""}},
 	},
+	// The opaque-area reads wait rather than read once at Full: FRR originates a
+	// Type-10 opaque LSA on a timer that starts when an opaque-capable neighbor
+	// appears (ospf_opaque_lsa_originate_schedule, delay min_ls_interval), so at
+	// the instant FRR shows Full its TE LSA may not exist yet (measured
+	// 2026-10-21: Ze's opaque-area empty 11s into the run).
 	"ospf-ext-prefix-link-frr": {
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf database opaque-area"), contains: []string{"extended-prefix", "extended-link"}},
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}, contains: []string{zeLabAddress}},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf database opaque-area"), contains: []string{"extended-prefix", "extended-link"}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}, contains: []string{zeLabAddress}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"ospf-opaque-frr": {
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf database opaque-area"), contains: []string{frrLabAddress}},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf database opaque-area"), contains: []string{frrLabAddress}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"ospf-ri-frr": {

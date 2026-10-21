@@ -11,7 +11,41 @@ work survives a machine move (M9). Delete this file in the spec's closing commit
 | `b75f0355c6` | AC-C3 rows RFC3101-3.2-3, RFC7770-2.2-2, RFC7166-4.6-7 (+4.6-4 gap), first verdicts by an independent judge; journal row on the umbrella's false RFC 7166 claim |
 | `0de9b98e6c` | AC-C3 row RFC5709-3.2-6 (key storage persists), single-polarity, judged enforced |
 
-## State at end of 2026-10-21 (read this first)
+## Update 2026-10-22 00:30 (read this first)
+
+Landed: `fbf78a55bb` (AuType negatives install metrics before open, each with an AuType 1
+control; journal row closed; RFC2328-8.2-3 re-judged enforced by a non-author). Its script
+hit a held `.git/index.lock`: the commit landed but the index for its 7 paths is stale and the
+script printed `git ls-tree HEAD -- <paths> | git update-index --index-info` as the repair.
+
+Committed with this file, NOT yet run in a lab: `internal/le/interoplab/bgp/check_extras.go`
+opaque-area reads now wait 60s (`ospf-opaque-frr` failed green at HEAD: Ze's opaque-area empty
+11s in, a one-shot read racing FRR's opaque origination timer, `ospf_opaque_lsa_originate_schedule`),
+and two new scenarios with checkers: `ospf-accept-lifetime-last-key-frr` (RFC 5709 3.2 last key;
+should be GREEN at HEAD and RED under `lastKeyExtendedIndex` forced to -1) and
+`ospf-gr-helper-broadcast-frr` (acceptance only: a conforming FRR names X the same way under
+both codes, so `graceRestarterV4`'s discrimination stays with `rfc3623_grace_helper_identity_test.go`).
+
+Interop, from a `git archive` export of b2ff0fbbfc at `tmp/zoh` (needs `cache` and
+`gokrazy/modcache` symlinked to main's and both ignored `go.sum` files copied; path must stay
+short for the socket): ospf-p2p-frr PASS (257s), ospf-broadcast-frr PASS (279s), ospf-opaque-frr
+FAIL (the race above). The other 9 greens were queued but blocked behind other sessions' verify
+and lab runs. A non-author analysis (FRR 10.3.1 source quoted) found NO existing scenario can go
+red when its assigned fix is reverted: each fix is a stricter receive check FRR never trips, a
+condition the lab does not build (second area, ABR, shared-media GR, Ze restart, expired last
+key), or a sender field no assertion reads. Revert patches for all 12 exist in the session
+scratch only; regenerate from the D-8 table if lost.
+
+Next, in order: rerun ospf-opaque-frr and ospf-ext-prefix-link-frr with the wait fix; greens for
+ospf-te-frr, ospf-ri-frr, ospf-sr-frr, ospf-auth-frr, ospf-accept-lifetime-frr, ospf-gr-frr,
+ospf-stub-nssa-frr, ospfv3-nssa-redist-frr and the two new scenarios; then the red of
+ospf-accept-lifetime-last-key-frr under the last-key revert. A subagent reported that
+`ze config validate` refuses the inline `restarter { support planned restart-interval 120 }`
+used by ospf-gr-frr and three siblings: confirm on the ospf-gr-frr green, journal it if real.
+Record the "no reachable red" per fix in Goal Validation (interop.md "Prove a scenario
+discriminates"). Then review round 3, `./le verify worktree`, `ze-close`.
+
+## State at end of 2026-10-21
 
 Landed: `90dce367a3`, `b75f0355c6`, `0de9b98e6c`, `50044040c5`, `19de202493`, and the
 commit carrying this file (RFC8666-6-13 widened, RFC8665-5-12 and 8666-6-13 negatives,
