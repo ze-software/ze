@@ -3,6 +3,7 @@ package migration
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1575,4 +1576,145 @@ neighbor 10.0.0.1 {
 	assert.Contains(t, output, "mode enable")
 	assert.Contains(t, output, "encoding legacy")
 	assert.NotContains(t, output, "software-version enable")
+}
+
+// TestMigrateIPv4RouteIPv6NextHopAddsExtendedNextHop holds X-37 / AC-39.
+//
+// GOAL: an ExaBGP 4.2/5.0 config that sends an IPv4 route with an IPv6 next hop
+// and declares no `nexthop` block for its family migrates to a ze peer that
+// asks for the Extended Next Hop Encoding for that family, with a warning
+// naming the route, as the pinned ExaBGP's _extended_next_hop
+// (configuration/grammar/tree/neighbor.py) does at load.
+// METHOD: migrate configs and read ze's own parse of the output, so the entry
+// is judged where ze reads it, not as text; read the warnings.
+//
+// VALIDATES: the ipv4/unicast and ipv4/mpls-vpn entries are added once each,
+// an existing entry is kept with no warning, an IPv4 next hop and `self` add
+// nothing, and `capability { nexthop disable; }` refuses with the pin's reason.
+// PREVENTS: a migrated config ze loads and whose route then never leaves,
+// because ze refuses an IPv6 next hop on an IPv4 route without the capability.
+func TestMigrateIPv4RouteIPv6NextHopAddsExtendedNextHop(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	router-id 127.0.0.2;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	family {
+		ipv4 unicast;
+		ipv4 mpls-vpn;
+	}
+	static {
+		route 10.0.0.0/24 next-hop 2001:db8::1;
+		route 10.0.1.0/24 next-hop 2001:db8::2;
+		route 10.0.2.0/24 rd 65000:1 label 100 next-hop 2001:db8::3;
+		route 10.0.3.0/24 next-hop 192.0.2.1;
+		route 10.0.4.0/24 next-hop self;
+	}
+}
+`
+	output, result := migrateText(t, input)
+	entries := migratedNexthopEntries(t, output)
+	want := []string{"ipv4/mpls-vpn ipv6", "ipv4/unicast ipv6"}
+	if strings.Join(entries, ",") != strings.Join(want, ",") {
+		t.Fatalf("nexthop entries = %v, want %v:\n%s", entries, want, output)
+	}
+	var warned []string
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "Extended Next Hop") || strings.Contains(warning, "RFC 8950") {
+			warned = append(warned, warning)
+		}
+	}
+	if len(warned) != 2 {
+		t.Fatalf("want one warning per family added, got %d: %q", len(warned), warned)
+	}
+	if !strings.Contains(warned[0], "10.0.0.0/24") || !strings.Contains(warned[0], "2001:db8::1") {
+		t.Errorf("the warning names the first route that needed it and its next hop, got %q", warned[0])
+	}
+	if !strings.Contains(warned[1], "10.0.2.0/24") {
+		t.Errorf("the mpls-vpn warning names its route, got %q", warned[1])
+	}
+
+	declared := `
+neighbor 127.0.0.1 {
+	router-id 127.0.0.2;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	nexthop {
+		ipv4 unicast ipv6;
+	}
+	static {
+		route 10.0.0.0/24 next-hop 2001:db8::1;
+	}
+}
+`
+	output, result = migrateText(t, declared)
+	if entries := migratedNexthopEntries(t, output); strings.Join(entries, ",") != "ipv4/unicast ipv6" {
+		t.Fatalf("a declared entry is kept alone, got %v", entries)
+	}
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "RFC 8950") {
+			t.Errorf("a declared entry needs no warning, got %q", warning)
+		}
+	}
+
+	disabled := `
+neighbor 127.0.0.1 {
+	router-id 127.0.0.2;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	capability {
+		nexthop disable;
+	}
+	static {
+		route 10.0.0.0/24 next-hop 2001:db8::1;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(disabled)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	_, err = MigrateFromExaBGP(tree)
+	if err == nil {
+		t.Fatal("capability { nexthop disable; } with an IPv6 next hop on an IPv4 route is refused, as ExaBGP refuses it")
+	}
+	if !strings.Contains(err.Error(), `"capability { nexthop disable; }" turns it off (RFC 8950)`) {
+		t.Errorf("error = %q, want the pin's reason", err)
+	}
+}
+
+// migratedNexthopEntries answers the sorted session capability nexthop entries
+// of every peer in ze's parse of output.
+func migratedNexthopEntries(t *testing.T, output string) []string {
+	t.Helper()
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatalf("load ze schema: %v", err)
+	}
+	tree, err := config.NewParser(schema).Parse(output)
+	if err != nil {
+		t.Fatalf("ze refuses the migrated config: %v\n%s", err, output)
+	}
+	var entries []string
+	for _, group := range tree.GetContainer("bgp").GetList("group") {
+		for _, peer := range group.GetList("peer") {
+			session := peer.GetContainer("session")
+			if session == nil {
+				continue
+			}
+			capability := session.GetContainer("capability")
+			if capability == nil {
+				continue
+			}
+			for _, entry := range capability.GetListOrdered("nexthop") {
+				nhafi, _ := entry.Value.Get("nhafi")
+				entries = append(entries, config.StripListKeySuffix(entry.Key)+" "+nhafi)
+			}
+		}
+	}
+	slices.Sort(entries)
+	return entries
 }

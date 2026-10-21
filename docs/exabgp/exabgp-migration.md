@@ -137,6 +137,25 @@ so the migrated peer stays held down as it was under ExaBGP, and `request peer
 administratively down").
 <!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields; internal/exabgp/migration/migrate_serialize.go -->
 
+#### Extended next hop for an IPv4 route
+
+ExaBGP 4.2 and 5.0 sent an IPv4 route with an IPv6 next hop without asking the
+peer. RFC 8950 Section 4 forbids that: "A BGP speaker MUST only advertise the
+IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker
+has first ascertained via the BGP Capability Advertisement that the BGP peer
+supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI
+pair." ExaBGP 6.0 adds the capability at load, and the migration does the
+same: for each IPv4 unicast, multicast, labelled (`nlri-mpls`) or `mpls-vpn`
+route whose next hop is an IPv6 address, it adds `<family> ipv6` to the peer's
+`session { capability { nexthop { ... } } }` when the config does not already
+declare it, and prints one warning per family naming the first route that
+needed it. The route is then sent only if the peer agrees to the capability.
+
+A config with `capability { nexthop disable; }` turns the capability off, so
+the migration refuses it and names the neighbor, the next hop and the family,
+as ExaBGP 6.0 does at load.
+<!-- source: internal/exabgp/migration/migrate_extended_nexthop.go -- addExtendedNextHopEntries, requireExtendedNextHop -->
+
 ### Running ExaBGP Plugins
 
 Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:

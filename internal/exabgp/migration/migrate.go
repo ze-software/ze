@@ -1350,6 +1350,12 @@ func migrateSingleNeighbor(neighborTree *config.Tree, peerName string, result *M
 		return nil, err
 	}
 
+	// RFC 8950 Section 4: ask for the Extended Next Hop Encoding the migrated
+	// IPv4 routes with an IPv6 next hop need, as ExaBGP does at load.
+	if err := addExtendedNextHopEntries(neighborTree, peer, peerName, result); err != nil {
+		return nil, err
+	}
+
 	// Check for unsupported features.
 	checkUnsupported(neighborTree, result)
 
