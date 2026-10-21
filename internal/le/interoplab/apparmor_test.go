@@ -175,16 +175,19 @@ func TestKernelProbeProfileIsRegistered(t *testing.T) {
 	}
 }
 
-// VALIDATES: on a darwin client every AppArmor refusal names only the QEMU
-// docker-lab route, never `./le setup docker-kernel apparmor confirm`, which
-// refuses on darwin (appArmorLoadPlatform); on a Linux client the lab
-// refusal's text is unchanged and the kernel check still names the load
-// command on its own line.
+// VALIDATES: owner decision 2026-10-21 ("find the colima issue so that setup
+// can have it working"). On a darwin client every AppArmor refusal names
+// `./le setup docker-kernel apparmor confirm <profile>` on its own line, says
+// that on macOS it loads the profile into the Colima VM that runs the daemon,
+// and still names the QEMU docker-lab route and the daemon's kernel release,
+// because the profile adds no kernel feature; on a Linux client the texts are
+// unchanged.
 // METHOD: the kernel check runs over a scripted daemon whose client is set
 // to darwin, once with the probe's profile unloaded and once with a denied
 // row; the lab refusal builder runs for both client systems.
-// PREVENTS: a Mac user told to run a command that refuses on the Mac.
-func TestAppArmorRefusalOnDarwinNamesOnlyTheQEMURoute(t *testing.T) {
+// PREVENTS: a Mac user on Colima sent only to the QEMU guest when the one
+// command that lets the probe answer works from the Mac.
+func TestAppArmorRefusalOnDarwinNamesTheColimaLoad(t *testing.T) {
 	route := DockerKernelRoute(hostGOOSDarwin, leWords(), selectorEnvironment())
 	denied := `{"ready": false, "capabilities": [
  {"subsystem": "mpls-transit-mtu", "kernel": "CONFIG_MPLS_IP_MTU", "state": "denied",
@@ -203,8 +206,11 @@ func TestAppArmorRefusalOnDarwinNamesOnlyTheQEMURoute(t *testing.T) {
 		if err == nil {
 			t.Fatalf("%s: the kernel check proceeded", name)
 		}
-		if strings.Contains(err.Error(), AppArmorLoadCommandPrefix) {
-			t.Errorf("%s: a darwin refusal names the Linux-only load command:\n%v", name, err)
+		if !strings.Contains(err.Error(), "\n  "+AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)) {
+			t.Errorf("%s: a darwin refusal lacks the load command on its own line:\n%v", name, err)
+		}
+		if !strings.Contains(err.Error(), appArmorColimaLoad) {
+			t.Errorf("%s: a darwin refusal does not say the command loads into Colima's VM:\n%v", name, err)
 		}
 		if !strings.Contains(err.Error(), route) {
 			t.Errorf("%s: a darwin refusal lacks the QEMU route %q:\n%v", name, route, err)
@@ -231,8 +237,11 @@ func TestAppArmorRefusalOnDarwinNamesOnlyTheQEMURoute(t *testing.T) {
 	registerTestLabProfile(t)
 	profile, _ := LookupAppArmorProfile(testLabProfile)
 	darwin := labAppArmorRefusal(hostGOOSDarwin, profile, "the daemon could not apply (x)")
-	if strings.Contains(darwin.Error(), AppArmorLoadCommandPrefix) {
-		t.Errorf("the darwin lab refusal names the Linux-only load command:\n%v", darwin)
+	if !strings.Contains(darwin.Error(), "\n  "+AppArmorLoadCommandFor(testLabProfile)) {
+		t.Errorf("the darwin lab refusal lacks the load command on its own line:\n%v", darwin)
+	}
+	if !strings.Contains(darwin.Error(), appArmorColimaLoad) {
+		t.Errorf("the darwin lab refusal does not say the command loads into Colima's VM:\n%v", darwin)
 	}
 	if !strings.Contains(darwin.Error(), route) {
 		t.Errorf("the darwin lab refusal lacks the QEMU route %q:\n%v", route, darwin)
@@ -243,5 +252,42 @@ func TestAppArmorRefusalOnDarwinNamesOnlyTheQEMURoute(t *testing.T) {
 		" Load Ze's profile with:\n  ./le setup docker-kernel apparmor confirm ze-test-lab"
 	if linux.Error() != want {
 		t.Errorf("the Linux lab refusal changed:\n%v\nwant\n%v", linux, want)
+	}
+}
+
+// VALIDATES: on a client that is neither Linux nor macOS, where `./le setup
+// docker-kernel apparmor` refuses (appArmorLoadPlatform), the probe refusal,
+// the lab refusal and a denied row's fix never name the load command, never
+// claim the Colima load, and point at the QEMU docker-lab route.
+// METHOD: each refusal builder runs for freebsd.
+// PREVENTS: the macOS branch leaking the load command to a system it refuses.
+func TestAppArmorRefusalElsewhereNamesOnlyTheQEMURoute(t *testing.T) {
+	const freebsd = "freebsd"
+	route := DockerKernelRoute(freebsd, leWords(), selectorEnvironment())
+	registerTestLabProfile(t)
+	profile, _ := LookupAppArmorProfile(testLabProfile)
+	for name, text := range map[string]string{
+		"probe": appArmorRefusal(freebsd, "6.8.0-117-generic", "the daemon could not apply (x)").Error(),
+		"lab":   labAppArmorRefusal(freebsd, profile, "the daemon could not apply (x)").Error(),
+	} {
+		if strings.Contains(text, AppArmorLoadCommandPrefix) {
+			t.Errorf("%s: a freebsd refusal names the load command:\n%s", name, text)
+		}
+		if strings.Contains(text, appArmorColimaLoad) {
+			t.Errorf("%s: a freebsd refusal claims the Colima load:\n%s", name, text)
+		}
+		if !strings.Contains(text, route) {
+			t.Errorf("%s: a freebsd refusal lacks the QEMU route %q:\n%s", name, route, text)
+		}
+		if !strings.Contains(text, appArmorLoadUnreachable(freebsd)) {
+			t.Errorf("%s: a freebsd refusal does not say why the command is not named:\n%s", name, text)
+		}
+	}
+	fix := deniedFix(freebsd, true, false)
+	if strings.Contains(fix, AppArmorLoadCommandPrefix) {
+		t.Errorf("a freebsd denied fix names the load command: %s", fix)
+	}
+	if !strings.Contains(fix, "QEMU guest route") {
+		t.Errorf("a freebsd denied fix does not point at the QEMU route: %s", fix)
 	}
 }

@@ -647,9 +647,12 @@ func runInstallStepOutput(ctx context.Context, step installStep) ([]byte, error)
 
 // installCommand answers the command for one root step under ctx, with the
 // terminal on stdin and stderr. The step stays in le's process group, so a
-// Ctrl-C at the terminal reaches sudo itself; a done ctx sends it SIGTERM
-// rather than the default SIGKILL, because sudo relays SIGTERM to the command
-// it runs and cannot relay a SIGKILL.
+// Ctrl-C at the terminal reaches the step's first program itself: sudo on
+// Linux, `colima ssh` on macOS (the AppArmor steps run inside Colima's VM). A
+// done ctx sends that program SIGTERM rather than the default SIGKILL, because
+// sudo relays SIGTERM to the command it runs and cannot relay a SIGKILL; on
+// macOS the SIGTERM reaches `colima ssh`, and what then reaches the sudo in
+// the VM is ssh's handling of its session, not sudo's relay.
 func installCommand(ctx context.Context, step installStep) *exec.Cmd {
 	command := exec.CommandContext(ctx, step.Argv[0], step.Argv[1:]...) //nolint:gosec // argv is this file's own; sudo may wait on a password prompt
 	command.Cancel = func() error { return command.Process.Signal(syscall.SIGTERM) }

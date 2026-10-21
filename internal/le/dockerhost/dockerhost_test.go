@@ -84,3 +84,52 @@ func TestIsSocket(t *testing.T) {
 		t.Error("a missing path was named as a socket")
 	}
 }
+
+// VALIDATES: the endpoint a Docker client uses names a Colima VM exactly when
+// it is a docker.sock beside a profile's colima.yaml, under any Colima home
+// (~/.colima, the XDG colima directory, or a custom COLIMA_HOME), and the
+// profile is that directory's name; the docker.sock Colima also forwards to
+// the home's root names the default profile, whose Lima instance is
+// _lima/colima; the ssh prefix runs a command in that profile's VM.
+// METHOD: a table of endpoints over a scripted filesystem holding a default
+// and a work profile under ~/.colima, a default under ~/.config/colima and
+// one under /srv/colima-home, beside Docker Desktop's socket.
+// PREVENTS: loading an AppArmor profile through `colima ssh` into a VM that is
+// not the daemon the labs use, and refusing a Colima VM whose home was moved.
+func TestColimaProfile(t *testing.T) {
+	present := map[string]bool{
+		"/Users/me/.colima/default/colima.yaml":        true,
+		"/Users/me/.colima/work/colima.yaml":           true,
+		"/Users/me/.colima/_lima/colima/lima.yaml":     true,
+		"/Users/me/.config/colima/default/colima.yaml": true,
+		"/srv/colima-home/default/colima.yaml":         true,
+	}
+	exists := func(path string) bool { return present[path] }
+	for endpoint, want := range map[string]string{
+		"unix:///Users/me/.colima/default/docker.sock":        "default",
+		"unix:///Users/me/.colima/work/docker.sock":           "work",
+		"unix:///Users/me/.config/colima/default/docker.sock": "default",
+		"unix:///srv/colima-home/default/docker.sock":         "default",
+		"unix:///Users/me/.colima/default/docker.sock\n":      "default",
+		"unix:///Users/me/.colima/docker.sock":                "default",
+		"unix:///Users/me/.colima/gone/docker.sock":           "",
+		"unix:///var/run/docker.sock":                         "",
+		"unix:///Users/me/.docker/run/docker.sock":            "",
+		"unix:///Users/me/.colima/default/containerd.sock":    "",
+		"tcp://127.0.0.1:2375":                                "",
+		"/Users/me/.colima/default/docker.sock":               "",
+		"":                                                    "",
+	} {
+		got, colima := ColimaProfile(endpoint, exists)
+		if colima != (want != "") {
+			t.Errorf("%q: Colima %v, want %v", endpoint, colima, want != "")
+			continue
+		}
+		if got != want {
+			t.Errorf("%q: profile %q, want %q", endpoint, got, want)
+		}
+	}
+	if got, want := ColimaSSH("work"), []string{"colima", "ssh", "--profile", "work", "--"}; !slices.Equal(got, want) {
+		t.Errorf("ColimaSSH = %q, want %q", got, want)
+	}
+}

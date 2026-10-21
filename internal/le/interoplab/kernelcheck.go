@@ -312,20 +312,26 @@ func appArmorProfileUnapplied(exit int, stderr string) bool {
 // appArmorRefusal names the profile, what showed it is not in force, the
 // command that loads it, and the kernel route for a client on goos. Loading
 // the profile lets the probe answer and changes no kernel feature, so the
-// operator reads the whole path at once rather than one step per run. A
-// client that is not Linux is never told to load it, because the load command
-// refuses there (appArmorLoadUnreachable): it reads the route alone.
+// operator reads the whole path at once rather than one step per run. A macOS
+// client is told the same command, which there loads the profile into the
+// Colima VM running the daemon (appArmorColimaLoad). A client on any other
+// system is never told to load it, because the load command refuses there
+// (appArmorLoadUnreachable): it reads the route alone.
 func appArmorRefusal(goos, release, finding string) error {
 	var refusal textbuf.Buffer
 	refusal.Str("the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ").
 		Str(kernelcap.ProbeAppArmorProfileName).Str(", which ").Str(finding).
 		Str(". Docker's docker-default profile denies the probe's mount and its /proc/sys write.")
-	if clientGOOS(goos) == hostGOOSLinux {
+	switch clientGOOS(goos) {
+	case hostGOOSLinux, hostGOOSDarwin:
 		refusal.Str(" Load Ze's profile with:\n  ").
-			Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).
-			Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
+			Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).Byte('\n')
+		if goos == hostGOOSDarwin {
+			refusal.Str(appArmorColimaLoad).Byte('\n')
+		}
+		refusal.Str("The profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
 			Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named.\n")
-	} else {
+	default:
 		refusal.Byte(' ').Str(appArmorLoadUnreachable(goos)).
 			Str(" The profile adds no kernel feature: every feature the daemon's kernel (").
 			Str(release).Str(") lacks stays missing either way.\n")
@@ -428,16 +434,22 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 const seLinuxDenialsCommand = "sudo ausearch -m avc -ts recent"
 
 // deniedFix answers the fix a denied row's refusal names. Under AppArmor it is
-// Ze's profile, loaded or reloaded by one command (D-7), on a Linux client; a
-// client on any other goos cannot run that command (appArmorLoadUnreachable)
-// and is sent to the route its refusal already printed. Ze ships no policy for
+// Ze's profile, loaded or reloaded by one command (D-7), on a Linux client and
+// on a macOS client, where the command loads it into Colima's VM
+// (appArmorColimaLoad); a client on any other goos cannot run that command
+// (appArmorLoadUnreachable) and is sent to the route its refusal already
+// printed. Ze ships no policy for
 // another module, so a daemon without AppArmor is told which grant the row's
 // policy owes, and under SELinux given the command that shows the denial.
 func deniedFix(goos string, appArmor, seLinux bool) string {
 	if appArmor {
-		if clientGOOS(goos) == hostGOOSLinux {
+		switch clientGOOS(goos) {
+		case hostGOOSLinux:
 			return " Load or reload Ze's AppArmor profile with:\n  " +
 				AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)
+		case hostGOOSDarwin:
+			return " Load or reload Ze's AppArmor profile with:\n  " +
+				AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName) + "\n" + appArmorColimaLoad
 		}
 		return " " + appArmorLoadUnreachable(goos) + " Take the QEMU guest route above."
 	}

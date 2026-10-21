@@ -37,13 +37,17 @@ func TestAppArmorLoadCommandIsThisAction(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-19. Off Linux the action refuses naming the macOS route; on a
-// host without AppArmor enabled, or without apparmor_parser, it refuses naming
+// VALIDATES: AC-19. Off Linux and macOS the action refuses naming the QEMU
+// route; macOS proceeds to Colima's VM (owner decision 2026-10-21); on a host
+// without AppArmor enabled, or without apparmor_parser, it refuses naming
 // what is missing; a host with both is ready.
 // PREVENTS: root steps that cannot succeed, run before the reason is known.
 func TestAppArmorLoadRefusesAHostThatCannotLoadIt(t *testing.T) {
-	if err := appArmorLoadPlatform("darwin"); err == nil || !strings.Contains(err.Error(), "Linux") {
-		t.Errorf("darwin: %v, want a Linux-only refusal", err)
+	if err := appArmorLoadPlatform("windows"); err == nil || !strings.Contains(err.Error(), "runs on Linux and macOS only") {
+		t.Errorf("windows: %v, want a refusal naming Linux and macOS", err)
+	}
+	if err := appArmorLoadPlatform("darwin"); err != nil {
+		t.Errorf("darwin refused: %v", err)
 	}
 	if err := appArmorLoadPlatform("linux"); err != nil {
 		t.Errorf("linux refused: %v", err)
@@ -100,7 +104,7 @@ func TestAppArmorLoadSteps(t *testing.T) {
 				t.Errorf("the staged text does not declare profile %s", name)
 			}
 			target := filepath.Join(appArmorProfileDir, name)
-			steps := appArmorLoadSteps(profile, staged, "/usr/sbin/apparmor_parser")
+			steps := appArmorLoadSteps(profile, staged, appArmorHost{parser: "/usr/sbin/apparmor_parser"})
 			got := make([]string, 0, len(steps))
 			for _, step := range steps {
 				if step.Why == "" {

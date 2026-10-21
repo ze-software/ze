@@ -89,6 +89,68 @@ func IsSocket(path string) bool {
 	return info.Mode()&os.ModeSocket != 0
 }
 
+// colimaSocket is the file name of the Docker socket in a Colima profile's
+// directory.
+const colimaSocket = "docker.sock"
+
+// colimaProfileConfig is the file Colima keeps in every profile's directory.
+// Its presence beside the socket marks the directory as a profile's, wherever
+// the Colima home is (~/.colima, $XDG_CONFIG_HOME/colima, or COLIMA_HOME).
+const colimaProfileConfig = "colima.yaml"
+
+// colimaDefaultInstance is the Lima instance of Colima's default profile,
+// relative to the Colima home. Colima also forwards that profile's Docker
+// socket to <home>/docker.sock (colima 29.5.2, _lima/colima/lima.yaml), so a
+// socket at the home's root whose home holds this instance is the default
+// profile's.
+var colimaDefaultInstance = filepath.Join("_lima", "colima", "lima.yaml")
+
+// colimaDefaultProfile is the name Colima gives the profile it starts when
+// none is named.
+const colimaDefaultProfile = "default"
+
+// ColimaProfile answers the Colima profile whose VM serves endpoint, the
+// address a Docker client prints for its endpoint (`docker context inspect
+// --format '{{.Endpoints.docker.Host}}'`), and false when endpoint is not a
+// Colima VM's socket. Colima serves each profile's daemon on
+// <home>/<profile>/docker.sock beside that profile's colima.yaml, so the
+// profile is that directory's name; the default profile's socket is also
+// forwarded to <home>/docker.sock. exists reports whether a file exists, which
+// FileExists answers for a real filesystem.
+func ColimaProfile(endpoint string, exists func(string) bool) (string, bool) {
+	path, unix := strings.CutPrefix(strings.TrimSpace(endpoint), "unix://")
+	if !unix {
+		return "", false
+	}
+	if filepath.Base(path) != colimaSocket {
+		return "", false
+	}
+	dir := filepath.Dir(path)
+	if exists(filepath.Join(dir, colimaProfileConfig)) {
+		return filepath.Base(dir), true
+	}
+	if exists(filepath.Join(dir, colimaDefaultInstance)) {
+		return colimaDefaultProfile, true
+	}
+	return "", false
+}
+
+// FileExists reports whether path names a file this account can stat.
+func FileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
+// ColimaSSH answers the argv prefix that runs a command inside the VM of the
+// named Colima profile, as the VM's default user. The command follows it as
+// separate words.
+func ColimaSSH(profile string) []string {
+	return []string{"colima", "ssh", "--profile", profile, "--"}
+}
+
 // set replaces the one variable this package names, or appends it. An empty
 // DOCKER_HOST= reaches here, because Environment reads that as unset, so the
 // entry is dropped rather than left to shadow the one appended after it.
