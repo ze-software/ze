@@ -993,7 +993,8 @@ forwarded nor replayed, which is the "SHOULD NOT be propagated" of that section.
 
 A feasible rule received from an EBGP peer whose redirect-to-IP community
 (0x0800) names next hop X also gets the draft-simpson-idr-flowspec-redirect-02
-Section 3 check. Ze takes the longest unicast match for X in the rule's own
+Section 3 check. A session whose local AS is unknown counts as EBGP here, as it
+does for authorization, so the check fails closed. Ze takes the longest unicast match for X in the rule's own
 domain and X's address family. When the last AS of its AS_PATH, the origin AS,
 is not the peer's AS, the redirect action is refused. No match, an AS_SET origin
 and an empty path refuse too. "Last AS" is read as the origin because the
@@ -1021,6 +1022,7 @@ the leaf, the check runs.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- discardRedirectAction -->
 <!-- test: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go TestFlowSpecRedirectToIPEBGPCheck -->
 <!-- test: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go TestFlowSpecRedirectVPNVerdictPerRule -->
+<!-- test: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go TestFlowSpecRedirectUnknownLocalASIsChecked -->
 <!-- test: internal/component/bgp/reactor/forward_validation_test.go TestForwardValidationSplitsRedirectRefusedRules -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_refused_wire_test.go TestFlowSpecRedirectRefusedRouteServer -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_refused_wire_test.go TestFlowSpecRedirectRefusedReplay -->

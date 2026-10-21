@@ -56,7 +56,13 @@ func flowValidationReceive(t *testing.T, r *RIBManager, peer netip.Addr, peerAS 
 // flowValidationReceiveNextHop is flowValidationReceive with flowNextHop as a
 // FlowSpec UPDATE's MP_REACH next hop, the redirect-to-IP target.
 func flowValidationReceiveNextHop(t *testing.T, r *RIBManager, peer netip.Addr, peerAS uint32, id uint64, fam family.Family, raw, attrs []byte, withdraw bool, flowNextHop []byte) *rpc.StructuredEvent {
-	const localAS uint32 = 65000
+	t.Helper()
+	return flowValidationReceiveLocalAS(t, r, peer, peerAS, 65000, id, fam, raw, attrs, withdraw, flowNextHop)
+}
+
+// flowValidationReceiveLocalAS is flowValidationReceiveNextHop with the
+// session's local AS stated, zero for a session whose local AS is unknown.
+func flowValidationReceiveLocalAS(t *testing.T, r *RIBManager, peer netip.Addr, peerAS, localAS uint32, id uint64, fam family.Family, raw, attrs []byte, withdraw bool, flowNextHop []byte) *rpc.StructuredEvent {
 	t.Helper()
 	attrs = bytes.Clone(attrs)
 	mp := []byte{byte(fam.AFI >> 8), byte(fam.AFI), byte(fam.SAFI)}
@@ -823,6 +829,39 @@ func TestFlowSpecRedirectVPNVerdictPerRule(t *testing.T) {
 		if !found || !bytes.Equal(installed, want) {
 			t.Fatalf("rule in RD %d: installed communities = % x (found %v), want % x", n, installed, found, want)
 		}
+	}
+}
+
+// A session whose local AS is unknown (Candidate.LocalASN zero) is judged as
+// external, as flowSpecAuthorized judges it: the check fails closed, so an
+// unknown local AS cannot carry a redirect the check would refuse.
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "the BGP speaker SHOULD
+// discard the redirect-to-ip extended community (and not propagate it further
+// with the flow-spec route) if the last AS in the AS_PATH or AS4_PATH
+// attribute of the longest prefix match for X does not match the AS of the
+// EBGP peer."
+//
+// MUTATION: restore the LocalASN != 0 conjunct in reconcileFlowSpecs' EBGP
+// gate (the redirect is not judged and stands).
+func TestFlowSpecRedirectUnknownLocalASIsChecked(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	other := netip.MustParseAddr("192.0.2.2")
+	redirect := []byte{0x08, 0, 0, 0, 0, 0, 0, 0}
+	r, _ := flowValidationFixture(t)
+	ribevents.RegisterFlowSpecRedirectLookup(r.flowSpecRedirectRefusedFor)
+	t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
+	path := flowValidationPath(2, 65001)
+	flowValidationReceiveLocalAS(t, r, peer, 65001, 0, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(path, netip.Addr{}, 0, nil), false, nil)
+	flowValidationReceive(t, r, other, 65002, 2, family.IPv4Unicast, []byte{24, 198, 51, 100}, flowValidationAttrs(flowValidationPath(2, 65001, 65009), netip.Addr{}, 0, nil), false)
+	raw := flowspecNLRI(16, 10, 1)
+	flowValidationReceiveLocalAS(t, r, peer, 65001, 0, 3, flowspecFamily, raw, flowValidationAttrs(path, netip.Addr{}, 100, redirect), false, []byte{198, 51, 100, 1})
+	key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
+	if !ribevents.RouteEligible(key, 3) {
+		t.Fatal("the rule was not authorized")
+	}
+	if !ribevents.FlowSpecRedirectRefused(key, 3) {
+		t.Fatal("a session with an unknown local AS skipped the redirect check")
 	}
 }
 

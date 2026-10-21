@@ -410,8 +410,11 @@ func (r *RIBManager) reconcileFlowSpecs() {
 				var target netip.Addr
 				// draft-simpson-idr-flowspec-redirect-02 Section 3 binds the
 				// check to a route "from an EBGP peer", on by default and off
-				// per session (flowSpecRedirectChecked).
-				if candidate.LocalASN != 0 && candidate.PeerASN != candidate.LocalASN && r.flowSpecRedirectChecked(peer) {
+				// per session (flowSpecRedirectChecked). An unknown local AS
+				// (zero) is external, as flowSpecAuthorized reads it, so the
+				// check fails closed rather than letting the action through.
+				external := candidate.LocalASN == 0 || candidate.PeerASN != candidate.LocalASN
+				if external && r.flowSpecRedirectChecked(peer) {
 					target = flowSpecRedirectTarget(entry)
 				}
 				flows = append(flows, flowSpecRoute{key: key, domain: domain, destination: destination, matchable: matchable,
