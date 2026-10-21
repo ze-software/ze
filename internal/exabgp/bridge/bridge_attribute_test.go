@@ -119,6 +119,30 @@ func TestPathInformationWithoutValueRefused(t *testing.T) {
 	assert.Contains(t, err.Error(), "write path-information <path identifier, a number or an IPv4 address>")
 }
 
+// TestExtCommunityInterfaceSetRefused proves an interface-set written inside
+// extended-community is refused on every route command form, as ExaBGP refuses it.
+//
+// VALIDATES: the route, attributes and family flow forms each refuse the item,
+// and the reason names the interface-set keyword to write it with.
+// PREVENTS: Ze announcing an interface-set ExaBGP's extended_community
+// (configuration/grammar/types/bgp.py) has no type for and refuses.
+func TestExtCommunityInterfaceSetRefused(t *testing.T) {
+	for _, line := range []string{
+		"announce route 10.0.0.0/24 next-hop 1.1.1.1 extended-community [ interface-set:transitive:input:1.234:10 ]",
+		"announce route 10.0.0.0/24 next-hop 1.1.1.1 extended-community interface-set:input:1234:10",
+		"announce attributes next-hop 1.1.1.1 extended-community [ target:65000:1 interface-set:input:1234:10 ] nlri 10.0.0.0/24",
+		"announce ipv4 flow destination 1.2.3.4/32 extended-community [ interface-set:input:1234:10 ] discard",
+	} {
+		t.Run(line, func(t *testing.T) {
+			translation, err := TranslateLine(line)
+			require.Error(t, err)
+			assert.Empty(t, translation.Commands)
+			assert.Contains(t, err.Error(), "ExaBGP refuses an interface-set inside extended-community")
+			assert.Contains(t, err.Error(), "interface-set [ ")
+		})
+	}
+}
+
 // TestPrefixMaskNotNumberRefused is X-29 (AC-35).
 //
 // VALIDATES: `10.0.0.0/x` is refused in both the route and the attributes

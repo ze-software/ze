@@ -697,7 +697,11 @@ func convertFamilyRoute(selector, rest, verb string) ([]Command, bool, error) {
 	var tb textbuf.Buffer
 	fam := tb.Str(afi).Byte('/').Str(safi).String()
 	if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
-		return []Command{convertFlowSpec(selector, fam, routeStr, verb)}, true, nil
+		command, err := convertFlowSpec(selector, fam, routeStr, verb)
+		if err != nil {
+			return nil, true, err
+		}
+		return []Command{command}, true, nil
 	}
 
 	command, err := buildRouteCommand(selector, fam, verb, routeStr)
@@ -881,8 +885,13 @@ const (
 // `withdraw flow route { match { ... } then { rate-limit 1; } }` reached ze with
 // no rate-limit extended community and left one out of the withdrawal ExaBGP
 // carries it on (api-broken-flow.ci).
-func convertFlowSpec(selector, family, routeStr, verb string) Command {
-	fam, attrs, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
+//
+// It reports an attribute ExaBGP itself refuses, so the route is not sent.
+func convertFlowSpec(selector, family, routeStr, verb string) (Command, error) {
+	fam, attrs, rd, nlri, err := parseFlowSpecBridgeRoute(family, routeStr)
+	if err != nil {
+		return Command{}, err
+	}
 	cmdParts := make([]string, 1, len(attrs)+2)
 	cmdParts[0] = "send bgp " + selector + " update text"
 	cmdParts = append(cmdParts, attrs...)
@@ -915,12 +924,19 @@ func convertFlowSpec(selector, family, routeStr, verb string) Command {
 		Key:  RouteKey{Family: fam, NLRI: keyNLRI.String(), Withdraw: verb == nlriDel},
 	}
 	if verb == nlriAdd {
-		command.Withdrawal = convertFlowSpec(selector, family, routeStr, nlriDel).Text
+		withdrawal, err := convertFlowSpec(selector, family, routeStr, nlriDel)
+		if err != nil {
+			return Command{}, err
+		}
+		command.Withdrawal = withdrawal.Text
 	}
-	return command
+	return command, nil
 }
 
-func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string) {
+// parseFlowSpecBridgeRoute splits a family-form flow route into its family, its
+// update-text attributes, its route distinguisher and its NLRI text. It reports
+// an extended-community item ExaBGP refuses (CheckExtendedCommunityList).
+func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string, error) {
 	parts := strings.Fields(strings.TrimSpace(routeStr))
 	attrs := make([]string, 0, 4)
 	nlri := make([]string, 0, len(parts))
@@ -950,6 +966,9 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 			if i+1 < len(parts) {
 				value, next := collectBridgeAttrValue(parts, i+1)
 				if key == bridgeAttrExtCommunity {
+					if err := CheckExtendedCommunityList(value); err != nil {
+						return "", nil, "", "", err
+					}
 					value = normalizeFlowSpecExtCommunityValue(value)
 				}
 				attrs = append(attrs, key+" "+value)
@@ -986,7 +1005,7 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 		}
 	}
 
-	return fam, attrs, rd, textbuf.Join(nlri, " ")
+	return fam, attrs, rd, textbuf.Join(nlri, " "), nil
 }
 
 // isFlowSpecComponentKeyword answers whether a token names a match component.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
 const (
@@ -46,7 +47,9 @@ var flexAttrKeywords = map[string]bool{
 // convertAnnounceToUpdate converts ExaBGP announce blocks to Ze update blocks.
 // ExaBGP: announce { ipv4 { unicast PREFIX next-hop NH; } }.
 // Ze: update { attribute { next-hop NH; } nlri { ipv4/unicast PREFIX; } }.
-func convertAnnounceToUpdate(announce, dst *config.Tree) {
+//
+// It reports an attribute ExaBGP itself refuses (checkExtCommunityAttr).
+func convertAnnounceToUpdate(announce, dst *config.Tree) error {
 	// Process each AFI (ipv4, ipv6, l2vpn)
 	for _, afi := range []string{"ipv4", "ipv6", "l2vpn"} {
 		afiBlock := announce.GetContainer(afi)
@@ -72,6 +75,9 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 			for _, routeEntry := range routeList {
 				prefix := config.StripListKeySuffix(routeEntry.Key)
 				attrTree := routeEntry.Value
+				if err := checkExtCommunityAttr(attrTree); err != nil {
+					return fmt.Errorf("route %s: %w", prefix, err)
+				}
 
 				update := config.NewTree()
 
@@ -116,7 +122,9 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 			if len(values) == 0 {
 				continue
 			}
-			convertFlexToUpdate(afi, safi, values, dst)
+			if err := convertFlexToUpdate(afi, safi, values, dst); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -124,19 +132,25 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 	// This uses inline-list as well, so use GetListOrdered.
 	routeList := announce.GetListOrdered("route")
 	for _, routeEntry := range routeList {
-		convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst)
+		if err := convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // convertStaticToUpdate converts ExaBGP static blocks to Ze update blocks.
 // ExaBGP: static { route PREFIX next-hop NH; }.
 // Ze: update { attribute { next-hop NH; } nlri { ipv4/unicast PREFIX; } }.
-func convertStaticToUpdate(static, dst *config.Tree) {
+func convertStaticToUpdate(static, dst *config.Tree) error {
 	// With ze:syntax "inline-list", routes are stored as list entries.
 	routeList := static.GetListOrdered("route")
 	for _, routeEntry := range routeList {
-		convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst)
+		if err := convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // convertFlowToUpdate converts ExaBGP flow blocks to Ze update blocks.
@@ -230,6 +244,9 @@ func convertFlowToUpdate(flow, dst *config.Tree) error {
 					community = strings.Trim(value, "[] ")
 				case routeAttributeExtendedCommunity:
 					// Inline extended communities: "[ origin:... origin:... ]"
+					if err := bridge.CheckExtendedCommunityList(value); err != nil {
+						return fmt.Errorf("flow route %s: %w", entry.Key, err)
+					}
 					inner := strings.Trim(value, "[] ")
 					extComms = append(extComms, strings.Fields(inner)...)
 				case "attribute":
@@ -294,22 +311,30 @@ func convertFlowToUpdate(flow, dst *config.Tree) error {
 
 // convertL2VPNToUpdate converts neighbor-level l2vpn blocks to Ze update blocks.
 // Handles both inline VPLS routes (flex multi-values) and named VPLS blocks (list entries).
-func convertL2VPNToUpdate(l2vpn, dst *config.Tree) {
+func convertL2VPNToUpdate(l2vpn, dst *config.Tree) error {
 	// Handle inline VPLS routes (stored via AppendValue by the flex parser).
 	vplsValues := l2vpn.GetMultiValues(safiVPLS)
 	if len(vplsValues) > 0 {
-		convertFlexToUpdate("l2vpn", safiVPLS, vplsValues, dst)
+		if err := convertFlexToUpdate("l2vpn", safiVPLS, vplsValues, dst); err != nil {
+			return err
+		}
 	}
 
 	// Handle named VPLS routes (stored via AddListEntry by the flex parser).
 	for _, entry := range l2vpn.GetListOrdered(safiVPLS) {
-		convertNamedVPLSToUpdate(entry.Value, dst)
+		if err := convertNamedVPLSToUpdate(entry.Value, dst); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // convertNamedVPLSToUpdate converts a named VPLS block (e.g., vpls site5 { ... })
 // to a Ze update block. The block's Tree has parsed fields like endpoint, base, rd, etc.
-func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
+func convertNamedVPLSToUpdate(vpls, dst *config.Tree) error {
+	if err := checkExtCommunityAttr(vpls); err != nil {
+		return fmt.Errorf("vpls: %w", err)
+	}
 	update := config.NewTree()
 
 	attrBlock := config.NewTree()
@@ -357,6 +382,7 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 	update.AddListEntry("nlri", "l2vpn/vpls", nlriEntry)
 
 	dst.AddListEntry("update", "", update)
+	return nil
 }
 
 // convertRouteToUpdate converts a single ExaBGP route to a Ze update block.
@@ -366,8 +392,11 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 //
 // Family detection: rd present → mpls-vpn, label present (no rd) → nlri-mpls, else → unicast.
 // RD and label go inline in the NLRI (config loader expects them there, not in attribute block).
-func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
+func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) error {
 	prefix = config.StripListKeySuffix(prefix)
+	if err := checkExtCommunityAttr(attrTree); err != nil {
+		return fmt.Errorf("route %s: %w", prefix, err)
+	}
 	update := config.NewTree()
 
 	attrBlock := config.NewTree()
@@ -442,6 +471,18 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 	}
 
 	dst.AddListEntry("update", "", update)
+	return nil
+}
+
+// checkExtCommunityAttr refuses an extended-community attribute holding an
+// item ExaBGP refuses there (bridge.CheckExtendedCommunityList), so the
+// migration stops rather than writing a route ExaBGP would never have sent.
+func checkExtCommunityAttr(attrTree *config.Tree) error {
+	value, ok := attrTree.Get(routeAttributeExtendedCommunity)
+	if !ok {
+		return nil
+	}
+	return bridge.CheckExtendedCommunityList(value)
 }
 
 // mapIPv6RouteIPv4NextHop rewrites the IPv4 next hop of an IPv6 route without
@@ -553,7 +594,7 @@ func flowCriterionWithValues(criterion, value string, isIPv6 bool) string {
 // Flex SAFIs (mcast-vpn, mup) store entire route lines as strings via AppendValue().
 // Each string contains both NLRI fields and path attributes intermixed.
 // This function separates them into attribute { } and nlri { } blocks.
-func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
+func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) error {
 	// Translate ExaBGP SAFI to Ze canonical SAFI for the family name in the
 	// emitted nlri block. The flex value tokens themselves stay as-is; only
 	// the family key needs to match what Ze's family registry registered.
@@ -562,6 +603,9 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 
 	for _, value := range values {
 		attrs, nlriParts := splitFlexAttrs(value)
+		if err := bridge.CheckExtendedCommunityList(attrs[routeAttributeExtendedCommunity]); err != nil {
+			return fmt.Errorf("%s %s: %w", afi, safi, err)
+		}
 
 		update := config.NewTree()
 
@@ -583,6 +627,7 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 
 		dst.AddListEntry("update", "", update)
 	}
+	return nil
 }
 
 // flexNLRIContent builds NLRI content with the add operation keyword.

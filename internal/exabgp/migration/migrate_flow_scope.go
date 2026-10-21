@@ -62,12 +62,13 @@ func flowScopeExtCommunities(routeName string, scope *config.Tree) ([]string, er
 // The attribute package owns the encoding (attribute.ParseExtendedCommunityKeyword),
 // and every ze extended community parser reads its name, so the value is parsed
 // once here to refuse a malformed one at migration, and written back in the
-// four-field form so the migrated config states its transitivity. ExaBGP's one
-// stricter rule, no asdot AS number, is checked first (bridge.CheckInterfaceSetAS),
-// because the attribute package takes every RFC 5396 spelling.
+// four-field form so the migrated config states its transitivity. ExaBGP's
+// transitivity and its one stricter rule, no asdot AS number, are checked first
+// and in ExaBGP's order (bridge.CheckInterfaceSet), because the attribute package
+// takes every RFC 5396 spelling and judges the direction before the AS number.
 func interfaceSetExtCommunity(value string) (string, error) {
 	// ExaBGP refuses an asdot AS number here, which Ze's own parser accepts.
-	if err := bridge.CheckInterfaceSetAS(value); err != nil {
+	if err := bridge.CheckInterfaceSet(value); err != nil {
 		return "", err
 	}
 	ec, matched, err := attribute.ParseExtendedCommunityKeyword(interfaceSetKeyword + ":" + value)

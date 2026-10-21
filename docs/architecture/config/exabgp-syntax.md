@@ -222,9 +222,25 @@ The migration writes each value as ze's `interface-set` extended community, in
 the four-field form so the migrated config states its transitivity.
 `interface-set [ non-transitive:input:3405770241:1 ]` becomes
 `extended-community [interface-set:non-transitive:input:3405770241:1]`, and it
-reaches the wire as the same octets ExaBGP sends (`4702caffee014001`). A value
-outside the two forms, a direction other than the three names, or a group
-identifier above 16383 stops the migration.
+reaches the wire as the same octets ExaBGP sends (`4702caffee014001`).
+
+These stop the migration, as ExaBGP refuses them:
+
+- a value outside the two forms
+- a transitivity other than `transitive` or `non-transitive`, judged first
+- an AS number holding a period, asdot (`1.234`) included, which ExaBGP
+  refuses in an interface-set though ze accepts it elsewhere; the error names
+  the 32-bit integer to write
+- an AS number above 32 bits (4294967295)
+- a direction other than the three names
+- a group identifier above 16383
+- an `interface-set:` item written inside `extended-community`, in a flow
+  route's `then` block or a route's attributes: ExaBGP has no such extended
+  community type, and the error names the `interface-set` keyword to write it
+  with
+
+The ExaBGP bridge refuses the same values in an API command.
+<!-- source: internal/exabgp/bridge/bridge_flow.go -- CheckInterfaceSet, CheckExtendedCommunityItem -->
 <!-- source: internal/exabgp/migration/migrate_flow_scope.go -- interface-set conversion -->
 
 ### Redirect and copy

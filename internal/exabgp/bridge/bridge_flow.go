@@ -306,7 +306,7 @@ func (r *flowRoute) readWord(tokens []string, i int) (int, error) {
 		}
 		var tb textbuf.Buffer
 		for _, item := range items {
-			if err := CheckInterfaceSetAS(item); err != nil {
+			if err := CheckInterfaceSet(item); err != nil {
 				return 0, fmt.Errorf("exabgp flow route: %w", err)
 			}
 			r.extended = append(r.extended, tb.Reset().Str("interface-set:").Str(item).String())
@@ -465,6 +465,9 @@ func (r *flowRoute) readCommunity(word string, tokens []string, i int) (int, err
 		r.largeCommunities = append(r.largeCommunities, items...)
 	default:
 		for _, item := range items {
+			if err := CheckExtendedCommunityItem(item); err != nil {
+				return 0, fmt.Errorf("exabgp flow route: %w", err)
+			}
 			r.extended = append(r.extended, normalizeFlowSpecExtCommunityToken(item))
 		}
 	}
@@ -664,25 +667,33 @@ func flowRouteMissingValue(keyword string) error {
 	return fmt.Errorf("exabgp flow route: %q states no value", keyword)
 }
 
-// CheckInterfaceSetAS refuses an interface-set value whose AS number holds a
-// period, the one spelling ExaBGP refuses there and Ze's own parser accepts.
+// CheckInterfaceSet refuses an interface-set value ExaBGP refuses and Ze's own
+// parser would accept, or would refuse for another fault than the one ExaBGP names.
 //
-// ExaBGP's _one_interface_set (configuration/grammar/types/flow.py) raises
-// "'<asn>' is not a valid ASN, it is a 32-bit integer" for any AS field that
-// holds a period, and its config and its API commands share that grammar. An
-// ExaBGP script, and a config migrated from ExaBGP, are refused the same way,
-// so the rule lives in the ExaBGP layer: attribute.parseInterfaceSet keeps
-// every RFC 5396 spelling for Ze-native text.
+// ExaBGP's _one_interface_set (configuration/grammar/types/flow.py) judges, in
+// this order, the transitivity of a four-field value, then an AS field holding
+// a period ("'<asn>' is not a valid ASN, it is a 32-bit integer"), then the
+// direction. attribute.parseInterfaceSet keeps every RFC 5396 spelling for
+// Ze-native text and judges the direction before the AS number, so the
+// transitivity and the period are checked here first: a value wrong in more
+// than one field is then refused for the fault ExaBGP names. ExaBGP's config
+// and its API commands share that grammar, so an ExaBGP script and a config
+// migrated from ExaBGP are refused the same way.
 //
 // The value is `[transitive|non-transitive:]<direction>:<asn>:<group-id>`. A
-// nil answer means only that ExaBGP's asdot rule does not refuse the value:
-// the caller MUST still hand it to the interface-set parser, which judges every
-// other fault, including a field count that names no AS number at all.
-func CheckInterfaceSetAS(value string) error {
+// nil answer means only that these two checks do not refuse the value: the
+// caller MUST still hand it to the interface-set parser, which judges the
+// direction and every other fault, including a field count that names no AS
+// number at all.
+func CheckInterfaceSet(value string) error {
 	fields := strings.Split(value, ":")
 	var asText string
 	switch len(fields) {
 	case 4:
+		if fields[0] != "transitive" && fields[0] != "non-transitive" {
+			return fmt.Errorf("interface-set %q: %q is neither transitive nor non-transitive; write transitive or non-transitive",
+				value, fields[0])
+		}
 		asText = fields[2]
 	case 3:
 		asText = fields[1]
@@ -700,4 +711,27 @@ func CheckInterfaceSetAS(value string) error {
 	}
 	return fmt.Errorf("interface-set %q: the AS number %q is in asdot form, which ExaBGP refuses in an interface-set; write the 32-bit integer %d",
 		value, asText, number)
+}
+
+// CheckExtendedCommunityItem refuses an `interface-set:` item written inside an
+// extended-community list.
+//
+// ExaBGP's extended_community (configuration/grammar/types/bgp.py) reads the
+// word before the first colon as the type, and interface-set is not one of its
+// types, so it raises "invalid extended community: <item>, expecting 4 dotted
+// decimal parts". Its flow `then` block reads extended-community through the
+// same type (configuration/grammar/tree/flow.py). An interface-set is written
+// with its own keyword, and Ze's extended community parser accepts the item in
+// the list, so the rule lives in the ExaBGP layer, for the bridge and the
+// migration alike.
+func CheckExtendedCommunityItem(item string) error {
+	const prefix = "interface-set:"
+	if len(item) < len(prefix) {
+		return nil
+	}
+	if !strings.EqualFold(item[:len(prefix)], prefix) {
+		return nil
+	}
+	return fmt.Errorf("extended-community %q: ExaBGP refuses an interface-set inside extended-community; write it with the interface-set keyword of a flow route: interface-set [ %s ]",
+		item, item[len(prefix):])
 }

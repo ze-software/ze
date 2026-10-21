@@ -141,6 +141,49 @@ neighbor 127.0.0.1 {
 	}
 }
 
+// TestMigrateExtCommunityInterfaceSetRefused proves an interface-set written
+// inside extended-community stops the migration wherever ExaBGP reads one.
+//
+// VALIDATES: a flow `then`, an announce route, a static route and an announce
+// family route each refuse the item, naming the interface-set keyword.
+// PREVENTS: the migration copying an item ExaBGP itself refuses
+// (configuration/grammar/types/bgp.py, extended_community) into a ze config.
+func TestMigrateExtCommunityInterfaceSetRefused(t *testing.T) {
+	cases := map[string]string{
+		"flow then": `flow {
+		route one {
+			match { source 202.255.238.1/32; }
+			then { extended-community [ target:65000:1 interface-set:transitive:input:1.234:10 ]; }
+		}
+	}`,
+		"announce route": `announce {
+		ipv4 {
+			unicast 10.0.0.0/24 next-hop 1.1.1.1 extended-community [ interface-set:input:1234:10 ];
+		}
+	}`,
+		"static route": `static {
+		route 10.0.0.0/24 next-hop 1.1.1.1 extended-community [ interface-set:input:1234:10 ];
+	}`,
+	}
+
+	for name, block := range cases {
+		t.Run(name, func(t *testing.T) {
+			input := "neighbor 127.0.0.1 {\n\tlocal-as 1;\n\tpeer-as 1;\n\t" + block + "\n}\n"
+			tree, err := ParseExaBGPConfig(input)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			_, err = MigrateFromExaBGP(tree)
+			if err == nil {
+				t.Fatal("migration accepted an interface-set inside extended-community")
+			}
+			if !strings.Contains(err.Error(), "write it with the interface-set keyword") {
+				t.Errorf("error does not name the interface-set keyword: %v", err)
+			}
+		})
+	}
+}
+
 // TestMigrateFlowScopeRefusesUnknownKeyword proves a scope keyword the
 // migration cannot translate stops the migration.
 //

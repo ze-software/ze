@@ -14,9 +14,9 @@
 package bridge
 
 import (
-	"log/slog"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -213,6 +213,9 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 		}
 
 		if attr.Ze == bridgeAttrExtCommunity {
+			if err := CheckExtendedCommunityList(value); err != nil {
+				return routeAttributes{}, err
+			}
 			value = qualifyExtCommunities(value)
 		}
 		// ExaBGP writes an ADD-PATH path identifier as an IPv4 address as well
@@ -421,6 +424,17 @@ func shapePluginNLRI(family string, tokens []string) []string {
 	shaped := make([]string, 0, len(tokens)+2)
 	shaped = append(shaped, "route-type", tokens[0], "prefix", tokens[1])
 	return append(shaped, tokens[2:]...)
+}
+
+// CheckExtendedCommunityList answers CheckExtendedCommunityItem for every item
+// of an extended-community value, one item or a bracketed list.
+func CheckExtendedCommunityList(value string) error {
+	for _, item := range strings.Fields(strings.Trim(value, "[] ")) {
+		if err := CheckExtendedCommunityItem(item); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // qualifyExtCommunities names the TYPE of an extended community ExaBGP wrote

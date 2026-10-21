@@ -1328,7 +1328,7 @@ func TestConvertFlexToUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dst := config.NewTree()
-			convertFlexToUpdate(tt.afi, tt.safi, tt.values, dst)
+			require.NoError(t, convertFlexToUpdate(tt.afi, tt.safi, tt.values, dst))
 
 			updates := dst.GetListOrdered("update")
 			require.Len(t, updates, len(tt.values), "update count")

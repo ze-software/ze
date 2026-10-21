@@ -1042,7 +1042,8 @@ func migrateHostnameToCapability(src, dstCap *config.Tree, hasCapabilities *bool
 }
 
 // copyContainers copies container blocks from neighbor to peer. It reports the
-// error of a flow route whose scope block ze cannot express.
+// error of a flow route whose scope block ze cannot express, and of a route
+// attribute ExaBGP itself refuses.
 func copyContainers(src, dst *config.Tree) error {
 	// Copy and convert family block.
 	// ExaBGP: "ipv4 unicast" -> ZeBGP list entries: key="ipv4/unicast".
@@ -1051,12 +1052,16 @@ func copyContainers(src, dst *config.Tree) error {
 
 	// Convert announce block to update blocks.
 	if announce := src.GetContainer("announce"); announce != nil {
-		convertAnnounceToUpdate(announce, dst)
+		if err := convertAnnounceToUpdate(announce, dst); err != nil {
+			return err
+		}
 	}
 
 	// Convert static block to update blocks.
 	if static := src.GetContainer("static"); static != nil {
-		convertStaticToUpdate(static, dst)
+		if err := convertStaticToUpdate(static, dst); err != nil {
+			return err
+		}
 	}
 
 	// Convert flow block to update blocks.
@@ -1069,7 +1074,9 @@ func copyContainers(src, dst *config.Tree) error {
 	// Convert neighbor-level l2vpn block to update blocks.
 	// ExaBGP has l2vpn { vpls ... } at the neighbor level for VPLS routes.
 	if l2vpn := src.GetContainer("l2vpn"); l2vpn != nil {
-		convertL2VPNToUpdate(l2vpn, dst)
+		if err := convertL2VPNToUpdate(l2vpn, dst); err != nil {
+			return err
+		}
 	}
 
 	// RFC 8950: nexthop block is now moved into capability block by migrateCapability.

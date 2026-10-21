@@ -339,6 +339,27 @@ func TestConvertFlowRouteRefusesAndNames(t *testing.T) {
 			names: `"65535.1"`,
 		},
 		{
+			// ExaBGP checks transitivity before the AS number
+			// (_one_interface_set), so a value wrong in both is refused
+			// for its transitivity.
+			name:  "an interface-set wrong in transitivity and AS number names the transitivity",
+			body:  "flow route { match { source 1.2.3.4/32; } scope { interface-set [ bogus:input:1.2:10 ]; } then { discard; } }",
+			names: `"bogus" is neither transitive nor non-transitive`,
+		},
+		{
+			// ExaBGP's extended_community (configuration/grammar/types/bgp.py)
+			// has no interface-set type, so it refuses the item; its flow
+			// `then` block reads extended-community through the same type.
+			name:  "an interface-set inside extended-community, flat",
+			body:  "flow route destination 1.2.3.4/32 extended-community [ interface-set:transitive:input:1.234:10 ] discard",
+			names: "write it with the interface-set keyword",
+		},
+		{
+			name:  "an interface-set inside extended-community, in the then block",
+			body:  "flow route { match { source 1.2.3.4/32; } then { extended-community [ target:65000:1 interface-set:input:1234:10 ]; } }",
+			names: "interface-set [ input:1234:10 ]",
+		},
+		{
 			name:  "a route stating no match component",
 			body:  "flow route { then { discard; } }",
 			names: "match component",
