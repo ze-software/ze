@@ -10,32 +10,30 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// TestRibProxyRPCRegistration verifies all RIB proxy RPCs are registered
-// with correct wire methods.
+// TestRibProxyRPCRegistration verifies the RIB proxy RPCs are registered
+// with the wire methods the YANG declares, and that no other RPC claims to be one.
 //
-// VALIDATES: init() registers 6 RIB proxy RPCs with correct metadata.
-// PREVENTS: Misspelled wire methods or CLI commands silently breaking dispatch.
+// VALIDATES: init() registers exactly the RIB proxy RPCs listed below. A proxy
+// RPC is one that forwards to the bgp-rib plugin, so it carries a
+// PluginCommand; an RPC under the same "ze-bgp:rib-" prefix answered by
+// another package (rib-clear-advertised, cmd/peer) is not one.
+// PREVENTS: Misspelled wire methods or CLI commands silently breaking dispatch,
+// and a proxy RPC added or dropped without this list noticing.
 func TestRibProxyRPCRegistration(t *testing.T) {
 	allRPCs := pluginserver.AllBuiltinRPCs()
 
-	// Collect RIB RPCs (wire method starts with "ze-bgp:rib-")
 	var found []string
 	for _, reg := range allRPCs {
-		if strings.HasPrefix(reg.WireMethod, "ze-bgp:rib-") {
-			found = append(found, reg.WireMethod)
+		if !strings.HasPrefix(reg.WireMethod, "ze-bgp:rib-") {
+			continue
 		}
+		if reg.PluginCommand == "" {
+			continue
+		}
+		found = append(found, reg.WireMethod)
 	}
 
-	assert.Len(t, found, 11, "expected 11 RIB proxy RPCs")
-
-	// Build lookup for assertions
-	byWire := make(map[string]bool, len(found))
-	for _, w := range found {
-		byWire[w] = true
-	}
-
-	// All expected wire methods present
-	for _, wire := range []string{
+	assert.ElementsMatch(t, []string{
 		"ze-bgp:rib-status",
 		"ze-bgp:rib-routes",
 		"ze-bgp:rib-best",
@@ -47,9 +45,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		"ze-bgp:rib-withdraw",
 		"ze-bgp:rib-protocol",
 		"ze-bgp:rib-fastpath",
-	} {
-		assert.True(t, byWire[wire], "missing RPC: %s", wire)
-	}
+	}, found, "RIB proxy RPCs")
 }
 
 // TestRibProxyHandlersNonNil verifies all proxy handler functions are assigned.
