@@ -2428,11 +2428,13 @@ State carried from the predecessor agent (uncommitted at handoff):
   AND/OR), and a fragment expression over the transport-bearing states.
   `anyPresent` deleted. The message keeps "ICMP has no ports" (the parse .ci
   asserts it).
-- Tests: core `unmatchable_test.go` (TestCheckMatchable), plugin
+- Tests: core `rfc8955_unmatchable_test.go` (TestCheckMatchable), plugin
   `rfc8955_unmatchable_values_test.go`, rib
-  `rib_flowspec_unmatchable_values_test.go`, bridge
+  `rfc8955_rib_flowspec_unmatchable_values_test.go`, bridge
   `bridge_flow_unmatchable_values_test.go`. Existing tagged tests were not
-  edited; new tagged functions were added instead.
+  edited; new tagged functions were added instead. The core and rib files
+  were renamed to the rfc8955_ prefix by `./le rfc rename` after
+  `./le rfc check` asked for it.
 - Callers: bridge `flowRouteMatchable` (bridge_flow.go, bridge_command.go) and
   migration `flowRouteMatchable` pass the AFI and a nil operator lookup (they
   hold types only); the migration check moved after IPv6 detection.
