@@ -124,6 +124,29 @@ func (s *Supervisor) Stop(name string) error {
 	return nil
 }
 
+// errUnitInactive marks a reload of a unit that has no running process to
+// signal; systemctl answers it with exit status 1.
+var errUnitInactive = errors.New("the unit is not running, so it has no process to signal")
+
+// Reload sends SIGHUP to the unit's main process. The guest's units are
+// daemons that reread their configuration on SIGHUP (sshd, after Lima's
+// 11-colorterm-environment.sh adds AcceptEnv), so no ExecReload is read.
+func (s *Supervisor) Reload(name string) error {
+	if _, err := s.lookup(name); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	svc, ok := s.units[name]
+	s.mu.Unlock()
+	if !ok {
+		return errUnitInactive
+	}
+	if !svc.active() {
+		return errUnitInactive
+	}
+	return svc.signal(syscall.SIGHUP)
+}
+
 // Active reports whether the unit's service is running or waiting to be
 // started again.
 func (s *Supervisor) Active(name string) bool {
@@ -241,6 +264,21 @@ func (svc *service) stopped() bool {
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
 	return svc.stopping
+}
+
+// signal delivers sig to the current process. A service between a death and
+// its restart has none, and answers errUnitInactive.
+func (svc *service) signal(sig os.Signal) error {
+	svc.mu.Lock()
+	process := svc.process
+	svc.mu.Unlock()
+	if process == nil {
+		return errUnitInactive
+	}
+	if err := process.Signal(sig); err != nil {
+		return fmt.Errorf("signal process %d: %w", process.Pid, err)
+	}
+	return nil
 }
 
 // active reports whether the lifecycle goroutine is still running.

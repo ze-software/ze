@@ -5,6 +5,7 @@ package dockerhost
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,7 +57,8 @@ type verb struct {
 }
 
 // verbs is the systemctl surface the guest answers: the verbs Lima's
-// install-systemd and Colima's provisioning run, plus stop and is-enabled.
+// install-systemd, Colima's provisioning and Lima's boot scripts (reload, from
+// 11-colorterm-environment.sh) run, plus stop and is-enabled.
 // An unknown verb is refused by name.
 var verbs = map[string]verb{
 	"daemon-reload": {changes: true, run: func(*Supervisor, []string) shimAnswer {
@@ -71,13 +73,14 @@ var verbs = map[string]verb{
 	"restart":     {changes: true, run: (*Supervisor).verbRestart},
 	"try-restart": {changes: true, run: (*Supervisor).verbTryRestart},
 	"is-active":   {run: (*Supervisor).verbIsActive},
+	"reload":      {changes: true, run: (*Supervisor).verbReload},
 }
 
 // Serve listens on socket and answers shim requests one at a time until the
 // returned stop func is called. The caller MUST call stop; it closes the
 // listener and waits for the accept loop to end.
 func (s *Supervisor) Serve(socket string) (func(), error) {
-	if err := os.MkdirAll(filepath.Dir(socket), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(socket), 0o755); err != nil { //nolint:gosec // the shim runs as any account and must reach the socket
 		return nil, fmt.Errorf("create %s: %w", filepath.Dir(socket), err)
 	}
 	if err := os.Remove(socket); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -262,6 +265,16 @@ func (s *Supervisor) verbRestart(units []string) shimAnswer {
 	return shimAnswer{}
 }
 
+// verbReload signals each unit's main process to reread its configuration.
+func (s *Supervisor) verbReload(units []string) shimAnswer {
+	for _, unit := range units {
+		if err := s.Reload(unit); err != nil {
+			return s.failure("reload", unit, err)
+		}
+	}
+	return shimAnswer{}
+}
+
 // verbTryRestart restarts the units that are running and leaves the others
 // alone, as systemd does.
 func (s *Supervisor) verbTryRestart(units []string) shimAnswer {
@@ -296,13 +309,17 @@ func (s *Supervisor) failure(action, unit string, err error) shimAnswer {
 	if errors.Is(err, errUnitNotFound) {
 		return s.notFound(action, unit)
 	}
+	if errors.Is(err, errUnitInactive) {
+		return shimAnswer{Code: exitFailure, Stderr: "Failed to " + action + " " + unit + ": " + err.Error() + "; start it with: systemctl start " + unit + "\n"}
+	}
 	return shimAnswer{Code: exitFailure, Stderr: "Failed to " + action + " " + unit + ": " + err.Error() + "\n"}
 }
 
 // RunShim is the `systemctl` program: it sends args to the supervisor on
 // socket, prints the answer and returns its exit status.
 func RunShim(socket string, args []string, stdout, stderr io.Writer) int {
-	conn, err := net.DialTimeout("unix", socket, shimDeadline)
+	dialer := net.Dialer{Timeout: shimDeadline}
+	conn, err := dialer.DialContext(context.Background(), "unix", socket)
 	if err != nil {
 		_, _ = io.WriteString(stderr, "systemctl: the ze-docker-host supervisor is not answering on "+socket+": "+err.Error()+
 			"\nThis guest's systemctl is a shim; check that /user/ze-docker-host is running (gokrazy's web status page lists it).\n") //nolint:errcheck // nothing else to report to

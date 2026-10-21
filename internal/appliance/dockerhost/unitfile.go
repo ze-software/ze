@@ -87,7 +87,7 @@ func parseRestart(value string) (RestartPolicy, error) {
 	case "always":
 		return RestartAlways, nil
 	}
-	return RestartUnspecified, fmt.Errorf("Restart=%s is not supported by this guest (no, on-failure, always)", value)
+	return RestartUnspecified, fmt.Errorf("unit option Restart=%s is not supported by this guest; use no, on-failure or always", value)
 }
 
 // expandSpecifiers expands the systemd specifiers Lima's unit uses: %t the

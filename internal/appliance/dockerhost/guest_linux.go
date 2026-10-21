@@ -5,8 +5,6 @@
 package dockerhost
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -48,11 +46,6 @@ const (
 		"PidFile /run/sshd.pid\n"
 )
 
-// binDirs are the read-only squashfs directories the boot covers with a
-// tmpfs and fills with links: busybox's applets, the shipped binaries and
-// the systemctl shim.
-var binDirs = []string{"/bin", "/sbin", "/usr/bin", "/usr/sbin"}
-
 // shippedLinks are the links to the shipped binaries, beside the busybox
 // applets.
 var shippedLinks = map[string]string{
@@ -62,10 +55,19 @@ var shippedLinks = map[string]string{
 	"/usr/bin/systemctl":  selfPath,
 }
 
+// exitDoNotRestart is the exit status gokrazy's supervisor reads as "do not
+// restart this program" (gokrazy supervise.go).
+const exitDoNotRestart = 125
+
 // RunGuest is the program gokrazy starts: the boot sequence, the shipped
 // binaries made reachable, sshd and the supervisor started, then Lima's
 // boot.sh. It returns only on a failure before the supervisor serves; once
 // it serves, it runs for the life of the guest.
+//
+// A failure before the boot marker is written answers exitDoNotRestart:
+// the sequence is half applied (cidata already mounted, /etc already
+// replaced), so a restart would fail on its first step and hide the real
+// error under a loop of different ones.
 func RunGuest() int {
 	console := openConsole()
 	if _, err := os.Stat(bootedMarker); err == nil {
@@ -75,19 +77,19 @@ func RunGuest() int {
 	c, err := Boot(linuxSystem{}, "/")
 	if err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: boot failed:", err) //nolint:errcheck // console
-		return 1
+		return exitDoNotRestart
 	}
 	if err := installBinaries(); err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: install binaries:", err) //nolint:errcheck // console
-		return 1
+		return exitDoNotRestart
 	}
 	if err := prepareSSHD(); err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: prepare sshd:", err) //nolint:errcheck // console
-		return 1
+		return exitDoNotRestart
 	}
 	if err := os.WriteFile(bootedMarker, nil, 0o600); err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: write", bootedMarker, err) //nolint:errcheck // console
-		return 1
+		return exitDoNotRestart
 	}
 	return serveForever(console, c)
 }
@@ -141,7 +143,7 @@ func openConsole() io.Writer {
 func installBinaries() error {
 	sys := linuxSystem{}
 	for _, dir := range binDirs {
-		if err := sys.Mount(MountRequest{Source: "tmpfs", Target: dir, FSType: "tmpfs", Data: "mode=0755,size=1M"}); err != nil {
+		if err := sys.Mount(MountRequest{Source: fsTmpfs, Target: dir, FSType: fsTmpfs, Data: "mode=0755,size=1M"}); err != nil {
 			return fmt.Errorf("mount tmpfs on %s: %w", dir, err)
 		}
 	}
@@ -150,9 +152,7 @@ func installBinaries() error {
 	if err != nil {
 		return fmt.Errorf("%s --list-full: %w", busybox, err)
 	}
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	for scanner.Scan() {
-		link := "/" + strings.TrimSpace(scanner.Text())
+	for _, link := range appletLinks(string(out)) {
 		if err := os.Symlink(busybox, link); err != nil && !errors.Is(err, os.ErrExist) {
 			return fmt.Errorf("link %s: %w", link, err)
 		}
@@ -174,13 +174,13 @@ func installBinaries() error {
 // prepareSSHD writes sshd_config, creates the privilege separation
 // directory and generates the host key on the first boot.
 func prepareSSHD() error {
-	if err := os.MkdirAll("/etc/ssh", 0o755); err != nil {
+	if err := os.MkdirAll("/etc/ssh", 0o755); err != nil { //nolint:gosec // sshd reads its config as any user it serves
 		return fmt.Errorf("create /etc/ssh: %w", err)
 	}
 	if err := os.WriteFile("/etc/ssh/sshd_config", []byte(sshdConfig), 0o644); err != nil { //nolint:gosec // sshd_config is world-readable
 		return fmt.Errorf("write sshd_config: %w", err)
 	}
-	if err := os.MkdirAll("/var/empty", 0o755); err != nil {
+	if err := os.MkdirAll("/var/empty", 0o755); err != nil { //nolint:gosec // sshd requires its privilege separation dir root-owned and not group or world writable, 0755 is its documented mode
 		return fmt.Errorf("create /var/empty: %w", err)
 	}
 	if _, err := os.Stat(sshHostKey); err == nil {
@@ -201,16 +201,13 @@ type linuxSystem struct{}
 
 func (linuxSystem) Mount(m MountRequest) error {
 	var flags uintptr
-	if m.Remount {
-		flags |= unix.MS_REMOUNT
-	}
 	if m.ReadOnly {
 		flags |= unix.MS_RDONLY
 	}
 	if m.Bind {
 		flags |= unix.MS_BIND
 	}
-	if err := os.MkdirAll(m.Target, 0o755); err != nil && !m.Remount {
+	if err := os.MkdirAll(m.Target, 0o755); err != nil { //nolint:gosec // a mount point is traversed by every account
 		return err
 	}
 	return unix.Mount(m.Source, m.Target, m.FSType, flags, m.Data)

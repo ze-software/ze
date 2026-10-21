@@ -62,7 +62,7 @@ func writeAccounts(sys System, root string, c *Cidata) error {
 // replaceFile writes data to a new file beside name and renames it over
 // name, so a file already there with a read-only mode (sudoers is 0440) is
 // replaced when gokrazy restarts the program within one boot. The mode is
-// set after the write because WriteFile honours the umask, and sudo refuses
+// set after the write because WriteFile honors the umask, and sudo refuses
 // a sudoers file whose mode is not the one it expects.
 func replaceFile(name string, data []byte, mode os.FileMode) error {
 	next := name + ".ze-new"

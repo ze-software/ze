@@ -26,7 +26,6 @@ type MountRequest struct {
 	Target   string
 	FSType   string
 	Data     string
-	Remount  bool
 	ReadOnly bool
 	Bind     bool
 }
@@ -40,16 +39,21 @@ type System interface {
 	Sethostname(name string) error
 	// Chown sets the owner of a guest path.
 	Chown(path string, uid, gid int) error
-	// FindCidata answers the block device that holds the volume labelled
+	// FindCidata answers the block device that holds the volume labeled
 	// cidata.
 	FindCidata() (string, error)
 }
 
 const (
-	// etcSize is the size /etc is remounted at. gokrazy init mounts it with
-	// size=1M (gokrazy mount.go), too small for the files Colima and Lima
-	// write there: containerd and docker configs, unit files, ssh keys.
-	etcSize = "size=64M"
+	// etcData is the tmpfs mounted over /etc. gokrazy's /etc is part of the
+	// read-only squashfs root (its tmpfs /etc is only for old FAT roots,
+	// gokrazy mount.go mountCompat), and Colima and Lima write there:
+	// accounts, containerd and docker configs, unit files, ssh keys.
+	etcData = "mode=0755,size=64M"
+
+	// fsTmpfs is both the source and the type of every tmpfs mount the guest
+	// makes.
+	fsTmpfs = "tmpfs"
 
 	// usrLocalRuntime holds the writable upper layer of /usr/local, where
 	// Lima's 25-guestagent-base.sh installs lima-guestagent: the squashfs root
@@ -82,8 +86,8 @@ func guest(root, guestPath string) string {
 // Boot MUST run before the supervisor starts sshd: sshd reads the accounts
 // and keys Boot writes.
 func Boot(sys System, root string) (*Cidata, error) {
-	if err := sys.Mount(MountRequest{Source: "tmpfs", Target: "/etc", FSType: "tmpfs", Data: etcSize, Remount: true}); err != nil {
-		return nil, fmt.Errorf("remount /etc at %s: %w", etcSize, err)
+	if err := mountWritableEtc(sys, root); err != nil {
+		return nil, err
 	}
 
 	device, err := sys.FindCidata()
@@ -128,8 +132,14 @@ func Boot(sys System, root string) (*Cidata, error) {
 // mountWritableTrees backs /home with /perm/home and puts a tmpfs upper
 // layer over the read-only /usr/local.
 func mountWritableTrees(sys System, root string) error {
-	if err := os.MkdirAll(guest(root, homeStore), 0o755); err != nil {
+	if err := os.MkdirAll(guest(root, homeStore), 0o755); err != nil { //nolint:gosec // every account reads its home through /home
 		return fmt.Errorf("create %s: %w", homeStore, err)
+	}
+	// gokrazy init creates /perm/home 0700 for its programs' own homes
+	// (/perm/home/dhcp, /perm/home/randomd), which keeps every account from
+	// reaching its home through /home: sshd then cannot read authorized_keys.
+	if err := os.Chmod(guest(root, homeStore), 0o755); err != nil { //nolint:gosec // every account reads its home through /home
+		return fmt.Errorf("chmod %s: %w", homeStore, err)
 	}
 	if err := sys.Mount(MountRequest{Source: homeStore, Target: "/home", Bind: true}); err != nil {
 		return fmt.Errorf("bind %s on /home: %w", homeStore, err)
@@ -137,7 +147,7 @@ func mountWritableTrees(sys System, root string) error {
 	upper := usrLocalRuntime + "/upper"
 	work := usrLocalRuntime + "/work"
 	for _, dir := range []string{upper, work} {
-		if err := os.MkdirAll(guest(root, dir), 0o755); err != nil {
+		if err := os.MkdirAll(guest(root, dir), 0o755); err != nil { //nolint:gosec // the /usr/local overlay serves every account
 			return fmt.Errorf("create %s: %w", dir, err)
 		}
 	}

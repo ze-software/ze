@@ -10,8 +10,10 @@ import (
 )
 
 // recordingSystem is a System that performs nothing privileged: it records
-// each mount, hostname and chown so the test can assert the sequence.
+// each mount, hostname and chown so the test can assert the sequence. A tmpfs
+// mounted on /etc empties root/etc, as the real mount hides the squashfs /etc.
 type recordingSystem struct {
+	root     string
 	mounts   []MountRequest
 	hostname string
 	chowns   map[string][2]int
@@ -19,6 +21,13 @@ type recordingSystem struct {
 
 func (r *recordingSystem) Mount(m MountRequest) error {
 	r.mounts = append(r.mounts, m)
+	if m.FSType == fsTmpfs && m.Target == "/etc" {
+		etc := filepath.Join(r.root, "etc")
+		if err := os.RemoveAll(etc); err != nil {
+			return err
+		}
+		return os.Mkdir(etc, 0o755)
+	}
 	return nil
 }
 
@@ -51,7 +60,7 @@ func (r *recordingSystem) mounted(target string) (MountRequest, bool) {
 // file and request the Lima contract needs.
 //
 // VALIDATES: spec Phase 1 boot (D-3, R-2, R-3, A-3): passwd, group with the
-// docker group, sudoers, authorized_keys, hostname, the /etc remount, the
+// docker group, sudoers, authorized_keys, hostname, the fresh /etc tmpfs holding the squashfs /etc entries, the
 // /usr/local overlay, the machine id persisted to /perm, the systemd private
 // marker, and the boot.sh command with LIMA_CIDATA_MNT.
 // PREVENTS: a guest Lima cannot log in to, or a boot.sh that waits forever.
@@ -61,6 +70,19 @@ func TestDockerHostBootSequenceOverATempRoot(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// The squashfs /etc gokrazy ships: a file, a symlink, a nested symlink.
+	if err := os.WriteFile(filepath.Join(root, "etc", "hosts"), []byte("127.0.0.1 localhost\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/proc/net/pnp", filepath.Join(root, "etc", "resolv.conf")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "etc", "ssl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/cacerts", filepath.Join(root, "etc", "ssl", "ca-bundle.pem")); err != nil {
+		t.Fatal(err)
 	}
 	cidataDir := filepath.Join(root, "mnt", "lima-cidata")
 	if err := os.MkdirAll(cidataDir, 0o700); err != nil {
@@ -77,15 +99,38 @@ func TestDockerHostBootSequenceOverATempRoot(t *testing.T) {
 		}
 	}
 
-	sys := &recordingSystem{}
+	// gokrazy init creates /perm/home 0700 before the program runs.
+	if err := os.Mkdir(filepath.Join(root, "perm", "home"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	sys := &recordingSystem{root: root}
 	booted, err := Boot(sys, root)
 	if err != nil {
 		t.Fatalf("Boot: %v", err)
 	}
 
+	// /home is a bind of /perm/home: at 0700 no account but root reaches its
+	// home, and sshd refuses authorized_keys (the Lima ssh failure).
+	home, err := os.Stat(filepath.Join(root, "perm", "home"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := home.Mode().Perm(); mode != 0o755 {
+		t.Errorf("/perm/home mode = %o after Boot, want 755", mode)
+	}
+
 	etc, ok := sys.mounted("/etc")
-	if !ok || !etc.Remount || !strings.Contains(etc.Data, "size=") {
-		t.Errorf("/etc not remounted larger: %+v", etc)
+	if !ok || etc.FSType != fsTmpfs || !strings.Contains(etc.Data, "size=64M") {
+		t.Errorf("/etc not a fresh 64M tmpfs: %+v", etc)
+	}
+	if data, err := os.ReadFile(filepath.Join(root, "etc", "hosts")); err != nil || string(data) != "127.0.0.1 localhost\n" {
+		t.Errorf("etc/hosts not carried over: %q, %v", data, err)
+	}
+	for link, want := range map[string]string{"resolv.conf": "/proc/net/pnp", "ssl/ca-bundle.pem": "/cacerts"} {
+		if got, err := os.Readlink(filepath.Join(root, "etc", link)); err != nil || got != want {
+			t.Errorf("etc/%s -> %q, %v; want %q", link, got, err, want)
+		}
 	}
 	cidata, ok := sys.mounted("/mnt/lima-cidata")
 	if !ok || cidata.Source != "/dev/vdb" || cidata.FSType != "iso9660" || !cidata.ReadOnly {

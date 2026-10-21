@@ -25,8 +25,11 @@ at build time and never committed.
 `ze-docker-host` does cloud-init's part of the Lima guest contract in Go, then
 runs Lima's own `boot.sh` unchanged under busybox `sh`:
 
-1. remounts gokrazy's 1 MB tmpfs `/etc` at 64 MB, because Lima and Colima write
-   configs and unit files there;
+1. mounts a 64 MB tmpfs over `/etc` and copies back what the squashfs held
+   there (`hosts`, the `resolv.conf` and `localtime` symlinks, `ssl`): on a
+   squashfs root gokrazy's `/etc` is read-only (its tmpfs `/etc` exists only
+   for old FAT roots, `mount.go` `mountCompat`), and Lima and Colima write
+   accounts, configs and unit files there;
 2. finds the disk whose ISO 9660 volume id is `cidata` (there is no udev, so no
    `/dev/disk/by-label`) and mounts it read-only at `/mnt/lima-cidata`, the
    path Lima's scripts read;
@@ -35,7 +38,8 @@ runs Lima's own `boot.sh` unchanged under busybox `sh`:
    its directory;
 4. keeps the machine id in `/perm/machine-id` and copies it to
    `/etc/machine-id`;
-5. binds `/perm/home` on `/home`, and overlays a tmpfs on the read-only
+5. sets `/perm/home` to mode 0755 (gokrazy init creates it 0700, which kept
+   sshd from reading `authorized_keys`), binds it on `/home`, and overlays a tmpfs on the read-only
    `/usr/local`, where Lima installs its guest agent;
 6. writes `passwd`, `group` (a `docker` group, gid 1000, holding the Lima
    user), `shadow` (every account locked), `sudoers` and
@@ -43,14 +47,23 @@ runs Lima's own `boot.sh` unchanged under busybox `sh`:
 7. sets the host name and creates `/run/user/<uid>/systemd/private`, the file
    `boot.sh` waits for before it runs user provisioning scripts;
 8. covers `/bin`, `/sbin`, `/usr/bin` and `/usr/sbin` with a tmpfs holding
-   links to busybox's applets, sudo, sshd, ssh-keygen and the `systemctl`
-   shim, plus `/bin/bash` as busybox `sh`;
+   links to busybox's applets in those directories (an applet listed
+   elsewhere, such as `/linuxrc`, is skipped), sudo, sshd, ssh-keygen and
+   the `systemctl` shim, plus `/bin/bash` as busybox `sh`;
 9. writes `sshd_config` (public keys only, no root login, stream-local
    forwarding for the Docker socket) and a persistent ed25519 host key;
 10. starts the supervisor, sshd, and Lima's `boot.sh`, which writes
     `/run/lima-boot-done` itself.
 
+A failure in steps 1 to 9 is printed on the console and the program exits
+with status 125, which gokrazy's supervisor reads as "do not restart": the
+sequence is half applied by then, and a restart would fail on an earlier step
+(the cidata volume is already mounted) and bury the first error. A program
+restarted after step 9 completed serves the supervisor only.
+
 <!-- source: internal/appliance/dockerhost/boot.go -- Boot -->
+<!-- source: internal/appliance/dockerhost/etc.go -- mountWritableEtc -->
+<!-- source: internal/appliance/dockerhost/applets.go -- appletLinks -->
 <!-- source: internal/appliance/dockerhost/cidata.go -- ParseCidata -->
 <!-- source: internal/appliance/dockerhost/accounts.go -- writeAccounts -->
 <!-- source: internal/appliance/dockerhost/guest_linux.go -- RunGuest, installBinaries, prepareSSHD, FindCidata -->
@@ -65,10 +78,12 @@ supervisor over `/run/ze-docker-host/systemctl.sock`. The supervisor reads a
 unit's `ExecStart` and `Restart` when it starts it, expands `%t`, `%N`, `%n`
 and `%%`, and refuses any other specifier or `ExecStart` prefix by name. It
 answers `daemon-reload`, `enable`, `is-enabled`, `start`, `stop`, `restart`,
-`try-restart` and `is-active` with systemctl's exit statuses: 3 for a unit
+`try-restart`, `is-active` and `reload` with systemctl's exit statuses: 3 for a unit
 that is not active, 4 when a caller other than root asks for a change (the
 kernel's peer credentials decide, never the request), 5 for an unknown unit,
-naming the units the guest knows. A service that exits is started again under
+naming the units the guest knows. `reload` sends SIGHUP to the unit's main
+process (Lima's `11-colorterm-environment.sh` reloads sshd after adding
+`AcceptEnv`); a unit with no running process refuses with exit status 1. A service that exits is started again under
 its `Restart=` policy, with a backoff from 1 to 30 seconds.
 
 <!-- source: internal/appliance/dockerhost/systemctl.go -- verbs, Serve, RunShim -->

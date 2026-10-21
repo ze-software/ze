@@ -90,11 +90,11 @@ func subcommandOf(args []string) string {
 // repository, so a build that names a parent dir and no instance is refused.
 func instanceOf(args []string) (string, error) {
 	for i, a := range args {
-		if strings.HasPrefix(a, "--instance=") {
-			return strings.TrimPrefix(a, "--instance="), nil
+		if name, ok := strings.CutPrefix(a, "--instance="); ok {
+			return name, nil
 		}
-		if strings.HasPrefix(a, "-i=") {
-			return strings.TrimPrefix(a, "-i="), nil
+		if name, ok := strings.CutPrefix(a, "-i="); ok {
+			return name, nil
 		}
 		if a != "-i" && a != "--instance" {
 			continue

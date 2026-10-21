@@ -90,6 +90,74 @@ func TestSystemctlShimLimaAndColimaVerbs(t *testing.T) {
 	expect(1, "frobnicate", "lima-guestagent.service")
 }
 
+// TestSystemctlReloadSignalsTheMainProcess drives `systemctl reload` the way
+// Lima's 11-colorterm-environment.sh does (`systemctl reload sshd`), after
+// it wrote AcceptEnv into sshd_config.
+//
+// VALIDATES: reload sends SIGHUP to the unit's main process (sshd rereads
+// its configuration on SIGHUP); an inactive unit refuses with exit 1 and a
+// message naming the unit and the fix; an unknown unit answers exit 5.
+// Method: a real supervisor, a shell unit whose HUP trap writes a marker.
+// PREVENTS: a boot script failure (`Unknown command verb 'reload'`) that
+// Lima reports as a WARNING outside R-2 and A-11.
+func TestSystemctlReloadSignalsTheMainProcess(t *testing.T) {
+	root := t.TempDir()
+	unitDir := filepath.Join(root, "etc", "systemd", "system")
+	if err := os.MkdirAll(unitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ready := filepath.Join(root, "ready")
+	hup := filepath.Join(root, "hup")
+	unit := "[Service]\nExecStart=/bin/sh -c 'trap \"echo hup > " + hup + "\" HUP; echo ready > " + ready +
+		"; while true; do sleep 0.05; done'\nRestart=no\n"
+	if err := os.WriteFile(filepath.Join(unitDir, "reloader.service"), []byte(unit), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sup, err := NewSupervisor(root, uint32(os.Getuid()), nil)
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	socket := filepath.Join(root, "s.sock")
+	stop, err := sup.Serve(socket)
+	if err != nil {
+		t.Fatalf("Serve: %v", err)
+	}
+	defer stop()
+	expect := func(want int, args ...string) string {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		if code := RunShim(socket, args, &stdout, &stderr); code != want {
+			t.Fatalf("systemctl %s = %d, want %d (%q %q)", strings.Join(args, " "), code, want, stdout.String(), stderr.String())
+		}
+		return stdout.String() + stderr.String()
+	}
+	waitFor := func(path string) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			if _, err := os.Stat(path); err == nil {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("%s never written", path)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+
+	out := expect(1, "reload", "reloader")
+	if !strings.Contains(out, "reloader.service") || !strings.Contains(out, "systemctl start reloader.service") {
+		t.Errorf("reload of an inactive unit does not name the unit and the fix: %q", out)
+	}
+	expect(0, "start", "reloader")
+	waitFor(ready)
+	expect(0, "reload", "reloader")
+	waitFor(hup)
+	expect(0, "is-active", "reloader")
+	expect(5, "reload", "nosuch")
+	expect(0, "stop", "reloader")
+}
+
 // TestSystemctlRefusesAChangeFromANonAdmin verifies only the admin uid may
 // start or stop a unit, while any user may ask whether one is active.
 //
