@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -17,6 +18,16 @@ import (
 // transport handle, so a test can dispatch a packet as if it arrived on eth0.
 func receiveEngine(t *testing.T) (*engine, ospfConfig, *fakeHandle) {
 	t.Helper()
+	return receiveEngineMetered(t, nil)
+}
+
+// receiveEngineMetered is receiveEngine with reg installed before the interfaces open, the
+// order the engine factory uses (register.go). setMetrics rebuilds the neighbor table, so a
+// registry installed after openInterfaces leaves eth0 with no table that knows it, and no
+// Hello can form a neighbor: a "no neighbor formed" assertion would then pass whatever the
+// receive checks did.
+func receiveEngineMetered(t *testing.T, reg metrics.Registry) (*engine, ospfConfig, *fakeHandle) {
+	t.Helper()
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point"}}}}}`), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
@@ -24,6 +35,7 @@ func receiveEngine(t *testing.T) (*engine, ospfConfig, *fakeHandle) {
 	fb := &fakeBackend{}
 	eng := newEngine(transport.New(fb))
 	eng.setConfig(cfg)
+	eng.setMetrics(reg)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)
 	}
@@ -103,12 +115,13 @@ func TestOSPFReceiveAcceptsMatchingAuType(t *testing.T) {
 
 // RFC requirement: RFC2328-8.2-3 negative — on an interface whose area uses simple-password
 // authentication (AuType 1), a Hello carrying AuType 0 (null) is dropped before any handler
-// runs: the drop counter rises by one, the auth failure counter rises by one and no neighbor
-// forms (authStore.verify reports autype-mismatch, verifyPacket returns false).
+// runs: the drop counter rises by one, the auth failure counter rises once with reason
+// autype-mismatch and no neighbor forms (authStore.verify reports autype-mismatch,
+// verifyPacket returns false). The same Hello signed with AuType 1 then forms the neighbor on
+// the same engine, so the absent neighbor is the AuType check's doing and not the setup's.
 func TestOSPFReceiveDropsMismatchedAuType(t *testing.T) {
-	eng, cfg, handle := receiveEngine(t)
-	rec := &authFailRegistry{}
-	eng.setMetrics(rec)
+	rec := &authReasonRegistry{}
+	eng, cfg, handle := receiveEngineMetered(t, rec)
 	eng.auth.configure(authCfg(keyConfig{KeyID: 1, Algorithm: packet.AuthSimple, Secret: "pw"}))
 	peer := ridOf("10.0.0.2")
 	unsigned := helloFromPeer(peer, cfg.Areas[0].AreaID)
@@ -120,10 +133,15 @@ func TestOSPFReceiveDropsMismatchedAuType(t *testing.T) {
 	if got := eng.dispatch.dropped(); got != before+1 {
 		t.Fatalf("dropped = %d, want %d (AuType mismatch must be dropped)", got, before+1)
 	}
-	if rec.authFailures != 1 {
-		t.Fatalf("ze_ospf_auth_failures_total increments = %d, want 1", rec.authFailures)
+	if len(rec.reasons) != 1 || rec.reasons[0] != "autype-mismatch" {
+		t.Fatalf("ze_ospf_auth_failures_total reasons = %q, want [autype-mismatch]", rec.reasons)
 	}
 	if rows := eng.neighborSnapshot(); len(rows) != 0 {
 		t.Fatalf("neighbor rows = %d, want 0 after a Hello with the wrong AuType", len(rows))
+	}
+	signed := eng.signPacket("eth0", helloFromPeer(peer, cfg.Areas[0].AreaID))
+	eng.dispatch.dispatch(transport.RawPacket{IfIndex: handle.ifindex, Src: netip.AddrFrom4([4]byte(peer)), Payload: signed})
+	if rows := eng.neighborSnapshot(); len(rows) != 1 {
+		t.Fatalf("control: neighbor rows = %d, want 1 after the same Hello signed with AuType 1", len(rows))
 	}
 }

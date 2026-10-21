@@ -14,6 +14,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -790,8 +791,8 @@
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint": "36d5213444c1c452",
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast": "36d5213444c1c452",
         "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast": "36d5213444c1c452",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "da263e79ffba2ad8",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "da263e79ffba2ad8",
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "05536cc78f9fa0d3",
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "05536cc78f9fa0d3",
         "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDAccepted": "01c85c473e55d720",
         "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDRefused": "01c85c473e55d720"
       },
@@ -807,19 +808,19 @@
       "verdict": "enforced"
     },
     "RFC2328-8.2-3": {
-      "note": "Re-judged 2026-09-29 (independent judge). Isolation gap closed and a product defect fixed (D-8): TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType asserts the single auth failure carries reason 'autype-mismatch', not a password failure; TestRFC2328PasswordAuTypeIntoNullAreaDropped sends a Hello signed AuType 1 into a Null-auth interface and asserts the drop and no neighbor (red before the fix: dropped 0). Producer checked: authStore.verify now refuses any non-Null AuType on an interface with no key chain, RFC 2328 s8.2 quoted above the check; revert records on verify. Positive TestOSPFReceiveAcceptsMatchingAuType unchanged.",
+      "note": "Re-judged 2026-10-21 (independent judge) after both negatives moved to receiveEngineMetered (registry installed before openInterfaces, so the neighbor table knows eth0) and gained a control that the same Hello signed AuType 1 forms the neighbor on the same engine, which makes the 'no neighbor' assertion able to fail. RFC 2328 s8.2 quoted; Appendix D makes AuType per-interface, so comparing against the interface key chain's AuType (authStore.verify) is the RFC's associated value. Targeted overlays, observed: disabling only 'if h.AuType != keys[0].auType' reddens both null-into-password negatives (dropped 0, want 1); disabling only the no-key-chain non-Null refusal reddens TestRFC2328PasswordAuTypeIntoNullAreaDropped (dropped 0, want 1); renaming that reason to password-mismatch reddens both reason assertions, so the drop is attributed to the AuType check. Positive TestOSPFReceiveAcceptsMatchingAuType (AuType 1 into AuType 1, neighbor forms) unchanged. Residual, not a defect: TestOSPFReceiveDropsMismatchedAuType and TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType now carry the same input and assertions (one test under two tags); the reverse negative asserts no reason label; the recorded discrimination breaks are whole-body panics, weaker than the line overlays above.",
       "requirement_sha": "7a4fd666d8de7bcc",
       "tests": {
-        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType": "ed753786194daeb4",
-        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328PasswordAuTypeIntoNullAreaDropped": "ed753786194daeb4",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAuType": "da263e79ffba2ad8",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType": "da263e79ffba2ad8"
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType": "d292dff0f7aa0770",
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328PasswordAuTypeIntoNullAreaDropped": "d292dff0f7aa0770",
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAuType": "05536cc78f9fa0d3",
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType": "05536cc78f9fa0d3"
       },
       "units": {
-        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType": "da5da5d5be75cc6e",
+        "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType": "8947e96b58840840",
         "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328PasswordAuTypeIntoNullAreaDropped": "5a215a33af17bcfd",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAuType": "eadb3aa4318a7b90",
-        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType": "e2937d2b1821be5f"
+        "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType": "dd2567ee7039b68f"
       },
       "verdict": "enforced"
     },

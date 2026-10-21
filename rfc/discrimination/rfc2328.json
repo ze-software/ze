@@ -1642,7 +1642,7 @@
       "rid": "RFC2328-8.2-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc2328_autype_test.go::TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType",
-      "unit-sha": "ff29a5e418390ae8",
+      "unit-sha": "c42bf971d3203b8d",
       "claim-sha": "ef4a35967be19870",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
@@ -1675,12 +1675,12 @@
       "rid": "RFC2328-8.2-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAuType",
-      "unit-sha": "aa81e64eb9f426e6",
-      "claim-sha": "5717e848502800a0",
+      "unit-sha": "723b4a87acf4237c",
+      "claim-sha": "bb2760e6e34dd41c",
       "route": "revert",
-      "producer": "internal/plugins/ospf/auth_wiring.go::verifyPacket",
-      "producer-sha": "7da6bd119065a469",
-      "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/auth_keystore.go::verify",
+      "producer-sha": "bcff38bb08de4782",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-8.2-4",

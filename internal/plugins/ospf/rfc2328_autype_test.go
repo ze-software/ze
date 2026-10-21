@@ -51,9 +51,8 @@ func (v authReasonVec) Delete(...string) bool { return false }
 func TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType(t *testing.T) {
 	// Goal: the AuType comparison, not the password comparison, refuses the packet. Method:
 	// dispatch an unsigned Hello into a simple-password engine and read the failure reason.
-	eng, cfg, handle := receiveEngine(t)
 	rec := &authReasonRegistry{}
-	eng.setMetrics(rec)
+	eng, cfg, handle := receiveEngineMetered(t, rec)
 	eng.auth.configure(authCfg(keyConfig{KeyID: 1, Algorithm: packet.AuthSimple, Secret: "pw"}))
 	peer := ridOf("10.0.0.2")
 	before := eng.dispatch.dropped()
@@ -66,6 +65,13 @@ func TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType(t *testing.T) {
 	}
 	if rows := eng.neighborSnapshot(); len(rows) != 0 {
 		t.Fatalf("neighbor rows = %d, want 0", len(rows))
+	}
+	// Control: the registry is installed before the interfaces open, so this engine can form
+	// a neighbor, and the zero above is the refusal's. The same Hello signed with AuType 1 forms it.
+	signed := eng.signPacket("eth0", helloFromPeer(peer, cfg.Areas[0].AreaID))
+	eng.dispatch.dispatch(transport.RawPacket{IfIndex: handle.ifindex, Src: netip.AddrFrom4([4]byte(peer)), Payload: signed})
+	if rows := eng.neighborSnapshot(); len(rows) != 1 {
+		t.Fatalf("control: neighbor rows = %d, want 1 after the same Hello signed with AuType 1", len(rows))
 	}
 }
 
