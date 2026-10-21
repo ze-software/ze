@@ -2820,3 +2820,32 @@ Still owed, in order:
    old-4.2/old-5.0 population runs (not started).
 5. Gates for the main thread: reactor `-race -count=20` on peer_admin, `./le go
    lint run` scoped to the touched packages, `./le verify worktree`.
+
+### ExaBGP 6 Phase 7 continued (2026-10-21, Mac)
+
+Copied from the exa9 agent's handoff (budget reached at 100 calls).
+
+Committed: 05ccb60217 (rfc records and verdicts re-taken for 72a56ddfbf),
+484eb6e6cc (ze-rib.yang ze:help on the flowspec-redirect-check container;
+help-shape green), 6fafa673af (bridge teardown takes the pin's [code] [subcode]
+[text]; test/weakened/6d35cd0d.md row).
+
+Uncommitted, in progress (AC-39 / X-37):
+- internal/exabgp/migration/migrate_extended_nexthop.go (new):
+  addExtendedNextHopEntries, requireExtendedNextHop, peerCapability,
+  extendedNextHopDisabled; RFC 8950 Section 4 quote verified against
+  rfc/full/rfc8950.txt line 352.
+- internal/exabgp/migration/migrate.go: calls addExtendedNextHopEntries after
+  copyContainers in migrateSingleNeighbor.
+- internal/exabgp/migration/migrate_test.go:
+  TestMigrateIPv4RouteIPv6NextHopAddsExtendedNextHop plus the
+  migratedNexthopEntries helper; red before the code (entries = []).
+- Last edit not yet applied: move the `capabilityDisable` const below the
+  extendedNextHopFamilies var. Then gofmt, run the migration package test.
+- Owed with it: docs/architecture/exabgp-migration.md section "extended next
+  hop for an IPv4 route", exabgp-differences.md if any; commit.
+
+Main-thread decision for this run (M3): replace 6fafa673af's refusal of
+`teardown <code> <subcode>` with code other than 6 by widening ze so the bridge
+sends exactly what the pin sends. Then X-35, AC-37/AC-38, the old-4.2 and
+old-5.0 population runs, and the spec "Phase 7 state" line.
