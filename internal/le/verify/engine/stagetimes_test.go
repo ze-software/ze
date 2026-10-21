@@ -75,3 +75,35 @@ func TestEveryReachedStageIsAppendedToTheHistory(t *testing.T) {
 		t.Fatal("the combined log does not say the times were recorded")
 	}
 }
+
+// TestAnOverLongHistoryLineIsSkippedAndCounted proves one line longer than
+// stageTimeLineMax costs the reader that line and nothing else. The history is
+// shared by every session on the machine, so a torn write or a hostile writer
+// can leave such a line; a reader that failed wholesale on it would put every
+// later run back in declared order, silently, for as long as the line stayed.
+//
+// Method: a valid line, an over-long one, a second valid line, and an
+// over-long final line with no newline. Both valid stages must be read, both
+// long lines counted, and no error answered.
+func TestAnOverLongHistoryLineIsSkippedAndCounted(t *testing.T) {
+	checkout := t.TempDir()
+	long := strings.Repeat("x", 2*stageTimeLineMax)
+	path := filepath.Join(checkout, filepath.FromSlash(StageTimesPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	content := historyLine("before", "2") + "\n" + long + "\n" + historyLine("after", "3") + "\n" + long
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	costs, err := ReadStageCosts(checkout)
+	if err != nil {
+		t.Fatalf("ReadStageCosts over an over-long line = %v, want the line skipped", err)
+	}
+	if costs.Seconds["before"] != 2 || costs.Seconds["after"] != 3 || len(costs.Seconds) != 2 {
+		t.Fatalf("costs = %v, want before=2 and after=3 only", costs.Seconds)
+	}
+	if costs.Malformed != 2 {
+		t.Fatalf("malformed = %d, want the 2 over-long lines counted", costs.Malformed)
+	}
+}

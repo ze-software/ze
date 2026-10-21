@@ -5,6 +5,7 @@ package verifyengine
 import (
 	"bufio"
 	"errors"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -51,9 +52,10 @@ type StageCosts struct {
 // ReadStageCosts reads the history under checkout. The latest line for a stage
 // wins, because the file is appended in run order. A line that does not parse
 // as six columns with finite non-negative seconds, an integer exit and an
-// RFC 3339 start is skipped and counted: the file is shared by every session
-// on the machine, so it is untrusted text. A missing history is no costs and
-// no error.
+// RFC 3339 start is skipped and counted, and so is a line longer than
+// stageTimeLineMax, which costs that line and not the rest of the file: the
+// file is shared by every session on the machine, so it is untrusted text. A
+// missing history is no costs and no error.
 func ReadStageCosts(checkout string) (StageCosts, error) {
 	costs := StageCosts{Seconds: map[string]float64{}}
 	file, err := os.Open(filepath.Join(checkout, filepath.FromSlash(StageTimesPath))) //nolint:gosec // the path is a verify artifact under the checkout root
@@ -65,20 +67,46 @@ func ReadStageCosts(checkout string) (StageCosts, error) {
 	}
 	defer file.Close() //nolint:errcheck // read-only file
 
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, stageTimeLineMax), stageTimeLineMax)
-	for scanner.Scan() {
-		stage, seconds, ok := parseStageTime(scanner.Text())
-		if !ok {
-			costs.Malformed++
-			continue
+	// A bufio.Reader rather than a Scanner: a Scanner stops for good at a line
+	// longer than its buffer (bufio.ErrTooLong), and one such line would put
+	// every later run back in declared order. Here an over-long line is one
+	// more malformed line, skipped to its newline and counted.
+	reader := bufio.NewReaderSize(file, stageTimeLineMax)
+	for {
+		line, overLong, err := readStageTimeLine(reader)
+		atEnd := errors.Is(err, io.EOF)
+		if err != nil && !atEnd {
+			return costs, err
 		}
-		costs.Seconds[stage] = seconds
+		if atEnd && line == "" && !overLong {
+			return costs, nil
+		}
+		if overLong {
+			costs.Malformed++
+		} else if stage, seconds, ok := parseStageTime(line); ok {
+			costs.Seconds[stage] = seconds
+		} else {
+			costs.Malformed++
+		}
+		if atEnd {
+			return costs, nil
+		}
 	}
-	if err := scanner.Err(); err != nil {
-		return costs, err
+}
+
+// readStageTimeLine answers the next line without its line ending, or reports
+// it over-long once it has read past that line's newline. Each pass of the
+// inner loop consumes a full buffer, so the file's length bounds it. The error
+// is io.EOF when the file ends on this line, which the caller still reads.
+func readStageTimeLine(reader *bufio.Reader) (string, bool, error) {
+	chunk, err := reader.ReadSlice('\n')
+	if !errors.Is(err, bufio.ErrBufferFull) {
+		return strings.TrimSuffix(strings.TrimSuffix(string(chunk), "\n"), "\r"), false, err
 	}
-	return costs, nil
+	for errors.Is(err, bufio.ErrBufferFull) {
+		_, err = reader.ReadSlice('\n')
+	}
+	return "", true, err
 }
 
 func parseStageTime(line string) (string, float64, bool) {
