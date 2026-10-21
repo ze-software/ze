@@ -368,7 +368,7 @@ N-A: tooling, no protocol peer.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | History lines are untrusted text from a shared file: parse strictly, skip malformed, never let a stage name from the file add a stage that is not in the population |
-| Symlink safety | The lint link is created only inside the run's own fresh worktree `tmp/`; refuse if the path already exists as anything but the expected link |
+| Symlink safety | The lint link is created only inside the run's own fresh worktree `tmp/`. A path that already exists there, link or not, is never replaced or followed for writing: it is left as it is, the lifecycle prints that it was left, and the run continues (`sharedLintCacheLink`, `internal/le/verify/lifecycle.go`) |
 | Fail open | An unreadable history means declared order; an unreadable index at commit time keeps today's behaviour plus the STALE certificate |
 
 ### Failure Routing
