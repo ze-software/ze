@@ -2880,3 +2880,49 @@ builds the staged `test/interop/ze-linux` itself, so the guest-side
 `env 'GOFLAGS=-overlay=/workspace/...'` of the recipe does apply.
 Owed by the main thread: `./le doc check verify` (interop.md row), `./le go lint run`
 scoped to `internal/le/interoplab/bgp`.
+
+## 2026-10-21 ExaBGP 6 Phase 7 exa10 agent handoff (budget reached at 100 calls)
+
+Committed: 74626ae4b4 (A: tcp-flags/fragment take ExaBGP 6.0's bitmask grammar;
+RFC-approved trailer for flowspec.TestRFC8955TextLeadingAndEncodedUnset;
+discrimination records re-taken for RFC8955-4.2.1.1-2, 4.2.2.9-1, 4.2.2.12-2;
+their audit verdicts STALE, owe ze-rfc-audit re-judge; 7 SHIFTED resealed),
+82c3aa6291 (reseal rfc5549/rfc8950 SHIFTED verdicts).
+
+B: stale index. go vet over cmd/..., reactor, plugin/..., bridge, message, ddos,
+fixture: clean, rc=0.
+
+C (teardown notify): prepared, not run: script
+`tmp/commit-5453d318-notify-5b1807.sh` (38 files listed in the session scratch
+`teardown-files.txt` + `test/weakened/5453d318.md` row for the
+TestNeighborTeardownCarriesTheCeaseSubcode rename). Waiting on independent
+review. Evidence: notify-cmd/teardown-cmd/teardown-msg green; notify-cmd red with
+the non-Cease Data branch of BuildTeardownData disabled; teardown-cmd and
+teardown-msg red with the Cease branch disabled; restored, green. api-teardown
+re-ported from pin 685f772e (qa/api/api-teardown.ci,
+etc/exabgp/run/api-teardown.run hand-written from the reviewed pin text,
+api-teardown.conf): green on ze and `--dut exabgp`; red on ze with the Cease
+branch disabled. Unit tests green with the shipped tag set: message, cmd/...,
+plugin, plugin/server, bridge, route_refresh, fixture, reactor (126s). yang glue
+check, doc yang-contract command-contract, cli dispatch check: rc=0. Docs edited:
+exabgp-bridge.md, exabgp-differences.md (teardown section removed),
+command-reference.md, api/commands.md.
+
+Open on C: old-4.2 and old-5.0 api-teardown go red with C (expected
+`002A 030604 14 "Administrative Reset"`, ze now sends `0015 030604`). exa10
+claimed the bridge cannot tell a 5.0 script from a 6.0 one; the main thread
+rejected that (bridge_script_version.go holds a per-script API version) and
+ruled under M3: a script held to the v4 API gets the subcode name as the
+shutdown communication, v6 keeps the empty Data field.
+
+Old populations on ze (with C in tree): old-5.0 49/51 pass, 21 skip, FAIL 34
+api-teardown (above), 43 conf-flow (`traffic-class 101` refused, RFC 8955
+4.2.2.11; the pin also refuses at conf-flow.conf:126; journal
+conflicting-feature-contracts row). old-4.2 23/25 pass, 9 skip, FAIL 23
+api-teardown, 26 conf-flow (same causes).
+
+Still owed: X-35 / AC-37 / AC-38 (TestOldCommands50/42, TestOldResponses50/42 in
+internal/exabgp/bridge; corpora qa/old/commands-*.json, responses-*.json.gz at
+the pin), spec Phase 7 state line. Gates owed: `./le go lint run` (flowspec,
+bridge, cmd/peer, reactor, message), `./le verify worktree`, `./le rfc check`
+(expect the 3 STALE rfc8955 verdicts + foreign rows).
