@@ -243,7 +243,7 @@ func TestAnUnreachedStructuralStageIsCharged(t *testing.T) {
 	}
 	options := Options{Subject: "after a stopped run", Files: []string{"mine.txt"}, DryRun: true}
 	_, err := Create(root, &options)
-	if err == nil || !strings.Contains(err.Error(), "not reached, because the run stopped at its first red: doc wiring") {
+	if err == nil || !strings.Contains(err.Error(), "doc wiring: not reached, because the run stopped at its first red (rfc check)") {
 		t.Fatalf("Create after a stopped run = %v", err)
 	}
 	options.StructuralRedOK = "the stopped run's remaining stages run in the parent's full gate"
@@ -252,40 +252,89 @@ func TestAnUnreachedStructuralStageIsCharged(t *testing.T) {
 	}
 }
 
-// TestAPublishedPieceIndexStillChargesAStructuralStageOutsideIt proves the
-// commit gate fails closed over a piece of a cut run. The piece's index is the
-// checkout's latest, so it replaces whatever an earlier full run published:
-// when it listed only its own stages, a lint red the full run had recorded
-// disappeared and the commit went through with lint never run on the tree.
-//
-// Method: run part 2 of 3 green through the engine, publish its index into a
-// commit checkout the way a worktree run does, and require `go lint/run`
-// (dealt to part 1) to be charged as not reached, with the refusal naming it.
-func TestAPublishedPieceIndexStillChargesAStructuralStageOutsideIt(t *testing.T) {
-	root := newCommitRepository(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "piece-index-fixture")
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
+// publishRun runs one verification through the engine in a throwaway worktree
+// and publishes its failure index into root, the way a worktree run does.
+func publishRun(t *testing.T, root, commit string, part verifyengine.Part, red string) {
+	t.Helper()
 	worktree := t.TempDir()
-	passing := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	runner := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		result := verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+		if identity.Name == red {
+			result.Code = 1
+		}
+		return result
 	}
-	piece := verifyengine.RunPart(context.Background(), worktree, "abc", verifyengine.Mode,
-		verifyengine.Part{Index: 2, Of: 3}, verifyengine.Plan{}, passing, verifyengine.Slot{})
-	if piece.Code != 0 {
-		t.Fatalf("piece run = %#v", piece.Failure)
-	}
+	verifyengine.RunPart(context.Background(), worktree, commit, verifyengine.Mode, part,
+		verifyengine.Plan{}, runner, verifyengine.Slot{})
 	if err := verifyengine.PublishFailureIndex(worktree, root, ""); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestAPieceKeepsAnEarlierStructuralRedCharged proves a piece of a cut run
+// cannot erase a structural red an earlier run recorded for a stage the piece
+// never ran, and that a piece which reaches the stage green clears it. The
+// piece's index is the checkout's latest, so before carry-forward it replaced
+// the full run's index and a lint red disappeared with lint never rerun.
+//
+// Method: publish a full run red at `go lint/run` as commit aaa, then part 2
+// of 3 green (lint is dealt to part 1), and require lint charged, not as
+// unreached, with the refusal naming it red at aaa. Then publish part 1 green
+// and require nothing charged.
+func TestAPieceKeepsAnEarlierStructuralRedCharged(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "piece-index-fixture")
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	publishRun(t, root, "aaa", verifyengine.Uncut(), "go lint/run")
+	publishRun(t, root, "bbb", verifyengine.Part{Index: 2, Of: 3}, "")
 	reds := structuralGateReds(root, []string{"mine.txt"})
-	if !slices.Contains(reds.Charged, "go lint/run") || !slices.Contains(reds.Unreached, "go lint/run") {
-		t.Fatalf("structuralGateReds over a published piece = %#v, want go lint/run charged as not reached", reds)
+	if !slices.Contains(reds.Charged, "go lint/run") || slices.Contains(reds.Unreached, "go lint/run") {
+		t.Fatalf("structuralGateReds after a piece = %#v, want go lint/run charged as the carried red", reds)
 	}
 	options := Options{Subject: "after a piece", Files: []string{"mine.txt"}, DryRun: true}
 	_, err := Create(root, &options)
-	if err == nil || !strings.Contains(err.Error(), "not run by the recorded verify run") ||
-		!strings.Contains(err.Error(), "go lint/run") {
-		t.Fatalf("Create after a published piece = %v, want a refusal naming go lint/run as not run", err)
+	if err == nil || !strings.Contains(err.Error(), "go lint/run: red at aaa in ") {
+		t.Fatalf("Create after a piece = %v, want a refusal naming go lint/run red at aaa", err)
+	}
+	publishRun(t, root, "ccc", verifyengine.Part{Index: 1, Of: 3}, "")
+	if reds := structuralGateReds(root, []string{"mine.txt"}); len(reds.Charged) != 0 {
+		t.Fatalf("structuralGateReds after the piece holding lint ran green = %#v, want nothing charged", reds)
+	}
+}
+
+// TestAGreenFastRunChargesNoStructuralStage proves a green `verify current
+// fast` leaves no structural charge for the stages the fast population drops
+// (verify deps/evidence-vet): a stage no run judged is not red, and the
+// unverified-debt row already covers "not run".
+func TestAGreenFastRunChargesNoStructuralStage(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "fast-index-fixture")
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	passing := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
+		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	fast := verifyengine.RunMode(context.Background(), root, "aaa", verifyengine.FastMode,
+		verifyengine.Plan{}, passing, verifyengine.Slot{})
+	if fast.Code != 0 {
+		t.Fatalf("fast run = %#v", fast.Failure)
+	}
+	if reds := structuralGateReds(root, []string{"mine.txt"}); len(reds.Charged) != 0 {
+		t.Fatalf("structuralGateReds after a green fast run = %#v, want nothing charged", reds)
+	}
+}
+
+// TestAGreenSweepOfEveryPieceChargesNoStructuralStage proves a debt-clear
+// sweep that runs every piece of a cut green leaves no structural charge: the
+// last piece's index carries the other pieces' green verdicts.
+func TestAGreenSweepOfEveryPieceChargesNoStructuralStage(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "sweep-index-fixture")
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	for index := 1; index <= 3; index++ {
+		publishRun(t, root, "aaa", verifyengine.Part{Index: index, Of: 3}, "")
+	}
+	if reds := structuralGateReds(root, []string{"mine.txt"}); len(reds.Charged) != 0 {
+		t.Fatalf("structuralGateReds after a green sweep = %#v, want nothing charged", reds)
 	}
 }
 

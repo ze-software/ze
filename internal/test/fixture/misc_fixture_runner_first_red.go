@@ -49,7 +49,7 @@ func verifyFirstRedRefusesACutDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "first-red-with-part-refused") //nolint:errcheck // progress output
 	if _, err := os.Stat(filepath.Join(repo, "tmp", "verify-worktree")); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("the refused line created a worktree directory (%v)", err)
+		return fmt.Errorf("the refused line created a worktree directory (%w)", err)
 	}
 	fmt.Fprintln(os.Stdout, "no-worktree-created") //nolint:errcheck // progress output
 	return nil
@@ -202,14 +202,20 @@ func firstRedLogsNameTheStop(repo, stop string, stages []string) error {
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(string(index), "Stopped at first red: "+firstRedCheapRedStage+"; not reached:") {
+	if !strings.Contains(string(index), "Stopped at first red: "+firstRedCheapRedStage+"\n") {
 		return fmt.Errorf("the failure index does not record the stop: %s", index)
 	}
 	unreached := stages[0]
 	if unreached == firstRedCheapRedStage {
 		unreached = stages[1]
 	}
-	if !strings.Contains(string(index), " "+unreached) {
+	stopLine := ""
+	for line := range strings.SplitSeq(string(index), "\n") {
+		if rest, found := strings.CutPrefix(line, "Not reached, the run stopped at its first red: "); found {
+			stopLine = rest
+		}
+	}
+	if !slices.Contains(strings.Split(stopLine, ", "), unreached) {
 		return fmt.Errorf("the failure index does not name %q as not reached: %s", unreached, index)
 	}
 	return nil

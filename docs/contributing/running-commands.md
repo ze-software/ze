@@ -910,19 +910,34 @@ opt-in: without it a red stage never hides a later red.
 
 A stopped run is never a pass. Its exit is the stopping stage's (1, or 3 when
 that stage could not judge), its certificate is STALE for every path list, the
-failure index names the stage under `stopped-at` and lists every stage it did
-not start with `reached: false`, and the commit gate charges each unreached
-structural stage as not reached until every stage has run. Every run's index
-names the whole full population this way, so a piece of a cut run or a fast
-run marks the stages it never held `reached: false` and the gate charges the
-structural ones too. The run prints
-`stopped at <stage>, <n> stages not run` and the command that runs them all.
+failure index names the stage under `stopped-at` and lists every stage of its
+population it did not start with `reached: false`, and the commit gate charges
+each such structural stage as not reached until a run reaches it. The run
+prints `stopped at <stage>, <n> stages not run` and the command that reruns
+them: `le verify current fast` for the fast population, whose stop leaves the
+full-only stages to `le verify worktree`.
+
+Every run's index names the whole full population, and a stage the run did not
+hold (a piece of a cut run, a fast run, a run that broke) carries the verdict
+the checkout's earlier index recorded for it, marked `outside-run` with
+`carried-from` naming the commit and run that judged it. A red therefore stays
+red until a run reaches that stage, and the commit refusal says
+`<stage>: red at <sha> in <run>` with the command that reruns it. A stage no
+run has judged is listed as never judged and is not charged: not running a
+stage is the unverified-debt row's business, not a red. So a green
+`verify current fast` charges nothing for the stages it drops, and a green
+`commit debt-clear` sweep of every piece leaves no structural charge. A
+missing or malformed earlier index is treated as empty, and the index's
+`carry-note` (the `Earlier index:` line of the text index) says so. The merge
+runs under a lock on `tmp/ze-verify-failures.lock`, because sessions publish
+into the same `tmp/`.
 `./le verify reds` over a stopped run answers `undetermined` and says the
 pending stages will never report. A first-red run is separate work in the job
 registry, so it never attaches to a whole run of the same commit, nor a whole
 run to it.
 <!-- source: internal/le/verify/lifecycle.go -- worktreeArgv, firstRedWithPart -->
 <!-- source: internal/le/commit/verification.go -- structuralGateReds -->
+<!-- source: internal/le/verify/engine/artifacts.go -- carryForward -->
 
 `./le verify worktree part <i> of <n>` runs one dealt piece, every stage of it,
 as `./le commit debt-clear` does. `first-red` with `part` is refused with exit

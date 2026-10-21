@@ -36,20 +36,26 @@ type structuralReds struct {
 	Charged      []string
 	Unattributed []string
 	Foreign      []string
-	// Unreached names the structural stages the recorded run never started:
-	// a first-red run stopped before them, or the run held only part of the
-	// population (a piece of a cut, the fast population, a run that broke).
-	// Each is also in Charged: a stage that never ran proved nothing, so the
-	// gate fails closed on it exactly as on a red.
+	// Unreached names the structural stages a first-red run held and stopped
+	// before (AC-11). Each is also in Charged: the run set out to judge them
+	// and did not finish. A stage the run never held is not here: the index
+	// carries an earlier verdict for it, or marks it unjudged, and an unjudged
+	// stage is not red (the unverified-debt row already owes "not run").
 	Unreached []string
-	// StoppedAt names the stage a first-red run stopped after, and is empty
-	// when the unreached stages were never part of the run.
-	StoppedAt string
+	// Causes says, for each charged stage in Charged order, why it is charged
+	// and the command that clears it.
+	Causes []string
 }
 
 type failureIndex struct {
 	StoppedAt string            `json:"stopped-at"`
 	Stages    []json.RawMessage `json:"stages"`
+}
+
+// failureOrigin names the run whose verdict a carried stage repeats.
+type failureOrigin struct {
+	Commit string `json:"commit"`
+	RunDir string `json:"run-dir"`
 }
 
 type failureStage struct {
@@ -59,13 +65,23 @@ type failureStage struct {
 	Reached  *bool           `json:"reached"`
 	ExitCode int             `json:"exit-code"`
 	Groups   json.RawMessage `json:"groups"`
+	// OutsideRun marks a stage the recording run did not hold; CarriedFrom
+	// names the earlier run whose verdict it repeats, and is nil for a stage
+	// no run judged.
+	OutsideRun  bool           `json:"outside-run"`
+	CarriedFrom *failureOrigin `json:"carried-from"`
 }
 
 type failureGroup struct {
 	ID      any `json:"group-id"`
 	Kind    any `json:"kind"`
 	Related any `json:"related"`
+	Rerun   any `json:"rerun"`
 }
+
+// rerunAllStages is the fixing command for a stage no recorded group names a
+// narrower rerun for.
+const rerunAllStages = "le verify worktree"
 
 func structuralGateReds(root string, paths []string) structuralReds {
 	content, err := os.ReadFile(filepath.Join(root, "tmp", "ze-verify-failures.json")) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
@@ -83,7 +99,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 		}
 	}
 	structural := structuralStages()
-	result := structuralReds{StoppedAt: index.StoppedAt}
+	var result structuralReds
 	for _, rawStage := range index.Stages {
 		var stage failureStage
 		if json.Unmarshal(rawStage, &stage) != nil {
@@ -93,8 +109,14 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			continue
 		}
 		if stage.Reached != nil && !*stage.Reached {
+			if stage.OutsideRun {
+				continue
+			}
 			result.Charged = append(result.Charged, stage.Stage)
 			result.Unreached = append(result.Unreached, stage.Stage)
+			result.Causes = append(result.Causes, stage.Stage+
+				": not reached, because the run stopped at its first red ("+index.StoppedAt+
+				"); run it with: "+rerunAllStages)
 			continue
 		}
 		if stage.ExitCode == 0 {
@@ -131,12 +153,30 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			continue
 		}
 		result.Charged = append(result.Charged, stage.Stage)
+		result.Causes = append(result.Causes, redCause(stage, groups))
 		if !owned {
 			result.Unattributed = append(result.Unattributed,
 				stage.Stage+" ("+strings.Join(blind, ", ")+")")
 		}
 	}
 	return result
+}
+
+// redCause answers why a red structural stage is charged and the command that
+// reruns it: the first rerun its groups name, or the whole run.
+func redCause(stage failureStage, groups []failureGroup) string {
+	rerun := rerunAllStages
+	for _, group := range groups {
+		if named, ok := group.Rerun.(string); ok && named != "" {
+			rerun = named
+			break
+		}
+	}
+	if stage.CarriedFrom == nil {
+		return stage.Stage + ": red in the latest verify run; rerun it with: " + rerun
+	}
+	return stage.Stage + ": red at " + stage.CarriedFrom.Commit + " in " + stage.CarriedFrom.RunDir +
+		", carried because the latest run did not run it; rerun it with: " + rerun
 }
 
 // groupRelatedPaths answers the checkout paths one recorded group named. Which
