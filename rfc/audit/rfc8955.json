@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-20",
+  "audited": "2026-10-21",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -31,7 +31,7 @@
       "verdict": "enforced"
     },
     "RFC8955-4-3": {
-      "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8955 Section 4: \"When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.\" Changed carriers: TestFlowSpecOriginationOmitsConfiguredNextHop (37f9650797) and test/encode/flow-encode.ci (8aaa453ca1). Both changes reorder MP_REACH_NLRI to the front only: all 4 packets and all 13 changed flow-encode expects parse to the identical attribute TLV set, MP_REACH next-hop length still 00, lengths unchanged. Assertions remain complete-frame equality. Passes at HEAD (go test; ./le test bgp encode flow-encode). Verdict stands. Process note: 8aaa453ca1 records owner approval as owed for the RFC-tagged flow-encode reorder.",
+      "note": "Re-judged 2026-10-21 (independent auditor, authored neither 2dfb23ed0b nor 7c64f4edb3). RFC 8955 Section 4: \"When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.\" 2dfb23ed0b changes seq 6 traffic-class 101 to 46 (DSCP fits 6 bits); MP_REACH next-hop length stays 00, no bearing on this row. 7c64f4edb3 changes seqs 2, 8 and 9 (0x0800 redirect/copy-to-IP-next-hop community) to expect next-hop length 04 with the address (01020304, 05060708, 01020304), and narrows the positive claim to routes whose action is not 0x0800. The remaining ten flow-encode expects and the Go carriers still assert length 0 by whole-frame equality, and the retaken buildMPReachPlugin record proves the .ci red. But the requirement is unconditional for every FlowSpec advertisement, and the tagged positive carrier now asserts a non-zero length for three of them: Ze deliberately violates Section 4 for 0x0800 routes. The file header calls this an owner-approved deviation (2026-10-20, handover 03), and the rfc-compliance rule says an approved deviation MUST NOT be counted as conformant, so the row cannot stay enforced. Verdict wrong because three tagged assertions state the opposite of the sentence; the honest end state is a {partial} row (Tested: non-0x0800 FlowSpec advertisements; Gap: 0x0800 routes carry the redirect address as next hop, owner deviation) re-judged to partial, plus the deviation named in Support remaining of rfc/short/rfc8955.md, which today does not mention it. Neither edit is the judge's to make.",
       "requirement_sha": "40d8aaf28c3c7063",
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "0c3cf4704d7e9ed6",
@@ -43,7 +43,7 @@
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "3cddaf419ff97267",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "3cddaf419ff97267",
         "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "46d98f79040a5c70",
-        "test/encode/flow-encode.ci": "e10e04e60588f43f"
+        "test/encode/flow-encode.ci": "279b62863ef11c3d"
       },
       "units": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",
@@ -55,9 +55,9 @@
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "af3f647998b5033c",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "af3f647998b5033c",
         "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "9822aaa21d208c9e",
-        "test/encode/flow-encode.ci": "e10e04e60588f43f"
+        "test/encode/flow-encode.ci": "279b62863ef11c3d"
       },
-      "verdict": "enforced"
+      "verdict": "wrong"
     },
     "RFC8955-4.2-2": {
       "note": "Re-judged 2026-10-16 after the codec moved to internal/core/bgp/nlri/flowspec; units changed only by package qualification. RFC 8955 Section 4.2: \"If present, it MUST precede any component of higher numeric type value.\" Positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12 (core writeComponentsSorted); negative feeds 5-then-3 and requires ErrFlowSpecTypeOrder from core parseComponents, with the same components ascending accepted, so the refusal is isolated to order.",
