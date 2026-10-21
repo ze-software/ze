@@ -173,10 +173,43 @@
       "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused",
       "unit-sha": "72c52f1f250eb519",
       "claim-sha": "8a92446d656d457c",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
       "producer-sha": "e6b49f7a3a15379e",
-      "break": "body of anyPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 50: \"false\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated",
+      "unit-sha": "dd3886d17f7f85f0",
+      "claim-sha": "7b363e53c43de197",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
+      "producer-sha": "e6b49f7a3a15379e",
+      "break": "line 50: \"false\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated",
+      "unit-sha": "dd3886d17f7f85f0",
+      "claim-sha": "4cd88fed05cedf02",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecDestination",
+      "producer-sha": "198e5cc3a9cc36a6",
+      "break": "body of flowSpecDestination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleWithdraw",
+      "unit-sha": "843ace95d69a76b2",
+      "claim-sha": "435885685f898cfa",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecDestination",
+      "producer-sha": "198e5cc3a9cc36a6",
+      "break": "body of flowSpecDestination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8955-4.2-3",

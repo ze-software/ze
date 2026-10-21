@@ -649,6 +649,9 @@ func TestFlowSpecIPv6ActionReplacementAndReplay(t *testing.T) {
 // RFC 8955 Section 4.2: "some combinations cannot match any packets (e.g.,
 // "ICMP Type AND Port" will never match any packets) and thus SHOULD NOT be
 // propagated by BGP."
+//
+// RFC requirement: RFC8955-4.2-3 positive -- a received rule matching a port and no ICMP component stays eligible for the forward rails, publishes its install event and yields a candidate.
+// RFC requirement: RFC8955-4.2-3 negative -- a received rule matching an ICMP type or an ICMP code together with a port is retained but ineligible for the forward rails, publishes no install event and yields no candidate.
 func TestFlowSpecUnmatchableReceivedRuleIsNotPropagated(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	sequence := flowValidationPath(2, 65001)
@@ -692,6 +695,8 @@ func TestFlowSpecUnmatchableReceivedRuleIsNotPropagated(t *testing.T) {
 // RFC 8955 Section 4.2: "some combinations cannot match any packets (e.g.,
 // "ICMP Type AND Port" will never match any packets) and thus SHOULD NOT be
 // propagated by BGP."
+//
+// RFC requirement: RFC8955-4.2-3 negative -- a received rule matching an ICMP type and a port is retained ineligible for the forward rails, and neither it nor its withdrawal publishes an install event or leaves a candidate.
 func TestFlowSpecUnmatchableReceivedRuleWithdraw(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	sequence := flowValidationPath(2, 65001)
