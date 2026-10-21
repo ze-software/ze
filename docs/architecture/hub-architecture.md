@@ -190,7 +190,7 @@ the value, the path, and what to configure, and the editor's commit reports it
 for every section, bgp included. The failures are listed sorted by path, the
 same order on every run.
 <!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
-<!-- source: internal/component/config/yang/validator_default.go -- defaultInUse, caseInEffect -->
+<!-- source: internal/component/config/yang/validator_default.go -- defaultInUse, CaseInEffect -->
 <!-- source: internal/component/cli/validator.go -- editorReportsSectionFailure -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateIdentityref -->
 
