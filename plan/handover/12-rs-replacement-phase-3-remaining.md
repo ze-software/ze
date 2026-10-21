@@ -4,6 +4,20 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-21 night: round 8 ran (4 NOTE, fixed), round 9 owed
+
+- Round 8 (Thomas: "ok round 8") over `9e2b655e4c`: 0 BLOCKER, 0 ISSUE,
+  4 NOTE, recorded (rounds 8); no product defect. Notes fixed in `d53835791a`
+  (comments; FlowSpec extended-length and FlowSpec VPN key-shape cases; JSON
+  labeled message-ID test), each new case red with its fix broken.
+- STOPPED HERE: round 9 needs Thomas. AC-9, the AC-10 re-record, 3b, 3a, 4, 5,
+  6 not started.
+- Shared index: `d53835791a`'s script could not repoint the shared index
+  (`.git/index.lock` held, empty, from 20:23). Until someone runs the repair
+  the script printed (`git ls-tree HEAD -- <its five paths> | git
+  update-index --index-info`), `git diff --cached` shows those paths as
+  reverse-staged. Commits through `./le commit create` are unaffected.
+
 ## STATE 2026-10-21 late: round 7 ran and its findings are fixed, round 8 owed
 
 - Round 7 (Thomas: "ok round 7") over 562a215cb8, 2624ccf8bf and the held page
