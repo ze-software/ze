@@ -90,17 +90,18 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10": {
-      "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1: \"any TLV parsing error MUST result in Treat-as-withdraw\". TestMUPT1STTLVFraming negative: TLV 0x80 declaring Length 5 over two octets, ErrMUPTLV; positive: a well-framed TLV accepted; octets unchanged from the earlier judgement. The reactor unit withdraws the overrun at ingress, its change is the siblings' mandatory 0x00. validateTLVs and ValidateNLRI records re-taken and observed red. ",
+      "code": {},
+      "note": "Re-judged 2026-10-21 after 27b0796cea (independent auditor, authored none of it). Section 3.1.3.1: \"any TLV parsing error MUST result in Treat-as-withdraw\". The reactor unit's overrun case (TLV 0xF0 declaring Length 5 over one octet) is now preceded by K0 of the same RD and prefix, and asserts K leaves MP_REACH, siblings including L2's unknown TLV kept byte for byte, and the route withdrawn in MP_UNREACH by K0's bytes, which the recognizer keeps. With Section 3.1.5's Type/Length/Value framing, an overrun and the one-octet header (3.1.3.1-7) are the parse errors that exist. TestMUPT1STTLVFraming (negative: overrun gives ErrMUPTLV; positive: well-framed TLV accepted) unchanged. Scoped go test green; ValidateNLRI record re-taken in 27b0796cea.",
       "requirement_sha": "20d0ce7c2dfefab5",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "b8681e31e994fbcc",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "b8681e31e994fbcc",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "9685fe3626173dd5"
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "614867cc79f18497"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "e0e4f38263c527a1",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "e0e4f38263c527a1",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "da5b0c979825240d"
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "2c01ff6ffd6b5dcf"
       },
       "verdict": "enforced"
     },
@@ -135,34 +136,36 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6": {
-      "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1: \"- < 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (\"The Source Address Length has a fixed length of 1 octet.\" and the TLV remainder counted from \"the offset of the end of the Source Address\"); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. TestMUPT1STMandatoryFieldsWithinLength: positive t1stBody now ends in the zero Source Address Length, so the mandatory fields end exactly at the Length with nothing remaining; negative cuts three octets (endpoint left with 2 of 4) and asserts ErrMUPTruncated. TestMUPMalformedT1STTreatAsWithdraw (reactor, classifyRFC7606 + applyRFC7606 with the registered recognizer) changed only by giving its siblings the mandatory 0x00 tail: K whose Length ends inside the endpoint leaves MP_REACH and is withdrawn in MP_UNREACH, siblings byte for byte, no reset. The new short form (stops after the endpoint, remaining -1) is covered only by the untagged TestMUPParseErrors row. All four records re-taken and observed red. ",
+      "code": {},
+      "note": "Re-judged 2026-10-21 after 27b0796cea (independent auditor, authored none of it). Section 3.1.3.1: \"- < 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" TestMUPMalformedT1STTreatAsWithdraw now first receives K0, a well-formed T1ST with K's RD and prefix, then K whose Length ends two octets inside the Endpoint Address beside L and L2 (unknown TLV 0xF0). It asserts no reset and RFC7606ActionNone, MP_REACH reduced to L+L2 byte for byte, and an MP_UNREACH in the same UPDATE carrying exactly K0's bytes, which the registered recognizer (recognizerFor -> ValidateNLRI) keeps. Section 3.1.3 makes RD, Prefix Length and Prefix the route key, so K0 names the same route; RFC 7606 Section 2 treat-as-withdraw removes that route from the Adj-RIB-In, which a withdrawal by the held generation (typedNLRIWithdrawal, session_validation_nlritype_held.go) does, and the test fails if K is kept, dropped, or withdrawn by its malformed bytes. Negative subtest: well-formed L+L2 returned unchanged. TestMUPT1STMandatoryFieldsWithinLength unchanged since the 32ff59085b judgement. Scoped go test green; ValidateNLRI records re-taken in 27b0796cea.",
       "requirement_sha": "e24f1fbf9098af39",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "b8681e31e994fbcc",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "b8681e31e994fbcc",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "9685fe3626173dd5",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "9685fe3626173dd5"
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "614867cc79f18497",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "614867cc79f18497"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "7bd2a3bf8b795466",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "7bd2a3bf8b795466",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "da5b0c979825240d",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "da5b0c979825240d"
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "2c01ff6ffd6b5dcf",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "2c01ff6ffd6b5dcf"
       },
       "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7": {
-      "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1: \"- 1:     encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw.\" TestMUPT1STTLVFraming changed only in how it spells the bytes: t1stBody now carries the zero source length itself, so withTLV, oneOctet and overrun are the same octets as before. Negative: exactly one octet after the Source Address, ErrMUPTLV; positive: a whole TLV parses. The reactor unit's one-octet case withdraws at ingress; its change is the siblings' mandatory 0x00. validateTLVs and ValidateNLRI records re-taken and observed red. ",
+      "code": {},
+      "note": "Re-judged 2026-10-21 after 27b0796cea (independent auditor, authored none of it). Section 3.1.3.1: \"- 1:     encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw.\" The reactor unit's one-octet case (zero Source Address Length, then the lone octet 0xF0) is now preceded by K0 of the same RD and prefix, and asserts K leaves MP_REACH, siblings byte for byte, and the route is withdrawn in MP_UNREACH by K0's bytes, which the recognizer keeps: the RFC 7606 Section 2 Adj-RIB-In removal of the route K names. A recognizer that kept K, or a withdrawal by the malformed bytes, fails it. TestMUPT1STTLVFraming (negative: one octet after the Source Address gives ErrMUPTLV; positive: a whole TLV parses) unchanged. Scoped go test green; ValidateNLRI record re-taken in 27b0796cea.",
       "requirement_sha": "3bffe26dbac60e46",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "b8681e31e994fbcc",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "b8681e31e994fbcc",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "9685fe3626173dd5"
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "614867cc79f18497"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "e0e4f38263c527a1",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "e0e4f38263c527a1",
-        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "da5b0c979825240d"
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "2c01ff6ffd6b5dcf"
       },
       "verdict": "enforced"
     },
