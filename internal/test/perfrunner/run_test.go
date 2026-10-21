@@ -248,9 +248,11 @@ func TestPerfContainersCarryTheirFlagsAndLabels(t *testing.T) {
 func TestPerfRemovalFailureIsReportedAndFailsTheRun(t *testing.T) {
 	var stderr strings.Builder
 	runner, recorder := fixtureRunner(t, &stderr)
+	// Bird is measured, so the exit code is the removal's alone: a run of
+	// skips fails by itself and would hide a removal that no longer counts.
 	recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
-		if slices.Equal(argv[1:3], []string{"image", "inspect"}) {
-			return interoplab.ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such image: " + argv[len(argv)-1]}, nil
+		if slices.Contains(argv, "{{.State.Running}}") {
+			return interoplab.ProcessResult{Stdout: "true\n"}, nil
 		}
 		if slices.Equal(argv[1:3], []string{"network", "rm"}) {
 			return interoplab.ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: network has active endpoints"}, nil
@@ -387,7 +389,7 @@ func TestPerfRunnerRefusesALinuxBuildWithoutTags(t *testing.T) {
 
 // VALIDATES: a build-only run whose image build fails exits 1 and names the
 // DUT and the build error on stderr, and claims no image was built; a run
-// that also tests keeps the warning and goes on to skip the DUT.
+// that also tests fails the same way, with an error rather than a warning.
 // METHOD: the Docker recorder refuses every `docker build` (and, for the
 // test run, answers the image absent), and Execute runs the freertr DUT
 // with the build step alone, then with both steps.
@@ -422,11 +424,158 @@ func TestBuildOnlyRunFailsWhenAnImageBuildFails(t *testing.T) {
 	}
 
 	stderr.Reset()
-	if code := runner.Execute(t.Context(), Steps{Build: true, Test: true}, []string{"freertr"}); code != 0 {
-		t.Errorf("Execute(build and test) = %d with the DUT skipped, want 0 as before", code)
+	if code := runner.Execute(t.Context(), Steps{Build: true, Test: true}, []string{"freertr"}); code != 1 {
+		t.Errorf("Execute(build and test) = %d after the freertr build failed, want 1", code)
 	}
-	if !strings.Contains(stderr.String(), "warning: freertr image build failed") {
-		t.Errorf("a test run lost the skip warning: %q", stderr.String())
+	if !strings.Contains(stderr.String(), "error: freertr image build failed") {
+		t.Errorf("a test run did not report the build failure as an error: %q", stderr.String())
+	}
+}
+
+// VALIDATES: a run that builds and tests, whose ze image build fails, still
+// measures the DUT that built, never measures the image ze left from an
+// earlier run, marks ze FAIL in the summary with the build's cause, prints no
+// PASS line and exits 1.
+// METHOD: the Docker recorder refuses the ze build, answers every image
+// present (a stale ze image included) and every container running; Execute
+// runs ze and bird with both steps. Stdout is the summary; the recorder
+// shows which containers were started.
+// PREVENTS: `./le perf run dut ze` printing "PASS  1 skipped: ze" and
+// exiting 0 for a run that measured nothing.
+func TestTestRunFailsADUTWhoseImageWasNotMade(t *testing.T) {
+	var stderr, stdout strings.Builder
+	runner, recorder := fixtureRunner(t, &stderr)
+	runner.Stdout = &stdout
+	recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+		zeBuild := slices.ContainsFunc(argv, func(word string) bool { return strings.HasSuffix(word, "Dockerfile.ze") })
+		if argv[1] == "build" && zeBuild {
+			return interoplab.ProcessResult{ExitCode: 1, Stderr: "failed to solve: process exited with code 2"}, nil
+		}
+		if argv[1] == "build" {
+			return interoplab.ProcessResult{Stdout: "sha256:" + strings.Repeat("ab", 32) + "\n"}, nil
+		}
+		if slices.Contains(argv, "{{.State.Running}}") {
+			return interoplab.ProcessResult{Stdout: "true\n"}, nil
+		}
+		return interoplab.ProcessResult{}, nil
+	}
+	if code := runner.Execute(t.Context(), Steps{Build: true, Test: true}, []string{"ze", "bird"}); code != 1 {
+		t.Errorf("Execute(build and test) = %d after the ze build failed, want 1", code)
+	}
+	var summary string
+	for line := range strings.Lines(stdout.String()) {
+		if strings.HasPrefix(line, "PASS") {
+			t.Errorf("a run with a DUT whose image was not made printed a PASS line: %q", line)
+		}
+		if strings.HasPrefix(line, "FAIL") {
+			summary = line
+		}
+	}
+	for _, want := range []string{"1 passed", "1 failed: ze"} {
+		if !strings.Contains(summary, want) {
+			t.Errorf("summary %q lacks %q; stdout %q", summary, want, stdout.String())
+		}
+	}
+	if strings.Contains(summary, "skipped") {
+		t.Errorf("the summary counts ze as skipped: %q", summary)
+	}
+	for _, want := range []string{"ze: no image was made: ze image build failed", "process exited with code 2"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("the summary does not give ze's cause %q: %q", want, stdout.String())
+		}
+	}
+	started := func(dut string) bool {
+		return slices.ContainsFunc(recorder.recorded(), func(joined string) bool {
+			return strings.Contains(joined, " run -d ") && strings.Contains(joined, runner.containerName(dut))
+		})
+	}
+	if started("ze") {
+		t.Error("the run started a ze container from the image an earlier run left")
+	}
+	if !started("bird") {
+		t.Errorf("the run did not measure bird, whose image built: %q", recorder.recorded())
+	}
+}
+
+// VALIDATES: a test run in which every selected DUT is skipped, because no
+// image exists and the run built none, fails: no PASS line, a FAIL naming the
+// skipped DUTs and the build command, exit 1.
+// METHOD: the Docker recorder answers every image absent; Execute runs ze and
+// bird with the test step alone.
+// PREVENTS: a run that measured nothing reporting PASS and exiting 0.
+func TestTestRunOfOnlySkippedDUTsFails(t *testing.T) {
+	var stdout strings.Builder
+	runner, recorder := fixtureRunner(t, io.Discard)
+	runner.Stdout = &stdout
+	recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+		if slices.Equal(argv[1:3], []string{"image", "inspect"}) {
+			return interoplab.ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such image: " + argv[len(argv)-1]}, nil
+		}
+		return interoplab.ProcessResult{}, nil
+	}
+	if code := runner.Execute(t.Context(), Steps{Test: true}, []string{"ze", "bird"}); code != 1 {
+		t.Errorf("Execute(test) = %d with every DUT skipped, want 1", code)
+	}
+	if strings.Contains(stdout.String(), "PASS") {
+		t.Errorf("a run that measured nothing printed PASS: %q", stdout.String())
+	}
+	for _, want := range []string{"FAIL  no DUT was measured", "2 skipped: ze bird", `./le perf run step build dut "ze bird"`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("stdout %q lacks %q", stdout.String(), want)
+		}
+	}
+	if strings.Contains(stdout.String(), "env -u NO_BUILD") {
+		t.Errorf("the build command unsets a NO_BUILD this run never set: %q", stdout.String())
+	}
+
+	// Under NO_BUILD the plain build command would build nothing, so the
+	// command printed MUST unset it.
+	stdout.Reset()
+	runner.NoBuild = true
+	if code := runner.Execute(t.Context(), Steps{Build: true, Test: true}, []string{"ze", "bird"}); code != 1 {
+		t.Errorf("Execute(NO_BUILD, build and test) = %d with every DUT skipped, want 1", code)
+	}
+	if want := `env -u NO_BUILD ./le perf run step build dut "ze bird"`; !strings.Contains(stdout.String(), want) {
+		t.Errorf("stdout %q lacks %q", stdout.String(), want)
+	}
+}
+
+// VALIDATES: a build-only run under NO_BUILD=1, which would build nothing, is
+// refused: exit 1, stderr names NO_BUILD as the reason and gives the command
+// that unsets it, and nothing claims an image was built. Docker is never asked
+// to build.
+// METHOD: Execute with the build step alone over a runner whose NoBuild is
+// set, once with named DUTs and once with none (every DUT).
+// PREVENTS: `NO_BUILD=1 ./le perf run step build` exiting 0 with "built the
+// DUT images" when it built none.
+func TestBuildOnlyRunUnderNoBuildIsRefused(t *testing.T) {
+	for _, row := range []struct {
+		names []string
+		fix   string
+	}{
+		{names: []string{"ze"}, fix: `env -u NO_BUILD ./le perf run step build dut "ze"`},
+		{names: nil, fix: "env -u NO_BUILD ./le perf run step build\n"},
+	} {
+		var stderr, stdout strings.Builder
+		runner, recorder := fixtureRunner(t, &stderr)
+		runner.Stdout = &stdout
+		runner.NoBuild = true
+		if code := runner.Execute(t.Context(), Steps{Build: true}, row.names); code != 1 {
+			t.Errorf("Execute(NO_BUILD, build only, %q) = %d, want 1", row.names, code)
+		}
+		for _, want := range []string{"NO_BUILD", row.fix} {
+			if !strings.Contains(stderr.String(), want) {
+				t.Errorf("stderr %q lacks %q", stderr.String(), want)
+			}
+		}
+		if strings.Contains(strings.ToLower(stdout.String()), "built") {
+			t.Errorf("stdout claims an image was built: %q", stdout.String())
+		}
+		for _, joined := range recorder.recorded() {
+			if strings.HasPrefix(joined, "docker build") {
+				t.Errorf("a NO_BUILD run asked Docker to build: %q", joined)
+			}
+		}
 	}
 }
 

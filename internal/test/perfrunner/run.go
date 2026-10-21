@@ -269,44 +269,81 @@ func (runner *Runner) buildLinuxBinary(ctx context.Context) error {
 	return nil
 }
 
+// unbuiltImage is one selected DUT whose image this run could not make, with
+// the cause the pull or the build answered.
+type unbuiltImage struct {
+	dut   string
+	cause string
+}
+
+// unbuiltNames answers the DUTs of unbuilt, space separated, as the dut
+// keyword of `./le perf run` takes them.
+func unbuiltNames(unbuilt []unbuiltImage) string {
+	names := make([]string, 0, len(unbuilt))
+	for _, image := range unbuilt {
+		names = append(names, image.dut)
+	}
+	return strings.Join(names, " ")
+}
+
+// buildCommand answers the command that builds the named DUTs' images, or
+// every DUT's when names is empty. Under NO_BUILD that command would build
+// nothing, so it then unsets NO_BUILD for the one run.
+func (runner *Runner) buildCommand(names string) string {
+	command := "./le perf run step build"
+	if runner.NoBuild {
+		command = "env -u NO_BUILD " + command
+	}
+	if names == "" {
+		return command
+	}
+	return command + " dut \"" + names + "\""
+}
+
+// imageBuilds is what the build step did. skipped says it built nothing
+// because NO_BUILD is set; unbuilt is every DUT whose image it could not make.
+type imageBuilds struct {
+	skipped bool
+	unbuilt []unbuiltImage
+}
+
 // buildImages makes every selected DUT's image: FRR is pulled, the others are
-// built. It answers the names of the DUTs whose image it could not make. When
-// a test step follows (testFollows), a failure is a warning, because the test
-// step skips a DUT whose image is absent. In a build-only run the failure is
-// the run's answer, so it is reported as an error and the caller MUST fail the
-// run. A build tag this run could not release fails the run either way.
-func (runner *Runner) buildImages(ctx context.Context, duts []DUT, testFollows bool) []string {
+// built. It prints an error for each DUT whose image it could not make and
+// answers them with their cause. The caller MUST fail the run for each one,
+// whether or not a test step follows: the operator selected the DUT, and an
+// image left by an earlier run is not what this run was asked to measure. A
+// build tag this run could not release fails the run too. Under NO_BUILD it
+// builds nothing and answers skipped, so the caller never infers it from an
+// empty unbuilt list.
+func (runner *Runner) buildImages(ctx context.Context, duts []DUT) imageBuilds {
 	if runner.NoBuild {
 		say(runner.Stdout, "  skipping image builds (NO_BUILD=1)")
-		return nil
+		return imageBuilds{skipped: true}
 	}
-	severity := "  error: "
-	if testFollows {
-		severity = "  warning: "
+	var unbuilt []unbuiltImage
+	failed := func(dut DUT, cause string) {
+		unbuilt = append(unbuilt, unbuiltImage{dut: dut.Name, cause: cause})
+		say(runner.Stderr, "  error: ", cause)
 	}
-	var failed []string
 	for _, dut := range duts {
 		if ctx.Err() != nil {
-			return failed
+			return imageBuilds{unbuilt: unbuilt}
 		}
 		say(runner.Stdout, "Building ", dut.Name, " image...")
 		if dut.Name == dutFRR {
 			if err := runner.Docker.Pull(ctx, dut.Image, 0); err != nil {
-				failed = append(failed, dut.Name)
-				say(runner.Stderr, severity, dut.Name, " image pull failed: ", err.Error())
+				failed(dut, dut.Name+" image pull failed: "+err.Error())
 			}
 			continue
 		}
 		build, err := runner.imageBuild(dut)
 		if err != nil {
-			failed = append(failed, dut.Name)
-			say(runner.Stderr, severity, err.Error())
+			failed(dut, err.Error())
 			continue
 		}
 		image, err := runner.Docker.Build(ctx, build)
 		if err != nil {
-			failed = append(failed, dut.Name)
-			say(runner.Stderr, severity, dut.Name, " image build failed: ", err.Error())
+			failed(dut, dut.Name+" image build failed: "+err.Error())
 			continue
 		}
 		if err := runner.Docker.ReleaseImage(context.WithoutCancel(ctx), image); err != nil {
@@ -314,7 +351,7 @@ func (runner *Runner) buildImages(ctx context.Context, duts []DUT, testFollows b
 			say(runner.Stderr, "  error: release the build tag of ", dut.Name, ": ", err.Error(), "; remove it with ", cleanupCommand)
 		}
 	}
-	return failed
+	return imageBuilds{unbuilt: unbuilt}
 }
 
 // imageBuild answers the build of one DUT image other than FRR, which is pulled.
@@ -573,21 +610,38 @@ func (runner *Runner) cleanup(ctx context.Context) {
 	}
 }
 
-// measurement is what the test step found over the selected DUTs.
+// measurement is what the test step found over the selected DUTs. failed
+// names every DUT that failed, unbuilt included; unbuilt carries the cause of
+// those whose image this run could not make.
 type measurement struct {
 	passed  int
 	failed  []string
+	unbuilt []unbuiltImage
 	skipped []string
 	results []string
 }
 
+// failedRun answers whether the test step's findings fail the run: a DUT
+// failed, or no DUT was measured at all. A skip alone never passes a run,
+// because a run that measured nothing has no answer to give.
+func (found measurement) failedRun() bool {
+	if len(found.failed) > 0 {
+		return true
+	}
+	return found.passed == 0
+}
+
 // Execute runs the selected steps over the named DUTs, or over every DUT when
 // names is empty. It answers 2 when steps selects nothing, 1 when no DUT
-// matches, a build-only run could not make a DUT's image, a measurement
-// fails, ctx ends the run, or a container, network or build tag this run
-// created could not be removed, and 0 otherwise. A DUT
-// whose image is absent is skipped and reported, never measured. ctx is the
-// command's root: canceling it stops the run, and the removals still run.
+// matches, a build-only run is asked for under NO_BUILD (it would build
+// nothing), the build step could not make a selected DUT's image, a
+// measurement fails, the test step measured no DUT, ctx ends the run, or a
+// container, network or build tag this run created could not be removed, and
+// 0 otherwise. A DUT whose image the build step could not make is failed and
+// never measured; the others are still measured. A DUT whose image is absent
+// when the run built none (NO_BUILD=1, or the test step alone) is skipped and
+// reported. ctx is the command's root: canceling it stops the run, and the
+// removals still run.
 func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) int {
 	if !steps.Build && !steps.Test {
 		say(runner.Stderr, "error: a suite run needs the build step, the test step, or both")
@@ -607,17 +661,23 @@ func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) 
 		say(runner.Stderr, "error: no matching DUTs")
 		return 1
 	}
-	var unbuilt []string
+	var builds imageBuilds
 	if steps.Build {
-		unbuilt = runner.buildImages(ctx, duts, steps.Test)
+		builds = runner.buildImages(ctx, duts)
 	}
 	if !steps.Test {
 		code := runner.verdict(ctx)
-		if len(unbuilt) > 0 {
-			names := strings.Join(unbuilt, " ")
-			say(runner.Stderr, "FAIL  no image was made for: ", names, ", so this build-only run fails")
+		if builds.skipped {
+			say(runner.Stderr, "FAIL  NO_BUILD is set, so this build-only run built no image")
+			say(runner.Stderr, "  a build-only run is its build, so NO_BUILD contradicts it; unset it for this run:")
+			say(runner.Stderr, "  ", runner.buildCommand(strings.Join(names, " ")))
+			return 1
+		}
+		if len(builds.unbuilt) > 0 {
+			missing := unbuiltNames(builds.unbuilt)
+			say(runner.Stderr, "FAIL  no image was made for: ", missing, ", so this build-only run fails")
 			say(runner.Stderr, "  fix the cause each error above names, then build them again:")
-			say(runner.Stderr, "  ./le perf run step build dut \"", names, "\"")
+			say(runner.Stderr, "  ", runner.buildCommand(missing))
 			return 1
 		}
 		return code
@@ -630,7 +690,7 @@ func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) 
 		say(runner.Stderr, "error: create the results directory: ", err.Error())
 		return 1
 	}
-	found, err := runner.measure(ctx, duts)
+	found, err := runner.measure(ctx, duts, builds.unbuilt)
 	runner.cleanup(ctx)
 	if err != nil {
 		say(runner.Stderr, "error: ", err.Error())
@@ -640,7 +700,7 @@ func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) 
 		runner.render(ctx, found.results)
 	}
 	runner.summarize(found)
-	if len(found.failed) > 0 {
+	if found.failedRun() {
 		return 1
 	}
 	return runner.verdict(ctx)
@@ -660,11 +720,12 @@ func (runner *Runner) verdict(ctx context.Context) int {
 	return 0
 }
 
-// measure creates the network and measures each DUT whose image exists. It
-// answers an error when the network cannot be created or ctx ends the run
-// between two DUTs; a DUT under way when ctx ends fails. The caller MUST
-// call cleanup after it, whatever it answers.
-func (runner *Runner) measure(ctx context.Context, duts []DUT) (measurement, error) {
+// measure creates the network and measures each DUT whose image exists. A DUT
+// in unbuilt fails with its cause and is not measured, even when an image an
+// earlier run left is present. It answers an error when the network cannot be
+// created or ctx ends the run between two DUTs; a DUT under way when ctx ends
+// fails. The caller MUST call cleanup after it, whatever it answers.
+func (runner *Runner) measure(ctx context.Context, duts []DUT, unbuilt []unbuiltImage) (measurement, error) {
 	var found measurement
 	network := interoplab.NetworkSpec{Name: runner.network, Candidates: []interoplab.Subnet{{IPv4: perfSubnet}}}
 	if _, err := runner.Docker.CreateNetwork(ctx, network); err != nil {
@@ -676,13 +737,21 @@ func (runner *Runner) measure(ctx context.Context, duts []DUT) (measurement, err
 			return found, fmt.Errorf("the run was interrupted before %s: %w", dut.Name, err)
 		}
 		say(runner.Stdout, "-- ", dut.Name, " --")
+		if at := slices.IndexFunc(unbuilt, func(image unbuiltImage) bool { return image.dut == dut.Name }); at >= 0 {
+			say(runner.Stdout, "  not measured: this run made no image for ", dut.Name)
+			found.unbuilt = append(found.unbuilt, unbuilt[at])
+			found.failed = append(found.failed, dut.Name)
+			continue
+		}
 		runner.measureIfPresent(ctx, dut, &found)
 	}
 	return found, nil
 }
 
 // measureIfPresent measures one DUT into found when its image exists, skips
-// it when the image is absent, and fails it when the daemon cannot say.
+// it when the image is absent, and fails it when the daemon cannot say. The
+// caller MUST NOT call it for a DUT whose image build failed this run: any
+// image present then is a stale one.
 func (runner *Runner) measureIfPresent(ctx context.Context, dut DUT, found *measurement) {
 	present, err := runner.Docker.ImagePresent(ctx, dut.Image)
 	if err != nil {
@@ -750,11 +819,16 @@ func (runner *Runner) render(ctx context.Context, results []string) {
 	}
 }
 
-// summarize prints the one verdict line over what the test step found.
+// summarize prints the verdict line over what the test step found, then the
+// cause of each DUT whose image was not made and the command that builds the
+// DUTs the run could not measure.
 func (runner *Runner) summarize(found measurement) {
 	parts := []string{}
 	if found.passed > 0 {
 		parts = append(parts, strconv.Itoa(found.passed)+" passed")
+	}
+	if found.passed == 0 && len(found.failed) == 0 {
+		parts = append(parts, "no DUT was measured")
 	}
 	if len(found.failed) > 0 {
 		parts = append(parts, strconv.Itoa(len(found.failed))+" failed: "+strings.Join(found.failed, " "))
@@ -762,14 +836,20 @@ func (runner *Runner) summarize(found measurement) {
 	if len(found.skipped) > 0 {
 		parts = append(parts, strconv.Itoa(len(found.skipped))+" skipped: "+strings.Join(found.skipped, " "))
 	}
-	if len(parts) == 0 {
-		parts = append(parts, "no DUTs ran")
-	}
 	verdict := "PASS"
-	if len(found.failed) > 0 {
+	if found.failedRun() {
 		verdict = "FAIL"
 	}
 	say(runner.Stdout, verdict, "  ", strings.Join(parts, ", "))
+	for _, image := range found.unbuilt {
+		say(runner.Stdout, "  ", image.dut, ": no image was made: ", image.cause)
+	}
+	if len(found.unbuilt) > 0 {
+		say(runner.Stdout, "  fix the cause each line above names, then run again: ./le perf run dut \"", unbuiltNames(found.unbuilt), "\"")
+	}
+	if len(found.skipped) > 0 {
+		say(runner.Stdout, "  no image exists for the skipped DUTs; build them with: ", runner.buildCommand(strings.Join(found.skipped, " ")))
+	}
 }
 
 // reportArgv answers the Reporter command that renders results in one format.
