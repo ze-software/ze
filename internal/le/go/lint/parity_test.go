@@ -271,10 +271,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		if pass.GOARCH != "" {
 			wantOverrides = append(wantOverrides, "GOARCH="+pass.GOARCH)
 		}
-		gotOverrides := pass.Environment[len(pass.Environment)-len(wantOverrides):]
-		if !reflect.DeepEqual(gotOverrides, wantOverrides) {
-			t.Errorf("%s environment overrides differ:\n got: %q\nwant: %q", pass.Name, gotOverrides, wantOverrides)
-		}
+		checkEnvironmentTail(t, pass.Name+" environment", pass.Environment, wantOverrides, root)
 	}
 	if len(*captureCalls) != len(wantNames)+1 {
 		t.Fatalf("planning ran %d capture commands, want 20 go list plus git", len(*captureCalls))
@@ -297,10 +294,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		if index == 1 || index == 19 {
 			wantOverrides = append(wantOverrides, "GOOS=linux")
 		}
-		gotOverrides := call.environment[len(call.environment)-len(wantOverrides):]
-		if !reflect.DeepEqual(gotOverrides, wantOverrides) {
-			t.Errorf("go-list call %d environment differs:\n got: %q\nwant: %q", index, gotOverrides, wantOverrides)
-		}
+		checkEnvironmentTail(t, "go-list call "+strconv.Itoa(index)+" environment", call.environment, wantOverrides, root)
 	}
 	trackedCall := (*captureCalls)[len(*captureCalls)-1]
 	if !reflect.DeepEqual(trackedCall.argv, []string{"git", "ls-files", "-z", "--", "*.go"}) {
@@ -311,10 +305,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
 		"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 	}
-	gotTrackedOverrides := trackedCall.environment[len(trackedCall.environment)-len(wantTrackedOverrides):]
-	if !reflect.DeepEqual(gotTrackedOverrides, wantTrackedOverrides) {
-		t.Errorf("tracked population environment differs:\n got: %q\nwant: %q", gotTrackedOverrides, wantTrackedOverrides)
-	}
+	checkEnvironmentTail(t, "tracked population environment", trackedCall.environment, wantTrackedOverrides, root)
 	if plan.Coverage.Code != 0 || plan.Coverage.Population != 23 || plan.Coverage.Walked != 20 || len(plan.Coverage.Blind) != 3 {
 		t.Fatalf("coverage differs: %#v", plan.Coverage)
 	}
@@ -1184,5 +1175,41 @@ func TestAPassThatDidNotCompleteIsNamedApartFromFindings(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "did not complete and linted nothing: freebsd, openbsd.") {
 		t.Errorf("stderr does not name the incomplete passes apart:\n%s", stderr)
+	}
+}
+
+// checkEnvironmentTail pins the tail Toolchain.Environment builds over
+// overrides in root: the overrides in order, then the one GOFLAGS entry
+// gotoolchain.TrimpathGoFlags answers for that environment, carrying
+// -trimpath. Where Go cannot answer its effective GOFLAGS, Environment adds
+// no entry, so the overrides end the environment and no GOFLAGS entry is
+// present at all.
+func checkEnvironmentTail(t *testing.T, label string, environment, overrides []string, root string) {
+	t.Helper()
+	want := slices.Clone(overrides)
+	wantGoFlags := 0
+	flags, err := gotoolchain.TrimpathGoFlags(append(os.Environ(), overrides...), root)
+	if err == nil {
+		want = append(want, flags)
+		wantGoFlags = 1
+		if !slices.Contains(strings.Fields(strings.TrimPrefix(flags, "GOFLAGS=")), "-trimpath") {
+			t.Errorf("%s: TrimpathGoFlags answered %q, which carries no -trimpath", label, flags)
+		}
+	}
+	if len(environment) < len(want) {
+		t.Errorf("%s has %d entries, want at least %d", label, len(environment), len(want))
+		return
+	}
+	if got := environment[len(environment)-len(want):]; !reflect.DeepEqual(got, want) {
+		t.Errorf("%s tail differs:\n got: %q\nwant: %q", label, got, want)
+	}
+	goFlags := 0
+	for _, entry := range environment {
+		if strings.HasPrefix(entry, "GOFLAGS=") {
+			goFlags++
+		}
+	}
+	if goFlags != wantGoFlags {
+		t.Errorf("%s carries %d GOFLAGS entries, want %d", label, goFlags, wantGoFlags)
 	}
 }

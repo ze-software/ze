@@ -496,18 +496,12 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 			if !reflect.DeepEqual(gotArgv, wantArgv) {
 				t.Errorf("argv differs:\n got: %q\nwant: %q", gotArgv, wantArgv)
 			}
-			if len(gotEnvironment) < len(wantEnvironment) {
-				t.Fatalf("environment has %d entries, want at least %d", len(gotEnvironment), len(wantEnvironment))
-			}
 			// The toolchain is the process's (stdpatch.Activate), so the action
 			// pins no GOTOOLCHAIN of its own.
 			if slices.Contains(gotEnvironment, "GOTOOLCHAIN="+tc.GoToolchain) {
 				t.Errorf("environment pins GOTOOLCHAIN=%s; the toolchain is the process's", tc.GoToolchain)
 			}
-			gotOverrides := gotEnvironment[len(gotEnvironment)-len(wantEnvironment):]
-			if !reflect.DeepEqual(gotOverrides, wantEnvironment) {
-				t.Errorf("environment overrides differ:\n got: %q\nwant: %q", gotOverrides, wantEnvironment)
-			}
+			checkEnvironmentTail(t, "environment", gotEnvironment, wantEnvironment, tc.Root)
 		})
 	}
 }
@@ -728,4 +722,40 @@ func runGoFixture() int {
 		return 96
 	}
 	return code
+}
+
+// checkEnvironmentTail pins the tail Toolchain.Environment builds over
+// overrides in root: the overrides in order, then the one GOFLAGS entry
+// gotoolchain.TrimpathGoFlags answers for that environment, carrying
+// -trimpath. Where Go cannot answer its effective GOFLAGS, Environment adds
+// no entry, so the overrides end the environment and no GOFLAGS entry is
+// present at all.
+func checkEnvironmentTail(t *testing.T, label string, environment, overrides []string, root string) {
+	t.Helper()
+	want := slices.Clone(overrides)
+	wantGoFlags := 0
+	flags, err := gotoolchain.TrimpathGoFlags(append(os.Environ(), overrides...), root)
+	if err == nil {
+		want = append(want, flags)
+		wantGoFlags = 1
+		if !slices.Contains(strings.Fields(strings.TrimPrefix(flags, "GOFLAGS=")), "-trimpath") {
+			t.Errorf("%s: TrimpathGoFlags answered %q, which carries no -trimpath", label, flags)
+		}
+	}
+	if len(environment) < len(want) {
+		t.Errorf("%s has %d entries, want at least %d", label, len(environment), len(want))
+		return
+	}
+	if got := environment[len(environment)-len(want):]; !reflect.DeepEqual(got, want) {
+		t.Errorf("%s tail differs:\n got: %q\nwant: %q", label, got, want)
+	}
+	goFlags := 0
+	for _, entry := range environment {
+		if strings.HasPrefix(entry, "GOFLAGS=") {
+			goFlags++
+		}
+	}
+	if goFlags != wantGoFlags {
+		t.Errorf("%s carries %d GOFLAGS entries, want %d", label, goFlags, wantGoFlags)
+	}
 }
