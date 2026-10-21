@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // MountRequest is one mount the boot asks the System for. The fields are the
@@ -75,6 +76,18 @@ const (
 // guest answers the host path of a guest path under root ("/" in the guest).
 func guest(root, guestPath string) string {
 	return filepath.Join(root, filepath.FromSlash(guestPath))
+}
+
+// consoleBanner answers the first line the guest prints on its console: the
+// kernel's own banner from /proc/version. Under vz the serial log starts
+// about one second into the boot, after the kernel printed "Linux version",
+// so without this line the log never names the kernel that booted.
+func consoleBanner(root string) (string, error) {
+	version, err := os.ReadFile(guest(root, "/proc/version")) //nolint:gosec // fixed path under the guest root
+	if err != nil {
+		return "", fmt.Errorf("read /proc/version: %w", err)
+	}
+	return "ze-docker-host: kernel " + strings.TrimSpace(string(version)), nil
 }
 
 // Boot runs the boot sequence over root: /etc made writable at a usable

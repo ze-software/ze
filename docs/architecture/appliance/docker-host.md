@@ -23,7 +23,10 @@ at build time and never committed.
 ## What the program does at boot
 
 `ze-docker-host` does cloud-init's part of the Lima guest contract in Go, then
-runs Lima's own `boot.sh` unchanged under busybox `sh`:
+runs Lima's own `boot.sh` unchanged under busybox `sh`. Its first console line
+is `ze-docker-host: kernel ` followed by `/proc/version`, because under vz the
+serial log (`serialv.log` in the Lima instance directory) starts about one
+second into the boot, after the kernel printed its own banner. Then it:
 
 1. mounts a 64 MB tmpfs over `/etc` and copies back what the squashfs held
    there (`hosts`, the `resolv.conf` and `localtime` symlinks, `ssl`): on a

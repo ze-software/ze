@@ -70,6 +70,11 @@ const exitDoNotRestart = 125
 // error under a loop of different ones.
 func RunGuest() int {
 	console := openConsole()
+	banner, err := consoleBanner("/")
+	if err != nil {
+		banner = "ze-docker-host: kernel unknown: " + err.Error()
+	}
+	_, _ = fmt.Fprintln(console, banner) //nolint:errcheck // console
 	if _, err := os.Stat(bootedMarker); err == nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: restarted after this boot's sequence ran; serving the supervisor only") //nolint:errcheck // console
 		return serveForever(console, nil)

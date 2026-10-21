@@ -202,3 +202,32 @@ func TestDockerHostBootSequenceOverATempRoot(t *testing.T) {
 		t.Errorf("machine id changed across boots")
 	}
 }
+
+// TestConsoleBannerNamesTheBootedKernel verifies the first console line the
+// guest prints carries the kernel's own banner from /proc/version.
+//
+// VALIDATES: spec AC-1, "the boot log shows Ze's kernel banner": under vz the
+// serial log starts about one second into the boot, after the kernel's
+// "Linux version" line, so the program repeats it. Method: a temp root with
+// a /proc/version fixture; a root without one is an error naming the path.
+// PREVENTS: a serial log that never says which kernel booted.
+func TestConsoleBannerNamesTheBootedKernel(t *testing.T) {
+	root := t.TempDir()
+	if _, err := consoleBanner(root); err == nil || !strings.Contains(err.Error(), "/proc/version") {
+		t.Errorf("consoleBanner without /proc/version = %v, want an error naming the path", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "proc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	version := "Linux version 7.2.9-ze (root@builder) (gcc 12.2.0) #1 SMP PREEMPT\n"
+	if err := os.WriteFile(filepath.Join(root, "proc", "version"), []byte(version), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	got, err := consoleBanner(root)
+	if err != nil {
+		t.Fatalf("consoleBanner: %v", err)
+	}
+	if want := "ze-docker-host: kernel " + strings.TrimSpace(version); got != want {
+		t.Errorf("consoleBanner = %q, want %q", got, want)
+	}
+}
