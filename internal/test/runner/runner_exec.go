@@ -435,8 +435,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Check if we timed out
 	if testCtx.Err() != nil {
-		rec.SetState(StateTimeout)
-		rec.FailureType = stateTimeout
+		failPastDeadline(rec)
 		return false
 	}
 
@@ -1439,8 +1438,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Check for timeout
 	if testCtx.Err() != nil {
-		rec.SetState(StateTimeout)
-		rec.FailureType = stateTimeout
+		failPastDeadline(rec)
 		return false
 	}
 
@@ -1566,4 +1564,19 @@ func waitForPeers(peerOutputs []peerOutput) error {
 		peerOutputs[i].waited = true
 	}
 	return errors.Join(peerErrs...)
+}
+
+// failPastDeadline classifies a run whose deadline passed. A check peer that
+// printed "message mismatch" has already failed the run: it refused a message
+// and exited, and the deadline passed only because ze kept running after it.
+// The mismatch is the cause, so it is reported, with its indices; reporting it
+// as a timeout sent the reader looking for a stall that did not exist.
+func failPastDeadline(rec *Record) {
+	if strings.Contains(rec.PeerOutput, FailTypeMismatch) {
+		rec.FailureType = FailTypeMismatch
+		rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
+		return
+	}
+	rec.SetState(StateTimeout)
+	rec.FailureType = stateTimeout
 }
