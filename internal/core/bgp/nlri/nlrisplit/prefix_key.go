@@ -256,7 +256,9 @@ func GetWithdrawalWriter(fam family.Family) WithdrawalWriter {
 // returns the octets written. The path identifier is the caller's: the key
 // excludes it. A family GetWithdrawalWriter answers nil for answers
 // ErrUnsupported, which tells the caller its stored NLRI is already the
-// withdrawal framing. It needs 3 octets more than len(key) in dst.
+// withdrawal framing. A key of more than 231 bits answers errWithdrawalLength:
+// its length octet cannot also count the 24-bit Compatibility field. It needs
+// 3 octets more than len(key) in dst.
 func WithdrawalNLRIFromKey(fam family.Family, key, dst []byte) (int, error) {
 	if compatibilityFamilies[fam].write == nil {
 		return 0, ErrUnsupported

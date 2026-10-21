@@ -7,6 +7,7 @@ package bgp
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,9 @@ const (
 	vpnWithheldLabel       = 200
 	labeledWithheldPrefix  = "10.20.0.0/24"
 	labeledWithheldSibling = "10.21.0.0/24"
+	// compatibilityLabel is how FRR logs the Compatibility field 0x800000: it
+	// prints the three octets as a label, the top 20 bits, 0x800000 >> 4.
+	compatibilityLabel = 524288
 )
 
 // checkVPNWithheldWithdraw proves end to end that the withdrawal ze's forward
@@ -88,8 +92,12 @@ func checkVPNWithheldWithdraw(ctx context.Context, check *interoplab.CheckContex
 		return err
 	}
 	// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field SHOULD
-	// be set to 0x800000." One field, so FRR decodes the RD and the prefix.
+	// be set to 0x800000." One field, so FRR decodes the RD and the prefix, and
+	// the field FRR logs is 0x800000, not a label ze carried over.
 	if err := requireVPNWithheldDecodes(ctx, check.Lab, neighbor, true, 1); err != nil {
+		return err
+	}
+	if err := requireCompatibilityWithdrawal(ctx, check.Lab, neighbor, vpnWithheldPrefix); err != nil {
 		return err
 	}
 	if err := requireVPNWithheldDecodes(ctx, check.Lab, neighbor, false, 1); err != nil {
@@ -101,6 +109,10 @@ func checkVPNWithheldWithdraw(ctx context.Context, check *interoplab.CheckContex
 	if err := waitFRRRoute(ctx, check.Lab, labeledWithheldPrefix, frrFamilyIPv4Labeled, 60*time.Second, false); err != nil {
 		return fmt.Errorf("FRR still holds %s after the injector re-announced it with NO_EXPORT: %w", labeledWithheldPrefix, err)
 	}
+	// FRR 10.3.1 logs a labeled-unicast withdrawal with no label field
+	// ("rcvd UPDATE about 10.20.0.0/24 IPv4 unicast -- withdrawn", read in a
+	// live run), so this leg asserts the withdrawal, not the field's value;
+	// TestFwdWithdrawalLabelledCompatibility asserts the SAFI 4 bytes.
 	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithheldPrefix, 1); err != nil {
 		return err
 	}
@@ -118,6 +130,47 @@ func checkVPNWithheldWithdraw(ctx context.Context, check *interoplab.CheckContex
 		return fmt.Errorf("ze's session with the injector %s is %q, so the routes may have left FRR through the injector's departure rather than the converted withdrawals", injector, state)
 	}
 	return nil
+}
+
+// requireCompatibilityWithdrawal reads FRR's log and requires its one
+// withdrawal decode of prefix from ze to name the Compatibility field
+// 0x800000, logged as label compatibilityLabel.
+func requireCompatibilityWithdrawal(ctx context.Context, lab interoplab.CheckerLab, neighbor, prefix string) error {
+	log, err := lab.Query(ctx, peerFRR, []string{cmdCat, frrLogPath}, nil)
+	if err != nil {
+		return fmt.Errorf("read FRR log: %w", err)
+	}
+	if got := frrCompatibilityWithdrawals(log, neighbor, prefix); got != 1 {
+		var seen []string
+		for line := range strings.SplitSeq(log, "\n") {
+			if fields := frrDecodeFields(line, neighbor, prefix); len(fields) > 0 && fields[len(fields)-1] == frrWithdrawnMarker {
+				seen = append(seen, line)
+			}
+		}
+		return fmt.Errorf("FRR logged %d withdrawals of %s from %s carrying the Compatibility field 0x800000 (label %d), want 1; its withdrawal decodes: %q", got, prefix, neighbor, compatibilityLabel, seen)
+	}
+	return nil
+}
+
+// frrCompatibilityWithdrawals counts FRR's withdrawal decodes of prefix from
+// neighbor whose label field reads compatibilityLabel: the token after
+// "label" on a line that ends in the withdrawn marker.
+func frrCompatibilityWithdrawals(log, neighbor, prefix string) int {
+	want := strconv.Itoa(compatibilityLabel)
+	count := 0
+	for line := range strings.SplitSeq(log, "\n") {
+		fields := frrDecodeFields(line, neighbor, prefix)
+		if len(fields) == 0 || fields[len(fields)-1] != frrWithdrawnMarker {
+			continue
+		}
+		for i := 0; i+1 < len(fields); i++ {
+			if fields[i] == "label" && fields[i+1] == want {
+				count++
+				break
+			}
+		}
+	}
+	return count
 }
 
 // requireFRRSameSession requires FRR's session with ze to be the one counted

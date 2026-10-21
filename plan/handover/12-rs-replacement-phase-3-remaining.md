@@ -4,6 +4,17 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-22: round 10 ran (1 ISSUE, fixed), round 11 owed
+
+- Round 10 (Thomas: "ok") over `bde7ee3a09`: 0 BLOCKER, 1 ISSUE, 3 NOTE,
+  recorded (rounds 10). Fixed in the commit that carries this edit: the
+  interop checker now requires FRR to log the VPN withdrawal's field as
+  0x800000 (label 524288), plus `TestFRRCompatibilityWithdrawals` and the
+  231/232-bit boundary of `WithdrawalNLRIFromKey`. Reds: spec Design
+  Insights, round 10 entry.
+- STOPPED: the fix touches production code (`nlrisplit/prefix_key.go`), so
+  round 11 is owed and needs Thomas. Phase 3a not started.
+
 ## STATE 2026-10-21 later still: round 9 ran (2 ISSUE, fixed), round 10 owed
 
 - Round 9 (Thomas: "and you can continue with what you're suggesting") over
