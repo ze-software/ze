@@ -24,7 +24,6 @@ var (
 	errExpectedComponent                   = errors.New("expected component")
 	errIpv4PrefixForIpv6Flowspec           = errors.New("IPv4 prefix for IPv6 flowspec")
 	errIpv6PrefixForIpv4Flowspec           = errors.New("IPv6 prefix for IPv4 flowspec")
-	errProtocolRequiresValue               = errors.New("protocol requires value")
 	errTcpFlagsRequiresValue               = errors.New("tcp-flags requires value")
 	errFragmentRequiresValue               = errors.New("fragment requires value")
 )
@@ -155,13 +154,11 @@ func parseComponentText(args []string, fam flowspec.Family) (flowspec.FlowCompon
 	switch componentType {
 	case flowspec.FlowDestPrefix, flowspec.FlowSourcePrefix:
 		return parsePrefixComponentText(args, componentType, fam)
-	case flowspec.FlowIPProtocol:
-		return parseProtocolComponentText(args[1:])
 	case flowspec.FlowTCPFlags:
 		return parseTCPFlagsComponentText(args[1:])
 	case flowspec.FlowFragment:
 		return parseFragmentComponentText(args[1:])
-	case flowspec.FlowPort, flowspec.FlowDestPort, flowspec.FlowSourcePort,
+	case flowspec.FlowIPProtocol, flowspec.FlowPort, flowspec.FlowDestPort, flowspec.FlowSourcePort,
 		flowspec.FlowICMPType, flowspec.FlowICMPCode, flowspec.FlowPacketLength,
 		flowspec.FlowDSCP, flowspec.FlowFlowLabel:
 		return parseNumericComponentText(args[1:], componentType)
@@ -195,49 +192,6 @@ func parsePrefixComponentText(args []string, compType flowspec.FlowComponentType
 	return flowspec.NewFlowSourcePrefixComponent(prefix), 2, nil
 }
 
-// parseProtocolComponentText parses protocol values (names or numbers).
-func parseProtocolComponentText(args []string) (flowspec.FlowComponent, int, error) {
-	var protocols []uint8
-	consumed := 0
-
-	for i := range args {
-		token := strings.ToLower(args[i])
-		if isComponentKeyword(token) {
-			break
-		}
-
-		// Accept an optional '=' equality operator so `protocol =6` and
-		// `protocol 6` (likewise `=tcp`/`tcp`) parse identically, consistent with
-		// the port/numeric components which accept the '=' operator. Protocol is
-		// an equality-only match, so '=' is the natural and only operator.
-		token = strings.TrimPrefix(token, "=")
-
-		// Try name first
-		if num, ok := flowspec.ProtocolNameToNumber[token]; ok {
-			protocols = append(protocols, num)
-			consumed++
-			continue
-		}
-
-		// Try number
-		num, err := parseUint8(token)
-		if err != nil {
-			if consumed == 0 {
-				return nil, 0, fmt.Errorf("invalid protocol: %s", token)
-			}
-			break
-		}
-		protocols = append(protocols, num)
-		consumed++
-	}
-
-	if len(protocols) == 0 {
-		return nil, 0, errProtocolRequiresValue
-	}
-
-	return flowspec.NewFlowIPProtocolComponent(protocols...), consumed + 1, nil
-}
-
 // parseNumericComponentText parses numeric component with operators.
 //
 // Successive values are alternatives, and "&" joins a term to the one before
@@ -247,11 +201,17 @@ func parseProtocolComponentText(args []string) (flowspec.FlowComponent, int, err
 // one. If set, it is ANDed." Plain successive terms therefore leave the bit
 // clear, the spelling of Ze's config, of the bitmask components and of ExaBGP
 // 6.0, whose list text the bridge passes through unchanged.
+//
+// Protocol (type 3) is a numeric component like the others, RFC 8955 Section
+// 4.2.2.3: "Encoding: <type (1 octet), [numeric_op, value]+>". Its value may
+// also be a protocol name (`>=tcp`), resolved through
+// flowspec.ProtocolNameToNumber.
 func parseNumericComponentText(args []string, compType flowspec.FlowComponentType) (flowspec.FlowComponent, int, error) {
 	var matches []flowspec.FlowMatch
 	consumed := 0
 
 	maxValue := componentMaxValue(compType)
+	names := componentValueNames(compType)
 
 	for i := range args {
 		token := args[i]
@@ -261,7 +221,7 @@ func parseNumericComponentText(args []string, compType flowspec.FlowComponentTyp
 
 		// A token that is not a keyword is a value of this component, so a
 		// malformed one is refused here, by this component's name.
-		terms, err := parseNumericTermsText(token, len(matches) > 0, maxValue)
+		terms, err := parseNumericTermsText(token, len(matches) > 0, maxValue, names)
 		if err != nil {
 			return nil, 0, fmt.Errorf("invalid %s value: %w", compType, err)
 		}
@@ -280,8 +240,9 @@ func parseNumericComponentText(args []string, compType flowspec.FlowComponentTyp
 // `<op><value>` terms joined by "&", optionally led by "&" to join the first
 // term to the previous token's last one. hasPrevious says whether a term comes
 // before this token; a leading "&" with nothing before it is refused, as is an
-// "&" with no term after it.
-func parseNumericTermsText(token string, hasPrevious bool, maxValue uint64) ([]flowspec.FlowMatch, error) {
+// "&" with no term after it. names, when not nil, maps a value name to its
+// number.
+func parseNumericTermsText(token string, hasPrevious bool, maxValue uint64, names map[string]uint8) ([]flowspec.FlowMatch, error) {
 	joined := strings.HasPrefix(token, "&")
 	if joined && !hasPrevious {
 		return nil, fmt.Errorf("%q starts with &, which joins a term to the one before it, and no term comes before it: drop the &", token)
@@ -293,7 +254,7 @@ func parseNumericTermsText(token string, hasPrevious bool, maxValue uint64) ([]f
 		if part == "" {
 			return nil, fmt.Errorf("%q holds an & with no term after it: write <op><value> after each &, as in >8080&<8088", token)
 		}
-		op, value, err := parseOperatorValue(part)
+		op, value, err := parseOperatorValue(part, names)
 		if err != nil {
 			return nil, err
 		}
@@ -400,8 +361,21 @@ func componentMaxValue(compType flowspec.FlowComponentType) uint64 {
 	}
 }
 
-// parseOperatorValue parses "<op><value>" like "=80", ">100", "80".
-func parseOperatorValue(token string) (flowspec.FlowOperator, uint64, error) {
+// componentValueNames answers the value names a numeric component accepts in
+// place of a number, or nil when it accepts numbers only.
+func componentValueNames(compType flowspec.FlowComponentType) map[string]uint8 {
+	//exhaustive:ignore // Only the protocol component has named values; every other numeric component takes numbers.
+	switch compType {
+	case flowspec.FlowIPProtocol:
+		return flowspec.ProtocolNameToNumber
+	default:
+		return nil
+	}
+}
+
+// parseOperatorValue parses "<op><value>" like "=80", ">100", "80", or with
+// names, ">=tcp".
+func parseOperatorValue(token string, names map[string]uint8) (flowspec.FlowOperator, uint64, error) {
 	op := flowspec.FlowOpEqual
 	s := token
 
@@ -427,6 +401,9 @@ func parseOperatorValue(token string) (flowspec.FlowOperator, uint64, error) {
 		s = s[1:]
 	}
 
+	if num, ok := names[strings.ToLower(s)]; ok {
+		return op, uint64(num), nil
+	}
 	value, err := parseUint64(s)
 	if err != nil {
 		return 0, 0, err

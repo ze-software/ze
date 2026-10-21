@@ -252,14 +252,15 @@ func contains(slice []string, val string) bool {
 
 // jsonToTextComponents converts FlowSpec JSON format to text component args.
 // Input: {"destination-ipv4":[["10.0.0.0/24/0"]],"protocol":[["=tcp"],["=udp"]]}
-// Output: ["destination-ipv4", "10.0.0.0/24", "protocol", "tcp", "udp"].
+// Output: ["destination-ipv4", "10.0.0.0/24", "protocol", "=tcp", "=udp"].
 //
 // All the groups of one component follow a single keyword. The update text
 // grammar reads successive values as OR and a leading "&" as AND, so the
 // outer array (OR) becomes successive values and each later value of an inner
 // array (AND) carries "&": [[">80","<100"],[">443","<500"]] becomes
-// "port >80 &<100 >443 &<500". Protocol and next-header values are written
-// bare, as the protocol parser reads them.
+// "port >80 &<100 >443 &<500". Every numeric component keeps its operators,
+// protocol and next-header included: [[">5","<10"]] is "protocol >5 &<10",
+// never "protocol 5 10", which is an equality OR over other packets.
 func jsonToTextComponents(m map[string]any) ([]string, error) {
 	var args []string
 
@@ -295,8 +296,6 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 			continue
 		}
 
-		// The protocol parser reads bare values and no "&".
-		joinsAnd := key != flowspec.KwProtocol && key != flowspec.KwNextHeader
 		var values []string
 		for _, orGroup := range arr {
 			innerArr, ok := orGroup.([]any)
@@ -313,7 +312,7 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 				}
 				value := normalizeJSONValue(key, s)
 				// RFC 8955 Section 4.2.1.1: a later term of an AND group sets the a bit.
-				if joinsAnd && i > 0 {
+				if i > 0 {
 					value = "&" + strings.TrimPrefix(value, "&")
 				}
 				values = append(values, value)
@@ -334,7 +333,8 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 
 // normalizeJSONValue converts JSON value format to text format.
 // E.g., "10.0.0.0/24/0" -> "10.0.0.0/24" (strip offset for prefixes).
-// E.g., "=tcp" -> "tcp" (strip operator for protocol/next-header).
+// Every other value passes unchanged: its operator is part of the match, and
+// the text grammar reads the same operators the JSON writes.
 func normalizeJSONValue(key, val string) string {
 	// Strip the /0 offset suffix a prefix component carries. The four prefix
 	// keywords are named rather than matched on a shared first word, so
@@ -348,16 +348,6 @@ func normalizeJSONValue(key, val string) string {
 				return tb.Str(parts[0]).Byte('/').Str(parts[1]).String()
 			}
 		}
-	}
-
-	// Strip operator prefix for protocol/next-header (text parser expects plain value)
-	if key == flowspec.KwProtocol || key == flowspec.KwNextHeader {
-		// "=tcp" -> "tcp", "=6" -> "6"
-		val = strings.TrimPrefix(val, "=")
-		val = strings.TrimPrefix(val, "<")
-		val = strings.TrimPrefix(val, ">")
-		val = strings.TrimPrefix(val, "!")
-		val = strings.TrimPrefix(val, "&")
 	}
 
 	return val

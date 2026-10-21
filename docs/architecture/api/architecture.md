@@ -967,7 +967,7 @@ it uses match components that describe traffic flows.
 
 <component>        := destination <prefix>
                     | source <prefix>
-                    | protocol <proto>+
+                    | protocol <proto-match>+
                     | port <numeric-match>+
                     | destination-port <numeric-match>+
                     | source-port <numeric-match>+
@@ -980,6 +980,7 @@ it uses match components that describe traffic flows.
 
 <numeric-match>    := [&]<op><value>[&<op><value>...]
 <op>               := = | != | > | >= | < | <=    # default is =
+<proto-match>      := [&]<op><proto>[&<op><proto>...]
 <proto>            := tcp | udp | icmp | gre | <number>
 
 <bitmask-match>    := [&][!][=]<flag>[&<flag>...]
@@ -993,13 +994,16 @@ inside one value (`>8080&<8088`) or leading the next (`>8080 &<8088`). This is
 RFC 8955 Section 4.2.1.1: "If unset, the result of the previous {operator,
 value} pair is ORed with the current one. If set, it is ANDed." A plain value
 leaves the `a` bit clear, and `&` sets it. Numeric and bitmask components read
-the same way, and so do Ze's config (`destination-port [ >8080&<8088 =3128 ]`)
+the same way. Protocol is a numeric component too (`protocol >=tcp&<=udp !=47`),
+so a range or a negation survives the JSON-to-text conversion of `encode json`
+rather than collapsing to a list of equalities. The same reading holds for Ze's config (`destination-port [ >8080&<8088 =3128 ]`)
 and ExaBGP 6.0, whose list text the ExaBGP bridge passes through. Repeating
 the keyword (`port >80&<100 port >443&<500`) adds another OR group to the same
 component. A leading `&` on the first value, or an `&` with no term after it, is
 refused.
 
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- parseNumericComponentText, parseNumericTermsText -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_decode.go -- jsonToTextComponents, normalizeJSONValue -->
 
 **Value Ranges (validated at parse time):**
 
