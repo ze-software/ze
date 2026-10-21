@@ -24,8 +24,9 @@ var staleInsertAttrs = []byte{
 // TestInsertLabeledWritesReceivedStale verifies the unparsed labeled insert
 // stores the received LLGR_STALE verdict, and a later fresh UPDATE clears it.
 //
-// VALIDATES: insertLabeled writes receivedStale on the stored route, as
-// insertLabeledEntry and the unlabeled branches do.
+// VALIDATES: insertLabeled writes receivedStale and the received message ID on
+// the stored route, as insertLabeledEntry and the unlabeled branches do; R-12
+// reads the message ID to tell a live path from a purged one.
 // PREVENTS: a labeled route whose attributes took the unparsed branch competing
 // as fresh after the ingress step marked it LLGR-stale.
 func TestInsertLabeledWritesReceivedStale(t *testing.T) {
@@ -35,15 +36,17 @@ func TestInsertLabeledWritesReceivedStale(t *testing.T) {
 	cidr := []byte{8, 10}
 
 	var affected []affectedPrefix
-	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, true, &affected)
+	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, true, 81, &affected)
 	entry, ok := peerRIB.Lookup(labeledFamily, cidr)
 	require.True(t, ok, "the labeled route is stored")
 	assert.True(t, entry.ReceivedLLGRStale, "the stale verdict is stored")
+	assert.Equal(t, uint64(81), entry.MsgID, "the received message ID is stored")
 
-	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, false, &affected)
+	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, false, 82, &affected)
 	entry, ok = peerRIB.Lookup(labeledFamily, cidr)
 	require.True(t, ok)
 	assert.False(t, entry.ReceivedLLGRStale, "the latest UPDATE was fresh")
+	assert.Equal(t, uint64(82), entry.MsgID, "the latest UPDATE's message ID replaces the first")
 }
 
 // TestInsertPoolNLRIsWritesReceivedStale verifies the JSON event path stores the

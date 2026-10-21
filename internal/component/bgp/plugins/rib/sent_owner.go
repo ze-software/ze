@@ -9,6 +9,8 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -118,7 +120,7 @@ func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribO
 		return false, false
 	}
 	var inline [4]storage.PrefixPath
-	paths, addPath, valid := sentSourcePaths(received, fam, key, inline[:0])
+	paths, addPath, valid := sentSourcePaths(received, fam, key, &sent, inline[:0])
 	if !valid {
 		return false, false
 	}
@@ -135,11 +137,17 @@ func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribO
 }
 
 // sentSourcePaths appends the source's retained received paths for the key a
-// sent copy is stored under. valid is false when a labeled key does not parse.
-// The caller MUST Release every returned path. Caller holds peerMu.
-func sentSourcePaths(received *storage.PeerRIB, fam family.Family, key ribOutKey, buf []storage.PrefixPath) (paths []storage.PrefixPath, addPath, valid bool) {
+// sent copy is stored under. valid is false when a labeled key or a FlowSpec
+// route does not parse. The caller MUST Release every returned path. Caller
+// holds peerMu.
+func sentSourcePaths(received *storage.PeerRIB, fam family.Family, key ribOutKey, sent *ribOutEntry, buf []storage.PrefixPath) (paths []storage.PrefixPath, addPath, valid bool) {
 	if !storage.IsCIDRFamily(fam) {
-		paths, addPath = received.AppendKeyPathsRetained(fam, []byte(key.Native), buf)
+		var scratch [nlrisplit.PrefixKeyScratchSize]byte
+		identity, ok := sentReceivedIdentity(fam, key, sent, scratch[:])
+		if !ok {
+			return nil, false, false
+		}
+		paths, addPath = received.AppendKeyPathsRetained(fam, identity, buf)
 		return paths, addPath, true
 	}
 	prefix := key.Prefix
@@ -152,6 +160,36 @@ func sentSourcePaths(received *storage.PeerRIB, fam family.Family, key ribOutKey
 	}
 	paths, addPath = received.AppendPrefixPathsRetained(fam, prefix, buf)
 	return paths, addPath, true
+}
+
+// sentReceivedIdentity is the received-storage identity of a non-CIDR sent
+// copy. Received storage keys a route by storage.RouteKey and Adj-RIB-Out by
+// nlrisplit.GetPrefixKey, and the two agree for every non-CIDR family but
+// FlowSpec: there the sent key holds the bare components, while the stored
+// identity is the canonically framed rule, so it is rebuilt from the copy's
+// native NLRI. The result aliases sent's NLRI, key, or scratch, which MUST
+// hold nlrisplit.PrefixKeyScratchSize octets.
+//
+// RFC 8955 Section 4.1: "If the NLRI length is smaller than 240 (0xf0 hex)
+// octets, the length field can be encoded as a single octet." and
+// "Otherwise, it is encoded as an extended-length 2-octet value in which the
+// most significant nibble has the hex value 0xf." Both framings name one
+// rule, which storage.RouteKey reduces to one identity.
+func sentReceivedIdentity(fam family.Family, key ribOutKey, sent *ribOutEntry, scratch []byte) ([]byte, bool) {
+	if !ribevents.IsFlowSpec(fam) {
+		return []byte(key.Native), true
+	}
+	route := []byte(sent.NativeNLRI)
+	if sent.AddPath {
+		if len(route) < 4 {
+			return nil, false
+		}
+		route = route[4:]
+	}
+	if len(route) == 0 {
+		return nil, false
+	}
+	return storage.RouteKey(fam, route, scratch, false), true
 }
 
 // recoveryCandidateGone answers R-12 for one projected recovery write: the
@@ -210,7 +248,7 @@ func (r *RIBManager) sourcePathGone(source netip.Addr, fam family.Family, key ri
 		return true, true
 	}
 	var inline [4]storage.PrefixPath
-	paths, addPath, valid := sentSourcePaths(received, fam, key, inline[:0])
+	paths, addPath, valid := sentSourcePaths(received, fam, key, &sent, inline[:0])
 	if !valid {
 		return false, false
 	}

@@ -379,8 +379,9 @@ func (r *RIBManager) fenceSentLifecycleLocked(source netip.Addr) {
 
 // lifecycleFollowedLocked reports whether a lifecycle removal of the source
 // ran after bgp-rib applied the received message a forwarded write carries,
-// once per sent event, so a write no removal followed (every write outside a
-// GR or LLGR cleanup) pays one parse and one lookup and no inventory walk. A
+// once per stored NLRI section of a sent event (not per NLRI), so a write no
+// removal followed (every write outside a GR or LLGR cleanup) pays one parse
+// and one lookup per section and no inventory walk. A
 // write with no source (a local origination) or no received message answers
 // false. Caller MUST hold peerMu.
 func (r *RIBManager) lifecycleFollowedLocked(sourcePeer string, message uint64) bool {

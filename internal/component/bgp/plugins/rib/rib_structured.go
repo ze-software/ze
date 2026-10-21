@@ -311,7 +311,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						if haveParsed {
 							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, receivedStale, &affected)
 						} else {
-							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, &affected)
+							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msg.MessageID, &affected)
 						}
 					} else {
 						if haveParsed {
@@ -645,14 +645,17 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 // MPLS labels from the wire entry, stores the route under CIDR bytes (same
 // as FRR's SAFI remap), and stores labels as side-data on the FamilyRIB.
 // receivedStale is written on the stored route whichever insert branch ran, as
-// insertLabeledEntry does (RFC 9494 Section 4.3).
-func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, affected *[]affectedPrefix) {
+// insertLabeledEntry does (RFC 9494 Section 4.3). message is the received
+// message ID, written as the unlabeled branch writes it: a stale ID would make
+// R-12 judge a live path gone (sourcePathGone).
+func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, message uint64, affected *[]affectedPrefix) {
 	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
 	if err != nil || len(cidrBytes) == 0 {
 		return
 	}
 	peerRIB.Insert(fam, attrBytes, cidrBytes)
 	peerRIB.ModifyFamilyEntry(fam, cidrBytes, func(stored *storage.RouteEntry) {
+		stored.MsgID = message
 		stored.ReceivedLLGRStale = receivedStale
 	})
 	labelHandle := pool.InternLabels(labels)

@@ -1176,13 +1176,7 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			prefixes := affected[:0]
 			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
 			// exactly as on the structured receive path.
-			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, &prefixes)
-			if len(prefixes) == 0 {
-				continue
-			}
-			peerRIB.ModifyFamilyEntry(fam, prefixes[0].nlriBytes, func(entry *storage.RouteEntry) {
-				entry.MsgID = msgID
-			})
+			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, &prefixes)
 			continue
 		}
 		peerRIB.Insert(fam, attrBytes, wirePrefix)

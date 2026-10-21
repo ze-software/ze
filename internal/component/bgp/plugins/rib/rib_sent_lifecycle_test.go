@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	pluginapi "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -202,7 +204,8 @@ func recoverySentEvent(t *testing.T, r *RIBManager, site string, destination net
 // is still queued, so the removal finds no sent entry to withdraw; the late
 // projection then removes the entry and queues the one removal the lifecycle
 // missed, at each of the three sent-store sites. Method: received message 81
-// from 192.0.2.10 for 192.0.2.0/24 through the real received handler, the
+// from 192.0.2.10 for 192.0.2.0/24 through the real received handler of each
+// rail (structured for an in-process bgp-rib, JSON for an external one), the
 // lifecycle command, then an unmarked sent event to 192.0.2.20 naming message
 // 81. The fence keeps every other absence alone: a received message not yet
 // applied when the removal ran (the fast path forwards before the received
@@ -218,98 +221,114 @@ func TestRIBForwardedProjectionAfterLifecycleRemovalRemoves(t *testing.T) {
 	cases := []struct {
 		name    string
 		removed bool
-		before  func(t *testing.T, r *RIBManager, source netip.Addr)
+		before  func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail)
 	}{
-		{name: "release", removed: true, before: func(t *testing.T, r *RIBManager, source netip.Addr) {
+		{name: "release", removed: true, before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
-			lifecycleReceive(t, r, source, 81, false)
+			lifecycleReceive(t, r, rail, source, 81, false)
 			r.retainRoutes(source.String(), nil, false)
 			r.releaseRoutes(source.String())
 		}},
-		{name: "purge-stale", removed: true, before: func(t *testing.T, r *RIBManager, source netip.Addr) {
+		{name: "purge-stale", removed: true, before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
-			lifecycleReceive(t, r, source, 81, false)
+			lifecycleReceive(t, r, rail, source, 81, false)
 			lifecycleMarkAndPurge(t, r, source)
 		}},
-		{name: "not-applied-before-removal", before: func(t *testing.T, r *RIBManager, source netip.Addr) {
+		{name: "not-applied-before-removal", before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
-			lifecycleReceive(t, r, source, 70, true)
+			lifecycleReceive(t, r, rail, source, 70, true)
 			r.retainRoutes(source.String(), nil, false)
 			r.releaseRoutes(source.String())
 		}},
-		{name: "withdrawn-no-lifecycle", before: func(t *testing.T, r *RIBManager, source netip.Addr) {
+		{name: "withdrawn-no-lifecycle", before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
-			lifecycleReceive(t, r, source, 81, false)
-			lifecycleWithdraw(t, r, source, 82)
+			lifecycleReceive(t, r, rail, source, 81, false)
+			lifecycleWithdraw(t, r, rail, source, 82)
 		}},
-		{name: "newer-revision-after-purge", before: func(t *testing.T, r *RIBManager, source netip.Addr) {
+		{name: "newer-revision-after-purge", before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
-			lifecycleReceive(t, r, source, 81, false)
+			lifecycleReceive(t, r, rail, source, 81, false)
 			lifecycleMarkAndPurge(t, r, source)
-			lifecycleReceive(t, r, source, 83, false)
+			lifecycleReceive(t, r, rail, source, 83, false)
 		}},
 	}
-	for _, site := range sites {
-		for _, tc := range cases {
-			t.Run(site+"/"+tc.name, func(t *testing.T) {
-				r := newTestRIBManager(t)
-				source := netip.MustParseAddr("192.0.2.10")
-				destination := netip.MustParseAddr("192.0.2.20")
-				fam := family.IPv4Unicast
-				key := ribOutKey{Prefix: netip.MustParsePrefix("192.0.2.0/24")}
-				t.Cleanup(func() {
-					for _, received := range r.bgpPeers {
-						received.Release()
-					}
-					for _, families := range r.ribOut {
-						for _, routes := range families {
-							for _, entry := range routes {
-								entry.release()
-							}
-						}
-					}
+	rails := []struct {
+		name string
+		feed lifecycleRail
+	}{{"received-structured", lifecycleFeed}, {"received-json", lifecycleFeedJSON}}
+	for _, rail := range rails {
+		for _, site := range sites {
+			for _, tc := range cases {
+				t.Run(rail.name+"/"+site+"/"+tc.name, func(t *testing.T) {
+					lifecycleProjection(t, site, tc.removed, func(r *RIBManager, source netip.Addr) {
+						tc.before(t, r, source, rail.feed)
+					})
 				})
-				lifecycle := 0
-				r.updateHook = func(string, map[string]any) { lifecycle++ }
-				tc.before(t, r, source)
-				if lifecycle != 0 {
-					t.Fatalf("the lifecycle command sent %d removals with no projected copy to remove", lifecycle)
-				}
-
-				recoverySentEvent(t, r, site, destination, fam, []byte{24, 192, 0, 2}, false)
-
-				r.peerMu.Lock()
-				_, stored := r.ribOut[destination][fam][key]
-				pending := append([]sentLifecycleWrite(nil), r.recoveryPending...)
-				r.peerMu.Unlock()
-				if lifecycle != 0 {
-					t.Fatalf("the projection sent %d writes on the event path", lifecycle)
-				}
-				if !tc.removed {
-					if !stored || len(pending) != 0 {
-						t.Fatalf("projection changed: stored=%v pending=%d", stored, len(pending))
-					}
-					return
-				}
-				if stored {
-					t.Fatal("the purged path's late projected entry stayed in ribOut")
-				}
-				if len(pending) != 1 || pending[0].peer != destination.String() || pending[0].message != 91 {
-					t.Fatalf("queued removals = %+v, want one to %s with receipt 91", pending, destination)
-				}
-				want := "update text nlri del 192.0.2.0/24"
-				if pending[0].command != want {
-					t.Fatalf("queued removal %q, want %q", pending[0].command, want)
-				}
-			})
+			}
 		}
 	}
 }
 
-// lifecycleReceive applies one received UPDATE from source through the
-// structured received handler as message: 192.0.2.0/24, or 198.51.100.0/24
-// when other is set.
-func lifecycleReceive(t *testing.T, r *RIBManager, source netip.Addr, message uint64, other bool) {
+// lifecycleProjection runs one case of
+// TestRIBForwardedProjectionAfterLifecycleRemovalRemoves: before applies the
+// received history and the lifecycle command, then one unmarked sent event
+// to 192.0.2.20 naming message 81 is projected at site.
+func lifecycleProjection(t *testing.T, site string, removed bool, before func(r *RIBManager, source netip.Addr)) {
+	t.Helper()
+	r := newTestRIBManager(t)
+	source := netip.MustParseAddr("192.0.2.10")
+	destination := netip.MustParseAddr("192.0.2.20")
+	fam := family.IPv4Unicast
+	key := ribOutKey{Prefix: netip.MustParsePrefix("192.0.2.0/24")}
+	t.Cleanup(func() {
+		for _, received := range r.bgpPeers {
+			received.Release()
+		}
+		for _, families := range r.ribOut {
+			for _, routes := range families {
+				for _, entry := range routes {
+					entry.release()
+				}
+			}
+		}
+	})
+	lifecycle := 0
+	r.updateHook = func(string, map[string]any) { lifecycle++ }
+	before(r, source)
+	if lifecycle != 0 {
+		t.Fatalf("the lifecycle command sent %d removals with no projected copy to remove", lifecycle)
+	}
+
+	recoverySentEvent(t, r, site, destination, fam, []byte{24, 192, 0, 2}, false)
+
+	r.peerMu.Lock()
+	_, stored := r.ribOut[destination][fam][key]
+	pending := append([]sentLifecycleWrite(nil), r.recoveryPending...)
+	r.peerMu.Unlock()
+	if lifecycle != 0 {
+		t.Fatalf("the projection sent %d writes on the event path", lifecycle)
+	}
+	if !removed {
+		if !stored || len(pending) != 0 {
+			t.Fatalf("projection changed: stored=%v pending=%d", stored, len(pending))
+		}
+		return
+	}
+	if stored {
+		t.Fatal("the purged path's late projected entry stayed in ribOut")
+	}
+	if len(pending) != 1 || pending[0].peer != destination.String() || pending[0].message != 91 {
+		t.Fatalf("queued removals = %+v, want one to %s with receipt 91", pending, destination)
+	}
+	want := "update text nlri del 192.0.2.0/24"
+	if pending[0].command != want {
+		t.Fatalf("queued removal %q, want %q", pending[0].command, want)
+	}
+}
+
+// lifecycleReceive applies one received UPDATE from source through rail as
+// message: 192.0.2.0/24, or 198.51.100.0/24 when other is set.
+func lifecycleReceive(t *testing.T, r *RIBManager, rail lifecycleRail, source netip.Addr, message uint64, other bool) {
 	t.Helper()
 	nlri := []byte{24, 192, 0, 2}
 	if other {
@@ -319,14 +338,48 @@ func lifecycleReceive(t *testing.T, r *RIBManager, source netip.Addr, message ui
 	body := []byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}
 	body = append(body, attrs...)
 	body = append(body, nlri...)
-	lifecycleFeed(t, r, source, message, body)
+	rail(t, r, source, message, body)
 }
 
 // lifecycleWithdraw applies one received withdrawal of 192.0.2.0/24 from
 // source as message.
-func lifecycleWithdraw(t *testing.T, r *RIBManager, source netip.Addr, message uint64) {
+func lifecycleWithdraw(t *testing.T, r *RIBManager, rail lifecycleRail, source netip.Addr, message uint64) {
 	t.Helper()
-	lifecycleFeed(t, r, source, message, []byte{0, 4, 24, 192, 0, 2, 0, 0})
+	rail(t, r, source, message, []byte{0, 4, 24, 192, 0, 2, 0, 0})
+}
+
+// lifecycleRail applies one received IPv4 unicast UPDATE body from source as
+// message: lifecycleFeed for an in-process bgp-rib, lifecycleFeedJSON for an
+// external one.
+type lifecycleRail func(t *testing.T, r *RIBManager, source netip.Addr, message uint64, body []byte)
+
+// lifecycleFeedJSON is lifecycleFeed on the JSON rail an external bgp-rib
+// reads: the shipped producer (format.AppendMessage, format=full) writes the
+// event text, and the rib's own parser and dispatcher apply it.
+func lifecycleFeedJSON(t *testing.T, r *RIBManager, source netip.Addr, message uint64, body []byte) {
+	t.Helper()
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: false}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wu := wireu.NewWireUpdate(body, ctxID)
+	wu.SetMessageID(message)
+	attrs, err := wu.Attrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer := pluginapi.PeerInfo{Address: source, AddressStr: source.String(), PeerAS: 65001, LocalAS: 65000}
+	line := format.AppendMessage(nil, &peer, bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body,
+		WireUpdate: wu, AttrsWire: attrs, MessageID: message},
+		bgptypes.ContentConfig{Encoding: pluginapi.EncodingJSON, Format: pluginapi.FormatFull})
+	event, err := parseEvent(line)
+	if err != nil {
+		t.Fatalf("the produced event does not parse: %v: %s", err, line)
+	}
+	if event.GetMsgID() != message {
+		t.Fatalf("the JSON event carries message %d, want %d", event.GetMsgID(), message)
+	}
+	r.dispatch(event)
 }
 
 // lifecycleFeed drives handleReceivedStructured with one IPv4 unicast UPDATE
@@ -359,5 +412,96 @@ func lifecycleMarkAndPurge(t *testing.T, r *RIBManager, source netip.Addr) {
 	}
 	if _, _, err := r.purgeStaleCommand([]string{source.String()}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestRIBForwardedProjectionKeyShapes proves that a forwarded projection R-12
+// checks finds the source's live path for every key shape, and judges it gone
+// only once it is. A key mismatch between the sent copy and the received
+// inventory would withdraw a live route here, where before R-12 checked
+// forwarded writes it only failed to send a removal. Method, per family: the
+// source's path is received over ADD-PATH with identifier 7 as message 91,
+// re-sent with egress identifier 0, the received message is noted and a
+// lifecycle removal fenced, then the forwarded sent event naming identifier 7
+// is projected through the JSON sent rail. With the path present the entry
+// stays and nothing is queued; with it removed first, the entry leaves and one
+// removal is queued.
+//
+// VALIDATES: the forwarded R-12 check keys IPv6, labeled, EVPN, MVPN,
+// FlowSpec and RTC paths and ADD-PATH identifiers as the purge does.
+// PREVENTS: a live route withdrawn from a client after a GR cleanup of an
+// unrelated path.
+func TestRIBForwardedProjectionKeyShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		fam          family.Family
+		wire, stored []byte
+	}{
+		{"ipv4", family.IPv4Unicast, []byte{24, 192, 0, 2}, []byte{24, 192, 0, 2}},
+		{"ipv6", family.IPv6Unicast, []byte{32, 32, 1, 13, 184}, []byte{32, 32, 1, 13, 184}},
+		{"labeled", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}, []byte{48, 0, 6, 65, 192, 0, 2}, []byte{24, 192, 0, 2}},
+		{"evpn", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, nativeEVPNRoute(), nativeEVPNRoute()},
+		{"mvpn", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}, []byte{1, 12, 0, 0, 0, 0, 0, 0, 0, 1, 192, 0, 2, 1}, []byte{1, 12, 0, 0, 0, 0, 0, 0, 0, 1, 192, 0, 2, 1}},
+		{"flowspec", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{5, 1, 24, 192, 0, 2}, []byte{5, 1, 24, 192, 0, 2}},
+		{"rtc", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIRTC}, []byte{96, 0, 0, 0xfd, 0xe8, 0, 2, 0xfd, 0xe8, 0, 0, 0, 1}, []byte{96, 0, 0, 0xfd, 0xe8, 0, 2, 0xfd, 0xe8, 0, 0, 0, 1}},
+	} {
+		for _, present := range []bool{true, false} {
+			name := tc.name + "/removed"
+			if present {
+				name = tc.name + "/present"
+			}
+			t.Run(name, func(t *testing.T) {
+				r := newTestRIBManager(t)
+				source := netip.MustParseAddr("192.0.2.10")
+				destination := netip.MustParseAddr("192.0.2.20")
+				received := storage.NewPeerRIB(source.String())
+				r.bgpPeers[source] = received
+				t.Cleanup(func() {
+					received.Release()
+					for _, routes := range r.ribOut[destination] {
+						for _, entry := range routes {
+							entry.release()
+						}
+					}
+				})
+				received.SetAddPath(tc.fam, true)
+				in := append([]byte{0, 0, 0, 7}, tc.stored...)
+				received.Insert(tc.fam, nativeSentAttrs(), in)
+				received.ModifyFamilyEntry(tc.fam, in, func(e *storage.RouteEntry) { e.MsgID = 91 })
+				if !present {
+					received.Remove(tc.fam, in)
+				}
+				r.peerMu.Lock()
+				r.noteReceivedLocked(source, 91)
+				r.fenceSentLifecycleLocked(source)
+				r.peerMu.Unlock()
+
+				out := append([]byte{0, 0, 0, 0}, tc.wire...)
+				event := nativeSentEvent(t, destination, tc.fam, out, nativeSentAttrs(), true, false)
+				event.MsgID = 95
+				event.RouteMeta["source-message-id"] = float64(91)
+				event.RouteMeta[bgptypes.SourceOwnerMeta] = "101"
+				event.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 7}}
+				r.handleSent(event)
+
+				key, ok := ribOutRouteKey(tc.fam, out, true)
+				if !ok {
+					t.Fatal("key rejected")
+				}
+				r.peerMu.Lock()
+				_, stored := r.ribOut[destination][tc.fam][key]
+				pending := len(r.recoveryPending)
+				r.peerMu.Unlock()
+				if present {
+					if !stored || pending != 0 {
+						t.Fatalf("a live path was judged gone: stored=%v pending=%d", stored, pending)
+					}
+					return
+				}
+				if stored || pending != 1 {
+					t.Fatalf("a removed path stayed: stored=%v pending=%d, want false and 1", stored, pending)
+				}
+			})
+		}
 	}
 }
