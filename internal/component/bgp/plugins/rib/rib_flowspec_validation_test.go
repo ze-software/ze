@@ -686,6 +686,40 @@ func TestFlowSpecUnmatchableReceivedRuleIsNotPropagated(t *testing.T) {
 	}
 }
 
+// Withdrawing a retained unmatchable rule removes it from its peer's RIB and
+// publishes nothing: it was never installed, so no install withdrawal is owed,
+// and no state of it survives to make a later forward or replay eligible.
+// RFC 8955 Section 4.2: "some combinations cannot match any packets (e.g.,
+// "ICMP Type AND Port" will never match any packets) and thus SHOULD NOT be
+// propagated by BGP."
+func TestFlowSpecUnmatchableReceivedRuleWithdraw(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	sequence := flowValidationPath(2, 65001)
+	drop := []byte{0x80, 6, 0, 0, 0, 0, 0, 0}
+	components := []byte{1, 16, 10, 1, 4, 0x81, 80, 7, 0x81, 8}
+	raw := append([]byte{byte(len(components))}, components...)
+	r, bus := flowValidationFixture(t)
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(sequence, netip.Addr{}, 0, nil), false)
+	flowValidationReceive(t, r, peer, 65001, 2, flowspecFamily, raw, flowValidationAttrs(sequence, netip.Addr{}, 100, drop), false)
+	key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
+	if !ribevents.RoutePresent(key) || ribevents.RouteEligible(key, 0) {
+		t.Fatal("the unmatchable rule was not retained ineligible before the withdrawal")
+	}
+	flowValidationReceive(t, r, peer, 65001, 3, flowspecFamily, raw, nil, true)
+	if ribevents.RoutePresent(key) {
+		t.Fatal("the withdrawn unmatchable rule is still retained")
+	}
+	if ribevents.RouteEligible(key, 0) {
+		t.Fatal("the withdrawn unmatchable rule became eligible")
+	}
+	if events := flowValidationEvents(bus); len(events) != 0 {
+		t.Fatalf("a never-installed rule published install events: %+v", events)
+	}
+	if got := len(gatherCandidatesHeld(t, r, flowspecFamily, raw, false)); got != 0 {
+		t.Fatalf("withdrawn unmatchable rule left %d candidates", got)
+	}
+}
+
 // The redirect-to-IP EBGP check over the received-UPDATE entrypoint. The rule
 // arrives from EBGP peer AS 65001 with redirect-to-IP to X = 198.51.100.1; it
 // is authorized in every case, so only its redirect action is judged. The
