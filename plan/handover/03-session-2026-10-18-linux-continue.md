@@ -3120,3 +3120,36 @@ Remaining: undecodable UPDATE (33), path-information in the attributes form,
 mpls-vpn (17), MUP encode (30), `attribute [ ]` (~60), IPv6 flow offsets
 (~33), mcast-vpn (28), ipv6 multicast (~40), unicast withdraw (33),
 refresh/operational judge branch, AC-38 TestOldResponses50/42.
+
+## 2026-10-21 Phase 7 item E, exa15 agent
+
+Landed: 20d61f53f2 (judge packs no Path Identifier: neighbor.conf negotiates
+no ADD-PATH, the reactor's writeBatchNLRI and the pin's `packed` both honour
+that, and 5.0.1 inet.py pack_nlri packs one only when negotiated). That was the
+whole "UPDATE ze's decoder cannot read" class and the path-information
+attributes-form rows. 62b6c02411: journal row
+(`zero-value-as-valid-answer.md`) for a real engine defect found on the way:
+`appendMessageTyped` (bgp/format/text_update.go) reads the ADD-PATH context
+from AttrsWire only, so a withdraw-only UPDATE from an ADD-PATH peer renders
+no withdraw; fix is `msg.WireUpdate.SourceCtxID()`. Also unconfirmed: an
+ADD-PATH mpls-vpn MP_REACH rendered `"ipv4 mpls-vpn":{}` through
+WireUpdateToExabgpJSON under an ADD-PATH context.
+
+PREPARED, NOT RUN, owes independent review: `tmp/commit-79c638a5-a-2965c4.sh`
+(machine-local; recreate from the files): (1) bridge_attribute.go
+`bridgeMUPRouteTypes` maps mup-isd/t1st to `prefix`, mup-dsd/t2st to `address`
+(5.0.1 static/mpls.py grammar comments; ze nlri/mup/encode.go) + test
+`TestMUPLeadingFieldNamed` in bridge_route_line_test.go, red for DSD/T2ST
+before; (2) delete `route.ParseRouteArgs` (no caller; vet and package test
+green). Owed with (1): a daemon-level exabgp-compat api .ci for a DSD and a
+T2ST line on ze and the pin. No page names MUP shaping, so no page edit.
+
+Counts now: 5.0 3935/4250, 4.2 2430/2541.
+
+Remaining: MUP DSD with `next-hop` twice (5.0 took the last; the pin's ALLOWED
+row for a repeated next-hop does not list mup, so read the pin's mup
+next-hop handling first); generic `attribute [ ]` (about 60: ze update text has
+no generic attribute keyword, bridge refuses by design, needs an update-text
+feature + page + .ci); IPv6 flow `/N/M` offsets; mcast-vpn; ipv6 multicast;
+unicast withdraw differences; vpls withdraw with attributes; refresh and
+operational judge branch; AC-38 TestOldResponses50/42.
