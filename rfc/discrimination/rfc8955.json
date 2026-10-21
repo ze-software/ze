@@ -157,6 +157,40 @@
       "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused",
+      "unit-sha": "72c52f1f250eb519",
+      "claim-sha": "2f147a88d661740c",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
+      "producer-sha": "e6b49f7a3a15379e",
+      "break": "body of anyPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused",
+      "unit-sha": "72c52f1f250eb519",
+      "claim-sha": "8a92446d656d457c",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
+      "producer-sha": "e6b49f7a3a15379e",
+      "break": "body of anyPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
+      "unit": "test/parse/flowspec-unmatchable-refused.ci",
+      "unit-sha": "4985b9f2368dfffd",
+      "claim-sha": "017dd8a93cc08dfb",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
+      "producer-sha": "e6b49f7a3a15379e",
+      "break": "body of anyPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=ICMP has no ports"
+    },
+    {
       "rid": "RFC8955-4.2.1.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextLeadingAndEncodedUnset",

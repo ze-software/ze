@@ -31,6 +31,10 @@ func TestFlowSpecUnmatchableRefused(t *testing.T) {
 	}
 	base := []string{flowspec.KwDestinationIPv4, "192.0.2.0/24"}
 
+	// RFC requirement: RFC8955-4.2-3 negative -- each ICMP component (icmp-type,
+	// icmp-code) beside each port component (port, destination-port,
+	// source-port) is refused with ErrFlowSpecUnmatchable by both the config
+	// route parser and the update text encoder (§4.2).
 	for _, i := range icmp {
 		for _, p := range ports {
 			args := append(append(append([]string{}, base...), i...), p...)
@@ -45,6 +49,9 @@ func TestFlowSpecUnmatchableRefused(t *testing.T) {
 		}
 	}
 
+	// RFC requirement: RFC8955-4.2-3 positive -- each of those ICMP and port
+	// components alone is accepted by both the config route parser and the
+	// update text encoder (§4.2).
 	for _, alone := range append(icmp, ports...) {
 		args := append(append([]string{}, base...), alone...)
 		if _, err := parseConfigRoute(registry.ConfigRouteRequest{Content: args}); err != nil {

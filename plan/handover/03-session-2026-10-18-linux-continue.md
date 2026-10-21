@@ -2255,3 +2255,25 @@ note that the draft is not enrolled. Design found:
   install (flowspec-firewall) must drop the redirect action too.
 - Config: a per-EBGP-session leaf to disable the check (YANG, `ai/rules/config.md`),
   plumbed to the RIB; plus a .ci test of both polarities and the off switch.
+
+## 2026-10-21 FlowSpec unmatchable follow-ups to c0c89f09a0 (agent of 8385ff13)
+
+Done: adfa12e587 (bridge refuses an ICMP-and-port flow route, braced or flat,
+announce or withdraw, answered `error` as the ExaBGP 6.0 pin does, warning names
+the route); 9e465ecb28 (parseComponentText, isComponentKeyword and the bridge
+derive from `flowspec.KeywordComponentType`); the RFC commit that follows this
+entry (RFC8955-4.2-3 `{partial}`, tags, records).
+
+Owed, not started (needs `internal/component/bgp/reactor/`, which another agent
+was editing on 2026-10-21):
+- RFC 8955 Section 4.2 receive side: a FlowSpec route received from a peer with
+  an ICMP type or code beside a port is decoded (`flowspec.ParseFlowSpec`) and
+  nothing on the receive or forward path calls `flowspec.CheckMatchable`, so it
+  is still propagated. The row's `{partial}` gap names it. Decide where the
+  withhold sits (ingress treat-as-withdraw vs egress skip), quote the RFC, test
+  both polarities through a received UPDATE, then retire the `{partial}`.
+- RFC8955-4.2-3 has no audit verdict: an independent `/ze-rfc-audit` judge owes
+  one. Note for the judge: the positive record is a revert of `anyPresent`,
+  which halts the unit in its negative loop before the positive loop runs; a
+  mutant on `CheckMatchable` (always refuse) would prove the positive half
+  directly.

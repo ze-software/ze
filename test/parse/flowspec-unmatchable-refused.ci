@@ -1,6 +1,7 @@
 # Test: a flow route pairing an ICMP match with a port match is refused.
 # RFC 8955 Section 4.2: "ICMP Type AND Port" will never match any packets and thus
 # SHOULD NOT be propagated by BGP. The config names the route's problem and the fix.
+# RFC requirement: RFC8955-4.2-3 negative -- a config flow route with destination-port and icmp-type is refused by ze config validate, exit code 1, with the reason "ICMP has no ports" (§4.2).
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
