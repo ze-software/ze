@@ -245,7 +245,8 @@ func runInPlace(certificateMode string, firstRed bool) (any, int) {
 	if report.StoppedAt != "" {
 		var text textbuf.Buffer
 		text.Str("verify: ").Str(certificateMode).Str(" stopped at ").Str(report.StoppedAt).Str(", ").
-			Int(int64(len(report.Unreached))).Str(" stages not run; le verify current fast runs them all\n").
+			Int(int64(len(report.Unreached))).Str(" stages not run; le verify current fast reruns the fast population, ").
+			Str("and the stages only the full population holds need le verify worktree\n").
 			StdErr() //nolint:errcheck // CLI progress line
 	}
 	if report.Failure != nil && withoutStageLog(report.Code) {
