@@ -78,11 +78,12 @@ type typedNLRIHeldRoutes struct {
 	generation uint64
 }
 
-// typedNLRIHeldRoute is one held generation and the session generation that
-// last announced it.
+// typedNLRIHeldRoute is one held generation, the session generation that last
+// announced it, and the UPDATE of that session that did (Session.typedNLRIUpdate).
 type typedNLRIHeldRoute struct {
 	nlri       []byte
 	generation uint64
+	update     uint64
 }
 
 // beginSession starts a new generation for a newly established session. When
@@ -224,6 +225,7 @@ func (w *typedNLRIWalk) hold(one []byte) bool {
 	}
 	held := w.held.routes[key]
 	held.generation = w.held.generation
+	held.update = w.session.typedNLRIUpdate
 	if !bytes.Equal(held.nlri, one) {
 		// Reusing held's array is safe: every reader copies it out (append)
 		// before it is deleted or written again, under held.mu.
@@ -290,6 +292,22 @@ func (w *typedNLRIWalk) withdrawal(one []byte) bool {
 		return true
 	}
 	held, found := w.held.routes[w.scratchHeldKey]
+	// RFC 4271 Section 4.3: "A BGP speaker SHOULD treat an UPDATE message of this
+	// form as though the WITHDRAWN ROUTES do not contain the address prefix." A key
+	// this UPDATE announces keeps its route and its hold; a malformed withdrawal of
+	// it names nothing to relay.
+	announced := found && held.generation == w.held.generation && held.update == w.session.typedNLRIUpdate
+	if announced {
+		if w.recognize(one, w.addPath) == nlritype.Withdraw {
+			w.leave(start)
+			w.relay.dropped++
+			return true
+		}
+		if w.relay.changed {
+			w.relay.nlri = append(w.relay.nlri, one...)
+		}
+		return true
+	}
 	delete(w.held.routes, w.scratchHeldKey)
 	if w.recognize(one, w.addPath) != nlritype.Withdraw {
 		if w.relay.changed {

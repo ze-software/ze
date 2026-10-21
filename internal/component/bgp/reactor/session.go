@@ -556,6 +556,9 @@ type Session struct {
 	// typedNLRIWalk is the reusable state of the hold's section walks. Only the
 	// receive goroutine reads it; nil until the first walk.
 	typedNLRIWalk *typedNLRIWalk
+	// typedNLRIUpdate numbers the UPDATEs the typed NLRI pass judges on this
+	// session, so a withdrawal can tell a key the same UPDATE announced.
+	typedNLRIUpdate uint64
 
 	// addrLabel caches settings.Address.String() to avoid per-message allocations.
 	addrLabel string

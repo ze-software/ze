@@ -129,6 +129,8 @@ func (s *Session) applyTypedNLRIDiscard(
 	addPathFor func(afi uint16, safi uint8) bool,
 	withdrawAll bool,
 ) (out *wireu.WireUpdate, outAttrs []byte, outcome typedNLRIOutcome, withdrawBodies [][]byte) {
+	// Stamps the routes this UPDATE files in the hold (typedNLRIRelayEdit).
+	s.typedNLRIUpdate++
 	edits := make([]mpNLRIEdit, 0, 2)
 	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, attrs, addPathFor, withdrawAll)
 	if !ok {
@@ -389,23 +391,20 @@ func (s *Session) typedNLRIEdit(
 // body-judged family. For an MP_REACH_NLRI it files the kept routes
 // (typedNLRIHold) and returns the withdrawable form of the routes moved out of it;
 // for an MP_UNREACH_NLRI it returns the withdrawable form of the section itself.
-// The withdrawals are judged before the announcements are filed, so a malformed
-// NLRI withdraws the generation held before this UPDATE, never a route the same
-// UPDATE announces.
+// The announcements are filed first, stamped with this UPDATE, so a withdrawal in
+// the same UPDATE of a key it announces is left out (RFC 4271 Section 4.3); the
+// MP_REACH_NLRI is edited before the MP_UNREACH_NLRI (applyTypedNLRIDiscard), so
+// the stamp covers both.
 func (s *Session) typedNLRIRelayEdit(
 	fam family.Family, recognize nlritype.Recognizer, kept, withdrawn []byte, addPath, announce, withdrawAll bool,
 ) (typedNLRIRelay, error) {
 	if !announce {
 		return s.typedNLRIWithdrawable(fam, recognize, kept, addPath, true)
 	}
-	relay, err := s.typedNLRIWithdrawable(fam, recognize, withdrawn, addPath, false)
-	if err != nil {
-		return typedNLRIRelay{}, err
-	}
 	if err := s.typedNLRIHold(fam, kept, addPath, withdrawAll); err != nil {
 		return typedNLRIRelay{}, err
 	}
-	return relay, nil
+	return s.typedNLRIWithdrawable(fam, recognize, withdrawn, addPath, false)
 }
 
 // logTypedNLRIMalformed records the NLRIs a family's recognizer answered
