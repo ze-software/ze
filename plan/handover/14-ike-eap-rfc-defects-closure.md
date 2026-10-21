@@ -110,3 +110,21 @@ path must be short enough for the forwarded Docker socket (run it through a shor
 such as `~/.zt/ikw`). A stale `.git/index.lock` (0 bytes, 20:23, no holder) left the
 shared index pointing at pre-`9d60c1d841` content for its paths; the repair is in
 `tmp/delete-0b4a8e87.sh` and the commit script log, for Thomas to run.
+
+## Round 6 and the TLS 1.2 re-scope, 2026-10-21 night (Thomas: "ok to both")
+
+- `responder-eap-tls12` re-scoped: `checkResponderEAPTLS12` (`internal/le/interoplab/ipsec/natport.go`)
+  now asserts, numbered, charon `negotiated TLS 1.2`, `received TLS Finished handshake`,
+  `received EAP_FAILURE, EAP authentication failed`, Ze's refusal facts (from
+  `eapTLS12ExportRefused`), and no XFRM state on either peer. GREEN 22:07 in a `git archive`
+  export of `a48a721a4c` plus the checker. RED 22:10 with a second stdpatch patch in the
+  export that deletes crypto/tls's `noEKMBecauseNoEMS` branch: charon established the IKE SA,
+  so assertion 3 timed out. The spec runs table carries Ze's exact refusal line. Committed with
+  this entry.
+- Review round 6 over `a1cbd95e05` and the re-scope: 0 BLOCKER, 1 ISSUE, 5 NOTEs. The ISSUE was a
+  false sentence in `docs/architecture/testing/interop.md` (it claimed walks the spec did not
+  yet record); fixed in this commit. The NOTEs are in the spec's Review Gate.
+- Stopped here, per the brief: round 6 found an ISSUE, so round 7 (over this commit's page and
+  checker) needs Thomas. Still owed after it: the `docker/Dockerfile` proof build, one full
+  `./le verify worktree`, `/ze-close` (record with `rounds 7`, `rounds-reason` naming the rekey
+  retry storm round 5 found, `owner-authorised` carrying his words for rounds 6 and 7).

@@ -119,27 +119,68 @@ func checkRealNATPortTranslatedEAPZeResponder(ctx context.Context, lab *scenario
 	return lab.natPortTunnelTraffic(ctx)
 }
 
-// checkResponderEAPTLS12 is the TLS 1.2 regression proof for the EAP-TLS server: a
-// strongSwan client capped at TLS 1.2 authenticates and traffic crosses. It cannot go
-// red on the session_id, because charon accepts an empty and a chosen one alike.
+// responderEAPTLS12RefusalFacts are the parts of ze's refusal line
+// (eapTLS12ExportRefused, internal/core/eap/eap_tls.go) the scenario requires: the
+// refused export, the peer, the version, the missing extension and crypto/tls's own
+// sentence, so a different failure cannot pass as this refusal.
+var responderEAPTLS12RefusalFacts = [...]string{
+	"cannot export the RFC 5216 Section 2.3 MSK",
+	"for peer CN=swan-eap-client",
+	"on TLS 1.2",
+	"RFC 7627 extended master secret",
+	"crypto/tls: ExportKeyingMaterial is unavailable",
+}
+
+// checkResponderEAPTLS12 drives ze's EAP-TLS server with a strongSwan client pinned to
+// TLS 1.2, and asserts the TLS handshake completes and ze then refuses the MSK.
+//
+// No IKEv2 EAP-TLS initiator sends the RFC 7627 extended master secret on TLS 1.2:
+// strongSwan through 6.1.0 defines the extension constant and never sends it,
+// Libreswan has no EAP-TLS initiator, and OpenIKED has no EAP-TLS. Without it
+// crypto/tls refuses the RFC 5705 export that RFC 5216 Section 2.3 defines the MSK
+// as, so ze keeps that requirement and the scenario asserts the refusal (owner
+// decision, 2026-10-21). It cannot go red on the session_id, because charon accepts
+// an empty and a chosen one alike; the unit test reads the id off the ServerHello.
+//
+// Each assertion is numbered, so a red run names which one failed.
 func checkResponderEAPTLS12(ctx context.Context, lab *scenarioLab) error {
-	if err := establish(ctx, lab); err != nil {
-		return err
+	fail := func(assertion int, cause error) error {
+		return fmt.Errorf("scenario responder-eap-tls12 assertion %d: %w", assertion, cause)
 	}
-	logs, err := lab.logs(ctx, swanPeer)
+
+	// Assertion 1. charon negotiated TLS 1.2, which is the condition under test.
+	if err := lab.waitLog(ctx, swanPeer, "negotiated TLS 1.2", lab.timeout); err != nil {
+		return fail(1, err)
+	}
+	// Assertion 2. charon received ze's Finished, so the handshake completed and the
+	// refusal below is ze's and not a failed handshake.
+	if err := lab.waitLog(ctx, swanPeer, "received TLS Finished handshake", lab.timeout); err != nil {
+		return fail(2, err)
+	}
+	// Assertion 3. ze answered with EAP-Failure, so the IKE SA did not authenticate.
+	if err := lab.waitLog(ctx, swanPeer, "received EAP_FAILURE, EAP authentication failed", lab.timeout); err != nil {
+		return fail(3, err)
+	}
+	logs, err := lab.logs(ctx, zePeer)
 	if err != nil {
-		return err
+		return fail(4, err)
 	}
-	if !strings.Contains(logs, "negotiated TLS 1.2") {
-		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan never logged negotiated TLS 1.2"), logs)
+	// Assertion 4. The failure is ze's refusal to export the MSK without the extended
+	// master secret, stated with every fact in responderEAPTLS12RefusalFacts.
+	for _, fact := range responderEAPTLS12RefusalFacts {
+		if !strings.Contains(logs, fact) {
+			return fail(4, interoplab.WithSearchedOutput(fmt.Errorf("ze's EAP-TLS refusal does not state: %s", fact), logs))
+		}
 	}
-	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
-		return err
+	// Assertion 5. ze installed no XFRM state from the refused exchange.
+	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
+		return fail(5, err)
 	}
-	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
-		return err
+	// Assertion 6. strongSwan installed none either.
+	if err := lab.checkXFRMCount(ctx, swanPeer, 0); err != nil {
+		return fail(6, err)
 	}
-	return lab.verifyTunnelTraffic(ctx, "traffic did not cross the EAP-TLS 1.2 Child SA")
+	return nil
 }
 
 // natPortEstablish routes strongSwan to Ze through the NAT box, then starts the

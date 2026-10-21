@@ -1629,7 +1629,13 @@ scenario that loses the setting shows the reason in Ze's log.
 | `real-nat-port-translated-ze-responder` | tunnel mode: outbound encap dport 14500, traffic both ways; after the remap the row 1 "migrated" line, dport 14501 on the SAME SPI, traffic both ways |
 | `real-nat-port-translated-transport-ze-responder` | transport mode: after the remap the row 2 "rekeyed" line with `reason="transport mode"`, dport 14501 on a NEW SPI, traffic both ways |
 | `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
-| `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 authenticates and traffic crosses |
+| `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 completes the TLS handshake through ze's Finished, ze refuses to export the RFC 5216 Section 2.3 MSK because the session has no RFC 7627 extended master secret, charon receives EAP-Failure, and neither end installs an XFRM state (`checkResponderEAPTLS12`) |
+
+No IKEv2 EAP-TLS initiator sends RFC 7627 on TLS 1.2: strongSwan through 6.1.0
+defines the extension constant and never sends it, Libreswan has no EAP-TLS
+initiator, and OpenIKED has no EAP-TLS. So `responder-eap-tls12` asserts the
+refusal, and the extended master secret stays required (owner decision,
+2026-10-21).
 
 All four have run in the nightly ipsec-interop suite. In the 2026-10-17 run the
 two rebind scenarios and `responder-eap-tls12` were red, and
@@ -1637,11 +1643,16 @@ two rebind scenarios and `responder-eap-tls12` were red, and
 next sentence). On 2026-10-17 the two rebind scenarios got `mobike = no`. In the same change,
 `waitZeOutboundEncap` stopped accepting an outbound state at any port: it had
 read a drained `textbuf.Buffer` inside its poll and so matched "". No run since
-these fixes is recorded, and `responder-eap-tls12` waits on an owner decision.
-Each scenario still owes a green run and its revert, rebuild and red walk.
+these fixes was recorded until 2026-10-21, when all four ran green in the
+Docker lab. The tunnel and transport rebind scenarios went red under their
+reverted fixes. `responder-eap-tls12` went red when crypto/tls was patched to
+export keying material without RFC 7627: charon then established the IKE SA,
+and assertion 3 (EAP-Failure) timed out. The EAP port scenario has no reachable
+red, because the earlier EAP rounds adopt the endpoint before the Child SA is
+built.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
-<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap -->
+<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap, checkResponderEAPTLS12 -->
 <!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint, the MOBIKE refusal -->
 
 Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
