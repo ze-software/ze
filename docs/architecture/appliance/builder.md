@@ -21,6 +21,14 @@ command line that selects the tree
 (`docs/contributing/patching-the-standard-library.md`).
 <!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv, requirePatchedTree -->
 
+gok's commands change into the instance directory and never change back, and
+`le build gokrazy` builds from a prepared instance it removes afterwards. Every
+gok run goes through `ExecuteGok`, which returns the process to the directory it
+started in, so a caller that keeps working after the build (`./le setup
+docker-host start` runs Colima next) never hands its children a removed working
+directory.
+<!-- source: internal/appliance/gok_execute.go -- ExecuteGok, keepWorkingDir -->
+
 <!-- source: internal/appliance/main.go -- command dispatch, built at call time -->
 <!-- source: internal/appliance/gok_execute.go -- ExecuteGok, the one gok entry point -->
 <!-- source: internal/appliance/gok_execute_other.go -- the refusal on any other host -->
