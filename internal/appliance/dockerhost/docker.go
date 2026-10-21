@@ -63,7 +63,8 @@ func DockerUnits() []BuiltinUnit {
 		FixedUnit(UnitSpec{
 			Name:    "containerd.service",
 			Argv:    []string{"/usr/bin/containerd", "--config", containerdConfig, "--root", containerdRoot, "--state", "/run/containerd"},
-			Restart: RestartAlways,
+			Restart:   RestartAlways,
+			StopGrace: stopGraceDefault,
 		}),
 		{Name: "docker.service", Resolve: resolveDockerd},
 	}
@@ -80,7 +81,7 @@ func resolveDockerd(root string) (UnitSpec, error) {
 	if gateway.IsValid() {
 		argv = append(argv, hostGatewayFlag+"="+gateway.String())
 	}
-	return UnitSpec{Name: "docker.service", Argv: argv, Restart: RestartAlways}, nil
+	return UnitSpec{Name: "docker.service", Argv: argv, Restart: RestartAlways, StopGrace: stopGraceDocker}, nil
 }
 
 // hostGatewayFromDropIns reads every docker.service drop-in and answers the

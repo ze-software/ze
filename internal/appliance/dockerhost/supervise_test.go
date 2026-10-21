@@ -1,11 +1,14 @@
 package dockerhost
 
 import (
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestSupervisorDockerdArgv resolves docker.service through the supervisor
@@ -106,5 +109,84 @@ func TestContainerdConfigSeeded(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(path); string(got) != "colima's config\n" { //nolint:errcheck // compared below
 		t.Errorf("second seed replaced the existing config with %q", got)
+	}
+}
+
+// TestServiceLaunchRefusedOnceStopping checks the restart path against a stop
+// that overtakes it: launch on a service already stopping starts nothing,
+// and a real service stopped inside its restart backoff ends promptly.
+//
+// VALIDATES: review R1-1: stop sets stopping under svc.mu and launch checks
+// it under the same lock, so a stop during the backoff cannot leave a new
+// process running that nobody signals.
+// PREVENTS: Stop signalling the dead process, then blocking forever on done
+// while the restarted process runs.
+func TestServiceLaunchRefusedOnceStopping(t *testing.T) {
+	svc := &service{
+		spec:     UnitSpec{Name: "sleeper.service", Argv: []string{"/bin/sleep", "60"}, Restart: RestartAlways, StopGrace: time.Second},
+		log:      io.Discard,
+		quit:     make(chan struct{}),
+		done:     make(chan struct{}),
+		stopping: true,
+	}
+	cmd, err := svc.launch()
+	if cmd != nil {
+		_ = cmd.Process.Kill() //nolint:errcheck // cleanup of the defect under test
+		_ = cmd.Wait()         //nolint:errcheck // reaped
+	}
+	if !errors.Is(err, errServiceStopping) {
+		t.Fatalf("launch on a stopping service = %v, want errServiceStopping", err)
+	}
+	if svc.process != nil {
+		t.Fatalf("launch on a stopping service recorded process %d", svc.process.Pid)
+	}
+
+	failing, err := startService(UnitSpec{Name: "fails.service", Argv: []string{"/bin/sh", "-c", "exit 1"}, Restart: RestartAlways, StopGrace: time.Second}, io.Discard)
+	if err != nil {
+		t.Fatalf("startService: %v", err)
+	}
+	// The first process exits at once; the service then waits out
+	// restartBackoffMin (1 s), and stop lands inside that window.
+	<-time.After(200 * time.Millisecond)
+	stopped := make(chan struct{})
+	go stopAndClose(failing, stopped)
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stop during the restart backoff did not return within 5s")
+	}
+}
+
+// stopAndClose stops svc and closes stopped, so a test can bound the stop.
+func stopAndClose(svc *service, stopped chan<- struct{}) {
+	svc.stop()
+	close(stopped)
+}
+
+// TestDockerUnitStopGrace checks each built-in unit's stop grace: dockerd
+// gets stopGraceDocker, containerd stopGraceDefault, all within the bound
+// the shim deadline is built on.
+//
+// VALIDATES: review R1-12: dockerd is not killed at 10 s while it stops its
+// containers.
+// PREVENTS: a grace above the shim deadline, which would time out systemctl
+// stop while the unit is still stopping.
+func TestDockerUnitStopGrace(t *testing.T) {
+	sup, err := NewSupervisor(t.TempDir(), uint32(os.Getuid()), DockerUnits())
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	want := map[string]time.Duration{"docker.service": stopGraceDocker, "containerd.service": stopGraceDefault}
+	for name, grace := range want {
+		spec, err := sup.lookup(name)
+		if err != nil {
+			t.Fatalf("lookup %s: %v", name, err)
+		}
+		if spec.StopGrace != grace {
+			t.Errorf("%s stop grace = %s, want %s", name, spec.StopGrace, grace)
+		}
+	}
+	if shimDeadline <= stopGraceMax {
+		t.Errorf("shim deadline %s does not exceed the largest stop grace %s", shimDeadline, stopGraceMax)
 	}
 }

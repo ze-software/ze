@@ -118,11 +118,16 @@ func (c *Cidata) validate(iid string) error {
 	if !userPattern.MatchString(c.User) {
 		return fmt.Errorf("cidata user %q is not a user name (lower case, digits, '_' and '-')", c.User)
 	}
-	if c.User == "root" {
-		return errors.New("cidata user is root: Lima's user is an unprivileged account")
+	if reason, reserved := reservedAccounts[c.User]; reserved {
+		return fmt.Errorf("cidata user %q is an account the image writes itself (%s): set a different user name in Lima's config", c.User, reason)
 	}
-	if strings.ContainsAny(c.Comment, ":\n") {
-		return fmt.Errorf("cidata comment %q holds a ':' or a newline, which would split the passwd line", c.Comment)
+	if c.UID == sshdUID {
+		return fmt.Errorf("cidata LIMA_CIDATA_UID %d is sshd's privilege separation uid, which the image writes itself: Lima's user needs its own uid", c.UID)
+	}
+	for _, field := range []struct{ name, value string }{{"comment", c.Comment}, {"home", c.Home}, {"shell", c.Shell}} {
+		if strings.ContainsAny(field.value, passwdBreakers) {
+			return fmt.Errorf("cidata %s %q holds a ':' or a line break, which would split the passwd line or add one", field.name, field.value)
+		}
 	}
 	if err := checkHome(c.Home); err != nil {
 		return err
@@ -141,6 +146,21 @@ func (c *Cidata) validate(iid string) error {
 		}
 	}
 	return nil
+}
+
+// passwdBreakers are the characters that end a passwd or group field (':')
+// or a line ("\n", "\r"); no value written into those files may hold one.
+const passwdBreakers = ":\n\r"
+
+// reservedAccounts are the account and group names writeAccounts writes
+// itself, with why each is taken. Lima's user carrying one would give it a
+// duplicate passwd or group line. The docker gid as a uid is not refused:
+// groupLines makes docker that user's primary group, as Colima's own
+// guests do for a uid-1000 Linux user.
+var reservedAccounts = map[string]string{
+	"root":   "the superuser, uid 0",
+	"sshd":   "sshd's privilege separation account, uid 22",
+	"docker": "the docker group, gid 1000",
 }
 
 // checkHome accepts a home directory one level under /home only, the shape

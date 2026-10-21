@@ -52,8 +52,10 @@ func TestCidataParsesLimaFiles(t *testing.T) {
 // sudoers or a path is checked before use (spec Security Review: input
 // validation), with the boundaries of the spec's numeric table.
 //
-// VALIDATES: LIMA_CIDATA_UID 1-65534, LIMA_CIDATA_VSOCK_PORT 0-4294967295,
-// user, hostname and home patterns. Method: one fixture per bad value.
+// VALIDATES: LIMA_CIDATA_UID 1-65534 and not sshd's 22,
+// LIMA_CIDATA_VSOCK_PORT 0-4294967295, user, hostname and home patterns, no
+// reserved account name, no ':' or line break in comment, home or shell
+// (review R1-2, R1-11). Method: one fixture per bad value.
 // PREVENTS: a crafted cidata writing a root account or a path outside /home.
 func TestCidataRefusesUnsafeValues(t *testing.T) {
 	for _, tc := range []struct {
@@ -68,6 +70,15 @@ func TestCidataRefusesUnsafeValues(t *testing.T) {
 		{"vsock port none", "lima.env", "LIMA_CIDATA_VSOCK_PORT=2222", "LIMA_CIDATA_VSOCK_PORT=0", true},
 		{"user with a colon", "lima.env", "LIMA_CIDATA_USER=thomas", "LIMA_CIDATA_USER=th:omas", false},
 		{"user root", "lima.env", "LIMA_CIDATA_USER=thomas", "LIMA_CIDATA_USER=root", false},
+		{"user sshd", "lima.env", "LIMA_CIDATA_USER=thomas", "LIMA_CIDATA_USER=sshd", false},
+		{"user docker", "lima.env", "LIMA_CIDATA_USER=thomas", "LIMA_CIDATA_USER=docker", false},
+		{"uid of sshd", "lima.env", "LIMA_CIDATA_UID=501", "LIMA_CIDATA_UID=22", false},
+		{"uid of the docker gid", "lima.env", "LIMA_CIDATA_UID=501", "LIMA_CIDATA_UID=1000", true},
+		{"comment with a carriage return", "lima.env", "LIMA_CIDATA_COMMENT=Thomas Mangin", "LIMA_CIDATA_COMMENT=Thomas\rMangin", false},
+		{"home with a colon", "lima.env", "LIMA_CIDATA_HOME=/home/thomas.linux", "LIMA_CIDATA_HOME=/home/thomas:0:0", false},
+		{"home with a carriage return", "lima.env", "LIMA_CIDATA_HOME=/home/thomas.linux", "LIMA_CIDATA_HOME=/home/thomas\rroot", false},
+		{"shell with a colon", "lima.env", "LIMA_CIDATA_SHELL=/bin/bash", "LIMA_CIDATA_SHELL=/bin/ba:sh", false},
+		{"shell with a carriage return", "lima.env", "LIMA_CIDATA_SHELL=/bin/bash", "LIMA_CIDATA_SHELL=/bin/bash\rroot::0:0::/:/bin/sh", false},
 		{"home escapes", "lima.env", "LIMA_CIDATA_HOME=/home/thomas.linux", "LIMA_CIDATA_HOME=/home/../etc", false},
 		{"home outside /home", "lima.env", "LIMA_CIDATA_HOME=/home/thomas.linux", "LIMA_CIDATA_HOME=/etc", false},
 		{"hostname with a slash", "meta-data", "local-hostname: lima-ze-probe", "local-hostname: a/b", false},

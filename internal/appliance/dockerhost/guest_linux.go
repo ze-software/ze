@@ -93,9 +93,15 @@ func RunGuest() int {
 		banner = "ze-docker-host: kernel unknown: " + err.Error()
 	}
 	_, _ = fmt.Fprintln(console, banner) //nolint:errcheck // console
+	// A restart after the boot sequence ran is refused, not served: the
+	// services the previous run started (sshd, containerd, dockerd) outlive
+	// it, and a fresh supervisor knows none of them, so it would start a
+	// second sshd on the bound port and a second dockerd on the same data
+	// root. Killing recorded pids would need a pid file trusted across a
+	// crash; a reboot is the one recovery that restores a known state.
 	if _, err := os.Stat(bootedMarker); err == nil {
-		_, _ = fmt.Fprintln(console, "ze-docker-host: restarted after this boot's sequence ran; serving the supervisor only") //nolint:errcheck // console
-		return serveForever(console, nil)
+		_, _ = fmt.Fprintln(console, "ze-docker-host: this program exited after the boot sequence ran, so the services it started may still run and a new supervisor would start a second copy of each; not restarting. Fix: reboot the guest (colima restart ze)") //nolint:errcheck // console
+		return exitDoNotRestart
 	}
 	c, err := Boot(linuxSystem{}, "/")
 	if err != nil {
@@ -117,13 +123,14 @@ func RunGuest() int {
 	return serveForever(console, c)
 }
 
-// serveForever serves the supervisor, starts sshd, runs boot.sh when c is
-// given, and then never returns: the supervisor lives as long as the guest.
+// serveForever serves the supervisor, starts sshd, runs boot.sh, and then
+// never returns: the supervisor lives as long as the guest.
 func serveForever(console io.Writer, c *Cidata) int {
 	sup, err := NewSupervisor("/", 0, append([]BuiltinUnit{FixedUnit(UnitSpec{
 		Name:    "sshd.service",
-		Argv:    []string{shippedDir + "/sshd", "-D", "-e", "-f", "/etc/ssh/sshd_config"},
-		Restart: RestartAlways,
+		Argv:      []string{shippedDir + "/sshd", "-D", "-e", "-f", "/etc/ssh/sshd_config"},
+		Restart:   RestartAlways,
+		StopGrace: stopGraceDefault,
 	})}, DockerUnits()...))
 	if err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: supervisor:", err) //nolint:errcheck // console
@@ -137,13 +144,11 @@ func serveForever(console io.Writer, c *Cidata) int {
 	if err := sup.Start("sshd.service"); err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: start sshd:", err) //nolint:errcheck // console
 	}
-	if c != nil {
-		cmd := c.BootScript(context.Background())
-		cmd.Stdout = console
-		cmd.Stderr = console
-		if err := cmd.Run(); err != nil {
-			_, _ = fmt.Fprintln(console, "ze-docker-host: Lima boot.sh:", err) //nolint:errcheck // console
-		}
+	cmd := c.BootScript(context.Background())
+	cmd.Stdout = console
+	cmd.Stderr = console
+	if err := cmd.Run(); err != nil {
+		_, _ = fmt.Fprintln(console, "ze-docker-host: Lima boot.sh:", err) //nolint:errcheck // console
 	}
 	// This loop has no end by design: the supervisor and its socket serve
 	// for the life of the guest, and gokrazy would restart an exited program.

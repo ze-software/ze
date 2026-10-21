@@ -24,8 +24,8 @@ const ShimSocket = "/run/ze-docker-host/systemctl.sock"
 const (
 	// shimMessageMax bounds one request or answer line.
 	shimMessageMax = 64 << 10
-	// shimDeadline bounds one exchange; stop waits stopGrace at most.
-	shimDeadline = stopGrace + 5*time.Second
+	// shimDeadline bounds one exchange; stop waits stopGraceMax at most.
+	shimDeadline = stopGraceMax + 5*time.Second
 )
 
 // systemctl exit statuses (systemctl(1), "Exit status", and LSB for

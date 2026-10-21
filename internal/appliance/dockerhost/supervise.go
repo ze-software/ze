@@ -24,18 +24,28 @@ const (
 	// restartResetAfter is how long a service must run before its backoff
 	// returns to the minimum.
 	restartResetAfter = time.Minute
-	// stopGrace is how long a stopped service gets between SIGTERM and
-	// SIGKILL, systemd's default TimeoutStopSec is longer; Lima's agent and
-	// sshd exit at once on SIGTERM.
-	stopGrace = 10 * time.Second
+	// stopGraceDefault is how long a stopped service gets between SIGTERM
+	// and SIGKILL unless its unit says otherwise. Lima's agent and sshd exit
+	// at once on SIGTERM, so systemd's longer default would only delay a
+	// stuck one.
+	stopGraceDefault = 10 * time.Second
+	// stopGraceDocker is dockerd's grace: it stops every running container
+	// first, and each container gets its own shutdown timeout (15 s by
+	// default), so a SIGKILL at 10 s would kill the daemon mid-shutdown and
+	// leave containers and their mounts behind.
+	stopGraceDocker = 30 * time.Second
+	// stopGraceMax bounds every unit's grace; the shim deadline is built on it.
+	stopGraceMax = stopGraceDocker
 )
 
 // UnitSpec is a service the supervisor can run: its full unit name, the
-// argv, and whether it is started again when it exits.
+// argv, whether it is started again when it exits, and how long it gets to
+// exit on SIGTERM before SIGKILL (between zero exclusive and stopGraceMax).
 type UnitSpec struct {
-	Name    string
-	Argv    []string
-	Restart RestartPolicy
+	Name      string
+	Argv      []string
+	Restart   RestartPolicy
+	StopGrace time.Duration
 }
 
 // RestartPolicy is a unit's Restart= setting, the two values the guest's
@@ -185,6 +195,12 @@ func (s *Supervisor) lookup(name string) (UnitSpec, error) {
 		if spec.Restart == RestartUnspecified {
 			return UnitSpec{}, fmt.Errorf("built-in unit %s has no restart policy", name)
 		}
+		if spec.StopGrace <= 0 {
+			return UnitSpec{}, fmt.Errorf("built-in unit %s has no stop grace", name)
+		}
+		if spec.StopGrace > stopGraceMax {
+			return UnitSpec{}, fmt.Errorf("built-in unit %s stop grace %s exceeds %s, the bound the systemctl shim waits for", name, spec.StopGrace, stopGraceMax)
+		}
 		return spec, nil
 	}
 	spec, err := readUnitFile(s.root, name)
@@ -220,8 +236,21 @@ func startService(spec UnitSpec, log io.Writer) (*service, error) {
 	return svc, nil
 }
 
-// launch starts one process of the service and records it.
+// errServiceStopping marks a restart that stop overtook: the service is
+// ending, so no new process is started.
+var errServiceStopping = errors.New("the service is stopping")
+
+// launch starts one process of the service and records it. It holds svc.mu
+// across the start, and stop sets stopping under the same lock, so either
+// stop sees the new process and signals it, or launch sees stopping and
+// starts nothing. Without that, a stop during the restart backoff signalled
+// the dead process and then waited forever on a new one nobody signalled.
 func (svc *service) launch() (*exec.Cmd, error) {
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	if svc.stopping {
+		return nil, errServiceStopping
+	}
 	cmd := exec.Command(svc.spec.Argv[0], svc.spec.Argv[1:]...) //nolint:gosec,noctx // the argv is a unit the admin uid installed; the lifecycle is stop's, not a context's
 	cmd.Stdout = svc.log
 	cmd.Stderr = svc.log
@@ -229,9 +258,7 @@ func (svc *service) launch() (*exec.Cmd, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	svc.mu.Lock()
 	svc.process = cmd.Process
-	svc.mu.Unlock()
 	return cmd, nil
 }
 
@@ -261,6 +288,9 @@ func (svc *service) supervise(cmd *exec.Cmd) {
 		}
 		backoff = min(backoff*2, restartBackoffMax)
 		next, err := svc.launch()
+		if errors.Is(err, errServiceStopping) {
+			return
+		}
 		if err != nil {
 			_, _ = fmt.Fprintln(svc.log, "ze-docker-host: start", svc.spec.Name, "failed:", err) //nolint:errcheck // the log is the console
 			return
@@ -313,7 +343,7 @@ func (svc *service) active() bool {
 	}
 }
 
-// stop ends the service: SIGTERM, then SIGKILL after stopGrace, and waits
+// stop ends the service: SIGTERM, then SIGKILL after the unit's StopGrace, and waits
 // for the lifecycle goroutine. MUST be called once, by the owner of the
 // service (the Supervisor, under its map removal).
 func (svc *service) stop() {
@@ -328,7 +358,7 @@ func (svc *service) stop() {
 	select {
 	case <-svc.done:
 		return
-	case <-time.After(stopGrace):
+	case <-time.After(svc.spec.StopGrace):
 	}
 	if process != nil {
 		_ = process.Kill() //nolint:errcheck // a process that already exited is the goal

@@ -73,7 +73,7 @@ func readUnitFile(root, name string) (UnitSpec, error) {
 	if err != nil {
 		return UnitSpec{}, fmt.Errorf("unit %s: %w", name, err)
 	}
-	return UnitSpec{Name: name, Argv: argv, Restart: restart}, nil
+	return UnitSpec{Name: name, Argv: argv, Restart: restart, StopGrace: stopGraceDefault}, nil
 }
 
 // parseRestart maps Restart= to a policy; the values the guest does not
