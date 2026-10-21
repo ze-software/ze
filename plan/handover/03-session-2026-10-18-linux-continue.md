@@ -2149,3 +2149,47 @@ continuation agent from the finished agent `a2c395bd09a52530c`.
   `logNotificationReceived` call in `internal/component/bgp/reactor/session_handlers.go`);
   spec A-4/A-5 rows, decision blocks, header; an independent judge for the RFC9072-2-1
   enforced stamp and the RFC6286-2.1-1 re-judge against its deviation record; the Review Gate.
+
+### LINUX TASK: spec-rfc-verdict-fix-bgp RFC4271-5.1.2-3 records (2026-10-21)
+
+Needs a Linux host with Docker (Colima on the Mac cannot load the `ze-kernel-probe`
+AppArmor profile, and the recorder has no QEMU route for an interop carrier). This is
+the only thing `plan/pre-release/spec-rfc-verdict-fix-bgp.md` waits on (metadata
+"Blocked by"). The exact commands for both polarities are in that spec's Work Not Done
+row 1: positive by revert on `peer_forward_facts.go::prependTo` (citation 3); negative
+by a one-mutant report that drops `!mods.IsWithdraw()` from the EBGP AS_PATH guard in
+`reactor_api_forward.go::forwardUpdateSection` (citation 6). Confirm the negative's red
+is `fail(6)` in the scenario output before trusting the record. Commit the
+`rfc/discrimination/rfc4271.json` change.
+
+### rfc-verdict-fix-bgp record re-take, 2026-10-21 (agent ac8fb1ba, budget reached)
+
+Done in commit "rfc: re-take BGP records staled by the FlowSpec next-hop work":
+13 revert records re-taken over HEAD producer bodies (RFC4271-5.1.2-2 x3, RFC4271-9.2-6,
+RFC5575-4-8 x4, RFC7705-4.2-4, RFC9494-4.3-3 x3), RFC5575-4-8 SHIFTED resealed; spec
+metadata, AC-C1 (Done: 5 weak, all Blocked by), Audit Summary, Goal Validation AC-C1,
+Work Not Done row 1; umbrella D-7 limitation and 52 + 2 count.
+
+Owed by the continuation:
+- `rfc/discrimination/rfc8277.json` (RFC8277-3.2.1-1, producer `mpReachNextHopHandler`)
+  was re-taken but NOT committed: the FlowSpec agent edited that producer in the working
+  tree around the record's time (03:15-03:17), so the record may hold the in-flight body.
+  Re-take it after that edit is committed, then commit.
+- RFC9552-5.1-3 (`rfc9552_propagate_test.go::TestRFC9552UnknownTypesPropagateOnAForwardedUpdate`,
+  producer `reactor_api_forward.go::forwardUpdateSection`) not re-taken: the run hit a
+  build break from the in-flight FlowSpec edit. Re-take after that edit lands.
+- RFC2545-3-1 and -3-2 (`test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci`, producer
+  `reactor_api_relay.go::buildRelayUpdate`, the stored `expect=bgp:conn=1:seq=2:hex=...`
+  citation) run only in the guest: `kernel tmp/kernel/build/vmlinuz`. A guest run was
+  started; check `git diff rfc/discrimination/rfc2545.json` and commit it if written.
+- The in-flight FlowSpec edit (`forward_next_hop.go`, `forward_rs.go`,
+  `reactor_api_forward.go`, `filter_delta_handlers.go`, `peer_forward_facts.go`) will
+  stale the records above again when it lands; that commit owes their re-take.
+- STALE verdicts for an independent judge (not stamped): RFC4659-8-5 and RFC8277-3.2.2-3,
+  both on `filter_delta_handlers.go::mpReachNextHopHandler`. RFC4271-9.2-6's verdict is
+  not stale (only its record was).
+- Spec edits not yet done: Review Gate rows for rounds 2 (findings in `3444b9d8f2`,
+  `35b24fbbc8`) and 3; Pre-Commit AC-C5 row from a fresh `./le rfc check`; the
+  "closed 2026-10-21" to "closed" sweep over the citers of spec-rfc-verdict-fix-bgp
+  (`grep -rn "closed 2026-10-21" plan features`, only lines naming that spec: 14 lines
+  in 11 plan files plus the Defect review row of `features/bgp-protocol.md`).

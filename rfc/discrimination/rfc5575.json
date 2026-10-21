@@ -75,7 +75,7 @@
       "claim-sha": "84ddc6229c7f223b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-      "producer-sha": "00c66da121f7c3e0",
+      "producer-sha": "7e3a8b1964265148",
       "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "667a76bd942d8b30",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-      "producer-sha": "212c223da2a71145",
+      "producer-sha": "8154580967ad27d2",
       "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "4188624aa7a446e9",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-      "producer-sha": "00c66da121f7c3e0",
+      "producer-sha": "7e3a8b1964265148",
       "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "c1cf343cad43174a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-      "producer-sha": "212c223da2a71145",
+      "producer-sha": "8154580967ad27d2",
       "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

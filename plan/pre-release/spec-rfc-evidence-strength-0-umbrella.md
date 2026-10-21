@@ -139,8 +139,10 @@ spec's "Derived listing" filter plus the pre-rename paths
 `internal/plugins/isis/bgpls_export_rfc9552_test.go`): on the verdicts that child
 moved to `enforced`, 478 unit tags over 320 distinct units carry no discrimination
 record (joined to `rfc/discrimination/<stem>.json` on requirement id and unit with
-the `#n` suffix stripped). That child records the 54 tags on the 13 units its own
-commits changed. The other **424 tags** are transferred here: 410 on units no commit
+the `#n` suffix stripped). Of the 54 tags on the 13 units that child's own commits
+changed, it recorded 52 (`31b0b2c235`); the other 2, RFC4271-5.1.2-3 positive and
+negative on the interop carrier `checkRelayWithdrawalShape`, are owed by that child
+on a Linux Docker host. The other **424 tags** are transferred here: 410 on units no commit
 changed between `cb4801b4cc` and `3444b9d8f2`, and 14 on units changed only by other
 specs' producer commits (`82591173b6`, `69b67933a2`, `6019dd0675`, `dce906c381`).
 Separately, 230 of the 807 `enforced` verdicts in those stems (enforced before
@@ -353,7 +355,8 @@ measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
 
 ## Known Limitations
 
-- D-6 and D-7 are open. If the owner rules them in, each becomes its own spec in `plan/pre-release/`.
+- D-6 is open, and so is D-7 outside the BGP group. If the owner rules them in, each becomes its own spec in `plan/pre-release/`.
+- D-7 for the BGP group is decided, not open: the 424 tags transferred from `spec-rfc-verdict-fix-bgp` (owner ruling 2026-10-21, under D-7 above) are owned work scheduled under M2.
 
 ## Checklist
 
