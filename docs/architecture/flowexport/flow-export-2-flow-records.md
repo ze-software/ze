@@ -54,9 +54,10 @@ Enrichment subscribes to `ribevents.BestChange` through the typed handle, not
 through a raw `bus.Subscribe` (`ai/rules/plugins.md`). The in-process EventBus
 arrives through `Registration.ConfigureEventBus`.
 
-`bgpEnrichBuilder` folds best-change batches into a `map[Prefix]ASEntry`. A
-one-second ticker rebuilds an immutable radix tree and swaps it atomically into
-the `enrich.Enricher`. Per-flow readers therefore never observe a partially built
+`bgpEnrichBuilder` folds best-change batches into a `map[Prefix]ASEntry`. When
+the map has changed, a worker rebuilds an immutable radix tree at most once per
+`enrichRebuildInterval` (five seconds) and swaps it atomically into the
+`enrich.Enricher`. Per-flow readers therefore never observe a partially built
 tree. `BestChangeEntry` carries `OriginAS` and `ASPath`, so `ExportFlows` fills
 IPFIX IE 16 and IE 17 (`bgpSourceAsNumber`, `bgpDestinationAsNumber`).
 
