@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-21 | spec-exabgp-6-api-compatibility (review of 7b0bf3a723) | `TestRFC7311ExtendedNextHopCostRecovery` (`internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go`, which reads and inserts into the process-global `locrib.Default()`) | Failed once in a `-count=20` reactor package run; passes alone. The verdict depends on which earlier test left a path in the shared Loc-RIB | open: give the test its own Loc-RIB (an injected instance, or remove its inserted paths in `t.Cleanup`) so the order of tests cannot change its answer |

@@ -2199,7 +2199,26 @@ Owed by the continuation:
 
 ## 2026-10-21 fsfix agent: review of 7b0bf3a723 (FlowSpec redirect next hop)
 
-Done in the working tree, then committed (see the commit after this note):
+Committed as f70588873f (verification debt `plan/verification-debt/29a038dd.md`).
+Owed next, not done (budget): `./le rfc check` over f70588873f and a re-take of
+every record it reports stale whose producer is forwardUpdateSection,
+applyNextHopFamily, payloadNextHop, reactorForwardRSSection or
+mpReachNextHopHandler, including RFC8277-3.2.1-1 (rfc/discrimination/rfc8277.json
+is dirty from another agent's take over the in-flight body: re-take over the
+committed body), RFC9552-5.1-3 (never taken: the build broke on the in-flight
+edit), and RFC2545-3-2 (rfc2545.json dirty, re-taken in a QEMU guest over the
+in-flight reactor_api_relay.go; that file is unchanged by f70588873f, but re-take
+it over the committed tree with `kernel tmp/kernel/build/vmlinuz`). STALE verdicts
+for an independent judge, not stamped: RFC4659-8-5 and RFC8277-3.2.2-3 on
+mpReachNextHopHandler, plus any new one rfc check names. Gates owed: full
+`./le verify worktree`; `go test -count=5 -race` over the whole reactor package
+exceeds go test's 10m default timeout (it ran 601s and was killed mid-test, not
+hung), so it needs `-timeout 30m`; count=1 -race whole package and count=5 -race
+over the FlowSpec tests were green. The TestFlowSpecForwardingOmitsNextHop
+(flowspec_forward_wire_test.go) case already proves a FlowSpec route without
+0x0800 and with a non-zero received next hop leaves with length 0.
+
+What f70588873f does:
 ISSUE 1 (egress strip of 0x0800 -> length 0, `redirectActionLeaves`), ISSUE 2
 (`TestRelayFlowSpecRedirectNextHop`), ISSUE 3 (nhSelfWithheld comment), the NOTEs
 (handler fails closed; peer-own gate on a kept redirect address,
