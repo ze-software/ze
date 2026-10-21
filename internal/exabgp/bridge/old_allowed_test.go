@@ -61,6 +61,8 @@ var oldAllowed = []oldAllowedRow{
 		"5.0 took the IPv6 only components on an IPv4 flow route, and sent traffic-class as an IPv4 dscp or flow-label as nothing; this tree builds an IPv6 flow route, or refuses the mixture"),
 	oldAllow("4.2 5.0", `^announce flow route destination [0-9a-f]*:.*\bdscp\b`, "",
 		"dscp is an IPv4 component (RFC 8955), traffic-class its IPv6 one (RFC 8956): 5.0 put it on an IPv6 flow route, this tree refuses it"),
+	oldAllow("4.2 5.0", `^(announce|withdraw) (flow route|ipv[46] flow) .*(\bdestination(-ipv[46])? .*\bdestination(-ipv[46])? |\bsource(-ipv[46])? .*\bsource(-ipv[46])? )`, "",
+		"RFC 8955 Section 4.2: \"A given component type MAY (exactly once) be present in the Flow Specification.\" 5.0 sent a repeated destination or source prefix as two components; the pin's rule_conflict stops encoding it (_check_component_order, bgp/message/update/nlri/flow.py) and this tree refuses it"),
 	oldAllow("5.0", `^(announce|withdraw) ipv[46] \S+ .*\bsplit\b`, "",
 		"5.0 took `split` in an announce family and ignored it, sending the prefix whole; this tree announces the more specifics, as `announce route ... split` always did"),
 	oldAllow("4.2 5.0", `^(announce|withdraw) (ipv[46] (multicast|nlri-mpls|mpls-vpn|flow)|attributes? .*\b(rd|route-distinguisher|label)\b) .*\bnext-hop .*\bnext-hop\b`, "",
