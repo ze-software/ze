@@ -134,6 +134,9 @@ func Boot(sys System, root string) (*Cidata, error) {
 	if err := writeUserRuntime(sys, root, c); err != nil {
 		return nil, err
 	}
+	if err := seedContainerdConfig(root); err != nil {
+		return nil, err
+	}
 	return c, nil
 }
 

@@ -53,6 +53,24 @@ var shippedLinks = map[string]string{
 	"/usr/sbin/sshd":      shippedDir + "/sshd",
 	"/usr/bin/ssh-keygen": shippedDir + "/ssh-keygen",
 	"/usr/bin/systemctl":  selfPath,
+	// Docker's static release, unpacked under shippedDir/docker: dockerd
+	// finds containerd, the shim, runc, docker-proxy and docker-init on PATH.
+	"/usr/bin/dockerd":                 shippedDir + "/docker/dockerd",
+	"/usr/bin/containerd":              shippedDir + "/docker/containerd",
+	"/usr/bin/containerd-shim-runc-v2": shippedDir + "/docker/containerd-shim-runc-v2",
+	"/usr/bin/runc":                    shippedDir + "/docker/runc",
+	"/usr/bin/ctr":                     shippedDir + "/docker/ctr",
+	"/usr/bin/docker":                  shippedDir + "/docker/docker",
+	"/usr/bin/docker-proxy":            shippedDir + "/docker/docker-proxy",
+	"/usr/bin/docker-init":             shippedDir + "/docker/docker-init",
+	// Static legacy iptables, dockerd's firewall backend (spec A-5): the
+	// static dockerd's nftables backend execs nft, which is not shipped.
+	"/usr/sbin/iptables":          shippedDir + "/xtables-legacy-multi",
+	"/usr/sbin/iptables-save":     shippedDir + "/xtables-legacy-multi",
+	"/usr/sbin/iptables-restore":  shippedDir + "/xtables-legacy-multi",
+	"/usr/sbin/ip6tables":         shippedDir + "/xtables-legacy-multi",
+	"/usr/sbin/ip6tables-save":    shippedDir + "/xtables-legacy-multi",
+	"/usr/sbin/ip6tables-restore": shippedDir + "/xtables-legacy-multi",
 }
 
 // exitDoNotRestart is the exit status gokrazy's supervisor reads as "do not
@@ -102,11 +120,11 @@ func RunGuest() int {
 // serveForever serves the supervisor, starts sshd, runs boot.sh when c is
 // given, and then never returns: the supervisor lives as long as the guest.
 func serveForever(console io.Writer, c *Cidata) int {
-	sup, err := NewSupervisor("/", 0, []UnitSpec{{
+	sup, err := NewSupervisor("/", 0, append([]BuiltinUnit{FixedUnit(UnitSpec{
 		Name:    "sshd.service",
 		Argv:    []string{shippedDir + "/sshd", "-D", "-e", "-f", "/etc/ssh/sshd_config"},
 		Restart: RestartAlways,
-	}})
+	})}, DockerUnits()...))
 	if err != nil {
 		_, _ = fmt.Fprintln(console, "ze-docker-host: supervisor:", err) //nolint:errcheck // console
 		return 1

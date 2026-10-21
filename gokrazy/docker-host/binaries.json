@@ -1,0 +1,39 @@
+{
+    "builder": "alpine@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+    "downloads": [
+        {
+            "name": "docker",
+            "version": "29.9.2",
+            "arch": "arm64",
+            "url": "https://download.docker.com/linux/static/stable/aarch64/docker-29.9.2.tgz",
+            "sha256": "873b3e0207857c3b2f28392fb922f3ea6efe37620c16d4d4aaf2fef409c90b73"
+        },
+        {
+            "name": "docker",
+            "version": "29.9.2",
+            "arch": "amd64",
+            "url": "https://download.docker.com/linux/static/stable/x86_64/docker-29.9.2.tgz",
+            "sha256": "9ac225999fd5e863f7694c728ef23d480616b1e5639328fa309befd4243d69eb"
+        }
+    ],
+    "sources": [
+        {
+            "name": "openssh",
+            "version": "9.9p2",
+            "url": "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.9p2.tar.gz",
+            "sha256": "91aadb603e08cc285eddf965e1199d02585fa94d994d6cae5b41e1721e215673"
+        },
+        {
+            "name": "sudo",
+            "version": "1.9.16p2",
+            "url": "https://www.sudo.ws/dist/sudo-1.9.16p2.tar.gz",
+            "sha256": "976aa56d3e3b2a75593307864288addb748c9c136e25d95a9cc699aafa77239c"
+        },
+        {
+            "name": "iptables",
+            "version": "1.8.13",
+            "url": "https://www.netfilter.org/pub/iptables/iptables-1.8.13.tar.xz",
+            "sha256": "1afcd33da9e8f913ace6a2126788162e207e26f5d5e29c6573c0e581ffc58b99"
+        }
+    ]
+}

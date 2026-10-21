@@ -19,7 +19,8 @@ and the guest exposes nothing there but sshd (Lima's own channel) and,
 through it, the Docker socket. The kernel command line names both
 consoles, `hvc0` (vz, virtio console) and `ttyS0` (QEMU), so either boot logs.
 The third-party binaries (busybox, a static musl OpenSSH built without OpenSSL,
-a static musl sudo) reach the image as the extra files tar
+a static musl sudo, a static legacy iptables, Docker's static release) reach
+the image as the extra files tar
 `extrafiles_<arch>.tar`, under `/usr/lib/ze-docker-host/`. The tar is assembled
 at build time and never committed.
 
@@ -106,6 +107,59 @@ its `Restart=` policy, with a backoff from 1 to 30 seconds.
 <!-- source: internal/appliance/dockerhost/systemctl.go -- verbs, Serve, RunShim -->
 <!-- source: internal/appliance/dockerhost/supervise.go -- Supervisor, service.supervise -->
 <!-- source: internal/appliance/dockerhost/unitfile.go -- readUnitFile, expandSpecifiers -->
+
+## Docker under the supervisor
+
+The image carries Docker's official static release, unpacked under
+`/usr/lib/ze-docker-host/docker/` and linked into `/usr/bin`, and a static
+legacy `iptables` (`xtables-legacy-multi`, linked as `iptables`,
+`ip6tables` and their `-save` and `-restore` forms). The supervisor knows two
+units besides `sshd.service`, so Colima's `systemctl start docker.service`
+and `restart containerd.service` work with no unit file:
+
+| Unit | Command |
+|------|---------|
+| `containerd.service` | `containerd --config /etc/containerd/config.toml` |
+| `docker.service` | `dockerd --host=unix:///var/run/docker.sock --group=docker --containerd=/run/containerd/containerd.sock`, plus `--host-gateway-ip=<ip>` when Colima's drop-in names one |
+
+dockerd's argv is fixed. Colima's drop-in
+`/etc/systemd/system/docker.service.d/docker.conf` says `-H fd://`, which
+assumes systemd socket activation; the supervisor reads only
+`--host-gateway-ip` from it, when the unit starts, and refuses a value that
+is not an IP address. Every other daemon setting reaches dockerd through
+`/etc/docker/daemon.json`, which dockerd reads itself. Both units restart
+whenever they exit.
+
+The firewall backend is dockerd's default, iptables. Docker's static build
+links the `nft`-executing variant of its nftables backend (moby
+`daemon/libnetwork/internal/nftables/nft_exec_linux.go`, build tag
+`static_build`, which runs `exec.LookPath("nft")`), so the nftables backend
+would need an `nft` binary and its libraries; legacy `iptables` builds with
+none, and the runtime kernel carries the legacy tables Docker uses.
+
+The boot writes `/etc/containerd/config.toml` (`version = 2`, containerd's
+defaults) when it is absent. Colima backs that file up with `sudo cp` before
+it writes its own, and the copy needs a file to copy.
+
+<!-- source: internal/appliance/dockerhost/docker.go -- DockerUnits, resolveDockerd, seedContainerdConfig -->
+
+## The pin file
+
+`gokrazy/docker-host/binaries.json` is the only home of the third-party
+versions and sums: the builder container image (by digest), Docker's static
+release per arch, and the OpenSSH, sudo and iptables source tarballs. le's
+`setup docker-host` area (`internal/le/setup/dockerhost`) loads it with
+`LoadPins`, which refuses an unknown key, a sum that is not 64 lowercase hex
+digits, a download for an arch Ze does not build, and a builder not pinned by
+digest. `Fetcher.Fetch` downloads into `~/.cache/ze/docker-host/downloads/`
+and checks the sha256 on the download and again on every reuse of the cached
+copy; a mismatch refuses naming the file, both sums and the pin file, and
+leaves nothing in the cache. `ImageKey` digests the builder, the arch's Docker
+pin, every source pin, the runtime kernel key and the guest source digest, so
+the same inputs always give the same key and a change to any gives a new one.
+
+<!-- source: internal/le/setup/dockerhost/pins.go -- LoadPins, ImageKey -->
+<!-- source: internal/le/setup/dockerhost/fetch.go -- Fetcher.Fetch -->
 
 ## Kernel
 

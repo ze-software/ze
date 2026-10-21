@@ -55,13 +55,14 @@ const (
 )
 
 // Supervisor runs the guest's services and answers the systemctl shim.
-// Built-in units (sshd) are given at construction; every other unit is read
+// Built-in units (sshd, containerd, dockerd) are given at construction and
+// resolved when started; every other unit is read
 // from /etc/systemd/system when it is started, so a unit Lima writes is known
 // as soon as it exists. Safe for concurrent use.
 type Supervisor struct {
 	root     string
 	adminUID uint32
-	builtin  map[string]UnitSpec
+	builtin  map[string]BuiltinUnit
 	log      io.Writer
 
 	mu    sync.Mutex
@@ -71,18 +72,29 @@ type Supervisor struct {
 // NewSupervisor answers a supervisor over root ("/" in the guest). adminUID
 // is the only uid allowed to change a unit's state (0 in the guest). log
 // receives every service's output; nil discards it.
-func NewSupervisor(root string, adminUID uint32, builtin []UnitSpec) (*Supervisor, error) {
-	s := &Supervisor{root: root, adminUID: adminUID, builtin: map[string]UnitSpec{}, log: io.Discard, units: map[string]*service{}}
-	for _, spec := range builtin {
-		if len(spec.Argv) == 0 {
-			return nil, fmt.Errorf("built-in unit %s has no command", spec.Name)
+func NewSupervisor(root string, adminUID uint32, builtin []BuiltinUnit) (*Supervisor, error) {
+	s := &Supervisor{root: root, adminUID: adminUID, builtin: map[string]BuiltinUnit{}, log: io.Discard, units: map[string]*service{}}
+	for _, unit := range builtin {
+		if unit.Resolve == nil {
+			return nil, fmt.Errorf("built-in unit %s has no resolver", unit.Name)
 		}
-		if spec.Restart == RestartUnspecified {
-			return nil, fmt.Errorf("built-in unit %s has no restart policy", spec.Name)
-		}
-		s.builtin[spec.Name] = spec
+		s.builtin[unit.Name] = unit
 	}
 	return s, nil
+}
+
+// BuiltinUnit is a unit the guest program defines instead of a unit file.
+// Resolve answers its spec when the unit is started, so a unit whose argv
+// depends on a file another program writes (Colima's docker.conf drop-in)
+// reads it then, never at construction.
+type BuiltinUnit struct {
+	Name    string
+	Resolve func(root string) (UnitSpec, error)
+}
+
+// FixedUnit is a BuiltinUnit whose spec never changes.
+func FixedUnit(spec UnitSpec) BuiltinUnit {
+	return BuiltinUnit{Name: spec.Name, Resolve: func(string) (UnitSpec, error) { return spec, nil }}
 }
 
 // SetLog sends every service's output to log. It MUST be called before the
@@ -162,7 +174,17 @@ var errUnitNotFound = errors.New("unit not found")
 
 // lookup answers the built-in unit or the one in /etc/systemd/system.
 func (s *Supervisor) lookup(name string) (UnitSpec, error) {
-	if spec, ok := s.builtin[name]; ok {
+	if unit, ok := s.builtin[name]; ok {
+		spec, err := unit.Resolve(s.root)
+		if err != nil {
+			return UnitSpec{}, fmt.Errorf("%s: %w", name, err)
+		}
+		if len(spec.Argv) == 0 {
+			return UnitSpec{}, fmt.Errorf("built-in unit %s has no command", name)
+		}
+		if spec.Restart == RestartUnspecified {
+			return UnitSpec{}, fmt.Errorf("built-in unit %s has no restart policy", name)
+		}
 		return spec, nil
 	}
 	spec, err := readUnitFile(s.root, name)
