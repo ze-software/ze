@@ -1936,3 +1936,30 @@ Owed, in order:
 Note: while another session's internal/component/config/yang and internal/exabgp/bridge edits
 do not build, run Go tests with `-overlay` mapping those dirty files to HEAD, and functional
 tests with `GOFLAGS=-overlay=<json>` (the harness's go build inherits it).
+
+## 2026-10-21: closing spec-plugin-ownership-imports (closure agent ran out of budget)
+
+Done and committed: `9997a1b5a8` (numberparse: three AS parses to `asn.Parse`, stale
+allowlist line; `./le repo tree-check` green), `9e008044bb` (`TestRibProxyRPCRegistration`
+selects proxy RPCs by `PluginCommand`, ElementsMatch, ledger `test/weakened/25bc7201.md`),
+`1d4f2ade74` (filterapi hooks called outside `mu.RLock`, red/green test; NOT yet independently
+reviewed), and the commit carrying this note: the spec's closure record (AC-11d superseded
+by `4e01d13a6e`, Architectural Verification, A-1..A-9, TDD Status, Goal Validation, all
+TEMPLATE-CLOSURE sections) plus journal rows for the radius reload test, the l2tp/ppp
+link-local tests (darwin red, `installLinkLocal` called only from `ipv6_service_linux.go`)
+and the `TestReloadRemovalFailureRecoversCommittedService` flake.
+
+Left, in order, for a fresh closure agent:
+1. Clear the citers before commit B (ze-close step 6d), bare stem `spec-plugin-ownership-imports`:
+   `plan/immediate/spec-bgp-ls-receiver-accept-and-limit-controls.md` (two lines),
+   `plan/spec-yang-feature-opt-ins-owned-by-feature.md` (three lines),
+   `plan/handoff-linux-2026-10-12.md`, `plan/handover/02-session-2026-10-17-tests-green-and-rfc.md`.
+   Re-run `git grep -n plan/pre-release/spec-plugin-ownership-imports`.
+2. An independent review of `1d4f2ade74` (two filterapi files changed after the CLEAN
+   artifact `tmp/review/plugin-ownership-imports-8385ff13-31c1-470c-822b-d731474836f1.md`).
+   If commit B's `CheckReview` refuses on the stale hashes, re-record the artifact after
+   that review.
+3. Commit B: `./le commit create replace remove plan/pre-release/spec-plugin-ownership-imports.md`
+   (citer edits ride in a commit before it), then `./le spec release` and `./le spec citation`.
+4. `le-placement-answers.ci` is red only on another session's uncommitted
+   `nlri/mup/types.go` (three exported symbols with no caller); not this spec's.
