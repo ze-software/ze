@@ -305,7 +305,7 @@ kernel that lacks one.
 guest", is the guest path; the scheduled nightly runs the same path on amd64
 under KVM (`docs/architecture/testing/ci-workflows.md`).
 
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->

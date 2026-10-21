@@ -2,7 +2,6 @@
 package testqemu
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,14 +21,14 @@ esac
 exit 0
 `
 
-// VALIDATES: AC-6 evidence. The lab line reports, on its way out, what the
-// guest dockerd still holds of the lab: containers and networks carrying the
-// ze.lab label and the run-owned ze-interop-retained image tags. The DUT image
-// kept under its cache tag is allowed to stay and is not listed. The report
-// runs on every exit, keeps the lab's exit status, and says "unknown" rather
-// than "none" when dockerd cannot answer.
-// METHOD: run dockerLabLeftoverTrap followed by `exit 3` under /bin/sh with a
-// fake docker first on PATH.
+// VALIDATES: AC-6 and AC-10 evidence. Once the host le's lab ends, normally,
+// failed or interrupted, le lists what the guest dockerd still holds of the
+// lab: containers and networks carrying the ze.lab label and the run-owned
+// ze-interop-retained image tags. The DUT image kept under its cache tag is
+// allowed to stay and is not listed. The listing says "unknown" rather than
+// "none" when dockerd cannot answer, and exits 0 either way.
+// METHOD: run dockerLabLeftoverListing under /bin/sh, as the guest's ssh
+// session does, with a fake docker first on PATH.
 // PREVENTS: an interrupted lab whose leftovers nobody sees before the VM takes
 // them, and a dockerd failure reported as a clean guest.
 func TestDockerLabReportsWhatTheGuestStillHolds(t *testing.T) {
@@ -43,39 +42,21 @@ func TestDockerLabReportsWhatTheGuestStillHolds(t *testing.T) {
 		env  []string
 		want string
 	}{
-		{"clean guest", nil, "interop guest: left behind: none\n"},
+		{"clean guest", nil, "docker-lab: left behind: none\n"},
 		{"leftovers", []string{"FAKE_CONTAINERS=ze-dut ze-peer", "FAKE_NETWORKS=ze-lab-net", "FAKE_IMAGES=ze-interop-retained:AB12"},
-			"interop guest: left behind: container ze-dut, container ze-peer, network ze-lab-net, image ze-interop-retained:AB12\n"},
-		{"dockerd silent", []string{"FAKE_DOCKER_FAILS=1"}, "interop guest: left behind: unknown"},
+			"docker-lab: left behind: container ze-dut, container ze-peer, network ze-lab-net, image ze-interop-retained:AB12\n"},
+		{"dockerd silent", []string{"FAKE_DOCKER_FAILS=1"}, "docker-lab: left behind: unknown"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			line := exec.CommandContext(t.Context(), "/bin/sh", "-c", dockerLabLeftoverTrap()+"exit 3")
+			line := exec.CommandContext(t.Context(), "/bin/sh", "-c", dockerLabLeftoverListing)
 			line.Env = append(os.Environ(), tc.env...)
 			output, err := line.Output()
-			exit, ok := errors.AsType[*exec.ExitError](err)
-			if !ok || exit.ExitCode() != 3 {
-				t.Errorf("the line answered %v, want the lab's exit status 3", err)
+			if err != nil {
+				t.Errorf("the listing answered %v, want exit 0", err)
 			}
 			if !strings.HasPrefix(string(output), tc.want) {
 				t.Errorf("report = %q, want it to start %q", output, tc.want)
 			}
 		})
-	}
-}
-
-// VALIDATES: the leftover report is armed right before the lab and only when a
-// lab runs, so a failed dockerd start or kernel check reports nothing about a
-// lab that never started.
-func TestDockerLabArmsTheLeftoverReportBeforeTheLab(t *testing.T) {
-	report := dockerLabLeftoverTrap()
-	withLab := dockerLabCommand("arm64", []string{"perf", "run", "dut", "ze"}, nil)
-	armed := strings.Index(withLab, report)
-	check := strings.Index(withLab, " setup docker-kernel check ze ")
-	lab := strings.Index(withLab, "'perf' 'run' 'dut' 'ze'")
-	if armed < 0 || armed < check || armed > lab {
-		t.Errorf("report armed at %d, want it between the check (%d) and the lab (%d):\n%s", armed, check, lab, withLab)
-	}
-	if strings.Contains(dockerLabCommand("arm64", nil, nil), report) {
-		t.Error("the check-only line arms a leftover report for a lab it never runs")
 	}
 }

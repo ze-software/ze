@@ -1,135 +1,126 @@
+// Design: docs/architecture/testing/qemu-integration.md -- Docker labs on the docker-host image
+
 package testqemu
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/appliance/dockerhost"
 )
 
-// VALIDATES: D-6, AC-8 and AC-10's one guest path. The guest starts Docker,
-// waits for it with a bound, runs the Docker kernel check probing with a real
-// linux ze built for the guest, and only then runs the lab, as `le <lab words>`.
-// PREVENTS: a lab started before the check, or on a daemon that never came up,
-// whose failures would read as Ze's; and the check probing with the guest le,
-// whose ze personality has no `doctor` (the first HVF boot on 2026-10-10 ended
-// "unknown command: doctor").
-func TestDockerLabCommandChecksTheKernelBeforeTheLab(t *testing.T) {
-	command := dockerLabCommand("arm64", []string{"test", "integration", "interop-ipsec"}, nil)
-
-	guestLe := filepath.ToSlash(filepath.Join(GuestWorkspace, GuestLeRel("arm64")))
-	guestZe := filepath.ToSlash(filepath.Join(GuestWorkspace, GuestZeRel("arm64")))
-	start := strings.Index(command, "rc-service docker start")
-	ready := strings.Index(command, "docker info")
-	check := strings.Index(command, shellQuote(guestLe)+" setup docker-kernel check ze "+shellQuote(guestZe))
-	lab := strings.Index(command, shellQuote(guestLe)+" 'test' 'integration' 'interop-ipsec'")
-	if start < 0 || ready < 0 || check < 0 || lab < 0 {
-		t.Fatalf("guest command lacks a step (start %d, ready %d, check %d, lab %d):\n%s", start, ready, check, lab, command)
-	}
-	if start >= ready || ready >= check || check >= lab {
-		t.Fatalf("guest command steps out of order (start %d, ready %d, check %d, lab %d):\n%s", start, ready, check, lab, command)
-	}
-	if !strings.HasPrefix(command, "set -e;") {
-		t.Errorf("a failed step does not stop the guest command:\n%s", command)
-	}
-	// Review round 4, NOTE 2: the guest marks itself before the check, so a
-	// refusal names the appliance kernel's fix, not an install into the guest.
-	if marker := strings.Index(command, "export "+interoplab.DockerLabGuestVariable+"=1;"); marker < 0 || marker >= check {
-		t.Errorf("the guest command does not mark the Docker lab guest before the check:\n%s", command)
-	}
-	if !strings.Contains(command, "60") {
-		t.Errorf("the wait for dockerd carries no bound:\n%s", command)
-	}
-}
-
-// VALIDATES: with no lab the guest command ends at the kernel check, which is
-// what the boot proof (TestDockerLabGuestBootsZeKernel) runs.
-// PREVENTS: an empty lab running `le` bare, which lists actions and exits 0.
-func TestDockerLabCommandWithoutALabEndsAtTheCheck(t *testing.T) {
-	command := dockerLabCommand("amd64", nil, nil)
-	guestLe := filepath.ToSlash(filepath.Join(GuestWorkspace, GuestLeRel("amd64")))
-	guestZe := filepath.ToSlash(filepath.Join(GuestWorkspace, GuestZeRel("amd64")))
-	want := shellQuote(guestLe) + " setup docker-kernel check ze " + shellQuote(guestZe)
-	if !strings.HasSuffix(command, want) {
-		t.Fatalf("guest command does not end at the check %q:\n%s", want, command)
-	}
-}
-
-// VALIDATES: `env` reaches the lab and only the lab: the suites select one
-// scenario from the environment (INTEROP_SCENARIO, IPSEC_INTEROP_SCENARIO), and
-// the host's environment never reaches the guest.
-// PREVENTS: a one-scenario run on the Mac being impossible, so every proof runs
-// a whole suite; and a malformed assignment reaching the guest shell.
-func TestDockerLabEnvironmentReachesOnlyTheLab(t *testing.T) {
-	environment, err := dockerLabEnvironment("IPSEC_INTEROP_SCENARIO=mobike-initiator", true)
-	if err != nil {
-		t.Fatalf("a well-formed assignment refused: %v", err)
-	}
-	command := dockerLabCommand("arm64", []string{"test", "integration", "interop-ipsec"}, environment)
-	guestLe := shellQuote(filepath.ToSlash(filepath.Join(GuestWorkspace, GuestLeRel("arm64"))))
-	lab := "env 'IPSEC_INTEROP_SCENARIO=mobike-initiator' " + guestLe + " 'test' 'integration' 'interop-ipsec'"
-	if !strings.HasSuffix(command, lab) {
-		t.Fatalf("the lab does not run under its environment, want suffix %q:\n%s", lab, command)
-	}
-	if strings.Count(command, "IPSEC_INTEROP_SCENARIO") != 1 {
-		t.Errorf("the environment reaches more than the lab:\n%s", command)
-	}
-
-	for _, refused := range []struct {
-		value string
-		lab   bool
-	}{
-		{"IPSEC_INTEROP_SCENARIO=mobike-initiator", false},
-		{"mobike-initiator", false},
-		{"IPSEC_INTEROP_SCENARIO=a", false},
-		{"1BAD=x", true},
-		{"BAD NAME=x", true},
-		{"=x", true},
-		{"lower=x", true},
-		{"NOVALUE", true},
-	} {
-		if _, err := dockerLabEnvironment(refused.value, refused.lab); err == nil {
-			t.Errorf("env %q (lab %v) was accepted", refused.value, refused.lab)
-		}
-	}
-	if environment, err := dockerLabEnvironment("", false); err != nil || environment != nil {
-		t.Errorf("no env answered %v, %v; want nothing", environment, err)
-	}
-}
-
-// VALIDATES: the guest boots the kernel the cache entry holds for the guest's
-// architecture, and an absent entry refuses naming the build that writes it
-// (R-2), before any guest boots.
-// PREVENTS: a silent fall back to the Alpine ISO kernel, whose verdict would
-// describe Alpine rather than Ze.
-func TestDockerLabKernelComesFromTheCacheEntry(t *testing.T) {
-	cache := t.TempDir()
-	if _, err := dockerLabKernel(cache, "arm64"); err == nil {
-		t.Fatal("an empty cache entry answered a kernel")
-	} else {
-		for _, want := range []string{filepath.Join(cache, "vmlinuz"), "\n  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch arm64"} {
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("refusal does not name %q: %v", want, err)
+// VALIDATES: spec AC-9's boot, TestDockerLabBootsTheDockerHostImage's row:
+// QEMU boots the docker-host image (snapshot=on, so the cached file is never
+// written), then the cidata volume as the last virtio disk; arm64 names its
+// UEFI firmware and amd64 none; every share is exported at its host path; and
+// no Alpine kernel, initramfs or ISO is on the line.
+// PREVENTS: a boot that writes the shared image, an arm64 guest with no
+// firmware, a share the guest mounts somewhere a bind mount does not look, and
+// the Alpine medium creeping back.
+func TestDockerLabBootsTheDockerHostImage(t *testing.T) {
+	for _, goarch := range []string{ArchARM64, "amd64"} {
+		t.Run(goarch, func(t *testing.T) {
+			vm := dockerLabVM{
+				goarch: goarch, accelerator: "hvf", firmware: "/fw/edk2-aarch64-code.fd",
+				image: "/cache/docker-host.img", cidata: "/run/cidata.iso", console: "/run/console.log",
+				memory: "4096", cpus: "4", sshPort: 2222,
+				shares: []dockerLabShare{{tag: "zelab0", point: "/Users/someone/ze"}, {tag: "zelab1", point: "/scratch/tmp"}},
 			}
+			argv := strings.Join(vm.argv(), " ")
+			image := strings.Index(argv, "-drive file=/cache/docker-host.img,format=raw,if=virtio,snapshot=on")
+			cidata := strings.Index(argv, "-drive file=/run/cidata.iso,format=raw,if=virtio,readonly=on")
+			if image < 0 || cidata < image {
+				t.Errorf("want the image drive with snapshot=on, then the read-only cidata drive:\n%s", argv)
+			}
+			if hasFirmware := strings.Contains(argv, "-bios /fw/edk2-aarch64-code.fd"); hasFirmware != (goarch == ArchARM64) {
+				t.Errorf("firmware on the line = %v for %s:\n%s", hasFirmware, goarch, argv)
+			}
+			for _, want := range []string{
+				"-virtfs local,path=/Users/someone/ze,mount_tag=zelab0,",
+				"-virtfs local,path=/scratch/tmp,mount_tag=zelab1,",
+				"hostfwd=tcp:127.0.0.1:2222-:22",
+				"virtconsole,chardev=console0",
+			} {
+				if !strings.Contains(argv, want) {
+					t.Errorf("argv lacks %q:\n%s", want, argv)
+				}
+			}
+			for _, banned := range []string{"-kernel", "-initrd", "-cdrom", "alpine"} {
+				if strings.Contains(argv, banned) {
+					t.Errorf("argv carries %q:\n%s", banned, argv)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: the cidata le writes passes the guest's own parser, and every
+// share is a 9p mount at its host path (spec R-7).
+// METHOD: write the file set to a directory and run dockerhost.ParseCidata,
+// the function the guest runs at boot.
+// PREVENTS: a volume the guest refuses at boot, which shows only on the
+// guest's console, and a checkout mounted where the host le's paths do not
+// resolve.
+func TestDockerLabCidataPassesTheGuestParser(t *testing.T) {
+	guest := dockerLabGuest{
+		instanceID: "docker-lab-42-1761040000", publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest ze-docker-lab",
+		shares: []dockerLabShare{{tag: "zelab0", point: "/Users/someone/Code/ze"}},
+	}
+	dir := t.TempDir()
+	for _, file := range guest.cidataFiles() {
+		if err := os.WriteFile(filepath.Join(dir, file.name), file.body, 0o600); err != nil {
+			t.Fatal(err)
 		}
 	}
-
-	if err := os.WriteFile(filepath.Join(cache, "vmlinuz"), []byte("kernel"), 0o600); err != nil {
-		t.Fatalf("write the cached kernel: %v", err)
-	}
-	kernel, err := dockerLabKernel(cache, "arm64")
+	parsed, err := dockerhost.ParseCidata(dir)
 	if err != nil {
-		t.Fatalf("a cache entry holding vmlinuz refused: %v", err)
+		t.Fatalf("the guest refuses le's cidata: %v", err)
 	}
-	if kernel != filepath.Join(cache, "vmlinuz") {
-		t.Fatalf("kernel = %q, want the cache entry's vmlinuz", kernel)
+	if parsed.User != dockerLabUser || parsed.Home != dockerLabHome || parsed.UID != 1001 {
+		t.Errorf("user %q home %q uid %d", parsed.User, parsed.Home, parsed.UID)
+	}
+	if !slices.Equal(parsed.AuthorizedKeys, []string{guest.publicKey}) {
+		t.Errorf("authorized keys %q, want the run's key alone", parsed.AuthorizedKeys)
+	}
+	want := []dockerhost.Mount{{Tag: "zelab0", Point: "/Users/someone/Code/ze", FSType: "9p", Options: ninePOptions}}
+	if !slices.Equal(parsed.Mounts, want) {
+		t.Errorf("mounts %+v, want %+v", parsed.Mounts, want)
+	}
+}
+
+// VALIDATES: the host le runs the kernel check probing with the linux ze,
+// then the lab as `le <words>`, under `env` with the lab's assignments only,
+// and both reach the guest's daemon through DOCKER_HOST.
+// PREVENTS: a lab run against the host's own Docker, and a selector that
+// reaches the check rather than the lab.
+func TestDockerLabHostLeTargetsTheForwardedSocket(t *testing.T) {
+	check := dockerLabCheckArgv("/ze", "/ze/tmp/qemu/linux-arm64/ze")
+	if got := strings.Join(check, " "); got != "/ze/le setup docker-kernel check ze /ze/tmp/qemu/linux-arm64/ze" {
+		t.Errorf("check argv %q", got)
+	}
+	lab := dockerLabHostArgv("/ze", []string{"test", "integration", "interop-ipsec"}, []string{"IPSEC_INTEROP_SCENARIO=mobike-initiator"})
+	if got := strings.Join(lab, " "); got != "env IPSEC_INTEROP_SCENARIO=mobike-initiator /ze/le test integration interop-ipsec" {
+		t.Errorf("lab argv %q", got)
+	}
+	environ := dockerLabEnviron([]string{"HOME=/h", "DOCKER_HOST=unix:///Users/h/.colima/ze/docker.sock"}, "/ze/tmp/qemu/docker-lab-1/docker.sock")
+	if !slices.Contains(environ, "DOCKER_HOST=unix:///ze/tmp/qemu/docker-lab-1/docker.sock") || slices.Contains(environ, "DOCKER_HOST=unix:///Users/h/.colima/ze/docker.sock") {
+		t.Errorf("environ %q does not name the forwarded socket alone", environ)
+	}
+	if _, err := dockerLabEnvironment("FOO=bar", false); err == nil {
+		t.Error("env without a lab was accepted")
+	}
+	if _, err := dockerLabEnvironment("lower=bar", true); err == nil {
+		t.Error("a lower-case env name was accepted")
 	}
 }
 
 // VALIDATES: the action is registered with its keywords, so `./le test qemu`
-// lists it and the grammar accepts `lab` and `timeout`.
+// lists it and the grammar accepts `lab`, `env` and `timeout`.
 func TestDockerLabActionIsRegistered(t *testing.T) {
 	for _, action := range Actions().Actions {
 		if action.Verb != dockerLabVerb {
@@ -147,4 +138,176 @@ func TestDockerLabActionIsRegistered(t *testing.T) {
 		return
 	}
 	t.Fatalf("no %s action in the test qemu table", dockerLabVerb)
+}
+
+// Fakes for TestDockerLabForwardsOneInterruptThenStopsTheVM. Each appends
+// what it saw to $LOG, so the test reads the order of events. The ssh fake
+// creates the socket file under umask 177, as ssh does under
+// StreamLocalBindMask=0177, so the file is 0600 from creation: a create then
+// chmod left a window in which forward's poll saw 0644 and failed the run.
+const (
+	fakeDockerLabQEMU = `#!/bin/sh
+trap 'echo "qemu stopped" >> "$LOG"; exit 0' INT TERM
+while :; do sleep 0.1; done
+`
+	fakeDockerLabSSH = `#!/bin/sh
+while [ $# -gt 0 ]; do [ "$1" = -L ] && sock="${2%%:*}"; shift; done
+(umask 177 && : > "$sock")
+trap 'exit 0' TERM
+while :; do sleep 0.1; done
+`
+	fakeDockerLabLe = `#!/bin/sh
+echo "le $* DOCKER_HOST=$DOCKER_HOST" >> "$LOG"
+[ "$1" = setup ] && exit 0
+trap 'echo "le teardown" >> "$LOG"; exit 130' INT
+while :; do sleep 0.1; done
+`
+)
+
+// VALIDATES: spec AC-10's order, over fakes. The host le runs the check, then
+// the lab, both with DOCKER_HOST on the forwarded socket; one interrupt of the
+// run reaches the lab le once and its own teardown runs; le then lists the
+// guest's leftovers, "none", and only after that is the VM stopped; the run
+// answers interrupted, exit 1.
+// METHOD: dockerLab over a fake QEMU and ssh forward on PATH, a fake le at the
+// checkout root, and ops.Run answering ssh-keygen and the guest commands; the
+// root context is canceled once the lab le logs its start.
+// PREVENTS: a VM stopped under a lab that is still removing its containers,
+// a leftover listing that never runs after an interrupt, and an interrupt
+// that ends the run with exit 0.
+func TestDockerLabForwardsOneInterruptThenStopsTheVM(t *testing.T) {
+	run, tree, logPath := fakeDockerLabRun(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	finished := make(chan DockerLabReport, 1)
+	go func() {
+		report, err := run.dockerLab(ctx, dockerLabRequest{image: "/img", linuxZe: "/ze", lab: []string{"test", "lab"}})
+		if err != nil {
+			t.Errorf("dockerLab: %v", err)
+			appendLog(t, logPath, "le test lab (failed)")
+		}
+		finished <- report
+	}()
+	for deadline := time.Now().Add(20 * time.Second); !strings.Contains(readLog(t, logPath), "le test lab"); {
+		if time.Now().After(deadline) {
+			t.Fatalf("the lab le never started; events:\n%s", readLog(t, logPath))
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	cancel()
+	report := <-finished
+
+	if !report.Interrupted || dockerLabExitCode(&report, true) != 1 || report.LeftBehind != "none" {
+		t.Errorf("report %+v: want interrupted, exit 1, left behind none", report)
+	}
+	events := strings.Split(strings.TrimSpace(readLog(t, logPath)), "\n")
+	if len(events) != 5 {
+		t.Fatalf("events %q, want check, lab, teardown, listing, qemu stopped", events)
+	}
+	socket := "DOCKER_HOST=unix://" + filepath.Join(tree, "tmp", "qemu")
+	for i, want := range []string{"le setup docker-kernel check ze /ze " + socket, "le test lab " + socket, "le teardown", "listing", "qemu stopped"} {
+		if !strings.HasPrefix(events[i], want) {
+			t.Errorf("event %d = %q, want it to start %q", i, events[i], want)
+		}
+	}
+}
+
+// fakeDockerLabRun answers a Run whose QEMU and ssh forward are the fakes on
+// PATH and whose checkout root holds the fake le, with ops.Run answering
+// ssh-keygen and the guest's leftover listing, and the checkout and the event
+// log it writes to.
+func fakeDockerLabRun(t *testing.T) (*Run, string, string) {
+	t.Helper()
+	tree, err := os.MkdirTemp("/tmp", "zdl") // short: the socket path must fit sun_path
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(tree) }) //nolint:errcheck // test cleanup
+	if err := os.Mkdir(filepath.Join(tree, "tmp"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	for name, body := range map[string]string{runQEMUBinary("amd64"): fakeDockerLabQEMU, sshProgram: fakeDockerLabSSH} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o700); err != nil { //nolint:gosec // an executable test fixture
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(tree, "le"), []byte(fakeDockerLabLe), 0o700); err != nil { //nolint:gosec // an executable test fixture
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(tree, "events.log")
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("LOG", logPath)
+
+	run := NewRun(tree, RunOptions{Memory: "512", CPUs: "1", Boot: 10 * time.Second, Timeout: time.Minute, SSHPort: 2222, HardwareOnly: true})
+	run.ops.GOARCH = "amd64"
+	run.ops.Accelerator = func() string { return acceleratorKVM }
+	run.ops.Sleep = func(context.Context, time.Duration) error { return nil }
+	run.ops.Run = func(_ context.Context, spec commandSpec) (commandResult, error) {
+		if spec.Name == "ssh-keygen" {
+			key := spec.Args[len(spec.Args)-1]
+			if err := os.WriteFile(key+".pub", []byte("ssh-ed25519 AAAAtest ze-docker-lab\n"), 0o600); err != nil {
+				return commandResult{}, err
+			}
+			return commandResult{}, nil
+		}
+		remote := spec.Args[len(spec.Args)-1]
+		if strings.HasPrefix(remote, "left=") {
+			appendLog(t, logPath, "listing")
+			spec.Stdout.Write([]byte("docker-lab: left behind: none\n")) //nolint:errcheck // a strings.Builder
+		}
+		return commandResult{}, nil
+	}
+	return run, tree, logPath
+}
+
+// VALIDATES: with no lab the run ends at the host le's kernel check: no lab
+// le starts, the VM stops, and the run answers the check's exit, 0.
+// METHOD: dockerLab over the fakes of TestDockerLabForwardsOneInterruptThenStopsTheVM
+// with an empty lab, reading the event log.
+// PREVENTS: an empty lab running `le` bare, which lists actions and exits 0,
+// read as a passing lab.
+func TestDockerLabWithoutALabEndsAtTheCheck(t *testing.T) {
+	run, tree, logPath := fakeDockerLabRun(t)
+	report, err := run.dockerLab(t.Context(), dockerLabRequest{image: "/img", linuxZe: "/ze"})
+	if err != nil {
+		t.Fatalf("dockerLab: %v", err)
+	}
+	if report.Interrupted || report.CheckExit != 0 || dockerLabExitCode(&report, false) != 0 {
+		t.Errorf("report %+v: want the check's exit 0, not interrupted", report)
+	}
+	events := strings.Split(strings.TrimSpace(readLog(t, logPath)), "\n")
+	socket := "DOCKER_HOST=unix://" + filepath.Join(tree, "tmp", "qemu")
+	if len(events) == 0 || !strings.HasPrefix(events[0], "le setup docker-kernel check ze /ze "+socket) {
+		t.Fatalf("events %q, want the kernel check first", events)
+	}
+	for _, event := range events[1:] {
+		if strings.HasPrefix(event, "le ") {
+			t.Errorf("a host le ran after the check with no lab: %q", event)
+		}
+	}
+	if events[len(events)-1] != "qemu stopped" {
+		t.Errorf("events %q, want the VM stopped last", events)
+	}
+}
+
+func appendLog(t *testing.T, path, line string) {
+	t.Helper()
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // the test's own file
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer file.Close()            //nolint:errcheck // test fixture
+	file.WriteString(line + "\n") //nolint:errcheck // test fixture
+}
+
+func readLog(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path) //nolint:gosec // the test's own file
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }

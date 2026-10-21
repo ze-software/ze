@@ -661,7 +661,7 @@ const cacheShareTag = "zescratch-cache"
 // cache is absent or a real directory, which the workspace share already
 // carries. Every le-driven Go build sets GOCACHE to cache/go-cache
 // (internal/le/go/toolchain, GoCache) whatever the guest exported, so a lab
-// that cross-compiles inside the guest (`le test qemu docker-lab`) meets the
+// that cross-compiles inside the guest (a `./le test qemu run` command) meets the
 // link dangling and fails with "mkdir /workspace/cache: file exists".
 //
 // It lives here rather than in tmplink because the kernel builder imports

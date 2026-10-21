@@ -361,8 +361,7 @@ both sit under `/workspace/tmp`.
 `zescratch-cache`, when `./le scratch links-ensure` made it a symlink
 (`cacheShare` in `internal/le/test/qemu/run.go`). Every le-driven Go build sets `GOCACHE` to
 `cache/go-cache`, whatever the guest exported, so a lab that cross-compiles
-inside the guest, as `docker-lab` does when its lab stages ze, otherwise meets
-the link dangling and stops with `mkdir /workspace/cache: file exists`. The
+inside the guest otherwise meets the link dangling and stops with `mkdir /workspace/cache: file exists`. The
 kernel builder runs no le-driven build in its guest and takes no cache share.
 <!-- source: internal/core/tmplink/tmplink.go -- Shares -->
 <!-- source: internal/le/test/qemu/run.go -- cacheShare -->
@@ -406,76 +405,107 @@ excludes every file behind it. On a host that is not Linux,
 `./le test unit installer` can only type-check them, so this virtual machine
 is where they run.
 
-## Docker labs in the Ze-kernel guest
+## Docker labs on the docker-host image
 
 A Docker lab that runs Ze needs a Docker daemon whose kernel carries every
 feature Ze enrolls (`docs/architecture/testing/interop.md`, "The Docker host
-kernel check"). On Linux the labs run on the host's Docker. On macOS, and on the
-scheduled nightly, whose hosted runner kernel is too old, they run inside this
-VM booted on Ze's runtime kernel, with Docker inside it (owner D-6). Both use
-one action:
+kernel check"), on Ze's own system (owner M1, M10). On macOS the `ze` Colima
+profile is that daemon (`docs/architecture/appliance/docker-host.md`). The QEMU
+route serves the scheduled nightly, whose hosted runner kernel is too old, and
+is the Mac's second route (owner D-6). Both architectures use one action:
 
 ```text
 ./le test qemu docker-lab lab "test integration interop-ipsec" timeout 3600s
 ```
 
-The action asks the host ze for the runtime-kernel cache entry of the guest's
-architecture (`ze appliance kernel --target runtime --arch <arch>
---print-cache-dir`, the same answer the gokrazy proofs read), boots that entry's
-`vmlinuz`, and refuses before booting when the entry holds none, naming the
-build that writes it on lines of their own: `./le build host-driver`, then
-`./ze-host appliance kernel --target runtime --arch <arch>`
-(`buildhostdriver.RuntimeKernelBuild`, the one declaration every le refusal
-prints; the `./ze` wrapper builds without `appliance`). It demands HVF or KVM, because a lab under TCG measures
-the emulator. The guest installs Alpine's `docker` package, starts dockerd
-through OpenRC, waits at most 60 seconds for `docker info`, runs
-`le setup docker-kernel check` probing with a linux `ze` the host cross-builds
-beside the guest le (`tmp/qemu/linux-<arch>/ze`, daemon feature tags), and only
-then runs `le <lab>`. The guest le cannot be that `ze`: a `ze_le` build started
-under the name `ze` answers "unknown command: doctor".
+The guest is Ze's docker-host image for the host's architecture, the same image
+the `ze` Colima profile boots (`setupdockerhost.EnsureImage`: built, or taken
+from `~/.cache/ze/docker-host/<arch>/<key>/` when the inputs' key holds it,
+under the setup lock). No Alpine ISO or initramfs is read, no package is
+installed, and nothing of le's runs in the guest. The action demands HVF or KVM,
+because a lab under TCG measures the emulator. It then:
+
+1. cross-builds the linux `ze` the kernel check probes with
+   (`tmp/qemu/linux-<arch>/ze`, daemon feature tags, through job admission);
+2. creates a per-run directory `tmp/qemu/docker-lab-<n>/` holding an ed25519
+   key `ssh-keygen` makes for the run and the cidata volume, and refuses when
+   the forwarded socket's path there would be longer than the 103 bytes a unix
+   socket path holds;
+3. writes the cidata volume: an ISO 9660 image labelled `cidata` holding
+   Lima's `lima.env`, `meta-data`, `user-data` and `boot.sh`, the files the
+   image's boot reads (`dockerhost.ParseCidata`). The user is `ze` (uid 1001,
+   home `/home/ze.linux`), its one key is the run's, and `user-data` mounts the
+   checkout over 9p at the checkout's own absolute path, and each directory the
+   checkout's `tmp` and `cache` links lead out of it at its own path, so a bind
+   mount the host le names (the kernel probe mounts the linux `ze` by its host
+   path) resolves in the guest (spec R-7). `boot.sh` starts `containerd.service`
+   and `docker.service` through the systemctl shim, what Colima's provisioning
+   does under Lima. le writes the ISO itself (`cidataISO`): Lima's writer,
+   `go-diskfs`, is not vendored, and a host tool (`hdiutil`, `xorriso`) would be
+   one more dependency per OS (spec D-10);
+4. boots QEMU with the image as a virtio disk opened `snapshot=on`, so the
+   cached image is never written and every run starts from the built state,
+   then the cidata volume as the last virtio disk; arm64 boots the edk2 UEFI
+   firmware, amd64 SeaBIOS. The guest's console (`hvc0`) is written to
+   `tmp/qemu/docker-lab-console-<port>.log`; its first program line is
+   `ze-docker-host: kernel ` and `/proc/version`;
+5. waits for the guest's sshd as `ze` on the forwarded port, up to the boot
+   timeout, then at most 120 seconds for `docker info` in the guest;
+6. forwards the guest's `/var/run/docker.sock` with `ssh -N -L` to
+   `tmp/qemu/docker-lab-<n>/docker.sock`, created mode 0600
+   (`StreamLocalBindMask=0177`; any other mode refuses the run);
+7. runs, on the host, `./le setup docker-kernel check ze <linux ze>` with
+   `DOCKER_HOST` naming that socket, and, when it passes and a `lab` is named,
+   `./le <lab>` under the same `DOCKER_HOST` and under `env` with the lab's
+   assignments;
+8. after the lab, lists over ssh what the guest dockerd still holds of it:
+   containers and networks carrying the `ze.lab` label, and the run-owned
+   `ze-interop-retained:` image tags (the DUT image kept under its cache tag is
+   allowed to stay). The line reads `docker-lab: left behind: none`, or the
+   list, or `unknown` when dockerd does not answer the listing;
+9. stops the ssh forward, then the VM, and removes the per-run directory.
+
+The exit status is 1 for an interrupted run, else the check's when it failed,
+else the lab's.
 
 The action takes its signal root before its first child, so a SIGINT, SIGTERM
-or SIGHUP to le ends whichever phase it lands in. The host driver's compile behind the
-cache query heads a process group the cancel kills. The guest le and the linux
-`ze` are built through job admission (`Admission.RunContext`), so the cancel
-ends the wait for a slot, refuses a build not yet started, and sends a running
-one SIGTERM. A build the cancel stopped says that an interrupt or SIGTERM
-stopped it, and names no exit code: the 2 a queue answers or the 127 of a
-start the root refused reads as a failed compile. Once the lab runs in the
-guest, the interrupt is forwarded to the guest le, as for every guest command
-("Stopping a guest command" below), so the lab's own removals run before the VM
-stops. A canceled root starts no phase after the one it ended.
-
-Right before the lab, the guest line arms an EXIT trap (`dockerLabLeftoverTrap`).
-Once the lab ends, normally, failed or interrupted, it prints what the guest
-dockerd still holds of the lab, before the VM stops: containers and networks
-carrying the `ze.lab` label, and the run-owned `ze-interop-retained:` image
-tags. The DUT image kept under its cache tag is allowed to stay and is not
-listed. The line reads `interop guest: left behind: none`, or the list, or
-`unknown` when dockerd does not answer the listing.
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, BuildLinuxZe -->
-<!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe -->
+or SIGHUP to le ends whichever phase it lands in: the image build, the linux
+`ze` build (through `Admission.RunContext`, which ends the wait for a slot and
+sends a running build SIGTERM; a build the cancel stopped says so and names no
+exit code), the boot, or the host le. QEMU, the ssh clients and the host le
+each lead a process group of their own, so a Ctrl-C at the terminal reaches
+this le alone. On the cancel, le sends the host le's group one SIGINT, the
+interrupt a terminal would have sent; the lab runs its own teardown under its
+own signal root and exits. le waits for it up to five minutes, then kills its
+group. Only then does le list the leftovers, and only after that does the VM
+stop (spec AC-10).
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe -->
+<!-- source: internal/le/test/qemu/cidata.go -- cidataISO -->
+<!-- source: internal/le/setup/dockerhost/actions.go -- EnsureImage -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
 <!-- test: internal/le/job/runcontext_test.go TestRunContextEndsTheWaitForASlot, TestRunContextStartsNoChildUnderADoneRoot, TestRunContextStopsARunningChildWithSIGTERM, TestRunContextEndsTheFollowOfASharedRun, TestRunContextNotesAStopRatherThanItsError -->
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot, TestDockerLabBuildsSayTheyWereStopped -->
-<!-- test: internal/le/test/qemu/dockerlab_leftover_test.go TestDockerLabReportsWhatTheGuestStillHolds, TestDockerLabArmsTheLeftoverReportBeforeTheLab -->
+<!-- test: internal/le/test/qemu/dockerlab_leftover_test.go TestDockerLabReportsWhatTheGuestStillHolds -->
+<!-- test: internal/le/test/qemu/dockerlab_test.go TestDockerLabBootsTheDockerHostImage, TestDockerLabCidataPassesTheGuestParser, TestDockerLabHostLeTargetsTheForwardedSocket, TestDockerLabForwardsOneInterruptThenStopsTheVM -->
+<!-- test: internal/le/test/qemu/cidata_test.go TestDockerLabWritesCidata, TestCidataRefusesANameItCannotRecord -->
 
-The host's environment does not reach the guest, so a suite's one-scenario
-selector travels as `env`, a list of `NAME=value` assignments the lab alone runs
-under (the check does not see them). `env` without a `lab` is refused:
+A suite's one-scenario selector travels as `env`, a list of `NAME=value`
+assignments the lab alone runs under (the check does not see them). `env`
+without a `lab` is refused:
 
 ```text
 ./le test qemu docker-lab lab "test integration interop-ipsec" env "IPSEC_INTEROP_SCENARIO=mobike-initiator"
-``` A failed step stops the line. With no `lab` it
-stops after the check, which is what `TestDockerLabGuestBootsZeKernel` (build
-tag `integration`, host only) runs to prove the guest boots, Docker starts and
-the kernel passes.
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, BuildLinuxZe, dockerLabEnvironment, dockerLabCommand -->
-<!-- source: internal/le/test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir -->
+```
+
+With no `lab` the run stops after the check, which is what
+`TestDockerLabGuestBootsZeKernel` (build tag `integration`, host only) runs to
+prove the image boots, its Docker answers over the forwarded socket and the
+kernel passes.
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabEnvironment -->
 
 ## Stopping a guest command
 
-A Ctrl-C on a run that has reached its guest command (`run`, `docker-lab`,
+A Ctrl-C on a run that has reached its guest command (`run`,
 `ipsec-mobike-test`, the stress harness) stops that command the way a terminal stops a command
 on a host: its process group in the guest receives SIGINT, and the command runs
 its own teardown. A lab run through `le` in the guest is under `le`'s signal
@@ -842,7 +872,9 @@ each with `|| true`. Those lines are best-effort and load nothing on a
 A Linux-only interop lab that runs as Docker containers and depends on
 host-kernel features (L2TP, PPPoE, netfilter) runs on neither macOS nor a
 plain CI runner by itself: Docker Desktop's VM lacks the kernel modules, and
-the Alpine QEMU VM has no Docker. Each such lab therefore ships two native
+the Alpine QEMU VM of `./le test qemu run` has no Docker (the docker-host image
+of `./le test qemu docker-lab` has, see "Docker labs on the docker-host
+image"). Each such lab therefore ships two native
 actions.
 
 | Lab | Docker action | QEMU action | Native producer |

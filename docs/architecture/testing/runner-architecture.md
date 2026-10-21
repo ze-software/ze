@@ -140,8 +140,8 @@ after the boot kills the machine, so every console wait ends at once and the
 deferred stops tear the lab and the peer down, with no context of their own.
 A run the root stopped, in the build, the lab setup or the boot, answers the
 stop as an error and prints no OK or FAIL verdict. `./le test qemu docker-lab`
-takes its root before its first child, and its two admitted cross-compiles run
-through `Admission.RunContext`, whose wait for a slot ends with the root: a
+takes its root before its first child: the docker-host image build runs under
+it, and the linux ze compile runs through `Admission.RunContext`, whose wait for a slot ends with the root: a
 root that captured SIGTERM must not leave a queue that never asks it holding
 the verb. `./le setup docker-kernel install` takes its root before its cache
 query, so the cancel kills the ze-host compile behind that query. Its `sudo`

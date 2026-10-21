@@ -143,11 +143,12 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb: dockerLabVerb,
-		Why: "run a Docker lab that runs Ze inside the Alpine guest booted on Ze's cached runtime" +
-			" kernel (HVF on macOS, KVM on Linux, never TCG): start Docker there, run the Docker" +
-			" kernel check, then `le <lab>`, under `env` when given (IPSEC_INTEROP_SCENARIO=<name>" +
-			" selects one scenario). With no lab it stops after the check." +
-			" Refuses when the kernel cache holds no runtime kernel for the guest's architecture",
+		Why: "run a Docker lab against the dockerd of Ze's docker-host image booted under QEMU" +
+			" (HVF on macOS, KVM on Linux, never TCG; the image is built or taken from its cache):" +
+			" forward the guest's Docker socket, then this host's le runs the Docker kernel check" +
+			" and `le <lab>` through DOCKER_HOST, under `env` when given (IPSEC_INTEROP_SCENARIO=<name>" +
+			" selects one scenario). With no lab it stops after the check. A Ctrl-C reaches the lab's" +
+			" own teardown, then le lists what the guest still holds, then the VM stops",
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordLab, Value: leaction.ValueLeWords, Requirement: leaction.Optional},
 			{Keyword: keywordEnv, Value: "NAME=value ...", Requirement: leaction.Optional},

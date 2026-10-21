@@ -106,10 +106,11 @@ jobs:
 
   # The Docker labs below run Ze in containers, so the kernel they test is the
   # Docker host's, and Ze enrolls features the hosted runner's kernel lacks
-  # (XFRM_MSG_MIGRATE_STATE among them). Each therefore boots the Alpine QEMU
-  # guest on Ze's own amd64 runtime kernel under KVM and runs the lab there,
+  # (XFRM_MSG_MIGRATE_STATE among them). Each therefore boots Ze's amd64
+  # docker-host image, built from Ze's runtime kernel, under KVM and runs the
+  # lab from the runner's le against the guest's forwarded Docker socket,
   # through `./le test qemu docker-lab`: the path the Mac shares under HVF
-  # (owner D-6). The guest runs `./le setup docker-kernel check` before the lab,
+  # (owner D-6). The le runs `./le setup docker-kernel check` before the lab,
   # so a kernel that lacks a feature fails in seconds and names it. The kernel
   # cache entry is the one qemu-nightly.yml builds and saves, under the same key.
   # The last step asks the hosted runner's own kernel too, as information: when

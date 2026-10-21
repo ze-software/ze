@@ -43,7 +43,7 @@ because on a CI clone it races the whole tree, and the undivided stage outran
 the 120-minute job bound.
 
 A Docker lab prints one progress line as each scenario starts and ends
-(`Suite.Progress`), and `docker-lab` streams the guest's output over ssh as it
+(`Suite.Progress`), and under `docker-lab` the host le running the lab streams it as it
 arrives, so a lab that hangs names its scenario in the job log before the
 deadline kills it. Before its first scenario, `Suite.Run` also prints one line
 for each labeled container, network or retained tag it removed or kept from an
@@ -65,16 +65,17 @@ lab jobs (`interop`, `ipsec-interop`, `radius-interop`, `l2tp-interop`,
 `pppoe-interop`) do not run on it. Each restores the amd64 runtime kernel cache entry under the key
 `qemu-nightly.yml` uses, builds the entry on a miss with `./ze-host appliance
 kernel --target runtime --arch amd64`, and saves it. It then runs its lab as
-`./le test qemu docker-lab lab "<le words>"`: an Alpine guest boots that kernel
-under KVM, never TCG, starts Docker, runs `./le setup docker-kernel check` and
-only then the lab. A last step runs the same check against the hosted runner's
+`./le test qemu docker-lab lab "<le words>"`: Ze's docker-host image for amd64,
+built from that kernel on a miss of its own cache, boots under KVM, never TCG;
+its Docker socket is forwarded over ssh, and the runner's own le runs
+`./le setup docker-kernel check` against it and only then the lab. A last step runs the same check against the hosted runner's
 own Docker daemon, as information: it may fail without failing the job, and its
 log shows the day GitHub's kernel starts to pass. `radius-interop` is among
 them although its admin path needs no kernel feature: the lab stages a ze that
 enrols every capability, and the interop harness checks that ze against the
 Docker kernel for every suite, so on the runner's kernel it would be refused.
-`docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
-guest", is the guest path.
+`docs/architecture/testing/qemu-integration.md`, "Docker labs on the
+docker-host image", is the guest path.
 
 The RFC ledger credits a lab run this way to the workflow that schedules it.
 `docker-lab` declares its `lab` keyword as `le-words`

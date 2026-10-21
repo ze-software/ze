@@ -116,6 +116,27 @@ func lockedBuild(ctx context.Context, req buildRequest) (builtImage, error) {
 	return systemBuilder(cacheDir, Fetcher{CacheDir: cacheDir, Client: http.DefaultClient}).build(ctx, req)
 }
 
+// EnsureImage answers the raw docker-host image for arch built from the
+// checkout at repo, with the default size and the repository's pin file, from
+// the cache when the inputs' key already holds it, under the setup lock.
+// `./le test qemu docker-lab` boots it (spec D-6), so the QEMU guest and the
+// ze Colima profile run one image.
+func EnsureImage(ctx context.Context, repo, arch string) (string, error) {
+	if !slices.Contains(pinArches, arch) {
+		return "", fmt.Errorf("arch %q is not one the docker-host image is built for. Fix: run on a host whose arch is one of %s",
+			arch, strings.Join(pinArches, ", "))
+	}
+	pins, err := LoadPins(filepath.Join(repo, PinFile))
+	if err != nil {
+		return "", err
+	}
+	image, err := lockedBuild(ctx, buildRequest{repo: repo, arch: arch, pins: pins, sizeGiB: imageSizeGiBDefault})
+	if err != nil {
+		return "", err
+	}
+	return image.Path, nil
+}
+
 // runStart builds the host arch's image when needed and runs it as the ze
 // profile, all under one hold of the setup lock.
 func runStart() (any, int) {

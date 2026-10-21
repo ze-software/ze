@@ -11,7 +11,7 @@ import (
 // VALIDATES: a symlinked cache answers one share at the link's own target,
 // a real or absent cache answers none (the workspace share carries a real
 // one), and a dangling link is an error rather than no share.
-// PREVENTS: a docker-lab guest whose le cross-compiles with GOCACHE under
+// PREVENTS: a run guest whose le cross-compiles with GOCACHE under
 // /workspace/cache meeting the link dangling ("mkdir /workspace/cache: file
 // exists", 2026-10-12).
 func TestACacheLinkIsOneShare(t *testing.T) {
