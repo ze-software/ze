@@ -212,6 +212,10 @@ type withdrawalGroup struct {
 // type as an opaque object, and that is exactly what the text form cannot
 // carry: sending it as text failed with route.ErrFamilyNotSupported and left
 // the departing peer's Link-State routes announced to every other client.
+//
+// An ADD-PATH unicast route goes out in hex too: the text form has no Path
+// Identifier in a batch, so its group is "update hex nlri <family> addpath del
+// <hex1> ...", carrying the source's identifier.
 func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
 	if len(entries) == 0 {
 		return
@@ -226,6 +230,13 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 		if entry.wire != "" {
 			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: entry.addPath}
 			byGroup[g] = append(byGroup[g], entry.wire)
+			continue
+		}
+		// An ADD-PATH unicast route has no text spelling that keeps its Path
+		// Identifier in a batch, so it goes out as its native NLRI.
+		if wk.nlriStr == "" && wk.addPath {
+			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: true}
+			byGroup[g] = append(byGroup[g], addPathUnicastHex(wk.pathID, wk.prefix))
 			continue
 		}
 		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath}

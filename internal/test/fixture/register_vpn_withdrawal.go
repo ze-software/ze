@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -17,9 +18,26 @@ func init() {
 
 // vpnWithdrawalInventory releases each source action only after the destination
 // was sent the preceding UPDATE. Exact route assertions live in the peer script.
+// An optional second argument is the UPDATE count the destination is sent once
+// the source has left (default 4: two announcements, one withdrawal and one
+// peer-down withdrawal per surviving VPN route).
 func vpnWithdrawalInventory(ctx context.Context, args []string) error {
-	if len(args) != 1 {
-		return errors.New("vpn-withdrawal-inventory requires rs or rr")
+	if len(args) < 1 {
+		return errors.New("vpn-withdrawal-inventory requires rs or rr, then an optional final UPDATE count")
+	}
+	if len(args) > 2 {
+		return fmt.Errorf("vpn-withdrawal-inventory takes at most two arguments (rs or rr, then an optional final UPDATE count), got %d", len(args))
+	}
+	finalCount := 4
+	if len(args) == 2 {
+		count, err := strconv.Atoi(args[1])
+		if err != nil {
+			return fmt.Errorf("vpn-withdrawal-inventory final UPDATE count %q is not a number: %w", args[1], err)
+		}
+		if count < 3 {
+			return fmt.Errorf("vpn-withdrawal-inventory final UPDATE count %d is below 3, the count before the source leaves", count)
+		}
+		finalCount = count
 	}
 	role := args[0]
 	if role != "rs" {
@@ -65,8 +83,8 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		if !vpnWithdrawalWaitSent(ctx, plugin, 4) {
-			return errors.New("receiver was not sent both retained VPN withdrawals after source departure")
+		if !vpnWithdrawalWaitSent(ctx, plugin, finalCount) {
+			return fmt.Errorf("receiver was not sent %d UPDATEs, the retained withdrawals included, after source departure", finalCount)
 		}
 		return nil
 	}, true)

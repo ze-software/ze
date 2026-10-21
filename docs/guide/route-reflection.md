@@ -153,6 +153,18 @@ callback never waits for an RPC into that same store. Replayed routes pass the
 reactor's ordinary reflection rules and egress policy.
 <!-- source: internal/component/bgp/plugins/rr/validation.go -- startValidation, replayValidation -->
 
+For IPv4 and IPv6 unicast from a source that negotiated ADD-PATH, the route
+server and reflector track each path by prefix and Path Identifier, so a
+withdrawal of one path leaves the source's other paths of that prefix to be
+withdrawn when the source leaves. That departure withdrawal names the native
+NLRI with the source's identifier. The route server hands it to the engine as a
+recovery, which withdraws each destination's own copy under the identifier that
+destination was sent. The reflector does not yet: toward a destination that
+negotiated ADD-PATH send, it withdraws under the source's identifier, which is
+not the one ze advertised there (a known defect, RFC 7911 Section 2).
+<!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkUnicastNLRIs -->
+<!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendUnicastRecords, recordKey -->
+
 For VPNv4 and VPNv6, a received withdrawal removes only the route with the
 matching RD, prefix and negotiated Path Identifier. The Compatibility field
 does not affect the match. In the route server, a source-peer departure

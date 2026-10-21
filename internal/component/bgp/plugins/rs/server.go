@@ -155,6 +155,9 @@ func SetLogger(l *slog.Logger) {
 // set keeps in the entry rather than the key (withdrawalEntry).
 // VPN uses its registered RD/prefix identity in nlriStr, with its Path Identifier
 // and presence in the other key fields; the native hex stays in withdrawalEntry.
+// A unicast route from an ADD-PATH session sets addPath with wireForm false and
+// keeps its Path Identifier in pathID (RFC 7911 Section 5), so two paths of one
+// prefix are two keys; its peer-down withdrawal is built from prefix and pathID.
 type withdrawalKey struct {
 	fam      family.Family
 	prefix   netip.Prefix

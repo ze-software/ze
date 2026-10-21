@@ -1,0 +1,119 @@
+# addpath-withdrawal-inventory-rr: an ADD-PATH source withdraws one of two
+# paths of one prefix, then leaves.
+# RFC 7911 Section 5: "a new advertisement for a given address prefix and a
+# given Path Identifier replaces a previous advertisement for the same address
+# prefix and Path Identifier."
+# VALIDATES: ze negotiates ADD-PATH receive with the source for ipv4/unicast
+# (ze-peer inverts it, invertedAddPath in internal/test/peer/open_capability.go);
+# the receiver negotiates no ADD-PATH. The source announces 10.0.0.0/8 with
+# Path Identifiers 11 and 12 (0x0B, 0x0C) and withdraws path 11. The receiver
+# carries no Path Identifier, so it sees 10.0.0.0/8 announced as a bare
+# [8][10]. When the source closes, bgp-rr withdraws the path it still holds,
+# so the receiver gets Withdrawn Routes [8][10].
+# PREVENTS: walkUnicastNLRIs (rr/withdrawal.go) discarding the Path
+# Identifier: both paths shared one withdrawal-map key, withdrawing path 11
+# deleted it, and path 12 stayed announced to the receiver after the source left.
+# The registered fixture releases each source action only after the receiver
+# was sent the preceding UPDATE.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+expect=bgp:conn=1:seq=1:contains=18C00002
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 100,
+# NLRI [0000000B][8][10] [0000000C][8][10].
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001540010100400200400304C0000201400504000000640000000B080A0000000C080A
+expect=bgp:conn=1:seq=3:contains=18C63364
+# Withdrawn Routes [0000000B][8][10]; the same attributes announce
+# [00000001][16][172.16], which the fixture counts as the receiver's second UPDATE.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00390200060000000B080A001540010100400200400304C0000201400504000000640000000110AC10
+expect=bgp:conn=1:seq=5:contains=18CB0071
+action=close:conn=1:seq=6
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=linger:value=true
+expect=bgp:conn=1:seq=1:announced=080A
+expect=bgp:conn=1:seq=2:announced=10AC10
+# The source's departure withdraws what it still announces: path 12 of
+# 10.0.0.0/8 and 172.16.0.0/16.
+expect=bgp:conn=1:seq=3:withdrawn=080A
+expect=bgp:conn=1:seq=3:withdrawn=10AC10
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rr; }
+    external addpath-withdrawal {
+        run "le test fixture plugin/vpn-withdrawal-inventory rr 3"
+        encoder json
+    }
+}
+bgp {
+    peer source {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path { direction receive; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process addpath-withdrawal { send [ update ]; }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=90s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

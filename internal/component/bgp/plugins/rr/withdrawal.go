@@ -9,6 +9,7 @@
 package rr
 
 import (
+	"encoding/binary"
 	"net/netip"
 	"strings"
 
@@ -58,7 +59,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, actionDel)
+				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, addPath, actionDel)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
@@ -68,7 +69,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 
 	// IPv4 body Withdrawn -- withdrawn routes (del).
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionDel)
+		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, addPathV4, actionDel)
 	}
 
 	// MP_REACH_NLRI -- announced routes (add).
@@ -77,7 +78,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, actionAdd)
+				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, addPath, actionAdd)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
@@ -87,7 +88,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 
 	// IPv4 body NLRIs -- announced routes (add).
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionAdd)
+		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, addPathV4, actionAdd)
 	}
 }
 
@@ -98,11 +99,20 @@ func isUnicast(f family.Family) bool {
 }
 
 // walkUnicastNLRIs walks NLRIs via iterator and updates the withdrawal map.
-// Converts raw prefix bytes to netip.Prefix for route key -- zero allocation per NLRI.
-func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlri.NLRIIterator, action string) {
+// It builds one route-key string per NLRI from the raw prefix bytes, and an
+// announcement also allocates the stored withdrawal text.
+// addPath MUST be the ADD-PATH receive state of famName on the source session,
+// the same value the iterator was built with.
+//
+// RFC 7911 Section 5: "a new advertisement for a given address prefix and a
+// given Path Identifier replaces a previous advertisement for the same address
+// prefix and Path Identifier." Under ADD-PATH the identifier is part of the
+// route's identity, so it is part of the key, and the peer-down withdrawal goes
+// out as the native NLRI with its identifier, as the MPLS-label arm does.
+func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlri.NLRIIterator, addPath bool, action string) {
 	isV6 := strings.HasPrefix(famName, "ipv6/")
 	for {
-		prefix, _, ok := iter.Next()
+		prefix, pathID, ok := iter.Next()
 		if !ok {
 			break
 		}
@@ -111,11 +121,22 @@ func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlr
 			continue
 		}
 		var tb textbuf.Buffer
-		routeKey := tb.Str(famName).Byte('|').Str(key).String()
+		tb.Str(famName).Byte('|').Str(key)
+		if addPath {
+			tb.Str("|addpath|").Uint32(pathID)
+		}
+		routeKey := tb.String()
 		switch action {
 		case actionAdd:
 			if rr.withdrawals[sourcePeer] == nil {
 				rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+			}
+			if addPath {
+				rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{
+					Family: famName, Prefix: addPathUnicastHex(pathID, prefix),
+					WireForm: true, AddPath: true,
+				}
+				continue
 			}
 			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: tb.Reset().Str("prefix ").Str(key).String()}
 		case actionDel:
@@ -124,6 +145,27 @@ func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlr
 			}
 		}
 	}
+}
+
+// addPathUnicastHex answers the hex of one ADD-PATH unicast NLRI: the Path
+// Identifier, then the length octet and prefix octets NLRIIterator.Next gave.
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+//	+--------------------------------+
+//	| Path Identifier (4 octets)     |  offset 0
+//	+--------------------------------+
+//	| Length (1 octet)               |  offset 4
+//	+--------------------------------+
+//	| Prefix (variable)              |  offset 5
+//	+--------------------------------+
+func addPathUnicastHex(pathID uint32, prefix []byte) string {
+	var id [4]byte
+	binary.BigEndian.PutUint32(id[:], pathID)
+	var tb textbuf.Buffer
+	return tb.Hex(id[:]).Hex(prefix).String()
 }
 
 // prefixBytesToKey converts raw NLRI prefix bytes from NLRIIterator to a route key string.

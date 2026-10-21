@@ -1,7 +1,7 @@
 # Test: a withdraw-only UPDATE from an ADD-PATH peer reaches a plugin as a del
 # of the prefix it names, with its Path Identifier.
 # VALIDATES: ze negotiates ADD-PATH receive for ipv4/unicast (ze-peer answers
-# send, invertedAddPath in internal/test/peer/open.go). ze-peer announces
+# send, invertedAddPath in internal/test/peer/open_capability.go). ze-peer announces
 # 10.0.0.0/8 with Path Identifier 7, then sends an UPDATE whose only field is
 # Withdrawn Routes [00000007][8][10] with a zero Total Path Attribute Length.
 # The JSON event the attached plugin receives carries

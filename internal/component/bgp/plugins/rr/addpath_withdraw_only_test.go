@@ -63,3 +63,41 @@ func TestWithdrawOnlyUpdateKeepsPathIdentifier(t *testing.T) {
 		t.Fatalf("withdrawal map holds %d routes after the withdraw-only UPDATE, want 0: %v", got, rr.withdrawals[peer])
 	}
 }
+
+// TestWithdrawOnePathKeepsTheOther announces 10.0.0.0/8 with Path Identifiers
+// 1 and 2 from one ADD-PATH peer, then withdraws Path Identifier 1.
+//
+// VALIDATES: the withdrawal map still holds Path Identifier 2, as the native
+// NLRI [00000002][8][10] with ADD-PATH framing, which is what the peer-down
+// withdrawal sends.
+// PREVENTS: walkUnicastNLRIs discarding the Path Identifier, so both paths
+// shared the key "ipv4/unicast|10.0.0.0/8": withdrawing path 1 deleted it, and
+// when the peer went down path 2 was never withdrawn from the other peers.
+// RFC 7911 Section 5 makes the identifier part of the route: "a new
+// advertisement for a given address prefix and a given Path Identifier replaces
+// a previous advertisement for the same address prefix and Path Identifier".
+func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
+	t.Parallel()
+
+	const peer = "192.0.2.1"
+	path1 := []byte{0, 0, 0, 1, 8, 10}
+	path2 := []byte{0, 0, 0, 2, 8, 10}
+	origin := []byte{0x40, 1, 1, 0}
+	rr := &routeReflector{withdrawals: make(map[string]map[string]withdrawalInfo)}
+
+	rr.updateWithdrawalMapWire(peer, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path1...), path2...)))
+	if got := len(rr.withdrawals[peer]); got != 2 {
+		t.Fatalf("withdrawal map holds %d routes after announcing two paths, want 2: %v", got, rr.withdrawals[peer])
+	}
+	rr.updateWithdrawalMapWire(peer, rrAddPathUpdate(t, path1, nil, nil))
+	entries := rr.withdrawals[peer]
+	if len(entries) != 1 {
+		t.Fatalf("withdrawal map holds %d routes after withdrawing path 1, want 1 (path 2): %v", len(entries), entries)
+	}
+	want := withdrawalInfo{Family: "ipv4/unicast", Prefix: "00000002080a", WireForm: true, AddPath: true}
+	for key, got := range entries {
+		if got != want {
+			t.Fatalf("withdrawal map entry %q = %+v, want %+v", key, got, want)
+		}
+	}
+}

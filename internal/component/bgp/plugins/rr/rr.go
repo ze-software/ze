@@ -310,7 +310,11 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 }
 
 // handleStateDown sends withdrawals for all routes from the downed source peer.
-// Routes are batched by family and wire form to minimize RPCs.
+// Routes are batched by family, wire form and ADD-PATH to minimize RPCs. An
+// ADD-PATH route is withdrawn with the SOURCE's Path Identifier, which is wrong
+// toward a destination that negotiated ADD-PATH send: ze advertised the path
+// there under its own identifier, and nothing here maps one to the other (open,
+// plan/journal/identity-default-hides-a-mapping.md).
 // Withdrawals are sent asynchronously (per-lifecycle goroutine, not hot path).
 //
 // Concurrency: OnStructuredEvent is called serially by the engine's delivery
@@ -328,7 +332,8 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		return
 	}
 
-	// VPN and ADD-PATH labeled routes retain native bytes and negotiation.
+	// VPN routes, and ADD-PATH labeled and unicast routes, retain native bytes
+	// and the ADD-PATH negotiation, so their group goes out as hex.
 	type withdrawalGroup struct {
 		family   string
 		wireForm bool

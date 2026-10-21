@@ -5,6 +5,7 @@
 package rs
 
 import (
+	"encoding/binary"
 	"net/netip"
 	"sync"
 
@@ -87,7 +88,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 		fam := mp.Family()
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
-			sp.records = appendUnicastRecords(sp.records, fam, fam.String(), mp.NLRIIterator(addPath), actionDel)
+			sp.records = appendUnicastRecords(sp.records, fam, fam.String(), mp.NLRIIterator(addPath), addPath, actionDel)
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
 			sp.records = appendAllocatingUnreachRecords(sp.records, fam, nlris, nlriErr, sp.scratch[:])
@@ -96,7 +97,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 
 	// IPv4 body Withdrawn -- withdrawn routes.
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
-		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, actionDel)
+		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, addPathV4, actionDel)
 	}
 
 	// MP_REACH_NLRI -- announced routes.
@@ -104,7 +105,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 		fam := mp.Family()
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
-			sp.records = appendUnicastRecords(sp.records, fam, fam.String(), mp.NLRIIterator(addPath), actionAdd)
+			sp.records = appendUnicastRecords(sp.records, fam, fam.String(), mp.NLRIIterator(addPath), addPath, actionAdd)
 		} else {
 			sp.records = appendAllocatingRecords(sp.records, fam, mp, addPath, actionAdd, sp.scratch[:])
 		}
@@ -112,7 +113,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 
 	// IPv4 body NLRIs -- announced routes.
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, actionAdd)
+		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, addPathV4, actionAdd)
 	}
 
 	return sp
@@ -129,14 +130,21 @@ func returnNLRIRecords(sp *nlriRecords) {
 }
 
 // appendUnicastRecords appends compact prefix records from an NLRIIterator.
-// Uses netip.PrefixFrom for zero-allocation prefix extraction.
-func appendUnicastRecords(records []nlriRecord, f family.Family, famName string, iter *nlri.NLRIIterator, action string) []nlriRecord {
+// Uses netip.PrefixFrom for zero-allocation prefix extraction. addPath MUST be
+// the value the iterator was built with: the source session's ADD-PATH receive
+// state for f.
+//
+// RFC 7911 Section 5: "a new advertisement for a given address prefix and a
+// given Path Identifier replaces a previous advertisement for the same address
+// prefix and Path Identifier." Under ADD-PATH each record keeps its Path
+// Identifier, so recordKey tells two paths of one prefix apart.
+func appendUnicastRecords(records []nlriRecord, f family.Family, famName string, iter *nlri.NLRIIterator, addPath bool, action string) []nlriRecord {
 	if iter == nil {
 		return records
 	}
 	isV6 := famName == "ipv6/unicast" || famName == family.IPv6Unicast.String()
 	for {
-		raw, _, ok := iter.Next()
+		raw, pathID, ok := iter.Next()
 		if !ok {
 			break
 		}
@@ -160,6 +168,8 @@ func appendUnicastRecords(records []nlriRecord, f family.Family, famName string,
 			familyName: famName,
 			action:     action,
 			prefix:     p.Masked(),
+			pathID:     pathID,
+			addPath:    addPath,
 		})
 	}
 	return records
@@ -318,6 +328,32 @@ func opaqueRouteCIDR(fam family.Family, part []byte, addPath bool, scratch []byt
 	return prefix, pathID, true
 }
 
+// addPathUnicastHex answers the hex of one ADD-PATH unicast NLRI for prefix
+// under pathID, the form a peer-down withdrawal sends it in. Cold path: once
+// per route on peer down.
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+//	+--------------------------------+
+//	| Path Identifier (4 octets)     |  offset 0
+//	+--------------------------------+
+//	| Length (1 octet)               |  offset 4
+//	+--------------------------------+
+//	| Prefix (variable)              |  offset 5
+//	+--------------------------------+
+func addPathUnicastHex(pathID uint32, prefix netip.Prefix) string {
+	var wire [4 + 1 + 16]byte
+	binary.BigEndian.PutUint32(wire[:4], pathID)
+	bits := prefix.Bits()
+	wire[4] = byte(bits)
+	address := prefix.Addr().AsSlice()
+	octets := copy(wire[5:], address[:nlri.PrefixBytes(bits)])
+	var tb textbuf.Buffer
+	return tb.Hex(wire[:5+octets]).String()
+}
+
 // recordKey derives the withdrawal-set key for one record. The add and the del
 // arm MUST derive it the same way, or a withdrawal never cancels its announce.
 func recordKey(rec *nlriRecord) withdrawalKey {
@@ -330,7 +366,10 @@ func recordKey(rec *nlriRecord) withdrawalKey {
 	if rec.nlriStr != "" {
 		return withdrawalKey{fam: rec.fam, nlriStr: rec.nlriStr, wireForm: rec.wireForm, addPath: rec.addPath}
 	}
-	return withdrawalKey{fam: rec.fam, prefix: rec.prefix}
+	// A unicast record: under ADD-PATH its Path Identifier is part of its
+	// identity (RFC 7911 Section 5), and addPath tells sendBatchedWithdrawals
+	// to withdraw it with that identifier.
+	return withdrawalKey{fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID, addPath: rec.addPath}
 }
 
 // recordEntry is what the withdrawal set holds for an announced record: the
