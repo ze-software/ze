@@ -117,6 +117,9 @@ func runOldCommands(t *testing.T, release string) {
 		if verdict == oldDiffers {
 			failures = append(failures, command+"\n    "+why)
 		}
+		if verdict == oldUnreadable && os.Getenv("ZE_OLD_VERBOSE") != "" {
+			t.Logf("%s: unreadable: %s\n    %s", release, command, why)
+		}
 	}
 	t.Logf("%s: %d/%d commands behave as on %s (%d allowed, %d unreadable, %d nothing sent)",
 		release, len(commands)-len(failures), len(commands), release,
@@ -181,7 +184,7 @@ func newOldJudge(t *testing.T) *oldJudge {
 func (j *oldJudge) judge(command string, recorded oldRecorded) (oldVerdict, string) {
 	theirs, undecodable := j.recordedRoutes(recorded.Messages)
 	if len(theirs) > 0 && undecodable == len(recorded.Messages) {
-		return oldUnreadable, ""
+		return oldUnreadable, strings.Join(firstRows(theirs), " | ")
 	}
 	routeVerb := strings.HasPrefix(recorded.Command, "announce") || strings.HasPrefix(recorded.Command, "withdraw")
 	nothing := len(theirs) == 0 && routeVerb
