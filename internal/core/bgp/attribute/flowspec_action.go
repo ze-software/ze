@@ -76,6 +76,10 @@ func sortStrings(s []string) {
 const (
 	flowSpecRedirectNextHopType    = 0x08
 	flowSpecRedirectNextHopSubtype = 0x00
+
+	// flowSpecRTRedirectSubtype is the sub-type of the RFC 8955 Section 7.4
+	// rt-redirect action under types 0x80, 0x81 and 0x82.
+	flowSpecRTRedirectSubtype = 0x08
 )
 
 // FlowSpecRedirectsToNextHop reports whether an EXTENDED_COMMUNITIES attribute
@@ -91,25 +95,52 @@ const (
 // FlowSpec route carrying it is the one case where the RFC 8955 Section 4 zero
 // next-hop length would void the route's own action.
 //
+// The same paragraph voids the action beside a redirect-to-VRF: "The
+// redirect-to-IP extended community is valid with any other set of flow-spec
+// extended communities except if that set includes a redirect-to-VRF extended
+// community (type 0x8008) and in that case the redirect-to-IP extended
+// community should be ignored." RFC 8955 Section 7.4 registers that action
+// under three types, 0x8008, 0x8108 and 0x8208 (its Table 2), so any of them
+// voids it.
+//
 // The value is read in whole 8-octet communities; a trailing partial one is
 // not a community and is not read.
 func FlowSpecRedirectsToNextHop(value []byte) bool {
+	found := false
 	for off := 0; off+8 <= len(value); off += 8 {
-		if ExtendedCommunity(value[off : off+8]).redirectsToNextHop() {
-			return true
+		ec := ExtendedCommunity(value[off : off+8])
+		if ec.redirectsToVRF() {
+			return false
+		}
+		if ec.redirectsToNextHop() {
+			found = true
 		}
 	}
-	return false
+	return found
 }
 
 // RedirectsToNextHop is FlowSpecRedirectsToNextHop over decoded communities.
 func (e ExtendedCommunities) RedirectsToNextHop() bool {
+	found := false
 	for _, ec := range e {
+		if ec.redirectsToVRF() {
+			return false
+		}
 		if ec.redirectsToNextHop() {
-			return true
+			found = true
 		}
 	}
-	return false
+	return found
+}
+
+// redirectsToVRF reports whether this one community is an RFC 8955 Section 7.4
+// rt-redirect, the redirect-to-VRF action of
+// draft-simpson-idr-flowspec-redirect-02 Section 3.
+func (e ExtendedCommunity) redirectsToVRF() bool {
+	if e[1] != flowSpecRTRedirectSubtype {
+		return false
+	}
+	return e[0] == 0x80 || e[0] == 0x81 || e[0] == 0x82
 }
 
 // redirectsToNextHop reports whether this one community is the

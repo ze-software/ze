@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net/netip"
 	"slices"
@@ -64,6 +65,12 @@ type nextHopValue struct {
 	// (attribute.FlowSpecRedirectsToNextHop). applyNextHopFamily then keeps,
 	// rewrites or strips it per destination. mpIgnored stays set beside it.
 	mpRedirect bool
+
+	// mpRedirectAddr is that received redirect address, unmapped, valid only
+	// beside mpRedirect. mp stays empty for a FlowSpec route, so the
+	// forwarding-address gates never read it; egressNextHopWithheld asks the
+	// peer-own question of it alone (redirectNextHopIsPeerOwn).
+	mpRedirectAddr netip.Addr
 }
 
 // has reports whether any address this UPDATE offers is addr.
@@ -143,6 +150,9 @@ func payloadNextHop(payload []byte) nextHopValue {
 				} else {
 					out.mpIgnored = nhLen != 0
 					out.mpRedirect = flowSpecRedirectNextHop(attrs, nhLen)
+					if out.mpRedirect {
+						out.mpRedirectAddr, _ = nextHopAddr(value[4 : 4+nhLen])
+					}
 				}
 			}
 		}
@@ -178,19 +188,21 @@ func flowSpecRedirectNextHop(attrs []byte, nhLen int) bool {
 // The exception is a FlowSpec route whose action is redirect-to-IP-next-hop
 // (base.mpRedirect): its next hop is the redirect target, so the destination's
 // precomputed decision (f.redirect, precomputeRedirectNextHop) keeps, rewrites
-// or strips it.
+// or strips it. payload is the one base was read from; it is read again only
+// when an operation names EXTENDED_COMMUNITIES.
 //
 // Clear only MP operations, retaining a genuine legacy sibling's NEXT_HOP.
 // Reuse existing operation slots rather than growing the accumulator. Received
 // bytes remain immutable; the registered handler materializes the field in the
 // destination-owned output. An already empty, unchanged field costs no edit
-// and keeps the forwarding identity path.
-func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue) {
+// and keeps the forwarding identity path. MUST be called after every egress
+// step and applyFactsSendCommunity, whose operations it reads.
+func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, payload []byte) {
 	if base.mpFamily.NeedsNextHop() {
 		return
 	}
 	if base.mpRedirect {
-		applyRedirectNextHop(f, mods)
+		applyRedirectNextHop(f, mods, base.mpFamily.AFI, payload)
 		return
 	}
 	setMPNextHop(mods, nil, base.mpIgnored)
@@ -198,20 +210,123 @@ func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, bas
 
 // applyRedirectNextHop writes this destination's redirect-to-IP next hop.
 // Keep records nothing, so the received address leaves unchanged; rewrite
-// replaces every MP next-hop operation with the precomputed address; strip
-// falls back to the RFC 8955 Section 4 zero length.
-func applyRedirectNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
+// replaces every MP next-hop operation with the precomputed address of the
+// rule's family; strip falls back to the RFC 8955 Section 4 zero length.
+//
+// Keep and rewrite also fall back to the zero length when this destination's
+// operations take the 0x0800 community off the route (an egress community
+// strip, a replacement or a suppression): RFC 8955 Section 4, "When
+// advertising Flow Specifications, the Length of the Next-Hop Network Address
+// MUST be set to 0", holds for every route that leaves without the action, and
+// a next hop sent without it is an address no action names.
+func applyRedirectNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, afi family.AFI, payload []byte) {
+	var hop []byte
 	switch f.redirect.action {
 	case redirectKeep:
-		return
+		if redirectActionLeaves(mods, payload) {
+			return
+		}
 	case redirectRewrite:
-		setMPNextHop(mods, f.redirect.hop(), true)
+		hop = f.redirect.hop(afi)
+		if hop != nil && !redirectActionLeaves(mods, payload) {
+			hop = nil
+		}
 	case redirectStrip, redirectUnspecified:
 		// Unspecified is a facts snapshot precomputeRedirectNextHop never saw:
 		// the zero length is the RFC 8955 Section 4 answer that cannot leak an
 		// address this destination was not meant to receive.
-		setMPNextHop(mods, nil, true)
 	}
+	setMPNextHop(mods, hop, true)
+}
+
+// redirectActionLeaves reports whether the destination's UPDATE still carries a
+// redirect-to-IP community once its EXTENDED_COMMUNITIES operations apply. It
+// follows the community handler's order (filter_community genericCommunityHandler):
+// the last Set or Suppress overrides every Remove and Add, a Suppress or an
+// empty Set drops the attribute, and otherwise an added redirect community
+// leaves, and each received one survives unless a Remove names it whole. A destination with no such operation costs
+// one scan of the operation list and no attribute walk.
+//
+// Allocation-free: the operation list and the attribute section are read in
+// place.
+func redirectActionLeaves(mods *filterapi.ModAccumulator, payload []byte) bool {
+	ops := mods.Ops()
+	last := -1
+	touched := false
+	for i := range ops {
+		if ops[i].Code != uint8(attribute.AttrExtCommunity) {
+			continue
+		}
+		touched = true
+		if ops[i].Action == filterapi.AttrModSet || ops[i].Action == filterapi.AttrModSuppress {
+			last = i
+		}
+	}
+	if !touched {
+		return true
+	}
+	if last >= 0 {
+		if ops[last].Action == filterapi.AttrModSuppress {
+			return false
+		}
+		return attribute.FlowSpecRedirectsToNextHop(ops[last].Buf)
+	}
+	for i := range ops {
+		if ops[i].Code == uint8(attribute.AttrExtCommunity) && ops[i].Action == filterapi.AttrModAdd &&
+			attribute.FlowSpecRedirectsToNextHop(ops[i].Buf) {
+			return true // an egress tag adds the action back
+		}
+	}
+	value := payloadExtCommunities(payload)
+	for off := 0; off+8 <= len(value); off += 8 {
+		ec := value[off : off+8]
+		if !attribute.FlowSpecRedirectsToNextHop(ec) {
+			continue
+		}
+		if !extCommunityRemoved(ops, ec) {
+			return true
+		}
+	}
+	return false
+}
+
+// extCommunityRemoved reports whether a Remove operation on
+// EXTENDED_COMMUNITIES names the 8-octet community ec, reading each operation's
+// buffer in whole communities as the community handler does.
+func extCommunityRemoved(ops []filterapi.AttrOp, ec []byte) bool {
+	for i := range ops {
+		if ops[i].Code != uint8(attribute.AttrExtCommunity) {
+			continue
+		}
+		if ops[i].Action != filterapi.AttrModRemove {
+			continue
+		}
+		buf := ops[i].Buf
+		for off := 0; off+8 <= len(buf); off += 8 {
+			if bytes.Equal(buf[off:off+8], ec) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// payloadExtCommunities returns the EXTENDED_COMMUNITIES value of an UPDATE
+// payload, or nil when it carries none or does not parse.
+func payloadExtCommunities(payload []byte) []byte {
+	sections, err := wire.ParseUpdateSections(payload)
+	if err != nil {
+		return nil
+	}
+	attrs := sections.Attrs(payload)
+	if attrs == nil {
+		return nil
+	}
+	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrExtCommunity)
+	if !found {
+		return nil
+	}
+	return value
 }
 
 // setMPNextHop points every MP_REACH_NLRI Set operation at hop, and records
@@ -305,6 +420,24 @@ func egressNextHopIsPeerOwn(f *peerForwardFacts, mods *filterapi.ModAccumulator,
 		return nh.has(f.addr)
 	}
 	return base.has(f.addr)
+}
+
+// redirectNextHopIsPeerOwn is egressNextHopIsPeerOwn for a FlowSpec
+// redirect-to-IP route that leaves with its received address: no MP_REACH_NLRI
+// Set records a replacement, so base.mpRedirectAddr is what the destination is
+// sent. draft-simpson-idr-flowspec-redirect-02 Section 3 sends matching
+// packets "towards" that address, and one that is the destination's own sends
+// them back into it.
+func redirectNextHopIsPeerOwn(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue) bool {
+	if !f.addr.IsValid() {
+		return false
+	}
+	for _, op := range mods.Ops() {
+		if op.Code == uint8(attribute.AttrMPReachNLRI) && op.Action == filterapi.AttrModSet {
+			return false
+		}
+	}
+	return base.mpRedirectAddr == f.addr.Unmap()
 }
 
 // originatedNextHopIsPeerOwn asks the SAME question of a route Ze ORIGINATES,
@@ -817,6 +950,13 @@ func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModA
 	// Withdrawals and FlowSpec still have no effective forwarding address;
 	// applyNextHopFamily clears the latter's ignored MP rewrites.
 	if !emitted.valid() {
+		// RFC 4271 Section 5.1.3, the peer-own gate below, asked of the one
+		// address a FlowSpec route can carry: a redirect target kept from the
+		// received UPDATE. A rewritten one is in mods and reaches the gate
+		// below through modsNextHop.
+		if base.mpRedirect && redirectNextHopIsPeerOwn(f, mods, base) {
+			return withholdPeerOwn
+		}
 		return withholdNone
 	}
 	if f.nhSelfWithheld {

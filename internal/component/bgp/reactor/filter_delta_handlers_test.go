@@ -226,6 +226,43 @@ func TestMPReachNextHopHandler_InvalidOpLength(t *testing.T) {
 	assert.Equal(t, src, out, "source preserved when op length is invalid")
 }
 
+// TestMPReachNextHopHandlerFlowSpecFailsClosed proves a FlowSpec MP_REACH_NLRI
+// Set of a width that is no redirect-to-IP address is written as the empty
+// field, never as the received one.
+//
+// RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
+// Next-Hop Network Address MUST be set to 0." Only a 4- or 16-octet Set is a
+// redirect target (draft-simpson-idr-flowspec-redirect-02 Section 3).
+//
+// Method: a received IPv4 FlowSpec field holding 192.0.2.77 meets a 12-octet
+// and a 3-octet Set: each leaves with length 0 and the NLRI intact. A 16-octet
+// Set is written as given.
+//
+// MUTATION: keep the received field for an odd-width Set (the c000024d field
+// leaves).
+func TestMPReachNextHopHandlerFlowSpecFailsClosed(t *testing.T) {
+	nlri := []byte{0x05, 0x01, 0x18, 0xc0, 0x00, 0x02}
+	src := buildMPReachSource(1, 133, []byte{192, 0, 2, 77}, nlri)
+	v6 := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x77}
+	for _, tc := range []struct {
+		name string
+		set  []byte
+		want []byte
+	}{
+		{"12-octets", make([]byte, 12), nil},
+		{"3-octets", []byte{1, 2, 3}, nil},
+		{"16-octets", v6, v6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ops := []filterapi.AttrOp{{Code: 14, Action: filterapi.AttrModSet, Buf: tc.set}}
+			out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+			require.True(t, ok, "handler planned an emitted attribute")
+			want := buildMPReachSource(1, 133, tc.want, nlri)
+			assert.Equal(t, want, out)
+		})
+	}
+}
+
 // TestMPReachNextHopHandler_IPv4NextHopThroughMPReach verifies that a 4-byte
 // next-hop op targeting MP_REACH (used by labeled-unicast / VPN families where
 // the IPv4 NH lives inside MP_REACH) patches correctly.

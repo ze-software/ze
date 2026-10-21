@@ -31,9 +31,10 @@ const flowRedirectAction = "0800000000000000"
 // Method: a route received with the community and a next hop is forwarded
 // through forwardUpdateCore to one destination, and the recipient's
 // MP_REACH_NLRI is compared byte for byte. IBGP under next hop auto keeps the
-// received address, EBGP under auto takes the speaker's address, EBGP under
-// next hop unchanged keeps it, IBGP under next hop self takes the speaker's
-// address, and a destination not sent extended communities gets length 0,
+// received address, EBGP under auto takes the speaker's IPv4 address for an
+// IPv4 rule and length 0 for an IPv6 one, EBGP under next hop unchanged keeps
+// it, IBGP under next hop self is reset the same way as EBGP auto, and a
+// destination not sent extended communities gets length 0,
 // because the redirect action it would follow is not sent.
 //
 // MUTATION: drop the mpRedirect branch of applyNextHopFamily (every case leaves
@@ -50,7 +51,14 @@ func TestFlowSpecRedirectForwardNextHop(t *testing.T) {
 		{"ipv4-flow", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, "050118c00002", netip.MustParseAddr("192.0.2.77")},
 		{"ipv6-flow", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, "0701200020010db8", netip.MustParseAddr("2001:db8::77")},
 	} {
-		selfHop := self4.AsSlice() // 4 octets under either AFI, never IPv4-mapped.
+		// The speaker's only address is IPv4. An IPv4 rule takes its 4
+		// octets; an IPv6 rule has no address of its own family to reset to,
+		// so it leaves with length 0 (draft Section 3 pairs an IPv4 [or IPv6]
+		// packet with an IPv4 [or IPv6] next-hop address), never IPv4-mapped.
+		var selfHop []byte
+		if tc.fam.AFI == family.AFIIPv4 {
+			selfHop = self4.AsSlice()
+		}
 		for _, dest := range []struct {
 			name      string
 			peerAS    uint32

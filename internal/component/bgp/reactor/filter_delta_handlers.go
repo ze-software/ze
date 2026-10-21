@@ -226,7 +226,8 @@ func clusterListHandler() filterapi.AttrModHandler {
 // A Set with an empty buffer is a real rewrite for a family without next hops,
 // not an absent operation. Such a family acquires a next hop only from a 4- or
 // 16-octet Set, which applyNextHopFamily records for a FlowSpec redirect-to-IP
-// route alone; it has cleared every other Set to empty by then.
+// route alone; it has cleared every other Set to empty by then, and a Set of
+// any other width is written as the empty field.
 //
 // An AttrModReplaceNLRI op replaces the NLRI field and keeps AFI, SAFI and the
 // next hop (or the next hop a Set writes). An empty replacement drops the
@@ -304,11 +305,17 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		}
 		switch {
 		case nextHopKept:
-		case noNextHop && newNHLen != 0:
+		case noNextHop && (newNHLen == 4 || newNHLen == 16):
 			// FlowSpec carries an address only as a redirect-to-IP target,
 			// which applyNextHopFamily alone writes (a 4- or 16-octet
 			// address, draft-simpson-idr-flowspec-redirect-02 Section 3).
-			nextHopKept = newNHLen != 4 && newNHLen != 16
+		case noNextHop && newNHLen != 0:
+			// Any other width is no redirect target, so it fails closed to the
+			// RFC 8955 Section 4 zero length: "the Length of the Next-Hop
+			// Network Address MUST be set to 0". Keeping the received field
+			// would send an address no destination decision chose.
+			newNHLen = 0
+			nextHopKept = nhLen == 0
 		case noNextHop:
 			nextHopKept = nhLen == 0
 		case newNHLen != 4 && newNHLen != 12 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 && newNHLen != vpnNextHopPairOctets:

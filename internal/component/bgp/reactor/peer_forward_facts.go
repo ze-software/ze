@@ -129,37 +129,66 @@ const (
 )
 
 // redirectNextHop is one destination's precomputed redirect-to-IP decision.
-// The address is held in its wire form, so the forward rails copy nothing per
-// UPDATE.
+// The addresses are held in their wire form, so the forward rails copy nothing
+// per UPDATE. A rewrite holds at most one address of each family.
 type redirectNextHop struct {
 	action redirectAction
-	is4    bool
+	has4   bool
+	has6   bool
 	legacy [4]byte  // an IPv4 address
-	global [16]byte // an IPv6 address
+	global [16]byte // an IPv6 global address
 }
 
-// hop returns the address as the next-hop field carries it, under either
-// FlowSpec AFI. draft-simpson-idr-flowspec-redirect-02 Section 3 sends packets
-// "towards the IPv4 or IPv6 address specified in the 'Network Address of
-// Next-Hop' field", so an IPv4 address is its 4 octets, never IPv4-mapped: the
-// mapped form is no usable IPv6 global (egressNextHopWithheld refuses it).
-func (r *redirectNextHop) hop() []byte {
-	if r.is4 {
-		return r.legacy[:]
+// hop returns the rewrite address for a rule of the given AFI as the next-hop
+// field carries it, or nil when this destination holds no address of that
+// family. draft-simpson-idr-flowspec-redirect-02 Section 3: "if an IPv4 [or
+// IPv6] packet with destination address D that is normally forwarded to a
+// next-hop A matches a filter entry of the type described above it MUST
+// instead be redirected (C=0) or mirrored (C=1) to next-hop B, where B is
+// found by FIB lookup of the IPv4 [or IPv6] address contained in the
+// MP_REACH_NLRI next-hop field". The packet family and the address family pair
+// up, so an IPv4 rule takes 4 octets, an IPv6 rule 16, and the other family's
+// address is never written: the IPv4-mapped form is no usable IPv6 global
+// (egressNextHopWithheld refuses it), and an IPv6 address cannot be the FIB
+// key for an IPv4 packet.
+func (r *redirectNextHop) hop(afi family.AFI) []byte {
+	switch afi {
+	case family.AFIIPv4:
+		if r.has4 {
+			return r.legacy[:]
+		}
+	case family.AFIIPv6:
+		if r.has6 {
+			return r.global[:]
+		}
 	}
-	return r.global[:]
+	return nil
 }
 
-// set records addr as the rewrite address.
-func (r *redirectNextHop) set(addr netip.Addr) {
-	r.action = redirectRewrite
-	addr = addr.Unmap()
-	if addr.Is4() {
-		r.is4 = true
-		r.legacy = addr.As4()
+// add records addr as a rewrite address when it can be one: a valid address
+// whose family slot is still empty, and for IPv6 not link-local. A link-local
+// address names no interface off the session's link, so the FIB lookup the
+// draft requires has no answer for it at the recipient's other interfaces and
+// the egress link-local gates would refuse the whole rule.
+func (r *redirectNextHop) add(addr netip.Addr) {
+	if !addr.IsValid() {
 		return
 	}
-	r.global = addr.As16()
+	addr = addr.Unmap()
+	if addr.Is4() {
+		if !r.has4 {
+			r.has4 = true
+			r.legacy = addr.As4()
+		}
+		return
+	}
+	if addr.IsLinkLocalUnicast() {
+		return
+	}
+	if !r.has6 {
+		r.has6 = true
+		r.global = addr.As16()
+	}
 }
 
 func (p *Peer) forwardFacts() *peerForwardFacts {
@@ -537,16 +566,20 @@ func precomputeRedirectNextHop(s *PeerSettings, f *peerForwardFacts) {
 	case NextHopSelf, NextHopExplicit:
 		f.redirect.action = redirectStrip
 		if f.nhSelfWithheld {
-			// The forward rails withhold the whole announcement already.
+			// No address to write. egressNextHopWithheld judges a FlowSpec
+			// rule by the field it emits, and the empty one has no address,
+			// so the rule is not withheld: it leaves with the RFC 8955
+			// Section 4 zero length and no redirect target.
 			return
 		}
 		// Only the modes precomputeNextHop armed carry an address.
 		switch f.nhMode {
 		case nhModeSelf4, nhModeExplicit4:
-			f.redirect.set(netip.AddrFrom4(f.nhLegacy))
+			f.redirect.add(netip.AddrFrom4(f.nhLegacy))
 		case nhModeSelfV6, nhModeSelfV6LL, nhModeExplicitV6:
-			f.redirect.set(netip.AddrFrom16(f.nhGlobal))
+			f.redirect.add(netip.AddrFrom16(f.nhGlobal))
 		}
+		f.redirect.rewriteIfAddressed()
 	case NextHopAuto:
 		// RFC 7947 Section 2.2.1: "the NEXT_HOP attribute MUST be passed
 		// unmodified to the route server clients".
@@ -562,21 +595,25 @@ func precomputeRedirectNextHop(s *PeerSettings, f *peerForwardFacts) {
 		// route with this community is advertised to an EBGP peer the
 		// next-hop address in the MP_REACH_NLRI SHOULD be reset to an address
 		// of the advertising router by default, per normal BGP procedures."
-		// The address is the one next-hop self uses (precomputeNextHop).
-		local := f.connectedLocal
-		if !local.IsValid() {
-			local = s.LocalAddress
-		}
-		if !local.IsValid() {
-			// No address of this speaker to reset to. Passing the received
-			// one is the configured-only alternative the same paragraph
-			// names, so the redirect action is voided with the zero length.
-			f.redirect.action = redirectStrip
-			return
-		}
-		f.redirect.set(local)
+		// The addresses are the ones next-hop self uses (precomputeNextHop).
+		// With none usable, passing the received one is the configured-only
+		// alternative the same paragraph names, so the redirect action is
+		// voided with the zero length (redirectStrip).
+		f.redirect.action = redirectStrip
+		f.redirect.add(f.connectedLocal)
+		f.redirect.add(s.LocalAddress)
+		f.redirect.rewriteIfAddressed()
 	default:
 		f.redirect.action = redirectStrip
+	}
+}
+
+// rewriteIfAddressed turns the decision into a rewrite once an address of
+// either family was recorded. A rule of the other family still leaves with the
+// zero length (hop returns nil for it).
+func (r *redirectNextHop) rewriteIfAddressed() {
+	if r.has4 || r.has6 {
+		r.action = redirectRewrite
 	}
 }
 

@@ -420,9 +420,20 @@ decision is computed once per facts snapshot:
 | Next hop self or explicit | that address |
 | Route-server client, next hop auto | the received address, RFC 7947 Section 2.2.1 |
 | Not sent extended communities, or EBGP auto with no own address | zero length: no redirect action reaches it |
+| An egress operation takes every 0x0800 community off (a community strip, a replacement, a suppression) | zero length: RFC 8955 Section 4 holds for a route that leaves without the action |
+| The address about to be sent is the destination's own | the rule is withheld, the RFC 4271 Section 5.1.3 peer-own gate |
 
-An IPv4 address is written as its 4 octets under either FlowSpec AFI, never
-IPv4-mapped. A route the route server or reflector relays from the selecting
+A reset or configured address is written only for a rule of its own family: an
+IPv4 rule takes 4 octets, an IPv6 rule 16, because the draft pairs "an IPv4 [or
+IPv6] packet" with "the IPv4 [or IPv6] address contained in the MP_REACH_NLRI
+next-hop field". A destination with no address of the rule's family, or only a
+link-local one, sends the rule with length 0; an IPv4 address is never written
+IPv4-mapped. A route also carrying an RFC 8955 Section 7.4 rt-redirect
+(0x8008, 0x8108, 0x8208) is no redirect-to-IP route: the draft says the
+redirect-to-IP community "should be ignored" beside a redirect-to-VRF. A field
+that is not one 4- or 16-octet address (a 12-octet RD form, a 32-octet pair)
+voids the action the same way, and the edit handler writes any other Set width
+as the empty field. A route the route server or reflector relays from the selecting
 RIB keeps its received field, because reconstruction takes it from the stored
 MP_REACH_NLRI when no separate next hop is stored.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeRedirectNextHop -->
@@ -430,6 +441,11 @@ MP_REACH_NLRI when no separate next hop is stored.
 <!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- relayFlowSpecNextHop -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_forward_wire_test.go TestFlowSpecRedirectForwardNextHop -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_forward_wire_test.go TestFlowSpecRedirectRouteServerKeepsNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_egress_test.go TestFlowSpecRedirectEgressStripVoidsNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_egress_test.go TestFlowSpecRedirectIgnoredCases -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_egress_test.go TestFlowSpecRedirectPeerOwnWithheld -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_egress_test.go TestPrecomputeRedirectNextHopAddressFamily -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_egress_test.go TestRelayFlowSpecRedirectNextHop -->
 
 **Flow example (FlowSpec via the generic plugin path):**
 ```go

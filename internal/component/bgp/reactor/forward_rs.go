@@ -514,7 +514,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 
 		applyFactsNextHop(facts, &mods, srcNextHop.mpFamily)
-		applyNextHopFamily(facts, &mods, srcNextHop)
+		applyNextHopFamily(facts, &mods, srcNextHop, wire.Payload())
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 

@@ -829,7 +829,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		}
 		applyFactsNextHop(facts, &mods, baseNextHop.mpFamily)
 		applyFactsSendCommunity(facts, &mods)
-		applyNextHopFamily(facts, &mods, baseNextHop)
+		applyNextHopFamily(facts, &mods, baseNextHop, peerBaseWire.Payload())
 		// A raw policy can introduce a second next hop even when the received
 		// UPDATE was single-field. Its AIGP decision needs each output section,
 		// but always the original received metric and next hop.
