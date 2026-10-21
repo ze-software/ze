@@ -377,6 +377,8 @@ func TestRFC8665MappingServerFlagIgnoresNPAndE(t *testing.T) {
 
 // RFC requirement: RFC8665-5-13 negative -- with the M-Flag clear the very same NP/E pair is
 // honored instead of ignored, so the ignore rule is conditional on M rather than blanket.
+// RFC requirement: RFC8665-5-12 negative -- E set with NP clear is not the both-set case: the
+// action is PHP, not Explicit NULL; only NP and E together give ActionExplicitNull.
 func TestRFC8665MappingServerFlagClearHonorsNPAndE(t *testing.T) {
 	if action := OutgoingActionFor(SIDFlags{E: true}); action != ActionPHP {
 		t.Fatalf("M=0/NP=0 action = %v, want ActionPHP", action)

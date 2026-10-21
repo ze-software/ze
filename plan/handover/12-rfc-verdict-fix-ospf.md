@@ -11,6 +11,18 @@ work survives a machine move (M9). Delete this file in the spec's closing commit
 | `b75f0355c6` | AC-C3 rows RFC3101-3.2-3, RFC7770-2.2-2, RFC7166-4.6-7 (+4.6-4 gap), first verdicts by an independent judge; journal row on the umbrella's false RFC 7166 claim |
 | `0de9b98e6c` | AC-C3 row RFC5709-3.2-6 (key storage persists), single-polarity, judged enforced |
 
+## State at end of 2026-10-21 (read this first)
+
+Landed: `90dce367a3`, `b75f0355c6`, `0de9b98e6c`, `50044040c5`, `19de202493`, and the
+commit carrying this file (RFC8666-6-13 widened, RFC8665-5-12 and 8666-6-13 negatives,
+spec audit refresh). Every AC row is Done; the derived listing returns only
+RFC3101-3.2-2. Review round 2 had one BLOCKER (RFC8666-6-13), fixed after it; a round 3
+review is owed. What blocks closure: the interop runs (the spec's Work Not Done row
+lists the scenarios and the Mac blocker, `labBuildTimeout` in
+`plan/journal/bound-too-small-for-its-own-burst.md`), then one `./le verify worktree`,
+then `ze-close`. `internal/plugins/ospf/zz_probe_acc3_test.go` is an untracked agent
+probe with no assertion: delete it, never commit it.
+
 ## Update 2026-10-21 afternoon
 
 `50044040c5` landed the judged record fixes, the GR helper identity fix and the

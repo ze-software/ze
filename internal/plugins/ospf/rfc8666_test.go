@@ -186,6 +186,8 @@ func TestRFC8666MappingServerFlagIgnoresNPAndE(t *testing.T) {
 
 // RFC requirement: RFC8666-6-14 negative -- the same NP=0/E=1 advertisement WITHOUT the
 // M-Flag honors NP and E: the PHP pop happens. The ignore is conditional on M.
+// RFC requirement: RFC8666-6-13 negative -- E set with NP clear is not the both-set case:
+// the upstream neighbor pops the Prefix-SID (PHP) and imposes no Explicit NULL.
 func TestRFC8666WithoutMappingServerFlagNPAndEApply(t *testing.T) {
 	f := newRFC8666Fixture()
 	entries := f.installV6(t, sr.PrefixSID{Flags: sr.SIDFlags{E: true}, Index: 9}, f.orig)

@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -51,7 +52,7 @@
       "note": "single-polarity positive: v6EInterAreaPrefixBody (the only range producer) decodes to Range Size 1 for a /128; 1 never exceeds what any Prefix Length satisfies",
       "requirement_sha": "7614081de1ad4cc2",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "81be8c5c109a55c8"
@@ -88,8 +89,8 @@
       "note": "NP set through the real OSPFv3 carriage and installer: push 16009, swap 18009->16009, no pop entry; negative shows NP clear does pop",
       "requirement_sha": "598e389887c7dcad",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
@@ -101,8 +102,8 @@
       "note": "NP clear programs a PHP pop of 18009 and no push or swap; negative: NP set programs no pop",
       "requirement_sha": "61e796d1eb8192ba",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
@@ -114,8 +115,8 @@
       "note": "NP set, E clear keeps the SRGB label on the stack (push 16009, swap to 16009); negative: NP clear pops",
       "requirement_sha": "36051aae331a1508",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
@@ -124,28 +125,30 @@
       "verdict": "enforced"
     },
     "RFC8666-6-13": {
-      "note": "NP+E set replaces the SID with Explicit NULL 2 at ingress and in the swap; negative: NP set, E clear does not",
-      "requirement_sha": "5594228de2e23f6b",
+      "note": "Re-judged 2026-10-21 against the widened row (Section 6: \"If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label.\"). Action: positive TestRFC8666ExplicitNullReplacesPrefixSID (NP+E) imposes label 2 at ingress and swaps 18009 -> 2. Condition, both halves: TestRFC8666NoPHPKeepsPrefixSIDOnStack (NP set, E clear) imposes 16009, not 2; TestRFC8666WithoutMappingServerFlagNPAndEApply, newly tagged (E set, NP clear), pops 18009 and pushes nothing. An E-only Explicit NULL rule now reddens the latter. OutgoingActionFor (sr/install.go) checks M, then !NP, then E; revert record on it for the new negative. The earlier weak finding is closed by the added tag.",
+      "requirement_sha": "623098e9a447553f",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "5a3a3999bf6f1576",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "0183e144a1e3a85c"
       },
       "verdict": "enforced"
     },
     "RFC8666-6-14": {
-      "note": "M=1,NP=0,E=1 keeps 16009 with no pop and no Explicit NULL (both flags ignored); same input without M pops",
+      "note": "Re-judged 2026-10-21 after the doc comment of TestRFC8666WithoutMappingServerFlagNPAndEApply gained an RFC8666-6-13 tag; its body is unchanged. Positive TestRFC8666MappingServerFlagIgnoresNPAndE: M=1, NP=0, E=1 keeps 16009, no Explicit NULL, no pop, so both flags are ignored. Negative: the same NP=0/E=1 without M pops 18009 and pushes nothing, so the ignore is conditional on M. OutgoingActionFor returns ActionKeep on M first.",
       "requirement_sha": "b364b405b60ae381",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "e3beb9349250fa3b",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "b6918d04acb1daca"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "0183e144a1e3a85c"
       },
       "verdict": "enforced"
     },
@@ -166,8 +169,8 @@
       "note": "NP+E set imposes ExplicitNullV6 (2) at ingress and in the transit swap; E clear imposes the SRGB label. IPv4 clause (label 0) does not arise: OSPFv3 reception rejects a non-IPv6 AF",
       "requirement_sha": "35b6c0124c279ad8",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "5a3a3999bf6f1576",
@@ -205,8 +208,8 @@
       "note": "algorithm 0 not in the originator's SR-Algorithm list installs no mpls-fib entry; advertised algorithm installs push 16009",
       "requirement_sha": "14f6b666aa332fb3",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "af8e4917c7867ac2",
@@ -252,9 +255,9 @@
       "note": "Re-judged 2026-09-30 (continuation 5). Positive: new TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel, next hop = SID advertiser, four flag settings each give the Section 6 outcome: NP clear -> no push and PHP pop of 18009; NP -> push 16009; NP+E -> push IPv6 Explicit NULL; M+E with NP clear -> push 16009 (M makes NP and E ignored, distinguishable from the NP-clear pop). Negative: TestRFC8666TransitHopIgnoresOriginatorPHPFlags, a non-advertising next hop does not apply the originator's NP=0; judge overlay applying the flags unconditionally in forwarding (sr_install.go) reds it. Revert record on forwarding observed red for the positive. TestRFC8666OutgoingLabelUsesNextHopRouter stays tagged as supplementary (next hop's SRGB).",
       "requirement_sha": "0a235ac2ce8aa307",
       "tests": {
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter": "4729a15d3adeda26",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel": "edb7bd346deb2664",
@@ -334,7 +337,7 @@
       "tests": {
         "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "ef61609c1154dc26",
         "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "ec9a3737d2fcf57d"
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "4729a15d3adeda26"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "81a5a6159f0e81fe",

@@ -5,6 +5,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -14,8 +15,8 @@
       "requirement_sha": "1c7474a9c2a5e277",
       "tests": {
         "internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go::TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA": "4aa51ec26827ad60",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go::TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA": "80042e51f9287374",
@@ -65,8 +66,8 @@
       "note": "forbidden: a Range Size of 0 sent or accepted. Receive: TestRFC8665RangeSizeZeroRejected zeroes only the size of a valid value and requires DecodeRangeValue to error, and srDecodeRemoteCapabilities appends a range only on rerr == nil. Send: the same test requires SRConfig.Validate to reject a configured SRGB of size 0, and Validate gates the config verify (validateSRConfig, register.go) before any SRGB reaches srWire. Positive TestRFC8665RangeTLVRoundTrip decodes size 100",
       "requirement_sha": "f597e1db8fe44071",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "5264dbe3161fbb4d",
@@ -105,8 +106,8 @@
       "note": "forbidden: using a range TLV that carries two SID/Label sub-TLVs. TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored builds two valid sub-TLVs and requires DecodeRangeValue to error, red on a decoder that picks one; the SRGB case of srDecodeRemoteCapabilities appends only on rerr == nil, so the error is the ignore. Positive TestRFC8665RangeWithSingleSIDLabelAccepted accepts exactly one",
       "requirement_sha": "f250cf734ca85788",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "b7c4b8c278be52db",
@@ -143,8 +144,8 @@
       "requirement_sha": "2d36bad1eb889606",
       "tests": {
         "internal/plugins/ospf/rfc8665_srgb_advertised_order_test.go::TestRFC8665ReceivedRangesMappedInAdvertisedOrder": "fe8e66ea3f7c1d90",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexUsesAdvertisedOrder": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexUsesAdvertisedOrder": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_srgb_advertised_order_test.go::TestRFC8665ReceivedRangesMappedInAdvertisedOrder": "897133dbb5dfe693",
@@ -157,8 +158,8 @@
       "note": "forbidden: advertising overlapping SRGB ranges. TestRFC8665OverlappingRangesRejected requires SRConfig.Validate to reject 16000+100 with 16050+100, red on a missing overlap check; Validate gates the config verify (validateSRConfig, register.go) so the advertised SRGB is only a validated one. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint ranges",
       "requirement_sha": "3e4a86f46e89aeee",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "078ac273313a3a2e",
@@ -170,8 +171,8 @@
       "note": "forbidden: an SRLB Range Size of 0 sent or accepted. Receive: the SRLB case of srDecodeRemoteCapabilities uses DecodeRangeValue with an rerr == nil gate, and TestRFC8665RangeSizeZeroRejected requires it to reject size 0. Send: the same test requires Validate to reject a configured SRLB of size 0 (the cfgLB case), and Validate gates config verify. Positive TestRFC8665RangeTLVRoundTrip",
       "requirement_sha": "81436ba447ddc544",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "5264dbe3161fbb4d",
@@ -196,8 +197,8 @@
       "note": "forbidden: using an SRLB TLV that carries two SID/Label sub-TLVs. The V4TypeSRLB case of srDecodeRemoteCapabilities calls the same DecodeRangeValue and appends only on rerr == nil; TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored requires that decoder to reject the two-sub-TLV value, red on a decoder that picks one. Positive accepts exactly one",
       "requirement_sha": "7d877e03d312ab62",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "b7c4b8c278be52db",
@@ -209,8 +210,8 @@
       "note": "forbidden: advertising overlapping SRLB ranges. TestRFC8665OverlappingRangesRejected requires Validate to reject two overlapping SRLB ranges (and an SRLB overlapping the SRGB), red on a missing check; Validate gates config verify. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint SRLB ranges",
       "requirement_sha": "eaff7fbbeeadda7c",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "078ac273313a3a2e",
@@ -235,8 +236,8 @@
       "note": "two clauses. Sent: TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend encodes every defined flag and fails if mask 0x83 is set, red on an encoder leaking a reserved bit. Received: TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive sets 0x83 and requires no error and a decode equal to the clean one, red on a decoder that rejects or interprets them",
       "requirement_sha": "1bf5c50a46195750",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive": "333fe01d962966fa",
@@ -248,8 +249,8 @@
       "note": "two clauses. Pop: TestRFC8665PHPPopsWhenNoPHPFlagClear requires OutgoingActionFor(NP=0) to be ActionPHP and OutgoingLabel to impose nothing; E ignored: the same case sets E=1, so honoring E goes red. Negative TestRFC8665NoPHPKeepsPrefixSIDLabel: NP=1 must not pop. OutgoingActionFor is the sole producer of the penultimate-hop action (sr_install.go, sr_fib.go); the wiring to the next-hop case is row RFC8665-5-7",
       "requirement_sha": "df3d0befffd667ff",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd",
@@ -261,8 +262,8 @@
       "note": "Rejudged 2026-10-21 over the current tags, units and records. NP=1/E=0 gives ActionKeep with 16009 imposed, and NP=1/E=1 does not keep the Prefix-SID.",
       "requirement_sha": "2093ce4509101e03",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "91f028433fb53896",
@@ -271,19 +272,34 @@
       "verdict": "enforced"
     },
     "RFC8665-5-12": {
-      "note": "Rejudged 2026-10-21 over the current tags, units and records. NP and E both set yields literal label 0 through OutgoingLabel and through the installer; NP without E installs 16009.",
+      "note": "Re-judged 2026-10-21 against Section 5: \"If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label.\" Action: positives TestRFC8665ExplicitNullPushedAsLabelZero (installer pushes literal label 0) and TestRFC8665ExplicitNullReplacesPrefixSID. Condition, both halves: NP set E clear gives 16009 / ActionKeep (TestRFC8665NoExplicitNullWithoutEFlag, TestRFC8665NoPHPKeepsPrefixSIDLabel); E set NP clear gives ActionPHP, not ActionExplicitNull (TestRFC8665MappingServerFlagClearHonorsNPAndE, newly tagged, revert record on OutgoingActionFor). An E-only Explicit NULL rule now reddens a tagged negative; the earlier half-condition gap is closed.",
       "requirement_sha": "48421cd0e398092b",
       "tests": {
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "321dd3b6715b9f86",
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "321dd3b6715b9f86",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "7b619330b57b3ea6",
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "afa359527626375f",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "91f028433fb53896",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "2ad9ba23c107a4f5",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8665-5-13": {
+      "note": "Judged 2026-10-21 against Section 5: \"When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception.\" OutgoingActionFor (sr/install.go) returns ActionKeep on M before reading NP or E. Positive: M=1, NP=0, E=1 gives ActionKeep and label 16009 imposed; honoring NP would give PHP, honoring E with NP ignored would give Explicit NULL, so either reddens. Negative TestRFC8665MappingServerFlagClearHonorsNPAndE: without M the same NP=0/E=1 gives PHP and NP=1/E=1 gives ActionExplicitNull, so the ignore is conditional on M. Proven at the action function the installer calls, not through the installer.",
+      "requirement_sha": "b2f25aa8f262ed82",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagIgnoresNPAndE": "dcc89abea6ba13ce"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "2ad9ba23c107a4f5",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagIgnoresNPAndE": "021e0e61cf9cfc2a"
       },
       "verdict": "enforced"
     },
@@ -327,8 +343,8 @@
       "note": "forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7",
       "requirement_sha": "4f5be94fdd9015e3",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd",
@@ -342,8 +358,8 @@
       "tests": {
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "321dd3b6715b9f86",
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "321dd3b6715b9f86",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "7b619330b57b3ea6",
@@ -370,8 +386,8 @@
       "note": "forbidden: accepting a SID with V set and L clear or the reverse. TestRFC8665InvalidVLCombinationIgnored requires Prefix-SID, Adj-SID and LAN Adj-SID decoders to error on both invalid pairs; the receive callers (srRemotePrefixSIDs sr_install.go, sr_tilfa.go) use a SID only on derr == nil, so the error is the ignore. Positive TestRFC8665ValidVLCombinationsDecode decodes V=0/L=0 index and V=1/L=1 label forms",
       "requirement_sha": "942fc816ff306cde",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665InvalidVLCombinationIgnored": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ValidVLCombinationsDecode": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665InvalidVLCombinationIgnored": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ValidVLCombinationsDecode": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665InvalidVLCombinationIgnored": "64ca05c074241ae4",
@@ -423,8 +439,8 @@
       "note": "two clauses. Sent: TestRFC8665AdjSIDReservedFlagBitsZeroOnSend encodes all five flags for Adj-SID and LAN Adj-SID and fails if bits 5-7 (0x07) are set. Received: TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive sets 0x07 and requires no error and a decode equal to the clean one",
       "requirement_sha": "dcdb9a64eea8b9f7",
       "tests": {
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsZeroOnSend": "22b674e84f4032d5"
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsZeroOnSend": "dcc89abea6ba13ce"
       },
       "units": {
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive": "2265748595d3c01f",
@@ -460,8 +476,8 @@
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidSRGBIgnoresLSA": "71d30bc409f505ca",
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA": "71d30bc409f505ca",
         "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "71d30bc409f505ca",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "22b674e84f4032d5",
-        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "22b674e84f4032d5",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "dcc89abea6ba13ce",
+        "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "dcc89abea6ba13ce",
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "a57eda77c987d4f1",
         "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "a57eda77c987d4f1"
       },

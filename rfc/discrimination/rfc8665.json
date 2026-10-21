@@ -191,6 +191,17 @@
     {
       "rid": "RFC8665-5-12",
       "polarity": "negative",
+      "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE",
+      "unit-sha": "ac4fd1bca545e2ea",
+      "claim-sha": "a6a265f399078d3b",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
+      "producer-sha": "9ca706d9d63730b0",
+      "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-12",
+      "polarity": "negative",
       "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel",
       "unit-sha": "69bb57a5c71b0185",
       "claim-sha": "b85fd750c501249f",
