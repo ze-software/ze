@@ -29,7 +29,7 @@ import (
 func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 	identities := make([]ribOutKey, len(request.Keys))
 	for i := range request.Keys {
-		identity, err := recoveryIdentity(request.Family, request.Keys[i].NLRI, request.AddPath, request.PrefixOnly)
+		identity, err := recoveryIdentity(request.Family, request.Keys[i].NLRI, request.AddPath)
 		if err != nil {
 			return nil, err
 		}
@@ -118,22 +118,8 @@ func recoveryExcludes(key *ribevents.RecoveryKey, sourcePeer string) bool {
 }
 
 // recoveryIdentity normalizes each affected native identity once per batch.
-func recoveryIdentity(fam family.Family, raw []byte, addPath, prefixOnly bool) (ribOutKey, error) {
-	var identity ribOutKey
-	var ok bool
-	if prefixOnly {
-		if fam.SAFI != family.SAFIMPLSLabel {
-			return ribOutKey{}, fmt.Errorf("recovery: prefix-only framing requires labeled unicast")
-		}
-		_, prefix, valid := parsePrevKey(fam, raw, addPath)
-		if !valid {
-			return ribOutKey{}, fmt.Errorf("recovery: invalid labeled prefix")
-		}
-		var scratch [cidrKeyOctetsMax]byte
-		identity, ok = ribOutKey{Native: string(store.PrefixToNLRIInto(prefix, scratch[:]))}, true
-	} else {
-		identity, ok = ribOutRouteKey(fam, raw, addPath)
-	}
+func recoveryIdentity(fam family.Family, raw []byte, addPath bool) (ribOutKey, error) {
+	identity, ok := ribOutRouteKey(fam, raw, addPath)
 	if !ok {
 		return ribOutKey{}, fmt.Errorf("recovery: invalid NLRI for %s", fam)
 	}
@@ -309,8 +295,8 @@ func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) ([]by
 // caller MUST successfully drain applied sent deliveries first, outside writeMu.
 // Each key argument is ribevents.FormatRecoveryKey's form.
 func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, error) {
-	if len(args) < 6 {
-		return statusError, nil, fmt.Errorf("request bgp rib recovery needs at least 6 arguments, got %d: usage: request bgp rib recovery <destination> <family> <add-path> <prefix-only> <sent-add-path> <nlri-hex>=<excluded,...> [<nlri-hex>=<excluded,...> ...]", len(args))
+	if len(args) < 5 {
+		return statusError, nil, fmt.Errorf("request bgp rib recovery needs at least 5 arguments, got %d: usage: request bgp rib recovery <destination> <family> <add-path> <sent-add-path> <nlri-hex>=<excluded,...> [<nlri-hex>=<excluded,...> ...]", len(args))
 	}
 	destination, err := netip.ParseAddr(args[0])
 	if err != nil {
@@ -324,17 +310,13 @@ func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, erro
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery ADD-PATH: %w", err)
 	}
-	prefixOnly, err := strconv.ParseBool(args[3])
-	if err != nil {
-		return statusError, nil, fmt.Errorf("recovery prefix-only: %w", err)
-	}
-	sentAddPath, err := strconv.ParseBool(args[4])
+	sentAddPath, err := strconv.ParseBool(args[3])
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery sent ADD-PATH: %w", err)
 	}
 	request := ribevents.RecoveryRequest{Destination: destination, Family: fam, AddPath: addPath,
-		PrefixOnly: prefixOnly, SentAddPath: sentAddPath, Keys: make([]ribevents.RecoveryKey, 0, len(args)-5)}
-	for _, encoded := range args[5:] {
+		SentAddPath: sentAddPath, Keys: make([]ribevents.RecoveryKey, 0, len(args)-4)}
+	for _, encoded := range args[4:] {
 		key, err := ribevents.ParseRecoveryKey(encoded)
 		if err != nil {
 			return statusError, nil, err

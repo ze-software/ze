@@ -23,8 +23,6 @@ type RecoveryRequest struct {
 	Family      family.Family `json:"family"`
 	Keys        []RecoveryKey `json:"keys"`
 	AddPath     bool          `json:"add-path"`
-	// PrefixOnly is the text-command CIDR form of labeled unicast.
-	PrefixOnly bool `json:"prefix-only"`
 	// SentAddPath selects the destination's negotiated sent identity space.
 	SentAddPath bool `json:"sent-add-path"`
 }

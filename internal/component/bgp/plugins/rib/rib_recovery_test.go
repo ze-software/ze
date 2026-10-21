@@ -120,7 +120,7 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	require.Contains(t, r.bgpPeers, failed)
 	// The external command must reach the exact same producer and framing.
 	status, answer, err := r.recoveryCommand("", []string{dest.String(), family.IPv4Unicast.String(),
-		"false", "false", "false", ribevents.FormatRecoveryKey(&request.Keys[0])})
+		"false", "false", ribevents.FormatRecoveryKey(&request.Keys[0])})
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	require.Equal(t, outcomes, answer)
@@ -458,10 +458,15 @@ func TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier(t *testing.T) {
 	}
 }
 
-// RFC 8277 Section 2.4 encodes a labeled withdrawal as one
-// Compatibility field and the prefix, even when the advertisement had a stack.
-// PREVENTS: the text withdrawal grammar losing the labeled route's sent identity.
-func TestRecoveryLabeledTextPrefixMatchesNativeSentStack(t *testing.T) {
+// TestRecoveryLabeledKeyMatchesNativeSentStack checks a recovery key names a
+// labeled route whatever label stack framed it: the reactor asks with the
+// native announcement it holds, which may carry another stack than the one
+// sent. RFC 8277 Section 2.4 keys a labeled route by its prefix alone ("Upon
+// reception, the value of the Compatibility field MUST be ignored."). Method:
+// record a two-label sent route, ask with a one-label announcement of the same
+// prefix, and require the sent identity and a WITHDRAW answer.
+// PREVENTS: the per-key lookup missing the labeled route's sent identity.
+func TestRecoveryLabeledKeyMatchesNativeSentStack(t *testing.T) {
 	r := newTestRIBManager(t)
 	recoveryTestCleanup(t, r)
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
@@ -469,12 +474,12 @@ func TestRecoveryLabeledTextPrefixMatchesNativeSentStack(t *testing.T) {
 	dest := netip.MustParseAddr("192.0.2.20")
 	advertised := []byte{72, 0, 6, 64, 0, 12, 129, 198, 51, 100}
 	r.handleSent(nativeSentEvent(t, dest, fam, advertised, nativeSentAttrs(), false, false))
-	// RFC 8277 Section 2.4: the label-free text name is the same route identity.
-	identity, err := recoveryIdentity(fam, []byte{24, 198, 51, 100}, false, true)
+	asked := []byte{48, 0, 9, 1, 198, 51, 100}
+	identity, err := recoveryIdentity(fam, asked, false)
 	require.NoError(t, err)
-	require.Contains(t, r.ribOut[dest][fam], identity, "the text key names the advertised stack's identity")
+	require.Contains(t, r.ribOut[dest][fam], identity, "the one-label key names the advertised stack's identity")
 	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: fam,
-		Keys: []ribevents.RecoveryKey{recoveryKey([]byte{24, 198, 51, 100}, failed)}, PrefixOnly: true})
+		Keys: []ribevents.RecoveryKey{recoveryKey(asked, failed)}})
 	require.NoError(t, err)
 	require.Len(t, outcomes, 1)
 	require.True(t, outcomes[0].Withdraw)
@@ -494,7 +499,7 @@ func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
 	destination := netip.MustParseAddr("192.0.2.20")
 	request := ribevents.RecoveryRequest{Destination: destination,
 		Family: family.IPv4Unicast, AddPath: true, SentAddPath: true}
-	args := []string{destination.String(), request.Family.String(), "true", "false", "true"}
+	args := []string{destination.String(), request.Family.String(), "true", "true"}
 	for prefix := range 64 {
 		raw := []byte{0, 0, 0, 42, 24, 198, 51, byte(prefix)}
 		key := recoveryKey(raw, failed)
