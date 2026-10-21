@@ -1,0 +1,9 @@
+# Observation, not stimulus. The rebind step waits for Ze's "ike: peer endpoint
+# moved, Child SA cannot be migrated here, so it is rekeyed onto the new address and
+# port" with reason "transport mode", which rebindChildSAs
+# (internal/component/ike/engine/rebind.go) logs at INFO, and the ike subsystem runs
+# at WARN by default. The lab-wide ZE_LOG_LEVEL=debug (zeEnvironment, ipsec.go)
+# resolves to the key ze.log.level, a subsystem named "level", so it raises nothing.
+# MEASURED 2026-10-21 on the tunnel sibling: without this file the step timed out with
+# Ze's log holding only its ERROR line.
+ZE_LOG_IKE=info

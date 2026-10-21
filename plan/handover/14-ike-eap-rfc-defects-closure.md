@@ -51,6 +51,22 @@ committed together.
   (13 s); run it in the guest with `-test.v -test.run TestRFC3948InstalledStateCarriesTheIKEPeerPort`
   and check it says PASS, not SKIP (it skips without CLONE_NEWNET).
 
+## Runs reached a verdict, 2026-10-21 18:45 to 19:31 (disk back to ~10G free)
+
+Full table in the spec, "Interop Tests", "Runs of 2026-10-21". Two blockers keep the
+spec open; neither is a lab flake:
+
+| Blocker | Evidence | Decision owed |
+|---------|----------|---------------|
+| AC-14 on the wire: Ze's transport-mode Child SA rekey after a NAT rebind is refused by charon with TS_UNACCEPTABLE | Ze's CREATE_CHILD_SA names the peer's public 172.28.0.7 (the RFC 7296 Section 2.23.1 substituted selector it installed); charon behind the NAT holds 172.28.0.3. RFC 7296 Section 2.23.1 describes only the client-behind-NAT initiator; the server-initiated rekey is not spelled out there | product fix in Ze (send the peer's original selector address, stored at creation as the section's "original source address", or let the NATed peer drive the rekey); read strongSwan `child_create.c` before choosing (M6) |
+| `responder-eap-tls12` cannot pass: strongSwan 5.9.14 has no RFC 7627 EMS, Go refuses the TLS 1.2 MSK export | Ze WARN "cannot export the RFC 5216 Section 2.3 MSK ... on TLS 1.2" | which way: (a) the scenario asserts the TLS 1.2 handshake completes through Finished and Ze's RFC 7627 refusal, or (b) a TLS 1.2 peer with EMS (e.g. eapol_test) |
+
+Also found: the D1b mutant stays green on the wire (earlier EAP rounds adopt the
+endpoint in `handleOwnedInbound`), recorded in the spec. Fixture fixes made this
+session: `ze-env` (`ZE_LOG_IKE=info`) in both rebind scenarios, `pfs disable` in the
+transport one. Still owed after the blockers: transport walk (M1, M2), Docker proof
+build, one full `./le verify worktree`, `/ze-close`.
+
 ## Stopped, 2026-10-21 18:30: the Mac disk is full
 
 - No interop, walk, Linux integration, Docker or verify run reached a verdict.
