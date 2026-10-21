@@ -25,12 +25,21 @@ const isdNLRIHex = "0100010c0000fde900000064180a0000"
 // reports what survives and how many NLRIs left it, discarded or withdrawn.
 func retainMUP(t *testing.T, fam Family, section []byte) (kept []byte, dropped int) {
 	t.Helper()
+	kept, discarded, withdrawn := retainMUPCounts(t, fam, section)
+	return kept, discarded + withdrawn
+}
+
+// retainMUPCounts runs the registered ingress recognizer of fam over one NLRI section
+// and reports what survives, how many NLRIs it discarded, and how many it treated as
+// withdrawn, so a test can tell a silent ignore from a treat-as-withdraw.
+func retainMUPCounts(t *testing.T, fam Family, section []byte) (kept []byte, discarded, withdrawn int) {
+	t.Helper()
 	recognize := nlritype.Get(fam)
 	require.NotNil(t, recognize, "the mup plugin registers its ingress recognizer for %s", fam)
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	r, err := nlritype.Retain(recognize, fam, section, false, true, scratch[:])
 	require.NoError(t, err, "a well-framed section is never an error")
-	return r.Kept, r.Discarded + r.WithdrawnCount
+	return r.Kept, r.Discarded, r.WithdrawnCount
 }
 
 // concatNLRI joins NLRIs into one MP_REACH NLRI section.
@@ -61,8 +70,9 @@ func TestMUPOtherRouteTypesSilentlyIgnoredAtIngress(t *testing.T) {
 			mupWireNLRI(byte(MUPArch3GPP5G), 99),
 			mupWireNLRI(byte(MUPArch3GPP5G), 0xffff, 0x01, 0x02, 0x03),
 		)
-		kept, dropped := retainMUP(t, fam, section)
-		assert.Equal(t, 4, dropped, "%s: every other route type is ignored", fam)
+		kept, discarded, withdrawn := retainMUPCounts(t, fam, section)
+		assert.Equal(t, 4, discarded, "%s: every other route type is silently ignored", fam)
+		assert.Zero(t, withdrawn, "%s: an other route type is ignored, never treated as withdrawn", fam)
 		assert.Equal(t, isd, kept, "%s: only the defined route type survives", fam)
 	}
 }
@@ -84,7 +94,7 @@ func TestMUPDefinedRouteTypesSurviveIngress(t *testing.T) {
 		section := concatNLRI(
 			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPISD), concatNLRI(rd, []byte{byte(w * 8)}, addr())...),
 			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPDSD), concatNLRI(rd, addr())...),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), concatNLRI(rd, []byte{byte(w * 8)}, addr(), []byte{0, 0, 0, 1, 9, 32, 192, 0, 2, 1})...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), concatNLRI(rd, []byte{byte(w * 8)}, addr(), []byte{0, 0, 0, 1, 9, 32, 192, 0, 2, 1, 0})...),
 			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT2ST), concatNLRI(rd, []byte{byte(w*8 + 32)}, addr(), []byte{1, 2, 3, 4})...),
 		)
 		kept, dropped := retainMUP(t, fam, section)
@@ -101,7 +111,7 @@ func TestMUPDefinedRouteTypesSurviveIngress(t *testing.T) {
 // section around it is rewritten.
 // PREVENTS: stripping or rewriting an unknown TLV on re-advertisement.
 func TestMUPUnknownTLVPropagatedUnchangedAtIngress(t *testing.T) {
-	withUnknown := t1stNLRI(t, t1stBody+"00"+"F003010203") // type 0xF0, length 3
+	withUnknown := t1stNLRI(t, t1stBody+"F003010203") // type 0xF0, length 3
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9 positive -- a T1ST route carrying unknown TLV type 0xF0 is kept by the ingress pass, and the section ze relays holds its octets unchanged, TLV included, both when nothing else is dropped and when an unknown route type beside it forces the section to be rebuilt
 	kept, dropped := retainMUP(t, IPv4MUP, withUnknown)
@@ -132,8 +142,8 @@ func TestMUPUnknownTLVPropagatedUnchangedAtIngress(t *testing.T) {
 // PREVENTS: a relay that re-encodes the route from its decoded fields, which drops
 // every TLV ze does not know.
 func TestMUPUnknownTLVNotStrippedAtIngress(t *testing.T) {
-	plain := t1stNLRI(t, t1stBody+"00")
-	withUnknown := t1stNLRI(t, t1stBody+"00"+"F003010203")
+	plain := t1stNLRI(t, t1stBody)
+	withUnknown := t1stNLRI(t, t1stBody+"F003010203")
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9 negative -- the relayed route is not the TLV-less route: it is five octets longer than that route, its Length octet counts the TLV, and its last five octets are the unknown TLV
 	kept, _ := retainMUP(t, IPv4MUP, concatNLRI(mupWireNLRI(byte(MUPArch3GPP5G), 99), withUnknown))

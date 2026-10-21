@@ -46,7 +46,7 @@ func TestMUPDSDWithoutPrefixSIDTreatAsWithdraw(t *testing.T) {
 		siblings [][]byte
 	}{
 		{"IPv4", IPv4MUP, dsdRoute(192, 0, 2, 1), [][]byte{
-			isdRoute(24, 10, 0, 0), t1stRoute(nil, teid1, endpoint4...), t2stRoute(64, 192, 0, 2, 1, 0, 0, 0, 1),
+			isdRoute(24, 10, 0, 0), t1stRoute(nil, teid1, endpoint4NoSource...), t2stRoute(64, 192, 0, 2, 1, 0, 0, 0, 1),
 		}},
 		{"IPv6", IPv6MUP, dsdRoute(ipv6Addr...), [][]byte{
 			isdRoute(32, 0x20, 0x01, 0x0d, 0xb8), t2stRoute(160, append(append([]byte{}, ipv6Addr...), 0, 0, 0, 1)...),

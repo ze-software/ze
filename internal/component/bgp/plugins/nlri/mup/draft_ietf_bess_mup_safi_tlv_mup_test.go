@@ -13,9 +13,13 @@ import (
 // T2ST Endpoint Length. parseBodyT1ST, parseBodyT2ST and validateTLVs decide each one.
 
 // t1stBody is the Route Type specific field of a T1ST route: RD 100:100, prefix
-// 192.168.0.1/32, TEID 0x3039, QFI 9, endpoint 10.0.0.1 (32 bits). No source address,
-// no TLVs.
-const t1stBody = "0000006400000064" + "20C0A80001" + "00003039" + "09" + "200A000001"
+// 192.168.0.1/32, TEID 0x3039, QFI 9, endpoint 10.0.0.1 (32 bits), Source Address
+// Length 0 (no source address), no TLVs.
+const t1stBody = t1stThroughEndpoint + "00"
+
+// t1stThroughEndpoint is t1stBody up to the end of the endpoint address, for a
+// route that carries a source address in place of the zero length.
+const t1stThroughEndpoint = "0000006400000064" + "20C0A80001" + "00003039" + "09" + "200A000001"
 
 // t1stNLRI frames body as an architecture 1, route type 3 NLRI under its own length.
 func t1stNLRI(t *testing.T, body string) []byte {
@@ -42,7 +46,7 @@ func TestMUPT1STMandatoryFieldsWithinLength(t *testing.T) {
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 negative -- a T1ST route whose
 	// declared Length ends inside the endpoint address (mandatory fields exceed the Length,
 	// remaining < 0) is refused rather than read short.
-	truncated := t1stNLRI(t, t1stBody[:len(t1stBody)-4]) // endpoint address cut to 2 octets
+	truncated := t1stNLRI(t, t1stBody[:len(t1stBody)-6]) // endpoint address cut to 2 octets
 	_, _, err = ParseMUP(AFIIPv4, truncated)
 	assert.ErrorIs(t, err, ErrMUPTruncated)
 }
@@ -53,8 +57,8 @@ func TestMUPT1STMandatoryFieldsWithinLength(t *testing.T) {
 // whose Length overruns the route are both malformed; a well-framed TLV is accepted.
 // PREVENTS: a stray octet or a lying TLV Length passing as a valid route.
 func TestMUPT1STTLVFraming(t *testing.T) {
-	// A zero Source Address Length octet, then one TLV: type 0x80, length 2, value 0xAABB.
-	withTLV := t1stBody + "00" + "8002AABB"
+	// t1stBody ends in a zero Source Address Length octet, then one TLV: type 0x80, length 2, value 0xAABB.
+	withTLV := t1stBody + "8002AABB"
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7 positive -- two or more remaining
 	// octets that frame a whole TLV (Type, Length, Length octets of Value) parse.
@@ -66,13 +70,13 @@ func TestMUPT1STTLVFraming(t *testing.T) {
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7 negative -- exactly one octet
 	// remaining after the mandatory fields cannot hold a Type and a Length and is refused.
-	oneOctet := t1stBody + "00" + "80"
+	oneOctet := t1stBody + "80"
 	_, _, err = ParseMUP(AFIIPv4, t1stNLRI(t, oneOctet))
 	assert.ErrorIs(t, err, ErrMUPTLV, "one leftover octet is an invalid encoding")
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10 negative -- a TLV whose Length (5)
 	// runs past the end of the route is a TLV parsing error and the route is refused.
-	overrun := t1stBody + "00" + "8005AABB"
+	overrun := t1stBody + "8005AABB"
 	_, _, err = ParseMUP(AFIIPv4, t1stNLRI(t, overrun))
 	assert.ErrorIs(t, err, ErrMUPTLV, "a TLV Length past the route end is a parsing error")
 }
@@ -85,7 +89,7 @@ func TestMUPT1STTLVFraming(t *testing.T) {
 // re-advertisement.
 func TestMUPT1STUnknownTLVIgnoredAndPropagated(t *testing.T) {
 	plain := t1stNLRI(t, t1stBody)
-	withUnknown := t1stNLRI(t, t1stBody+"00"+"F003010203") // type 0xF0, length 3
+	withUnknown := t1stNLRI(t, t1stBody+"F003010203") // type 0xF0, length 3
 
 	base, _, err := ParseMUP(AFIIPv4, plain)
 	require.NoError(t, err)
@@ -103,7 +107,7 @@ func TestMUPT1STUnknownTLVIgnoredAndPropagated(t *testing.T) {
 	assert.Equal(t, base.endpoint, m.endpoint)
 
 	// Contrast: a TLV that is malformed rather than unknown is refused.
-	_, _, err = ParseMUP(AFIIPv4, t1stNLRI(t, t1stBody+"00"+"F0"))
+	_, _, err = ParseMUP(AFIIPv4, t1stNLRI(t, t1stBody+"F0"))
 	assert.ErrorIs(t, err, ErrMUPTLV, "only a framing error refuses, not an unknown type")
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9 positive -- re-encoding the parsed

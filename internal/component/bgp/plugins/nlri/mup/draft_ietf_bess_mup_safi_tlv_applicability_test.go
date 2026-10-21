@@ -9,7 +9,7 @@ import (
 
 // RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1 positive -- ST2-only session, interwork endpoint, and source TLVs do not replace the mandatory ST1 fields exposed by the NLRI decoder.
 func TestMUPST1IgnoresST2OnlyTLVs(t *testing.T) {
-	wire := t1stNLRI(t, t1stBody+"20C0000201"+
+	wire := t1stNLRI(t, t1stThroughEndpoint+"20C0000201"+
 		"01050000567807"+"0204C6336401"+"0304CB007101")
 	decoded, err := DecodeNLRIHex("ipv4/mup", hex.EncodeToString(wire), false, false)
 	require.NoError(t, err)
@@ -23,7 +23,7 @@ func TestMUPST1IgnoresST2OnlyTLVs(t *testing.T) {
 
 // RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1 negative -- an ST2-only source TLV cannot make an ST1 route malformed merely because its value has no address interpretation; only its outer framing applies to ST1.
 func TestMUPST1DoesNotInterpretInapplicableAddressTLV(t *testing.T) {
-	wire := t1stNLRI(t, t1stBody+"20C0000201"+"0301FF")
+	wire := t1stNLRI(t, t1stThroughEndpoint+"20C0000201"+"0301FF")
 	decoded, err := DecodeNLRIHex("ipv4/mup", hex.EncodeToString(wire), false, false)
 	require.NoError(t, err)
 	fields, ok := decoded.(map[string]any)

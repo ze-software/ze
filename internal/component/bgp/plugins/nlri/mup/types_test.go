@@ -14,12 +14,12 @@ import (
 const (
 	wireISDv4        = "0100010C0000006400000064180A0001"                                                                                                         // 10.0.1.0/24
 	wireDSDv4        = "0100020C00000064000000640A000001"                                                                                                         // 10.0.0.1
-	wireT1STv4       = "01000317000000640000006420C0A800010000303909200A000001"                                                                                   // no source address
+	wireT1STv4       = "01000318000000640000006420C0A800010000303909200A00000100"                                                                                 // source address length 0
 	wireT1STv4Source = "0100031C000000640000006420C0A800020000303909200A000001200A000101"                                                                         // source 10.0.1.1
 	wireT2STv4       = "010004110000006400000064400A00000100003039"                                                                                               // endpoint length 64
 	wireT2STv4NoTEID = "0100040D0000006400000064200A000001"                                                                                                       // endpoint length 32
 	wireISDv6        = "010001110000006400000064402001000000000000"                                                                                               // 2001::/64
-	wireT1STv6       = "0100032F00000064000000648020010DB800010001000000000000000100003039098020010000000000000000000000000001"                                   // no source address
+	wireT1STv6       = "0100033000000064000000648020010DB80001000100000000000000010000303909802001000000000000000000000000000100"                                 // source address length 0
 	wireT2STv6       = "0100041D0000006400000064A02001000000000000000000000000000100003039"                                                                       //nolint:lll // one NLRI per line reads better than a wrapped fixture
 	wireUnknownType  = "010063040A0B0C0D"                                                                                                                         // route type 99, four octets of body
 	wireT1STv6Source = "0100034000000064000000648020010DB8000100010000000000000002000030390980200100000000000000000000000000018020020000000000000000000000000002" //nolint:lll // same
@@ -161,6 +161,7 @@ func TestMUPParseErrors(t *testing.T) {
 		{"t1st source length is neither 32 nor 128", AFIIPv4, "0100031C000000640000006420C0A800020000303909200A000001400A000101"},
 		{"t1st teid is zero", AFIIPv4, "01000317000000640000006420C0A800010000000009200A000001"},
 		{"t1st truncated endpoint address", AFIIPv4, "01000316000000640000006420C0A800010000303909200A0000"},
+		{"t1st stops after the endpoint, no source address length", AFIIPv4, "01000317000000640000006420C0A800010000303909200A000001"},
 		{"t1st trailing octet cannot hold a tlv", AFIIPv4, "0100031D000000640000006420C0A800020000303909200A000001200A00010100"},
 		{"t1st tlv longer than the octets present", AFIIPv4, "0100031E000000640000006420C0A800020000303909200A000001200A0001010104"},
 		{"t2st endpoint length below the address width", AFIIPv4, "0100040D0000006400000064100A000001"},

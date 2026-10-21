@@ -380,8 +380,9 @@ func parseT1STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	size += 4
 	size++                        // QFI
 	size += 1 + addrByteLen(f.ep) // length byte + address
+	size++                        // Source Address Length, 0 when no source is carried
 	if f.src.IsValid() {
-		size += 1 + addrByteLen(f.src) // length byte + address
+		size += addrByteLen(f.src)
 	}
 	f.dataSize = size
 
@@ -442,12 +443,19 @@ func writeT1STData(buf []byte, off int, f mupParsed) int {
 	pos++
 	pos += writeAddr(buf, pos, f.ep)
 
-	if f.src.IsValid() {
-		srcLen := addrByteLen(f.src)
-		buf[pos] = byte(srcLen * 8) //nolint:gosec // srcLen is 4 or 16
+	// draft-ietf-bess-mup-safi Section 3.1.3.1: "Source Address Length is 0
+	// bytes then the Source address is not carried within the NLRI." The
+	// length octet itself is mandatory: the TLV rule counts the remaining
+	// octets from "the offset of the end of the Source Address".
+	if !f.src.IsValid() {
+		buf[pos] = 0
 		pos++
-		pos += writeAddr(buf, pos, f.src)
+		return pos - off
 	}
+	srcLen := addrByteLen(f.src)
+	buf[pos] = byte(srcLen * 8) //nolint:gosec // srcLen is 4 or 16
+	pos++
+	pos += writeAddr(buf, pos, f.src)
 
 	return pos - off
 }

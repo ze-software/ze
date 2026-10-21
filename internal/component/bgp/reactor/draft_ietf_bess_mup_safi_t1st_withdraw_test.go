@@ -30,7 +30,8 @@ var mupIPv6Fam = family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMUP}
 
 // t1stBody is an IPv4 Type 1 Session Transformed route body (draft-ietf-bess-mup-safi
 // Section 3.1.3): RD 0:0, prefix 10.0.0.last/32, TEID 1, QFI 9, endpoint 192.0.2.1/32,
-// then tail (Source Address Length and TLVs).
+// then tail (Source Address Length and TLVs). The Source Address Length is a
+// mandatory field, so a well-formed route passes at least 0x00 as tail.
 func t1stBody(last byte, tail ...byte) []byte {
 	body := make([]byte, 8)
 	body = append(body, 32, 10, 0, 0, last, 0, 0, 0, 1, 9, 32, 192, 0, 2, 1)
@@ -69,7 +70,7 @@ func applyRFC7606Body(t *testing.T, s *Session, body []byte) (*wireu.WireUpdate,
 // no session reset.
 // PREVENTS: a malformed T1ST being installed and relayed (the defect D3).
 func TestMUPMalformedT1STTreatAsWithdraw(t *testing.T) {
-	l := mupWireNLRI(3, t1stBody(1)...)
+	l := mupWireNLRI(3, t1stBody(1, 0x00)...)
 	l2 := mupWireNLRI(3, t1stBody(3, 0x00, 0xf0, 0x02, 0xaa, 0xbb)...)
 	full := t1stBody(2)
 	cases := []struct {
@@ -118,7 +119,7 @@ func TestMUPMalformedT1STTreatAsWithdraw(t *testing.T) {
 // PREVENTS: a second MP_UNREACH_NLRI in one UPDATE (RFC 7606 Section 3(g) session reset at
 // the peer), a forged End-of-RIB, and a withdrawal that names another path.
 func TestMUPMalformedT1STWithdrawEdges(t *testing.T) {
-	l := mupWireNLRI(3, t1stBody(1)...)
+	l := mupWireNLRI(3, t1stBody(1, 0x00)...)
 	k := mupWireNLRI(3, t1stBody(2, 0x00, 0xf0)...)
 
 	t.Run("another family already withdrawn", func(t *testing.T) {
@@ -184,7 +185,7 @@ func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 		fam  family.Family
 		l, k []byte
 	}{
-		{"RD overruns the Length", mupFam, mupWireNLRI(3, t1stBody(1)...), mupWireNLRI(3, 0, 0, 0, 0, 0)},
+		{"RD overruns the Length", mupFam, mupWireNLRI(3, t1stBody(1, 0x00)...), mupWireNLRI(3, 0, 0, 0, 0, 0)},
 		{"IPv6 Prefix Length 129", mupIPv6Fam, mupWireNLRI(1, append(append(make([]byte, 8), 64), make([]byte, 8)...)...), mupWireNLRI(3, v6Body(129)...)},
 		{"ISD octet past the prefix", mupFam, mupWireNLRI(1, append(make([]byte, 8), 24, 10, 0, 0)...), mupWireNLRI(1, append(make([]byte, 8), 24, 10, 0, 1, 0xff)...)},
 	}

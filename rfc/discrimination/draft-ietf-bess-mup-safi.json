@@ -16,7 +16,7 @@
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress",
-      "unit-sha": "fa218770b1893f53",
+      "unit-sha": "577c058b377d407d",
       "claim-sha": "90e58b47aa18f9d9",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",

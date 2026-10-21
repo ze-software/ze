@@ -67,6 +67,33 @@ func TestEncodeT1STRefusesWhatParseMUPWithdraws(t *testing.T) {
 	})
 }
 
+// TestEncodeT1STWritesZeroSourceLength checks that a T1ST with no `source`
+// still carries its Source Address Length octet, set to 0.
+//
+// VALIDATES: draft-ietf-bess-mup-safi Section 3.1.3.1, "Source Address Length
+// is 0 bytes then the Source address is not carried within the NLRI.", and the
+// TLV rule that measures remaining octets from "the offset of the end of the
+// Source Address", so the length octet is a mandatory field. Method: encode a
+// T1ST without `source` and compare the whole NLRI, which ExaBGP 6.0 writes
+// the same way (0x18 octets ending in 00).
+// PREVENTS: Ze stopping after the endpoint address, a NLRI one octet short that
+// a receiver following the draft treats as withdrawn.
+func TestEncodeT1STWritesZeroSourceLength(t *testing.T) {
+	t.Parallel()
+
+	args := "route-type mup-t1st rd 100:100 prefix 192.168.0.2/32 teid 12345 qfi 9 endpoint 10.0.0.1"
+	encoded, err := EncodeNLRIHex("ipv4/mup", strings.Fields(args))
+	if err != nil {
+		t.Fatalf("EncodeNLRIHex(%q) error: %v", args, err)
+	}
+	// Architecture 1, route type 3, length 0x18, RD 0:100:100, prefix length 32,
+	// 192.168.0.2, TEID 12345, QFI 9, endpoint length 32, 10.0.0.1, source length 0.
+	const want = "0100031800000064000000642" + "0C0A80002000030390920" + "0A00000100"
+	if !strings.EqualFold(encoded, want) {
+		t.Fatalf("EncodeNLRIHex(%q) = %s, want %s", args, encoded, want)
+	}
+}
+
 // TestEncodeRouteWritesNoNextHop checks the announced IPv4 MUP route.
 //
 // VALIDATES: RFC 4760 Section 3, "An UPDATE message that carries no NLRI, other

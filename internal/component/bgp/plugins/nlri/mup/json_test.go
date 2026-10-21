@@ -23,7 +23,7 @@ const (
 
 	jsonT1STv4 = `{"arch":1,"code":3,"endpoint_ip":"10.0.0.1","endpoint_ip_len":32,` +
 		`"name":"Type1SessionTransformedRoute","prefix_ip":"192.168.0.1","prefix_ip_len":32,` +
-		`"qfi":"9","raw":"01000317000000640000006420C0A800010000303909200A000001",` +
+		`"qfi":"9","raw":"01000318000000640000006420C0A800010000303909200A00000100",` +
 		`"rd":"0:100:100","source_ip":"b''","source_ip_len":0,"teid":"12345"}`
 
 	jsonT1STv4Source = `{"arch":1,"code":3,"endpoint_ip":"10.0.0.1","endpoint_ip_len":32,` +
@@ -45,8 +45,8 @@ const (
 
 	jsonT1STv6 = `{"arch":1,"code":3,"endpoint_ip":"2001::1","endpoint_ip_len":128,` +
 		`"name":"Type1SessionTransformedRoute","prefix_ip":"2001:db8:1:1::1","prefix_ip_len":128,` +
-		`"qfi":"9","raw":"0100032F00000064000000648020010DB8000100010000000000000001000030390980` +
-		`20010000000000000000000000000001","rd":"0:100:100","source_ip":"b''","source_ip_len":0,` +
+		`"qfi":"9","raw":"0100033000000064000000648020010DB8000100010000000000000001000030390980` +
+		`2001000000000000000000000000000100","rd":"0:100:100","source_ip":"b''","source_ip_len":0,` +
 		`"teid":"12345"}`
 
 	jsonT2STv6 = `{"arch":1,"code":4,"endpoint_ip":"2001::1","endpoint_len":160,` +

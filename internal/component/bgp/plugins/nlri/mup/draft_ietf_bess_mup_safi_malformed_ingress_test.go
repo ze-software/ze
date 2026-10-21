@@ -54,7 +54,10 @@ func t2stRoute(endpointBits byte, rest ...byte) []byte {
 var (
 	teid1     = []byte{0, 0, 0, 1}
 	endpoint4 = []byte{32, 192, 0, 2, 1}
-	ipv6Addr  = []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	// endpoint4NoSource closes the mandatory fields with a zero Source Address
+	// Length (Section 3.1.3.1), so the route is complete when nothing follows.
+	endpoint4NoSource = []byte{32, 192, 0, 2, 1, 0}
+	ipv6Addr          = []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 )
 
 // mupSiblings are the two well-formed routes each malformed route sits between.
@@ -82,8 +85,8 @@ func mupMalformedRoutes() []mupMalformed {
 		{"ISD IPv6 prefix length 129", IPv6MUP, isdRoute(129, append(bytes.Clone(ipv6Addr), 0)...), true},
 		{"DSD IPv4 with a 16-octet address", IPv4MUP, dsdRoute(ipv6Addr...), false},
 		{"DSD IPv6 with a 4-octet address", IPv6MUP, dsdRoute(192, 0, 2, 1), false},
-		{"T1ST IPv4 prefix length 33", IPv4MUP, t1stRoute([]byte{33, 10, 0, 0, 1, 0}, teid1, endpoint4...), false},
-		{"T1ST TEID 0", IPv4MUP, t1stRoute(nil, []byte{0, 0, 0, 0}, endpoint4...), false},
+		{"T1ST IPv4 prefix length 33", IPv4MUP, t1stRoute([]byte{33, 10, 0, 0, 1, 0}, teid1, endpoint4NoSource...), false},
+		{"T1ST TEID 0", IPv4MUP, t1stRoute(nil, []byte{0, 0, 0, 0}, endpoint4NoSource...), false},
 		{"T1ST Endpoint Address Length 24", IPv4MUP, t1stRoute(nil, teid1, 24, 192, 0, 2, 1), false},
 		{"T1ST Source Address Length 16", IPv4MUP, t1stRoute(nil, teid1, append(bytes.Clone(endpoint4), 16, 10, 1)...), false},
 		{"T2ST IPv4 Endpoint Length 65", IPv4MUP, t2stRoute(65, 192, 0, 2, 1, 0, 0, 0, 1, 0x80), false},
@@ -153,11 +156,11 @@ func TestMUPRecognizerVerdicts(t *testing.T) {
 		want  nlritype.Verdict
 	}
 	cases := []verdictCase{
-		{"T1ST well-formed", IPv4MUP, t1stRoute(nil, teid1, endpoint4...), nlritype.Keep},
+		{"T1ST well-formed", IPv4MUP, t1stRoute(nil, teid1, endpoint4NoSource...), nlritype.Keep},
 		{"T1ST with an unknown TLV", IPv4MUP, t1stRoute(nil, teid1, append(bytes.Clone(endpoint4), 0, 0xf0, 1, 0xaa)...), nlritype.Keep},
 		{"T2ST IPv6 Endpoint Length 160", IPv6MUP, t2st160, nlritype.Keep},
 		{"route type 5", IPv4MUP, mupWireNLRI(1, 5, mupRD...), nlritype.Discard},
-		{"T1ST IPv6 Prefix Length 129", IPv6MUP, t1stRoute(append([]byte{129}, make([]byte, 17)...), teid1, endpoint4...), nlritype.Withdraw},
+		{"T1ST IPv6 Prefix Length 129", IPv6MUP, t1stRoute(append([]byte{129}, make([]byte, 17)...), teid1, endpoint4NoSource...), nlritype.Withdraw},
 		{"ISD octet past the prefix", IPv4MUP, isdRoute(24, 10, 0, 0, 0xff), nlritype.Withdraw},
 	}
 	for _, m := range mupMalformedRoutes() {
@@ -211,8 +214,8 @@ func TestMUPWellFormedRouteKeptAtIngress(t *testing.T) {
 		{"ISD IPv6 prefix length 128", IPv6MUP, isdRoute(128, ipv6Addr...)},
 		{"DSD IPv4 with a 4-octet address", IPv4MUP, dsdRoute(192, 0, 2, 1)},
 		{"DSD IPv6 with a 16-octet address", IPv6MUP, dsdRoute(ipv6Addr...)},
-		{"T1ST IPv4 prefix length 32, TEID 1, IPv4 endpoint", IPv4MUP, t1stRoute(nil, teid1, endpoint4...)},
-		{"T1ST IPv6 endpoint", IPv4MUP, t1stRoute(nil, teid1, append([]byte{128}, ipv6Addr...)...)},
+		{"T1ST IPv4 prefix length 32, TEID 1, IPv4 endpoint", IPv4MUP, t1stRoute(nil, teid1, endpoint4NoSource...)},
+		{"T1ST IPv6 endpoint", IPv4MUP, t1stRoute(nil, teid1, append(append([]byte{128}, ipv6Addr...), 0)...)},
 		{"T1ST Source Address Length 0", IPv4MUP, t1stRoute(nil, teid1, append(bytes.Clone(endpoint4), 0)...)},
 		{"T1ST IPv4 source", IPv4MUP, t1stRoute(nil, teid1, append(bytes.Clone(endpoint4), 32, 10, 0, 0, 9)...)},
 		{"T1ST IPv6 source", IPv4MUP, t1stRoute(nil, teid1, append(append(bytes.Clone(endpoint4), 128), ipv6Addr...)...)},

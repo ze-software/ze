@@ -292,11 +292,13 @@ func (m *MUP) parseBodyDSD(rest []byte) error {
 //	Endpoint Address Length (1) | Endpoint Address (variable) |
 //	Source Address Length (1) | Source Address (variable) | TLVs (variable)
 //
-// The Source Address Length octet is absent when nothing follows the endpoint
-// address. The draft states the field but lets a sender stop after the endpoint
-// (Section 3.1.3.1, "Source Address Length is 0 bytes then the Source address
-// is not carried within the NLRI"), and that is the shape ExaBGP puts on the
-// wire, so both spellings of "no source address" are read here.
+// The Source Address Length octet is mandatory, and 0 says no source address
+// follows (Section 3.1.3.1, "Source Address Length is 0 bytes then the Source
+// address is not carried within the NLRI"). A route that stops after the
+// endpoint address is short of a mandatory field: the TLV rule measures from
+// "the offset of the end of the Source Address", and a negative remainder
+// means "the mandatory fields exceed the declared Length; the NLRI is
+// malformed; MUST be treated as Treat-as-withdraw."
 func (m *MUP) parseBodyT1ST(rest []byte) error {
 	addr, bits, used, err := m.parsePrefixField(rest)
 	if err != nil {
@@ -338,8 +340,10 @@ func (m *MUP) parseBodyT1ST(rest []byte) error {
 	m.endpoint = addrFromOctets(bitsAFI(m.endpointBits), rest[:endpointOctets])
 	rest = rest[endpointOctets:]
 
+	// Section 3.1.3.1: "- < 0:   the mandatory fields exceed the declared
+	// Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw."
 	if len(rest) == 0 {
-		return nil
+		return ErrMUPTruncated
 	}
 
 	// Section 3.1.3.1 gives the source address the same two lengths as the
