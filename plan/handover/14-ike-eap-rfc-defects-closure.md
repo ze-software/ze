@@ -50,3 +50,26 @@ committed together.
   `./le job run label ike-int-build command env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go test -c -tags "integration ze_core <feature tags>" -o <out> ./internal/component/ike/engine/`
   (13 s); run it in the guest with `-test.v -test.run TestRFC3948InstalledStateCarriesTheIKEPeerPort`
   and check it says PASS, not SKIP (it skips without CLONE_NEWNET).
+
+## Stopped, 2026-10-21 18:30: the Mac disk is full
+
+- No interop, walk, Linux integration, Docker or verify run reached a verdict.
+  Attempts, all setup failures: 13:40 and 17:59 lost QEMU host port 2222 to a VM
+  another agent started the same minute; 17:50 the export's `cache` symlink (to
+  `~/.cache/ze`) broke the guest's docker build context ("too many levels of
+  symbolic links"; never link `cache` into an export); from 18:14 the root volume
+  was full (`no space left on device`, 117M to 474M free of 927G).
+  `./le scratch store-trim` and `./le scratch cache-clean` freed nothing (every entry
+  younger than 3h); le's caches and `tmp/` are about 120G, so the rest is outside le.
+  Journal row: `plan/journal/full-disk-false-red.md`, 2026-10-21 ike-eap row.
+- The spec now carries the Deliverables Checklist and the appended closure sections,
+  committed with this handover; cells in capitals still wait for their runs.
+- Next machine or session: once the disk has room, recreate the export
+  (`git archive HEAD | tar -x -C <scratch>/walk`, no `cache` link), then run
+  `<scratch>/series.sh`-style one scenario at a time, waiting only for no other
+  `qemu-system` and no listener on TCP 2222 (a full verify held the wider slot for
+  over 3 hours twice today while other agents ran VMs beside it). Then the three
+  mutants above, the Linux integration test, the Docker proof build, one full
+  `./le verify worktree`, and `/ze-close` (review artifact: `./le spec review record
+  spec spec-ike-eap-rfc-defects.md verdict CLEAN rounds 4 file <the code files of
+  5754eac4f4 and 25938b3000>`).

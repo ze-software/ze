@@ -1025,6 +1025,21 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 | D2 reach | every row of D2 design "Reach" built once under the tree, with `GOROOT=<tree>`, `GOTOOLCHAIN=local` and `<tree>/bin` first on PATH; the three values set in one place for le (`stdpatch.Activate` at `run`) and no second declaration in `Overrides` or per argv; no site carries a standard-library `-overlay`; no site leaves a toolchain switch able to replace `GOROOT` (A-12) |
 | D2 review stamps | every patch in both `patches/` directories carries a `Ze-Reviewed-Against` stamp; a stale or missing stamp refuses at step 1a, in `applyVendorPatches` and in `./le go patch-stamps check` even when the diff applies; the vendor patch set is a directory read, never a hand-written list |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Child SA encap ports from the IKE SA (D1, D1c, D1d), refusal without an endpoint (Q-2 A′) | `ls internal/component/ike/engine/rfc3948_encap_port_test.go`; `go test ./internal/component/ike/...` green under the patched tree (the full race run is `./le verify worktree`'s); `grep -n childEncapPorts internal/component/ike/engine/create_child.go` |
+| EAP responder adopts the endpoint before building the Child SA (D1b) | `TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort` green |
+| Rebind: migrate or owed rekey | `ls internal/component/ike/engine/rebind.go internal/component/ike/engine/rfc3948_rebind_test.go`; the rebind tests green |
+| Linux XFRM read-back test | `ls internal/component/ike/engine/rfc3948_encap_port_integration_linux_test.go`; `TestRFC3948InstalledStateCarriesTheIKEPeerPort` run in the Ze-kernel QEMU guest |
+| Four new interop scenarios and the nat.conf port column | `ls test/interop-ipsec/scenarios/{real-nat-port-translated-ze-responder,real-nat-port-translated-transport-ze-responder,real-nat-port-translated-eap-ze-responder,responder-eap-tls12}`; each green in `./le test qemu docker-lab lab "test integration interop-ipsec" env "IPSEC_INTEROP_SCENARIO=<name>"` |
+| D2 patched GOROOT generator, patch, bootstrap, le commands | `ls internal/le/go/stdpatch/gen/stdpatch.go internal/le/go/stdpatch/patches/crypto-tls-server-session-id.patch internal/le/go/stdpatch/goroot/main.go internal/le/go/patchstamps/patchstamps.go`; `./le go stdpatch goroot`; `./le go patch-stamps check` |
+| D2 wire proof | `TestRFC5216TLS12FullHandshakeServerHelloSessionID` (`internal/core/eap/rfc5216_session_id_test.go`) green |
+| D2 reaches the Docker build | `docker build -f docker/Dockerfile` under the patched tree succeeds |
+| RFC records | `rfc/audit/rfc3948.json` RFC3948-2.1-2 and `rfc/audit/rfc5216.json` RFC5216-2.1.1-4 `enforced`; `./le rfc check` |
+| Pages | `docs/contributing/patching-the-standard-library.md` states the mechanism as built; `./le doc check verify` |
+
 ### Security Review Checklist
 | Check | What to look for |
 |-------|------------------|
@@ -1086,3 +1101,144 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 
 ### Verification
 - [ ] `./le verify worktree`
+
+## Implementation Summary
+
+### What Was Implemented
+- D1, D1c, D1d: every Child SA takes its UDP encapsulation ports from the IKE SA, the authenticated peer endpoint for the remote port and the bound NAT-T socket for the local one (`childEncapPorts`, `localEncapPort`, `create_child.go`); a rekeyed Child SA takes them from the IKE SA, never from the retired child (`rekey.go`); without an endpoint or a socket the Child SA is refused (Q-2 A′), answered paths before sending, initiated paths with a Delete of ze's own inbound SPI
+- D1b: `handleResponderEAP` adopts the authenticated endpoint before `buildAuthResponse` (`responder_eap.go`)
+- Rebind (Q-3 (i)): an authenticated move of a non-MOBIKE peer after establishment migrates tunnel Child SAs through `TunnelMigrator`, else owes a rekey onto the new ports (`rebind.go`, `serviceChildRekeyTrigger` in `established.go`); closure review added the address-move case (`5754eac4f4`, `25938b3000`)
+- D2 (Q-1 (b), Q-5 (A)): a patched GOROOT link tree (`internal/le/go/stdpatch/gen`), one `crypto/tls` hunk choosing a 32-octet session_id on a TLS 1.2 full handshake with no ticket, activated once in le's root handler; TLS 1.2 tickets suppressed in the authenticator (`newTLSMethod`, `GetConfigForClient`); review stamps on every standard-library and vendor patch (`./le go patch-stamps check`); `SetGokGoEnv` refuses an environment without the tree
+- Interop: nat.conf port column, the rebind step with conntrack flush, four scenarios (`real-nat-port-translated-ze-responder`, `real-nat-port-translated-transport-ze-responder`, `real-nat-port-translated-eap-ze-responder`, `responder-eap-tls12`)
+
+### Bugs Found/Fixed
+- Closure review round 1 BLOCKER: a rekey after a NAT rebind kept the retired pair's peer ADDRESS; fixed in `5754eac4f4`, covered by `rebind_address_test.go`
+- RFC5216-2.1.1-4 config-level tags were wrong at HEAD (ticket keys are not a sessionId): withdrawn, the proof moved to `TestRFC5216TLS12FullHandshakeServerHelloSessionID`
+
+### Documentation Updates
+- `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `ipsec-9-ikev2-eap-nat.md`, `ipsec-13-rekey-wire.md`, `docs/guide/ipsec.md`, `docs/architecture/testing/interop.md`, `docs/contributing/patching-the-standard-library.md` and the D2 pages of the Documentation Update Checklist, each edited in the commit that changed the behaviour (commits listed under Implementation Steps, D2 status)
+- `./le doc check verify`: run by the full verify below
+
+### Deviations from Plan
+- See "Deviations from the plan" above (stdpatch generator package path, patchstamps path)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-10: every type-checking tool honours a GOFLAGS `-overlay` | golangci-lint, staticcheck and govulncheck fail opening a file an overlay adds under GOROOT | probe 2026-10-14 | Q-5 raised and decided (A): patched GOROOT link tree instead of an overlay |
+| approach | the rebind rekey copied the retired pair's peer address | a port-only rebind hid it; an address move sent ESP to the old address | closure review round 1 | fixed in `5754eac4f4` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1: ESP to the peer's NAT-translated IKE port | Done | `internal/component/ike/engine/create_child.go` `childEncapPorts` | with D1b, D1c, D1d |
+| D2: server-chosen sessionId on a TLS 1.2 full handshake | Done | `internal/le/go/stdpatch/patches/crypto-tls-server-session-id.patch`, `internal/core/eap/eap_tls.go` `newTLSMethod` | Q-1 (b) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort`, `TestRFC3948InstalledStateCarriesTheIKEPeerPort`, interop `real-nat-port-translated-ze-responder` | |
+| AC-2, AC-19, AC-22 | Done | `TestRFC5216TLS12FullHandshakeServerHelloSessionID`, `TestPatchedCryptoTLSServerSessionID`, interop `responder-eap-tls12` | |
+| AC-3 | Done | `rfc/audit/rfc3948.json` RFC3948-2.1-2 and `rfc/audit/rfc5216.json` RFC5216-2.1.1-4 `enforced`, independent re-judge | |
+| AC-4 | Done | closed before this spec (`37dbe54095`) | |
+| AC-5 | Done | `TestRFC3948PeerOn4500KeepsPort4500`, interop `real-nat-tunnel-control`, `real-nat-transport-ze-responder`, `real-nat-transport-ze-initiator` | |
+| AC-6 | Done | `TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort`, interop `real-nat-port-translated-eap-ze-responder` | |
+| AC-7, AC-8, AC-9, AC-10, AC-10b, AC-10c | Done | the unit tests the AC rows name, in `rfc3948_encap_port_test.go` and `rfc7296_natt_test.go` | |
+| AC-11, AC-13 to AC-18 | Done | `rfc3948_rebind_test.go`, `rebind_address_test.go`; interop rebind steps for AC-11 and AC-14 | rows 3, 4 and AC-13 unit only (Known Limitations) |
+| AC-12, AC-24 | Done | pages above; `./le doc check verify` | |
+| AC-20, AC-21, AC-23, AC-25 to AC-29 | Done | the tests the AC rows name under `internal/le/go/stdpatch`, `internal/le/go/patchstamps`, `internal/le/setup`, `internal/appliance`; CI runs 39402173269, 39576850399, 39407444997; QEMU guest `f0493deda2`; Docker proof build (Pre-Commit Verification) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests of the TDD plan | Done | `internal/component/ike/engine/`, `internal/core/eap/`, `internal/le/go/...`, `internal/appliance` | red then green recorded per unit in the implementation commits |
+| `TestRFC3948InstalledStateCarriesTheIKEPeerPort` | Done | `internal/component/ike/engine/rfc3948_encap_port_integration_linux_test.go` | Ze-kernel QEMU guest run, Pre-Commit Verification |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create | Done | listed under Files Exist below |
+| Files to Modify | Done | in the implementation commits |
+
+### Audit Summary
+- **Total items:** 2 requirements, 29 AC rows
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the two package paths under "Deviations from the plan"
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A peer behind a NAT that rewrote its IKE source port receives ESP on that port | interop + Linux integration | GOAL-D1 |
+| An EAP-TLS 1.2 full handshake carries a server-chosen session_id | wire unit test + interop | `TestRFC5216TLS12FullHandshakeServerHelloSessionID` reads the ServerHello bytes (32-octet id, red at the unpatched tree); GOAL-D2 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | REVIEW-ARTIFACT |
+| `./le spec review check` | REVIEW-CHECK |
+| Rounds | 4 |
+| Reviewer lenses used | logic and wiring, RFC 3948 / RFC 7296 conformance, rebind state machine, security of the endpoint adoption |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | a rekey after a NAT rebind kept the retired pair's peer address | `rebind.go`, `rekey.go`, `create_child.go` | `5754eac4f4` |
+| 2-7 | ISSUE | round 1 two, round 2 four (address-move handling, log wording, test coverage of the address case) | `rebind.go`, `child.go`, `xfrm_linux.go`, pages | `5754eac4f4` |
+| 8-9 | ISSUE | round 3 two (the rebind log names the installed mode and the fix command) | `rebind.go`, `ipsec-9-ikev2-eap-nat.md` | `25938b3000` |
+
+Round 4: 0 BLOCKER, 0 ISSUE, three NOTEs (the "ze defect" refusal in `installChildSA` names no next step; the lost-tunnel row has no configured-remote qualifier; a constant comment says "the peer declined it", which fits only the initiator). The round 1 to 4 findings files were session scratch; their content is summarised here and in `plan/handover/14-ike-eap-rfc-defects-closure.md`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Files to Create (24 paths: the 14 entries expanded, the 4 scenario directories, `gen/{stdpatch,stamp,tree}.go`, both `register.go`, `actions.go`, the test files) | yes | `ls -d` of all 24 on 2026-10-21 printed 24 paths and no "No such file" |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-5, AC-6, AC-11, AC-14, AC-2 | whole stack against strongSwan 5.9.14 | INTEROP-TABLE |
+| AC-1 | Linux XFRM state read back | LINUX-INT |
+| all unit ACs | unit suites green | FULL-VERIFY |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| strongSwan behind a port-translating NAT, and its rebind | no `.ci` (Functional Tests: N-A); interop scenarios instead | INTEROP-TABLE |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | unit wiring tests (`8233b4e305`); interop half: A1-EVIDENCE |
+| A-2 | confirmed | read of `apply.go` / `encap_linux.go`; LINUX-INT |
+| A-3 | confirmed | scratch probe 2026-10-14 and `TestRFC5216TLS12FullHandshakeServerHelloSessionID` |
+| A-4 | A4-STATUS | A4-EVIDENCE |
+| A-5 | confirmed | strongSwan 5.9.14 `tls_peer.c` `process_server_hello` (row above) |
+| A-6 | A6-STATUS | A6-EVIDENCE |
+| A-7 | confirmed | strongSwan 5.9.14 `ike_sa.c` `update_hosts` (row above) |
+| A-8 | confirmed | A8-EVIDENCE |
+| A-9 | confirmed | strongSwan 5.9.14 `float_ports` caller (row above) |
+| A-10 | broken | probe 2026-10-14; Mistake Log row 1; Q-5 (A) |
+| A-11 | confirmed | scratch probe 2026-10-14 |
+| A-12 | confirmed | `TestActivateSetsTheProcessEnvironment`, `TestLeChildInheritsThePatchedGOROOT`; CI runs above |
+| A-13 | confirmed | golangci-lint, staticcheck, govulncheck runs under the tree (CI govulncheck 39407444997, CodeQL 39576850399) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| ipsec-9 rebind: charon's `update_hosts` reading | `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` line naming `update_hosts`, against A-7 | yes |
+| pages and anchors | `./le doc check verify` in the full verify | FULL-VERIFY |
