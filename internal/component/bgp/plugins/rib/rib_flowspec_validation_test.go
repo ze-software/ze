@@ -627,3 +627,47 @@ func TestFlowSpecIPv6ActionReplacementAndReplay(t *testing.T) {
 		t.Fatalf("IPv6-action rule was not withdrawn: %+v", events)
 	}
 }
+
+// A received rule matching an ICMP type and a port matches no packet, so it is
+// retained but never eligible: no install event, no candidate, and the forward
+// rails' eligibility gate (ribevents.RouteEligible) refuses it. The same rule
+// with the port alone stays eligible, so the refusal is the combination's.
+// RFC 8955 Section 4.2: "some combinations cannot match any packets (e.g.,
+// "ICMP Type AND Port" will never match any packets) and thus SHOULD NOT be
+// propagated by BGP."
+func TestFlowSpecUnmatchableReceivedRuleIsNotPropagated(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	sequence := flowValidationPath(2, 65001)
+	drop := []byte{0x80, 6, 0, 0, 0, 0, 0, 0}
+	// destination 10.1/16, port == 80, then ICMP type == 8 (types ascend).
+	port := []byte{1, 16, 10, 1, 4, 0x81, 80}
+	for _, tc := range []struct {
+		name       string
+		components []byte
+		want       bool
+	}{
+		{name: "port alone matches", components: port, want: true},
+		{name: "ICMP type and port match nothing", components: append(bytes.Clone(port), 7, 0x81, 8)},
+		{name: "ICMP code and port match nothing", components: append(bytes.Clone(port), 8, 0x81, 0)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r, bus := flowValidationFixture(t)
+			flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(sequence, netip.Addr{}, 0, nil), false)
+			raw := append([]byte{byte(len(tc.components))}, tc.components...)
+			flowValidationReceive(t, r, peer, 65001, 2, flowspecFamily, raw, flowValidationAttrs(sequence, netip.Addr{}, 100, drop), false)
+			key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
+			if got := ribevents.RouteEligible(key, 2); got != tc.want {
+				t.Fatalf("eligibility = %v, want %v", got, tc.want)
+			}
+			if !ribevents.RoutePresent(key) {
+				t.Fatal("the received rule was not retained in the Adj-RIB-In")
+			}
+			if got := len(flowValidationEvents(bus)) == 1; got != tc.want {
+				t.Fatalf("install event present = %v, want %v", got, tc.want)
+			}
+			if got := len(gatherCandidatesHeld(t, r, flowspecFamily, raw, false)) != 0; got != tc.want {
+				t.Fatalf("candidate availability = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

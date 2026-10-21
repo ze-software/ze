@@ -90,8 +90,12 @@ protocol 1, and a port (4, 5, 6) only TCP or UDP. Ze refuses a flow route that
 holds one of each, from config and from `update text`, with an error naming
 both matches and telling the operator to remove one. The ExaBGP migration
 drops such a route with a warning instead, as ExaBGP 6.0 does at load, so the
-rest of the migrated config still loads.
+rest of the migrated config still loads. A received route that holds one of
+each is kept in the peer's RIB but never becomes feasible, so Ze neither
+installs nor forwards it (`docs/architecture/plugin/rib-storage-design.md`,
+"Mandatory FlowSpec authorization").
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- reconcileFlowSpecs -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/config.go -- parseConfigRoute -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- EncodeFlowSpecComponents -->
 <!-- source: internal/exabgp/migration/migrate_routes.go -- flowRouteMatchable -->

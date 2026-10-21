@@ -985,6 +985,12 @@ Section 4:
 - A more-specific unicast route from another neighboring AS makes the rule
   infeasible.
 
+A received rule that no packet can match (an ICMP type or code with a port, RFC
+8955 Section 4.2, `flowspec.CheckMatchable`) is never feasible either. It stays
+in its peer's RIB, as an unauthorized rule does, so it is neither installed nor
+forwarded nor replayed, which is the "SHOULD NOT be propagated" of that section.
+<!-- test: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go TestFlowSpecUnmatchableReceivedRuleIsNotPropagated -->
+
 `reconcileFlowSpecs` recomputes authorization after received-route changes,
 unicast best-path changes, validation changes, withdrawals and session removal.
 It selects one eligible path per native FlowSpec NLRI with the ordinary BGP

@@ -61,6 +61,7 @@ type flowSpecRoute struct {
 	firstAS     uint32
 	localDomain bool
 	validPath   bool
+	matchable   bool
 	candidate   *Candidate
 	entry       storage.RouteEntry
 }
@@ -88,24 +89,28 @@ func flowSpecKey(peer netip.Addr, fam family.Family, raw []byte, addPath bool) (
 
 // flowSpecDestination uses the registered component codec. An IPv6 destination
 // with a nonzero offset cannot authorize a contiguous destination prefix.
-func flowSpecDestination(fam family.Family, raw []byte) (flowSpecDomain, netip.Prefix) {
-	domain := flowSpecDomain{family: family.Family{AFI: fam.AFI, SAFI: family.SAFIUnicast}}
+// matchable is false for a rule no packet can match (flowspec.CheckMatchable)
+// and for a rule that does not parse.
+func flowSpecDestination(fam family.Family, raw []byte) (domain flowSpecDomain, destination netip.Prefix, matchable bool) {
+	domain = flowSpecDomain{family: family.Family{AFI: fam.AFI, SAFI: family.SAFIUnicast}}
 	var components []flowspec.FlowComponent
 	if fam.SAFI == family.SAFIFlowSpecVPN {
 		domain.family.SAFI = family.SAFIVPN
 		flow, err := flowspec.ParseFlowSpecVPN(fam, raw)
 		if err != nil {
-			return domain, netip.Prefix{}
+			return domain, netip.Prefix{}, false
 		}
 		rd := flow.RD()
 		rd.WriteTo(domain.rd[:], 0)
 		components = flow.Components()
+		matchable = flow.CheckMatchable() == nil
 	} else {
 		flow, err := flowspec.ParseFlowSpec(fam, raw)
 		if err != nil {
-			return domain, netip.Prefix{}
+			return domain, netip.Prefix{}, false
 		}
 		components = flow.Components()
+		matchable = flow.CheckMatchable() == nil
 	}
 	for _, component := range components {
 		if component.Type() != flowspec.FlowDestPrefix {
@@ -116,10 +121,10 @@ func flowSpecDestination(fam family.Family, raw []byte) (flowSpecDomain, netip.P
 			Offset() uint8
 		})
 		if ok && prefix.Offset() == 0 {
-			return domain, prefix.Prefix().Masked()
+			return domain, prefix.Prefix().Masked(), matchable
 		}
 	}
-	return domain, netip.Prefix{}
+	return domain, netip.Prefix{}, matchable
 }
 
 func flowSpecUnicastPrefix(fam family.Family, raw []byte, addPath bool) (flowSpecDomain, netip.Prefix) {
@@ -372,9 +377,9 @@ func (r *RIBManager) reconcileFlowSpecs() {
 				if !ok || entry.AddRef() != nil {
 					return true
 				}
-				domain, destination := flowSpecDestination(fam, []byte(key.NLRI))
+				domain, destination, matchable := flowSpecDestination(fam, []byte(key.NLRI))
 				first, local, valid := flowSpecASPath(entry)
-				flows = append(flows, flowSpecRoute{key: key, domain: domain, destination: destination,
+				flows = append(flows, flowSpecRoute{key: key, domain: domain, destination: destination, matchable: matchable,
 					originator: flowSpecOriginator(peer, entry), firstAS: first, localDomain: local, validPath: valid,
 					candidate: r.extractCandidate(fam, peer, routes.PeerAddr(), entry), entry: entry})
 				return true
@@ -428,7 +433,12 @@ func (r *RIBManager) reconcileFlowSpecs() {
 	winners := make(map[flowSpecRule]*flowSpecRoute)
 	for i := range flows {
 		flow := &flows[i]
-		eligible := flowSpecAuthorized(flow, unicast)
+		// RFC 8955 Section 4.2: "some combinations cannot match any packets
+		// (e.g., "ICMP Type AND Port" will never match any packets) and thus
+		// SHOULD NOT be propagated by BGP." An unmatchable received rule stays
+		// retained, as an unauthorized one does, but is never eligible: no
+		// forward rail, replay or local install reads an ineligible path.
+		eligible := flow.matchable && flowSpecAuthorized(flow, unicast)
 		next.paths[flow.key] = flowSpecVerdict{msgID: flow.entry.MsgID, eligible: eligible}
 		if !eligible {
 			continue

@@ -31,7 +31,7 @@ func BenchmarkRIBFlowSpecValidation(b *testing.B) {
 	}
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			_, prefix := flowSpecDestination(tc.fam, tc.raw)
+			_, prefix, _ := flowSpecDestination(tc.fam, tc.raw)
 			if !prefix.IsValid() {
 				b.Fatalf("flowSpecDestination(%s) found no destination prefix in % x", tc.fam, tc.raw)
 			}
