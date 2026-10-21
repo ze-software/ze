@@ -671,9 +671,10 @@ func New(config *Config) *Reactor {
 	// Wire congestion callbacks to log peer congestion state transitions
 	// and emit events to subscribed plugins.
 	// These fire from ForwardUpdate caller goroutines (onCongested) and worker
-	// goroutines (onResumed). They must not block.
-	// .String() allocates here but these are rare transitions, not per-UPDATE;
-	// using r.mu.RLock to look up a cached label would violate the must-not-block contract.
+	// goroutines (onResumed). Both take r.mu.RLock (emitCongestionEvent looks
+	// the peer up), so no code may wait on a forward worker while holding r.mu:
+	// cleanup stops the pool before it takes r.mu for that reason.
+	// .String() allocates here but these are rare transitions, not per-UPDATE.
 	r.fwdPool.onCongested = func(peerAddr netip.AddrPort) {
 		reactorLogger().Warn("forward peer congested", "peer", peerAddr)
 		r.emitCongestionEvent(peerAddr.Addr(), bgpevents.EventCongested)

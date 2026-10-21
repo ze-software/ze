@@ -859,11 +859,12 @@ func bufferShortageDefersKeys(t *testing.T, spare int) {
 // (drainReadPool) keeps what it pinned (plan/journal/registry-contamination.md).
 func rsLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 	t.Helper()
+	previous := env.Get("ze.fwd.pool.maxbytes")
 	if err := env.Set("ze.fwd.pool.maxbytes", strconv.FormatInt(rsLiveReadBudget, 10)); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if err := env.Set("ze.fwd.pool.maxbytes", ""); err != nil {
+		if err := env.Set("ze.fwd.pool.maxbytes", previous); err != nil {
 			t.Error(err)
 		}
 	})
@@ -1250,11 +1251,18 @@ func growReadPool(t *testing.T, count int) {
 // holdReadPoolDry takes every free 4K read buffer under the budget
 // drainReadPool pinned, and keeps taking until 50 ms pass with none
 // returned: a write the last admission staged returns its buffer when it
-// completes. The caller returns what it holds.
+// completes. The caller returns what it holds. It gives up after 10 seconds.
 func holdReadPoolDry(t *testing.T) []BufHandle {
 	t.Helper()
 	var held []BufHandle
+	deadline := time.Now().Add(10 * time.Second)
 	for {
+		if time.Now().After(deadline) {
+			for _, h := range held {
+				returnReadBuffer(h)
+			}
+			t.Fatalf("the read pool never settled dry: %d buffers taken", len(held))
+		}
 		taken := 0
 		for {
 			h := getReadBuf(false)
@@ -1315,4 +1323,186 @@ func (s *lookupStepper) after(request *ribevents.RecoveryRequest, outcomes []rib
 	case <-time.After(10 * time.Second):
 	}
 	return outcomes, err
+}
+
+// convergenceLoss is how one source stops offering the prefix.
+type convergenceLoss uint8
+
+const (
+	convergenceLossUnspecified convergenceLoss = iota
+	// convergenceLossWithdraw: the source withdraws the prefix.
+	convergenceLossWithdraw
+	// convergenceLossDown: the source's session ends with no NOTIFICATION.
+	convergenceLossDown
+)
+
+// TestOwedKeyRealRIBConvergence proves AC-12 against the real bgp-rib. Four
+// sources S1 to S4 announce 10.9.0.0/24 with AS_PATHs of one to four ASNs,
+// worst first, so S1 is the RIB's best and the newest: it owns client C's
+// route. Then K of them stop offering it, by withdrawal or by session down,
+// in every order of every K-subset, mixed both ways, issued back-to-back
+// (each loss decided at C before the next) and concurrently (issued
+// together):
+//
+//   - K = 2: C ends on the best remaining source's route, and is sent no
+//     withdrawal of the prefix;
+//   - K = 4: C holds no route for the prefix, and is sent exactly one
+//     withdrawal.
+//
+// VALIDATES: AC-12, C converges on the RIB's best survivor whatever the order
+// and the timing of the losses, with no bound on how many are in flight.
+// PREVENTS: a client withdrawn, or left on a gone source's route, when two of
+// several sources leave.
+func TestOwedKeyRealRIBConvergence(t *testing.T) {
+	const sources = 4
+	for _, losers := range convergenceOrders(sources, 2) {
+		for _, kinds := range [][2]convergenceLoss{
+			{convergenceLossWithdraw, convergenceLossDown},
+			{convergenceLossDown, convergenceLossWithdraw},
+		} {
+			for _, concurrent := range []bool{false, true} {
+				name := convergenceCaseName(losers, kinds[:], concurrent)
+				t.Run(name, func(t *testing.T) {
+					convergeOnSurvivor(t, sources, losers, func(i int) convergenceLoss { return kinds[i%2] }, concurrent)
+				})
+			}
+		}
+	}
+	for _, losers := range convergenceOrders(sources, sources) {
+		kinds := func(i int) convergenceLoss {
+			if (i+losers[0])%2 == 0 {
+				return convergenceLossWithdraw
+			}
+			return convergenceLossDown
+		}
+		name := convergenceCaseName(losers, []convergenceLoss{kinds(0), kinds(1)}, true)
+		t.Run("all/"+name, func(t *testing.T) { convergeOnSurvivor(t, sources, losers, kinds, true) })
+	}
+}
+
+// convergenceOrders returns every ordered selection of k distinct indexes
+// out of n. Bounded: n is at most 4 here, so at most 24 selections.
+func convergenceOrders(n, k int) [][]int {
+	var out [][]int
+	var walk func(prefix []int)
+	walk = func(prefix []int) {
+		if len(prefix) == k {
+			out = append(out, slices.Clone(prefix))
+			return
+		}
+		for i := range n {
+			if slices.Contains(prefix, i) {
+				continue
+			}
+			walk(append(prefix, i))
+		}
+	}
+	walk(nil)
+	return out
+}
+
+func convergenceCaseName(losers []int, kinds []convergenceLoss, concurrent bool) string {
+	name := ""
+	for i, loser := range losers {
+		if i > 0 {
+			name += "-"
+		}
+		name += "S" + strconv.Itoa(loser+1)
+		if kinds[i%len(kinds)] == convergenceLossDown {
+			name += "down"
+		} else {
+			name += "wd"
+		}
+	}
+	if concurrent {
+		return name + "/concurrent"
+	}
+	return name + "/back-to-back"
+}
+
+// convergeOnSurvivor runs one AC-12 case: sources S1..Sn (S1 the best), the
+// losers in order with kind(i) for the i-th loss, then judges C. A marker
+// source M, which never offers the prefix, carries the causal marker.
+func convergeOnSurvivor(t *testing.T, sources int, losers []int, kind func(int) convergenceLoss, concurrent bool) {
+	settings := make([]*PeerSettings, 0, sources+2)
+	for i := range sources {
+		settings = append(settings, lowLiveSettings("192.0.2."+strconv.Itoa(10+i), 65000, uint32(65001+i)))
+	}
+	settings = append(settings, lowLiveSettings("192.0.2.3", 65000, 65010), lowLiveSettings("192.0.2.6", 65000, 65011))
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := rsLiveRouter(t, settings...)
+	c, marker := peers[sources], peers[sources+1]
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	attrs := make([][]byte, sources)
+	for i := range sources {
+		path := slices.Repeat([]uint32{uint32(65001 + i)}, i+1)
+		attrs[i] = firstASAttrs(4, path...)
+	}
+	// RFC 4271 Section 9.1.2.2, step a: S1's AS_PATH is the shortest. Worst
+	// first, each written at C before the next, so S1, the newest, owns it.
+	for i := sources - 1; i >= 0; i-- {
+		ownershipLiveSend(t, peers[i], nil, attrs[i], prefix) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, c, prefix, attrs[i])
+	}
+	before := ownershipLiveRead(t, c).withdrawals[prefix]
+
+	lost := make([]bool, sources)
+	for i, loser := range losers {
+		switch kind(i) {
+		case convergenceLossWithdraw:
+			ownershipLiveSend(t, peers[loser], []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+		case convergenceLossDown:
+			_ = peers[loser].remote.Close() //nolint:errcheck // A departure: the session ends with no NOTIFICATION.
+		case convergenceLossUnspecified:
+			t.Fatal("BUG: a loss with no kind")
+		}
+		lost[loser] = true
+		if concurrent {
+			continue
+		}
+		best := slices.Index(lost, false)
+		lowEventually(t, func() bool { return convergenceSettled(t, c, prefix, attrs, best) }, "C decided the loss")
+	}
+	best := slices.Index(lost, false)
+	deadline := time.Now().Add(30 * time.Second)
+	for !convergenceSettled(t, c, prefix, attrs, best) && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	// Let any late write for the prefix land before the history is judged.
+	later := netip.MustParsePrefix("10.9.254.0/24")
+	attrsM := firstASAttrs(4, 65011)
+	ownershipLiveSend(t, marker, nil, attrsM, later) // RFC 4271 Section 4.3.
+	view := ownershipLiveThrough(t, c, later, attrsM)
+	if best < 0 {
+		ownershipLiveAbsent(t, view, prefix)
+		ownershipLiveWithdrawals(t, view, prefix, before+1)
+	} else {
+		ownershipLiveRoute(t, view, prefix, attrs[best])
+		ownershipLiveWithdrawals(t, view, prefix, before)
+	}
+	if got := adjOutOwedCount(c.peer); got != 0 {
+		t.Errorf("C still owes %d keys", got)
+	}
+	remaining := []*lowLivePeer{c, marker}
+	for i := range sources {
+		if !lost[i] || kind(slices.Index(losers, i)) == convergenceLossWithdraw {
+			remaining = append(remaining, peers[i])
+		}
+	}
+	ownershipLiveEstablished(t, remaining)
+}
+
+// convergenceSettled reports whether C holds the best survivor's route for
+// prefix and owes nothing, or holds no route when best is negative.
+func convergenceSettled(t *testing.T, c *lowLivePeer, prefix netip.Prefix, attrs [][]byte, best int) bool {
+	if adjOutOwedCount(c.peer) != 0 {
+		return false
+	}
+	route, held := ownershipLiveRead(t, c).routes[prefix]
+	if best < 0 {
+		return !held
+	}
+	return bytes.Equal(route, attrs[best])
 }

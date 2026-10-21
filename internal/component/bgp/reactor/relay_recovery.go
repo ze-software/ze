@@ -1,4 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- source-owned DOWN recovery.
+// RFC: rfc/short/rfc4271.md -- Decision and Update-Send Process (Sections 9.1.3, 9.2)
+// RFC: rfc/short/rfc4456.md -- reflection rules a recovery candidate is refused by
 package reactor
 
 import (
@@ -550,7 +552,9 @@ func (a *reactorAPIAdapter) releaseRecoveryTail(admission *recoveryAdmission) {
 // is written nowhere: the key is re-owed with that source excluded, so the
 // next round elects over the survivors without it, and the admission's other
 // keys are still decided.
-// RFC 4271 Section 6: replacement and withdrawal have disjoint owners.
+// RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
+// routes for which there is no replacement route SHALL be advertised to its
+// peers by means of an UPDATE message."
 func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutcome, k int, fam family.Family, admission *recoveryAdmission, sender plugin.Sender) error {
 	key := &admission.keys[k]
 	admission.nlri = key.record.nlri // Immutable once the record exists.
@@ -577,9 +581,10 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 		first := len(admission.items)
 		err := a.queueRecovery(admission.peer, &stored, fam, admission, admission.sources, sender)
 		if errors.Is(err, errAllDestinationsSuppressed) {
-			// The forward rail refused the candidate outright, as RFC 4456's
-			// reflection rules refuse a non-client route to a non-client
-			// (AC-25): the next candidate in election order is tried.
+			// The forward rail refused the candidate outright (AC-25), as
+			// reflection refuses a non-client route to a non-client. RFC 4456
+			// Section 6: "A route from a Non-Client IBGP peer: Reflect to all
+			// the Clients." The next candidate in election order is tried.
 			a.skipRecoveryCandidate(key, survivor)
 			continue
 		}
@@ -611,8 +616,10 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			received: survivor.PathID, addPath: survivor.AddPath}
 		return nil
 	}
-	// RFC 4271 Section 9.1.3: an advertised route the destination may not
-	// receive is withdrawn; here no candidate may be sent.
+	// RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a
+	// particular Adj-RIB-Out, the previously advertised route in that
+	// Adj-RIB-Out MUST be withdrawn from service by means of an UPDATE
+	// message (see 9.2)." Here no candidate may be sent.
 	withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(admission.nlri), Withdraw: true}
 	return a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission)
 }
