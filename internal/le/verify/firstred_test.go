@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -158,16 +159,34 @@ func TestStageTimesReachTheCheckoutOnGreenAndRed(t *testing.T) {
 // TestVerifyListKeepsTheDeclaredOrder proves `le verify list` ignores the
 // history: CI deals its shards from this list, so a history that reverses the
 // population changes nothing it prints.
+//
+// Method: point the checkout root at a fixture, give it a history whose
+// recorded seconds fall strictly from the first declared stage to the last, so
+// a cost order would print the population reversed, and read the list through
+// the action `le verify list` dispatches to. A history of equal times, which a
+// passing fixture run writes, cannot tell the two orders apart: ties keep
+// declared order.
 func TestVerifyListKeepsTheDeclaredOrder(t *testing.T) {
 	repo := newFixtureRepo(t)
-	for _, mode := range []string{verifyengine.Mode, verifyengine.FastMode} {
-		declared := verifyengine.StagesForMode(mode)
-		report := verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), mode,
-			verifyengine.Plan{History: repo.root}, passingRunner, verifyengine.Slot{})
-		if report.Code != 0 {
-			t.Fatalf("%s run = %#v", mode, report.Failure)
+	redsRootedAt(t, repo.root)
+	declaredFull := verifyengine.StagesForMode(verifyengine.Mode)
+	lines := make([]string, 0, len(declaredFull))
+	for position, stage := range declaredFull {
+		lines = append(lines, stage.Identity.Name+"\t"+strconv.Itoa(len(declaredFull)-position)+
+			"\t0\tfull\tabc\t2026-10-21T03:00:00Z")
+	}
+	redsFixtureWrite(t, repo.root, verifyengine.StageTimesPath, strings.Join(lines, "\n")+"\n")
+	for _, words := range [][]string{{"list"}, {"list", "fast"}} {
+		mode := verifyengine.Mode
+		if len(words) == 2 {
+			mode = verifyengine.FastMode
 		}
-		list := listCurrent(mode)
+		declared := verifyengine.StagesForMode(mode)
+		answer, code := Answer(words)
+		list, isList := answer.(stageList)
+		if code != 0 || !isList {
+			t.Fatalf("le verify %s answered %d with %#v", strings.Join(words, " "), code, answer)
+		}
 		for index := range declared {
 			if list.Stages[index].Name != declared[index].Identity.Name {
 				t.Fatalf("%s list position %d is %s, want declared %s",
