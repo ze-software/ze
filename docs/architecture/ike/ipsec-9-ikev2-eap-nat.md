@@ -391,9 +391,9 @@ once for the IKE SA:
 
 | Case | What happens | Log line |
 |------|--------------|----------|
-| The installed pair is transport mode, and the peer changed address (not only port) | The IKE SA closes: a transport-mode Child SA's selectors name the IKE SA's address pair (RFC 7296 Section 2.23.1), so neither a migration nor a rekey can follow the peer. It is set up again only with the configured remote address (the initiator redials it, and the responder accepts only it), so a peer that keeps its new address needs that address configured | Info, "a transport-mode Child SA cannot follow it, so the IKE SA is closed", naming the configuration step |
+| The installed pair is transport mode, and the peer changed address (not only port) | The IKE SA closes: a transport-mode Child SA's selectors name the IKE SA's address pair (RFC 7296 Section 2.23.1), so neither a migration nor a rekey can follow the peer. It is set up again only with the configured remote address (the initiator redials it, and the responder accepts only it), so a peer that keeps its new address needs that address configured | Warn, "a transport-mode Child SA cannot follow it, so the IKE SA is closed", ending with `set vpn ipsec site-to-site peer <name> remote-address <new address>` |
 | Tunnel mode, the pair encapsulates ESP in UDP, and the dataplane can migrate (`childMigrationAvailable`, the predicate MOBIKE negotiation uses) | The current pair and a distinct superseded pair are migrated in place to the new endpoint, from the NAT-T socket's port, keeping their SPIs, keys and replay state | Info, "Child SAs migrated to the new address and port" |
-| Transport mode with the address unchanged, a pair that does not encapsulate ESP in UDP (a migration would encapsulate it), a dataplane without a `TunnelMigrator` (VPP, a kernel without `XFRM_MSG_MIGRATE_STATE`), or a parallel IKE SA setting up a pending child | A Child SA rekey is owed; the owner tick raises it beside the soft lifetime, so a hold defers it and never drops it. The rekeyed child takes the IKE SA's ports and, in tunnel mode, its peer address (`takePeerTunnelAddress`), so it lands on the new endpoint | Info, "Child SA cannot be migrated here, so it is rekeyed", with `reason` |
+| Transport mode with the address unchanged, a tunnel-mode pair on a peer configured for transport mode (`reason` "the peer is configured for transport mode"), a pair that does not encapsulate ESP in UDP (a migration would encapsulate it), a dataplane without a `TunnelMigrator` (VPP, a kernel without `XFRM_MSG_MIGRATE_STATE`), or a parallel IKE SA setting up a pending child | A Child SA rekey is owed; the owner tick raises it beside the soft lifetime, so a hold defers it and never drops it. The rekeyed child takes the IKE SA's ports and, in tunnel mode, its peer address (`takePeerTunnelAddress`), so it lands on the new endpoint | Info, "Child SA cannot be migrated here, so it is rekeyed", with `reason` |
 | The migration failed with any error but `ErrTunnelMigrationLost` | The old endpoints stand (the `TunnelMigrator` contract), and the rekey is owed as above | Info, "migrating the Child SA failed and the old endpoints stay in place" |
 | The migration lost the tunnel | The IKE SA closes and is set up again, as a MOBIKE SA does: lost keys are never reinstalled | Error, naming `ze doctor` |
 
@@ -402,9 +402,10 @@ rekey, and when a pending child is promoted, since that child took its ports fro
 its own IKE SA. Reaping a pending SA that never authenticated keeps the old pair,
 so the owed rekey stays due. A move with MOBIKE negotiated, or while this node is
 behind a NAT, adopts nothing and moves nothing. The rule follows strongSwan's
-charon (`ike_sa.c`, `update_hosts`), which updates each Child SA and rekeys one whose
-update is not supported. That reading is unverified: no strongSwan source is on the
-host this was written on.
+charon: in 5.9.14 `update_hosts` (`src/libcharon/sa/ike_sa.c`) calls
+`child_sa->update` for every Child SA and, when that answers `NOT_SUPPORTED`,
+`rekey_child_sa`, and it adopts a new remote only when the peer is behind a NAT
+(`COND_NAT_THERE`), the case in which this node is not (read 2026-10-21).
 
 <!-- source: internal/component/ike/engine/rebind.go -- rebindChildSAs -->
 <!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint -->

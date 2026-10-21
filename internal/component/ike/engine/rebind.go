@@ -22,6 +22,9 @@ const (
 	rebindReasonDataplane = "the dataplane cannot migrate Child SAs"
 	rebindReasonPending   = "a new IKE SA with the peer is being set up"
 	rebindReasonBareESP   = "the Child SA does not encapsulate ESP in UDP"
+	// A tunnel-mode pair on a peer configured for transport mode (the peer declined
+	// it): childMigrationAvailable refuses the configured mode, so it is rekeyed.
+	rebindReasonTransportConfigured = "the peer is configured for transport mode"
 )
 
 // rebindChildSAs moves the installed Child SAs after adoptAuthenticatedEndpoint has
@@ -43,7 +46,8 @@ const (
 //   - The Child SAs can be migrated (childMigrationAvailable): the current pair and a
 //     distinct superseded pair move in place, keeping their keys, replay window and
 //     sequence (TunnelMigrator contract).
-//   - They cannot (transport mode, a pair that does not encapsulate ESP in UDP, a
+//   - They cannot (transport mode with the address unchanged, a tunnel pair on a peer
+//     configured for transport mode, a pair that does not encapsulate ESP in UDP, a
 //     dataplane without a TunnelMigrator, or a pending child that a parallel IKE SA is
 //     setting up): a Child SA rekey is owed. The rekeyed child takes the IKE SA's ports
 //     (childEncapPorts) and, in tunnel mode, its peer address (takePeerTunnelAddress),
@@ -77,7 +81,7 @@ func (ps *PeerSession) rebindChildSAs(sa *SA, dp dataplane.Dataplane, oldEndpoin
 		anchor = superseded
 	}
 	if anchor.Mode == modeTransport && !oldEndpoint.IP.Equal(sa.peerEndpoint.IP) {
-		log.Info("ike: peer endpoint moved to a new address, a transport-mode Child SA cannot follow it, so the IKE SA is closed. If the peer keeps the new address, set it as the peer's remote address in the IPsec configuration",
+		log.Warn("ike: peer endpoint moved to a new address, a transport-mode Child SA cannot follow it, so the IKE SA is closed. If the peer keeps the new address, configure it with: set vpn ipsec site-to-site peer "+sa.PeerName+" remote-address "+sa.peerEndpoint.IP.String(),
 			attrs...)
 		sa.State = StateDead
 		return ownedOutcome{reestablish: true}
@@ -120,8 +124,11 @@ func (ps *PeerSession) rebindChildSAs(sa *SA, dp dataplane.Dataplane, oldEndpoin
 // keeps UDPEncap from the retired pair and takes the new address
 // (takePeerTunnelAddress).
 func rebindRekeyReason(ps *PeerSession, sa *SA, anchor *ChildSA) (string, bool) {
-	if childTransportMode(sa) {
+	if anchor.Mode == modeTransport {
 		return rebindReasonTransport, false
+	}
+	if childTransportMode(sa) {
+		return rebindReasonTransportConfigured, false
 	}
 	if !anchor.UDPEncap {
 		return rebindReasonBareESP, false

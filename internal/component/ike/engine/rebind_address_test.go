@@ -104,6 +104,7 @@ func TestRebindTransportAddressMoveReestablishes(t *testing.T) {
 		t.Fatalf("a transport-mode address move installed states: %d, want the first pair only", len(f.mock.sas))
 	}
 	f.wantLog(t, "a transport-mode Child SA cannot follow it")
+	f.wantLog(t, "set vpn ipsec site-to-site peer "+f.local.PeerName+" remote-address "+f.local.peerEndpoint.IP.String())
 }
 
 // VALIDATES: the retire branch reads the INSTALLED pair's mode. A pair that runs tunnel
@@ -125,6 +126,7 @@ func TestRebindTunnelPairOnTransportConfigIsNotRetired(t *testing.T) {
 	if !f.ps.rebindRekeyOwed {
 		t.Fatal("the move left no rekey owed")
 	}
+	f.wantLog(t, `reason="`+rebindReasonTransportConfigured+`"`)
 }
 
 // VALIDATES: a rekeyed Child SA of a MOBIKE SA keeps the retired pair's address.
