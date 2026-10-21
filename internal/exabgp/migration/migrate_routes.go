@@ -6,8 +6,7 @@
 package migration
 
 import (
-	"encoding/hex"
-	"net"
+	"fmt"
 	"net/netip"
 	"strings"
 
@@ -213,23 +212,16 @@ func convertFlowToUpdate(flow, dst *config.Tree) error {
 					}
 				case "rate-limit-packets":
 					extComms = append(extComms, "rate-limit:"+value+":packets")
-				case "redirect":
-					// redirect <IP> = set next-hop + redirect-to-nexthop-draft
-					// redirect <AS:VAL> = redirect extended community
-					if net.ParseIP(value) != nil {
-						nextHop = value
-						extComms = append(extComms, "redirect-to-nexthop-draft")
-					} else {
-						extComms = append(extComms, "redirect:"+value)
+				case exaRedirect, exaRedirectSimpson, exaCopy, exaCopySimpson,
+					exaRedirectToNextHop, exaRedirectToNextHopIETF, exaRedirectToNextHopSimpson:
+					redirect, err := flowRedirectAction(action, value)
+					if err != nil {
+						return fmt.Errorf("flow route %s: %w", entry.Key, err)
 					}
-				case "redirect-to-nexthop":
-					extComms = append(extComms, "redirect-to-nexthop-draft")
-				case "copy":
-					// copy <IP> = set next-hop + copy-to-nexthop
-					if net.ParseIP(value) != nil {
-						nextHop = value
+					if redirect.nextHop != "" {
+						nextHop = redirect.nextHop
 					}
-					extComms = append(extComms, "copy-to-nexthop")
+					extComms = append(extComms, redirect.extCommunity)
 				case "mark":
 					extComms = append(extComms, "mark "+value)
 				case "action":
@@ -240,19 +232,6 @@ func convertFlowToUpdate(flow, dst *config.Tree) error {
 					// Inline extended communities: "[ origin:... origin:... ]"
 					inner := strings.Trim(value, "[] ")
 					extComms = append(extComms, strings.Fields(inner)...)
-				case "redirect-to-nexthop-ietf":
-					// ExaBGP name → Ze canonical name (RFC 7674)
-					ip := net.ParseIP(value)
-					if ip != nil && ip.To4() != nil {
-						// IPv4: extended-community
-						extComms = append(extComms, "redirect-to-nexthop "+value)
-					} else if ip != nil {
-						// IPv6: raw attribute (type 25=IPv6 ExtComm, flags 0xC0)
-						// Format: sub-type 0x000c + IPv6 (16 bytes) + local-admin 0x0000
-						ipHex := hex.EncodeToString(ip.To16())
-						var tb textbuf.Buffer
-						rawAttr = tb.Str("[0x19 0xc0 0x000c").Str(ipHex).Str("0000]").String()
-					}
 				case "attribute":
 					rawAttr = value
 				}
