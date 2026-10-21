@@ -20,6 +20,7 @@ type groupRunner struct {
 	dispatched []string
 	flushed    []string
 	refuse     string
+	flushErr   error
 }
 
 func (r *groupRunner) Dispatch(_ context.Context, command string) error {
@@ -30,8 +31,9 @@ func (r *groupRunner) Dispatch(_ context.Context, command string) error {
 	return nil
 }
 
-func (r *groupRunner) Flush(_ context.Context, selector string) {
+func (r *groupRunner) Flush(_ context.Context, selector string) error {
 	r.flushed = append(r.flushed, selector)
+	return r.flushErr
 }
 
 func (r *groupRunner) Status(context.Context, bool) ([]byte, BatchAnswer) {
@@ -175,6 +177,25 @@ func TestGroupAnswers(t *testing.T) {
 				t.Fatalf("answered %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestRefusedFlushAnswersError checks that a flush ze refuses reaches the
+// script as `error`, not as a log line.
+//
+// VALIDATES: a route ze accepted whose per-selector flush is refused is
+// answered `error`, after the route was dispatched and the flush attempted.
+// PREVENTS: the bridge answering `done` with the forward pool never drained,
+// which is what a multi-peer flush refusal used to do.
+func TestRefusedFlushAnswersError(t *testing.T) {
+	g := newGroupScript()
+	g.runner.flushErr = errors.New("flush: selector matches more than one peer")
+	const want = "error: flush: selector matches more than one peer\nerror\n"
+	if got := g.send(t, "announce route 1.1.1.1/32 next-hop 11.11.11.11"); got != want {
+		t.Fatalf("answered %q, want %q", got, want)
+	}
+	if len(g.runner.dispatched) != 1 || len(g.runner.flushed) != 1 {
+		t.Fatalf("dispatched %q, flushed %q: want one route and one flush", g.runner.dispatched, g.runner.flushed)
 	}
 }
 

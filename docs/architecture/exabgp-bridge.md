@@ -505,7 +505,10 @@ group, the netting and the answers cannot drift between them. `api-group` and
 After a batch's route commands, the bridge injects one flush per selector the
 batch reached and blocks until each forward pool drains. The peer it flushes is
 `Translation.Selector`, the selector the translator used when it built the
-command.
+command. A list such as `<a>,<b>` drains every peer it names
+(`handleBgpPeerFlush`). A flush ze refuses or does not answer fails every route
+line of that selector, so the script reads `error`, never `done` for a barrier
+that did not hold (`failSelectorLines`).
 
 It was read back out of the finished command until 2026-09-05, by
 `ExtractPeerAddress`, which required a literal leading token and answered the

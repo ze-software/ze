@@ -717,6 +717,33 @@ func TestHandlerFlushByName(t *testing.T) {
 	assert.Equal(t, "192.0.2.1", data["peer"], "name must resolve to the peer address")
 }
 
+// TestHandlerFlushAddressList proves flush drains every peer a list selector
+// names, the selector the ExaBGP bridge sends after a route for two neighbours.
+//
+// VALIDATES: `request peer 192.0.2.1,192.0.2.2 flush` answers StatusDone and
+// reaches FlushForwardPoolPeer once for each listed peer.
+// PREVENTS: the barrier refusing a selector `send bgp <a>,<b> update` accepts,
+// so the bridge answered the script before the forward pool drained.
+func TestHandlerFlushAddressList(t *testing.T) {
+	reactor := &mockReactor{peers: []plugin.PeerInfo{
+		{Name: "east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+		{Name: "west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002},
+		{Name: "north", Address: netip.MustParseAddr("192.0.2.3"), PeerAS: 65003},
+	}}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1,192.0.2.2"
+
+	resp, err := handleBgpPeerFlush(ctx, commandtest.Args())
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status, "error: %s", resp.Error)
+	assert.Equal(t, []string{"192.0.2.1", "192.0.2.2"}, reactor.flushedPeers, "each listed peer is flushed, and no other")
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	assert.Equal(t, []string{"192.0.2.1", "192.0.2.2"}, data["peers"])
+}
+
 // TestHandlerTeardownSubcodeOutOfRange verifies teardown rejects subcode > 255.
 //
 // VALIDATES: Subcode must fit in a uint8 (0-255).

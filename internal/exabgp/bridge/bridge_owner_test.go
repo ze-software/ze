@@ -92,8 +92,9 @@ func (r *exitRecorder) Dispatch(_ context.Context, command string) error {
 	return nil
 }
 
-func (r *exitRecorder) Flush(_ context.Context, selector string) {
+func (r *exitRecorder) Flush(_ context.Context, selector string) error {
 	r.flushed = append(r.flushed, selector)
+	return nil
 }
 
 // TestStandaloneExitWithdrawsOwnedRoutes holds the standalone runner

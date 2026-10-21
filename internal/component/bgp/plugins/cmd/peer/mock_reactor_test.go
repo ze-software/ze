@@ -24,10 +24,12 @@ var _ bgptypes.BGPReactor = (*mockReactor)(nil)
 
 // mockReactor implements plugin.ReactorLifecycle for handler tests.
 type mockReactor struct {
-	peers    []plugin.PeerInfo
-	stats    plugin.ReactorStats
-	peerCaps *plugin.PeerCapabilitiesInfo
-	history  map[string][]plugin.FSMTransitionRecord
+	peers []plugin.PeerInfo
+	// flushedPeers records each address FlushForwardPoolPeer was asked to drain.
+	flushedPeers []string
+	stats        plugin.ReactorStats
+	peerCaps     *plugin.PeerCapabilitiesInfo
+	history      map[string][]plugin.FSMTransitionRecord
 
 	// updateDelay is what `show bgp update-delay` reads. Left unset it means an
 	// UNCONFIGURED daemon, which UpdateDelayStatus below completes into the
@@ -164,8 +166,11 @@ func (m *mockReactor) ResumePeer(addr netip.Addr) error {
 	return nil
 }
 
-func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
-func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
+func (m *mockReactor) FlushForwardPool(_ context.Context) error { return nil }
+func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, addr string) error {
+	m.flushedPeers = append(m.flushedPeers, addr)
+	return nil
+}
 
 func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
 	m.teardownCalls = append(m.teardownCalls, struct {

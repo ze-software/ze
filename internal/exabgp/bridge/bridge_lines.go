@@ -180,8 +180,33 @@ func (s ScriptLines) dispatch(ctx context.Context, r LineRunner, batch []BatchLi
 	// pool drains before any line of it is answered. ExaBGP orders the two the
 	// same way: announce_route awaits every peer's flush event and calls
 	// answer_done after it (src/exabgp/reactor/api/command/announce.py).
+	// A refused flush fails every route line of its selector, because the
+	// script would otherwise read `done` for a barrier that did not hold.
 	for _, selector := range BatchSelectors(batch, netted) {
-		r.Flush(ctx, selector)
+		err := r.Flush(ctx, selector)
+		if err == nil {
+			continue
+		}
+		s.Log.Warn("exabgp-bridge flush failed", "script", s.Name, "error", err, "selector", selector)
+		failSelectorLines(batch, netted, answers, selector, err)
+	}
+}
+
+// failSelectorLines records err against every route line of the run that
+// addressed selector and has no failure yet.
+func failSelectorLines(batch []BatchLine, netted []BatchDispatch, answers []BatchAnswer, selector string, err error) {
+	for _, dispatch := range netted {
+		line := batch[dispatch.Line]
+		if !line.Translation.Route {
+			continue
+		}
+		if line.Translation.Selector != selector {
+			continue
+		}
+		if answers[dispatch.Line].Failed {
+			continue
+		}
+		answers[dispatch.Line] = BatchAnswer{Failed: true, Error: err.Error()}
 	}
 }
 

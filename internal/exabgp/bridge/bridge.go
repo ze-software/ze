@@ -798,17 +798,28 @@ func (r muxRunner) Dispatch(ctx context.Context, command string) error {
 	return nil
 }
 
-// Flush drains the forward pool of the peers selector names.
-func (r muxRunner) Flush(ctx context.Context, selector string) {
+// errMuxFlushTimeout is a flush ze did not answer within muxFlushTimeout.
+var errMuxFlushTimeout = errors.New("ze flush timeout")
+
+// Flush drains the forward pool of the peers selector names, and answers ze's
+// refusal or the missing answer. A flush that did not happen is a barrier
+// that did not hold, so the caller owes the script an error for it.
+func (r muxRunner) Flush(ctx context.Context, selector string) error {
 	flushID := r.b.nextRequestID.Add(1)
 	flushCh := r.pending.register(flushID)
 	r.zeOut.Fprintln(formatFlushRequest(flushID, selector))
 
 	flushCtx, cancel := context.WithTimeout(ctx, muxFlushTimeout)
-	if _, err := r.pending.wait(flushCtx, flushID, flushCh); err != nil {
-		slog.Warn("plugin->zebgp: flush wait error", "error", err, "peer", selector)
-	}
+	result, err := r.pending.wait(flushCtx, flushID, flushCh)
 	cancel()
+	if err != nil {
+		slog.Warn("plugin->zebgp: flush wait error", "error", err, "peer", selector)
+		return errMuxFlushTimeout
+	}
+	if !result.ok {
+		return errors.New(result.errText)
+	}
+	return nil
 }
 
 // Status refuses a `status` line. The MuxConn dispatch answer carries ok or an

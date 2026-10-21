@@ -830,7 +830,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 
 // handleBgpPeerFlush handles "request peer <sel> flush" command.
 // Blocks until the forward pool has drained all queued items for the targeted peers.
-// If selector is "*", flushes all peers. If a specific peer, flushes only that peer.
+// If selector is "*", flushes all peers; otherwise every peer the selector names.
 func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
@@ -858,39 +858,71 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 		}, nil
 	}
 
-	// Specific peer: the same resolver every other peer-scoped command uses.
-	//
-	// This replaces a second hand-rolled name loop whose miss branch FAILED OPEN:
-	// an unresolvable selector was handed to the forward pool verbatim, the pool
-	// found no worker for it, returned immediately, and the handler reported
-	// StatusDone. A typo'd peer name therefore claimed to have drained a queue it
-	// never looked at -- a silent no-op reported as success, which is the one
-	// thing a barrier must never do (ai/rules/evidence.md). It now
-	// errors with the selector quoted.
-	//
-	// An unmatched ADDRESS still passes through unchanged, which is
-	// ResolveSinglePeer's documented contract and keeps flushing a peer that is
-	// configured but has no live worker a successful no-op rather than an error.
-	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "flush")
-	if err != nil {
-		return errResp, err
+	// Any other selector names a set of peers, read as every peer-scoped command
+	// that takes a set reads it (`send bgp <selector> update`): an address, an
+	// address list, a name, an ASN, a glob. The ExaBGP bridge flushes `<a>,<b>`
+	// after a route aimed at two neighbours. Flush is a barrier: it drains, it
+	// destroys nothing and it is idempotent, so draining every peer of the set
+	// is what the caller asked. The destructive verbs (teardown, pause, delete)
+	// keep ResolveSinglePeer, which refuses anything but one peer.
+	found := pluginserver.PeersMatching(ctx, peersel.ParseDefault(selector))
+	if len(found) == 0 {
+		return flushUnmatchedSelector(flushCtx, ctx, selector)
 	}
-	peerAddr := addr.String()
-
-	if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
+	flushed := make([]string, 0, len(found))
+	for i := range found {
+		peerAddr := found[i].Address.String()
+		if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
+			return flushFailed(peerAddr, err)
+		}
+		flushed = append(flushed, peerAddr)
+	}
+	if len(flushed) == 1 {
 		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  fmt.Sprintf("flush failed: %v", err),
-		}, fmt.Errorf("flush forward pool peer %s: %w", peerAddr, err)
+			Status: plugin.StatusDone,
+			Data:   plugin.Map{fieldAction: "flush", fieldPeer: flushed[0]},
+		}, nil
 	}
-
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			fieldAction: "flush",
-			fieldPeer:   peerAddr,
-		},
+		Data:   plugin.Map{fieldAction: "flush", fieldPeer: selector, fieldPeers: flushed},
 	}, nil
+}
+
+// errFlushNoPeer is a flush selector that names no peer and is not an address.
+var errFlushNoPeer = errors.New("flush: no peer matches selector")
+
+// flushUnmatchedSelector answers a flush whose selector matched no peer.
+//
+// An ADDRESS is flushed as given: a configured peer with no live worker drains
+// nothing, and that is a successful no-op. Any other selector (a name, an ASN,
+// a glob) that matches nothing is refused with the selector quoted. Handing it
+// to the pool would find no worker and answer StatusDone, a barrier claiming
+// to have drained a queue it never looked at.
+func flushUnmatchedSelector(flushCtx context.Context, ctx *pluginserver.CommandContext, selector string) (*plugin.Response, error) {
+	ip, err := netip.ParseAddr(selector)
+	if err != nil {
+		var tb textbuf.Buffer
+		msg := tb.Str("flush: no peer matches selector ").Quoted(selector).
+			Str(", so there is no forward-pool queue to drain; give a peer address, a configured peer name or an ASN (see `show bgp peer list`)").String()
+		return &plugin.Response{Status: plugin.StatusError, Error: msg}, errFlushNoPeer
+	}
+	peerAddr := ip.String()
+	if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
+		return flushFailed(peerAddr, err)
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   plugin.Map{fieldAction: "flush", fieldPeer: peerAddr},
+	}, nil
+}
+
+// flushFailed answers a forward-pool drain of peerAddr that returned err.
+func flushFailed(peerAddr string, err error) (*plugin.Response, error) {
+	var tb textbuf.Buffer
+	msg := tb.Str("flush failed for peer ").Str(peerAddr).Str(": ").Str(err.Error()).String()
+	return &plugin.Response{Status: plugin.StatusError, Error: msg},
+		fmt.Errorf("flush forward pool peer %s: %w", peerAddr, err)
 }
 
 // parseRouterID parses a router ID from string (IP format or numeric).

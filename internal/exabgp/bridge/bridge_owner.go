@@ -54,8 +54,9 @@ func exitPolicy(onExit OnExit, version APIVersion) (withdraw bool, by string) {
 type ExitRunner interface {
 	// Dispatch hands ze one command and answers its refusal.
 	Dispatch(ctx context.Context, command string) error
-	// Flush drains the forward pool of the peers selector names.
-	Flush(ctx context.Context, selector string)
+	// Flush drains the forward pool of the peers selector names, and answers
+	// ze's refusal.
+	Flush(ctx context.Context, selector string) error
 }
 
 // OwnerLedger records which script owns each route the bridge announced, so
@@ -186,7 +187,11 @@ func (l *OwnerLedger) Exited(ctx context.Context, log *slog.Logger, script strin
 			selectors = append(selectors, route.selector)
 		}
 	}
+	// The script has exited, so no line is left to answer: a refused flush is
+	// logged with the selector it left undrained.
 	for _, selector := range selectors {
-		runner.Flush(ctx, selector)
+		if err := runner.Flush(ctx, selector); err != nil {
+			log.Warn("exabgp-bridge exit flush failed", "script", script, "error", err, "selector", selector)
+		}
 	}
 }
