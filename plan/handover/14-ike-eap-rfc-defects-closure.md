@@ -89,3 +89,24 @@ build, one full `./le verify worktree`, `/ze-close`.
   `./le verify worktree`, and `/ze-close` (review artifact: `./le spec review record
   spec spec-ike-eap-rfc-defects.md verdict CLEAN rounds 4 file <the code files of
   5754eac4f4 and 25938b3000>`).
+
+## Blockers decided, 2026-10-21 evening (closure agent, session 0b4a8e87)
+
+| Blocker | Outcome |
+|---------|---------|
+| AC-14 transport rekey | Cause found in strongSwan 5.9.14 `child_create.c`: ze's Child SA rekey carried no USE_TRANSPORT_MODE, so charon took tunnel mode and skipped its own NAT substitution (`narrow_ts`). Fix: the rekey request carries the notify for a transport SA, the responder echoes it, the initiator refuses an answer without it. Spec Design Insight "AC-14 TS_UNACCEPTABLE" carries the RFC 7296 Section 1.3.1, 1.3.3 and 2.23.1 quotes and the rejected "send the original address" option. Unit tests `rfc7296_child_rekey_transport_test.go`, red before the fix. Committed `9d60c1d841`. Docker lab over it: `real-nat-port-translated-transport-ze-responder` GREEN 20:55; walk M4 (request hunk disabled) RED 20:59 with charon's "no acceptable traffic selectors found". Review round 5: 0 BLOCKER, 2 ISSUE (no rekey hold on the refusal, a false test comment), both fixed in the next commit with a red-proven test |
+| `responder-eap-tls12` | Stopped on this item as the brief allows: no IKEv2 EAP-TLS initiator with RFC 7627 EMS exists. strongSwan up to 6.1.0 and master only defines the extension constant (`tls.h`), its `tls_peer.c` never sends it and `tls_crypto.c` `derive_master` uses the plain RFC 5246 seed; Libreswan's EAP-TLS is responder only (`ikev2_eap.c`: "there is no initiator code"); OpenIKED supports MSCHAP-V2 only; `eapol_test` speaks EAP over RADIUS, not IKEv2. Needs Thomas: keep the EMS requirement and re-scope the scenario's assertions to Ze's refusal, or drop the requirement |
+
+Journal rows written: `plan/journal/test-shares-a-process-global.md` (race in
+`TestImplicitDiscardReadsWhatTheLastApplyInstalled`), `plan/journal/silent-fall-through.md`
+(a peer rekey of a transport SA without the notify; the two other rekey-refusal branches
+with no hold).
+
+Stopped here: a sixth review round (over the round-5 fixes) needs Thomas, and so does the
+EAP-TLS 1.2 scenario. Still owed after both: the Docker proof build, one full
+`./le verify worktree`, `/ze-close`. Lab traps met today: a `git archive` export needs the
+ignored `gokrazy/docker-host/builddir/github.com/ze-software/ze/go.sum` copied in, and its
+path must be short enough for the forwarded Docker socket (run it through a short symlink
+such as `~/.zt/ikw`). A stale `.git/index.lock` (0 bytes, 20:23, no holder) left the
+shared index pointing at pre-`9d60c1d841` content for its paths; the repair is in
+`tmp/delete-0b4a8e87.sh` and the commit script log, for Thomas to run.
