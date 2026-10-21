@@ -663,6 +663,26 @@ Added at closure (2026-10-21): the design phase left this table and the next one
 
 ## Review Gate
 
+### Closure review, D1 to D5 (2026-10-21)
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-update-propagation-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (91 files, verdict clean) |
+| `./le spec review check` | OK (59 code files, clean, hashes match), 2026-10-21. Round 3: 0 BLOCKER, 0 ISSUE, 3 NOTE. The D4 injector fix 0bd7a50667 came after round 3; it was found and proven red/green by a separate diagnosing agent and changes no Go |
+| Rounds | 3: round 1 over every D1 to D5 commit, rounds 2 and 3 over the fixes, each a product defect |
+| Reviewer lenses used | protocol and wire, guards and security, performance (allocations, message size), proof and wiring |
+
+#### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R1-B1 | BLOCKER | a held generation substituted in place let an UPDATE outgrow 65535 octets | `rewriteMPNLRISections`, `typedNLRIEdit` | 897ac54217: `typedNLRIPlaceWithdrawals`, `typedNLRIWithdrawBodies` |
+| R1-I1 | ISSUE | two allocations per steady MUP refresh (escaping closures) | `typedNLRIHold`, `typedNLRIWithdrawable` | 897ac54217: visitors bound once per Session |
+| R1-I2 | ISSUE | hold per Session, lost across a GR reconnect (RFC 4724 Section 4.2) | `Session.typedNLRIHeld` | 897ac54217: `typedNLRIHeldRoutes` on the Peer, `beginSession`, `endOfRIB` |
+| R2-I1 | ISSUE | a withdrawal of a key the same UPDATE announces withdrew it (RFC 4271 Section 4.3) | `typedNLRIRelayEdit`, `typedNLRIWalk.withdrawal` | 2b6976ddd2: per-UPDATE stamp |
+| R2-I2 | ISSUE | no test drove the Peer hold wiring from its entry points | `newSession`, `negotiateWith`, `notifyMessageReceiver` | 2b6976ddd2: `TestMUPHeldGenerationWiredThroughThePeer` |
+
+NOTEs, recorded: round 1 N3 (no RFC defect in D1, D2, D4, D5 producers), N4 (commit audit rows carry trailers); round 2 N4 (GR keyed on the capability, not per-family F bit: memory and accuracy only, writer filters).
+
 ### Round 1 (link-local and withdrawal, 2026-10-03 and 2026-10-04)
 
 | Item | Finding | Disposition | Evidence |
@@ -761,3 +781,134 @@ smoke uses the explicit manual-EOR configuration above. The seven disposable
 smoke draft and overlay source files were removed after red/green proof;
 permanent regression tests and runtime evidence remain. No D1–D5 work,
 whole-spec closure or skeleton deletion is authorized by this D6 record.
+
+## Implementation Summary
+
+### What Was Implemented
+- D1 and D2: one attribute walk in the final writer (`reactor/session_egress_normalize.go::normalizeTransmittedUpdate`, called from `Session.writeUpdateBody`) clears the low nibble of every flags octet and removes LARGE_COMMUNITY repeats in place (`compactLargeCommunities`), on every UPDATE written, raw included (Q-3 (a)). Commit 020457d0f7.
+- D3: the MUP recognizer (`mup/rfc7606.go::recognizerFor`) answers Withdraw for every malformed implemented NLRI (Q-1 (a)); `nlritype.RetainUpdate` moves it to a withdrawal and discards an unkeyable one (bb62d27038, aa6e798498). Follow-up 27b0796cea: the withdrawal names the session's held well-formed generation of the key, never the malformed bytes, and nothing is relayed when none is held (`reactor/session_validation_nlritype_held.go`, `nlritype.RegisterBodyRecognizer`).
+- Q-2 (a): `mup/encode.go` refuses a T1ST with no TEID or endpoint (`errMupT1stRequiresTEID`, `errMupT1stRequiresEndpoint`).
+- D4: `role/otc.go::OTCEgressFilter` suppresses source role `rs` towards Provider, Peer and RS (Q-D4 (a)), e8d3864d54.
+- D5: `filter_community/blackhole.go::blackholeReadvertiseRefused` withholds a BLACKHOLE-tagged route from a bilateral eBGP destination with no agreement, from a cache rebuilt by the plugin's config transaction (`configTx`), 5e59114de0; AC-5 proof for the command rail, b65e2c5a21.
+- Interop: five scenarios (f97194befe), the GoBGP checker string (99aa7cb66f), `bgp-adj-rib-in` attached in the D4 and D5 configs (bba92170c4).
+- Review notes: every source `PeerFilterInfo` fill carries `IsIBGP`, and the RFC 8195 relation tag reads it (88ef88edda).
+
+### Bugs Found/Fixed
+- Ze relayed a malformed T1ST's bytes inside its treat-as-withdraw MP_UNREACH_NLRI; GoBGP 3.31.0 panicked decoding them (first interop run). Fixed in 27b0796cea; `TestMUPMalformedT1STWithdrawnByHeldGeneration`, the changed `TestMUPMalformedT1STTreatAsWithdraw` and `.ci`.
+- A malformed or unkeyable NLRI received in an MP_UNREACH_NLRI was relayed as received. Same commit, same test.
+- The RFC 8195 relation tag tagged an RFC 7705 migration session as EBGP. 88ef88edda; `TestRelationTagIBGPWritesNothing`.
+- The D4 and D5 interop configs did not attach `bgp-adj-rib-in`, so bgp-rs replayed nothing to FRR. bba92170c4.
+
+### Documentation Updates
+- `docs/features/bgp-protocol.md`, Section 5.4 table and the paragraph after it: the held-generation rule, anchors to `session_validation_nlritype_held.go` and `nlritype.RegisterBodyRecognizer` (27b0796cea). Earlier D1 to D5 pages landed with their commits (Documentation Update Checklist rows).
+
+### Deviations from Plan
+- D3 relays the withdrawal of a malformed NLRI by the held generation rather than by its own bytes (the design text said "a withdrawal built from the malformed NLRI's bytes removes the earlier well-formed generation"): true for Ze's own RIB, false for a receiver that decodes every field (Design Insights, D3 withdrawal bytes).
+- The key scratch goes to `Retain` only (Design Insights, implementation agent 3).
+- Test names differ from the TDD plan: `TestMUPMalformedT1STTreatedAsWithdrawnAtIngress` and `TestMUPWellFormedSiblingSurvivesMalformedT1ST` landed as `TestMUPMalformedT1STTreatAsWithdraw` with its negative subtest; `TestRetainReportsWithdrawnSeparately` as `TestRetainSplitsWithdrawnFromUnkeyable`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | the design said a withdrawal built from the malformed NLRI's bytes removes the earlier generation | every receiver decodes the whole withdrawn NLRI; GoBGP panics on the malformed bytes and Ze's own recognizer refuses them | first D3 interop run, 2026-10-21 | 27b0796cea; RECORDED in Design Insights |
+| approach | interop scenario configs written without `bgp-adj-rib-in` | bgp-rs needs it for the peer-up replay of routes that arrived first | first D5 interop run | bba92170c4 |
+| approach | the D4 injector listed three KEEPALIVE expects to hold its session | Ze sends that RS-Client its own static route, a mismatch that closed the session and purged the route | D4 runs 1 and 2, local functional reproduction | 0bd7a50667: `option=linger` |
+| approach | 27b0796cea substituted the held generation in place and kept it per Session | a longer generation can push an UPDATE past 65535, and RFC 4724 retains routes across sessions | closure review round 1 (B1, I2) | 897ac54217 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1 unused flag bits zero when sent | Done | `reactor/session_egress_normalize.go::normalizeTransmittedUpdate` | 020457d0f7 |
+| D2 no LARGE_COMMUNITY repeat transmitted | Done | `session_egress_normalize.go::compactLargeCommunities` | 020457d0f7 |
+| D3 malformed MUP route treated as withdrawn | Done | `mup/rfc7606.go::recognizerFor`, `reactor/session_validation_nlritype.go::typedNLRIEdit`, `session_validation_nlritype_held.go` | bb62d27038, 27b0796cea, 897ac54217 |
+| D4 RS-Client-learned route not sent upward | Done | `role/otc.go::OTCEgressFilter` | e8d3864d54 |
+| D5 BLACKHOLE only to agreed bilateral eBGP | Done | `filter_community/blackhole.go::blackholeReadvertiseRefused` | 5e59114de0 |
+| D6 link-local next hop | Done | closed earlier (D6 scoped closure evidence) | d09deeecf3 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-1a, AC-6, AC-7 | Done | `TestRFC4271WriteClearsLowNibbleEveryAttribute`, `TestRFC4271WriteLeavesCleanFlagsUnchanged`, `TestRFC4271RelayedLowNibbleClearedOnBothRails`, `rfc4271-attr-flags-low-nibble-relay.ci` | |
+| AC-2, AC-2a, AC-8 | Done | `TestRFC8092WriteRemovesRepeatedLargeCommunity`, `TestRFC8092WriteKeepsDistinctLargeCommunities`, `TestRFC8092PolicyAddOfPresentValueSentOnce`, `rfc8092-large-community-no-repeat-egress.ci` | |
+| AC-3, AC-3a to c, AC-9 | Done | `TestMUPMalformedT1STTreatAsWithdraw` (positive and negative), `TestMUPMalformedT1STWithdrawnByHeldGeneration`, `mup-t1st-malformed-treat-as-withdraw.ci` | withdrawal carries the held generation |
+| AC-10, AC-10a | Done | `TestMUPMalformedT1STWithdrawEdges`, `TestMUPUnkeyableMalformedT1STDiscardedNotRelayed`, `TestMUPHeldGenerationWithdrawalsFitTheMessageLimit` | |
+| AC-11 | Done | `TestOTCEgressFilter`, `rfc9234-rs-client-learned-not-upward.ci` | |
+| AC-12, AC-12a | Done | `TestRFC7999ReadvertiseWithheldWithoutAgreement`, `TestRFC7999AgreementReloadTransaction`, `rfc7999-blackhole-readvertise-agreement.ci`, `test/reload/rfc7999-blackhole-agreement-removed-by-reload.ci` | |
+| AC-5 | Done | `rfc/audit/*.json`: all eight IDs `enforced`, MUP three rejudged in 399ee383e1 and 1a8c2b90c6 | |
+| AC-13 | see Goal Validation | interop green and red runs | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| D1, D2 units and benchmark | Done | `reactor/rfc4271_attr_flags_egress_test.go`, `rfc4271_attr_flags_relay_test.go`, `rfc8092_large_community_egress_test.go` | the policy-add unit lives in the egress file |
+| D3 units | Changed | `reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go`, `mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPRecognizerVerdicts`, `nlritype/nlritype_test.go::TestRetainSplitsWithdrawnFromUnkeyable` | names in Deviations |
+| D4, D5 units | Done | `role/rfc9234_otc_test.go`, `filter_community/rfc7999_blackhole_readvertise_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create rows | Done | `session_validation_nlritype_held.go` added (27b0796cea); `draft_mup_t1st_withdraw_test.go` landed as `draft_ietf_bess_mup_safi_t1st_withdraw_test.go` |
+
+### Audit Summary
+- **Total items:** 6 requirements, 13 AC rows
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** D3 withdrawal bytes and test names (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| bits that must be zero are not sent | interop + functional | `bgp-attr-flags-low-nibble-gobgp` INTEROP-D1; `rfc4271-attr-flags-low-nibble-relay.ci` hex on both rails |
+| duplicates that must not be sent are not sent | interop + functional | `bgp-large-community-no-repeat-gobgp` INTEROP-D2; `rfc8092-large-community-no-repeat-egress.ci` |
+| a malformed MUP route is withdrawn, not kept | interop + functional | `bgp-mup-malformed-t1st-withdraw-gobgp` INTEROP-D3; `.ci` red with the substitution off (Ze sent K'), green on |
+| RS-Client-learned routes stay off upward sessions | interop + functional | `bgp-role-rs-client-learned-not-upward-frr` INTEROP-D4; `rfc9234-rs-client-learned-not-upward.ci` |
+| BLACKHOLE reaches only agreed peers | interop + functional | `bgp-rfc7999-blackhole-readvertise-frr` INTEROP-D5; `rfc7999-blackhole-readvertise-agreement.ci` |
+| verdicts reach `enforced` | audit | eight IDs `enforced` in `rfc/audit/` (independent rejudge) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none in scope | the RFC 7999 policy-added BLACKHOLE and the two open-coded IBGP compares are walked-into defects outside the agreed ACs, journaled in `plan/journal/guard-added-to-one-half-of-a-pair.md` and `plan/journal/helper-bypassed-by-an-open-coded-copy.md` | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the six `.ci` of the Wiring table and `test/plugin/linklocal-only-multihop-withdraw.ci` | yes | `ls` 2026-10-21: all seven listed |
+| the five `test/interop/scenarios/` directories | yes | `ls test/interop/scenarios` in `scratch/iopg2` |
+| `reactor/session_validation_nlritype_held.go` | yes | 897ac54217 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3, AC-10, AC-10a | malformed withdrawn by held generation, bounded, unkeyable discarded | `go test -race` reactor/nlritype/mup in a `git archive` export of 897ac54217: ok; `--- PASS` for every `TestMUP*` unit; `.ci` `mup-t1st-malformed-treat-as-withdraw` PASS |
+| AC-1, AC-2, AC-11, AC-12 | D1, D2, D4, D5 | `go test -race` filter_community, role, gr, reactor in an export of 88ef88edda: ok |
+| AC-5 | eight IDs enforced | `rfc/audit/{rfc4271,rfc8092,draft-ietf-bess-mup-safi,rfc9234,rfc7999}.json` read 2026-10-21: all `enforced` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| malformed T1ST after a well-formed generation, relayed through bgp-rs | `test/plugin/mup-t1st-malformed-treat-as-withdraw.ci` | read: expects K's held bytes in MP_UNREACH_NLRI and rejects K' anywhere; red with the substitution off |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `session_write.go`: every `bufWriter.Write` of an UPDATE body follows `normalizeTransmittedUpdate` (line 679); the others carry non-UPDATE types (read 2026-10-21) |
+| A-2 | confirmed | first D1 run: GoBGP prints `"flags":224` |
+| A-3 | confirmed | first D2 run: GoBGP prints each value once in brackets |
+| A-4 | confirmed | first D3 run: GoBGP negotiated ipv4-mup and held the T1ST |
+| A-5 | confirmed | unchanged; `parseBodyT1ST` tolerates the absent octet |
+| A-6 | confirmed | D6 withdrawal on both rails; the RS replacement spec owns the survivor |
+| A-7 | confirmed | Q-3 (a), owner 2026-10-14 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/bgp-protocol.md` held-generation paragraphs | `session_validation_nlritype_held.go::typedNLRIWithdrawable`, `typedNLRIWithdrawBodies`, `typedNLRIHeldRoutes.beginSession`/`endOfRIB` | yes, read against 897ac54217 |
