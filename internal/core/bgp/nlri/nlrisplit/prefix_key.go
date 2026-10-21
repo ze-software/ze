@@ -223,6 +223,7 @@ func keyFlowSpec(raw, _ []byte, _ bool) ([]byte, error) {
 var (
 	errWithdrawalField       = errors.New("nlrisplit: malformed labeled NLRI field")
 	errWithdrawalDestination = errors.New("nlrisplit: labeled withdrawal does not fit its destination")
+	errWithdrawalLength      = errors.New("nlrisplit: key too long for a withdrawal length octet with the Compatibility field")
 )
 
 // WithdrawalWriter writes the withdrawal framing of every NLRI in field, one
@@ -262,6 +263,9 @@ func WithdrawalNLRIFromKey(fam family.Family, key, dst []byte) (int, error) {
 	}
 	if len(key) == 0 || len(key) != 1+(int(key[0])+7)/8 {
 		return 0, errPrefixKey
+	}
+	if int(key[0])+24 > maxLengthOctetBits {
+		return 0, errWithdrawalLength
 	}
 	n, ok := writeWithdrawalNLRI(dst, int(key[0]), key[1:])
 	if !ok {

@@ -4,6 +4,21 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-21 later still: round 9 ran (2 ISSUE, fixed), round 10 owed
+
+- Round 9 (Thomas: "and you can continue with what you're suggesting") over
+  `c972e77416`, `a48a721a4c`, `69a6d31a08`: 0 BLOCKER, 2 ISSUE, 4 NOTE,
+  recorded (rounds 9). All fixed in the commit after this handover edit
+  (`git log -1 -- test/interop/scenarios/bgp-vpn-withheld-withdraw-frr`):
+  interop gains the kept VPN sibling and the SAFI 4 leg; a test for the
+  `recoverySentNLRI` refusal; `errWithdrawalLength`; journal row for
+  `mpReachLabeledNLRI`. Details and reds: spec Design Insights, round 9 entry.
+- The owner-approval row of `plan/verification-debt/6d6a3fdc.md` is
+  discharged (kind owner, his words).
+- STOPPED: the fix commit is production code (nlrisplit, rib), so round 10
+  is owed and needs Thomas. Phase 4 MUST add a bgp-rr three-label departure
+  withdrawal assertion (round 9 NOTE). Phase 3a not started.
+
 ## STATE 2026-10-21 late night: Phase 3b code landed, round 9 owed
 
 - `c972e77416` (production): Phase 3b, the labelled withdrawal framing, AC-27.

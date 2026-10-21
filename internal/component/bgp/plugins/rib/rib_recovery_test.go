@@ -621,3 +621,27 @@ func TestRecoverySentNLRIUsesRegisteredWithdrawal(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte{24, 198, 51, 100}, sent)
 }
+
+// TestRecoverySentNLRIRefusalFailsTheAnswer checks that a sent labeled key the
+// framing step cannot write back as a withdrawal fails the ADD-PATH departure
+// answer, rather than leaving the identifier out as if the excluded source
+// owned nothing there (ai/rules/principles.md: code that cannot answer says
+// so). Method: hand recoverySentAddPathLocked one sent entry whose native key
+// length octet disagrees with its size, the shape keyLabeled never produces,
+// and require an error from it and from recoverySentNLRI.
+func TestRecoverySentNLRIRefusalFailsTheAnswer(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
+	failed := netip.MustParseAddr("192.0.2.10")
+	broken := ribOutKey{Native: string([]byte{24, 198, 51}), PathID: 7}
+	entry := ribOutEntry{AddPath: true, SourcePeer: failed.String()}
+	_, err := recoverySentNLRI(fam, broken, entry)
+	require.Error(t, err)
+
+	identity := broken
+	identity.PathID = 0
+	request := ribevents.RecoveryRequest{Family: fam, SentAddPath: true,
+		Keys: []ribevents.RecoveryKey{recoveryKey([]byte{24, 198, 51}, failed)}}
+	outcomes := make([]ribevents.RecoveryOutcome, 1)
+	err = recoverySentAddPathLocked(&request, []ribOutKey{identity}, map[ribOutKey]ribOutEntry{broken: entry}, outcomes)
+	require.Error(t, err, "a refused sent identity must fail the answer")
+}

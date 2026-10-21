@@ -2390,12 +2390,15 @@ the previously removed routes must not be withdrawn twice. Receiver session
 generation and a subsequent received KEEPALIVE fence the final observation.
 
 `bgp-vpn-withheld-withdraw-frr` covers the sending half of RFC 8277 Section
-2.4 on the forward rail. The injector announces a VPNv4 route under one label,
-then re-announces it under three labels with NO_EXPORT, which ze withholds
-from FRR (an external peer) and converts into a withdrawal. FRR must decode
-exactly one withdrawal of that RD and prefix with its session generation
-unchanged, and only the one-label announcement. A withdrawal that copied the
-three-label stack would leave FRR a 72-bit IPv4 prefix and be refused.
+2.4 on the forward rail. The injector announces two VPNv4 routes at one RD and
+two labelled-unicast routes, each under one label, then re-announces one of
+each under three labels with NO_EXPORT, which ze withholds from FRR (an
+external peer) and converts into withdrawals. FRR must lose exactly those two
+routes, keep both siblings, decode one withdrawal of each, and keep its
+session generation, having decoded only the one-label VPN announcement. A
+VPN withdrawal that copied the three-label stack would leave FRR a 72-bit
+IPv4 prefix and be refused. The labelled-unicast leg does not discriminate:
+FRR walks a copied stack to its bottom-of-stack bit.
 <!-- source: internal/le/interoplab/bgp/check_vpn_withheld_withdraw.go -- checkVPNWithheldWithdraw -->
 <!-- source: test/interop/scenarios/bgp-vpn-withheld-withdraw-frr/ -- one-label announcement, withheld three-label revision -->
 

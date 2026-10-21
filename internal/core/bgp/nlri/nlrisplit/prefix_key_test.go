@@ -272,9 +272,15 @@ func TestWithdrawalNLRIFromKey(t *testing.T) {
 			if !bytes.Equal(back, key) {
 				t.Fatalf("%s/%d: round trip key %X, want %X", fam, labels, back, key)
 			}
-			if _, err := WithdrawalNLRIFromKey(fam, key, make([]byte, n-1)); err == nil {
-				t.Fatalf("%s/%d: a destination one octet short was written", fam, labels)
+			if _, err := WithdrawalNLRIFromKey(fam, key, make([]byte, n-1)); !errors.Is(err, errWithdrawalDestination) {
+				t.Fatalf("%s/%d: a destination one octet short answered %v", fam, labels, err)
 			}
+		}
+		// A key whose bits leave no room for the Compatibility field in the
+		// one-octet length is refused as that, not as a short destination.
+		long := append([]byte{240}, make([]byte, 30)...)
+		if _, err := WithdrawalNLRIFromKey(fam, long, make([]byte, 64)); !errors.Is(err, errWithdrawalLength) {
+			t.Fatalf("%s: a 240-bit key answered %v, want the length refusal", fam, err)
 		}
 	}
 }
