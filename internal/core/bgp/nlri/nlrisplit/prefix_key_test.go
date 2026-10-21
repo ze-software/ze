@@ -280,8 +280,13 @@ func TestWithdrawalNLRIFromKey(t *testing.T) {
 		// one-octet length is refused as that, not as a short destination.
 		// 231 bits plus the 24 of the field is 255, the largest length octet.
 		edge := append([]byte{231}, make([]byte, 29)...)
-		if _, err := WithdrawalNLRIFromKey(fam, edge, make([]byte, 64)); err != nil {
+		edgeDst := make([]byte, 64)
+		edgeN, err := WithdrawalNLRIFromKey(fam, edge, edgeDst)
+		if err != nil {
 			t.Fatalf("%s: a 231-bit key answered %v, want it written", fam, err)
+		}
+		if edgeDst[0] != 255 || edgeN != 3+len(edge) {
+			t.Fatalf("%s: a 231-bit key wrote length octet %d and %d octets, want 255 and %d", fam, edgeDst[0], edgeN, 3+len(edge))
 		}
 		long := append([]byte{232}, make([]byte, 29)...)
 		if _, err := WithdrawalNLRIFromKey(fam, long, make([]byte, 64)); !errors.Is(err, errWithdrawalLength) {

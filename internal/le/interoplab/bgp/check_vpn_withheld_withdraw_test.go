@@ -19,12 +19,12 @@ func TestFRRCompatibilityWithdrawals(t *testing.T) {
 		line string
 		want int
 	}{
-		{"compatibility", received + "UPDATE about RD 65004:40 10.10.0.0/24 label 524288 IPv4 VPN -- withdrawn", 1},
+		{"compatibility", received + "UPDATE about RD 65004:40 10.10.0.0/24 label 524288 IPv4 vpn -- withdrawn", 1},
 		// FRR 10.3.1's labeled-unicast withdrawal decode carries no label.
 		{"no label field", received + "UPDATE about 10.10.0.0/24 IPv4 unicast -- withdrawn", 0},
-		{"carried-over label", received + "UPDATE about RD 65004:40 10.10.0.0/24 label 200 IPv4 VPN -- withdrawn", 0},
-		{"announcement", received + "RD 65004:40 10.10.0.0/24 label 524288 IPv4 VPN", 0},
-		{"other peer", "BGP: [T1234-56789] 172.30.0.22(Unknown) rcvd UPDATE about RD 65004:40 10.10.0.0/24 label 524288 IPv4 VPN -- withdrawn", 0},
+		{"carried-over label", received + "UPDATE about RD 65004:40 10.10.0.0/24 label 200 IPv4 vpn -- withdrawn", 0},
+		{"announcement", received + "RD 65004:40 10.10.0.0/24 label 524288 IPv4 vpn", 0},
+		{"other peer", "BGP: [T1234-56789] 172.30.0.22(Unknown) rcvd UPDATE about RD 65004:40 10.10.0.0/24 label 524288 IPv4 vpn -- withdrawn", 0},
 	} {
 		if got := frrCompatibilityWithdrawals(tc.line+"\n", neighbor, prefix); got != tc.want {
 			t.Errorf("%s: counted %d, want %d", tc.name, got, tc.want)

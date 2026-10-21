@@ -4,6 +4,26 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-22 later: round 11 CLEAN, Phase 3b closed, 3a next
+
+- Round 11 (Thomas, 2026-10-22: "I approve round 11.") over `8f0e8eac70`:
+  0 BLOCKER, 0 ISSUE, 2 NOTE, recorded clean (rounds 11). Both NOTEs were
+  test-only and are fixed in the commit carrying this edit: fixtures spell
+  FRR's live `IPv4 vpn`, and the 231-bit edge asserts length octet 255 and
+  the octet count. Left for the next touch of `nlrisplit/prefix_key.go`: the
+  `WithdrawalNLRIFromKey` doc sentence "answers nil for answers
+  ErrUnsupported" is garbled (comment only, older than these rounds).
+- The owner discharge for the two RFC 7311 tagged tests now quotes
+  "I approve round 11. and the changes to the test." (`3205ea7c37`).
+- NEXT, in order: Phase 3a (AC-6, AC-18; Data Flow 3a; it calls
+  `nlrisplit.WithdrawalNLRIFromKey`), then 4 (bgp-rr, including the
+  peer-down label-stack defect: `walkVPNNLRIs` and `walkNLRIsAllocating`
+  store `WireForm` announcement bytes and `sendPeerDown` withdraws them with
+  the stack; Phase 4's rr tests MUST assert a three-label departure
+  withdrawal), 5, 6. Phase 3a is a full agent budget on its own: start it in
+  a fresh agent from this section. Any new production code needs round 12,
+  which is Thomas's decision.
+
 ## STATE 2026-10-22: round 10 ran (1 ISSUE, fixed), round 11 owed
 
 - Round 10 (Thomas: "ok") over `bde7ee3a09`: 0 BLOCKER, 1 ISSUE, 3 NOTE,
