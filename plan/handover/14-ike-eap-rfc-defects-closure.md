@@ -128,3 +128,25 @@ shared index pointing at pre-`9d60c1d841` content for its paths; the repair is i
   checker) needs Thomas. Still owed after it: the `docker/Dockerfile` proof build, one full
   `./le verify worktree`, `/ze-close` (record with `rounds 7`, `rounds-reason` naming the rekey
   retry storm round 5 found, `owner-authorised` carrying his words for rounds 6 and 7).
+
+## Round 7, 2026-10-21 late (Thomas: "and you can continue with what you're suggesting")
+
+- Round 7 over `09333fb1a1`: 0 BLOCKER, 1 ISSUE, 6 NOTEs (spec Review Gate, rows 12 and 13 and
+  the round 7 paragraph). The ISSUE: `interop.md` said the EAP port scenario has no reachable
+  red; only the D1b line has none. Reworded in the working tree, and the N4 survey wording too.
+  **That `interop.md` edit is NOT committed**: the file also holds another session's uncommitted
+  hunks naming `dockerKernelRouteFor`, which HEAD lacks, and stripping foreign hunks is banned
+  (owner rule, 2026-10-21). It lands when that session commits its kernelcheck work, or with
+  the closure once their referent is in HEAD. Round 8 needs Thomas.
+- `docker build -f docker/Dockerfile` over `54cbbc8dfa` in a `git archive` export: built, and
+  the image's ze ran (`ze dev`); tag removed, export deleted. This closes the Docker proof item.
+- Full `./le verify worktree` over `54cbbc8dfa`: started 22:46, STOPPED by me at ~23:05 with no
+  verdict because the root volume fell below 5 GB (4.7G, then 3.5G; other sessions' runs).
+  Still owed, once.
+- Closure prep left in the working tree, uncommitted (committing a `plan/learned/` file reads
+  as a closure): `plan/learned/032-ike-eap-rfc-defects.md`; citer repoints in
+  `docs/contributing/patching-the-standard-library.md` (status now "built", points at 032),
+  `ai/INDEX.md` line 611, `plan/pre-release/spec-rfc-verdict-fix-ike-eap.md` (3 lines),
+  `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (1 line). The spec's closure placeholders
+  are filled except FULL-VERIFY and REVIEW-ARTIFACT / REVIEW-CHECK. Next: round 8 (Thomas),
+  then the verify, then `/ze-close` (`rounds 8`).
