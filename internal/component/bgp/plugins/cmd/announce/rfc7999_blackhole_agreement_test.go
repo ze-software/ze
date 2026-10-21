@@ -155,6 +155,10 @@ func TestAnnounceBlackholeRefusedForAnOwnCommunityAgreement(t *testing.T) {
 
 // The sibling origination path. `send bgp <selector> unicast ... community blackhole` puts
 // the same value on the same wire, so it meets the same gate.
+//
+// RFC requirement: RFC7999-3.1-2 positive -- no configured session agreed to
+// the BLACKHOLE community, so `send bgp unicast ... community 65535:666` is
+// refused and no batch carrying it is advertised.
 func TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate(t *testing.T) {
 	ctx, rctr := agreementCtx(t)
 
@@ -162,6 +166,25 @@ func TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Empty(t, rctr.batches, "the unicast verb advertised BLACKHOLE to a peer that never agreed")
+}
+
+// The unicast verb narrows, not only refuses. One peer agreed and one did not,
+// so the route carrying 65535:666 reaches the agreed peer alone.
+//
+// RFC requirement: RFC7999-3.1-2 positive -- with 192.0.2.1 agreed and
+// 192.0.2.2 not, `send bgp unicast ... community 65535:666` dispatches one batch
+// carrying 65535:666 whose selector matches 192.0.2.1 and not 192.0.2.2.
+func TestAnnounceUnicastWithBlackholeCommunityNarrowsToAgreedPeers(t *testing.T) {
+	ctx, rctr := agreementCtx(t, "blackhole")
+
+	_, err := handleAnnounceUnicast(ctx, rctr, newReg(), []string{"198.51.100.1/32", "community", "65535:666"})
+	require.NoError(t, err)
+
+	require.Len(t, rctr.batches, 1, "the agreed peer must receive exactly one batch")
+	assert.True(t, carriesBlackhole(t, rctr.batches[0]), "the advertised route does not carry 65535:666")
+	assert.True(t, rctr.sels[0].Matches(agreedAddr), "the agreed peer was not selected")
+	assert.False(t, rctr.sels[0].Matches(unagreedAddr),
+		"the un-agreed peer is inside the unicast announcement's selector: 65535:666 reaches its wire")
 }
 
 // The gate is scoped to the one community RFC 7999 governs. Every other
