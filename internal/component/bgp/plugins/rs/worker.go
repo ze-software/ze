@@ -45,6 +45,16 @@ type poolConfig struct {
 	// are both empty — no more items pending for this worker. Used by batch
 	// accumulation to flush partial batches on channel drain.
 	onDrained func(key workerKey)
+
+	// onIdle is called on the worker goroutine when the idle timer fires,
+	// before the worker decides whether to exit. The worker is still the
+	// registered one, so per-worker state is not shared yet. Nil means none.
+	onIdle func(key workerKey)
+
+	// onClose is called on the worker goroutine as it exits on PeerDown or
+	// Stop, after its last item. PeerDown keeps the closing worker registered
+	// until then, so per-worker state is not shared yet. Nil means none.
+	onClose func(key workerKey)
 }
 
 // worker is a single long-lived goroutine processing items for one source-peer key.
@@ -415,6 +425,13 @@ func (wp *workerPool) safeHandle(key workerKey, item workItem) {
 	wp.handler(key, item)
 }
 
+// closeWorker runs the onClose callback of a worker exiting on PeerDown or Stop.
+func (wp *workerPool) closeWorker(key workerKey) {
+	if wp.cfg.onClose != nil {
+		wp.cfg.onClose(key)
+	}
+}
+
 // drainTimer drains a stopped timer's channel to prevent stale fires.
 // Standard Go pattern: after timer.Stop() returns false, the channel may
 // have a pending value that must be consumed before Reset.
@@ -442,6 +459,7 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 		case item, ok := <-w.ch:
 			if !ok {
 				// Channel closed (PeerDown) -- exit.
+				wp.closeWorker(key)
 				return
 			}
 			if !idle.Stop() {
@@ -474,6 +492,7 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 				select {
 				case item, ok := <-w.ch:
 					if !ok {
+						wp.closeWorker(key)
 						return
 					}
 					wp.safeHandle(key, item)
@@ -481,11 +500,15 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 					if wp.cfg.onDrained != nil {
 						wp.cfg.onDrained(key)
 					}
+					wp.closeWorker(key)
 					return
 				}
 			}
 
 		case <-idle.C:
+			if wp.cfg.onIdle != nil {
+				wp.cfg.onIdle(key)
+			}
 			// Idle timeout — remove self from pool and exit.
 			// Check channel AND overflow under lock: if either has items
 			// or overflow is draining, we must not exit.

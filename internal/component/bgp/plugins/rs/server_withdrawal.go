@@ -23,6 +23,9 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 		rs.processValidation(key, item.validation)
 		return
 	}
+	// Deferred first, so it runs last: a FlowSpec relay parked for this UPDATE
+	// leaves after the UPDATE is batched (parkValidation).
+	defer rs.markProcessed(key, item.msgID)
 	// Guard: release cache entry on any early return or panic.
 	// forwardUpdate handles the entry when reached (forward or release),
 	// so the flag prevents double-release on the normal path.

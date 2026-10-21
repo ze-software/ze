@@ -323,6 +323,8 @@ func RunRouteServer(conn net.Conn) int {
 			}
 		},
 		onDrained: rs.flushWorkerBatch,
+		onIdle:    rs.releaseParkedValidations,
+		onClose:   rs.dropParkedValidations,
 	})
 	defer rs.workers.Stop()
 	defer rs.downWG.Wait()

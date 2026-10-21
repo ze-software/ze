@@ -263,3 +263,169 @@ func TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp(t *testing.T) {
 		t.Fatalf("rule judged before peer-up reached the target as %v; want it replayed before End-of-RIB", delivered)
 	}
 }
+
+// flowSpecOrderFixture records, in one sequence, what a source worker sends:
+// "forward <ids>" for a live batch flush and "relay rule-<id>" for a FlowSpec
+// validation relay, so a test can assert their relative order.
+type flowSpecOrderFixture struct {
+	rs   *routeServer
+	key  workerKey
+	rule ribevents.ValidationRoute
+	mu   sync.Mutex
+	seen []string
+}
+
+func (f *flowSpecOrderFixture) record(item string) {
+	f.mu.Lock()
+	f.seen = append(f.seen, item)
+	f.mu.Unlock()
+}
+
+func (f *flowSpecOrderFixture) sequence() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.seen)
+}
+
+// forward hands the worker the live UPDATE msgID from the source, as
+// dispatchText would.
+func (f *flowSpecOrderFixture) forward(t *testing.T, msgID uint64) {
+	t.Helper()
+	_, id, peer, payload, err := quickParseTextEvent(buildTestUpdate(f.key.sourcePeer, msgID))
+	if err != nil {
+		t.Fatalf("test UPDATE %d does not parse: %v", msgID, err)
+	}
+	f.rs.processForward(f.key, workItem{msgID: id, sourcePeer: peer, textPayload: payload})
+}
+
+// newFlowSpecOrderFixture builds a route server whose RIB holds one FlowSpec
+// rule from source, received in the UPDATE numbered ruleMsgID, and whose one
+// target is up for every family.
+func newFlowSpecOrderFixture(t *testing.T, ruleMsgID uint64) *flowSpecOrderFixture {
+	t.Helper()
+	const source, target = "192.0.2.1", "192.0.2.2"
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	f := &flowSpecOrderFixture{key: workerKey{sourcePeer: source}, rule: ribevents.ValidationRoute{
+		Peer: netip.MustParseAddr(source), Family: fam, NLRI: string([]byte{5, 1, 24, 10, 0, 0})}}
+	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11, 0, 1, 133, 0, 0, 5, 1, 24, 10, 0, 0}
+	ribevents.RegisterFlowSpecLookup(
+		func(route ribevents.ValidationRoute, id uint64) bool { return route == f.rule && id == ruleMsgID },
+		func(route ribevents.ValidationRoute) bool { return route == f.rule },
+		func(route ribevents.ValidationRoute) (ribevents.FlowSpecPath, bool) {
+			return ribevents.FlowSpecPath{Attributes: attrs, MsgID: ruleMsgID}, route == f.rule
+		},
+		func() []ribevents.ValidationRoute { return []ribevents.ValidationRoute{f.rule} })
+	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
+	bridge := rpc.NewDirectBridge()
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = engineEnd.Close() })
+	plugin := sdk.NewWithConn("rs-flowspec-order-test", rpc.NewBridgedConn(pluginEnd, bridge))
+	t.Cleanup(func() { _ = plugin.Close() })
+	bridge.SetRelayStoredRoute(func(_ context.Context, _ string, routes []rpc.StoredRoute) error {
+		for _, route := range routes {
+			f.record("relay rule-" + strconv.FormatUint(route.MsgID, 10))
+		}
+		return nil
+	})
+	bridge.SetReady()
+	f.rs = &routeServer{plugin: plugin, peers: map[string]*PeerState{
+		source: {Address: source, Up: true, StateSeen: true},
+		target: {Address: target, Up: true, StateSeen: true},
+	}, withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry)}
+	f.rs.forwardCachedHook = func(ids []uint64, _ []string) {
+		item := "forward"
+		for _, id := range ids {
+			item += " " + strconv.FormatUint(id, 10)
+		}
+		f.record(item)
+	}
+	return f
+}
+
+// TestFlowSpecValidationWaitsForItsUpdate proves that a FlowSpec rule leaves
+// after the UPDATEs its source sent before it. The RIB and the route server
+// take the source's UPDATEs on independent deliveries, so the RIB can judge the
+// rule (UPDATE 43) and its ValidationChange can reach the source worker before
+// that worker has seen the unicast UPDATE 42 sent ahead of the rule. Method:
+// process the validation first, then the live UPDATEs 42 and 43, and require
+// the live forward of 42 to precede the relay of rule 43.
+func TestFlowSpecValidationWaitsForItsUpdate(t *testing.T) {
+	f := newFlowSpecOrderFixture(t, 43)
+	f.rs.processForward(f.key, workItem{sourcePeer: f.key.sourcePeer, validation: f.rule})
+	if early := f.sequence(); len(early) != 0 {
+		t.Fatalf("rule 43 left before the worker had seen its UPDATE: %v", early)
+	}
+	f.forward(t, 42)
+	f.forward(t, 43)
+	f.rs.flushWorkerBatch(f.key)
+	if got, want := f.sequence(), []string{"forward 42 43", "relay rule-43"}; !slices.Equal(got, want) {
+		t.Fatalf("worker sent %v; want the live forward of 42 before the relay of rule 43 (%v)", got, want)
+	}
+}
+
+// startWorkers gives the fixture's route server a worker pool wired as
+// production wires it, with the idle and close callbacks recorded in the
+// sequence before they run. handled receives once per processed item.
+func (f *flowSpecOrderFixture) startWorkers(t *testing.T, idle time.Duration) <-chan struct{} {
+	t.Helper()
+	handled := make(chan struct{}, 16)
+	f.rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		f.rs.processForward(key, item)
+		handled <- struct{}{}
+	}, poolConfig{
+		chanSize: 64, idleTimeout: idle, onDrained: f.rs.flushWorkerBatch,
+		onIdle: func(key workerKey) {
+			f.record("idle")
+			f.rs.releaseParkedValidations(key)
+		},
+		onClose: func(key workerKey) {
+			f.record("close")
+			f.rs.dropParkedValidations(key)
+		},
+	})
+	t.Cleanup(f.rs.workers.Stop)
+	return handled
+}
+
+// TestFlowSpecValidationReleasedWhenItsUpdateNeverArrives proves a parked rule
+// is not withheld for ever when its UPDATE never reaches the route server (a
+// route server started after the UPDATE, or one the engine did not deliver).
+// Method: dispatch the validation and send no UPDATE; the rule must leave once
+// the source worker goes idle, and not before.
+func TestFlowSpecValidationReleasedWhenItsUpdateNeverArrives(t *testing.T) {
+	f := newFlowSpecOrderFixture(t, 43)
+	f.startWorkers(t, 50*time.Millisecond)
+	f.rs.validationChanged([]ribevents.ValidationRoute{f.rule})
+	deadline := time.Now().Add(5 * time.Second)
+	for len(f.sequence()) < 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got, want := f.sequence(), []string{"idle", "relay rule-43"}; !slices.Equal(got[:min(2, len(got))], want) {
+		t.Fatalf("worker sent %v; want the parked rule relayed when the idle source worker gave up waiting (%v)", got, want)
+	}
+}
+
+// TestFlowSpecValidationDroppedWhenSourceGoesDown proves a parked rule whose
+// source goes down before its UPDATE arrives is dropped, not relayed, and
+// leaves no parked state behind: the source's peer-down withdraws its routes.
+// Method: park the rule, take the source down, and close its worker.
+func TestFlowSpecValidationDroppedWhenSourceGoesDown(t *testing.T) {
+	f := newFlowSpecOrderFixture(t, 43)
+	handled := f.startWorkers(t, 5*time.Second)
+	f.rs.validationChanged([]ribevents.ValidationRoute{f.rule})
+	select {
+	case <-handled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("source worker never processed the validation")
+	}
+	f.rs.mu.Lock()
+	f.rs.peers[f.key.sourcePeer].Up = false
+	f.rs.mu.Unlock()
+	f.rs.workers.PeerDown(f.key.sourcePeer)
+	if got, want := f.sequence(), []string{"close"}; !slices.Equal(got, want) {
+		t.Fatalf("worker sent %v; want the parked rule dropped when its source went down (%v)", got, want)
+	}
+	if parked := f.rs.workerBatch(f.key).parked; len(parked) != 0 {
+		t.Fatalf("source down left %d parked validations behind", len(parked))
+	}
+}

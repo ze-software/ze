@@ -95,7 +95,20 @@ the current route. Every rebuilt update carries the `rebuilt` route-metadata key
 egress filter recovers a received LLGR_STALE route's stale level from the source
 session's OPEN and the stored COMMUNITIES rather than read the missing level as
 fresh.
-<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation -->
+
+The flush orders a relay only after UPDATEs the worker already holds. The RIB
+and the route server take the source's UPDATEs on independent deliveries, so a
+FlowSpec ValidationChange can reach the source worker before the UPDATE the
+judged rule arrived in, and before the unicast routes the source sent ahead of
+it. The worker therefore parks a FlowSpec relay whose path MessageID is above
+the highest MessageID it has handled, and releases it right after it handles
+that UPDATE: flush, then relay. Per-source delivery is in order, so handling any
+later MessageID also releases it. A source that sends nothing more releases its
+parked rules at the worker's idle timeout, with a warning, because the UPDATE is
+not coming (a route server started after it, or an UPDATE not delivered to it).
+A source that goes down drops them, with a warning, and its peer-down withdraws
+its routes. One parked entry is kept per rule.
+<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation, parkValidation, markProcessed, releaseParkedValidations, dropParkedValidations -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore, forwardValidationWire -->
 <!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, buildRelayWithdrawal -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- dispatchOverflow, forwardSourceCurrent -->

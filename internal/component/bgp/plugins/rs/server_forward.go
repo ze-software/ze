@@ -103,6 +103,12 @@ type forwardBatch struct {
 	selector  string   // comma-joined target peers (batch.targets joined for equality check)
 	targetBuf []string // scratch buffer for selectForwardTargets (not batch state)
 	targets   []string // immutable destination snapshot for this batch (rs-fastpath-3)
+
+	// processed is the highest MessageID this worker has handled for its
+	// source, forwarded or not, and parked the FlowSpec relays waiting for an
+	// UPDATE above it (parkValidation). Neither is reset by a flush.
+	processed uint64
+	parked    []parkedValidation
 }
 
 // selectForwardTargets returns peers that should receive an UPDATE with the given families.
