@@ -15,12 +15,15 @@ sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
   spec Design Insights, "Phase 3b" entry.
 - `a48a721a4c` (production, deletion): `RecoveryRequest.PrefixOnly` had no
   producer; field, IPC argument and bgp-rib branch deleted.
-- Interop `bgp-vpn-withheld-withdraw-frr` (scenario dir and
-  `internal/le/interoplab/bgp/check_vpn_withheld_withdraw.go`) written; its
-  green run and the SAFI 128 revert-to-red are recorded in the commit that
-  lands it (see `git log -- test/interop/scenarios/bgp-vpn-withheld-withdraw-frr`).
-- REVIEW ROUND 9 IS OWED over `c972e77416` and `a48a721a4c` (and the interop
-  commit), and needs Thomas's authorisation. Phase 3a calls
+- `69a6d31a08`: interop `bgp-vpn-withheld-withdraw-frr` (checker
+  `check_vpn_withheld_withdraw.go`). Green at `a48a721a4c`; red over a HEAD
+  export with the writer bypassed (FRR NOTIFICATION 3/9, session reset).
+  Phase 3b is complete.
+- The held R-12 paragraph of `docs/architecture/plugin/rib-storage-design.md`
+  is in HEAD: it rode along with `c379d157b1` (the RR session's commit), so
+  nothing is held any more.
+- REVIEW ROUND 9 IS OWED over `c972e77416`, `a48a721a4c` and `69a6d31a08`,
+  and needs Thomas's authorisation. Phase 3a calls
   `WithdrawalNLRIFromKey` (Data Flow 3a), so 3a relies on this code.
 - Verification debt for these commits: `plan/verification-debt/6d6a3fdc.md`
   (full verify not FRESH; owner approval owed for the nil-argument change to
