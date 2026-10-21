@@ -4,28 +4,6 @@
     {
       "rid": "RFC5443-2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric",
-      "unit-sha": "02d8ec31c2bff31c",
-      "claim-sha": "9897b8ba86aab9cc",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/ldp_sync.go::effectiveP2PCost",
-      "producer-sha": "d3009aa306552573",
-      "break": "body of effectiveP2PCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5443-2-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown",
-      "unit-sha": "649124023484ff8f",
-      "claim-sha": "c61087bd2e6ba1b4",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/ldp_sync.go::onHoldDownExpiry",
-      "producer-sha": "31716f37fd4763a5",
-      "break": "body of onHoldDownExpiry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5443-2-1",
-      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost",
       "unit-sha": "502bb6e6af237082",
       "claim-sha": "562c48c5fa357f9a",
@@ -46,26 +24,26 @@
       "break": "body of applyLDPSyncOverride replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC5443-2-2",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp",
-      "unit-sha": "fc154d8b2893b53f",
-      "claim-sha": "2780a53c55e92b84",
+      "rid": "RFC5443-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost",
+      "unit-sha": "e89d8cbcb362a147",
+      "claim-sha": "31a8a02a0e3c2832",
       "route": "revert",
-      "producer": "internal/plugins/ospf/ldp_sync.go::effectiveP2PCost",
-      "producer-sha": "d3009aa306552573",
-      "break": "body of effectiveP2PCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/origination_v6.go::v6RouterLSABody",
+      "producer-sha": "97eb5ae2b5cecf23",
+      "break": "body of v6RouterLSABody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC5443-2-2",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue",
-      "unit-sha": "eb6a2973ab8bf1df",
-      "claim-sha": "0857239e4c8ea192",
+      "rid": "RFC5443-2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost",
+      "unit-sha": "5e7e1f300b238309",
+      "claim-sha": "e6baeaee08e6283a",
       "route": "revert",
-      "producer": "internal/plugins/ospf/ldp_sync.go::effectiveP2PCost",
-      "producer-sha": "d3009aa306552573",
-      "break": "body of effectiveP2PCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/origination_v6.go::v6RouterLSABody",
+      "producer-sha": "97eb5ae2b5cecf23",
+      "break": "body of v6RouterLSABody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5443-2-2",
@@ -88,6 +66,28 @@
       "producer": "internal/plugins/ospf/lsdb/origination.go::routerLinks",
       "producer-sha": "b4bf643c3c3ad703",
       "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost",
+      "unit-sha": "e89d8cbcb362a147",
+      "claim-sha": "d194efa4c25db3f2",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6.go::v6RouterLSABody",
+      "producer-sha": "97eb5ae2b5cecf23",
+      "break": "body of v6RouterLSABody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost",
+      "unit-sha": "5e7e1f300b238309",
+      "claim-sha": "401fc12391a1ea26",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6.go::v6RouterLSABody",
+      "producer-sha": "97eb5ae2b5cecf23",
+      "break": "body of v6RouterLSABody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5443-2-5",
@@ -132,28 +132,6 @@
       "producer": "internal/plugins/ospf/ldp_sync.go::onSessionUp",
       "producer-sha": "98550fbb4c95a744",
       "break": "body of onSessionUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5443-3-1",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched",
-      "unit-sha": "6c1a77c8eb7ab13e",
-      "claim-sha": "c9c7bc626f75ab6b",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/ldp_sync.go::ldpSyncWithholdTransit",
-      "producer-sha": "9a541d77314655a5",
-      "break": "body of ldpSyncWithholdTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5443-3-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched",
-      "unit-sha": "6c1a77c8eb7ab13e",
-      "claim-sha": "7b5290541f024210",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/ldp_sync.go::effectiveP2PCost",
-      "producer-sha": "d3009aa306552573",
-      "break": "body of effectiveP2PCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5443-3-1",

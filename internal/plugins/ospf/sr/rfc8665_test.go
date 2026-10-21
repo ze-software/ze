@@ -354,7 +354,9 @@ func TestRFC8665ExplicitNullReplacesPrefixSID(t *testing.T) {
 		t.Fatalf("NP=1/E=1 action = %v, want ActionExplicitNull", action)
 	}
 	label, imposed := OutgoingLabel(16009, action, ExplicitNullV4)
-	if !imposed || label != ExplicitNullV4 {
+	// The literal 0, not the ExplicitNullV4 constant: the claim is the RFC value itself, so a
+	// wrong constant goes red here rather than being compared with itself.
+	if !imposed || label != 0 {
 		t.Fatalf("NP=1/E=1 label = %d,%v want the IPv4 Explicit NULL 0", label, imposed)
 	}
 }
@@ -473,7 +475,7 @@ func TestRFC8665WellFormedTLVsDecode(t *testing.T) {
 }
 
 // RFC requirement: RFC8665-9-1 negative -- an SR TLV/sub-TLV truncated inside its field layout
-// has an invalid length and is rejected with ErrMalformed, so the carrying LSA is treated as
+// has an invalid length and is rejected with ErrLength (which wraps ErrMalformed), so the carrying LSA is treated as
 // malformed and ignored rather than half-applied (length checks at codec.go:289, 336, 364,
 // 408, 452, 498). The octets past `content` are 4-octet alignment padding, which the decoder
 // deliberately tolerates on a trailing sub-TLV (subTLVIter, codec.go:202-206).

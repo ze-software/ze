@@ -88,32 +88,35 @@ func TestPrepareRestartRetainsFIB(t *testing.T) {
 		t.Fatalf("prepareRestart: %v", err)
 	}
 
-	// RFC requirement: RFC3623-2.1-1 positive -- a planned restart raises the graceful-stop state
-	// (prepareRestart sets gracefulStop, gr_restarter.go:49) so suppressInstall() reports true
-	// (gr.go:235); that gate, wired into the SPF computer via SetInstallSuppress, makes the ensuing
-	// engine stop's RemoveAll a no-op, so the pre-restart FIB is retained across the restart (§2.1).
+	// RFC requirement: RFC3623-2.1-1 positive -- preparing a planned restart raises the gate that
+	// keeps the forwarding table: after prepareRestart, suppressInstall() reports true. This
+	// unit checks the gate only; that the routes stay in the Loc-RIB is proven by
+	// TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes.
 	if !e.gr.suppressInstall() {
 		t.Fatalf("after prepareRestart the graceful stop must suppress install so RemoveAll is skipped and the FIB is retained")
 	}
 }
 
-// TestUnplannedGraceLSAFloodsToAllSPFRouters (RFC 3623 sec 5): a Grace-LSA originated on a
-// broadcast segment is encapsulated in a Link State Update and flooded to AllSPFRouters
-// (224.0.0.5) via the standard link-scope flood path the unplanned restart rides.
+// TestUnplannedGraceLSAFloodsToAllSPFRouters (RFC 3623 sec 5): a Grace-LSA originated by a
+// restarting router on a broadcast segment is encapsulated in a Link State Update and flooded to
+// AllSPFRouters (224.0.0.5). The router is DROther with a Full neighbor that is the DR, so the
+// ordinary flood destination would be AllDRouters (224.0.0.6): only the restart-grace branch of
+// floodLink picks AllSPFRouters, which is what this test proves.
 func TestUnplannedGraceLSAFloodsToAllSPFRouters(t *testing.T) {
 	now := time.Unix(1_000_000, 0)
 	db := ospflsdb.New(func() time.Time { return now })
 	self := ospftypes.RouterID{1, 1, 1, 1}
 	db.SetSelfRouterID(self)
+	db.SetSelfFlushSuppress(func() bool { return true })
 	db.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{{
 			Name:          "eth0",
 			AreaID:        ospftypes.BackboneArea,
 			AreaType:      ospftypes.AreaTypeNormal,
 			NetworkType:   ospftypes.NetworkBroadcast,
-			State:         ospflsdb.InterfaceStateDR,
+			State:         "drother",
 			RouterID:      self,
-			DR:            self,
+			DR:            ospftypes.RouterID{2, 2, 2, 2},
 			TransmitDelay: 1,
 			Neighbors: []ospflsdb.NeighborInfo{{
 				RouterID:      ospftypes.RouterID{2, 2, 2, 2},
@@ -148,9 +151,9 @@ func TestUnplannedGraceLSAFloodsToAllSPFRouters(t *testing.T) {
 		Body:       grV4Body(120, grUnplannedReason(), [4]byte{10, 0, 0, 1}, true),
 	})
 
-	// RFC requirement: RFC3623-5-2 positive -- a Grace-LSA originated on a broadcast segment is
-	// encapsulated in a Link State Update and flooded to AllSPFRouters (224.0.0.5), the destination
-	// RFC 3623 sec 5 mandates for the unplanned-restart Grace-LSA flood.
+	// RFC requirement: RFC3623-5-2 positive -- a restarting DROther router floods its Grace-LSA
+	// on a broadcast segment in a Link State Update to AllSPFRouters (224.0.0.5), not to the
+	// AllDRouters address its DROther state would otherwise use.
 	found := false
 	var floodDst netip.Addr
 	for i := range sends {

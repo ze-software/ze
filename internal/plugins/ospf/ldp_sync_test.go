@@ -142,7 +142,9 @@ func TestLDPSyncConfigCreatesMachine(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5443-2-1 positive -- while LDP is not fully operational
+// Untagged: this checks the cost effectiveP2PCost answers for `show ospf ldp-sync`, which no
+// LSA reads. The RFC 5443 obligation is proven on the originated LSA by TestRFC5443NotOperationalLinkAdvertisedAtMaxCost and TestRFC5443OperationalLinkAdvertisedAtConfiguredCost.
+// What it checks: while LDP is not fully operational
 // (not-synchronized or hold-down) the P2P link metric is forced to LSInfinity regardless
 // of the configured cost, so transit traffic avoids the link.
 func TestLDPSyncForcesMaxMetric(t *testing.T) {
@@ -155,7 +157,9 @@ func TestLDPSyncForcesMaxMetric(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5443-2-2 positive -- the OSPF max-cost value the mechanism
+// Untagged: this checks the cost effectiveP2PCost answers for `show ospf ldp-sync`, which no
+// LSA reads. The RFC 5443 obligation is proven on the originated LSA by TestRFC5443NotOperationalLinkAdvertisedAtMaxCost and TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost.
+// What it checks: the OSPF max-cost value the mechanism
 // substitutes is exactly LSInfinity, the 16-bit 0xFFFF.
 func TestLDPSyncMaxMetricValue(t *testing.T) {
 	// A-2: the cost effectiveP2PCost substitutes while LDP is not operational is the
@@ -192,7 +196,9 @@ func TestLDPSyncSubscribesSessionEvents(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5443-2-1 negative -- once LDP is fully operational (hold-down expired
+// Untagged: this checks the cost effectiveP2PCost answers for `show ospf ldp-sync`, which no
+// LSA reads. The RFC 5443 obligation is proven on the originated LSA by TestRFC5443NotOperationalLinkAdvertisedAtMaxCost and TestRFC5443OperationalLinkAdvertisedAtConfiguredCost.
+// What it checks: once LDP is fully operational (hold-down expired
 // -> Synchronized) the link metric returns to the configured cost, not LSInfinity.
 // RFC requirement: RFC5443-2-5 negative -- Synchronized is declared only after the hold-down
 // timer expires (the all-bindings-exchanged estimate is met); session-up alone leaves the
@@ -298,7 +304,9 @@ func TestLDPSyncResetsOnInterfaceDown(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5443-2-2 negative -- an interface not under LDP-sync is never assigned
+// Untagged: this checks the cost effectiveP2PCost answers for `show ospf ldp-sync`, which no
+// LSA reads. The RFC 5443 obligation is proven on the originated LSA by TestRFC5443NotOperationalLinkAdvertisedAtMaxCost and TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost.
+// What it checks: an interface not under LDP-sync is never assigned
 // the 0xFFFF max value; its effective metric stays the configured cost, so the LSInfinity
 // substitution is confined to the mechanism.
 func TestLDPSyncDisabledIsNoOp(t *testing.T) {
@@ -370,12 +378,12 @@ func TestLDPSyncStuckRaisesAlert(t *testing.T) {
 // RFC requirement: RFC6138-4-1 negative -- the withhold is confined to non-cut-edges: a
 // not-synchronized non-cut-edge broadcast transit link IS withheld, so the cut-edge exemption is
 // meaningful rather than a blanket no-withhold.
-// RFC requirement: RFC5443-3-1 positive -- the broadcast cost-out is a whole-segment decision:
-// ldpSyncWithholdTransit keys on the segment's cut-edge status with no per-neighbor input, and
-// a cut-edge segment is advertised as a whole.
-// RFC requirement: RFC5443-3-1 negative -- a not-synchronized non-cut-edge broadcast segment
-// withholds its transit link in its entirety (never per individual peer), so the cost-out
-// granularity is the whole link, not the peer.
+//
+// Untagged for RFC 5443 section 3: this calls ldpSyncWithholdTransit and effectiveP2PCost
+// directly, so it shows the inputs carry no per-neighbor argument, not that an originated LSA
+// costs the segment out as a whole. That obligation is proven on the originated LSA by
+// TestRFC5443BroadcastCostOutCoversWholeSegment and
+// TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut.
 func TestLDPSyncTECostUntouched(t *testing.T) {
 	// AC-15: the only overrides are the 16-bit IP link metric (effectiveP2PCost) and the
 	// broadcast transit-link withhold. rfc5443_origination_test.go proves on the originated

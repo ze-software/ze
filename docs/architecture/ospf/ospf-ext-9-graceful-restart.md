@@ -35,6 +35,14 @@ the adjacency at Full for the grace period.
   timer is the always-armed backstop.
   <!-- source: internal/plugins/ospf/gr_restarter.go -- exitRestart -->
   <!-- source: internal/plugins/ospf/gr_helper.go -- helper -->
+- **On OSPFv2 shared media the helper finds X by address, not by Router ID.**
+  On a broadcast, NBMA or point-to-multipoint segment the restarting neighbour
+  is the one at the IP interface address the Grace-LSA body carries, whatever
+  the Advertising Router field says. A Grace-LSA without that TLV, or naming an
+  address no neighbour holds, identifies nobody and is ignored, and a flush is
+  matched the same way. Every other segment, and every OSPFv3 Grace-LSA, names
+  X by the Advertising Router (RFC 3623 section 3.1; FRR and BIRD do the same).
+  <!-- source: internal/plugins/ospf/gr_helper.go -- graceOnReceive, graceRestarterV4 -->
 - **The grace period is measured from the Grace-LSA LS age against the Grace
   Period TLV.** The age starts at zero, is not reset on retransmit, and DoNotAge
   is clear.

@@ -47,8 +47,6 @@ func TestOSPFNSSANbitMismatch(t *testing.T) {
 	// NSSA area type (N set, E clear) passes the option-agreement check and is accepted.
 	// RFC requirement: RFC3101-2.1-2 positive -- adjacency is allowed when the received Hello's
 	// N-bit agrees with the NSSA interface (N set).
-	// RFC requirement: RFC3101-x-1 positive -- an NSSA Hello with the N-bit set and the E-bit
-	// clear is accepted, encoding the "N set => E clear" option pairing.
 	h := helloFor(cfg)
 	h.Options = types.OptionNP
 	if got := ifc.ReceiveHello(peer, h, time.Now()); got != "" {
@@ -67,11 +65,19 @@ func TestOSPFNSSANbitMismatch(t *testing.T) {
 	// E-bit set -> E mismatch (still rejected before the N check matters).
 	// RFC requirement: RFC3101-2.1-1 negative -- a Hello whose E-bit does not match the NSSA
 	// area type (E set) fails the option-agreement check and is dropped before adjacency.
-	// RFC requirement: RFC3101-x-1 negative -- an NSSA Hello with the E-bit set (violating
-	// "N set => E clear") is rejected (DropReasonOptionsE).
 	h = helloFor(cfg)
 	h.Options = types.OptionE
 	if got := ifc.ReceiveHello(peer, h, time.Now()); got != DropReasonOptionsE {
 		t.Fatalf("nssa E-bit-set Hello reason = %q, want %s", got, DropReasonOptionsE)
+	}
+
+	// N-bit AND E-bit set -> the pairing itself is violated.
+	// RFC requirement: RFC3101-x-1 negative -- an NSSA Hello with the N-bit set AND the E-bit
+	// set, which violates "if the N-bit is set ... the E-bit must be clear", is rejected
+	// (DropReasonOptionsE) even though its N-bit agrees with the NSSA.
+	h = helloFor(cfg)
+	h.Options = types.OptionNP | types.OptionE
+	if got := ifc.ReceiveHello(peer, h, time.Now()); got != DropReasonOptionsE {
+		t.Fatalf("nssa N-and-E-set Hello reason = %q, want %s", got, DropReasonOptionsE)
 	}
 }

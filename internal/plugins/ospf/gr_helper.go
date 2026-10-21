@@ -45,21 +45,26 @@ func helperEntryAllowed(e helperEntry) (bool, string) {
 }
 
 // graceOnReceive is the IPv4 (ext-1) Grace-LSA OnReceive hook: it parses the Opaque Type 3
-// body and dispatches to the shared helper. A malformed body (missing a mandatory TLV) is
-// counted and ignored (RFC 3623 sec A / AC-17).
+// body, identifies the restarting neighbor X, and dispatches to the shared helper. A malformed
+// body (missing a mandatory TLV) is ignored (RFC 3623 sec A / AC-17), and so is a Grace-LSA
+// that identifies no neighbor on the segment.
 func (e *engine) graceOnReceive(r opaqueReceived) {
 	if r.OpaqueType != ospfpacket.GraceOpaqueType {
 		return
 	}
-	g := graceReceived{iface: r.Interface, advRouter: r.AdvertisingRouter, withdrawn: r.Withdrawn}
+	body, err := grV4Parse(r.Body)
+	if err != nil && !r.Withdrawn {
+		return
+	}
+	// RFC 3623 Section 3.1: a flushed Grace-LSA still names X by its body on shared media, so
+	// the flush is matched to the helper session the same way the entry was.
+	restarter, ok := e.graceRestarterV4(r.Interface, r.AdvertisingRouter, body)
+	if !ok {
+		return
+	}
+	g := graceReceived{iface: r.Interface, advRouter: restarter, withdrawn: r.Withdrawn}
 	if !r.Withdrawn {
-		body, err := grV4Parse(r.Body)
-		if err != nil {
-			return
-		}
 		g.gracePeriod = body.GracePeriod
-		g.ifaceAddr = body.InterfaceAddr
-		g.hasIfaceAddr = body.HasInterfaceAddr
 		// RFC 3623 sec A grace clock: the remaining grace is Grace Period - LS age. The ext-1
 		// opaque delivery now surfaces the received LSA's LS age (opaqueReceived.Age), so a
 		// Grace-LSA arriving mid-window (e.g. a retransmit at a higher age) measures the true
@@ -68,6 +73,41 @@ func (e *engine) graceOnReceive(r opaqueReceived) {
 		g.lsAge = r.Age
 	}
 	e.gr.onGraceReceived(g)
+}
+
+// graceRestarterV4 returns the Router ID of the neighbor X a received OSPFv2 Grace-LSA asks Ze
+// to help on iface, and false when the Grace-LSA identifies no neighbor there. On shared media
+// X is the neighbor whose interface address the IP interface address TLV carries, whatever
+// the Advertising Router field says; a Grace-LSA without that TLV, or naming an address no
+// neighbor holds, identifies nobody. FRR (ospf_process_grace_lsa, ospf_nbr_lookup_by_addr) and
+// BIRD (ospf_neigh_notify_grace_lsa, find_neigh_by_ip) both identify X this way. OSPFv3 never
+// reaches here: RFC 5340 identifies every OSPFv3 neighbor by Router ID.
+func (e *engine) graceRestarterV4(iface string, advRouter ospftypes.RouterID, body ospfpacket.GraceLSA) (ospftypes.RouterID, bool) {
+	e.mu.Lock()
+	ic, running := e.running[iface]
+	e.mu.Unlock()
+	// An interface Ze does not run has no neighbor to match by address, so the Advertising
+	// Router stands; the Full-adjacency check in onGraceReceived then refuses helper entry.
+	if !running {
+		return advRouter, true
+	}
+	// RFC 3623 Section 3.1: "On broadcast, NBMA and Point-to-MultiPoint segments, the neighbor
+	// relationship with X is identified by the IP interface address in the body of the
+	// grace-LSA (see Appendix A).  On all other segment types, X is identified by the
+	// grace-LSA's Advertising Router field."
+	if !grSharedMedia(string(ic.NetworkType)) {
+		return advRouter, true
+	}
+	if !body.HasInterfaceAddr {
+		return ospftypes.RouterID{}, false
+	}
+	want := netip.AddrFrom4(body.InterfaceAddr)
+	for _, n := range e.neighbors.FloodNeighbors(iface) {
+		if n.Address == want {
+			return n.RouterID, true
+		}
+	}
+	return ospftypes.RouterID{}, false
 }
 
 // grInspectV6Update scans a just-installed OSPFv3 LSUpdate for native Grace-LSAs (LS Type

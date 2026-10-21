@@ -60,7 +60,6 @@ func TestOSPFAuthSignVerifyCrypto(t *testing.T) {
 			assert.Equal(t, byte(7), af[2], "key id")
 			// RFC requirement: RFC5709-3.1-2 positive -- the Auth Data Length octet (auth field offset 3) equals the algorithm's hash length L (20/32/48/64), set across every HMAC-SHA algo (Sign auth_verify.go:177, asserted here).
 			assert.Equal(t, byte(authDigestLen(algo)), af[3], "auth data length = digest length")
-			// RFC requirement: RFC5709-3.1-3 positive -- the 32-bit Cryptographic Sequence Number 42 is written into auth field offset 4 and read back unchanged by Verify (seq==42 below), so the 32-bit sequence round-trips (Sign auth_verify.go:178, Verify :240).
 			assert.Equal(t, uint32(42), readUint32(af, 4), "crypto sequence")
 			// Checksum is zero (trap #10), Packet Length excludes the appended digest.
 			// RFC 2328 Appendix D.3 supplies the checksum-zero rule inherited by RFC 5709.
@@ -79,7 +78,6 @@ func TestOSPFAuthSignVerifyCrypto(t *testing.T) {
 			// RFC requirement: RFC5709-3.3-2 positive -- the independent digest above derives Ko by hashing the 28-byte secret for SHA-1 and zero-padding it for SHA-256/384/512; Sign's trailer equals that result and Verify accepts it.
 			// RFC requirement: RFC5709-3.3-3 positive -- the HMAC First-Hash/Second-Hash (Ko XOR Ipad/Opad, crypto/hmac) is recomputed identically by the receiver, so the correct key verifies (hmacDigest auth_verify.go:120-126).
 			// RFC requirement: RFC5709-3.4-1 positive -- on receive Verify recomputes the digest over the packet with an Apad trailer and compares it to the saved wire digest; a correctly signed packet matches (Verify auth_verify.go:241-242).
-			// RFC requirement: RFC5709-3-5 positive -- each of the 5 supported algorithms is configured under Key ID 7 and signs/verifies, so any supported algorithm may be paired with a given Key ID (key built from algo above, Verify :241-242).
 			seq, ok := Verify(signed, AuTypeCryptographic, key, [4]byte{})
 			assert.True(t, ok, "correct key verifies")
 			assert.Equal(t, uint64(42), seq)
@@ -173,8 +171,14 @@ func TestOSPFAuthType3SequenceTrailer(t *testing.T) {
 	assert.Equal(t, plen, int(readUint16(signed, offLength)))
 	assert.Len(t, signed, plen+8+authDigestLen(AuthHMACSHA256))
 	assert.Equal(t, seq, readUint64(signed[plen:], 0), "64-bit sequence appended high-word first")
+	// The digest Sign wrote equals one computed independently over packet || sequence || Apad,
+	// so a Sign that left the sequence out of the hash fails here, where a round trip would not.
+	var seqOctets [8]byte
+	copy(seqOctets[:], signed[plen:plen+8])
+	assert.Equal(t, rfc7474ReferenceDigest(key.Secret, signed[:plen], seqOctets, src), signed[plen+8:],
+		"the digest covers the 8 sequence octets after the packet")
 
-	// RFC requirement: RFC7474-2-1 positive -- the 64-bit sequence occupies the 8 octets after the OSPF packet and is included in the digest, so the round-trip verify below proves it is present and covered (Sign auth_verify.go:196-199, Verify :260-263).
+	// RFC requirement: RFC7474-2-1 positive -- the 64-bit sequence occupies the 8 octets after the OSPF packet and Sign includes it in the digest: the trailer equals an independent HMAC-SHA-256 over packet || sequence || Apad (Sign auth_verify.go:196-199).
 	// RFC requirement: RFC7474-5-1 positive -- the 64-bit sequence is part of the First-Hash (packet || 8-octet seq), which the round-trip verify confirms (Verify auth_verify.go:262).
 	// RFC requirement: RFC7474-6-1 positive -- the AuType 3 round-trip exercises the Section 6 protocol-ID suffix path, since Sign and Verify both append ospfv2CryptoProtocolID to the key before hashing (Sign auth_verify.go:195, Verify :261).
 	got, ok := Verify(signed, AuTypeCryptographicESN, key, src)
@@ -225,8 +229,7 @@ func TestOSPFAuthCryptoRejectsExtraTrailerBytes(t *testing.T) {
 		_, ok := Verify(signed, au, key, [4]byte{})
 		require.True(t, ok, "exact-length packet verifies")
 
-		// RFC requirement: RFC7474-2-1 negative -- the AuType 3 trailer is exactly the 8-octet sequence plus the digest; an extra byte after it breaks the strict framing (plen+8+l != len(wire)) and Verify rejects it, so the sequence octets are load-bearing (Verify auth_verify.go:252).
-		// RFC requirement: RFC5709-3.1-2 negative -- on the AuType 2 iteration, the trailer must be exactly Auth Data Len (L) octets; an extra byte makes plen+l != len(wire), so Verify's strict length guard rejects a wrong-length Authentication Data (Verify auth_verify.go:231).
+		// RFC requirement: RFC7474-3-1 negative -- the AuType 3 trailer is exactly the 8-octet sequence plus the digest; an extra byte after it breaks the strict framing (plen+8+l != len(wire)) and Verify rejects it, so the sequence octets are load-bearing (Verify auth_verify.go:252).
 		// RFC requirement: RFC5709-3.1-4 negative -- on the AuType 2 iteration, the digest is a trailer of exactly L octets after the packet; any extra unauthenticated bytes appended after it are rejected rather than silently accepted (Verify auth_verify.go:231).
 		padded := append(bytes.Clone(signed), 0x00)
 		_, bad := Verify(padded, au, key, [4]byte{})
@@ -254,8 +257,8 @@ func TestOSPFAuthCryptoRejectsKeyIDMismatch(t *testing.T) {
 	a3 := helloWire(t, AuTypeCryptographicESN)
 	signedA3, err := Sign(a3, AuTypeCryptographicESN, AuthKey{KeyID: 0x11223344, Algorithm: AuthHMACSHA256, Secret: secret}, 0x0000000100000001, [4]byte{})
 	require.NoError(t, err)
-	// RFC requirement: RFC7474-3-1 negative -- the 32-bit Key ID in the AuType 3 auth field selects the key; a packet whose Key ID does not match the verifying key is rejected even with the right secret (Verify auth_verify.go:257-259).
-	_, mismatch3 := Verify(signedA3, AuTypeCryptographicESN, AuthKey{KeyID: 0x55667788, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
+	// RFC requirement: RFC7474-3-1 negative -- the 32-bit Key ID in the AuType 3 auth field selects the key; a packet whose Key ID does not match the verifying key is rejected even with the right secret, and the two Key IDs share their low octet (0x44), so only a compare over all 32 bits rejects it (Verify auth_verify.go:257-259).
+	_, mismatch3 := Verify(signedA3, AuTypeCryptographicESN, AuthKey{KeyID: 0x55667744, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
 	assert.False(t, mismatch3, "AuType 3: a non-matching 32-bit Key ID must not verify even with the right secret")
 	_, match3 := Verify(signedA3, AuTypeCryptographicESN, AuthKey{KeyID: 0x11223344, Algorithm: AuthHMACSHA256, Secret: secret}, [4]byte{})
 	assert.True(t, match3, "AuType 3: matching Key ID verifies")

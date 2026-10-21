@@ -157,8 +157,8 @@ func TestOSPFNSSATranslation(t *testing.T) {
 	assert.Equal(t, uint32(7), body.ExternalRouteTag, "source route tag preserved")
 
 	// Withdraw the source Type 7 -> the translated Type 5 is purged.
-	// RFC requirement: RFC3101-3.2-1 negative -- when the source Type-7 is withdrawn, the
-	// translated Type-5 is not retained; it is withdrawn (no translation is fabricated).
+	// When the source Type-7 is withdrawn, the translated Type-5 is not retained; it is
+	// withdrawn (no translation is fabricated).
 	eng.lsdb.PurgeNSSA(nssa, asbr, ip4Of("10.20.0.0"))
 	eng.translateNSSA(transTime)
 	require.Equal(t, 0, eng.lsdb.SelfExternalCount(self), "translation withdrawn once the source Type 7 is gone")
@@ -203,15 +203,26 @@ func TestOSPFNSSAPbitNotTranslated(t *testing.T) {
 	self := ridOf("10.0.6.9")
 	asbr := ridOf("10.0.6.2")
 
-	// RFC requirement: RFC3101-3.2-1 negative -- a P=0 Type-7 and a P=1 Type-7 with a zero
-	// forwarding address are not translated into a Type-5 (there is nothing to preserve).
+	// A P=0 Type-7 and a P=1 Type-7 with a zero forwarding address are not translated into
+	// a Type-5. A translatable P=1 Type-7 beside them is the control: a translator that
+	// translated nothing would also leave the other two untranslated.
 	// P=0 Type 7 -> not translated.
 	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.21.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, false)
 	// P=1 but zero forwarding address -> not translatable.
 	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.22.0.0"), ip4Of("255.255.0.0"), false, 10, [4]byte{}, 0, true)
+	// P=1 with a non-zero forwarding address -> translated (the control).
+	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.23.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)
 	eng.translateNSSA(transTime)
 
-	assert.Equal(t, 0, eng.lsdb.SelfExternalCount(self), "neither a P=0 nor a zero-FA Type 7 is translated")
+	assert.Equal(t, 1, eng.lsdb.SelfExternalCount(self), "only the P=1 non-zero-FA Type 7 is translated")
+	if _, translated := eng.translations[ip4Of("10.23.0.0")]; !translated {
+		t.Fatalf("the translatable P=1 control Type 7 was not translated")
+	}
+	for _, untranslated := range []string{"10.21.0.0", "10.22.0.0"} {
+		if _, translated := eng.translations[ip4Of(untranslated)]; translated {
+			t.Fatalf("Type 7 %s must not be translated", untranslated)
+		}
+	}
 }
 
 func TestOSPFNSSATranslatorStability(t *testing.T) {

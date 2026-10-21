@@ -18,10 +18,9 @@ import (
 var rfc2328NextHop = netip.MustParseAddr("10.0.0.2")
 
 // RFC requirement: RFC2328-16.2-2 negative -- a MaxAge summary-LSA is skipped by the inter-area
-// calculation, and a summary-LSA advertised by the calculating router itself is skipped, so
-// neither installs a route (v4SummaryReader age filter, interarea.go:172-174; self filter,
-// ComputeInterAreaWith interarea.go:135-137).
-func TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary(t *testing.T) {
+// calculation and installs no route, even through a reachable ABR (v4SummaryReader age filter,
+// interarea.go).
+func TestRFC2328InterAreaSkipsMaxAgeSummary(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	abr := testRID(t, "2.2.2.2")
 	backbone := types.BackboneArea
@@ -32,15 +31,22 @@ func TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary(t *testing.T) {
 	res := map[types.AreaID]*Result{backbone: resultWithRouter(backbone, root, abr, 10, rfc2328NextHop, 0)}
 	routes, _ := ComputeInterArea(InterAreaInput{Source: src, Root: root, Areas: []types.AreaID{backbone}, Results: res, MaxPaths: 8})
 	assert.Empty(t, routes, "a MaxAge summary-LSA must not enter the routing calculation")
+}
 
-	// Self-originated: the advertising router is the calculating router.
+// RFC requirement: RFC2328-16.2-2 negative -- a summary-LSA advertised by the calculating router
+// itself is skipped, so it installs no route back to itself even though the calculating router's
+// own vertex carries a next hop (ComputeInterAreaWith self filter, interarea.go).
+func TestRFC2328InterAreaSkipsSelfSummary(t *testing.T) {
+	root := testRID(t, "1.1.1.1")
+	backbone := types.BackboneArea
+
 	selfSrc := testSource(t, backbone, summaryNetworkLSA(t, "10.51.0.0", "1.1.1.1", 5))
 	selfRes := map[types.AreaID]*Result{backbone: resultWithRouter(backbone, root, root, 0, rfc2328NextHop, 0)}
 	selfRoutes, _ := ComputeInterArea(InterAreaInput{Source: selfSrc, Root: root, Areas: []types.AreaID{backbone}, Results: selfRes, MaxPaths: 8})
 	assert.Empty(t, selfRoutes, "a self-originated summary-LSA must not install a route back to itself")
 }
 
-// RFC requirement: RFC2328-16.2-2 negative -- a MaxAge AS-external-LSA and a self-originated
+// RFC requirement: RFC2328-16.4-2 negative -- a MaxAge AS-external-LSA and a self-originated
 // AS-external-LSA are both skipped by the AS-external calculation, so neither installs a route
 // (ComputeExternalWith age/self filter, external.go:96).
 func TestRFC2328ExternalSkipsMaxAgeAndSelf(t *testing.T) {

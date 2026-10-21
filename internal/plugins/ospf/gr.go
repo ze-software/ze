@@ -89,13 +89,14 @@ type helperSession struct {
 // graceReceived is the family-neutral decoded Grace-LSA the helper reacts to. IPv4 fills it
 // from the ext-1 opaque OnReceive; IPv6 fills it from the decoded native LS Type 0x000B LSA.
 type graceReceived struct {
-	iface        string
-	advRouter    ospftypes.RouterID
-	ifaceAddr    [4]byte // v4 type-3 IP address (shared media); zero for IPv6
-	hasIfaceAddr bool
-	gracePeriod  uint32
-	lsAge        uint16 // current LS age (the grace clock, RFC 3623 sec A)
-	withdrawn    bool   // a flushed/MaxAge Grace-LSA -> helper exit (RFC 3623 sec 3.2)
+	iface string
+	// advRouter is X's Router ID as RFC 3623 sec 3.1 identifies X: the Advertising Router
+	// field, or, for OSPFv2 on shared media, the Router ID of the neighbor at the IP interface
+	// address the body carries (graceRestarterV4).
+	advRouter   ospftypes.RouterID
+	gracePeriod uint32
+	lsAge       uint16 // current LS age (the grace clock, RFC 3623 sec A)
+	withdrawn   bool   // a flushed/MaxAge Grace-LSA -> helper exit (RFC 3623 sec 3.2)
 }
 
 // grManager is the per-engine Graceful Restart control plane. Its mutex guards all restarter

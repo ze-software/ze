@@ -116,15 +116,19 @@ func (e *engine) refreshExtMetrics() {
 }
 
 // extPrefixScope returns the flooding scope for an Extended Prefix TLV of the given Route Type
-// (RFC 7684 sec 2.1: the LSA scope MUST satisfy every prefix). Intra/inter-area prefixes are
-// area-scoped (LS Type 10); AS-external / NSSA-external prefixes are AS-scoped (LS Type 11).
+// (RFC 7684 sec 2.1: the LSA scope MUST satisfy every prefix). Intra-area, inter-area and
+// NSSA-external prefixes are area-scoped (LS Type 10); AS-external prefixes are AS-scoped
+// (LS Type 11). An NSSA-external prefix is area-scoped because its Type-7 LSA floods only
+// inside its NSSA, and a Type-11 LSA never enters an NSSA.
 func extPrefixScope(routeType uint8) OpaqueScope {
-	switch routeType {
-	case packet.ExtRouteTypeASExternal, packet.ExtRouteTypeNSSAExternal:
+	// RFC 7684 Section 2.1: "These route types correspond directly to the OSPFv2 LSAs types",
+	// and RFC 5250 Section 3: type-11 Opaque LSAs are "not flooded into stub areas or
+	// Not-So-Stubby Areas (NSSAs)". Only AS-external (Type 5) is AS-wide; an NSSA-external
+	// (Type 7) route lives in its NSSA, so its prefix takes area scope with the others.
+	if routeType == packet.ExtRouteTypeASExternal {
 		return OpaqueScopeAS
-	default:
-		return OpaqueScopeArea
 	}
+	return OpaqueScopeArea
 }
 
 // prefixKeyBytes packs an IPv4 prefix into a 5-byte key (4 address octets + prefix length) for

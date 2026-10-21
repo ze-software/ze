@@ -89,8 +89,13 @@ func TestOSPFType7FloodScope(t *testing.T) {
 		t.Fatal("Type 7 not eligible out its own NSSA interface")
 	}
 	backbone := InterfaceInfo{AreaID: types.BackboneArea, AreaType: types.AreaTypeNormal}
-	// RFC requirement: RFC3101-2.3-2 negative -- a Type-7 LSA is not eligible to flood out a
+	// RFC requirement: RFC3101-2.3-2 negative -- a Type-7 LSA is not eligible to flood out an
+	// interface of ANOTHER NSSA, where only the area check can refuse it, nor out a
 	// backbone/normal-area interface, so it never leaves its originating NSSA.
+	otherNSSA := InterfaceInfo{AreaID: area("0.0.0.9"), AreaType: types.AreaTypeNSSA}
+	if eligibleInterface(otherNSSA, nssa, types.LSTypeNSSA) {
+		t.Fatal("Type 7 leaked into another NSSA")
+	}
 	if eligibleInterface(backbone, nssa, types.LSTypeNSSA) {
 		t.Fatal("Type 7 leaked out a backbone interface")
 	}

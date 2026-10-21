@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-21",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,17 +12,15 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7474-2-1": {
-      "note": "c23 re-judge (independent judge). Clause 'occupy the 8 octets following the OSPFv2 packet': TestRFC7474SequenceIncludedInDigest asserts signed[plen:plen+8] == literal 00 00 00 05 00 00 00 09 and the total length plen+8+32. Clause 'MUST be included when calculating the digest': the same unit asserts the digest equals an independent HMAC-SHA-256 (Ko = key || 00 01 zero-padded, hand-built HMAC) over packet || sequence || Apad(src, 0x878FE1F3 fill); the negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet after signing and Verify refuses, unchanged control verifies. Overlay leaving the sequence out of the hash on both Sign and Verify reds both new units while TestOSPFAuthType3SequenceTrailer stays green (scratch/c23/a3), which was the earlier finding. Observed-red records on Sign and Verify. HEAD units supplementary.",
+      "note": "Rejudged 2026-10-21 over the current tags, units and records. Strengthened positive: TestOSPFAuthType3SequenceTrailer and TestRFC7474SequenceIncludedInDigest compare Sign's trailer with an independent HMAC-SHA-256 over packet || 8 sequence octets || Apad, so a Sign that left the sequence out of the hash fails where a round trip would not. The negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet with packet and digest untouched, and the packet is refused while the control verifies.",
       "requirement_sha": "ebbbd9e5f2cbef7d",
       "tests": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "5534570e67ea38b5",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "c6f8189c6e41691b",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "c6f8189c6e41691b"
       },
       "units": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "a355f044d9f3cc1f",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "ddc153af4ce09c6e"
       },
@@ -103,17 +102,19 @@
       "verdict": "enforced"
     },
     "RFC7474-3-1": {
-      "note": "c23 re-judge (independent judge). Four sentences of sec 3, each asserted with literal octets in TestRFC7474SequenceIncludedInDigest: authentication field 00 00 00 28 01 02 03 04 (24-bit zero field, 32-bit Key ID 0x01020304 in the former sequence position); OSPF Packet Length == plen so the 8 sequence octets sit outside it; the sequence occupies the first 64 bits after the packet; 'protected by the authentication digest' by the independent-digest comparison, with the negative TestRFC7474SequenceChangeBreaksDigest (changed sequence refused) and the a3 overlay reding both. TestOSPFAuthCryptoRejectsKeyIDMismatch stays as the Key ID negative. Caveat outside this row's quote: the unit also pins Auth Data Len = 0x28 (8 + L), which is Ze's choice (Sign af[3] = 8 + l); RFC 7474 never states the value and sec 5 leaves the RFC 5709 process unchanged, whose sec 3.1 says the field is the hash length L. The verdict does not rest on that octet; the reading is an open question for the main thread.",
+      "note": "Rejudged 2026-10-21 over the current tags, units and records. Positive asserts the literal auth field 00 00 00 28 01 02 03 04 and the Packet Length excluding the 8 sequence octets. The negatives are strict framing (an extra byte after seq+digest refused), a 32-bit Key ID mismatch whose IDs share the low octet so only a full 32-bit compare rejects it, and a changed sequence refused.",
       "requirement_sha": "8c74a5e58d4ef2dc",
       "tests": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "5534570e67ea38b5",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "5534570e67ea38b5",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "5534570e67ea38b5",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "c6f8189c6e41691b",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "c6f8189c6e41691b"
       },
       "units": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "c6b3afbbb3714510",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "d92f63f706b0daa0",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "3e66930bd14e4a79",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "a355f044d9f3cc1f",
         "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "ddc153af4ce09c6e"
       },
@@ -135,15 +136,15 @@
       "verdict": "enforced"
     },
     "RFC7474-5-1": {
-      "note": "Forbidden: a First-Hash that omits the 64-bit sequence. TestOSPFAuthType3SequenceTamperRejected flips one octet of signed[plen:plen+8] and asserts Verify rejects it, red if the sequence is outside the hash; TestOSPFAuthType3SequenceTrailer asserts the untampered round trip verifies and returns the sequence.",
+      "note": "Rejudged 2026-10-21 over the current tags, units and records. The positive unit now holds the independent digest over packet || sequence || Apad, which is the First-Hash content, beside the round trip; the negative refuses a tampered sequence octet.",
       "requirement_sha": "805f8881d67c24a2",
       "tests": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "5534570e67ea38b5",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "5534570e67ea38b5"
       },
       "units": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "bfc7d173c09b772c",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a"
       },
       "verdict": "enforced"
     },
@@ -151,8 +152,8 @@
       "note": "Independent semantic rejudgment of the extracted fixture dependency, not a claim that unchanged tagged bodies became stale-unit. RFC 7474 section 5: 'OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet. The remainder of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4 times, where L is the length of the hash, measured in octets. The basic idea is to incorporate the IP source address from the IP header in the cryptographic authentication computation so that any change of IP source address in a replayed packet can be detected. When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet.' The immediately following RFC sentence also requires the same repeated remainder on reception. Read every current carrier: internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474SentApadIsInterfaceSource, TestRFC7474SentApadNotRouterIDOrZero, TestRFC7474ReceiveApadFromIPHeaderSource and TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped; internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding supplies both additional polarities with distinct matching-source and spoofed-source assertions. The shared installOSPFAddressBackend now registers/loads eth0 192.0.2.1/24, asserts address and mask through production lookup, and restores the prior backend after engine shutdown; rfc7474ApadEngine calls it before setConfig/openInterfaces. This helper is semantically relevant even though the four tagged bodies are unchanged and their file movement is machine-level SHIFTED under the audit's enclosing-unit model. Send positive compares the captured production-transport Hello digest with independent HMAC-SHA-256 over wire packet, eight-byte sequence, and literal source plus seven remainder words. Send negative independently rejects router ID 10.0.0.1, zero source and zero remainder. Receive positive sends a valid /24 backbone Hello bound to IP-header source 192.0.2.2 and asserts zero dispatcher drops plus one neighbor; receive negative changes only digest-bound Apad source to 192.0.2.3, local 192.0.2.1 or zero, retaining actual source 192.0.2.2, and asserts one drop plus no neighbor using fresh engines/replay stores. Producer auth_keystore.go::configure obtains the source via interfaceIPv4Address; signPacket passes it to packet.Sign; verifyPacket obtains rp.Src and authStore.verify passes it to packet.Verify. packet/auth_verify.go::apadSrc initializes the common remainder and overwrites its first four bytes; both Sign and Verify use it. Four questions: literal RFC source/remainder oracles rather than mere self-round-trip; wrong-source or wrong-remainder output fails independent assertions; mask, area, key, packet framing and actual receive source remain conforming so neighboring guards do not explain rejection; send source, common remainder and receive source obligations are covered collectively at these shared producers. Three positive and three negative tags, five distinct test functions; the packet-level pair is two different assertions, not one assertion counted twice. Historical capability scope remains HMAC-SHA-256 engine fixtures plus the shared Apad implementation; no new all-algorithm, routed-source or dynamic-address integration claim. No semantic regression from the extraction was found. Existing revert records prove only their named producer disables, not source-substitution sensitivity or current runtime success; helper-dependent clean runs and any chosen renewed red observations remain the parent's work.",
       "requirement_sha": "054fb04326127081",
       "tests": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding#2": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding": "5534570e67ea38b5",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding#2": "5534570e67ea38b5",
         "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474ReceiveApadFromIPHeaderSource": "ebb8ab74e7f71963",
         "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped": "ebb8ab74e7f71963",
         "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474SentApadIsInterfaceSource": "ebb8ab74e7f71963",
@@ -169,15 +170,15 @@
       "verdict": "enforced"
     },
     "RFC7474-6-1": {
-      "note": "Forbidden: hashing with the bare key. TestOSPFAuthType3RequiresProtocolIDSuffix builds a digest over the bare key and asserts Verify rejects it, with the real signer over the same key, seq and source as the verifying control; TestOSPFAuthType3SequenceTrailer round-trips the suffixed key.",
+      "note": "Rejudged 2026-10-21 over the current tags, units and records. The positive unit's independent reference digest appends Protocol ID 00 01 to the key and must equal Sign's trailer, so a missing suffix fails it; the negative rejects a digest made from the bare key.",
       "requirement_sha": "968e2777025873fa",
       "tests": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "5534570e67ea38b5",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "5534570e67ea38b5"
       },
       "units": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "44b77265835a4740",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a"
       },
       "verdict": "enforced"
     }

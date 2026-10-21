@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // TestGraceLSAv4BodyBuild (AC-3): the body always carries the type-1 Grace Period and type-2
@@ -19,9 +20,10 @@ func TestGraceLSAv4BodyBuild(t *testing.T) {
 	// carries the type-3 IP Interface Address TLV (RFC 3623 sec A, sec 3.1): grV4Body with
 	// sharedMedia=true sets HasInterfaceAddr, so EncodeGraceLSA appends the type-3 TLV
 	// (gr_lsa.go:19-27, packet/grace_lsa.go:51-53) and the address round-trips.
-	// RFC requirement: RFC3623-A-4 negative -- a non-shared (point-to-point / virtual-link)
-	// grace-LSA OMITS the type-3 TLV: grV4Body with sharedMedia=false leaves HasInterfaceAddr
-	// clear, so no type-3 TLV is emitted (the p2p case below asserts !g2.HasInterfaceAddr).
+	//
+	// A non-shared (point-to-point / virtual-link) grace-LSA omits the type-3 TLV. RFC 3623
+	// Appendix A only requires it on shared media, so this p2p case checks Ze's encoding choice,
+	// not an RFC obligation, and carries no requirement tag.
 	addr := [4]byte{192, 0, 2, 5}
 
 	shared := grV4Body(120, 2, addr, true)
@@ -46,6 +48,29 @@ func TestGraceLSAv4BodyBuild(t *testing.T) {
 	}
 	if g2.HasInterfaceAddr {
 		t.Fatalf("non-shared media must NOT carry the type-3 IP address TLV: %+v", g2)
+	}
+}
+
+// TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia (RFC 3623 sec A): every segment type the
+// RFC names as shared (broadcast, NBMA, Point-to-MultiPoint) gets the type-3 IP Interface
+// Address TLV. Method: build the body the way grOriginateGraceLSAs does, with the sharedMedia
+// argument grSharedMedia answers for the interface's network type, and parse it back.
+func TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia(t *testing.T) {
+	addr := [4]byte{192, 0, 2, 9}
+	// RFC requirement: RFC3623-A-4 negative -- a Grace-LSA originated on a broadcast, NBMA or
+	// Point-to-MultiPoint segment never omits the type-3 IP Interface Address TLV: for each of
+	// the three network types the parsed body carries the interface address.
+	for _, networkType := range []string{types.NetworkBroadcast, types.NetworkNBMA, types.NetworkPointToMultipoint} {
+		g, err := grV4Parse(grV4Body(120, 1, addr, grSharedMedia(networkType)))
+		if err != nil {
+			t.Fatalf("%s: parse body: %v", networkType, err)
+		}
+		if !g.HasInterfaceAddr {
+			t.Fatalf("%s: the Grace-LSA omits the IP Interface Address TLV RFC 3623 sec A requires on this segment", networkType)
+		}
+		if g.InterfaceAddr != addr {
+			t.Fatalf("%s: IP Interface Address = %v, want %v", networkType, g.InterfaceAddr, addr)
+		}
 	}
 }
 

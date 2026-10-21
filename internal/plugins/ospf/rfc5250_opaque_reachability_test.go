@@ -4,6 +4,7 @@
 // reachable.
 // PREVENTS: a consumer using a stale Type-11 opaque LSA from an originator that has become
 // unreachable.
+// RFC naming: untagged -- the reachability seam is stubbed, so this proves deliverOpaque honours it; the RFC 5250 sec 5 lookup and discontinue are tagged in rfc5250_asbr_lookup_test.go and rfc5250_discontinue_test.go.
 package ospf
 
 import (
@@ -41,15 +42,16 @@ func TestOpaqueType11UnreachableOriginatorNotUsable(t *testing.T) {
 
 	// Type 11 from an unreachable originator -> delivered Reachable=false (§5).
 	deliver(types.LSTypeOpaqueAS, mustRouterID(t, "2.2.2.2"))
-	// RFC requirement: RFC5250-5-1 negative -- a Type 11 opaque LSA whose originating ASBR is unreachable is delivered not-usable
+	// The reachability seam is stubbed here, so this proves deliverOpaque honours it, not the
+	// RFC 5250 sec 5 routing-table lookup: that is TestRFC5250Type11LooksUpOriginatorRoutingEntry.
 	if len(got) != 1 || got[0].Reachable {
 		t.Fatalf("unreachable Type-11 originator: got %+v, want one delivery with Reachable=false", got)
 	}
 
 	// Type 11 from a reachable originator -> Reachable=true.
 	deliver(types.LSTypeOpaqueAS, reachable)
-	// RFC requirement: RFC5250-5-1 positive -- a Type 11 opaque LSA whose originating ASBR is reachable is delivered usable
-	// RFC requirement: RFC5250-5-2 positive -- reachability is recomputed from the live seam on each delivery (never cached), so re-evaluation yields the current usability
+	// Reachability is read from the live seam on each delivery, never cached. Discontinuing the
+	// LSAs already held (RFC 5250 sec 5) is TestRFC5250DiscontinueOpaqueFromUnreachableOriginator.
 	if len(got) != 2 || !got[1].Reachable {
 		t.Fatalf("reachable Type-11 originator: got %+v, want Reachable=true", got)
 	}

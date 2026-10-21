@@ -206,9 +206,9 @@
       "unit-sha": "bd5329a168040231",
       "claim-sha": "448867f5f19124c6",
       "route": "revert",
-      "producer": "internal/plugins/ospf/v3/packet/lsa_extended.go::DecodeExtendedLSABody",
-      "producer-sha": "ee9b8112c6a19452",
-      "break": "body of DecodeExtendedLSABody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/sr_origination_v6.go::v6BuildERouterBody",
+      "producer-sha": "1b80dca832c23351",
+      "break": "body of v6BuildERouterBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8666-8.4.1-1",
@@ -217,9 +217,9 @@
       "unit-sha": "b42b1d288a01e43c",
       "claim-sha": "095dc557aa0a5f14",
       "route": "revert",
-      "producer": "internal/plugins/ospf/sr_adjsid.go::neighborFull",
-      "producer-sha": "a1468d8f48ae35e6",
-      "break": "body of neighborFull replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/sr_adjsid.go::neighborLost",
+      "producer-sha": "7d058e45e7b388cf",
+      "break": "body of neighborLost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

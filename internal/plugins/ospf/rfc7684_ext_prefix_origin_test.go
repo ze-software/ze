@@ -163,17 +163,21 @@ func TestExtPrefixNFlagNotSetNonHostInterArea(t *testing.T) {
 }
 
 func TestExtPrefixScopeSelection(t *testing.T) {
-	// Pure scope mapping: intra/inter-area -> area (10); external -> AS (11).
-	// RFC requirement: RFC7684-2.1-3 positive -- intra-area and inter-area prefixes map to
-	// area scope (LS Type 10), the scope that satisfies an area-local prefix (extPrefixScope,
-	// ext.go:107).
-	// RFC requirement: RFC7684-2.1-3 negative -- AS-external and NSSA-external prefixes map to
-	// AS scope (LS Type 11), never area scope, so an AS-wide prefix is not under-flooded.
+	// Pure scope mapping: intra-area, inter-area and NSSA-external -> area (10); AS-external
+	// -> AS (11). RFC 7684 Section 2.1 makes the route types "correspond directly to the
+	// OSPFv2 LSAs types", and a Type-7 LSA is NSSA-scoped while RFC 5250 Section 3 keeps a
+	// Type-11 out of every NSSA, so an NSSA-external prefix needs area scope.
+	// RFC requirement: RFC7684-2.1-3 positive -- intra-area, inter-area and NSSA-external
+	// prefixes map to area scope (LS Type 10), the scope that satisfies an area-local prefix
+	// and the only one that reaches the NSSA a Type-7 route lives in (extPrefixScope, ext.go).
+	// RFC requirement: RFC7684-2.1-3 negative -- an AS-external prefix maps to AS scope (LS
+	// Type 11), never area scope, so an AS-wide prefix is not under-flooded; an NSSA-external
+	// prefix never maps to AS scope, which no NSSA receives.
 	for rt, want := range map[uint8]OpaqueScope{
 		packet.ExtRouteTypeIntraArea:    OpaqueScopeArea,
 		packet.ExtRouteTypeInterArea:    OpaqueScopeArea,
 		packet.ExtRouteTypeASExternal:   OpaqueScopeAS,
-		packet.ExtRouteTypeNSSAExternal: OpaqueScopeAS,
+		packet.ExtRouteTypeNSSAExternal: OpaqueScopeArea,
 	} {
 		if got := extPrefixScope(rt); got != want {
 			t.Errorf("extPrefixScope(%d) = %v, want %v", rt, got, want)

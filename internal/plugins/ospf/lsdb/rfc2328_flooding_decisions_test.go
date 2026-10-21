@@ -381,28 +381,32 @@ func TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2328-14-2 negative -- a MaxAge LSA is NOT removed while a neighbor is in Loading (or Exchange); the deletion is refused until that neighbor leaves (deletePurgedIfAcked retainForLoading, flooding.go:785, 799-802).
+// RFC requirement: RFC2328-14-2 negative -- a MaxAge LSA is NOT removed while a neighbor is in Exchange, nor while one is in Loading; in each state the deletion is refused until that neighbor leaves (deletePurgedIfAcked retainForLoading, flooding.go).
 func TestOSPFPurgeRetainedForExchangeOrLoading(t *testing.T) {
-	clock := &fakeClock{now: time.Unix(0, 0)}
-	db := newTestDB(clock)
-	a := area("0.0.0.0")
-	key := types.LSAKey{Type: types.LSTypeRouter, LinkStateID: lsid("4.4.4.4"), AdvertisingRouter: rid("4.4.4.4")}
-	db.SetTopology(func() []InterfaceInfo {
-		return []InterfaceInfo{{Name: "eth0", AreaID: a, Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), State: NeighborStateLoading}}}}
-	})
-	lsa := routerLSA(t, rid("4.4.4.4"), types.InitialSequenceNumber, 10)
-	db.Install(a, lsa)
-	db.mu.Lock()
-	db.areas[a].entries[key].markPurged(clock.Now())
-	db.mu.Unlock()
-	db.deletePurgedIfAcked(a, key)
-	if _, ok := db.Lookup(a, key); !ok {
-		t.Fatalf("purge deleted while Loading neighbor exists")
-	}
-	db.SetTopology(func() []InterfaceInfo { return []InterfaceInfo{{Name: "eth0", AreaID: a}} })
-	db.deletePurgedIfAcked(a, key)
-	if _, ok := db.Lookup(a, key); ok {
-		t.Fatalf("purge retained after Loading neighbor left")
+	// Each neighbor state that RFC 2328 Section 14 names is driven on its own fresh
+	// database, so a guard that held for only one of the two states goes red.
+	for _, state := range []string{NeighborStateExchange, NeighborStateLoading} {
+		clock := &fakeClock{now: time.Unix(0, 0)}
+		db := newTestDB(clock)
+		a := area("0.0.0.0")
+		key := types.LSAKey{Type: types.LSTypeRouter, LinkStateID: lsid("4.4.4.4"), AdvertisingRouter: rid("4.4.4.4")}
+		db.SetTopology(func() []InterfaceInfo {
+			return []InterfaceInfo{{Name: "eth0", AreaID: a, Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), State: state}}}}
+		})
+		lsa := routerLSA(t, rid("4.4.4.4"), types.InitialSequenceNumber, 10)
+		db.Install(a, lsa)
+		db.mu.Lock()
+		db.areas[a].entries[key].markPurged(clock.Now())
+		db.mu.Unlock()
+		db.deletePurgedIfAcked(a, key)
+		if _, ok := db.Lookup(a, key); !ok {
+			t.Fatalf("purge deleted while a neighbor in state %s exists", state)
+		}
+		db.SetTopology(func() []InterfaceInfo { return []InterfaceInfo{{Name: "eth0", AreaID: a}} })
+		db.deletePurgedIfAcked(a, key)
+		if _, ok := db.Lookup(a, key); ok {
+			t.Fatalf("purge retained after the neighbor in state %s left", state)
+		}
 	}
 }
 

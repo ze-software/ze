@@ -152,3 +152,35 @@ func TestOSPFv3HeaderHasNoAuType(t *testing.T) {
 		t.Fatalf("Instance ID / Reserved offsets = %d/%d, want 14/15", offInstanceID, offReserved)
 	}
 }
+
+// TestRFC5340ReservedOctetNeverReachesDecodedHeader (RFC 5340 sec A.3.1): the Reserved octet of
+// the common header is ignored on receipt. Method: two headers that differ only in octet 15 (0
+// and 0xFF) decode to the same Header, so no field, the adjacent Instance ID included, carries
+// the reserved value into processing.
+func TestRFC5340ReservedOctetNeverReachesDecodedHeader(t *testing.T) {
+	h := Header{Type: PacketTypeHello, InstanceID: types.InstanceID(7), Length: CommonHeaderLen,
+		RouterID: types.RouterID{10, 0, 0, 2}, AreaID: types.AreaID{0, 0, 0, 1}}
+	clean := make([]byte, CommonHeaderLen)
+	h.WriteTo(clean, 0)
+	dirty := make([]byte, CommonHeaderLen)
+	copy(dirty, clean)
+	dirty[offReserved] = 0xFF
+
+	want, _, err := DecodeHeader(clean)
+	if err != nil {
+		t.Fatalf("decode header with zero Reserved octet: %v", err)
+	}
+	// RFC requirement: RFC5340-A.3.1-2 negative -- a non-zero Reserved octet is not acted on:
+	// a header carrying 0xFF there decodes without error to exactly the Header a zero Reserved
+	// octet gives, with the Instance ID still 7.
+	got, _, err := DecodeHeader(dirty)
+	if err != nil {
+		t.Fatalf("a non-zero Reserved octet made DecodeHeader fail: %v", err)
+	}
+	if got != want {
+		t.Fatalf("a non-zero Reserved octet changed the decoded header: got %+v, want %+v", got, want)
+	}
+	if got.InstanceID != types.InstanceID(7) {
+		t.Fatalf("Instance ID = %d, want 7: the Reserved octet leaked into it", got.InstanceID)
+	}
+}

@@ -3,6 +3,7 @@
 // tag; PurgeExternal MaxAge-purges it; selfOriginatesExternal drives the ASBR E-bit.
 // PREVENTS: regressions where a redistributed route originates no Type 5, an ASBR
 // keeps the E-bit after its last external is withdrawn, or the body fields are lost.
+// RFC naming: untagged -- the NSSA Type-7 ASBR E-bit test here is single-area, so it proves a Type-7 originator is an ASBR, not RFC 3101 Section 3.1's border-router E-bit, which rfc3101_nssa_border_ebit_test.go covers.
 package lsdb
 
 import (
@@ -73,8 +74,9 @@ func TestOSPFASBRBitFromNSSAType7(t *testing.T) {
 	if db.SelfIsASBR(router) {
 		t.Fatalf("SelfIsASBR true with nothing originated")
 	}
-	// RFC requirement: RFC3101-3.1-1 negative -- with no external/Type-7 originated, the
-	// Router-LSA in the (non-stub) backbone area carries the E-bit clear.
+	// With no external/Type-7 originated, the Router-LSA in the backbone area carries the
+	// E-bit clear. This single-area router is no NSSA border router, so the test proves that
+	// a Type-7 originator is an ASBR, not RFC 3101 Section 3.1's border-router E-bit.
 	if routerLSAEBit(t, db, router) {
 		t.Fatalf("E-bit set with no Type 5 or Type 7 originated")
 	}
@@ -87,8 +89,7 @@ func TestOSPFASBRBitFromNSSAType7(t *testing.T) {
 	}
 	clock.now = clock.now.Add(6 * time.Second) // past MinLSInterval (5s)
 	db.OriginateFromTopology(router, false)
-	// RFC requirement: RFC3101-3.1-1 positive -- once this NSSA border router originates a
-	// Type-7, its Router-LSA in the (non-stub) backbone area sets the E-bit.
+	// Once this router originates a Type-7 it is an ASBR, so its Router-LSA sets the E-bit.
 	if !routerLSAEBit(t, db, router) {
 		t.Fatalf("E-bit not set after Type 7 originated (Type-7 originator is an ASBR)")
 	}

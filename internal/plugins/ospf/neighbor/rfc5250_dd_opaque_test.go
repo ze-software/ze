@@ -4,6 +4,7 @@
 // ignored in Hello adjacency matching (setting it does not block a legacy peer).
 // PREVENTS: opaque flooding to a peer that never advertised the O-bit, and an adjacency
 // regression where the O-bit is treated as part of the Hello E/N option match.
+// RFC naming: untagged -- DD O-bit send and learn checks at the neighbor table; the RFC 5250 sec 3.1 Hello O-bit clause is tagged in ../rfc5250_obit_hello_test.go.
 package neighbor
 
 import (
@@ -60,7 +61,8 @@ func TestOpaqueBitIgnoredOutsideDD(t *testing.T) {
 		t.Fatalf("adjacency did not progress with opaque enabled")
 	}
 	// Before any DD is exchanged the neighbor is not yet opaque-capable.
-	// RFC requirement: RFC5250-3.1-5 negative -- the O-bit is a DD-only signal; a Hello exchange never confers opaque capability
+	// HelloInput carries no Options field, so no Hello can confer opaque capability. The
+	// received-O-bit-Hello case of RFC 5250 sec 3.1 is TestRFC5250HelloOBitIgnoredOnReceipt.
 	if snap.OpaqueCapable {
 		t.Fatalf("neighbor reported opaque-capable before receiving an O-bit DD")
 	}
@@ -71,7 +73,8 @@ func TestOpaqueBitIgnoredOutsideDD(t *testing.T) {
 		t.Fatalf("HandleDBDesc: %s", reason)
 	}
 	fns := tbl.FloodNeighbors(cfg.Name)
-	// RFC requirement: RFC5250-3.1-5 positive -- opaque capability is learned from the DD Options O-bit
+	// Opaque capability is learned from the DD Options O-bit (RFC 5250 sec 3.1, the SHOULD-level
+	// "if and only if it sets the O-bit" clause, not the MUST-level ignore clause).
 	if len(fns) != 1 || !fns[0].OpaqueCapable {
 		t.Fatalf("neighbor not reported opaque-capable after an O-bit DD: %+v", fns)
 	}

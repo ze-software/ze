@@ -124,36 +124,14 @@
     },
     {
       "rid": "RFC5250-3.1-5",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD",
-      "unit-sha": "1939c38da3e948c9",
-      "claim-sha": "aff08ab7dc73f984",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/neighbor/table.go::hello",
-      "producer-sha": "f16554cb0eee8ad8",
-      "break": "body of hello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-3.1-5",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD",
-      "unit-sha": "1939c38da3e948c9",
-      "claim-sha": "27cb93b725ba8764",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/neighbor/table.go::hello",
-      "producer-sha": "f16554cb0eee8ad8",
-      "break": "body of hello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-3.1-5",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloOBitIgnoredOnReceipt",
       "unit-sha": "a29f828d95cbfcb9",
       "claim-sha": "f0f4e721cc98249f",
       "route": "revert",
-      "producer": "internal/plugins/ospf/neighbor/table.go::hello",
-      "producer-sha": "f16554cb0eee8ad8",
-      "break": "body of hello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/instance.go::NeighborHello",
+      "producer-sha": "7cab15a6f2257c2a",
+      "break": "body of NeighborHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5250-3.1-5",
@@ -277,28 +255,6 @@
       "break": "body of ASBRReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC5250-5-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable",
-      "unit-sha": "d08122dd959713ab",
-      "claim-sha": "7c272b7e47575b36",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/opaque.go::deliverOpaque",
-      "producer-sha": "43966388b7a1f0d7",
-      "break": "body of deliverOpaque replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-5-1",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable",
-      "unit-sha": "d08122dd959713ab",
-      "claim-sha": "aeefbf9173314ea9",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/opaque.go::deliverOpaque",
-      "producer-sha": "43966388b7a1f0d7",
-      "break": "body of deliverOpaque replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
       "rid": "RFC5250-5-2",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator",
@@ -319,17 +275,6 @@
       "producer": "internal/plugins/ospf/ext_prefix.go::extPrefixUsable",
       "producer-sha": "cab9830aa216966c",
       "break": "body of extPrefixUsable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-5-2",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable",
-      "unit-sha": "d08122dd959713ab",
-      "claim-sha": "6562133ed5312cce",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/opaque.go::deliverOpaque",
-      "producer-sha": "43966388b7a1f0d7",
-      "break": "body of deliverOpaque replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5250-5-3",

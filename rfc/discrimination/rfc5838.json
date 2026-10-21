@@ -129,9 +129,9 @@
       "unit-sha": "34a08e0d171c2b1c",
       "claim-sha": "010ad91cf1aec554",
       "route": "revert",
-      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6ResolveVirtualEndpointLocked",
-      "producer-sha": "cbbf31b13cd3d835",
-      "break": "body of v6ResolveVirtualEndpointLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6RouterGlobalAddr",
+      "producer-sha": "11aad8d1736067dc",
+      "break": "body of v6RouterGlobalAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5838-2.8-1",
@@ -140,9 +140,9 @@
       "unit-sha": "5ceb224cb385b1c5",
       "claim-sha": "3b0271acce08da95",
       "route": "revert",
-      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6ResolveVirtualEndpointLocked",
-      "producer-sha": "cbbf31b13cd3d835",
-      "break": "body of v6ResolveVirtualEndpointLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6RouterGlobalAddr",
+      "producer-sha": "11aad8d1736067dc",
+      "break": "body of v6RouterGlobalAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5838-2.8-1",
@@ -151,9 +151,9 @@
       "unit-sha": "853fc0b9e8192a7c",
       "claim-sha": "ee9868d60e28b380",
       "route": "revert",
-      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6ResolveVirtualEndpointLocked",
-      "producer-sha": "cbbf31b13cd3d835",
-      "break": "body of v6ResolveVirtualEndpointLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/virtuallink_v6.go::v6RouterGlobalAddr",
+      "producer-sha": "11aad8d1736067dc",
+      "break": "body of v6RouterGlobalAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -8,9 +8,9 @@
       "unit-sha": "e1e6ecfa0de0503e",
       "claim-sha": "0f1eb950d8463f75",
       "route": "revert",
-      "producer": "internal/plugins/ospf/ext.go::hostFlagOutside",
-      "producer-sha": "2d9a60d32cc73e9d",
-      "break": "body of hostFlagOutside replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/ext_prefix.go::connectedElsewhere",
+      "producer-sha": "3a0b31a45a254018",
+      "break": "body of connectedElsewhere replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7684-2.1-2",
@@ -19,9 +19,9 @@
       "unit-sha": "8bac47a7f22ccedb",
       "claim-sha": "89e042f82c5cdd8e",
       "route": "revert",
-      "producer": "internal/plugins/ospf/ext.go::hostFlagOutside",
-      "producer-sha": "2d9a60d32cc73e9d",
-      "break": "body of hostFlagOutside replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/ext_prefix.go::connectedElsewhere",
+      "producer-sha": "3a0b31a45a254018",
+      "break": "body of connectedElsewhere replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7684-2.1-2",
@@ -49,22 +49,22 @@
       "rid": "RFC7684-2.1-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection",
-      "unit-sha": "e52ba5d355a40d02",
-      "claim-sha": "d51699856bc6a677",
+      "unit-sha": "2db4f187ce261f76",
+      "claim-sha": "aedb185dd85d2c38",
       "route": "revert",
       "producer": "internal/plugins/ospf/ext.go::extPrefixScope",
-      "producer-sha": "cd86bf4d4d517367",
+      "producer-sha": "2bf7b873b1251d8b",
       "break": "body of extPrefixScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7684-2.1-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection",
-      "unit-sha": "e52ba5d355a40d02",
-      "claim-sha": "c6eacb96e96c20fc",
+      "unit-sha": "2db4f187ce261f76",
+      "claim-sha": "c3f17e6833463e02",
       "route": "revert",
       "producer": "internal/plugins/ospf/ext.go::extPrefixScope",
-      "producer-sha": "cd86bf4d4d517367",
+      "producer-sha": "2bf7b873b1251d8b",
       "break": "body of extPrefixScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

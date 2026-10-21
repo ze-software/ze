@@ -96,9 +96,9 @@
       "unit-sha": "09541bc192bf03a3",
       "claim-sha": "960a1d0a5f54e81c",
       "route": "revert",
-      "producer": "internal/plugins/ospf/ri.go::anyInterfaceHasTE",
-      "producer-sha": "709cb2dc0d25ec3a",
-      "break": "body of anyInterfaceHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/ri.go::deriveRICapabilities",
+      "producer-sha": "713ca68f8df55612",
+      "break": "body of deriveRICapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7770-2.4-2",

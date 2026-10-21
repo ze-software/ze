@@ -40,7 +40,7 @@ func TestOSPFMaxSeqMaxAgeSilentDiscard(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2328-13.4-1 negative -- a self-originated LSA (Advertising Router == own Router ID) that this router holds no record of originating is not accepted into the database as-is: it is flushed from the routing domain by premature aging (LS age MaxAge) and reflooded (handleSelfReceived/flushReceivedSelfLSA, origination.go:788-806).
+// RFC requirement: RFC2328-13.4-1 positive -- an LSA whose Advertising Router equals the router's own Router ID is detected as self-originated even when this router holds no record of originating it: the detection is what triggers the flush by premature aging (LS age MaxAge) and the reflood, instead of the LSA being installed as-is (handleSelfReceived/flushReceivedSelfLSA, origination.go).
 func TestOSPFSelfOriginatedNoLocalCopyFlush(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock) // self router = 1.1.1.1

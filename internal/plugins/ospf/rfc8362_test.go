@@ -120,7 +120,8 @@ func TestRFC8362ExtendedLSAsSetUBitOnTheWire(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC8362-2-1 negative -- the U-bit is set for the Extended LSAs and for
+// TestRFC8362BaseLSAsKeepUBitClearOnTheWire checks RFC 5340 Appendix A.4.2.1, not RFC 8362
+// section 2, so it carries no RFC 8362 tag. The U-bit is set for the Extended LSAs and for
 // nothing else: the same OSPFv3 engine originates an AS-External-LSA whose wire LS Type is
 // 0x4005, U-bit CLEAR, because RFC 5340 Appendix A.4.2.1 assigns U=0 to every base type.
 // A blanket U-bit would make the base LSAs unrecognizable to a conformant peer, so this

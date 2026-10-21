@@ -8,20 +8,20 @@
       "unit-sha": "e72e4d858ee7b344",
       "claim-sha": "e0d1a12871e5c81e",
       "route": "revert",
-      "producer": "internal/plugins/ospf/spf_wiring.go::initSPF",
-      "producer-sha": "bcb2aac5b84e020d",
-      "break": "body of initSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/gr_restarter.go::prepareRestart",
+      "producer-sha": "b21361e553ebe390",
+      "break": "body of prepareRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3623-2.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestPrepareRestartRetainsFIB",
       "unit-sha": "35c4ce46c9f1f743",
-      "claim-sha": "5788d9c638725876",
+      "claim-sha": "e99bfda96f226454",
       "route": "revert",
-      "producer": "internal/plugins/ospf/spf_wiring.go::initSPF",
-      "producer-sha": "bcb2aac5b84e020d",
-      "break": "body of initSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/gr_restarter.go::prepareRestart",
+      "producer-sha": "b21361e553ebe390",
+      "break": "body of prepareRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3623-2.1-1",
@@ -93,8 +93,8 @@
       "rid": "RFC3623-5-2",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAFloodsToAllSPFRouters",
-      "unit-sha": "a164d5c8f33753d6",
-      "claim-sha": "673817a182feec68",
+      "unit-sha": "bce535c77fd092b8",
+      "claim-sha": "14c1ae705ff322e7",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/link_scope.go::floodLink",
       "producer-sha": "ff8cf289819f15d5",
@@ -246,13 +246,35 @@
     {
       "rid": "RFC3623-A-4",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild",
-      "unit-sha": "de653d3eefa52f5d",
-      "claim-sha": "4c271663d4604f6a",
+      "unit": "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia",
+      "unit-sha": "1677af53fd0cb335",
+      "claim-sha": "b29fa93736fbbdbf",
       "route": "revert",
-      "producer": "internal/plugins/ospf/gr_lsa.go::grV4Body",
-      "producer-sha": "87aff5e113e45c28",
-      "break": "body of grV4Body replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/gr_lsa.go::grSharedMedia",
+      "producer-sha": "4406c2e06de3b091",
+      "break": "body of grSharedMedia replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-A-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperIdentifiesRestarterByInterfaceAddress",
+      "unit-sha": "274209f2ccd4dbcc",
+      "claim-sha": "a13bd65c27cb4b7f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_helper.go::graceRestarterV4",
+      "producer-sha": "f8bca3637fe8fa4a",
+      "break": "body of graceRestarterV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-A-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperRefusesUnmatchedInterfaceAddress",
+      "unit-sha": "8c4cf64bf255871a",
+      "claim-sha": "c22f2d75d0fbff6a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_helper.go::graceRestarterV4",
+      "producer-sha": "f8bca3637fe8fa4a",
+      "break": "body of graceRestarterV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3623-A-4",

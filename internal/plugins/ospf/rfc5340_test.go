@@ -374,10 +374,10 @@ func TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress(t *testing.T) {
 // an OSPFv3 Hello whose Reserved octet (offset 15) is 0xFF is decoded and processed exactly
 // like one carrying zero, forming the neighbor (the decoded Header carries no Reserved field
 // and DecodeHeader never reads offReserved: v3/packet/header.go:95-104, 107-140).
-// RFC requirement: RFC5340-A.3.1-2 negative -- "ignored" is confined to the Reserved octet: its
-// neighbor at offset 14 is the Instance ID and IS honored, so a packet carrying a different
-// Instance ID is still discarded and forms no neighbor (dispatcher Instance ID demux,
-// dispatcher.go:85-91).
+//
+// The test also checks that the adjacent Instance ID octet is still honoured (RFC 5340 sec 4.2.2,
+// a different rule, so it carries no A.3.1-2 tag). The A.3.1-2 negative is
+// TestRFC5340ReservedOctetNeverReachesDecodedHeader in v3/packet.
 func TestRFC5340ReservedHeaderOctetIgnoredOnReceive(t *testing.T) {
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point"}}}}}`), nil)
 	require.NoError(t, err)
@@ -433,11 +433,6 @@ func TestRFC5340ReservedHeaderOctetIgnoredOnReceive(t *testing.T) {
 // RFC requirement: RFC5340-C.3-1 negative -- an OSPFv3 interface configured with output cost 0
 // is rejected with ErrInterfaceCostZero, so a non-positive metric never reaches the IPv6 engine
 // (validateConfigAF, config.go:886-889).
-// RFC requirement: RFC5340-C.3-2 positive -- an OSPFv3 interface with InfTransDelay
-// (transmit-delay) 1, the smallest positive value, is accepted (validateConfigAF,
-// config.go:890-893).
-// RFC requirement: RFC5340-C.3-2 negative -- an OSPFv3 interface configured with
-// transmit-delay 0 is rejected with ErrTransmitDelayZero (validateConfigAF, config.go:890-893).
 func TestRFC5340IPv6InterfaceCostAndTransmitDelay(t *testing.T) {
 	mk := func(mut func(*interfaceConfig)) ospfConfig {
 		ic := interfaceConfig{Name: "eth0", AreaID: types.BackboneArea, TransmitDelay: 1}
@@ -462,9 +457,35 @@ func TestRFC5340IPv6InterfaceCostAndTransmitDelay(t *testing.T) {
 		"an unset OSPFv3 interface cost is defaulted by the engine, not rejected")
 	require.ErrorIs(t, validateConfig(mk(func(ic *interfaceConfig) { ic.HasCost = true; ic.Cost = 0 })),
 		ErrInterfaceCostZero, "an OSPFv3 interface cost of 0 must be rejected")
+}
 
+// TestRFC5340IPv6InterfaceTransmitDelay (RFC 5340 Appendix C.3, InfTransDelay "MUST be greater
+// than 0"): an OSPFv3 interface accepts transmit-delay 1 and refuses 0. It is its own unit, so the
+// first validateConfig call it makes is a transmit-delay case and a break of validateConfigAF is
+// observed on these lines, not on an earlier cost case.
+func TestRFC5340IPv6InterfaceTransmitDelay(t *testing.T) {
+	mk := func(mut func(*interfaceConfig)) ospfConfig {
+		ic := interfaceConfig{Name: "eth0", AreaID: types.BackboneArea, TransmitDelay: 1}
+		mut(&ic)
+		v6 := ospfConfig{
+			present:    true,
+			RouterID:   ridOf("10.0.0.1"),
+			Areas:      []areaConfig{{AreaID: types.BackboneArea, NSSATranslateRole: translateRoleCandidate}},
+			Interfaces: []interfaceConfig{ic},
+		}
+		return ospfConfig{
+			present:  true,
+			RouterID: ridOf("10.0.0.1"),
+			Areas:    []areaConfig{{AreaID: types.BackboneArea, NSSATranslateRole: translateRoleCandidate}},
+			V6:       &v6,
+		}
+	}
+	// RFC requirement: RFC5340-C.3-2 positive -- an OSPFv3 interface with InfTransDelay
+	// (transmit-delay) 1, the smallest positive value, is accepted by validateConfigAF.
 	require.NoError(t, validateConfig(mk(func(ic *interfaceConfig) { ic.HasTransmitDelay = true; ic.TransmitDelay = 1 })),
 		"an OSPFv3 InfTransDelay of 1 is the smallest valid value")
+	// RFC requirement: RFC5340-C.3-2 negative -- an OSPFv3 interface configured with
+	// transmit-delay 0 is rejected with ErrTransmitDelayZero.
 	require.ErrorIs(t, validateConfig(mk(func(ic *interfaceConfig) { ic.HasTransmitDelay = true; ic.TransmitDelay = 0 })),
 		ErrTransmitDelayZero, "an OSPFv3 InfTransDelay of 0 must be rejected")
 }

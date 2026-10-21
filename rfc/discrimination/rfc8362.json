@@ -3,17 +3,6 @@
   "records": [
     {
       "rid": "RFC8362-2-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc8362_test.go::TestRFC8362BaseLSAsKeepUBitClearOnTheWire",
-      "unit-sha": "521623f5f3394b8b",
-      "claim-sha": "89e534f02d14ea5f",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/origination_v6.go::v6OriginHeader",
-      "producer-sha": "367294e33f1af68d",
-      "break": "body of v6OriginHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC8362-2-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8362_test.go::TestRFC8362ExtendedLSAsSetUBitOnTheWire",
       "unit-sha": "f9aaa09c2bc2c235",
@@ -32,7 +21,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
       "producer-sha": "b58e088b5ecf1a8d",
-      "break": "line 1210: \"\u0026\u0026\" -\u003e \"||\""
+      "break": "line 1210: \"&&\" -> \"||\""
     },
     {
       "rid": "RFC8362-3.2-1",
@@ -43,7 +32,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
       "producer-sha": "b58e088b5ecf1a8d",
-      "break": "line 1211: \"\u003c\" -\u003e \"\u003e=\""
+      "break": "line 1211: \"<\" -> \">=\""
     },
     {
       "rid": "RFC8362-3.3-1",
@@ -54,7 +43,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
       "producer-sha": "b58e088b5ecf1a8d",
-      "break": "line 1239: \"\u0026\u0026\" -\u003e \"||\""
+      "break": "line 1239: \"&&\" -> \"||\""
     },
     {
       "rid": "RFC8362-3.3-1",
@@ -65,7 +54,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
       "producer-sha": "b58e088b5ecf1a8d",
-      "break": "line 1240: \"len(tlv.Value)%4 != 0\" -\u003e \"true\""
+      "break": "line 1240: \"len(tlv.Value)%4 != 0\" -> \"true\""
     },
     {
       "rid": "RFC8362-6.3-1",
@@ -76,7 +65,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
       "producer-sha": "b58e088b5ecf1a8d",
-      "break": "line 1250: \"\u0026\u0026\" -\u003e \"||\""
+      "break": "line 1250: \"&&\" -> \"||\""
     },
     {
       "rid": "RFC8362-6.3-1",
@@ -87,7 +76,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/sr_reception_v6.go::v6PrefixSIDsFromTLV",
       "producer-sha": "5a93c95847b8a481",
-      "break": "line 120: \"v6TLVCarriesPrefixSIDSubTLVs(tlv.Type)\" -\u003e \"true\""
+      "break": "line 120: \"v6TLVCarriesPrefixSIDSubTLVs(tlv.Type)\" -> \"true\""
     },
     {
       "rid": "RFC8362-6.3-1",
@@ -98,7 +87,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
       "producer-sha": "b58e088b5ecf1a8d",
-      "break": "line 1184: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -\u003e \"true\""
+      "break": "line 1184: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -> \"true\""
     },
     {
       "rid": "RFC8362-6.3-1",
@@ -109,7 +98,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/sr_reception_v6.go::v6ReceivedPrefixSIDs",
       "producer-sha": "4eaab98114965d38",
-      "break": "line 76: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -\u003e \"true\""
+      "break": "line 76: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -> \"true\""
     }
   ]
 }

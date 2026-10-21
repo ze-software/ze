@@ -40,12 +40,14 @@ func TestOSPFConfiguredAreaRangeCoverage(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2328-16.2-1 positive -- a router that is not an ABR computes inter-area routes from the summary-LSAs of the area it is attached to (ComputeInterAreaWith, interarea.go:118-158).
+// RFC requirement: RFC2328-16.2-1 positive -- a router that is not an ABR, attached only to the non-backbone area 0.0.0.1, computes inter-area routes from that area's summary-LSAs: the backbone-only gate applies to ABRs alone (ComputeInterAreaWith abr gate, interarea.go).
 // RFC requirement: RFC2328-16.2-2 positive -- a summary-LSA that is not MaxAge, not self-originated, and whose composed cost is below LSInfinity is used: cost IAC = distance to the advertising ABR (10) + the LSA metric (7) (ComputeInterAreaWith, interarea.go:134-157).
 func TestOSPFInterAreaRoute(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	abr := testRID(t, "2.2.2.2")
-	area := types.BackboneArea
+	// A non-backbone area: an ABR examines only backbone summaries, so a single-area router in
+	// 0.0.0.1 reaches this route only when it is correctly judged not to be an ABR.
+	area := areaID(t, "0.0.0.1")
 	nh := netip.MustParseAddr("10.0.0.2")
 	res := resultWithRouter(area, root, abr, 10, nh, 0)
 	src := testSource(t, area, summaryNetworkLSA(t, "10.20.0.0", "2.2.2.2", 7))
@@ -134,11 +136,20 @@ func TestOSPFBorderRouterSnapshot(t *testing.T) {
 	assert.Equal(t, "10.0.0.3", snap[1].NextHops[0].NextHop)
 }
 
-// RFC requirement: RFC2328-16.2-2 negative -- a summary-LSA whose composed cost reaches LSInfinity is skipped and installs no inter-area route (ComputeInterAreaWith metric gate, interarea.go:146-149).
+// RFC requirement: RFC2328-16.2-2 negative -- a summary-LSA whose own cost is LSInfinity is skipped: the summary reader yields no record for it, and it installs no inter-area route even through a near ABR (v4SummaryReader LSInfinity filter, interarea.go).
 func TestOSPFInterAreaLSInfinityDropped(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	abr := testRID(t, "2.2.2.2")
 	area := types.BackboneArea
+
+	// The LSA itself carries LSInfinity, and the ABR is only 10 away, so the skip is the
+	// LSA's own cost and not a composed cost: the reader must drop it before composition.
+	near := resultWithRouter(area, root, abr, 10, netip.MustParseAddr("10.0.0.2"), 0)
+	infSrc := testSource(t, area, summaryNetworkLSA(t, "10.21.0.0", "2.2.2.2", uint32(LSInfinity)))
+	assert.Empty(t, v4SummaryReader(infSrc)(area), "a summary-LSA whose cost is LSInfinity must not be examined")
+	infRoutes, _ := ComputeInterArea(InterAreaInput{Source: infSrc, Root: root, Areas: []types.AreaID{area}, Results: map[types.AreaID]*Result{area: near}, MaxPaths: 8})
+	assert.Empty(t, infRoutes, "a summary-LSA whose cost is LSInfinity must not install a route")
+
 	// cost-to-ABR is one below LSInfinity; adding the summary metric saturates at
 	// LSInfinity, which RFC 2328 treats as unreachable -- no route is installed.
 	res := resultWithRouter(area, root, abr, LSInfinity-1, netip.MustParseAddr("10.0.0.2"), 0)

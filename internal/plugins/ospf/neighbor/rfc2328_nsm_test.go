@@ -559,8 +559,15 @@ func TestOSPFDDRetransmit(t *testing.T) {
 	if len(sender.sent) != before+1 {
 		t.Fatalf("sent count = %d, want %d (one DD resent)", len(sender.sent), before+1)
 	}
-	if p := sentPacket(t, sender, len(sender.sent)-1); p.DBDesc == nil {
+	resent := sentPacket(t, sender, len(sender.sent)-1).DBDesc
+	if resent == nil {
 		t.Fatalf("retransmitted packet is not a Database Description")
+	}
+	// The retransmission is THAT outstanding DD, not a new one: every field and header
+	// matches the last DD sent before the interval elapsed.
+	last := sentPacket(t, sender, before-1).DBDesc
+	if last == nil || !sameDD(*last, *resent) {
+		t.Fatalf("retransmitted DD = %+v, want the outstanding DD %+v", resent, last)
 	}
 }
 

@@ -52,20 +52,20 @@
       "unit-sha": "3dfd149b0d4e9816",
       "claim-sha": "b89a31350edbdbdc",
       "route": "revert",
-      "producer": "internal/plugins/ospf/dispatcher.go::dispatch",
-      "producer-sha": "760997a08dc0f8b3",
-      "break": "body of dispatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/v3/packet/header.go::DecodeHeader",
+      "producer-sha": "1de23487aeaf5e30",
+      "break": "body of DecodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5340-A.3.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive",
-      "unit-sha": "3dfd149b0d4e9816",
-      "claim-sha": "62efccfbb950e4bc",
+      "unit": "internal/plugins/ospf/v3/packet/rfc5340_header_test.go::TestRFC5340ReservedOctetNeverReachesDecodedHeader",
+      "unit-sha": "ea201f9cc4683de9",
+      "claim-sha": "44a1475604d9905b",
       "route": "revert",
-      "producer": "internal/plugins/ospf/dispatcher.go::dispatch",
-      "producer-sha": "760997a08dc0f8b3",
-      "break": "body of dispatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/v3/packet/header.go::DecodeHeader",
+      "producer-sha": "1de23487aeaf5e30",
+      "break": "body of DecodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5340-A.4.7-1",
@@ -202,9 +202,9 @@
     {
       "rid": "RFC5340-C.3-2",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay",
-      "unit-sha": "4a1a4e5b33b453e0",
-      "claim-sha": "d523497c29bdbe0e",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay",
+      "unit-sha": "fe6ecb6b87c64ad2",
+      "claim-sha": "45d76627245318a5",
       "route": "revert",
       "producer": "internal/plugins/ospf/config.go::validateConfigAF",
       "producer-sha": "f0d03a69269f9ba3",
@@ -213,9 +213,9 @@
     {
       "rid": "RFC5340-C.3-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay",
-      "unit-sha": "4a1a4e5b33b453e0",
-      "claim-sha": "95b1857217306582",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay",
+      "unit-sha": "fe6ecb6b87c64ad2",
+      "claim-sha": "5fea5e543df7ebe6",
       "route": "revert",
       "producer": "internal/plugins/ospf/config.go::validateConfigAF",
       "producer-sha": "f0d03a69269f9ba3",

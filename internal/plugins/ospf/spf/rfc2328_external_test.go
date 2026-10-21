@@ -41,6 +41,7 @@ func asbrBorder(t *testing.T, rid string, metric uint64, nh string) BorderRouter
 	return BorderRouterEntry{RouterID: testRID(t, rid), Kind: BorderRouterASBR, Metric: metric, NextHops: []NextHop{{Addr: netip.MustParseAddr(nh)}}}
 }
 
+// RFC requirement: RFC2328-16.4-2 positive -- an AS-external-LSA whose cost is below LSInfinity, whose age is not MaxAge and that another router originated is examined and installs a route (ComputeExternalWith, v4ExternalReader, external.go).
 func TestOSPFExternalE1Cost(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	src := testSource(t, types.BackboneArea, externalLSA(t, "10.99.0.0", "2.2.2.2", false, 5, "0.0.0.0"))
@@ -58,9 +59,21 @@ func TestOSPFExternalE1Cost(t *testing.T) {
 	assert.Empty(t, none, "unreachable ASBR -> LSA skipped")
 }
 
-// RFC requirement: RFC2328-16.2-2 negative -- an AS-external-LSA whose composed cost reaches LSInfinity is skipped by the routing calculation and installs no route (externalCandidateFrom, external.go:169-186).
+// RFC requirement: RFC2328-16.4-2 negative -- an AS-external-LSA whose own cost is LSInfinity is skipped: the external reader yields no record for it and it installs no route even through a near ASBR; a composed cost reaching LSInfinity installs none either (v4ExternalReader, externalCandidateFrom, external.go).
 func TestOSPFExternalLSInfinityDropped(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
+
+	// The LSA itself carries LSInfinity and the ASBR is only 10 away, so the skip is the
+	// LSA's own cost, decided before any cost is composed.
+	inf := externalLSA(t, "10.95.0.0", "2.2.2.2", false, uint32(LSInfinity), "0.0.0.0")
+	infSrc := testSource(t, types.BackboneArea, inf)
+	if _, ok := v4ExternalReader(infSrc)(types.BackboneArea, inf.Header); ok {
+		t.Fatalf("an AS-external-LSA whose cost is LSInfinity must not be examined")
+	}
+	near := []BorderRouterEntry{asbrBorder(t, "2.2.2.2", 10, "10.0.0.2")}
+	assert.Empty(t, ComputeExternal(ExternalInput{Source: infSrc, Root: root, BorderRouters: near, MaxPaths: 8}),
+		"an AS-external-LSA whose cost is LSInfinity installs no route")
+
 	src := testSource(t, types.BackboneArea, externalLSA(t, "10.94.0.0", "2.2.2.2", false, 5, "0.0.0.0"))
 	// cost-to-ASBR one below LSInfinity; E1 adds the advertised metric and saturates
 	// at LSInfinity (unreachable) -- no route installed (boundary, no wrap).
