@@ -355,6 +355,26 @@ func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 	}
 }
 
+// TestACarriedRedWithNoRecordedCommitSaysSo proves the refusal for a carried
+// red whose earlier run recorded no commit names it as such, rather than the
+// empty "red at  in ".
+func TestACarriedRedWithNoRecordedCommitSaysSo(t *testing.T) {
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[
+		{"stage":"go lint/run","reached":true,"exit-code":1,"groups":[],"outside-run":true,"carried-from":{"commit":"","run-dir":""}}
+	]}`)
+	reds := structuralGateReds(root, []string{"mine.txt"})
+	if len(reds.Causes) != 1 {
+		t.Fatalf("structuralGateReds = %#v, want go lint/run charged", reds)
+	}
+	cause := reds.Causes[0]
+	if !strings.Contains(cause, "go lint/run: red in an earlier run (commit not recorded), carried") ||
+		strings.Contains(cause, "red at  in") {
+		t.Fatalf("cause = %q, want it to name an earlier run whose commit was not recorded", cause)
+	}
+}
+
 // TestAGreenFastRunChargesNoStructuralStage proves a green `verify current
 // fast` leaves no structural charge for the stages the fast population drops
 // (verify deps/evidence-vet): a stage no run judged is not red, and the

@@ -182,8 +182,13 @@ func redCause(stage failureStage, groups []failureGroup) string {
 	if stage.CarriedFrom == nil {
 		return stage.Stage + ": red in the latest verify run" + tail
 	}
-	return stage.Stage + ": red at " + stage.CarriedFrom.Commit + " in " + stage.CarriedFrom.RunDir +
-		", carried because the latest run did not run it" + tail
+	origin := "at " + stage.CarriedFrom.Commit + " in " + stage.CarriedFrom.RunDir
+	if stage.CarriedFrom.Commit == "" {
+		// An index an older le or another tool wrote can name no commit, and
+		// "red at  in " read as a defect in the refusal, not a gap in the record.
+		origin = "in an earlier run (commit not recorded)"
+	}
+	return stage.Stage + ": red " + origin + ", carried because the latest run did not run it" + tail
 }
 
 // clearingRuns names the verify runs whose index rewrites the named stage's

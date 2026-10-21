@@ -296,3 +296,81 @@ func TestAFirstRedRunWhoseLastStageIsRedWritesAStaleCertificate(t *testing.T) {
 		t.Fatalf("a first-red run red at its last stage reads fresh: %#v", got)
 	}
 }
+
+// TestAFailedIndexWriteSaysWhatItLeftAndTheFix proves a failure to lock or
+// write the failure index tells the reader the earlier index is unchanged,
+// that this run's reds were not published, and what to run once the cause is
+// fixed. A bare "lock verify failure index: ..." left the reader unable to
+// tell whether the commit gate now reads this run or the one before.
+//
+// Method: make the lock fail by putting a file where tmp/ belongs, and the
+// write fail by putting a directory where the JSON index belongs, and require
+// each error to say so.
+func TestAFailedIndexWriteSaysWhatItLeftAndTheFix(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(t *testing.T, root string)
+	}{
+		{name: "lock", prepare: func(t *testing.T, root string) {
+			t.Helper()
+			if err := os.WriteFile(filepath.Join(root, "tmp"), []byte("not a directory\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "write", prepare: func(t *testing.T, root string) {
+			t.Helper()
+			index := filepath.Join(root, filepath.FromSlash(FailuresJSONPath))
+			if err := os.MkdirAll(filepath.Join(index, "occupied"), 0o750); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			tc.prepare(t, root)
+			err := writeFailureIndex(root, artifactIndex{Mode: Mode, Commit: "aaa"})
+			if err == nil {
+				t.Fatal("writeFailureIndex succeeded where it could not write")
+			}
+			for _, want := range []string{
+				"the earlier failure index at " + FailuresJSONPath + " was left unchanged",
+				"this run's reds were not published",
+				"then rerun the verify",
+			} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error = %q, want it to contain %q", err, want)
+				}
+			}
+		})
+	}
+}
+
+// TestAnEarlierIndexWithNoCommitIsNamedAsSuch proves an earlier index that
+// recorded no commit is rendered as "an earlier run (commit not recorded)"
+// rather than the empty "commit , run" and "red at  in ".
+//
+// Method: write an earlier index red at `go lint/run` with no commit and no
+// run directory, publish a piece that does not hold lint, and require the
+// carry note and the text index to name the unrecorded commit.
+func TestAnEarlierIndexWithNoCommitIsNamedAsSuch(t *testing.T) {
+	root := t.TempDir()
+	earlier := filepath.Join(root, filepath.FromSlash(FailuresJSONPath))
+	if err := os.MkdirAll(filepath.Dir(earlier), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(earlier, []byte(`{"mode":"full","stages":[{"stage":"go lint/run","reached":true,"exit-code":1}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if piece := RunPart(context.Background(), root, "bbb", Mode, Part{Index: 2, Of: 3}, Plan{},
+		recordingRunner("", 0, new([]string)), Slot{}); piece.Code != 0 {
+		t.Fatalf("piece run = %#v", piece.Failure)
+	}
+	index := readCarried(t, root)
+	if !strings.Contains(index.CarryNote, "an earlier run (commit not recorded)") || strings.Contains(index.CarryNote, "commit ,") {
+		t.Fatalf("carry note = %q, want it to name an earlier run whose commit was not recorded", index.CarryNote)
+	}
+	text := readIndexText(t, root)
+	if !strings.Contains(text, "## Stage: go lint/run (carried: red in an earlier run (commit not recorded))") {
+		t.Fatalf("the text index does not name the unrecorded commit:\n%s", text)
+	}
+}

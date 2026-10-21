@@ -151,7 +151,7 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 func writeFailureIndex(root string, index artifactIndex) error {
 	unlock, err := lockFailureIndex(root)
 	if err != nil {
-		return err
+		return unpublished(err)
 	}
 	defer unlock()
 
@@ -160,21 +160,42 @@ func writeFailureIndex(root string, index artifactIndex) error {
 	index.Stages = carryForward(index.Stages, prior)
 	data, err := json.MarshalIndent(index, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal verify failure index: %w", err)
+		return unpublished(fmt.Errorf("marshal verify failure index: %w", err))
 	}
 	data = append(data, '\n')
-	if err := atomicWrite(root, FailuresLogPath, []byte(failureIndexText(index))); err != nil {
-		return fmt.Errorf("write verify artifact %s: %w", FailuresLogPath, err)
-	}
+	// The JSON index is what the commit gate reads, so it is written first:
+	// a failure here leaves every earlier file in place, and a failure after
+	// it leaves only a reader's copy behind.
 	if err := atomicWrite(root, FailuresJSONPath, data); err != nil {
-		return fmt.Errorf("write verify artifact %s: %w", FailuresJSONPath, err)
+		return unpublished(fmt.Errorf("write verify artifact %s: %w", FailuresJSONPath, err))
+	}
+	if err := atomicWrite(root, FailuresLogPath, []byte(failureIndexText(index))); err != nil {
+		return copyBehind(FailuresLogPath, err)
 	}
 	if index.Mode == Mode {
 		if err := atomicWrite(root, FullJSONPath, data); err != nil {
-			return fmt.Errorf("write verify artifact %s: %w", FullJSONPath, err)
+			return copyBehind(FullJSONPath, err)
 		}
 	}
 	return nil
+}
+
+// unpublished answers err for a failure before the JSON index was replaced:
+// the commit gate still reads the earlier run, and this run's reds reach it
+// only when a verify run publishes again.
+func unpublished(err error) error {
+	return fmt.Errorf("%w; the earlier failure index at %s was left unchanged, so this run's reds were not published "+
+		"and the commit gate still reads the earlier run: fix what refused the write, then rerun the verify "+
+		"(le verify worktree, or the same run)", err, FailuresJSONPath)
+}
+
+// copyBehind answers err for a reader's copy that could not be written after
+// the JSON index was: the gate reads this run, and the copy at path still shows
+// the earlier one.
+func copyBehind(path string, err error) error {
+	return fmt.Errorf("write verify artifact %s: %w; the failure index at %s holds this run's verdicts, "+
+		"but %s still shows the earlier run: fix what refused the write, then rerun the verify "+
+		"(le verify worktree, or the same run)", path, err, FailuresJSONPath, path)
 }
 
 // lockFailureIndex takes the checkout's failure-index lock and answers its
@@ -217,8 +238,18 @@ func readEarlierIndex(root string) (artifactIndex, string) {
 		return artifactIndex{}, "the earlier failure index at " + FailuresJSONPath +
 			" is malformed (" + err.Error() + "), so it was treated as empty and nothing was carried forward"
 	}
-	return prior, "stages this run did not hold carry the earlier index's verdict (commit " +
-		prior.Commit + ", run " + prior.RunDir + ")"
+	return prior, "stages this run did not hold carry the earlier index's verdict (" + earlierRun(prior.Commit, prior.RunDir) + ")"
+}
+
+// earlierRun names the run an earlier index recorded, as "commit <sha>, run
+// <directory>". An index another tool or an older le wrote can hold no commit,
+// and the empty "commit , run " read as a defect in the reader rather than a
+// gap in the record.
+func earlierRun(commit, runDir string) string {
+	if commit == "" {
+		return "an earlier run (commit not recorded)"
+	}
+	return "commit " + commit + ", run " + runDir
 }
 
 // carryForward answers the stages this run held, followed by one entry for
@@ -459,7 +490,8 @@ func failureIndexText(index artifactIndex) string {
 }
 
 // carriedVerdict answers the earlier verdict a carried stage repeats and the
-// run that judged it, as "red at <commit> in <run directory>".
+// run that judged it, as "red at <commit> in <run directory>", or "red in an
+// earlier run (commit not recorded)" when that run recorded no commit.
 func carriedVerdict(stage *artifactStage) string {
 	verdict := "green"
 	if stage.ExitCode != 0 {
@@ -467,6 +499,9 @@ func carriedVerdict(stage *artifactStage) string {
 	}
 	if stage.CarriedFrom == nil {
 		return verdict
+	}
+	if stage.CarriedFrom.Commit == "" {
+		return verdict + " in an earlier run (commit not recorded)"
 	}
 	return verdict + " at " + stage.CarriedFrom.Commit + " in " + stage.CarriedFrom.RunDir
 }
