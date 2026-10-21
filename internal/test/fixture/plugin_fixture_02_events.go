@@ -28,6 +28,7 @@ func init() {
 	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
 	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02))
 	Register("plugin/addpath-withdraw-event", eventObserver02("addpath-withdraw-event", []string{eventUpdate}, addPathWithdrawEvent02))
+	Register("plugin/family-key-merge-event", eventObserver02("family-key-merge-event", []string{eventUpdate}, familyKeyMergeEvent02))
 	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState, bgpevents.EventKeepalive}, reloadKept02))
 	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
 	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02))

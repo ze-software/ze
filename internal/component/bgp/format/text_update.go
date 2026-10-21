@@ -3,13 +3,17 @@
 // Related: text_human.go — appendFilterResultText / appendAttributesText
 // Related: text_json.go — appendFilterResultJSON / appendAttributesJSON
 // Related: summary.go — appendSummary / appendSummaryJSON
+// RFC: rfc/short/rfc4271.md -- Section 4.3, the body NLRI and Withdrawn Routes fields
+// RFC: rfc/short/rfc7606.md -- Section 5.1, NLRI fields in any combination
 
 package format
 
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -21,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -335,171 +340,205 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 		buf = append(buf, `"attr":{},`...)
 	}
 
-	// NLRI: extract from body + MP attributes without allocating intermediate
-	// slices. Body sections give IPv4 unicast; MP attributes give other families.
-	// RFC 4760: a single UPDATE may carry both body NLRI (legacy IPv4) and
-	// MP_REACH_NLRI for the same family with different next-hops.
-	buf = append(buf, `"nlri":{`...)
-	famFirst := true
+	buf = appendUpdateNLRIJSONDirect(buf, msg, ctx)
+	buf = append(buf, "}}}\n"...)
+	return buf
+}
 
-	ipv4AddPath := false
-	if ctx != nil {
-		ipv4AddPath = ctx.AddPathFor(family.IPv4Unicast)
-	}
+// updateFamilyKeysMax is the most family keys one UPDATE can state in the
+// fast path: ipv4/unicast for the body fields, MP_REACH_NLRI's family and
+// MP_UNREACH_NLRI's family.
+const updateFamilyKeysMax = 3
+
+// appendUpdateNLRIJSONDirect writes the "nlri" member of the fast path from the
+// body fields and the MP attributes, without allocating intermediate slices for
+// the body.
+//
+// RFC 7606 Section 5.1: "Since older BGP speakers may not implement these
+// restrictions, an implementation MUST still be prepared to receive these
+// fields in any position or combination."
+//
+// So each family is ONE key whose array holds every operation of that family,
+// in the order appendFamiliesJSON's writeFamily uses for the filtered
+// producer: announces (body NLRI, then MP_REACH_NLRI), then withdrawals (body
+// Withdrawn Routes, then MP_UNREACH_NLRI). A family stated twice loses its
+// first copy in every map-based reader. The filtered producer's writer is not
+// shared because it reads parsed []nlri.NLRI, which this path never builds for
+// the body.
+func appendUpdateNLRIJSONDirect(buf []byte, msg bgptypes.RawMessage, ctx *bgpctx.EncodingContext) []byte {
+	buf = append(buf, `"nlri":{`...)
 
 	nlriData, _ := msg.WireUpdate.NLRI()
 	withdrawnData, _ := msg.WireUpdate.Withdrawn()
 	mpReach, _ := msg.WireUpdate.MPReach()
 	mpUnreach, _ := msg.WireUpdate.MPUnreach()
+	ipv4AddPath := addPathFor(ctx, family.IPv4Unicast)
 
-	// Check if MP_REACH also targets IPv4/unicast (dual next-hop case).
-	mpReachIsIPv4 := mpReach != nil && mpReach.Family() == family.IPv4Unicast
-
-	// IPv4 unicast: merge body NLRI and any MP_REACH for ipv4/unicast into
-	// a single "ipv4/unicast" array so dual next-hop UPDATEs produce two
-	// operation groups under one family key.
-	hasIPv4 := len(nlriData) > 0 || len(withdrawnData) > 0 || mpReachIsIPv4
-	if hasIPv4 {
-		buf = append(buf, `"ipv4/unicast":[`...)
-		opFirst := true
-
-		if len(nlriData) > 0 {
-			var nextHop netip.Addr
-			if nh, err := msg.AttrsWire.Get(attribute.AttrNextHop); err == nil && nh != nil {
-				if nhAttr, ok := nh.(*attribute.NextHop); ok {
-					nextHop = nhAttr.Addr
-				}
-			}
-			buf = append(buf, '{')
-			if nextHop.IsValid() {
-				buf = append(buf, `"next-hop":"`...)
-				buf = nextHop.AppendTo(buf)
-				buf = append(buf, `",`...)
-			}
-			buf = append(buf, `"action":"add","nlri":[`...)
-			buf = appendIPv4PrefixesFromWire(buf, nlriData, ipv4AddPath)
-			buf = append(buf, `]}`...)
-			opFirst = false
-		}
-
-		if mpReachIsIPv4 {
-			if !opFirst {
-				buf = append(buf, ',')
-			}
-			nh := mpReach.NextHop()
-			buf = append(buf, `{"next-hop":"`...)
-			buf = nh.AppendTo(buf)
-			buf = append(buf, `","action":"add",`...)
-			mpNLRIs, err := mpReach.NLRIs(ipv4AddPath)
-			if err != nil {
-				// The same answer as the non-IPv4 MP_REACH arm below: an NLRI
-				// field that does not split names no route, so it carries the
-				// error and the bytes rather than "nlri":[].
-				buf = appendNLRISplitErrorJSON(buf, err, mpReach.NLRIBytes())
-				buf = append(buf, '}')
-			} else {
-				buf = append(buf, `"nlri":[`...)
-				for j, n := range mpNLRIs {
-					if j > 0 {
-						buf = append(buf, ',')
-					}
-					buf = appendNLRIJSONValue(buf, n, family.IPv4Unicast, false)
-				}
-				buf = append(buf, `]}`...)
-			}
-			opFirst = false
-		}
-
-		if len(withdrawnData) > 0 {
-			if !opFirst {
-				buf = append(buf, ',')
-			}
-			buf = append(buf, `{"action":"del","nlri":[`...)
-			buf = appendIPv4PrefixesFromWire(buf, withdrawnData, ipv4AddPath)
-			buf = append(buf, `]}`...)
-		}
-
-		buf = append(buf, ']')
-		famFirst = false
+	var keys [updateFamilyKeysMax]family.Family
+	keyCount := 0
+	if len(nlriData) > 0 || len(withdrawnData) > 0 {
+		keyCount = appendFamilyKey(&keys, keyCount, family.IPv4Unicast)
 	}
 
-	// Non-IPv4 MP_REACH families.
-	if mpReach != nil && !mpReachIsIPv4 {
-		if !famFirst {
-			buf = append(buf, ',')
+	var reachNLRIs []nlri.NLRI
+	var reachErr error
+	if mpReach != nil {
+		reachFamily := mpReach.Family()
+		reachNLRIs, reachErr = mpReach.NLRIs(addPathFor(ctx, reachFamily))
+		keyCount = appendFamilyKey(&keys, keyCount, reachFamily)
+	}
+
+	// An MP_UNREACH_NLRI with no route and no error states no operation; the
+	// End-of-RIB form of it never reaches this function (appendEORUpdateJSON).
+	var unreachNLRIs []nlri.NLRI
+	var unreachErr error
+	unreachHasOperation := false
+	if mpUnreach != nil {
+		unreachFamily := mpUnreach.Family()
+		unreachNLRIs, unreachErr = mpUnreach.NLRIs(addPathFor(ctx, unreachFamily))
+		unreachHasOperation = unreachErr != nil || len(unreachNLRIs) > 0
+		if unreachHasOperation {
+			keyCount = appendFamilyKey(&keys, keyCount, unreachFamily)
 		}
-		fam := mpReach.Family()
-		mpAddPath := false
-		if ctx != nil {
-			mpAddPath = ctx.AddPathFor(fam)
+	}
+
+	for k, fam := range keys[:keyCount] {
+		if k > 0 {
+			buf = append(buf, ',')
 		}
 		buf = append(buf, '"')
 		buf = fam.AppendTo(buf)
-		buf = append(buf, `":[{"next-hop":"`...)
-		nh := mpReach.NextHop()
-		buf = nh.AppendTo(buf)
-		buf = append(buf, `","action":"add",`...)
-		mpNLRIs, err := mpReach.NLRIs(mpAddPath)
-		if err != nil {
-			// An NLRI field that does not split names no route. Rendering
-			// "nlri":[] would read as an announce of nothing, so the operation
-			// carries the error and the bytes instead.
-			buf = appendNLRISplitErrorJSON(buf, err, mpReach.NLRIBytes())
-			buf = append(buf, `}]`...)
-			famFirst = false
-		} else {
-			buf = append(buf, `"nlri":[`...)
-			for j, n := range mpNLRIs {
-				if j > 0 {
-					buf = append(buf, ',')
-				}
-				buf = appendNLRIJSONValue(buf, n, fam, false)
-			}
-			buf = append(buf, `]}]`...)
-			famFirst = false
-		}
-	}
+		buf = append(buf, `":[`...)
+		opFirst := true
 
-	// MP_UNREACH families.
-	if mpUnreach != nil {
-		fam := mpUnreach.Family()
-		mpAddPath := false
-		if ctx != nil {
-			mpAddPath = ctx.AddPathFor(fam)
+		if fam == family.IPv4Unicast && len(nlriData) > 0 {
+			buf = appendBodyIPv4AddJSON(buf, msg, nlriData, ipv4AddPath)
+			opFirst = false
 		}
-		mpWdNLRIs, err := mpUnreach.NLRIs(mpAddPath)
-		if err != nil {
-			// A withdrawn field that does not split still names a family the
-			// peer withdrew from. Dropping the member would hide the
-			// withdrawal, so the operation carries the error and the bytes.
-			if !famFirst {
+		if mpReach != nil && mpReach.Family() == fam {
+			if !opFirst {
 				buf = append(buf, ',')
 			}
-			buf = append(buf, '"')
-			buf = fam.AppendTo(buf)
-			buf = append(buf, `":[{"action":"del",`...)
-			buf = appendNLRISplitErrorJSON(buf, err, mpUnreach.WithdrawnBytes())
-			buf = append(buf, `}]`...)
-		} else if len(mpWdNLRIs) > 0 {
-			if !famFirst {
+			buf = appendMPReachOperationJSON(buf, mpReach, reachNLRIs, reachErr)
+			opFirst = false
+		}
+		if fam == family.IPv4Unicast && len(withdrawnData) > 0 {
+			if !opFirst {
 				buf = append(buf, ',')
 			}
-			buf = append(buf, '"')
-			buf = fam.AppendTo(buf)
-			buf = append(buf, `":[{"action":"del","nlri":[`...)
-			for j, n := range mpWdNLRIs {
-				if j > 0 {
-					buf = append(buf, ',')
-				}
-				buf = appendNLRIJSONValue(buf, n, fam, true)
-			}
-			buf = append(buf, `]}]`...)
+			buf = append(buf, `{"action":"del",`...)
+			buf = appendIPv4FieldJSON(buf, withdrawnData, ipv4AddPath)
+			buf = append(buf, '}')
+			opFirst = false
 		}
+		if unreachHasOperation && mpUnreach.Family() == fam {
+			if !opFirst {
+				buf = append(buf, ',')
+			}
+			buf = appendMPUnreachOperationJSON(buf, mpUnreach, unreachNLRIs, unreachErr)
+		}
+		buf = append(buf, ']')
 	}
 
-	buf = append(buf, '}') // close nlri
-	buf = append(buf, "}}}\n"...)
-	return buf
+	return append(buf, '}')
+}
+
+// addPathFor answers whether ADD-PATH is negotiated for fam in the receive
+// direction ctx describes. A nil ctx negotiated nothing.
+func addPathFor(ctx *bgpctx.EncodingContext, fam family.Family) bool {
+	if ctx == nil {
+		return false
+	}
+	return ctx.AddPathFor(fam)
+}
+
+// appendFamilyKey adds fam to keys[:count] unless it is already there and
+// returns the new count. count never passes updateFamilyKeysMax because the
+// fast path has three sources of a family.
+func appendFamilyKey(keys *[updateFamilyKeysMax]family.Family, count int, fam family.Family) int {
+	if slices.Contains(keys[:count], fam) {
+		return count
+	}
+	keys[count] = fam
+	return count + 1
+}
+
+// appendBodyIPv4AddJSON writes the add operation of the body NLRI field, with
+// the NEXT_HOP attribute as its next hop.
+func appendBodyIPv4AddJSON(buf []byte, msg bgptypes.RawMessage, data []byte, addPath bool) []byte {
+	var nextHop netip.Addr
+	if nh, err := msg.AttrsWire.Get(attribute.AttrNextHop); err == nil && nh != nil {
+		if nhAttr, ok := nh.(*attribute.NextHop); ok {
+			nextHop = nhAttr.Addr
+		}
+	}
+	buf = append(buf, '{')
+	if nextHop.IsValid() {
+		buf = append(buf, `"next-hop":"`...)
+		buf = nextHop.AppendTo(buf)
+		buf = append(buf, `",`...)
+	}
+	buf = append(buf, `"action":"add",`...)
+	buf = appendIPv4FieldJSON(buf, data, addPath)
+	return append(buf, '}')
+}
+
+// appendIPv4FieldJSON writes the "nlri" member of a body NLRI or Withdrawn
+// Routes field, or, when the field does not split, the error member in its
+// place: the routes before a malformed prefix are no answer, because the list
+// would read as the whole field.
+func appendIPv4FieldJSON(buf, data []byte, addPath bool) []byte {
+	mark := len(buf)
+	buf = append(buf, `"nlri":[`...)
+	buf, err := appendIPv4PrefixesFromWire(buf, data, addPath)
+	if err != nil {
+		return appendNLRISplitErrorJSON(buf[:mark], err, data)
+	}
+	return append(buf, ']')
+}
+
+// appendMPReachOperationJSON writes the add operation of an MP_REACH_NLRI.
+func appendMPReachOperationJSON(buf []byte, mpReach wireu.MPReachWire, nlris []nlri.NLRI, splitErr error) []byte {
+	buf = append(buf, `{"next-hop":"`...)
+	buf = mpReach.NextHop().AppendTo(buf)
+	buf = append(buf, `","action":"add",`...)
+	if splitErr != nil {
+		// An NLRI field that does not split names no route. Rendering
+		// "nlri":[] would read as an announce of nothing, so the operation
+		// carries the error and the bytes instead.
+		buf = appendNLRISplitErrorJSON(buf, splitErr, mpReach.NLRIBytes())
+		return append(buf, '}')
+	}
+	fam := mpReach.Family()
+	buf = append(buf, `"nlri":[`...)
+	for j, n := range nlris {
+		if j > 0 {
+			buf = append(buf, ',')
+		}
+		buf = appendNLRIJSONValue(buf, n, fam, false)
+	}
+	return append(buf, `]}`...)
+}
+
+// appendMPUnreachOperationJSON writes the del operation of an MP_UNREACH_NLRI.
+func appendMPUnreachOperationJSON(buf []byte, mpUnreach wireu.MPUnreachWire, nlris []nlri.NLRI, splitErr error) []byte {
+	buf = append(buf, `{"action":"del",`...)
+	if splitErr != nil {
+		// A withdrawn field that does not split still names a family the
+		// peer withdrew from. Dropping the operation would hide the
+		// withdrawal, so it carries the error and the bytes.
+		buf = appendNLRISplitErrorJSON(buf, splitErr, mpUnreach.WithdrawnBytes())
+		return append(buf, '}')
+	}
+	fam := mpUnreach.Family()
+	buf = append(buf, `"nlri":[`...)
+	for j, n := range nlris {
+		if j > 0 {
+			buf = append(buf, ',')
+		}
+		buf = appendNLRIJSONValue(buf, n, fam, true)
+	}
+	return append(buf, `]}`...)
 }
 
 // appendNLRISplitErrorJSON writes the members of a family operation whose NLRI
@@ -516,28 +555,39 @@ func appendNLRISplitErrorJSON(buf []byte, err error, raw []byte) []byte {
 
 // appendIPv4PrefixesFromWire iterates raw IPv4 NLRI wire bytes and appends
 // each prefix as a JSON string (or ADD-PATH object) directly, without
-// allocating parsed NLRI structs or slices.
-func appendIPv4PrefixesFromWire(buf, data []byte, addPath bool) []byte {
+// allocating parsed NLRI structs or slices. A field that does not split
+// returns an error naming the offset of the prefix that broke, in the words
+// wireu.ParseNLRIs uses for the same bytes, so both producers agree; buf then
+// holds a partial list the caller discards.
+func appendIPv4PrefixesFromWire(buf, data []byte, addPath bool) ([]byte, error) {
 	offset := 0
 	first := true
 	for offset < len(data) {
+		start := offset
 		var pathID uint32
 		if addPath {
 			if offset+4 > len(data) {
-				break
+				return buf, ipv4FieldError(start, nlri.ErrShortRead)
 			}
 			pathID = uint32(data[offset])<<24 | uint32(data[offset+1])<<16 |
 				uint32(data[offset+2])<<8 | uint32(data[offset+3])
 			offset += 4
 		}
 		if offset >= len(data) {
-			break
+			return buf, ipv4FieldError(start, nlri.ErrShortRead)
 		}
+		// RFC 4271 Section 4.3: "The Length field indicates the length in
+		// bits of the IP address prefix." An IPv4 address has 32 bits, so a
+		// longer length names no prefix, and RFC 4271 Section 6.3: "The NLRI
+		// field in the UPDATE message is checked for syntactic validity."
 		prefixBits := int(data[offset])
+		if prefixBits > 32 {
+			return buf, ipv4FieldError(start, nlri.ErrInvalidPrefix)
+		}
 		prefixBytes := (prefixBits + 7) / 8
 		offset++
 		if offset+prefixBytes > len(data) {
-			break
+			return buf, ipv4FieldError(start, nlri.ErrShortRead)
 		}
 		var addr [4]byte
 		copy(addr[:], data[offset:offset+prefixBytes])
@@ -567,7 +617,13 @@ func appendIPv4PrefixesFromWire(buf, data []byte, addPath bool) []byte {
 			buf = append(buf, '"')
 		}
 	}
-	return buf
+	return buf, nil
+}
+
+// ipv4FieldError is the error of a body IPv4 field that broke at offset,
+// worded as wireu.ParseNLRIs words it.
+func ipv4FieldError(offset int, cause error) error {
+	return fmt.Errorf("parsing NLRI at offset %d: %w", offset, cause)
 }
 
 // appendParsedFromResult appends parsed UPDATE using FilterResult to buf.

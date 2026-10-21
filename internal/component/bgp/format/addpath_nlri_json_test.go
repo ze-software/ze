@@ -167,7 +167,11 @@ func TestNLRIJSONKeepsAZeroPathIdentifier(t *testing.T) {
 
 			// The body NLRI section never builds an NLRI struct, so it carries
 			// the same decision in its own loop and needs its own case.
-			fromWire := string(appendIPv4PrefixesFromWire(nil, tc.data, tc.addPath))
+			fromWireBytes, err := appendIPv4PrefixesFromWire(nil, tc.data, tc.addPath)
+			if err != nil {
+				t.Fatalf("appendIPv4PrefixesFromWire: %v", err)
+			}
+			fromWire := string(fromWireBytes)
 			if fromWire != tc.want {
 				t.Errorf("appendIPv4PrefixesFromWire wrote %s, want %s", fromWire, tc.want)
 			}

@@ -249,25 +249,42 @@ Each address family has an array of operations under `nlri`:
 - `next-hop`: Present only for "add" operations
 - `action`: "add" (announce) or "del" (withdraw)
 - `nlri`: Array of NLRI values
-- When the NLRI field of an MP_REACH_NLRI or MP_UNREACH_NLRI does not split
-  into routes, the operation carries no `nlri` member. It carries the error
-  convention instead: `"error"` names why, `"parsed": false`, and `"raw"` holds
-  the field's bytes in uppercase hex, for example
+- Each family is one key. Its array holds every operation the UPDATE carries
+  for that family: announces first (the body NLRI field, then MP_REACH_NLRI),
+  then withdrawals (the body Withdrawn Routes field, then MP_UNREACH_NLRI). A
+  peer may send several of these fields for one family in one UPDATE, because
+  RFC 7606 Section 5.1 says "an implementation MUST still be prepared to
+  receive these fields in any position or combination". A key stated twice
+  would lose its first copy in any reader that decodes the object into a map.
+- A consumer applies a family's `del` operations before its `add` operations,
+  not in array order. One UPDATE can withdraw and announce the same prefix, and
+  RFC 4271 Section 4.3 settles which wins: "A BGP speaker SHOULD treat an
+  UPDATE message of this form as though the WITHDRAWN ROUTES do not contain the
+  address prefix." Applied in array order, the withdrawal would remove the
+  route the same UPDATE announced.
+- When an NLRI field (the body NLRI or Withdrawn Routes field, an MP_REACH_NLRI
+  or an MP_UNREACH_NLRI) does not split into routes, the operation carries no
+  `nlri` member. It carries the error convention instead: `"error"` names why,
+  `"parsed": false`, and `"raw"` holds the field's bytes in uppercase hex, for
+  example
   `{"action": "del", "error": "parsing NLRI at offset 0: nlri: short read", "parsed": false, "raw": "402001"}`.
   An empty `nlri` list is never written for a field that failed to split, because
   it would read as an operation on no route.
 
 Two producers write this member, and both write it the same way. The parsed
 JSON event with no attribute or NLRI filter is written straight from the wire
-(`appendParsedUpdateJSONDirect`); it covers the MP_REACH_NLRI and
-MP_UNREACH_NLRI fields, an IPv4 unicast MP_REACH_NLRI included. Every other
-JSON form, `format=full` and a selective attribute or NLRI filter included, is
-written from the filter's result (`appendFilterResultJSON`), whose families
-carry the split failure (`FamilyNLRI.SplitErr`); it also covers the IPv4 NLRI
-and Withdrawn Routes fields of the UPDATE body. The text event form has no
-spelling for a field that did not split and writes no route for it.
+(`appendParsedUpdateJSONDirect`); it covers the body NLRI and Withdrawn
+Routes fields and the MP_REACH_NLRI and MP_UNREACH_NLRI fields, an IPv4
+unicast MP_REACH_NLRI included, and merges them per family key
+(`appendUpdateNLRIJSONDirect`). Every other JSON form, `format=full` and a
+selective attribute or NLRI filter included, is written from the filter's
+result (`appendFilterResultJSON`), whose families carry the split failure
+(`FamilyNLRI.SplitErr`), the IPv4 NLRI and Withdrawn Routes fields of the
+UPDATE body included, and merges them per family key (`appendFamiliesJSON`).
+The text event form has no spelling for a field that did not split and writes
+no route for it.
 <!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON, appendFamiliesJSON -->
-<!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect, appendNLRISplitErrorJSON -->
+<!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect, appendNLRISplitErrorJSON, appendUpdateNLRIJSONDirect, appendIPv4FieldJSON -->
 <!-- source: internal/component/bgp/filter/filter.go -- FamilyNLRI, AnnouncedByFamily, WithdrawnByFamily -->
 <!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 

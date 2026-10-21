@@ -100,9 +100,12 @@ as ze writes it, with an `error` member, `"parsed": false` and the field's bytes
 in place of its `nlri` list (`docs/architecture/api/json-format.md`, "Operation
 Format"). Neither ExaBGP encoding has a member for that, so both encoders leave
 the operation out, and the bridge logs a warning on the `exabgp-bridge` logger
-naming the peer, the family, the action, the reason and the bytes. The JSON
-encoder creates an `announce` family only with its first route. It used to
-create the family before reading any route, so the error operation reached a
+naming the peer, the family, the action, the reason, what to check next
+(the family and ADD-PATH negotiation, through `show bgp peer <peer>
+capabilities`) and the field's bytes. The bytes stop at 256 hex characters,
+with `raw-octets` giving the whole length, because a peer can repeat the field
+in every UPDATE. The JSON encoder creates an `announce` family only with its
+first route. It used to create the family before reading any route, so the error operation reached a
 script as `"ipv6 unicast": {}`, an announce of nothing.
 
 <!-- source: internal/exabgp/bridge/bridge_event.go -- convertUpdateIPC2, unsplitOperation -->

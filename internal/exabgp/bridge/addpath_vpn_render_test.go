@@ -73,11 +73,16 @@ func TestAddPathVPNAnnounceRenders(t *testing.T) {
 // carries two of its octets, so the field does not split into routes and the
 // ze event carries the error member in place of an nlri list.
 //
-// Each UPDATE carries one of the two attributes. An UPDATE carrying both for
-// one family makes the ze document state that family twice, and the second
-// member hid the first when the document was read, so the announce never
-// reached the converter: RFC 7606 Section 5.1 forbids a sender from putting
-// both in one UPDATE.
+// Each UPDATE carries one of the two attributes, so each case isolates one
+// error arm. RFC 7606 Section 5.1 binds both ends of the session. The sender:
+// "An UPDATE message MUST NOT contain more than one of the following:
+// non-empty Withdrawn Routes field, non-empty Network Layer Reachability
+// Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute."
+// The receiver: "Since older BGP speakers may not implement these
+// restrictions, an implementation MUST still be prepared to receive these
+// fields in any position or combination." Ze meets the receive half by
+// stating each family once with every operation under it
+// (TestOneFamilyKeyPerUpdate in internal/component/bgp/format).
 //
 // VALIDATES: the ExaBGP JSON names no "ipv6 unicast" family under announce or
 // withdraw: ExaBGP never hands a script an NLRI it could not parse.

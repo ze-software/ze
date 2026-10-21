@@ -540,8 +540,10 @@ func convertUpdateIPC2(eventData map[string]any, format Format, peer string) map
 // internal/component/bgp/format/text_update.go, appendFamiliesJSON in
 // text_json.go). Neither ExaBGP encoding has a member for an NLRI field it
 // could not read, so the encoders leave the operation out. The warning is what
-// keeps that from being silent: it names the session, the family, the reason
-// and the bytes.
+// keeps that from being silent: it names the session, the family, the reason,
+// the next step and the bytes. A peer can send the same broken field in every
+// UPDATE, so the logged hex stops at unsplitRawHexMax characters and
+// "raw-octets" states the field's whole length.
 func unsplitOperation(log *slog.Logger, peer, family string, operation map[string]any) bool {
 	reason, failed := operation["error"].(string)
 	if !failed {
@@ -549,10 +551,23 @@ func unsplitOperation(log *slog.Logger, peer, family string, operation map[strin
 	}
 	action, _ := operation["action"].(string)
 	raw, _ := operation["raw"].(string)
-	log.Warn("exabgp-bridge: an NLRI field did not split into routes; the script is not told about it",
-		"peer", peer, "family", family, "action", action, "error", reason, "raw", raw)
+	rawOctets := len(raw) / 2
+	if len(raw) > unsplitRawHexMax {
+		raw = raw[:unsplitRawHexMax] + "..."
+	}
+	log.Warn("exabgp-bridge: the peer sent an NLRI field ze could not read as routes of this family, "+
+		"so the script is not told about them; check that the peer and ze negotiated the family "+
+		"and ADD-PATH for it the same way (show bgp peer <peer> capabilities), and if they did, "+
+		"report the error and the raw bytes as a ze defect",
+		"peer", peer, "family", family, "action", action, "error", reason,
+		"raw-octets", rawOctets, "raw", raw)
 	return true
 }
+
+// unsplitRawHexMax bounds the hex of an unreadable NLRI field in the bridge's
+// warning: 128 octets show the framing that broke, and the warning repeats for
+// every UPDATE that carries the field.
+const unsplitRawHexMax = 256
 
 // flowComponentOrder is the order ExaBGP prints a flow's components in its
 // `string` member, which is the order a flow route is WRITTEN in rather than

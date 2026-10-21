@@ -75,8 +75,9 @@ func TestSplitErrorEventIsNotRendered(t *testing.T) {
 // the encoders leave out.
 //
 // VALIDATES: an operation carrying the error member is reported as skipped,
-// with a warning naming the peer, the family, the action, the reason and the
-// bytes; an operation with an nlri list is not.
+// with a warning naming the peer, the family, the action, the reason, the
+// next step and the bytes, bounded with the field length stated; an operation
+// with an nlri list is not.
 // PREVENTS: the operation being dropped with no line in the log, which is how
 // it was dropped before the error member existed.
 func TestUnsplitOperationIsLogged(t *testing.T) {
@@ -90,10 +91,30 @@ func TestUnsplitOperationIsLogged(t *testing.T) {
 		t.Fatal("an operation carrying the error member was not reported as skipped")
 	}
 	line := out.String()
-	for _, want := range []string{"level=WARN", "peer=192.0.2.1", "family=ipv6/unicast", "action=del", `error="nlri: short read"`, "raw=40FDAB"} {
+	for _, want := range []string{"level=WARN", "peer=192.0.2.1", "family=ipv6/unicast", "action=del", `error="nlri: short read"`, "raw-octets=3", "raw=40FDAB", "show bgp peer <peer> capabilities", "ADD-PATH"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the warning lacks %s:\n%s", want, line)
 		}
+	}
+
+	// A field longer than the bound logs its first unsplitRawHexMax hex
+	// characters and its whole length, so a peer repeating it cannot flood
+	// the log with its bytes.
+	out.Reset()
+	long := strings.Repeat("AB", 1000)
+	flood := map[string]any{"action": "add", "error": "nlri: short read", "parsed": false, "raw": long}
+	if !unsplitOperation(log, "192.0.2.1", "ipv6/unicast", flood) {
+		t.Fatal("a long operation carrying the error member was not reported as skipped")
+	}
+	line = out.String()
+	if !strings.Contains(line, "raw-octets=1000") {
+		t.Errorf("the warning does not state the field's length:\n%s", line)
+	}
+	if strings.Contains(line, long[:unsplitRawHexMax+2]) {
+		t.Errorf("the warning logs more than %d hex characters:\n%s", unsplitRawHexMax, line)
+	}
+	if !strings.Contains(line, "raw="+long[:unsplitRawHexMax]+"...") {
+		t.Errorf("the warning lacks the bounded hex:\n%s", line)
 	}
 
 	out.Reset()
