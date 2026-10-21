@@ -1898,3 +1898,41 @@ Still owed, in order:
    home the 230 (an existing spec, or a journal row) explicitly.
 4. Closure sections (TEMPLATE-CLOSURE, Goal Validation, Implementation Summary, checklists, Review
    Gate, Updated bump), then commit A; commit B only after a fresh round-2 reviewer records CLEAN.
+
+## 2026-10-21 ExaBGP 6 FlowSpec child (spec-exabgp-6-api-compatibility), budget handoff
+
+Landed:
+- 2dfb23ed0b test/encode/flow-encode.ci route 6 traffic-class 46 (0x2E); RFC8955-4-3 positive
+  discrimination record retaken; old-5.0 and old-4.2 conf-flow SKIP on an allowance naming the
+  refusal of traffic-class 101 (test/weakened/920463e1.md).
+- 21a081938b test/plugin flowspec-fw-withdraw, flowspec-fw-add, flowspec-announce: stale
+  expectations (copy-to-nexthop 0x0800 now carries `04 01020304`, owner deviation of 2026-10-20,
+  same bytes simple-flow.ci already asserted). All three PASS.
+- c4c085b727 attribute.FlowSpecRedirectToIPv4/IPv6(addr, copyTraffic); config
+  `copy-to-nexthop <address>` = IETF copy (C bit), bare `copy-to-nexthop` = Simpson copy; drafts
+  rfc/drafts/draft-ietf-idr-flowspec-redirect-ip-16.txt and draft-simpson-idr-flowspec-redirect-02.txt;
+  test/encode/flow-redirect-forms.ci routes 3-4; docs/architecture/config/syntax.md.
+
+Owed, in order:
+1. RFC8955-4-3 audit verdict is STALE (`./le rfc check`, flow-encode.ci changed): independent
+   rejudgment with ze-rfc-audit by an agent that did not author 2dfb23ed0b. Not reseal.
+2. Migration arms in internal/exabgp/migration/migrate_routes.go (the flow `then` action switch),
+   per the 6.0 grammar configuration/grammar/types/flow.py: `redirect <ip>` to
+   `redirect-to-nexthop <ip>` (IETF); `redirect-simpson <ip>` to next-hop plus
+   `redirect-to-nexthop-draft`; `copy <ip>` to `copy-to-nexthop <ip>` (IETF; today it maps to
+   next-hop plus the Simpson copy); `copy-simpson <ip>` to next-hop plus `copy-to-nexthop`; bare
+   `redirect-to-nexthop` Simpson; `redirect-to-nexthop <ip>` IETF; the `-ietf`/`-simpson`
+   explicit spellings. The same keywords in internal/exabgp/bridge/bridge_flow.go
+   (flowRouteRedirectNextHop, flowRouteCopyNextHop and the action switch) and the wire-JSON rename
+   table in bridge_wire_json.go (`copy-to-nexthop ` to `copy-to-nexthop-ietf `). The bridge files
+   are being edited by another session (peer flush) as of 2026-10-21 01:30; coordinate.
+3. Then 6.0 encoding conf-flow green on ze and on the pin (command in the parent brief), and
+   old-4.2/old-5.0 allowances where they sent the old form.
+4. Journal row plan/journal/conflicting-feature-contracts.md 2026-10-20: forwarding strips a
+   received 0x0800 redirect next hop. Draft now at rfc/drafts/draft-simpson-idr-flowspec-redirect-02.txt
+   (Section 3). Fix with a test, mark the row fixed. Not started.
+5. Gates: ./le go lint run on internal/core/bgp/attribute, internal/component/bgp/config.
+
+Note: while another session's internal/component/config/yang and internal/exabgp/bridge edits
+do not build, run Go tests with `-overlay` mapping those dirty files to HEAD, and functional
+tests with `GOFLAGS=-overlay=<json>` (the harness's go build inherits it).
