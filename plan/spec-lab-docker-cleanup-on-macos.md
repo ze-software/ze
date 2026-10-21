@@ -175,6 +175,8 @@ Owner decision, 2026-10-21, superseding (2) for the kernel ("I told you we shoul
 
 Owner decision, 2026-10-21 (M10): Colima stays as the macOS VM manager, booting Ze's image, never its stock Ubuntu VM ("still we want our kernel", even though modules would supply L2TP and MPLS there). Kernel 6.8 has no `XFRM_MSG_MIGRATE_STATE` in any case, so MOBIKE needs Ze's kernel. AC-2, AC-6 and AC-8 run on a Colima profile booting Ze's image, built by `./le setup`; that image is new work in its own spec.
 
+Owner decisions, 2026-10-21 ("Yes to 1, 2 and 3"): (1) a separate `ze` Colima profile boots Ze's image, leaving the `default` profile untouched; (2) one image serves both that Colima profile and the QEMU `docker-lab` guest, which drops Alpine; (3) the Docker Desktop halves of AC-4 and AC-7 are dropped, since Colima runs the same Docker engine.
+
 | AC | Daemon | Commit | Date | Result |
 |----|--------|--------|------|--------|
 | AC-1 | none (client only) | 9ea1b56917 | 2026-10-20 | PASS: both commands exit 0 as the owner's user without `sudo`; `kern.bootsessionuuid` = `BB515EFB-74C7-4BB1-8C88-C362D6AC4CB0`, `IOPlatformUUID` = `EE5D8926-A73F-56C1-9A6C-19344ED99E78`. The real `ioreg` line has the `"IOPlatformUUID" = "<uuid>"` shape `readDarwinFacts` parses |
