@@ -8,5 +8,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
 | 2026-10-21 | cfbddb27 | plan: spec security row matches the lint-cache link code | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=130, at 2026-10-18T10:55:37Z) | open |
-| 2026-10-21 | cfbddb27 | verify: every failure index names the whole full population (+4 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-21T04:09:21Z) | open |
-| 2026-10-21 | cfbddb27 | verify: every failure index names the whole full population (+4 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-10-21 | cfbddb27 | verify: every failure index names the whole full population (+5 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-21T04:09:21Z) | open |
+| 2026-10-21 | cfbddb27 | verify: every failure index names the whole full population (+5 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

@@ -187,7 +187,7 @@ func writeHistory(t *testing.T, checkout string, lines ...string) {
 	}
 }
 
-func historyLine(stage string, seconds string) string {
+func historyLine(stage, seconds string) string {
 	return stage + "\t" + seconds + "\t0\tfull\tabc\t2026-10-21T03:00:00Z"
 }
 
