@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain/toolchaintest"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -225,7 +226,7 @@ func TestNamedToolFailureKeepsItsReportAndCode(t *testing.T) {
 			t.Errorf("run directory = %q, want %q", dir, tc.Root)
 		}
 		wantEnv := Table()[2].Overrides(tc)
-		checkEnvironmentTail(t, "environment", environ, wantEnv, tc.Root)
+		toolchaintest.CheckEnvironmentTail(t, "environment", environ, wantEnv, tc.Root)
 		return report, failureCode
 	}
 
@@ -408,41 +409,5 @@ func TestExternalToolOutputAndExitCodePassThrough(t *testing.T) {
 	}
 	if !strings.Contains(string(gotStderr), "tool stderr\n") {
 		t.Errorf("stderr lacks external tool output: %q", gotStderr)
-	}
-}
-
-// checkEnvironmentTail pins the tail Toolchain.Environment builds over
-// overrides in root: the overrides in order, then the one GOFLAGS entry
-// gotoolchain.TrimpathGoFlags answers for that environment, carrying
-// -trimpath. Where Go cannot answer its effective GOFLAGS, Environment adds
-// no entry, so the overrides end the environment and no GOFLAGS entry is
-// present at all.
-func checkEnvironmentTail(t *testing.T, label string, environment, overrides []string, root string) {
-	t.Helper()
-	want := slices.Clone(overrides)
-	wantGoFlags := 0
-	flags, err := gotoolchain.TrimpathGoFlags(append(os.Environ(), overrides...), root)
-	if err == nil {
-		want = append(want, flags)
-		wantGoFlags = 1
-		if !slices.Contains(strings.Fields(strings.TrimPrefix(flags, "GOFLAGS=")), "-trimpath") {
-			t.Errorf("%s: TrimpathGoFlags answered %q, which carries no -trimpath", label, flags)
-		}
-	}
-	if len(environment) < len(want) {
-		t.Errorf("%s has %d entries, want at least %d", label, len(environment), len(want))
-		return
-	}
-	if got := environment[len(environment)-len(want):]; !slices.Equal(got, want) {
-		t.Errorf("%s tail differs:\n got: %q\nwant: %q", label, got, want)
-	}
-	goFlags := 0
-	for _, entry := range environment {
-		if strings.HasPrefix(entry, "GOFLAGS=") {
-			goFlags++
-		}
-	}
-	if goFlags != wantGoFlags {
-		t.Errorf("%s carries %d GOFLAGS entries, want %d", label, goFlags, wantGoFlags)
 	}
 }
