@@ -33,6 +33,19 @@ behind `if false &&` (D2), `ValidateNLRI` failure answering `Keep` in
 `OTCEgressFilter` (D4), `blackholeReadvertiseRefused` returning false first
 (D5). The local scratch copies are not portable; rebuild them from this list.
 
+## Done 2026-10-21, second session (subagent of 0b4a8e87)
+
+| Item | Evidence |
+|------|----------|
+| D3 wire defect fixed | 27b0796cea: a malformed MUP NLRI is withdrawn by the session's held well-formed generation of its key (`reactor/session_validation_nlritype_held.go`, `nlritype.RegisterBodyRecognizer`), nothing relayed when none is held; covers received MP_UNREACH too. Decision with RFC 7606 Section 2, RFC 4271 Section 9.2, FRR and BIRD quotes in the spec's Design Insights. Units and the `.ci` red with the substitution off, green on |
+| D4 and D5 cause | bba92170c4: scenario config. Neither `ze.conf` attached `bgp-adj-rib-in`, so bgp-rs had nothing to replay to FRR (D5 log). D4's `routes-in 0` is not explained by its log (the Ze log tail held only SSH lines); the next green run decides it |
+| Review note: IsIBGP | 88ef88edda: every source `PeerFilterInfo` fill carries `IsIBGP`; the RFC 8195 relation tag reads it (red against HEAD for an RFC 7705 migration session) |
+| Review note: RFC 7999 policy-added BLACKHOLE | a25881cc5e: journal row only (`guard-added-to-one-half-of-a-pair.md`); the fix needs the destination at the COMMUNITY AttrModHandler |
+| Audit | 399ee383e1: independent rejudge of MUP 3.1.3.1-6, -7, -10 (enforced); a second rejudge is owed after 897ac54217 renamed a field the tagged unit reads |
+| Closure review round 1 | 1 BLOCKER, 2 ISSUE: held generations could grow an UPDATE past 65535; 2 allocs per refresh; hold lost on a GR reconnect. All three fixed in 897ac54217 (withdraw bodies sized to the limit, visitors bound once, hold on the Peer with RFC 4724 lifetime). Round 2 runs next |
+| Interop trees | `scratch/iopg2` (HEAD 897ac54217, only the five scenarios) and `scratch/iopr2` (five `RED-TREE` mutations as listed below) under this session's scratch; one boot runs all five with no selector. Logs `scratch/interop-green2.log`, `scratch/interop-red2.log` |
+| R-1 benchmark (indicative, loaded machine) | `BenchmarkWriteUpdateBodyEgressWalk` 9 allocs/op in every case both before D1 (020457d0f7^) and after: the walk adds none, the 9 are the writer's own. ns/op noisy (a foreign verify ran); the owner's quiet run is still owed |
+
 ## Outstanding, in order
 
 | # | Item | What is known |
