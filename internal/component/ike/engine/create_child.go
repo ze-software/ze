@@ -638,6 +638,10 @@ const (
 		"ze deleted the pair; no traffic is protected until a Child SA exists, and ze asks again " +
 		"after retry-after; the error names what the kernel refused: make the esp-group algorithms " +
 		"ones this kernel supports, then reload the configuration: ze signal reload"
+	childRekeyFixTransport = "the peer answered the rekey of a transport-mode Child SA in tunnel mode, " +
+		"so ze deleted the new pair and keeps the Child SA in use, which rekeys again before it " +
+		"expires; set mode transport for this connection on the peer, then reload its configuration, " +
+		"and check the Child SA here with: show vpn ipsec sa"
 	childRekeyFixAnswer = "the peer's rekey answer is malformed or outside what ze offered, so ze " +
 		"deleted the new pair and keeps the Child SA in use, which rekeys again before it " +
 		"expires; make the esp-group proposals and traffic selectors match the peer's, then " +

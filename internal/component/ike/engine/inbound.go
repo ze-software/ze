@@ -435,6 +435,13 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 					// refuseRekey picks the next attempt.
 					log.Warn("child-sa: rekey refused", "peer", ps.peerName, "error", err)
 					ps.refuseRekey(sa, p, refused.named, log)
+				case errors.Is(err, errChildRekeyTransportDeclined):
+					// RFC 7296 Section 1.3.1: "If this is unacceptable to the initiator,
+					// the initiator MUST delete the SA." The peer installed a tunnel-mode
+					// half of the new pair; it is deleted and the old Child SA stays in use.
+					ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)
+					log.Warn("child-sa: rekey response refused, the peer answered a transport-mode rekey in tunnel mode, deleting the new pair",
+						"peer", ps.peerName, "error", err, "fix", childRekeyFixTransport)
 				case errors.Is(err, errChildEncapPort):
 					// The peer accepted the rekey and installed its half of the new
 					// pair, which this node will not install without a port to

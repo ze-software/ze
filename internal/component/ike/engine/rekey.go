@@ -50,6 +50,14 @@ func hasTemporaryFailure(inner []wire.PayloadEntry) bool {
 // MUST be capable of instead deleting the old SA and creating a new one".
 var errNoAdditionalSAs = errors.New("ike: peer answered with NO_ADDITIONAL_SAS")
 
+// errChildRekeyTransportDeclined reports the answer to a transport-mode Child SA rekey
+// that left USE_TRANSPORT_MODE out. RFC 7296 Section 1.3.1: "If the responder declines
+// the request, the Child SA will be established in tunnel mode. If this is unacceptable
+// to the initiator, the initiator MUST delete the SA." The replacement inherits the
+// retired SA's transport mode (newRekeyedChild), so a tunnel-mode answer is
+// unacceptable, and the caller deletes the pair the peer installed.
+var errChildRekeyTransportDeclined = errors.New("child rekey response: the peer answered a transport-mode rekey in tunnel mode")
+
 // hasNoAdditionalSAs reports whether a payload chain carries a NO_ADDITIONAL_SAS
 // notify. RFC 7296 Section 4 describes the peer that sends it as a minimal
 // implementation, one that recognizes a CREATE_CHILD_SA request only to reject it.
@@ -372,11 +380,28 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 		SPI:           spiBytes,
 	}
 
-	inner := []wire.PayloadEntry{
-		{Payload: rekeyNotify},
-		{Payload: saPayload},
-		{Payload: &wire.PayloadNonce{NonceData: ni}},
+	inner := make([]wire.PayloadEntry, 0, 6)
+	inner = append(inner, wire.PayloadEntry{Payload: rekeyNotify})
+	// RFC 7296 Section 1.3.3: "The notifications described in Section 1.3.1 may also be
+	// sent in a rekeying exchange.  Usually, these will be the same notifications that
+	// were used in the original exchange; for example, when rekeying a transport mode SA,
+	// the USE_TRANSPORT_MODE notification will be used."
+	//
+	// Without it the request asks for tunnel mode (Section 1.3.1: "Except when using this
+	// option to negotiate transport mode, all Child SAs will use tunnel mode."). A peer
+	// behind a NAT then also skips the Section 2.23.1 transport-mode substitution of its
+	// own TSr: strongSwan 5.9.14 defaults the request to MODE_TUNNEL (child_create.c
+	// process_payloads) and substitutes only when `this->mode == MODE_TRANSPORT`
+	// (narrow_ts), so the peer's public address ze names in TSr matched nothing and the
+	// rekey drew TS_UNACCEPTABLE. The mode is the retired SA's, which the replacement
+	// inherits (newRekeyedChild), not the peer config's.
+	if oldChild.Mode == modeTransport {
+		inner = append(inner, wire.PayloadEntry{Payload: transportModeNotify()})
 	}
+	inner = append(inner,
+		wire.PayloadEntry{Payload: saPayload},
+		wire.PayloadEntry{Payload: &wire.PayloadNonce{NonceData: ni}},
+	)
 
 	// RFC 7296 Section 1.3.3 puts KEi between the nonce and the traffic selectors. The
 	// exchange is kept on the pendingRekey until the response supplies KEr, exactly as
@@ -439,6 +464,7 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	var accepted *wire.PayloadSA
 	var acceptedKE *wire.PayloadKE
 	var respTSi, respTSr *wire.PayloadTS
+	var transportAccepted bool
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
@@ -452,6 +478,10 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 				return nil, err
 			}
 			outSPI = s
+		case *wire.PayloadNotify:
+			if p.NotifyMsgType == wire.NotifyUseTransportMode {
+				transportAccepted = true
+			}
 		case *wire.PayloadTS:
 			switch p.TSPayloadType {
 			case wire.PayloadTypeTSi:
@@ -485,6 +515,16 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	}
 
 	old := pending.oldChild
+	// RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include
+	// a notification of type USE_TRANSPORT_MODE.  If the responder declines the request,
+	// the Child SA will be established in tunnel mode.  If this is unacceptable to the
+	// initiator, the initiator MUST delete the SA." initiateChildRekey asked for transport
+	// mode exactly when the retired SA runs it, and the replacement inherits that mode, so
+	// a tunnel-mode answer is unacceptable: it is refused before anything is keyed, and
+	// the caller deletes the pair the peer installed.
+	if old.Mode == modeTransport && !transportAccepted {
+		return nil, errChildRekeyTransportDeclined
+	}
 	// RFC 7296 Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic
 	// Selectors narrower than the scope currently in use." The SA being replaced is that
 	// scope, so it is the narrowing FLOOR, exactly as it is for respondChildRekey below.
@@ -624,6 +664,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	var offer *wire.PayloadSA
 	var reqKE *wire.PayloadKE
 	var reqTSi, reqTSr *wire.PayloadTS
+	var transportRequested bool
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
@@ -634,6 +675,12 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 			offer = p
 			if s, err := espSPIFromSA(p); err == nil {
 				peerSPI = s
+			}
+		case *wire.PayloadNotify:
+			// RFC 7296 Section 1.3.3: "when rekeying a transport mode SA, the
+			// USE_TRANSPORT_MODE notification will be used."
+			if p.NotifyMsgType == wire.NotifyUseTransportMode {
+				transportRequested = true
 			}
 		case *wire.PayloadTS:
 			switch p.TSPayloadType {
@@ -783,6 +830,15 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		inner2 = append(inner2, wire.PayloadEntry{
 			Payload: &wire.PayloadKE{DHGroup: uint16(group), KeyExchangeData: ourPub},
 		})
+	}
+	// RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include
+	// a notification of type USE_TRANSPORT_MODE." The replacement installed above inherits
+	// the retired SA's mode, so a transport-mode request is accepted exactly when that mode
+	// is transport. An answer without the notify tells the peer the replacement runs tunnel
+	// mode: strongSwan 5.9.14 then installs tunnel mode (child_create.c process_payloads
+	// defaults to MODE_TUNNEL) opposite ze's transport-mode replacement.
+	if transportRequested && child.Mode == modeTransport {
+		inner2 = append(inner2, wire.PayloadEntry{Payload: transportModeNotify()})
 	}
 	inner2 = append(inner2, wire.PayloadEntry{Payload: tsi}, wire.PayloadEntry{Payload: tsr})
 	resp, err := buildEncryptedMessageEx(sa, inner2, msgID, wire.ExchangeCreateChildSA, initiatorFlag(sa)|wire.FlagResponse)

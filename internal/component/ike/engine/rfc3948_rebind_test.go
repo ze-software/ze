@@ -96,6 +96,14 @@ func rbOwner(t *testing.T, o rbOptions) *rbFixture {
 	if err != nil {
 		t.Fatalf("peer initial Child SA: %v", err)
 	}
+	// Both ends of one Child SA run one mode. A transport-mode rekey asks for transport
+	// with USE_TRANSPORT_MODE, and ze refuses an answer from a tunnel-mode peer (RFC 7296
+	// Section 1.3.1), so the peer's Child SA runs transport mode too. Only the Child SA's
+	// mode is set: the peer's selectors stay the fixture's wildcard scope, which the
+	// rekey narrows exactly as before.
+	if o.transport {
+		peerChild.Mode = modeTransport
+	}
 	f.child, f.peerChild = child, peerChild
 	// The configured 10.0.0.1 is no address of this host, so sends would leave from
 	// nowhere. The Child SAs above keep the configured tunnel addresses.

@@ -565,6 +565,21 @@ carrying none means the peer installed the new pair, so when this node refuses i
 response handler sends a Delete listing its own inbound SPI of the new pair (RFC
 7296 Section 1.4.1), logs `childRekeyFixAnswer`, and keeps the Child SA in use.
 
+A rekey keeps the mode of the Child SA it replaces, so it says which mode that is.
+`initiateChildRekey` puts `N(USE_TRANSPORT_MODE)` after `N(REKEY_SA)` when the
+retired SA runs transport mode (RFC 7296 Section 1.3.3: "when rekeying a transport
+mode SA, the USE_TRANSPORT_MODE notification will be used"), and
+`respondChildRekey` echoes it when the request carried it and the replacement runs
+transport mode. A request without it asks for tunnel mode, and a peer behind a NAT
+then skips its own Section 2.23.1 substitution: strongSwan 5.9.14 answered such a
+rekey with TS_UNACCEPTABLE after a NAT rebind. An answer to a transport-mode rekey
+that leaves the notification out established a tunnel-mode SA at the peer (Section
+1.3.1), so `applyChildRekeyResponse` refuses it with
+`errChildRekeyTransportDeclined`, and the handler deletes the new pair and logs
+`childRekeyFixTransport`.
+
+<!-- source: internal/component/ike/engine/rekey.go -- initiateChildRekey, applyChildRekeyResponse, respondChildRekey, errChildRekeyTransportDeclined -->
+
 <!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload, handleCreateChildSAOwned -->
 <!-- source: internal/component/ike/engine/create_child.go -- respondNewChild, newChildSA, parseNewChildRequest, serviceChildCreate, finishChildCreate, childCreateSchedule -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
