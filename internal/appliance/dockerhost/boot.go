@@ -29,6 +29,8 @@ type MountRequest struct {
 	Data     string
 	ReadOnly bool
 	Bind     bool
+	// Remount changes the flags of the mount already at Target.
+	Remount bool
 }
 
 // System is what the boot needs from the kernel. The guest passes the Linux
@@ -86,7 +88,8 @@ func consoleBanner(root string) (string, error) {
 }
 
 // Boot runs the boot sequence over root: /etc made writable at a usable
-// size, /mnt and /Users covered for Lima's mount points, binfmt_misc
+// size, /mnt and /Users covered for Lima's mount points (sealed read-only
+// once the shares are mounted), binfmt_misc
 // mounted for Rosetta, the cidata volume mounted and parsed, the machine id persisted,
 // /home and /usr/local made writable, the accounts and keys written, the
 // host name set and systemd's per-user marker created. It answers the parsed
@@ -140,6 +143,9 @@ func Boot(sys System, root string) (*Cidata, error) {
 		return nil, fmt.Errorf("write /etc/hostname: %w", err)
 	}
 	if err := mountShares(sys, root, c); err != nil {
+		return nil, err
+	}
+	if err := sealShareRoots(sys); err != nil {
 		return nil, err
 	}
 	if err := writeUserRuntime(sys, root, c); err != nil {
@@ -249,6 +255,24 @@ func mountShares(sys System, root string, c *Cidata) error {
 			return fmt.Errorf("mount %s %s at %s: %w", share.FSType, share.Tag, share.Point, err)
 		}
 		_, _ = os.Stderr.WriteString("ze-docker-host: nofail share " + share.Tag + " at " + share.Point + " not mounted: " + err.Error() + "\n") //nolint:errcheck // console line
+	}
+	return nil
+}
+
+// sealShareRoots remounts each shareRoots tmpfs read-only once Lima's shares
+// are mounted under it, so nothing else can create a directory there. This is
+// a guard Colima relies on: its provisioning bind-mounts
+// /mnt/lima-colima-<profile>/docker over /var/lib/docker when that directory
+// exists, and Lima's 05-lima-disks.sh creates it before the data disk mount
+// that fails on this image (no sfdisk, no mkfs.ext4). On a writable /mnt the
+// docker, containerd, cni, rancher and ramalama trees then land on the tmpfs
+// and every pulled image is lost at the next stop; sealed, they stay on /perm
+// (spec A-11).
+func sealShareRoots(sys System) error {
+	for _, dir := range shareRoots {
+		if err := sys.Mount(MountRequest{Source: fsTmpfs, Target: dir, FSType: fsTmpfs, Data: "mode=0755", ReadOnly: true, Remount: true}); err != nil {
+			return fmt.Errorf("remount the tmpfs on %s read-only, which keeps Colima's data trees on /perm: %w", dir, err)
+		}
 	}
 	return nil
 }

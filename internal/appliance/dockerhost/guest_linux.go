@@ -230,6 +230,9 @@ func (linuxSystem) Mount(m MountRequest) error {
 	if m.Bind {
 		flags |= unix.MS_BIND
 	}
+	if m.Remount {
+		flags |= unix.MS_REMOUNT
+	}
 	if err := os.MkdirAll(m.Target, 0o755); err != nil { //nolint:gosec // a mount point is traversed by every account
 		return err
 	}

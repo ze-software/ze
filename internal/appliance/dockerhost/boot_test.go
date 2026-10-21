@@ -136,6 +136,20 @@ func TestDockerHostBootSequenceOverATempRoot(t *testing.T) {
 	if !ok || cidata.Source != "/dev/vdb" || cidata.FSType != "iso9660" || !cidata.ReadOnly {
 		t.Errorf("cidata mount = %+v", cidata)
 	}
+	sealed := -1
+	for i, m := range sys.mounts {
+		if m.Target == "/mnt" && m.Remount && m.ReadOnly {
+			sealed = i
+		}
+	}
+	if sealed < 0 {
+		t.Fatalf("/mnt never remounted read-only: %+v", sys.mounts)
+	}
+	for _, m := range sys.mounts[sealed:] {
+		if strings.HasPrefix(m.Target, "/mnt/") {
+			t.Errorf("mount %+v after /mnt was sealed", m)
+		}
+	}
 	binfmt, ok := sys.mounted(binfmtMiscDir)
 	if !ok || binfmt.FSType != "binfmt_misc" {
 		t.Errorf("binfmt_misc mount = %+v, %v; want binfmt_misc on %s", binfmt, ok, binfmtMiscDir)

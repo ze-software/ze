@@ -77,7 +77,14 @@ second into the boot, after the kernel printed its own banner. Then it:
    options cloud-init would hand to mount(8) are translated: `defaults`,
    `rw`, `auto`, `_netdev`, `comment=` and `x-` words are dropped, `ro` makes
    a read-only mount, and a `nofail` share that fails is reported on the
-   console while the boot goes on; any other share failure stops the boot;
+   console while the boot goes on; any other share failure stops the boot.
+   The `/mnt` and `/Users` tmpfs are then remounted read-only. That seal is a
+   guard: Colima's provisioning bind-mounts `/mnt/lima-colima-<profile>/docker`
+   (and `containerd`, `cni`, `rancher`, `ramalama`) over `/var/lib` when that
+   directory exists, and Lima's `05-lima-disks.sh` creates it before the data
+   disk mount that fails on this image (no `sfdisk`, no `mkfs.ext4`). On a
+   writable `/mnt` Docker's data then lands on the tmpfs and every pulled
+   image is gone after `stop`; sealed, it stays on `/perm`;
 8. covers `/bin`, `/sbin`, `/usr/bin` and `/usr/sbin` with a tmpfs holding
    links to busybox's applets in those directories (an applet listed
    elsewhere, such as `/linuxrc`, is skipped), sudo, sshd, ssh-keygen and
@@ -93,7 +100,7 @@ sequence is half applied by then, and a restart would fail on an earlier step
 (the cidata volume is already mounted) and bury the first error. A program
 restarted after step 9 completed serves the supervisor only.
 
-<!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountBinfmtMisc, mountShares, shareRequest -->
+<!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountBinfmtMisc, mountShares, sealShareRoots, shareRequest -->
 <!-- source: internal/appliance/dockerhost/etc.go -- mountWritableEtc -->
 <!-- source: internal/appliance/dockerhost/applets.go -- appletLinks -->
 <!-- source: internal/appliance/dockerhost/cidata.go -- ParseCidata -->

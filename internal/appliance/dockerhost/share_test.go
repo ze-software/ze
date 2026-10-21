@@ -47,3 +47,21 @@ func TestShareMountsFollowLimaUserData(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: once the shares are mounted, the /mnt and /Users tmpfs are
+// remounted read-only, and Boot does it after the share mounts.
+// PREVENTS: Colima's provisioning finding /mnt/lima-colima-<profile> (which
+// Lima's disk script can create on a writable /mnt) and bind-mounting tmpfs
+// trees over /var/lib/docker, so pulled images vanish at the next stop (A-11).
+func TestShareRootsSealedReadOnlyAfterTheShares(t *testing.T) {
+	sys := &recordingSystem{root: t.TempDir()}
+	if err := sealShareRoots(sys); err != nil {
+		t.Fatal(err)
+	}
+	for i, dir := range shareRoots {
+		want := MountRequest{Source: fsTmpfs, Target: dir, FSType: fsTmpfs, Data: "mode=0755", ReadOnly: true, Remount: true}
+		if i >= len(sys.mounts) || sys.mounts[i] != want {
+			t.Fatalf("mounts %+v, want %+v at %d", sys.mounts, want, i)
+		}
+	}
+}
