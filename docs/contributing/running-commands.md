@@ -446,6 +446,39 @@ source file; and the first le run after the flag landed rebuilt every cache
 once.
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment, EnvironmentContext, TrimpathGoFlags, EffectiveGoFlags -->
 
+A reused test result is only as good as the environment it was recorded
+under, and Go's test cache sees little of it. It hashes only the variables a
+test read through `os.Getenv` or `os.LookupEnv`; a read through `os.Environ`
+logs nothing (`computeTestInputsID`, `cmd/go/internal/test/test.go`), and
+`internal/core/env` builds its cache from `os.Environ`. Every Ze setting a test
+reads through `env.Get` is therefore invisible to it: change one in your shell
+and the next run may still answer `(cached)`. Run with `-count=1` after you
+change one. `TestTheTestCacheSeesGetenvButNotEnviron` shows this.
+
+le makes sure the gate never changes such a value itself, so two
+`./le verify worktree` runs of one commit from the same shell hand every test
+the same environment:
+
+- `GOCACHE`, `GOLANGCI_LINT_CACHE` and the patched `GOROOT` (with its `bin`
+  first on `PATH`) are named where the worktree's links land, never through
+  the worktree (`gen.Landing`, used by `Overrides` and `gen.CacheDir`). A
+  checkout with no links keeps its own spelling.
+- A test child does not inherit `ze.repo.root`, `ze.le.build.name` or the
+  gate's change scope (`ze.verify.scope.packages`, `ze.verify.scope.tags`),
+  which name files under one run's worktree.
+- `PWD` is the package directory, set by `go test` itself. It differs between
+  worktrees, but `os.Getwd` and `os.Getenv` log their read of it, so a test
+  that uses it misses the cache instead of reusing a stale answer.
+
+`TestTwoWorktreesGiveATestChildOneEnvironment` (`internal/le/go/toolchain`)
+proves it: two worktrees laid out as the gate lays them out give one test
+environment, and a package that scans `os.Environ` is answered `(cached)` in
+the second with the verdict a `-count=1` rerun gives. The one value that still
+differs between runs is `ze.run.job`, the job registry entry of the run that
+holds the slot: a nested admission reads it to run inside its parent.
+<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Landing, CacheDir -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- Overrides, EnvironmentContext -->
+
 Under `sudo -E`, the test runs as root with your `HOME`, so root creates
 root-owned entries in `~/.zt` that your next run cannot use or remove. Give
 them back with `sudo chown -R $USER ~/.zt`.

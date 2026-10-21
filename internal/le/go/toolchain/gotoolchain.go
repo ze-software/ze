@@ -642,8 +642,9 @@ func joinTags(features, extras []string) string {
 
 // EnvOptions says which of the optional overrides a command needs.
 type EnvOptions struct {
-	// Test removes the launching le's checkout and build identity. Go tests
-	// discover their source checkout from cwd and own their fixture overrides.
+	// Test removes the launching le's checkout and build identity, and the
+	// verify gate's change scope. Go tests discover their source checkout from
+	// cwd and own their fixture overrides.
 	// Every caller running Go tests MUST set this, including fuzz and benchmarks.
 	Test bool
 	// CGO turns CGO_ENABLED on, which the race detector cannot run without.
@@ -660,8 +661,9 @@ type EnvOptions struct {
 	GOARCH string
 }
 
-// Overrides returns the variables that this toolchain SETS: GOCACHE,
-// GOLANGCI_LINT_CACHE and CGO_ENABLED always, GOTMPDIR on a test run when
+// Overrides returns the variables that this toolchain SETS: GOCACHE and
+// GOLANGCI_LINT_CACHE always, each spelled where a link inside the root
+// carries it, CGO_ENABLED always, GOTMPDIR on a test run when
 // TestTempDir has one, and GOMAXPROCS, GOMEMLIMIT, GOOS and GOARCH when opts
 // asks. Like GOCACHE, a GOTMPDIR the caller exported is overridden: the
 // test temp dir is the one place the store trim reaps. It returns KEY=VALUE
@@ -678,9 +680,11 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 	var tb textbuf.Buffer
 	over := make([]string, 0, 8)
 
-	over = append(over, tb.Str("GOCACHE=").Str(GoCache(t.Root)).String())
+	// Each cache is named where its link lands (gen.Landing), so two verify
+	// worktrees of one commit hand their children the same value.
+	over = append(over, tb.Str("GOCACHE=").Str(gen.Landing(t.Root, GoCache(t.Root))).String())
 	tb.Reset()
-	over = append(over, tb.Str("GOLANGCI_LINT_CACHE=").Str(LintCache(t.Root)).String())
+	over = append(over, tb.Str("GOLANGCI_LINT_CACHE=").Str(gen.Landing(t.Root, LintCache(t.Root))).String())
 
 	if opts.CGO {
 		over = append(over, "CGO_ENABLED=1")
@@ -713,7 +717,8 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 }
 
 // Environment answers the whole environment a Go command runs under. Test
-// children do not inherit the launching le's checkout or build identity.
+// children do not inherit the launching le's checkout or build identity, or
+// the verify gate's change scope.
 // Toolchain overrides follow inherited entries, so os/exec uses their values.
 // It carries exactly one GOFLAGS entry, the effective value with -trimpath
 // (TrimpathGoFlags), unless Go cannot answer what its effective value is.
@@ -734,7 +739,14 @@ func (t Toolchain) Environment(opts EnvOptions) []string {
 func (t Toolchain) EnvironmentContext(ctx context.Context, opts EnvOptions) []string {
 	inherited := os.Environ()
 	if opts.Test {
-		inherited = env.Without(inherited, "ze.repo.root", "ze.le.build.name")
+		// The checkout root, the build name and the verify gate's change scope
+		// (repochanged.ScopeFileKey, ScopeTagsKey: files under the run's own
+		// worktree) describe the launching le, not the test. A test that
+		// inherited the scope would also be narrowed by the gate's change set.
+		// TestATestChildInheritsNoChangeScope (internal/le/repo/changed)
+		// compares the two scope spellings with their declarations.
+		inherited = env.Without(inherited, "ze.repo.root", "ze.le.build.name",
+			"ze.verify.scope.packages", "ze.verify.scope.tags")
 	}
 	overrides := t.Overrides(opts)
 	full := make([]string, 0, len(inherited)+len(overrides)+1)

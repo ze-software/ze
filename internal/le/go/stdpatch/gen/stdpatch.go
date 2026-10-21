@@ -95,16 +95,20 @@ func CacheDirs(root string) []string {
 // it calls here (guestPatchedTree in internal/le/test/qemu/run.go), because a
 // tree written through the shared checkout would link the host to the guest's
 // GOROOT.
+//
+// The answer is spelled where a link carries it (Landing), so a verify
+// worktree, whose cache/ links to ~/.cache/ze, names the same GOROOT, and
+// puts the same bin first on PATH, in every run.
 func CacheDir(root string) (string, error) {
 	dirs := CacheDirs(root)
 	cache, fallback := dirs[0], dirs[1]
 	if err := os.MkdirAll(cache, 0o750); err == nil {
-		return cache, nil
+		return Landing(root, cache), nil
 	}
 	if err := os.MkdirAll(fallback, 0o750); err != nil {
 		return "", fmt.Errorf("stdpatch: neither %s nor %s can hold the patched GOROOT: %w", cache, fallback, err)
 	}
-	return fallback, nil
+	return Landing(root, fallback), nil
 }
 
 // Resolve answers the real GOROOT and version of the toolchain the checkout
@@ -306,6 +310,52 @@ func isUnder(path, dir string) bool {
 		return false
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// Landing answers where path lands when a link inside root carries it out of
+// root, and path itself when it stays inside root or root cannot be resolved.
+//
+// A verify worktree reaches the shared caches through links: its cache/ is a
+// link to ~/.cache/ze, and its tmp/golangci-lint-cache a link to the
+// checkout's. Spelled through the worktree, every cache path differs between
+// two runs of one commit, and a Go test that reads such a variable through
+// os.Environ (internal/core/env does) is blind to the change, because cmd/go
+// keys its test cache only on what os.Getenv logged (computeTestInputsID,
+// cmd/go/internal/test/test.go). Naming where the link lands gives two runs
+// one spelling. A path that stays inside root keeps its spelling, so a
+// checkout with no links and a test fixture under a linked temp directory
+// (/var on macOS) answer what they did.
+//
+// path need not exist: the longest prefix that does is resolved and the rest
+// joined back, the way a go command later creates its GOCACHE. The walk is
+// bounded by the number of elements in path.
+func Landing(root, path string) string {
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		// No root on disk holds a link, so nothing carries path out of it.
+		return path
+	}
+	resolved := resolveExisting(filepath.Clean(path))
+	if resolved == resolvedRoot || isUnder(resolved, resolvedRoot) {
+		return path
+	}
+	return resolved
+}
+
+// resolveExisting resolves the longest existing prefix of path through its
+// links and joins the rest back. It answers path when not even its first
+// element resolves.
+func resolveExisting(path string) string {
+	rest := ""
+	for prefix := path; ; prefix = filepath.Dir(prefix) {
+		if resolved, err := filepath.EvalSymlinks(prefix); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		if filepath.Dir(prefix) == prefix {
+			return path
+		}
+		rest = filepath.Join(filepath.Base(prefix), rest)
+	}
 }
 
 // without answers environment with every entry for each name removed.

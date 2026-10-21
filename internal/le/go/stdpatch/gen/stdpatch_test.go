@@ -646,3 +646,47 @@ func TestActivateSetsTheProcessEnvironment(t *testing.T) {
 		}
 	})
 }
+
+// TestLandingNamesWhereALinkOutOfTheRootLands proves the spelling every cache
+// path the gate hands a child takes. Two roots whose cache/ links to one shared
+// directory answer one spelling for it, even for a path that does not exist
+// yet, and a path that stays inside its root keeps the root's own spelling.
+func TestLandingNamesWhereALinkOutOfTheRootLands(t *testing.T) {
+	base := t.TempDir()
+	shared := filepath.Join(base, "shared")
+	if err := os.MkdirAll(shared, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	resolvedShared, err := filepath.EvalSymlinks(shared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"first", "second"} {
+		root := filepath.Join(base, name)
+		if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(shared, filepath.Join(root, "cache")); err != nil {
+			t.Fatal(err)
+		}
+		linked := filepath.Join(root, "cache", "go-cache")
+		if got, want := Landing(root, linked), filepath.Join(resolvedShared, "go-cache"); got != want {
+			t.Errorf("%s: Landing(%s) = %s, want %s, where the cache link lands", name, linked, got, want)
+		}
+		inside := filepath.Join(root, "tmp", "missing", "leaf")
+		if got := Landing(root, inside); got != inside {
+			t.Errorf("%s: Landing(%s) = %s, want the path unchanged: it stays inside the root", name, inside, got)
+		}
+		cache, err := CacheDir(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := filepath.Join(resolvedShared, "stdpatch"); cache != want {
+			t.Errorf("%s: CacheDir = %s, want %s, so both roots name one patched GOROOT", name, cache, want)
+		}
+	}
+	missingRoot := filepath.Join(base, "absent")
+	if got := Landing(missingRoot, filepath.Join(missingRoot, "cache")); got != filepath.Join(missingRoot, "cache") {
+		t.Errorf("a root that does not exist holds no link, so Landing answers the path unchanged; got %s", got)
+	}
+}
