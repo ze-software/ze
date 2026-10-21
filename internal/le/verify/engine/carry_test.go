@@ -32,6 +32,7 @@ type carriedStage struct {
 
 type carriedIndex struct {
 	Commit    string         `json:"commit"`
+	RunDir    string         `json:"run-dir"`
 	CarryNote string         `json:"carry-note"`
 	Stages    []carriedStage `json:"stages"`
 }
@@ -105,6 +106,80 @@ func TestAPieceCarriesAnEarlierRedForAStageItDidNotRun(t *testing.T) {
 	entry = carriedEntry(t, readCarried(t, root), lint)
 	if !entry.Reached || entry.ExitCode != 0 || entry.OutsideRun || entry.CarriedFrom != nil {
 		t.Fatalf("lint after a piece that ran it green = %#v, want reached, green, not carried", entry)
+	}
+}
+
+// TestAFullGreenRunAfterACarriedRedCarriesNothing proves a full run that goes
+// green after a piece carried an earlier red leaves an index with nothing
+// carried and nothing outside the run: a full run holds every stage, so no
+// verdict from an earlier run may survive it.
+//
+// Method: full red at `go lint/run` as aaa, part 2 of 3 green as bbb (lint is
+// carried), then full green as ccc, and require every entry reached, inside
+// the run, and not carried.
+func TestAFullGreenRunAfterACarriedRedCarriesNothing(t *testing.T) {
+	root := t.TempDir()
+	const lint = "go lint/run"
+	if full := RunMode(context.Background(), root, "aaa", Mode, Plan{}, recordingRunner(lint, 1, new([]string)), Slot{}); full.Code == 0 {
+		t.Fatal("the red full run exited 0")
+	}
+	if piece := RunPart(context.Background(), root, "bbb", Mode, Part{Index: 2, Of: 3}, Plan{},
+		recordingRunner("", 0, new([]string)), Slot{}); piece.Code != 0 {
+		t.Fatalf("piece run = %#v", piece.Failure)
+	}
+	if entry := carriedEntry(t, readCarried(t, root), lint); entry.CarriedFrom == nil {
+		t.Fatalf("lint after the piece = %#v, want it carried before the full green run", entry)
+	}
+	if green := RunMode(context.Background(), root, "ccc", Mode, Plan{}, recordingRunner("", 0, new([]string)), Slot{}); green.Code != 0 {
+		t.Fatalf("full green run = %#v", green.Failure)
+	}
+	index := readCarried(t, root)
+	if len(index.Stages) != len(StagesForMode(Mode)) {
+		t.Fatalf("index after the full green run holds %d stages, want %d", len(index.Stages), len(StagesForMode(Mode)))
+	}
+	for _, stage := range index.Stages {
+		if stage.OutsideRun || stage.CarriedFrom != nil || !stage.Reached || stage.ExitCode != 0 {
+			t.Fatalf("stage after the full green run = %#v, want reached, green, inside the run, not carried", stage)
+		}
+	}
+}
+
+// TestARecarriedRedKeepsItsOriginalOrigin proves a red carried through two
+// pieces in a row still names the run that found it, not the piece that
+// carried it last.
+//
+// Method: full red at `go lint/run` as aaa, then part 2 of 3 as bbb and part 3
+// of 3 as ccc (lint is dealt to part 1, so both carry it), and require the
+// entry to still name commit aaa and the full run's directory.
+func TestARecarriedRedKeepsItsOriginalOrigin(t *testing.T) {
+	root := t.TempDir()
+	const lint = "go lint/run"
+	if full := RunMode(context.Background(), root, "aaa", Mode, Plan{}, recordingRunner(lint, 1, new([]string)), Slot{}); full.Code == 0 {
+		t.Fatal("the red full run exited 0")
+	}
+	original := readCarried(t, root).RunDir
+	if original == "" {
+		t.Fatal("the full run's index names no run directory")
+	}
+	for _, piece := range []struct {
+		commit string
+		index  int
+	}{{commit: "bbb", index: 2}, {commit: "ccc", index: 3}} {
+		if run := RunPart(context.Background(), root, piece.commit, Mode, Part{Index: piece.index, Of: 3}, Plan{},
+			recordingRunner("", 0, new([]string)), Slot{}); run.Code != 0 {
+			t.Fatalf("part %d run = %#v", piece.index, run.Failure)
+		}
+	}
+	index := readCarried(t, root)
+	if index.Commit != "ccc" {
+		t.Fatalf("index commit = %q, want the last piece's ccc", index.Commit)
+	}
+	entry := carriedEntry(t, index, lint)
+	if entry.ExitCode != 1 || entry.CarriedFrom == nil {
+		t.Fatalf("lint after two pieces = %#v, want the carried red", entry)
+	}
+	if entry.CarriedFrom.Commit != "aaa" || entry.CarriedFrom.RunDir != original {
+		t.Fatalf("lint carried from %#v, want commit aaa in %s", *entry.CarriedFrom, original)
 	}
 }
 
