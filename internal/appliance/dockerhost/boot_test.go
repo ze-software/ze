@@ -136,6 +136,10 @@ func TestDockerHostBootSequenceOverATempRoot(t *testing.T) {
 	if !ok || cidata.Source != "/dev/vdb" || cidata.FSType != "iso9660" || !cidata.ReadOnly {
 		t.Errorf("cidata mount = %+v", cidata)
 	}
+	binfmt, ok := sys.mounted(binfmtMiscDir)
+	if !ok || binfmt.FSType != "binfmt_misc" {
+		t.Errorf("binfmt_misc mount = %+v, %v; want binfmt_misc on %s", binfmt, ok, binfmtMiscDir)
+	}
 	local, ok := sys.mounted("/usr/local")
 	if !ok || local.FSType != "overlay" || !strings.Contains(local.Data, "lowerdir=/usr/local") {
 		t.Errorf("/usr/local overlay = %+v", local)

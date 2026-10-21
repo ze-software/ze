@@ -42,7 +42,11 @@ second into the boot, after the kernel printed its own banner. Then it:
 2. covers `/mnt` and `/Users` with an empty tmpfs, because both are read-only
    squashfs directories and Lima's mount points live under them (`/mnt` holds
    the cidata and Rosetta mounts, `/Users` a macOS host's home; a Linux host's
-   home lands under `/home`), then finds the disk whose ISO 9660 volume id is
+   home lands under `/home`), mounts `binfmt_misc` on
+   `/proc/sys/fs/binfmt_misc` (systemd does that on a distribution, nothing
+   does on gokrazy, and Lima's `05-lima-mounts.sh` registers Rosetta through
+   its `register` file: without it Colima warns "unable to enable rosetta"),
+   then finds the disk whose ISO 9660 volume id is
    `cidata` (there is no udev, so no `/dev/disk/by-label`) and mounts it
    read-only at `/mnt/lima-cidata`, the path Lima's scripts read;
 3. parses `lima.env`, `meta-data` and `user-data`, refusing a user, host name,
@@ -89,7 +93,7 @@ sequence is half applied by then, and a restart would fail on an earlier step
 (the cidata volume is already mounted) and bury the first error. A program
 restarted after step 9 completed serves the supervisor only.
 
-<!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountShares, shareRequest -->
+<!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountBinfmtMisc, mountShares, shareRequest -->
 <!-- source: internal/appliance/dockerhost/etc.go -- mountWritableEtc -->
 <!-- source: internal/appliance/dockerhost/applets.go -- appletLinks -->
 <!-- source: internal/appliance/dockerhost/cidata.go -- ParseCidata -->

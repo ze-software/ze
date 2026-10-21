@@ -86,7 +86,8 @@ func consoleBanner(root string) (string, error) {
 }
 
 // Boot runs the boot sequence over root: /etc made writable at a usable
-// size, the cidata volume mounted and parsed, the machine id persisted,
+// size, /mnt and /Users covered for Lima's mount points, binfmt_misc
+// mounted for Rosetta, the cidata volume mounted and parsed, the machine id persisted,
 // /home and /usr/local made writable, the accounts and keys written, the
 // host name set and systemd's per-user marker created. It answers the parsed
 // cidata, whose BootScript runs Lima's boot.sh.
@@ -99,6 +100,9 @@ func Boot(sys System, root string) (*Cidata, error) {
 	}
 
 	if err := mountShareRoots(sys); err != nil {
+		return nil, err
+	}
+	if err := mountBinfmtMisc(sys); err != nil {
 		return nil, err
 	}
 
@@ -200,6 +204,20 @@ func mountWritableTrees(sys System, root string) error {
 // Linux host's home lands under /home, which /perm/home backs. The image
 // carries both directories (le's extra files).
 var shareRoots = []string{"/mnt", "/Users"}
+
+// binfmtMiscDir is where the kernel's binfmt_misc file system is mounted.
+// systemd mounts it on a distribution; nothing does on gokrazy.
+const binfmtMiscDir = "/proc/sys/fs/binfmt_misc"
+
+// mountBinfmtMisc mounts binfmt_misc, so Lima's 05-lima-mounts.sh can
+// register Rosetta through its register file: without it Colima's start
+// warns "unable to enable rosetta" and amd64 images do not run (spec R-6).
+func mountBinfmtMisc(sys System) error {
+	if err := sys.Mount(MountRequest{Source: "binfmt_misc", Target: binfmtMiscDir, FSType: "binfmt_misc"}); err != nil {
+		return fmt.Errorf("mount binfmt_misc on %s for Rosetta: %w", binfmtMiscDir, err)
+	}
+	return nil
+}
 
 // mountShareRoots covers each shareRoots directory with a tmpfs.
 func mountShareRoots(sys System) error {
