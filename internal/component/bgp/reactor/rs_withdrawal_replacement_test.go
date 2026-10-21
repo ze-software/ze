@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
@@ -617,4 +618,98 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 		t.Errorf("the owed key reached bgp-rib in %d lookups, want a second round after B's write", got)
 	}
 	ownershipLiveEstablished(t, peers)
+}
+
+// TestRSOwnerSynthesizedWithdrawalRecovers proves AC-14 on both rails. B,
+// then A, announce 10.9.0.0/24, so A owns C's route. A then re-announces the
+// prefix in a form C may not be sent, which the egress turns into a
+// withdrawal of A's route at C (a synthesized withdrawal):
+//
+//   - "policy": the new AS_PATH carries 65099, which C's export policy denies;
+//   - "next-hop": the new NEXT_HOP is C's own address, which RFC 4271 Section
+//     5.1.3 forbids sending to C.
+//
+// A's new path is in the RIB and may be elected first; the egress check
+// steps past it, so C receives B's route with B's received attributes and no
+// withdrawal of the prefix, never A's new path.
+//
+// VALIDATES: AC-14, a synthesized owner withdrawal is decided like a received
+// one, on the cached rail and the fast path.
+// PREVENTS: a client withdrawn because its owner re-announced a route it may
+// not receive while a permitted survivor exists.
+func TestRSOwnerSynthesizedWithdrawalRecovers(t *testing.T) {
+	for _, rail := range []struct {
+		name     string
+		fastPath bool
+	}{{"cached-rail", false}, {"fast-path", true}} {
+		t.Run(rail.name+"/policy", func(t *testing.T) { synthesizedWithdrawalRecovers(t, rail.fastPath, false) })
+		t.Run(rail.name+"/next-hop", func(t *testing.T) { synthesizedWithdrawalRecovers(t, rail.fastPath, true) })
+	}
+}
+
+func synthesizedWithdrawalRecovers(t *testing.T, fastPath, nextHop bool) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+		setting.RSFastPath = fastPath
+	}
+	if !nextHop {
+		settings[2].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	if !nextHop {
+		policyDenyASNs(a.peer.reactor, c.peer.Settings().Address, "65099")
+	}
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	refused := firstASAttrs(4, 65002, 65099)
+	if nextHop {
+		// RFC 4271 Section 5.1.3: "A BGP speaker SHALL NOT send to a peer
+		// a route with a NEXT_HOP that is the IP address of that peer."
+		refused = synthesizedNextHopAttrs(c.peer.Settings().Address, 65002)
+	}
+
+	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsB)
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	before := ownershipLiveThrough(t, c, prefix, attrsA).withdrawals[prefix]
+
+	ownershipLiveSend(t, a, nil, refused, prefix) // RFC 4271 Section 4.3.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if bytes.Equal(ownershipLiveRead(t, c).routes[prefix], attrsB) {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	// Let any late write for the prefix land before the history is judged.
+	later := netip.MustParsePrefix("10.9.254.0/24")
+	ownershipLiveSend(t, b, nil, attrsB, later) // RFC 4271 Section 4.3.
+	view := ownershipLiveThrough(t, c, later, attrsB)
+	for _, attrs := range view.announcements[prefix] {
+		if bytes.Equal(attrs, refused) {
+			t.Errorf("C was sent A's re-announcement %x, which it may not receive", refused)
+		}
+	}
+	// RFC 4271 Section 9.2: "All newly installed routes and all newly
+	// unfeasible routes for which there is no replacement route SHALL be
+	// advertised to its peers by means of an UPDATE message."
+	ownershipLiveRoute(t, view, prefix, attrsB)
+	ownershipLiveWithdrawals(t, view, prefix, before)
+	ownershipLiveEstablished(t, peers)
+}
+
+// synthesizedNextHopAttrs is firstASAttrs with the NEXT_HOP set to nextHop.
+func synthesizedNextHopAttrs(nextHop netip.Addr, asns ...uint32) []byte {
+	attrs := collapseAttr(0x40, byte(attribute.AttrOrigin), []byte{0})
+	attrs = append(attrs, collapseAttr(0x40, byte(attribute.AttrASPath), collapseASPathValue(4, asns...))...)
+	address := nextHop.As4()
+	return append(attrs, collapseAttr(0x40, byte(attribute.AttrNextHop), address[:])...)
 }
