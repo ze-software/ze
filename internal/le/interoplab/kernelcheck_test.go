@@ -312,23 +312,25 @@ func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
 	}{
 		{"linux", lab, nil, "./le setup docker-kernel install"},
 		{"linux", lab, selected, "./le setup docker-kernel install"},
-		{"darwin", lab, nil, "./le test qemu docker-lab lab 'test integration interop ipsec'"},
-		{"darwin", lab, selected, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'"},
-		{"darwin", lab, []string{"A=1", "B=2"}, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'A=1 B=2'"},
+		{"darwin", lab, selected, "./le setup docker-host start"},
+		{"darwin", nil, nil, "./le setup docker-host start"},
+		{"freebsd", lab, nil, "./le test qemu docker-lab lab 'test integration interop ipsec'"},
+		{"freebsd", lab, selected, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'"},
+		{"freebsd", lab, []string{"A=1", "B=2"}, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'A=1 B=2'"},
 		// An assignment the guest's env keyword cannot carry intact would rerun
 		// the whole suite, so the route falls back to the kernel check alone.
-		{"darwin", lab, []string{"IPSEC_INTEROP_SCENARIO=it's"}, "./le test qemu docker-lab"},
-		{"darwin", nil, nil, "./le test qemu docker-lab"},
-		{"darwin", nil, selected, "./le test qemu docker-lab"},
-		{"darwin", []string{"perf", "run", "name", "two words"}, nil, "./le test qemu docker-lab"},
+		{"freebsd", lab, []string{"IPSEC_INTEROP_SCENARIO=it's"}, "./le test qemu docker-lab"},
+		{"freebsd", nil, nil, "./le test qemu docker-lab"},
+		{"freebsd", nil, selected, "./le test qemu docker-lab"},
+		{"freebsd", []string{"perf", "run", "name", "two words"}, nil, "./le test qemu docker-lab"},
 		// Review round 5, R5-N3: the guest splits its lab and env values with
 		// strings.Fields, which breaks on every unicode.IsSpace rune, so a word
 		// holding any of them falls back to the check alone.
-		{"darwin", []string{"perf", "run", "a\rb"}, nil, "./le test qemu docker-lab"},
-		{"darwin", []string{"perf", "run", "a\vb"}, nil, "./le test qemu docker-lab"},
-		{"darwin", []string{"perf", "run", "a\fb"}, nil, "./le test qemu docker-lab"},
-		{"darwin", []string{"perf", "run", "a b"}, nil, "./le test qemu docker-lab"},
-		{"darwin", lab, []string{"IPSEC_INTEROP_SCENARIO=a b"}, "./le test qemu docker-lab"},
+		{"freebsd", []string{"perf", "run", "a\rb"}, nil, "./le test qemu docker-lab"},
+		{"freebsd", []string{"perf", "run", "a\vb"}, nil, "./le test qemu docker-lab"},
+		{"freebsd", []string{"perf", "run", "a\fb"}, nil, "./le test qemu docker-lab"},
+		{"freebsd", []string{"perf", "run", "a b"}, nil, "./le test qemu docker-lab"},
+		{"freebsd", lab, []string{"IPSEC_INTEROP_SCENARIO=a b"}, "./le test qemu docker-lab"},
 	} {
 		route := DockerKernelRoute(tc.goos, tc.lab, tc.environment)
 		requireCommandOnItsOwnLine(t, errors.New(route), tc.command)
@@ -425,7 +427,8 @@ func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
  {"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "invalid argument"}]}`
 	for goos, command := range map[string]string{
 		hostGOOSLinux:  "./le setup docker-kernel install",
-		hostGOOSDarwin: "./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'",
+		hostGOOSDarwin: "./le setup docker-host start",
+		"freebsd":      "./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'",
 	} {
 		docker := newDocker(scriptedKernel(answer, 1, nil))
 		docker.owner.goos = goos
@@ -719,5 +722,34 @@ func TestStagedZeMissingNamesTheCommandThatStagesIt(t *testing.T) {
 			return "", false
 		}
 		requireCommandOnItsOwnLine(t, errors.New(stageZeAgain(lookup)), tc.command)
+	}
+}
+
+// VALIDATES: AC-8 (b) text: on macOS the kernel route names the `ze` Colima
+// profile, the image rebuild, and `./le setup docker-host start` on a line of
+// its own, never Colima's `default` profile or the QEMU guest; the Linux route
+// is unchanged, word for word.
+// PREVENTS: a Mac developer sent to a daemon owner decision M10 rules out.
+func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
+	originalGuest := inDockerLabGuest
+	t.Cleanup(func() { inDockerLabGuest = originalGuest })
+	inDockerLabGuest = func() bool { return false }
+	darwin := DockerKernelRoute(hostGOOSDarwin, []string{"test", "integration", "interop-ipsec"}, nil)
+	requireCommandOnItsOwnLine(t, errors.New(darwin), "./le setup docker-host start")
+	for _, want := range []string{"the `ze` Colima profile", "./le setup docker-host build", "unset it"} {
+		if !strings.Contains(darwin, want) {
+			t.Errorf("darwin route lacks %q:\n%s", want, darwin)
+		}
+	}
+	for _, banned := range []string{"default", "docker-lab", "docker-kernel install"} {
+		if strings.Contains(darwin, banned) {
+			t.Errorf("darwin route names %q:\n%s", banned, darwin)
+		}
+	}
+	const linux = "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
+		" The install prints its steps and runs none until you confirm the release:\n" +
+		"  ./le setup docker-kernel install"
+	if got := DockerKernelRoute(hostGOOSLinux, nil, nil); got != linux {
+		t.Errorf("linux route changed:\n%s", got)
 	}
 }

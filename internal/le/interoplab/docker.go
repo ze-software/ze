@@ -88,10 +88,15 @@ type Docker struct {
 	// one can be removed by name: killing the docker client stops nothing the
 	// daemon runs, and --rm fires only when the container's command ends.
 	oneShotName func() string
-	// environ is the environment every docker command runs under: this
-	// process's with the Colima socket selected (dockerhost.Inherited), so a
-	// macOS host reaches the same daemon `docker` on its PATH would.
+	// environ is the environment every docker command runs under (run): this
+	// process's with the `ze` Colima profile's socket selected on macOS
+	// (dockerhost.Inherited), so a Mac's labs reach Ze's kernel and no other.
 	environ []string
+	// endpointRefusal is dockerhost.Inherited's refusal when it named no
+	// daemon: on macOS, no DOCKER_HOST and no `ze` profile socket. run answers
+	// it for every docker command, so a lab stops before its first image build
+	// or container rather than reaching whichever daemon the context names.
+	endpointRefusal error
 	// unsettled names the containers whose `docker run` this client issued
 	// and that failed or was canceled (D-e, 2026-10-19). The daemon finishes
 	// a create it accepted even after the client is gone, so RemoveContainer
@@ -283,7 +288,19 @@ func (e *commandError) Unwrap() error { return e.Cause }
 // machine's build budget once, so no suite carries that knob through its plan.
 func NewDocker() *Docker {
 	owner, judge := processIdentity()
-	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: dockerhost.Inherited()}
+	environ, endpointRefusal := dockerhost.Inherited()
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: environ, endpointRefusal: endpointRefusal}
+}
+
+// run runs one docker command under environ. It is the only route to the
+// runner, so no command reaches a daemon the endpoint selection did not name,
+// and each answers endpointRefusal before it starts when the selection refused.
+func (d *Docker) run(ctx context.Context, command ProcessCommand) (ProcessResult, error) {
+	if d.endpointRefusal != nil {
+		return ProcessResult{}, d.endpointRefusal
+	}
+	command.Environment = d.environ
+	return d.runner.Run(ctx, command)
 }
 
 // NewFixtureDocker is the test double's client for a package outside this
@@ -490,13 +507,17 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 	if spec.Timeout <= 0 {
 		return CommandResult{}, errors.New("one-shot container timeout must be positive")
 	}
+	// No container was asked for, so there is none to remove by name below.
+	if d.endpointRefusal != nil {
+		return CommandResult{}, d.endpointRefusal
+	}
 	name := d.oneShotName()
 	argv, err := d.oneShotArguments(spec, name)
 	if err != nil {
 		return CommandResult{}, err
 	}
-	result, err := d.runner.Run(ctx, ProcessCommand{
-		Arguments: argv, Timeout: spec.Timeout, Environment: d.environ,
+	result, err := d.run(ctx, ProcessCommand{
+		Arguments: argv, Timeout: spec.Timeout,
 		Stdin: spec.Stdin, Stdout: spec.Stdout, Stderr: spec.Stderr,
 	})
 	if err != nil {
@@ -1076,7 +1097,7 @@ func (d *Docker) command(ctx context.Context, timeout time.Duration, argv ...str
 
 // commandAs runs argv and names it operation in any error it returns.
 func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation string, argv ...string) (ProcessResult, error) {
-	result, err := d.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: timeout, Environment: d.environ})
+	result, err := d.run(ctx, ProcessCommand{Arguments: argv, Timeout: timeout})
 	if err != nil {
 		return result, &commandError{
 			Operation: operation,

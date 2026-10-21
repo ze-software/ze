@@ -180,13 +180,16 @@ func (m *MPLSBoot) workDir() (string, error) {
 // seed configuration, and builds the image.
 func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 	dir := filepath.Join(work, "appliances")
-	environment := m.run.applianceEnv(dir)
+	environment, err := m.run.applianceEnv(dir)
+	if err != nil {
+		return "", err
+	}
 
 	if out, err := m.run.appliance(host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)
 	}
 	applianceDir := filepath.Join(dir, ApplianceName)
-	err := editImageConfig(filepath.Join(applianceDir, "appliance.json"), func(image map[string]any) {
+	err = editImageConfig(filepath.Join(applianceDir, "appliance.json"), func(image map[string]any) {
 		image["arch"] = m.run.Arch
 		image["memory"] = m.run.Memory
 	})

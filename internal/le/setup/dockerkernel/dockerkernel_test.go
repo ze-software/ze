@@ -33,7 +33,7 @@ func cachedKernel(t *testing.T, release, localVersion string) string {
 }
 
 // VALIDATES: D-6, the install is Linux only, and its refusal elsewhere names
-// the route that platform takes: the Ze-kernel QEMU guest on macOS.
+// the route that platform takes: the `ze` Colima profile on macOS.
 // PREVENTS: an install attempt on a Mac, whose Docker runs in a VM this action
 // does not own.
 func TestDockerKernelInstallRefusesOffLinux(t *testing.T) {
@@ -41,7 +41,7 @@ func TestDockerKernelInstallRefusesOffLinux(t *testing.T) {
 	if err == nil {
 		t.Fatal("darwin was accepted")
 	}
-	for _, want := range []string{"Linux", "./le test qemu docker-lab"} {
+	for _, want := range []string{"Linux", "\n  ./le setup docker-host start"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}

@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
+	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 const (
@@ -44,7 +45,12 @@ const (
 // Linux the labs run on the host's Docker, so the step is a kernel with the
 // feature or Ze's own (D-5) through the install action, which never reboots;
 // inside the Docker lab's QEMU guest, whose kernel is the appliance's, the step
-// is that kernel's config and the host's cache rebuild instead. Elsewhere the labs run inside the Alpine QEMU guest booted on Ze's runtime
+// is that kernel's config and the host's cache rebuild instead. On macOS the
+// labs run on the `ze` Colima profile, which boots Ze's docker-host image on
+// Ze's runtime kernel (owner decision M10, dockerhost.Environment), so the step
+// is that profile: unset a DOCKER_HOST naming another daemon, or extend the
+// runtime kernel and rebuild the image, then start the profile. Elsewhere the
+// labs run inside the Alpine QEMU guest booted on Ze's runtime
 // kernel, and the Linux-only install would refuse: the command reruns lab, the
 // le words of the run that was refused, inside that guest, under environment,
 // the NAME=value selector assignments that chose its scenario, through the
@@ -64,6 +70,14 @@ func DockerKernelRoute(goos string, lab, environment []string) string {
 		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 			" The install prints its steps and runs none until you confirm the release:\n" +
 			"  ./le setup docker-kernel install"
+	}
+	if goos == hostGOOSDarwin {
+		return "On macOS the labs run on the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel." +
+			" If DOCKER_HOST names another daemon, unset it so the labs reach the profile." +
+			" If the profile's kernel lacks the feature, add its options to gokrazy/kernel/runtime.config" +
+			" and gokrazy/kernel/runtime.require, then rebuild the image with `./le setup docker-host build`." +
+			" Start the profile, recreated on a rebuilt image, with:\n" +
+			"  " + dockerhost.DockerHostStart
 	}
 	quotedLab, labOK := quotedGuestWords(lab)
 	quotedEnvironment, environmentOK := quotedGuestWords(environment)
@@ -252,7 +266,7 @@ func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
 // question it cannot answer is an error: the probe's argv depends on it.
 func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
 	argv := []string{DockerExecutable, "info", dockerFormatFlag, dockerSecurityOptionsFormat}
-	result, err := docker.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: dockerInfoTimeout})
+	result, err := docker.run(ctx, ProcessCommand{Arguments: argv, Timeout: dockerInfoTimeout})
 	var problem textbuf.Buffer
 	problem.Str("the Docker kernel check could not read the daemon's security options: `").
 		Str(strings.Join(argv, " ")).Str("` ")
@@ -346,6 +360,11 @@ func appArmorRefusal(goos, release, finding string) error {
 func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error {
 	if docker == nil {
 		return errors.New("the Docker kernel check needs a Docker client")
+	}
+	// No daemon is the labs' (dockerhost.Environment refused), so there is no
+	// kernel to judge: the refusal itself names the fix.
+	if docker.endpointRefusal != nil {
+		return docker.endpointRefusal
 	}
 	if zePath == "" {
 		return errors.New("the Docker kernel check needs the staged ze to probe with, and this suite names none (Suite.StagedZe)")
@@ -465,7 +484,7 @@ func deniedFix(goos string, appArmor, seLinux bool) string {
 // context for the reader, never a verdict, so a failed read is spelled out in
 // its place rather than stopping the check.
 func dockerKernelRelease(ctx context.Context, docker *Docker) string {
-	result, err := docker.runner.Run(ctx, ProcessCommand{
+	result, err := docker.run(ctx, ProcessCommand{
 		Arguments: []string{DockerExecutable, "info", dockerFormatFlag, "{{.KernelVersion}}"},
 		Timeout:   dockerInfoTimeout,
 	})

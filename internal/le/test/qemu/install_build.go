@@ -118,7 +118,10 @@ func (installer *Installer) buildImage(ctx context.Context, work string) (instal
 		return installImage{}, err
 	}
 	applianceDir := filepath.Join(work, "appliances")
-	environ := installer.applianceEnv(applianceDir)
+	environ, err := installer.applianceEnv(applianceDir)
+	if err != nil {
+		return installImage{}, err
+	}
 	result, err := installer.run(ctx, commandSpec{
 		Name: ze, Args: []string{zeApplianceArea, "init", InstallApplianceName}, Dir: installer.Tree,
 		Env: environ, Stdin: strings.NewReader(""),
@@ -175,20 +178,23 @@ func (installer *Installer) buildImage(ctx context.Context, work string) (instal
 	return installImage{Path: images[len(images)-1], ZeFS: retained}, nil
 }
 
-func (installer *Installer) applianceEnv(applianceDir string) []string {
+func (installer *Installer) applianceEnv(applianceDir string) ([]string, error) {
 	var tb textbuf.Buffer
 	applianceSetting := tb.Str("ZE_APPLIANCE_DIR=").Str(applianceDir).String()
 	tb.Reset()
 	passwordSetting := tb.Str("ze.appliance.ssh.password=").Str(installer.Options.SSHPassword).String()
 	// `ze appliance build` runs Docker to build the kernel and the initrd, and it
-	// inherits this environment, so the daemon socket is named here when nothing
-	// else can name it (`internal/le/dockerhost`).
-	home, _ := installer.ops.Home()
-	inherited := dockerhost.Environment(installer.ops.GOOS, home, installer.ops.Environ(), installer.ops.Socket)
+	// inherits this environment, so on macOS the `ze` Colima profile's socket is
+	// named here, or the build is refused before it starts
+	// (`internal/le/dockerhost`).
+	inherited, err := dockerhost.Environment(installer.ops.GOOS, installer.ops.Home, installer.ops.Environ(), installer.ops.Socket)
+	if err != nil {
+		return nil, err
+	}
 	environ := installEnvSet(inherited, applianceSetting, passwordSetting)
 	dirs := installer.brewKegDirs("e2fsprogs", "sbin")
 	if len(dirs) == 0 {
-		return environ
+		return environ, nil
 	}
 	pathValue := ""
 	for _, entry := range environ {
@@ -203,7 +209,7 @@ func (installer *Installer) applianceEnv(applianceDir string) []string {
 	}
 	tb.Reset()
 	pathSetting := tb.Str("PATH=").Join(parts, string(os.PathListSeparator)).String()
-	return installEnvSet(environ, pathSetting)
+	return installEnvSet(environ, pathSetting), nil
 }
 
 func (installer *Installer) setApplianceArch(name string) error {

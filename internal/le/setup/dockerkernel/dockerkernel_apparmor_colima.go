@@ -11,8 +11,10 @@
 // `le setup docker-kernel apparmor` therefore runs on macOS too: it finds the
 // Colima profile behind the client's Docker endpoint, asks that VM whether it
 // can load a profile, and runs the same two root steps inside it through
-// `colima ssh`. The staged profile reaches the VM through Colima's mount of
-// the home directory, which places it at the same path inside the VM.
+// `colima ssh`. The labs' own VM, the `ze` profile, boots Ze's kernel, which
+// carries no AppArmor, so this serves a DOCKER_HOST naming another Colima VM.
+// The staged profile reaches the VM through Colima's mount of the home
+// directory, which places it at the same path inside the VM.
 
 package dockerkernel
 
@@ -77,11 +79,15 @@ func runVMCommand(ctx context.Context, argv []string) (vmResult, error) {
 	defer cancel()
 
 	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // argv is this file's own question to the Docker client or the VM
-	command.Env = dockerhost.Inherited()
+	environ, err := dockerhost.Inherited()
+	if err != nil {
+		return vmResult{}, err
+	}
+	command.Env = environ
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &stderr
-	err := command.Run()
+	err = command.Run()
 	if errors.Is(err, exec.ErrNotFound) {
 		return vmResult{}, vmCommandMissing(argv)
 	}
@@ -89,8 +95,7 @@ func runVMCommand(ctx context.Context, argv []string) (vmResult, error) {
 		return vmResult{}, vmCommandHung(argv)
 	}
 	result := vmResult{Stdout: stdout.String(), Stderr: strings.TrimSpace(stderr.String())}
-	var exited *exec.ExitError
-	if errors.As(err, &exited) {
+	if exited, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.Exit = exited.ExitCode()
 		return result, nil
 	}
@@ -150,7 +155,7 @@ func appArmorDarwinHost(ctx context.Context, run vmRun, exists func(string) bool
 		var tb textbuf.Buffer
 		return appArmorHost{}, errors.New(tb.Str("le could not ask the Docker client which daemon it uses: `").
 			Str(dockerEndpointCommand).Str("` exit ").Str(strconv.Itoa(answer.Exit)).Str(": ").Str(answer.Stderr).
-			Str(". The profile is loaded into the VM behind that endpoint, so the client must name one: start Colima with:\n  colima start").String())
+			Str(". The profile is loaded into the VM behind that endpoint, so the client must name one: on macOS the labs run on the `ze` Colima profile. Start it with:\n  ").Str(dockerhost.DockerHostStart).String())
 	}
 	endpoint := strings.TrimSpace(answer.Stdout)
 	profile, colima := dockerhost.ColimaProfile(endpoint, exists)

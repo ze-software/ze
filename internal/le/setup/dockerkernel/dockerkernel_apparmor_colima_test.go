@@ -105,13 +105,13 @@ func TestAppArmorColimaHost(t *testing.T) {
 			edit: func(r map[string]vmResult) {
 				r[dockerEndpointCommand] = vmResult{Stdout: "unix:///Users/me/.docker/run/docker.sock\n"}
 			},
-			want: []string{"unix:///Users/me/.docker/run/docker.sock", "Colima", "./le test qemu docker-lab"},
+			want: []string{"unix:///Users/me/.docker/run/docker.sock", "Colima", "\n  ./le setup docker-host start"},
 		},
 		"no endpoint": {
 			edit: func(r map[string]vmResult) {
 				r[dockerEndpointCommand] = vmResult{Exit: 1, Stderr: "context not found"}
 			},
-			want: []string{dockerEndpointCommand, "context not found"},
+			want: []string{dockerEndpointCommand, "context not found", "\n  ./le setup docker-host start"},
 		},
 		"VM stopped": {
 			edit: func(r map[string]vmResult) {

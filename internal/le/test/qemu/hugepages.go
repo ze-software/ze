@@ -44,6 +44,7 @@ import (
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 // The dot-notation spellings of the ZE_VPP_HP_* variables the Python original
@@ -494,20 +495,31 @@ func (h *Hugepages) buildHostZe(work string) (string, error) {
 }
 
 // applianceEnv answers the environment both appliance commands run under: where
-// the appliance lives, and the password its SSH server will accept.
-func (h *Hugepages) applianceEnv(dir string) []string {
+// the appliance lives, the password its SSH server will accept, and the Docker
+// daemon. `ze appliance build` runs Docker to build the kernel and the initrd,
+// and it inherits this environment, so on macOS the `ze` Colima profile's
+// socket is named here, or the build is refused before it starts
+// (`internal/le/dockerhost`).
+func (h *Hugepages) applianceEnv(dir string) ([]string, error) {
+	inherited, err := dockerhost.Inherited()
+	if err != nil {
+		return nil, err
+	}
 	var tb textbuf.Buffer
 	applianceDir := tb.Str("ZE_APPLIANCE_DIR=").Str(dir).String()
 	tb.Reset()
 	password := tb.Str("ze.appliance.ssh.password=").Str(h.SSHPass).String()
-	return append(os.Environ(), applianceDir, password)
+	return append(inherited, applianceDir, password), nil
 }
 
 // buildImage initializes an appliance, writes the hugepage reservation into its
 // configuration, and builds the image.
 func (h *Hugepages) buildImage(host, work string) (string, error) {
 	dir := filepath.Join(work, "appliances")
-	environment := h.applianceEnv(dir)
+	environment, err := h.applianceEnv(dir)
+	if err != nil {
+		return "", err
+	}
 
 	if out, err := h.appliance(host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)

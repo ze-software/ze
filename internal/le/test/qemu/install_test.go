@@ -492,31 +492,44 @@ func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
 	}
 }
 
-// VALIDATES: applianceEnv names the Colima socket on darwin when the client's
-// default endpoint is absent, and keeps a DOCKER_HOST the operator already set.
-// PREVENTS: `ze appliance build` running Docker with no reachable endpoint, and
-// the selection overwriting an operator's remote daemon. The selection's own
-// conditions are tested in internal/le/dockerhost.
+// VALIDATES: applianceEnv names the `ze` Colima profile's socket on darwin,
+// refuses naming `./le setup docker-host start` when that socket is absent
+// (even with Colima's `default` socket present), and keeps a DOCKER_HOST the
+// operator already set.
+// PREVENTS: `ze appliance build` running Docker on a daemon owner decision M10
+// rules out, and the selection overwriting an operator's remote daemon. The
+// selection's own conditions are tested in internal/le/dockerhost.
 func TestApplianceEnvNamesTheDockerSocket(t *testing.T) {
 	ops := productionInstallOps()
 	ops.GOOS = "darwin"
 	ops.Home = func() (string, error) { return "/home/me", nil }
 	ops.Environ = func() []string { return []string{"PATH=/bin"} }
-	// Colima serves its own socket and the client's default is absent, which is
-	// the only shape that selects.
-	ops.Socket = func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
+	ops.Socket = func(path string) bool { return path == "/home/me/.colima/ze/docker.sock" }
 	installer := &Installer{ops: ops}
-	got := installer.applianceEnv("/work/appliances")
-	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/default/docker.sock") {
-		t.Fatalf("env=%q, want the Colima socket named for `ze appliance build`", got)
+	got, err := installer.applianceEnv("/work/appliances")
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/ze/docker.sock") {
+		t.Fatalf("env=%q, want the ze profile's socket named for `ze appliance build`", got)
 	}
 	if !envHas(got, "ZE_APPLIANCE_DIR=/work/appliances") {
 		t.Fatalf("appliance directory missing: %q", got)
 	}
 
+	ops.Socket = func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
+	installer = &Installer{ops: ops}
+	if got, err := installer.applianceEnv("/work/appliances"); err == nil || !strings.Contains(err.Error(), "./le setup docker-host start") {
+		t.Fatalf("env=%q err=%v, want the refusal naming the docker-host start", got, err)
+	}
+
 	ops.Environ = func() []string { return []string{"DOCKER_HOST=tcp://docker", "PATH=/bin"} }
 	installer = &Installer{ops: ops}
-	if got := installer.applianceEnv("/work/appliances"); !envHas(got, "DOCKER_HOST=tcp://docker") {
+	got, err = installer.applianceEnv("/work/appliances")
+	if err != nil {
+		t.Fatalf("refused an explicit DOCKER_HOST: %v", err)
+	}
+	if !envHas(got, "DOCKER_HOST=tcp://docker") {
 		t.Fatalf("an operator's daemon was overwritten: %q", got)
 	}
 }

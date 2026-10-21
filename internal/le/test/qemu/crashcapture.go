@@ -220,13 +220,16 @@ func (c *CrashCapture) workDir() (string, error) {
 // and builds the image.
 func (c *CrashCapture) buildImage(host, work string) (string, error) {
 	dir := filepath.Join(work, "appliances")
-	environment := c.run.applianceEnv(dir)
+	environment, err := c.run.applianceEnv(dir)
+	if err != nil {
+		return "", err
+	}
 
 	if out, err := c.run.appliance(host, environment, "init"); err != nil {
 		return "", applianceStepError("init", "", out, err)
 	}
 	applianceDir := filepath.Join(dir, ApplianceName)
-	err := editImageConfig(filepath.Join(applianceDir, "appliance.json"), func(image map[string]any) {
+	err = editImageConfig(filepath.Join(applianceDir, "appliance.json"), func(image map[string]any) {
 		image["arch"] = c.run.Arch
 		image["memory"] = c.run.Memory
 		image["crash-dump"] = map[string]any{"reserve": crashReserve}

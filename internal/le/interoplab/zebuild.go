@@ -31,10 +31,21 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
-// labBuildTimeout bounds one cross-compile. Five minutes is what the two
-// hand-written copies of this producer used, and it covers a cold GOCACHE on
-// the slowest machine this repository has been built on.
-const labBuildTimeout = 5 * time.Minute
+// labBuildTimeout bounds one cross-compile.
+//
+// The slowest place it runs is the macOS docker-lab guest
+// (`./le test qemu docker-lab`): the guest le compiles over the 9p share of
+// the checkout and of cache/go-cache, and its compiler is a linux one, so the
+// cache entries the darwin host wrote do not serve it. The old bound of five
+// minutes overran there in 3 of 3 runs on 2026-10-21, and in 5 of 10 warm runs
+// beside another QEMU run; on a workstation at load 35-39 it overran a build
+// that took 18s an hour later (plan/journal/bound-too-small-for-its-own-burst.md).
+// Owner decision, 2026-10-21: "Increase the deadline if the 5 min is too
+// short." Measured on 2026-10-21 on the Mac, beside another session's
+// `le verify worktree`: the guest staged ze and le in 5m59s together, so one
+// compile there takes up to about six minutes. Fifteen minutes is two and a
+// half times that, and three times the bound that was overrun.
+const labBuildTimeout = 15 * time.Minute
 
 // labBuildPackage is the one Go package every lab binary is built from. The
 // personality is a build tag rather than a second main (cmd/ze/main.go).
@@ -153,6 +164,9 @@ func stageBinary(ctx context.Context, runner ProcessRunner, root string, environ
 	}
 
 	result, err := runner.Run(ctx, command)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return errors.New(buildTimeoutMessage(binary, err, result))
+	}
 	if err != nil {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("cross-compile ").Str(binary.Name).Str(" into ").
@@ -165,6 +179,22 @@ func stageBinary(ctx context.Context, runner ProcessRunner, root string, environ
 			Str(buildDiagnostic(result)).String())
 	}
 	return nil
+}
+
+// buildTimeoutMessage answers the refusal for a cross-compile that labBuildTimeout
+// ended: what was slow, the usual reasons it is slow, and the fix. Go keeps
+// every package an attempt finished in cache/go-cache, so a rerun resumes the
+// build rather than repeating it.
+func buildTimeoutMessage(binary LabBinary, err error, result ProcessResult) string {
+	var tb textbuf.Buffer
+	return tb.Str("cross-compile ").Str(binary.Name).Str(" into ").Str(binary.Output).
+		Str(" did not finish within ").Str(labBuildTimeout.String()).Str(": ").Err(err).
+		Str(": ").Str(buildDiagnostic(result)).
+		Str(".\nWhy: a cold Go build cache (cache/go-cache), a QEMU guest compiling over its 9p ").
+		Str("workspace share, or other builds loading this machine make the compile this slow.").
+		Str("\nFix: rerun the same command; the build cache keeps every package this attempt ").
+		Str("compiled, so the next attempt starts warm. `./le scratch links-ensure` restores ").
+		Str("the cache link if cache/go-cache is missing.").String()
 }
 
 // buildDiagnostic answers what the compiler said, preferring its diagnostics on

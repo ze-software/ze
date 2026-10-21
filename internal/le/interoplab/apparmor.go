@@ -160,12 +160,16 @@ func labAppArmorRefusal(goos string, profile AppArmorProfile, finding string) er
 	return errors.New(refusal.Str(DockerKernelRoute(goos, leWords(), selectorEnvironment())).String())
 }
 
-// appArmorColimaLoad says where the load command puts a profile on macOS. A Mac
-// daemon runs in a Linux VM, and Colima's Ubuntu VM applies AppArmor, so the
+// appArmorColimaLoad says where the load command puts a profile on macOS, and
+// why a Mac reaches AppArmor at all. A Mac daemon runs in a Linux VM; the
 // command loads the profile into the Colima VM behind the client's Docker
 // endpoint and refuses any other daemon (internal/le/setup/dockerkernel,
-// appArmorDarwinHost).
-const appArmorColimaLoad = "On macOS it loads the profile into the Colima VM that runs the Docker daemon, and refuses any other daemon."
+// appArmorDarwinHost). The labs' own VM, the `ze` profile, boots Ze's kernel,
+// which carries no AppArmor, so a daemon applying it is one DOCKER_HOST named
+// (dockerhost.Environment), and the route that follows returns to the profile.
+const appArmorColimaLoad = "On macOS it loads the profile into the Colima VM behind the Docker endpoint, and refuses any other daemon." +
+	" The `ze` profile, where the labs run, boots Ze's kernel, which applies no AppArmor:" +
+	" a daemon that applies it is one DOCKER_HOST names, and the route below returns the labs to the profile."
 
 // appArmorLoadUnreachable says why a client on goos, which is neither Linux
 // nor macOS, is not told to load Ze's profile: `le setup docker-kernel

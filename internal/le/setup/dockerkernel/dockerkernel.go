@@ -85,7 +85,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			" the cache entry is keyed by (default: docker when the docker binary is on PATH, else qemu)." +
 			" Without `confirm <release>` it prints the steps and runs none; every step" +
 			" runs through sudo and is printed first; it never reboots. " +
-			"Elsewhere the labs run inside the Ze-kernel QEMU guest: ./le test qemu docker-lab",
+			"On macOS the labs run on the `ze` Colima profile, booted on Ze's kernel: ./le setup docker-host start",
 		Parameters: []leaction.Parameter{
 			{Keyword: dockerKernelBuilderKeyword, Value: "backend", Requirement: leaction.Optional},
 			{Keyword: dockerKernelConfirmKeyword, Value: "release", Requirement: leaction.Optional},

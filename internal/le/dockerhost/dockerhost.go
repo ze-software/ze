@@ -1,23 +1,27 @@
 // Design: docs/architecture/core-design.md -- le's composition, one import per tool
 
 // Package dockerhost names the Docker daemon socket a development command must
-// talk to when nothing else can name one.
+// talk to on macOS.
 //
-// Colima does not serve /var/run/docker.sock, which is where a Docker client
-// with no DOCKER_HOST and no context looks. It serves
-// ~/.colima/default/docker.sock and writes a context that points there, and
-// that context is what usually connects the two. A context can also be absent
-// or broken: on the machine this package was written for, ~/.docker/config.json
-// names `colima` while its metadata lives under a different XDG root, so the
-// client falls back to /var/run/docker.sock and every `docker` call fails with
-// "check if the path is correct and if the daemon is running".
+// On macOS every lab Docker daemon runs on Ze's kernel and Ze's system (owner
+// decision M10, ai/META-DECISIONS.md): the `ze` Colima profile, which boots
+// Ze's image (`./le setup docker-host start`). Colima serves that profile's
+// daemon on ~/.colima/ze/docker.sock, so Environment names that socket as
+// DOCKER_HOST whenever the operator has not named one. It never selects
+// Colima's `default` profile, /var/run/docker.sock or the client's current
+// context: each runs another kernel, and taking one when the `ze` socket is
+// absent would run the labs on a daemon M10 rules out, so Environment refuses
+// instead and names the command that starts the profile.
 //
-// DOCKER_HOST outranks a context, so naming the socket unconditionally would
-// redirect an operator whose context works today. Environment therefore selects
-// only when the client's own default endpoint is absent.
+// A DOCKER_HOST the operator set is kept as it is. It is an explicit choice of
+// daemon (the QEMU docker-lab's forwarded socket is one), and the Docker kernel
+// check every lab runs first (`./le setup docker-kernel check`,
+// interoplab.DockerKernel) stays the gate that refuses a daemon whose kernel
+// lacks a feature.
 package dockerhost
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -26,25 +30,37 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// goosDarwin is the only platform Colima serves.
+// goosDarwin is the only platform whose labs run on a Colima profile.
 const goosDarwin = "darwin"
 
 // variable is the name a Docker client reads before it consults its context.
 const variable = "DOCKER_HOST"
 
-// defaultSocket is where a Docker client looks when nothing names an endpoint.
-// Docker Desktop and a Linux daemon both serve it; Colima does not.
-const defaultSocket = "/var/run/docker.sock"
+// ZeProfile is the Colima profile that boots Ze's image, and the only one
+// whose daemon the labs on macOS use.
+const ZeProfile = "ze"
 
-// Environment returns environ with the Colima socket selected as DOCKER_HOST.
+// DockerHostStart is the command that starts the `ze` profile, recreating it
+// when the image changed. A refusal names it on a line of its own.
+const DockerHostStart = "./le setup docker-host start"
+
+// ZeSocket answers where Colima serves the `ze` profile's Docker daemon for
+// the account whose home directory is home.
+func ZeSocket(home string) string {
+	return filepath.Join(home, ".colima", ZeProfile, colimaSocket)
+}
+
+// Environment returns environ with the `ze` profile's socket selected as
+// DOCKER_HOST, or a refusal naming DockerHostStart when that socket is absent.
 //
-// It returns environ unchanged on any platform other than macOS, when
-// DOCKER_HOST already carries a value, when the client's default endpoint
-// exists, and when the Colima socket does not. socket reports whether a path is
-// a usable socket, which IsSocket answers for a real filesystem.
-func Environment(goos, home string, environ []string, socket func(string) bool) []string {
+// It returns environ unchanged on any platform other than macOS, and when
+// DOCKER_HOST already carries a value. home answers the account's home
+// directory, which os.UserHomeDir answers for this process, and is asked only
+// when a socket must be named. socket reports whether a path is a usable
+// socket, which IsSocket answers for a real filesystem.
+func Environment(goos string, home func() (string, error), environ []string, socket func(string) bool) ([]string, error) {
 	if goos != goosDarwin {
-		return environ
+		return environ, nil
 	}
 	// os/exec resolves a duplicated variable to its LAST occurrence, so that is
 	// the value the child would read and the only one worth asking about.
@@ -55,29 +71,38 @@ func Environment(goos, home string, environ []string, socket func(string) bool) 
 		}
 	}
 	if named != "" {
-		return environ
+		return environ, nil
 	}
-	// A reachable default endpoint means the client can answer for itself, and
-	// naming a socket over it would move an operator's daemon under them.
-	if socket(defaultSocket) {
-		return environ
+	homeDir, err := home()
+	if err != nil {
+		var b textbuf.Buffer
+		return nil, errors.New(b.Str("le cannot name the `ze` Colima profile's Docker socket, because the home directory is unknown: ").
+			Err(err).Str(". Set HOME to your home directory, then rerun.").String())
 	}
-	candidate := filepath.Join(home, ".colima", "default", "docker.sock")
+	candidate := ZeSocket(homeDir)
 	if !socket(candidate) {
-		return environ
+		return nil, zeSocketAbsent(candidate)
 	}
 	var b textbuf.Buffer
-	return set(environ, b.Str(variable+"=unix://").Str(candidate).String())
+	return set(environ, b.Str(variable+"=unix://").Str(candidate).String()), nil
 }
 
-// Inherited returns this process's environment with the Colima socket selected.
-// It is what a command that runs `docker` as a child hands the child.
-func Inherited() []string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return os.Environ()
-	}
-	return Environment(runtime.GOOS, home, os.Environ(), IsSocket)
+// zeSocketAbsent is the refusal for a macOS run with no DOCKER_HOST and no
+// `ze` profile socket: what is missing, why no other daemon is taken, and the
+// command that starts the profile on a line of its own.
+func zeSocketAbsent(candidate string) error {
+	var b textbuf.Buffer
+	return errors.New(b.Str("the Docker socket of the `ze` Colima profile, ").Str(candidate).
+		Str(", is absent, and DOCKER_HOST names no daemon. On macOS the labs run on the `ze` profile,").
+		Str(" which boots Ze's image and kernel; le never falls back to Colima's `default` profile or to the current Docker context,").
+		Str(" which run another kernel. Start the profile with:\n  ").Str(DockerHostStart).String())
+}
+
+// Inherited returns this process's environment with the `ze` profile's socket
+// selected on macOS, or Environment's refusal. It is what a command that runs
+// `docker` as a child hands the child.
+func Inherited() ([]string, error) {
+	return Environment(runtime.GOOS, os.UserHomeDir, os.Environ(), IsSocket)
 }
 
 // IsSocket reports whether path is a socket this account can name.

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
@@ -267,6 +268,50 @@ func TestArchitectureTokenAcceptsAGOARCHAndRefusesTheRest(t *testing.T) {
 	for _, bad := range []string{"", " ", "amd64 ", "AMD64", "amd64;true", "amd/64", "amd_64", strings.Repeat("a", architectureTokenMax+1)} {
 		if architectureToken(bad) {
 			t.Errorf("architectureToken accepted %q", bad)
+		}
+	}
+}
+
+// VALIDATES: a cross-compile its bound ended is refused with the bound, the
+// reasons a lab compile runs slow and the fix, and the bound is at least the
+// fifteen minutes the macOS docker-lab guest needs.
+// PREVENTS: the docker-lab guest failing setup with "cross-compile le into
+// test/interop/le-linux: context deadline exceeded" under the old five-minute
+// bound, 3 of 3 runs on 2026-10-21, with nothing saying what to do next.
+// The runner answers the build with the deadline error a bound that fired
+// leaves (systemProcessRunner), so the test reads the producer's refusal.
+func TestStageBinaryTimeoutNamesTheBoundAndTheFix(t *testing.T) {
+	if labBuildTimeout < 15*time.Minute {
+		t.Fatalf("labBuildTimeout is %s; the macOS docker-lab guest overran five minutes in 3 of 3 runs, "+
+			"and the owner's 2026-10-21 decision sets at least fifteen", labBuildTimeout)
+	}
+
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve the checkout root: %v", err)
+	}
+	runner := newBuildRunner("arm64")
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
+		if len(command.Arguments) > 1 && command.Arguments[1] == "version" {
+			return ProcessResult{Stdout: "arm64\n"}, nil
+		}
+		return ProcessResult{ExitCode: timeoutExitCode}, context.DeadlineExceeded
+	}
+	binary := LabBinary{Name: "le", Base: "ze_le", Output: "test/interop/le-linux"}
+	err = StageBinaries(root, false, binary)(context.Background(), newDocker(runner))
+	if err == nil {
+		t.Fatal("a cross-compile its bound ended was accepted")
+	}
+	message := err.Error()
+	for _, want := range []string{
+		"cross-compile le into test/interop/le-linux did not finish within " + labBuildTimeout.String(),
+		"context deadline exceeded",
+		"Why: a cold Go build cache",
+		"Fix: rerun the same command",
+		"./le scratch links-ensure",
+	} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the timeout refusal does not say %q:\n%s", want, message)
 		}
 	}
 }

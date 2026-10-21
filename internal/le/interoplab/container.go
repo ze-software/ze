@@ -244,8 +244,8 @@ func (d *Docker) ExecAttached(ctx context.Context, spec ContainerExec) (CommandR
 	if err != nil {
 		return CommandResult{}, err
 	}
-	result, err := d.runner.Run(ctx, ProcessCommand{
-		Arguments: argv, Timeout: spec.Timeout, Environment: d.environ,
+	result, err := d.run(ctx, ProcessCommand{
+		Arguments: argv, Timeout: spec.Timeout,
 		Stdin: spec.Stdin, Stdout: spec.Stdout, Stderr: spec.Stderr,
 	})
 	if err != nil {

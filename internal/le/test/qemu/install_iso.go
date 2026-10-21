@@ -36,7 +36,10 @@ func (installer *Installer) prepareISOImage(ctx context.Context, work string) (i
 		return installISOImage{}, err
 	}
 	applianceDir := filepath.Join(work, "appliances")
-	environ := installer.applianceEnv(applianceDir)
+	environ, err := installer.applianceEnv(applianceDir)
+	if err != nil {
+		return installISOImage{}, err
+	}
 	result, err := installer.run(ctx, commandSpec{Name: ze, Args: []string{zeApplianceArea, "init", InstallApplianceName}, Dir: installer.Tree, Env: environ, Stdin: strings.NewReader("")})
 	if err != nil {
 		return installISOImage{}, err

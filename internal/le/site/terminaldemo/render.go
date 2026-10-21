@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/dockerhost"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/le/tail"
 )
@@ -135,12 +134,13 @@ func (e *Engine) requireRendererImage(manifest Manifest) error {
 	return nil
 }
 
-// externalCommand runs ffmpeg as a child of this process. Every Docker
-// operation goes through e.docker instead. The child inherits an environment,
-// never the operator's Docker context, so on macOS the daemon socket is named
-// here (`internal/le/dockerhost`).
+// externalCommand runs ffmpeg as a child of this process, under this process's
+// environment. ffmpeg is no Docker client: every Docker operation goes through
+// e.docker, whose endpoint interoplab.NewDocker selects (`internal/le/dockerhost`),
+// so no daemon socket is named here and a missing `ze` profile never stops an
+// encode.
 func (e *Engine) externalCommand(args []string, dir string) Command {
-	return Command{Args: args, Dir: dir, Env: dockerhost.Inherited(), Stdout: e.output, Stderr: e.output}
+	return Command{Args: args, Dir: dir, Env: os.Environ(), Stdout: e.output, Stderr: e.output}
 }
 
 // checkAll verifies all published artifacts. A non-empty release also verifies

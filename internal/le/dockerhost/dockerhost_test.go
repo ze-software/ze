@@ -1,53 +1,125 @@
 package dockerhost
 
 import (
+	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
 func envHas(environ []string, want string) bool { return slices.Contains(environ, want) }
 
-// VALIDATES: Darwin Colima selection changes only DOCKER_HOST data and never invokes a shell.
-// PREVENTS: Linux /usr/local assumptions or an existing Docker context being overwritten.
-func TestEnvironmentSelection(t *testing.T) {
-	socket := func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
-	got := Environment("darwin", "/home/me", []string{"PATH=/bin"}, socket)
-	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/default/docker.sock") {
-		t.Fatalf("env=%q", got)
-	}
-	original := []string{"DOCKER_HOST=tcp://docker", "PATH=/bin"}
-	if changed := Environment("darwin", "/home/me", original, socket); !reflect.DeepEqual(changed, original) {
-		t.Fatalf("existing changed=%q", changed)
-	}
-	if changed := Environment("linux", "/home/me", []string{"PATH=/bin"}, socket); len(changed) != 1 {
-		t.Fatalf("linux changed=%q", changed)
-	}
-	absent := func(string) bool { return false }
-	if changed := Environment("darwin", "/home/me", []string{"PATH=/bin"}, absent); len(changed) != 1 {
-		t.Fatalf("absent socket changed=%q", changed)
+// homeMe answers a fixed home directory, as os.UserHomeDir would.
+func homeMe() (string, error) { return "/home/me", nil }
+
+// VALIDATES: AC-8 (a): on macOS with no DOCKER_HOST, the `ze` profile's socket is
+// named, and Colima's `default` socket or /var/run/docker.sock never is, even
+// when both answer.
+// METHOD: a scripted filesystem on which every socket exists, and one on which
+// only the `ze` socket exists.
+// PREVENTS: the labs running on Colima's Ubuntu `default` VM or on Docker
+// Desktop, which owner decision M10 rules out.
+func TestEnvironmentSelectsTheZeProfileSocket(t *testing.T) {
+	for name, socket := range map[string]func(string) bool{
+		"every socket answers": func(string) bool { return true },
+		"only ze answers":      func(path string) bool { return path == "/home/me/.colima/ze/docker.sock" },
+	} {
+		got, err := Environment("darwin", homeMe, []string{"PATH=/bin"}, socket)
+		if err != nil {
+			t.Fatalf("%s: refused: %v", name, err)
+		}
+		if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/ze/docker.sock") {
+			t.Fatalf("%s: env=%q, want the ze profile's socket", name, got)
+		}
+		for _, entry := range got {
+			if strings.Contains(entry, "default") || strings.Contains(entry, "/var/run/docker.sock") {
+				t.Errorf("%s: another daemon was named: %q", name, entry)
+			}
+		}
 	}
 }
 
-// VALIDATES: a client that can already reach its default endpoint is left alone.
-// PREVENTS: DOCKER_HOST, which outranks a Docker context, moving an operator's
-// working daemon onto a Colima socket that merely exists beside it.
-func TestEnvironmentDefersToAReachableDefaultSocket(t *testing.T) {
-	both := func(string) bool { return true }
-	got := Environment("darwin", "/home/me", []string{"PATH=/bin"}, both)
-	if len(got) != 1 {
-		t.Fatalf("env=%q, want no selection while /var/run/docker.sock answers", got)
+// VALIDATES: AC-8 (b): on macOS with no DOCKER_HOST and no `ze` socket, the
+// selection refuses, naming the missing socket, that the labs run on the `ze`
+// profile, and `./le setup docker-host start` on a line of its own, while the
+// `default` socket and /var/run/docker.sock are present.
+// METHOD: a fake home under t.TempDir() through the real IsSocket, holding a
+// listening `default` socket and no `ze` directory.
+// PREVENTS: a silent fallback to `default`, and a refusal with no fix.
+func TestEnvironmentRefusesWithoutTheZeSocket(t *testing.T) {
+	home := t.TempDir()
+	defaultDir := filepath.Join(home, ".colima", "default")
+	if err := os.MkdirAll(defaultDir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// A unix socket path is bounded near 104 bytes on macOS, which a test's
+	// temporary directory can exceed; listen from inside the directory.
+	t.Chdir(defaultDir)
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", "docker.sock")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { listener.Close() }) //nolint:errcheck // test cleanup of a listener nobody dialed
+	if !IsSocket(filepath.Join(defaultDir, "docker.sock")) {
+		t.Fatal("the fake default socket is not a socket")
+	}
+
+	got, err := Environment("darwin", func() (string, error) { return home, nil }, []string{"PATH=/bin"}, IsSocket)
+	if err == nil {
+		t.Fatalf("selected %q, want a refusal", got)
+	}
+	message := err.Error()
+	for _, want := range []string{
+		filepath.Join(home, ".colima", "ze", "docker.sock"),
+		"On macOS the labs run on the `ze` profile",
+		"\n  ./le setup docker-host start",
+	} {
+		if !strings.Contains(message, want) {
+			t.Errorf("refusal lacks %q:\n%s", want, message)
+		}
+	}
+	if strings.Contains(message, "unix://") {
+		t.Errorf("the refusal named an endpoint to use:\n%s", message)
+	}
+}
+
+// VALIDATES: an explicit DOCKER_HOST is kept on macOS whether or not the `ze`
+// socket exists, and nothing changes on Linux.
+// PREVENTS: overwriting the operator's chosen daemon (the QEMU docker-lab's
+// forwarded socket is one); the Docker kernel check judges that daemon.
+func TestEnvironmentKeepsAnExplicitDockerHost(t *testing.T) {
+	original := []string{"DOCKER_HOST=tcp://docker", "PATH=/bin"}
+	for _, socket := range []func(string) bool{func(string) bool { return true }, func(string) bool { return false }} {
+		changed, err := Environment("darwin", homeMe, original, socket)
+		if err != nil {
+			t.Fatalf("refused an explicit DOCKER_HOST: %v", err)
+		}
+		if !reflect.DeepEqual(changed, original) {
+			t.Fatalf("existing changed=%q", changed)
+		}
+	}
+	changed, err := Environment("linux", homeMe, []string{"PATH=/bin"}, func(string) bool { return false })
+	if err != nil {
+		t.Fatalf("linux refused: %v", err)
+	}
+	if len(changed) != 1 {
+		t.Fatalf("linux changed=%q", changed)
 	}
 }
 
 // VALIDATES: an empty DOCKER_HOST is treated as unset, so the socket is selected.
 // PREVENTS: `DOCKER_HOST=` in the environment silently disabling the selection.
 func TestEnvironmentEmptyValueIsUnset(t *testing.T) {
-	socket := func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
-	got := Environment("darwin", "/home/me", []string{"DOCKER_HOST=", "PATH=/bin"}, socket)
-	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/default/docker.sock") {
+	socket := func(path string) bool { return path == "/home/me/.colima/ze/docker.sock" }
+	got, err := Environment("darwin", homeMe, []string{"DOCKER_HOST=", "PATH=/bin"}, socket)
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/ze/docker.sock") {
 		t.Fatalf("env=%q", got)
 	}
 }
@@ -57,9 +129,12 @@ func TestEnvironmentEmptyValueIsUnset(t *testing.T) {
 // PREVENTS: an environment ending in an empty DOCKER_HOST= keeping the selection
 // off, so the child inherits a name that resolves to nothing.
 func TestEnvironmentReadsTheLastDockerHost(t *testing.T) {
-	socket := func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
-	got := Environment("darwin", "/home/me", []string{"DOCKER_HOST=tcp://stale", "DOCKER_HOST=", "PATH=/bin"}, socket)
-	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/default/docker.sock") {
+	socket := func(path string) bool { return path == "/home/me/.colima/ze/docker.sock" }
+	got, err := Environment("darwin", homeMe, []string{"DOCKER_HOST=tcp://stale", "DOCKER_HOST=", "PATH=/bin"}, socket)
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/ze/docker.sock") {
 		t.Fatalf("env=%q, want the socket over an environment whose last value is empty", got)
 	}
 	for _, entry := range got {
@@ -131,5 +206,19 @@ func TestColimaProfile(t *testing.T) {
 	}
 	if got, want := ColimaSSH("work"), []string{"colima", "ssh", "--profile", "work", "--"}; !slices.Equal(got, want) {
 		t.Errorf("ColimaSSH = %q, want %q", got, want)
+	}
+}
+
+// VALIDATES: an unknown home directory on macOS is a refusal that says so, and
+// Linux never asks for one.
+// PREVENTS: a relative `.colima/ze/docker.sock` named from an empty home, and a
+// Linux run stopped by a home lookup it does not need.
+func TestEnvironmentRefusesAnUnknownHome(t *testing.T) {
+	unknown := func() (string, error) { return "", errors.New("$HOME is not defined") }
+	if _, err := Environment("darwin", unknown, []string{"PATH=/bin"}, func(string) bool { return true }); err == nil || !strings.Contains(err.Error(), "home directory is unknown") {
+		t.Errorf("darwin with no home: %v, want the home refusal", err)
+	}
+	if _, err := Environment("linux", unknown, []string{"PATH=/bin"}, func(string) bool { return true }); err != nil {
+		t.Errorf("linux asked for a home: %v", err)
 	}
 }
