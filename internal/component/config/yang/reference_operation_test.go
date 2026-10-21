@@ -367,3 +367,40 @@ func TestLeafrefOtherInstanceOfOperationGrouping(t *testing.T) {
 
 	require.NoError(t, loadModuleTexts(t, module("../x")))
 }
+
+// TestLeafrefOperationOutsideTreeNamed loads paths whose step names an rpc,
+// an action or a notification that is not the operation the referring leaf
+// is defined in. Each is refused, and the refusal says what the step names
+// and why the accessible tree does not hold it, rather than that the module's
+// top level holds no node of that name.
+//
+// VALIDATES: leafrefTarget names the operation a step reaches outside the
+// accessible tree (RFC 7950 Section 6.4.1: "Additionally, for an RPC, the
+// root node also has the node representing the RPC operation being defined
+// as a child.").
+// PREVENTS: a refusal claiming module a's top level holds no "op2" when it
+// holds the rpc op2.
+func TestLeafrefOperationOutsideTreeNamed(t *testing.T) {
+	const head = `module a { yang-version 1.1; namespace "urn:ze:test:a"; prefix a;
+        rpc op2 { input { leaf x { type string; } } }
+        notification note { leaf x { type string; } }
+        container box { action act { input { leaf x { type string; } } } } `
+	cases := []struct {
+		name, body, want string
+	}{
+		{"rpc from rpc", `rpc op1 { input { leaf r { type leafref { path "/op2/x"; } } } }`, `"op2" is an rpc`},
+		{"rpc prefixed", `rpc op1 { input { leaf r { type leafref { path "/a:op2/a:x"; } } } }`, `"a:op2" is an rpc`},
+		{"notification from config", `container cfg { leaf r { type leafref { path "/note/x"; } } }`, `"note" is a notification`},
+		{"action from config", `container cfg { leaf r { type leafref { path "/box/act/x"; } } }`, `"act" is an action`},
+		{"rpc relative", `container cfg { leaf r { type leafref { path "../../op2/x"; } } }`, `"op2" is an rpc`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := loadModuleTexts(t, head+tc.body+` }`)
+			require.ErrorIs(t, err, ErrLeafrefPath)
+			assert.Contains(t, err.Error(), tc.want)
+			assert.Contains(t, err.Error(), "only the operation the referring leaf is defined in (RFC 7950 Section 6.4.1)")
+			assert.NotContains(t, err.Error(), "holds none called")
+		})
+	}
+}

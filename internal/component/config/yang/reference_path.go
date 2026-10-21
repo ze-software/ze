@@ -246,7 +246,12 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 			if fix := rootPathFix(ctx, path.steps, i); fromRoot && fix != "" {
 				return nil, path, refError(tb.Str(fix))
 			}
-			if i == 0 && fromRoot && nodePrefix(step.node) == "" {
+			if op := outsideOperation(ctx, parents, step.node, i == 0 && fromRoot); op != nil {
+				// RFC 7950 Section 6.4.1: the accessible tree holds no rpc,
+				// action or notification but the operation being defined.
+				tb.Str(": ").Quoted(step.node).Str(" is ").Str(operationKind(op)).
+					Str(", not a data node, and of the rpcs, actions and notifications the accessible tree holds only the operation the referring leaf is defined in (RFC 7950 Section 6.4.1)")
+			} else if i == 0 && fromRoot && nodePrefix(step.node) == "" {
 				// RFC 7950 Section 6.4.1: the unprefixed first step was
 				// looked up in the referring node's module alone.
 				tb.Str(": an unprefixed name names a node of module ").Str(ctx.namespace).
@@ -547,6 +552,43 @@ func (ctx *pathContext) child(parent *yang.Entry, name string) *yang.Entry {
 		return nil
 	}
 	return ctx.operation
+}
+
+// outsideOperation answers the rpc, action or notification nodeID names
+// under any of parents, which a step reaches but ctx's accessible tree does
+// not hold (child), and nil when it names none. At a first step read from
+// the root, parents is empty when no data node matched, so the root of the
+// module nodeID's name belongs to (its prefix's, or ctx's namespace) stands in.
+func outsideOperation(ctx *pathContext, parents []*yang.Entry, nodeID string, first bool) *yang.Entry {
+	if first {
+		root := namespaceRoot(ctx.leaf, ctx.namespace)
+		if nodePrefix(nodeID) != "" {
+			root = prefixedModuleRoot(ctx, nodeID)
+		}
+		if root != nil {
+			parents = []*yang.Entry{root}
+		}
+	}
+	for _, parent := range parents {
+		if child, ok := parent.Dir[localName(nodeID)]; ok && isOperation(child) {
+			return child
+		}
+	}
+	return nil
+}
+
+// operationKind answers the article and keyword of the operation e, which
+// isOperation accepts.
+func operationKind(e *yang.Entry) string {
+	switch e.Node.(type) {
+	case *yang.RPC:
+		return "an rpc"
+	case *yang.Action:
+		return "an action"
+	case *yang.Notification:
+		return "a notification"
+	}
+	panic("BUG: operationKind called on an entry isOperation refuses")
 }
 
 // childOf answers the node of ctx's accessible tree called name under any of
