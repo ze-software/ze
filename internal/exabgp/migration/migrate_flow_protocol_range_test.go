@@ -1,6 +1,6 @@
 // Tests for an ExaBGP flow route whose protocol or next-header is a range. The
 // migration passes the operators through, and the ze config reads them with the
-// update text grammar (config_builder.go parseFlowProtocolMatches), which
+// update text grammar (config_builder.go parseFlowNumericMatches), which
 // TestParseConfigRoute_FlowSpecMigratedProtocolRange drives with these lines.
 
 package migration

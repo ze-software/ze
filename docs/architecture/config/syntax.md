@@ -1309,18 +1309,18 @@ update {
 | `source-ipv4` / `source-ipv6` | Source prefix |
 | `destination-ipv4` / `destination-ipv6` | Destination prefix |
 | `protocol` | IP protocol, a number (0 to 255) or a protocol name, under any match operator: `=tcp`, `!=udp`, `>5`, `[ >=6&<=17 ]`, `>=tcp&<=udp`. Config and update text read it with one grammar (`parseNumericTermsText`), and a malformed value is refused with the value and the fix |
-| `port` | Source or destination port |
-| `destination-port` | Destination port |
-| `source-port` | Source port |
+| `port` | Source or destination port, 0 to 65535 |
+| `destination-port` | Destination port, 0 to 65535 |
+| `source-port` | Source port, 0 to 65535 |
 | `next-header` | IPv6 next header, the same component and grammar as `protocol` |
 | `tcp-flags` | TCP flags (`syn`, `rst`, `fin`, `ack`, `urg`, `push`) |
-| `icmp-type` | ICMP type |
-| `icmp-code` | ICMP code |
-| `fragment` | Fragment flags (`first-fragment`, `last-fragment`) |
-| `dscp` | DSCP value |
-| `packet-length` | Packet length |
+| `icmp-type` | ICMP type, 0 to 255 or a type name (`echo-request`, `unreachable`, ...) |
+| `icmp-code` | ICMP code, 0 to 255 or a code name (`host-unreachable`, ...) |
+| `fragment` | Fragment flags (`dont-fragment`, `is-fragment`, `first-fragment`, `last-fragment` and their short aliases), each optionally led by `!` (not), `=` (match) or `&` (AND with the term before). Config and update text read it with one bitmask grammar (`parseBitmaskValue`) |
+| `dscp` | DSCP value, 0 to 63 |
+| `packet-length` | Packet length, 0 to 65535 for both families (RFC 8955 Section 4.2.2.10, which RFC 8956 Section 3 applies to IPv6) |
 | `traffic-class` | The ExaBGP spelling of `dscp`. RFC 8956 Section 8 registers component type 11 under one name for both families, so the two words build one component |
-| `flow-label` | IPv6 flow label |
+| `flow-label` | IPv6 flow label, 0 to 1048575 (the 20-bit field of RFC 8956 Section 3.7) |
 
 #### Match Operators
 
@@ -1333,6 +1333,20 @@ update {
 | `<=` | Less or equal |
 | `!=` | Not equal |
 | `&` | AND with previous |
+
+Every numeric criterion (`protocol`, `next-header`, the three ports,
+`packet-length`, `icmp-type`, `icmp-code`, `dscp`, `traffic-class`,
+`flow-label`) takes these operators, in config and in update text, through one
+parser (`parseNumericTermsText`) with one width table (`componentMaxValue`) and
+one name table (`componentValueNames`). A value wider than its field, such as
+`destination-port 65536`, a term with no value after `&`, a leading `&` with no
+term before it, and a value that is neither a number nor a known name are each
+refused at load with the criterion, the value and the fix. A bare value means
+`=`. Successive terms are ORed; `&` inside a token ANDs the next term with the
+one before it, so `[ >8080&<8088 =3128 ]` is (>8080 AND <8088) OR =3128.
+`tcp-flags` keeps its own config parser, in which `syn&ack` is two terms ANDed
+(SYN and ACK set), while update text reads `syn&ack` as one mask term (SYN or
+ACK set). That divergence is open.
 
 #### FlowSpec Actions (Extended Communities)
 

@@ -357,8 +357,13 @@ func componentMaxValue(compType flowspec.FlowComponentType) uint64 {
 	case flowspec.FlowPort, flowspec.FlowDestPort, flowspec.FlowSourcePort, flowspec.FlowPacketLength:
 		return 65535
 	case flowspec.FlowDSCP:
+		// RFC 8955 Section 4.2.2.11: "The six least significant bits contain
+		// the DSCP value."
 		return 63
-	default: // 32-bit max for flow-label and other types
+	case flowspec.FlowFlowLabel:
+		// RFC 8956 Section 3.7: "match the 20-bit Flow Label IPv6 header field".
+		return 0xFFFFF
+	default: // 32-bit max for any other numeric type
 		return 0xFFFFFFFF
 	}
 }
@@ -366,10 +371,14 @@ func componentMaxValue(compType flowspec.FlowComponentType) uint64 {
 // componentValueNames answers the value names a numeric component accepts in
 // place of a number, or nil when it accepts numbers only.
 func componentValueNames(compType flowspec.FlowComponentType) map[string]uint8 {
-	//exhaustive:ignore // Only the protocol component has named values; every other numeric component takes numbers.
+	//exhaustive:ignore // Only protocol and the ICMP components have named values; every other numeric component takes numbers.
 	switch compType {
 	case flowspec.FlowIPProtocol:
 		return flowspec.ProtocolNameToNumber
+	case flowspec.FlowICMPType:
+		return icmpTypeNames
+	case flowspec.FlowICMPCode:
+		return icmpCodeNames
 	default:
 		return nil
 	}
@@ -422,7 +431,7 @@ func operatorValueError(token string, names map[string]uint8) error {
 		return fmt.Errorf("%q is not <op><value>: write a number after the operator, as in >1024", token)
 	}
 	known := slices.Sorted(maps.Keys(names))
-	return fmt.Errorf("%q is not <op><value>: write a number or a name (%s) after the operator, as in >=tcp", token, strings.Join(known, ", "))
+	return fmt.Errorf("%q is not <op><value>: write a number or a name (%s) after the operator, as in =%s", token, strings.Join(known, ", "), known[0])
 }
 
 // parseBitmaskValue parses bitmask with modifiers like "!syn", "=ack", "syn&ack", "&!is-fragment".
@@ -458,7 +467,8 @@ func parseBitmaskValue(token string, nameToValue map[string]uint8) (flowspec.Flo
 			// Try numeric
 			num, err := parseUint8(part)
 			if err != nil {
-				return 0, 0, false, fmt.Errorf("unknown flag: %s", part)
+				known := strings.Join(slices.Sorted(maps.Keys(nameToValue)), ", ")
+				return 0, 0, false, fmt.Errorf("%q is not a flag: write one of %s, or a number from 0 to 255", part, known)
 			}
 			flags |= num
 		}

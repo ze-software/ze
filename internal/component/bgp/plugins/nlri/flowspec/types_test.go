@@ -1514,8 +1514,9 @@ func TestFlowSpecTrafficMarkingReservedBytesZero(t *testing.T) {
 // TestRFC8955FirstOperatorAndBitEncodedUnset verifies the first {op, value} pair of a
 // numeric component is emitted with the AND bit clear.
 //
-// VALIDATES: parseFlowMatches (config_builder.go) derives the AND bit purely from the
-// position inside a "&"-joined expression (isAnd := i > 0), so buildFlowSpecComponents
+// VALIDATES: parseNumericTermsText (plugin_encode_text.go), which the config path
+// reaches through parseFlowNumericMatches, sets the AND bit only on a term that
+// follows an "&" inside a token, so buildFlowSpecComponents
 // -> numericComponent.Bytes() always leaves the 'a' bit (0x40) clear on the first
 // operator octet and sets it on the continuation pairs.
 //
@@ -1703,8 +1704,9 @@ func TestRFC8955DSCPValueSingleOctet(t *testing.T) {
 // TestRFC8955FragmentBitmaskSingleOctet verifies a Type-12 fragment component encodes its
 // bitmask in exactly one octet.
 //
-// VALIDATES: parseFlowFragment (config_builder.go) resolves fragment names to the
-// low-nibble FlowFragmentFlag constants (core types.go), so numericComponent.Bytes() selects
+// VALIDATES: parseFlowFragmentMatches (config_builder.go), through parseBitmaskValue,
+// resolves fragment names to the low-nibble FlowFragmentFlag constants (core types.go)
+// and holds every bitmask in a uint8, so numericComponent.Bytes() selects
 // lenCode 0 (one octet) for every fragment value.
 //
 // PREVENTS: a multi-octet fragment bitmask, which RFC 8955 Section 4.2.2.12 forbids.

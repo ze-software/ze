@@ -13,7 +13,7 @@ import (
 // TestConfigProtocolNamesResolve drives the CONFIG parser over every protocol
 // name this package accepts and asserts each one produces a match.
 //
-// VALIDATES: parseFlowProtocolMatches reads ProtocolNameToNumber, so the config
+// VALIDATES: parseFlowNumericMatches reads ProtocolNameToNumber, so the config
 // path knows every name the text encoder and the JSON decoder know.
 // PREVENTS: the divergence that shipped before this test existed. The config
 // parser held a private table carrying esp and ah but NOT icmpv6, ospf or sctp.
@@ -23,7 +23,7 @@ import (
 // than the operator wrote.
 func TestConfigProtocolNamesResolve(t *testing.T) {
 	for name, number := range flowspec.ProtocolNameToNumber {
-		matches, err := parseFlowProtocolMatches([]string{"=" + name})
+		matches, err := parseFlowNumericMatches([]string{"=" + name}, flowspec.FlowIPProtocol)
 		if err != nil {
 			t.Errorf("protocol %q: refused: %v", name, err)
 			continue
@@ -60,19 +60,23 @@ func TestConfigTCPFlagAliasesResolve(t *testing.T) {
 // TestConfigFragmentFlagsResolve drives the config parser over every fragment
 // flag spelling, the short aliases included.
 //
-// VALIDATES: parseFlowFragment reads FragmentFlagNameToValue, so the four
-// short aliases the text encoder accepted are no longer refused by config.
+// VALIDATES: parseFlowFragmentMatches reads FragmentFlagNameToValue, so the
+// four short aliases the text encoder accepts are not refused by config.
 // PREVENTS: `fragment df` parsing to nothing, which drops the component and
 // widens the rule in silence.
 func TestConfigFragmentFlagsResolve(t *testing.T) {
 	for name, value := range flowspec.FragmentFlagNameToValue {
-		flags := parseFlowFragment(name)
-		if len(flags) != 1 {
-			t.Errorf("fragment flag %q: got %d flags, want 1", name, len(flags))
+		matches, err := parseFlowFragmentMatches([]string{name})
+		if err != nil {
+			t.Errorf("fragment flag %q: refused: %v", name, err)
 			continue
 		}
-		if uint8(flags[0]) != value {
-			t.Errorf("fragment flag %q: got 0x%02x, want 0x%02x", name, uint8(flags[0]), value)
+		if len(matches) != 1 {
+			t.Errorf("fragment flag %q: got %d matches, want 1", name, len(matches))
+			continue
+		}
+		if matches[0].Value != uint64(value) {
+			t.Errorf("fragment flag %q: got 0x%02x, want 0x%02x", name, matches[0].Value, value)
 		}
 	}
 }

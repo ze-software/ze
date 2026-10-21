@@ -5,9 +5,10 @@
 package flowspec
 
 import (
-	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -76,97 +77,53 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*f
 		}
 	}
 
-	// Numeric / match criteria: a present key with no parseable value is dropped.
-	addNumeric := func(key string, typ flowspec.FlowComponentType, parse func([]string) []flowspec.FlowMatch) {
-		if vals, ok := matchCriteria[key]; ok {
-			seen[key] = true
-			if matches := parse(vals); len(matches) > 0 {
-				add(key, flowspec.NewFlowNumericComponent(typ, matches))
-			} else {
-				dropped = append(dropped, key)
-			}
-		}
-	}
-	// Protocol and next-header take the update text grammar, so the refusal
-	// carries the parser's reason and fix rather than the key alone.
-	addProtocol := func(key string) {
+	// Every numeric criterion takes the update text grammar
+	// (parseNumericTermsText), so config and update text read one operator
+	// table, one width table (componentMaxValue) and one name table
+	// (componentValueNames), and a refusal carries the parser's reason and fix
+	// rather than the key alone.
+	addNumeric := func(key string, typ flowspec.FlowComponentType) {
 		vals, ok := matchCriteria[key]
 		if !ok {
 			return
 		}
 		seen[key] = true
-		matches, err := parseFlowProtocolMatches(vals)
+		matches, err := parseFlowNumericMatches(vals, typ)
 		if err != nil {
 			dropped = append(dropped, key+" "+err.Error())
 			return
 		}
-		add(key, flowspec.NewFlowNumericComponent(flowspec.FlowIPProtocol, matches))
+		add(key, flowspec.NewFlowNumericComponent(typ, matches))
 	}
-	addProtocol(flowspec.KwProtocol)
-	addProtocol(flowspec.KwNextHeader)
-	addNumeric(flowspec.KwPort, flowspec.FlowPort, parseFlowMatchesSlice)
-	addNumeric(flowspec.KwDestPort, flowspec.FlowDestPort, parseFlowMatchesSlice)
-	addNumeric(flowspec.KwSourcePort, flowspec.FlowSourcePort, parseFlowMatchesSlice)
-	addNumeric(flowspec.KwPacketLength, flowspec.FlowPacketLength, parseFlowMatchesSlice)
-	addNumeric(flowspec.KwTCPFlags, flowspec.FlowTCPFlags, parseFlowTCPFlagMatchesSlice)
+	addNumeric(flowspec.KwProtocol, flowspec.FlowIPProtocol)
+	addNumeric(flowspec.KwNextHeader, flowspec.FlowIPProtocol)
+	addNumeric(flowspec.KwPort, flowspec.FlowPort)
+	addNumeric(flowspec.KwDestPort, flowspec.FlowDestPort)
+	addNumeric(flowspec.KwSourcePort, flowspec.FlowSourcePort)
+	addNumeric(flowspec.KwPacketLength, flowspec.FlowPacketLength)
+	addNumeric(flowspec.KwDSCP, flowspec.FlowDSCP)
+	addNumeric(flowspec.KwTrafficClass, flowspec.FlowDSCP)
+	addNumeric(flowspec.KwFlowLabel, flowspec.FlowFlowLabel)
+	addNumeric(flowspec.KwICMPType, flowspec.FlowICMPType)
+	addNumeric(flowspec.KwICMPCode, flowspec.FlowICMPCode)
 
-	if vals, ok := matchCriteria[flowspec.KwDSCP]; ok {
-		seen[flowspec.KwDSCP] = true
-		octets, err := parseFlowDSCPSlice(vals)
-		switch {
-		case err != nil:
-			dropped = append(dropped, flowspec.KwDSCP+" "+err.Error())
-		case len(octets) > 0:
-			add(flowspec.KwDSCP, flowspec.NewFlowDSCPComponent(octets...))
-		default:
-			dropped = append(dropped, flowspec.KwDSCP)
-		}
-	}
-	if vals, ok := matchCriteria[flowspec.KwTrafficClass]; ok {
-		seen[flowspec.KwTrafficClass] = true
-		octets, err := parseFlowDSCPSlice(vals)
-		switch {
-		case err != nil:
-			dropped = append(dropped, flowspec.KwTrafficClass+" "+err.Error())
-		case len(octets) > 0:
-			add(flowspec.KwTrafficClass, flowspec.NewFlowDSCPComponent(octets...))
-		default:
-			dropped = append(dropped, flowspec.KwTrafficClass)
-		}
-	}
-	if vals, ok := matchCriteria[flowspec.KwFlowLabel]; ok {
-		seen[flowspec.KwFlowLabel] = true
-		if labels := parseFlowLabelsSlice(vals); len(labels) > 0 {
-			add(flowspec.KwFlowLabel, flowspec.NewFlowFlowLabelComponent(labels...))
+	if vals, ok := matchCriteria[flowspec.KwTCPFlags]; ok {
+		seen[flowspec.KwTCPFlags] = true
+		if matches := parseFlowTCPFlagMatchesSlice(vals); len(matches) > 0 {
+			add(flowspec.KwTCPFlags, flowspec.NewFlowNumericComponent(flowspec.FlowTCPFlags, matches))
 		} else {
-			dropped = append(dropped, flowspec.KwFlowLabel)
+			dropped = append(dropped, flowspec.KwTCPFlags)
 		}
 	}
 	if vals, ok := matchCriteria[flowspec.KwFragment]; ok {
 		seen[flowspec.KwFragment] = true
-		if flags := parseFlowFragmentSlice(vals); len(flags) > 0 {
-			add(flowspec.KwFragment, flowspec.NewFlowFragmentComponent(flags...))
+		matches, err := parseFlowFragmentMatches(vals)
+		if err != nil {
+			dropped = append(dropped, flowspec.KwFragment+" "+err.Error())
 		} else {
-			dropped = append(dropped, flowspec.KwFragment)
+			add(flowspec.KwFragment, flowspec.NewFlowFragmentMatchComponent(matches))
 		}
 	}
-	if vals, ok := matchCriteria[flowspec.KwICMPType]; ok {
-		seen[flowspec.KwICMPType] = true
-		if types := parseFlowICMPTypesSlice(vals); len(types) > 0 {
-			add(flowspec.KwICMPType, flowspec.NewFlowICMPTypeComponent(types...))
-		} else {
-			dropped = append(dropped, flowspec.KwICMPType)
-		}
-	}
-	if vals, ok := matchCriteria[flowspec.KwICMPCode]; ok {
-		seen[flowspec.KwICMPCode] = true
-		if codes := parseFlowICMPCodesSlice(vals); len(codes) > 0 {
-			add(flowspec.KwICMPCode, flowspec.NewFlowICMPCodeComponent(codes...))
-		} else {
-			dropped = append(dropped, flowspec.KwICMPCode)
-		}
-	}
-
 	// Any criterion key no block recognized is an unknown criterion (typo).
 	for key := range matchCriteria {
 		if !seen[key] {
@@ -210,22 +167,23 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 	return prefix, uint8(value)
 }
 
-// errFlowProtocolNoValue refuses a protocol or next-header criterion with no
-// term, such as `protocol [ ]`. The caller prefixes the criterion name.
-var errFlowProtocolNoValue = errors.New("has no value: write a protocol number or name, as in =tcp or >=6&<=17")
-
-// parseFlowProtocolMatches parses the values of a protocol or next-header
-// criterion with the update text grammar (parseNumericTermsText), so config and
-// update text read one operator table and one name table: `>=6&<=17`,
-// `[ >5 <10 ]`, `!=udp`, a bare `tcp`. Each element of vals may hold several
-// space-separated tokens and the brackets of a list.
+// parseFlowNumericMatches parses the values of a numeric criterion (protocol,
+// next-header, the ports, packet-length, icmp-type, icmp-code, dscp,
+// traffic-class, flow-label) with the update text grammar
+// (parseNumericTermsText), so config and update text read one operator table:
+// `>=1024&<=65535`, `[ >5 <10 ]`, `!=443`, a bare `80`, and a value name where
+// componentValueNames has one (`=tcp`, `echo-request`). Each element of vals
+// may hold several space-separated tokens and the brackets of a list.
 //
-// RFC 8955 Section 4.2.2.3: "Encoding: <type (1 octet), [numeric_op, value]+>".
-// A value is refused with its reason, never skipped: a protocol criterion with
-// a term missing would match packets the operator excluded.
-func parseFlowProtocolMatches(vals []string) ([]flowspec.FlowMatch, error) {
-	maxValue := componentMaxValue(flowspec.FlowIPProtocol)
-	names := componentValueNames(flowspec.FlowIPProtocol)
+// RFC 8955 Section 4.2.1.1: "The operator byte is encoded as: ... a - and bit.
+// If unset, the result of the previous {operator, value} pair is ORed with the
+// current one. If set, it is ANDed." A value is refused with its reason, never
+// skipped or widened: a term missing would match packets the operator
+// excluded, and a value wider than its field (componentMaxValue) would reach
+// the wire as a rule no packet can satisfy as written.
+func parseFlowNumericMatches(vals []string, typ flowspec.FlowComponentType) ([]flowspec.FlowMatch, error) {
+	maxValue := componentMaxValue(typ)
+	names := componentValueNames(typ)
 	var matches []flowspec.FlowMatch
 	for _, v := range vals {
 		for token := range strings.FieldsSeq(strings.Trim(v, "[]")) {
@@ -238,84 +196,9 @@ func parseFlowProtocolMatches(vals []string) ([]flowspec.FlowMatch, error) {
 		}
 	}
 	if len(matches) == 0 {
-		return nil, errFlowProtocolNoValue
+		return nil, fmt.Errorf("has no value: write one or more <op><value> terms with values from 0 to %d, as in =%d or >=1&<=%d", maxValue, maxValue, maxValue)
 	}
 	return matches, nil
-}
-
-// parseFlowMatches parses FlowSpec match expressions with operators.
-// Formats: "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088", "!=443".
-func parseFlowMatches(s string) []flowspec.FlowMatch {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowMatch
-
-	for _, p := range parts {
-		// Handle range operators like ">8080&<8088" by splitting on &
-		rangeParts := strings.Split(p, "&")
-		for i, rp := range rangeParts {
-			var op flowspec.FlowOperator
-			isAnd := i > 0 // Parts after & are AND-ed with previous
-
-			// Parse operator prefix
-			switch {
-			case strings.HasPrefix(rp, "!="):
-				op = flowspec.FlowOpNotEq
-				rp = strings.TrimPrefix(rp, "!=")
-			case strings.HasPrefix(rp, ">="):
-				op = flowspec.FlowOpGreater | flowspec.FlowOpEqual
-				rp = strings.TrimPrefix(rp, ">=")
-			case strings.HasPrefix(rp, "<="):
-				op = flowspec.FlowOpLess | flowspec.FlowOpEqual
-				rp = strings.TrimPrefix(rp, "<=")
-			case strings.HasPrefix(rp, ">"):
-				op = flowspec.FlowOpGreater
-				rp = strings.TrimPrefix(rp, ">")
-			case strings.HasPrefix(rp, "<"):
-				op = flowspec.FlowOpLess
-				rp = strings.TrimPrefix(rp, "<")
-			case strings.HasPrefix(rp, "="):
-				op = flowspec.FlowOpEqual
-				rp = strings.TrimPrefix(rp, "=")
-			default: // No operator prefix — bare number implies equality
-				op = flowspec.FlowOpEqual
-			}
-
-			n, err := strconv.ParseUint(rp, 10, 64)
-			if err != nil {
-				return nil
-			}
-			result = append(result, flowspec.FlowMatch{Op: op, And: isAnd, Value: n})
-		}
-	}
-	return result
-}
-
-// parseFlowDSCP parses the DSCP values of a type 11 criterion (`dscp`, and
-// `traffic-class`, ExaBGP's spelling of the same component).
-//
-// RFC 8955 Section 4.2.2.11: "The six least significant bits contain the DSCP
-// value." A value above 63 needs a bit the component has no room for, so no
-// packet can match it: it is refused with the limit, the bound the text path
-// applies through componentMaxValue, never sent.
-func parseFlowDSCP(s string) ([]uint8, error) {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []uint8
-	dscpMax := componentMaxValue(flowspec.FlowDSCP)
-
-	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		n, err := strconv.ParseUint(p, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%q is not a decimal DSCP value: write a number from 0 to %d", p, dscpMax)
-		}
-		if n > dscpMax {
-			return nil, fmt.Errorf("%d is above %d: RFC 8955 Section 4.2.2.11 carries the DSCP in six bits, so write a value from 0 to %d", n, dscpMax, dscpMax)
-		}
-		result = append(result, uint8(n))
-	}
-	return result, nil
 }
 
 // icmpTypeNames maps ICMP type symbolic names to values.
@@ -338,31 +221,6 @@ var icmpTypeNames = map[string]uint8{
 	"extended-echo-reply":   43,
 	"experimental-one":      253,
 	"experimental-two":      254,
-}
-
-// parseFlowICMPTypes parses ICMP type values or names.
-// Handles: [ unreachable echo-request echo-reply ] or [ 3 8 0 ] or [ =3 =8 =0 ].
-// An unknown token refuses the complete criterion.
-func parseFlowICMPTypes(s string) []uint8 {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []uint8
-
-	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		// Try numeric first
-		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
-			continue
-		}
-		// Try symbolic name
-		if n, ok := icmpTypeNames[strings.ToLower(p)]; ok {
-			result = append(result, n)
-			continue
-		}
-		return nil
-	}
-	return result
 }
 
 // icmpCodeNames maps ICMP code symbolic names to values.
@@ -399,45 +257,33 @@ var icmpCodeNames = map[string]uint8{
 	"ip-header-bad":           2,
 }
 
-// parseFlowICMPCodes parses ICMP code values or names.
-// Handles: [ host-unreachable network-unreachable ] or [ 1 0 ] or [ =1 =0 ].
-// An unknown token refuses the complete criterion.
-func parseFlowICMPCodes(s string) []uint8 {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []uint8
-
-	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		// Try numeric first
-		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
-			continue
+// parseFlowFragmentMatches parses the values of a fragment criterion with the
+// update text grammar (parseBitmaskValue), so config and update text read one
+// modifier table: `[ first-fragment last-fragment ]`, `!is-fragment`,
+// `=dont-fragment`, and `&` to AND a term with the one before it.
+//
+// RFC 8955 Section 4.2.2.12: "Encoding: <type (1 octet), [bitmask_op,
+// bitmask]+>". A term is refused with its reason, never skipped: a fragment
+// criterion with a term missing would match packets the operator excluded.
+func parseFlowFragmentMatches(vals []string) ([]flowspec.FlowMatch, error) {
+	var matches []flowspec.FlowMatch
+	for _, v := range vals {
+		for token := range strings.FieldsSeq(strings.ToLower(strings.Trim(v, "[]"))) {
+			// RFC 8955 Section 4.2.1.2
+			op, flags, and, err := parseBitmaskValue(token, flowspec.FragmentFlagNameToValue)
+			if err != nil {
+				return nil, err
+			}
+			if and && len(matches) == 0 {
+				return nil, fmt.Errorf("%q starts with &, which joins a term to the one before it, and no term comes before it: drop the &", token)
+			}
+			matches = append(matches, flowspec.FlowMatch{Op: op, Value: uint64(flags), And: and})
 		}
-		// Try symbolic name
-		if n, ok := icmpCodeNames[strings.ToLower(p)]; ok {
-			result = append(result, n)
-			continue
-		}
-		return nil
 	}
-	return result
-}
-
-// parseFlowFragment parses fragment flags like "[ first-fragment last-fragment ]".
-func parseFlowFragment(s string) []flowspec.FlowFragmentFlag {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowFragmentFlag
-
-	for _, p := range parts {
-		f, ok := flowspec.FragmentFlagNameToValue[p]
-		if !ok {
-			return nil
-		}
-		result = append(result, flowspec.FlowFragmentFlag(f))
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("has no value: write one or more flags (%s), as in [ first-fragment last-fragment ]", strings.Join(slices.Sorted(maps.Keys(flowspec.FragmentFlagNameToValue)), ", "))
 	}
-	return result
+	return matches, nil
 }
 
 // parseFlowTCPFlagMatches parses TCP flags with AND and NOT operators.
@@ -479,79 +325,7 @@ func parseFlowTCPFlagMatches(s string) []flowspec.FlowMatch {
 	return result
 }
 
-// parseFlowLabels parses flow-label values like "2013" or "=2013".
-func parseFlowLabels(s string) []uint32 {
-	var result []uint32
-	s = strings.Trim(s, "[]")
-	parts := strings.FieldsSeq(s)
-	for p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		val, err := strconv.ParseUint(p, 10, 32)
-		if err != nil {
-			return nil
-		}
-		result = append(result, uint32(val))
-	}
-	return result
-}
-
 // --- Slice helpers for map[string][]string NLRI format ---
-
-// parseFlowMatchesSlice parses numeric match expressions from a pre-split slice.
-func parseFlowMatchesSlice(vals []string) []flowspec.FlowMatch {
-	result := make([]flowspec.FlowMatch, 0, len(vals))
-	for _, v := range vals {
-		matches := parseFlowMatches(v)
-		if len(matches) == 0 {
-			return nil
-		}
-		result = append(result, matches...)
-	}
-	return result
-}
-
-// parseFlowDSCPSlice parses DSCP values from a pre-split slice. An empty
-// element answers no values and no error, which the caller drops as unparseable.
-func parseFlowDSCPSlice(vals []string) ([]uint8, error) {
-	result := make([]uint8, 0, len(vals))
-	for _, v := range vals {
-		octets, err := parseFlowDSCP(v)
-		if err != nil {
-			return nil, err
-		}
-		if len(octets) == 0 {
-			return nil, nil
-		}
-		result = append(result, octets...)
-	}
-	return result, nil
-}
-
-// parseFlowLabelsSlice parses flow-label values from a pre-split slice.
-func parseFlowLabelsSlice(vals []string) []uint32 {
-	result := make([]uint32, 0, len(vals))
-	for _, v := range vals {
-		labels := parseFlowLabels(v)
-		if len(labels) == 0 {
-			return nil
-		}
-		result = append(result, labels...)
-	}
-	return result
-}
-
-// parseFlowFragmentSlice parses fragment flags from a pre-split slice.
-func parseFlowFragmentSlice(vals []string) []flowspec.FlowFragmentFlag {
-	result := make([]flowspec.FlowFragmentFlag, 0, len(vals))
-	for _, v := range vals {
-		flags := parseFlowFragment(v)
-		if len(flags) == 0 {
-			return nil
-		}
-		result = append(result, flags...)
-	}
-	return result
-}
 
 // parseFlowTCPFlagMatchesSlice parses TCP flag matches from a pre-split slice.
 func parseFlowTCPFlagMatchesSlice(vals []string) []flowspec.FlowMatch {
@@ -562,32 +336,6 @@ func parseFlowTCPFlagMatchesSlice(vals []string) []flowspec.FlowMatch {
 			return nil
 		}
 		result = append(result, matches...)
-	}
-	return result
-}
-
-// parseFlowICMPTypesSlice parses ICMP types from a pre-split slice.
-func parseFlowICMPTypesSlice(vals []string) []uint8 {
-	result := make([]uint8, 0, len(vals))
-	for _, v := range vals {
-		types := parseFlowICMPTypes(v)
-		if len(types) == 0 {
-			return nil
-		}
-		result = append(result, types...)
-	}
-	return result
-}
-
-// parseFlowICMPCodesSlice parses ICMP codes from a pre-split slice.
-func parseFlowICMPCodesSlice(vals []string) []uint8 {
-	result := make([]uint8, 0, len(vals))
-	for _, v := range vals {
-		codes := parseFlowICMPCodes(v)
-		if len(codes) == 0 {
-			return nil
-		}
-		result = append(result, codes...)
 	}
 	return result
 }
