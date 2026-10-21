@@ -404,8 +404,9 @@ so the owed rekey stays due. A move with MOBIKE negotiated, or while this node i
 behind a NAT, adopts nothing and moves nothing. The rule follows strongSwan's
 charon: in 5.9.14 `update_hosts` (`src/libcharon/sa/ike_sa.c`) calls
 `child_sa->update` for every Child SA and, when that answers `NOT_SUPPORTED`,
-`rekey_child_sa`, and it adopts a new remote only when the peer is behind a NAT
-(`COND_NAT_THERE`), the case in which this node is not (read 2026-10-21).
+`rekey_child_sa`; outside a forced (MOBIKE) update it adopts a new remote only
+when the peer is behind a NAT (`COND_NAT_THERE`), the case in which this node is
+not (read 2026-10-21).
 
 <!-- source: internal/component/ike/engine/rebind.go -- rebindChildSAs -->
 <!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint -->
