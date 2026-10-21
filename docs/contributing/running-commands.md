@@ -475,7 +475,13 @@ proves it: two worktrees laid out as the gate lays them out give one test
 environment, and a package that scans `os.Environ` is answered `(cached)` in
 the second with the verdict a `-count=1` rerun gives. The one value that still
 differs between runs is `ze.run.job`, the job registry entry of the run that
-holds the slot: a nested admission reads it to run inside its parent.
+holds the slot: a nested admission reads it to run inside its parent. A test
+child keeps it on purpose. Its bytes differ, but the only answer a test can
+draw from it is "inside a live parent", which holds in every gate run, so a
+cached verdict cannot differ from a rerun's because of it. Stripping it would
+make a test that admits through the real registry queue behind the gate's own
+slot, and that can deadlock.
+<!-- source: internal/le/job/job.go -- Admission.insideParent -->
 <!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Landing, CacheDir -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- Overrides, EnvironmentContext -->
 
