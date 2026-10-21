@@ -2149,6 +2149,9 @@ continuation agent from the finished agent `a2c395bd09a52530c`.
   `logNotificationReceived` call in `internal/component/bgp/reactor/session_handlers.go`);
   spec A-4/A-5 rows, decision blocks, header; an independent judge for the RFC9072-2-1
   enforced stamp and the RFC6286-2.1-1 re-judge against its deviation record; the Review Gate.
+- Update, same day: D3 green and red, the A-4/A-5 rows and the header (Phase 8/8) are recorded
+  in the spec (commit `e23b95ddca`). Left: the AC-4 judge (RFC9072-2-1, RFC6286-2.1-1) and the
+  Review Gate, both for an independent agent. The scratch export was removed.
 
 ### LINUX TASK: spec-rfc-verdict-fix-bgp RFC4271-5.1.2-3 records (2026-10-21)
 
@@ -2193,3 +2196,43 @@ Owed by the continuation:
   "closed 2026-10-21" to "closed" sweep over the citers of spec-rfc-verdict-fix-bgp
   (`grep -rn "closed 2026-10-21" plan features`, only lines naming that spec: 14 lines
   in 11 plan files plus the Defect review row of `features/bgp-protocol.md`).
+
+## 2026-10-21 fsfix agent: review of 7b0bf3a723 (FlowSpec redirect next hop)
+
+Done in the working tree, then committed (see the commit after this note):
+ISSUE 1 (egress strip of 0x0800 -> length 0, `redirectActionLeaves`), ISSUE 2
+(`TestRelayFlowSpecRedirectNextHop`), ISSUE 3 (nhSelfWithheld comment), the NOTEs
+(handler fails closed; peer-own gate on a kept redirect address,
+`redirectNextHopIsPeerOwn`; 0x8008/0x8108/0x8208 void the action in
+`FlowSpecRedirectsToNextHop`, so origination follows too; link-local never a reset
+address; reset address written only for a rule of its own family, so an IPv6 rule
+over an IPv4-only speaker now leaves with length 0; flow-vpn and 12/32-octet cases
+tested), rfc/short RFC8955-4-3 annotation, journal row
+`plan/journal/test-shares-a-process-global.md`. Every new test was red under its
+named mutation (scratch `fsmut-*.log`).
+
+Left open: ISSUE 4, draft-simpson-idr-flowspec-redirect-02 Section 3 "BGP speakers
+that support the redirect-to-IP extended community MUST also, by default, enforce
+the following check when receiving a flow-spec route from an EBGP peer: If the
+flow-spec route has an IP next-hop X and includes a redirect-to-IP extended
+community, then the BGP speaker SHOULD discard the redirect-to-ip extended
+community (and not propagate it further with the flow-spec route) if the last AS in
+the AS_PATH or AS4_PATH attribute of the longest prefix match for X does not match
+the AS of the EBGP peer." and "It MUST be possible to disable this additional
+validation check on a per-EBGP session basis." Absent today; not started (budget).
+No rfc/short summary for the draft exists, so no requirement rows; owes a journal
+note that the draft is not enrolled. Design found:
+- The unicast domain with each path's neighbor AS is already in the RIB:
+  `rib_flowspec_validation.go` (`flowSpecUnicast.firstAS`, `flowSpecAuthorized`'s
+  LPM loop). "Last AS" read as the most recently prepended (leftmost) AS, the one
+  that equals the EBGP peer's AS for a route learned from it; confirm before coding.
+  draft-ietf-idr-flowspec-redirect-ip-16 replaced this check with origin-AS rules;
+  the task said follow simpson-02.
+- Verdict per FlowSpec path (redirect valid or not), computed in
+  `reconcileFlowSpecs` beside `eligible`, published like the eligibility lookup
+  (`ribevents.RegisterFlowSpecLookup`) so both forward rails and the relay read it.
+- Effect on the forward rails: a Remove of every 0x0800 value on code 16 plus the
+  zero length, which `redirectActionLeaves` already turns into length 0; local
+  install (flowspec-firewall) must drop the redirect action too.
+- Config: a per-EBGP-session leaf to disable the check (YANG, `ai/rules/config.md`),
+  plumbed to the RIB; plus a .ci test of both polarities and the off switch.
