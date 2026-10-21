@@ -9,10 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gaterun"
@@ -92,9 +90,9 @@ func commandEnvironment(argv []string, dir string, environ []string) ([]string, 
 	}
 	race, explicit := goTestRace(args[1:], false)
 	if !explicit {
-		flags, err := goTestDefaults(argv[:len(argv)-len(args)], dir, environ)
+		flags, err := gotoolchain.EffectiveGoFlags(argv[:len(argv)-len(args)], dir, environ)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("resolve Go test GOFLAGS: %w", err)
 		}
 		race = goFlagsRace(flags)
 	}
@@ -107,42 +105,6 @@ func commandEnvironment(argv []string, dir string, environ []string) ([]string, 
 		return append(isolated, "CGO_ENABLED=1"), nil
 	}
 	return append(isolated, "CGO_ENABLED=0"), nil
-}
-
-// goTestDefaults uses Go's effective configuration, including GOENV and its
-// platform-specific default path. A nonempty OS override already determines
-// the answer; an empty value does not suppress Go's persistent configuration.
-func goTestDefaults(prefix []string, dir string, environ []string) (string, error) {
-	for _, entry := range slices.Backward(environ) {
-		if value, found := strings.CutPrefix(entry, "GOFLAGS="); found {
-			if value != "" {
-				return value, nil
-			}
-			break
-		}
-	}
-	// A configuration query must not indefinitely delay starting the test.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	args := make([]string, 0, len(prefix)+1)
-	args = append(args, prefix[1:]...)
-	args = append(args, "env", "GOFLAGS")
-	cmd := exec.CommandContext(ctx, prefix[0], args...) //nolint:gosec // the selected Go executable also runs the test
-	cmd.Dir = dir
-	cmd.Env = environ
-	var output, diagnostic strings.Builder
-	cmd.Stdout = &output
-	cmd.Stderr = &diagnostic
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("resolve Go test GOFLAGS: %w", err)
-	}
-	stop := forwardSignals(cmd)
-	err := cmd.Wait()
-	stop()
-	if err != nil {
-		return "", fmt.Errorf("resolve Go test GOFLAGS: %w: %s", err, strings.TrimSpace(diagnostic.String()))
-	}
-	return strings.TrimSpace(output.String()), nil
 }
 
 // goTestPackagePhase distinguishes package operands from positional test args.

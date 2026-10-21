@@ -13,7 +13,6 @@ package perf
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -237,15 +236,18 @@ func TestAllocGateCoversRecordPath(t *testing.T) {
 
 }
 
-// repoRootForTest returns the repository root from this test file's location
-// (<root>/internal/perf/allocgate_test.go -> <root>).
+// repoRootForTest returns the repository root from the package directory go test
+// runs the binary in (<root>/internal/perf -> <root>).
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed, so the repository root cannot be found")
+	// go test runs a test binary in its package directory. runtime.Caller is
+	// not a path under -trimpath, which every le-driven go command sets
+	// (gotoolchain.TrimpathGoFlags): it answers a module-path-prefixed name.
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("read the package directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	return filepath.Clean(filepath.Join(dir, "..", ".."))
 }
 
 // benchmarkDefinedIn reports whether dir holds a Go test file defining name. It

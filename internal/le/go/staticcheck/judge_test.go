@@ -7,33 +7,48 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
-// TestJudgeRunsWithPathIndependentCompiles proves the environment Staticcheck
-// runs under adds -trimpath to GOFLAGS, keeps every inherited flag, never adds
-// it twice, and pins the gate's own cache.
+// TestJudgeRunsWithPathIndependentCompiles proves the
+// environment Staticcheck runs under carries -trimpath in GOFLAGS, keeps every
+// inherited flag, never adds it twice, and pins the gate's own cache, and that
+// the GOFLAGS entry is the toolchain's (gotoolchain.TrimpathGoFlags) rather
+// than one the gate composes for itself.
 //
-// Method: build the environment from three inherited GOFLAGS shapes and read
-// the entry the child sees, which is the LAST one for a key. Without -trimpath
+// Method: build the environment from four inherited GOFLAGS shapes and read
+// the entry the child sees, which is the LAST one for a key, then compare it
+// with the toolchain's answer over the same environment. Without -trimpath
 // every compile action ID carries the tree's absolute directory, so a verify
 // run in a fresh tree compiles the whole module cold and the matrix exceeds
-// its deadline (judgeEnvironment).
+// its deadline.
 func TestJudgeRunsWithPathIndependentCompiles(t *testing.T) {
 	cases := []struct {
 		name    string
 		environ []string
 		want    string
 	}{
-		{"no GOFLAGS", []string{"HOME=/h"}, "-trimpath"},
+		{"no GOFLAGS", []string{"HOME=/h", "GOENV=off"}, "-trimpath"},
 		{"inherited flags kept", []string{"GOFLAGS=-mod=vendor"}, "-mod=vendor -trimpath"},
 		{"already present", []string{"GOFLAGS=-trimpath -mod=vendor"}, "-trimpath -mod=vendor"},
 		{"last inherited entry wins", []string{"GOFLAGS=-race", "GOFLAGS=-mod=vendor"}, "-mod=vendor -trimpath"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := judgeEnvironment(tc.environ, "/c")
-			if flags := lastValue(got, goFlagsKey); flags != tc.want {
+			got, err := judgeEnvironment(tc.environ, "/c", t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if flags := lastValue(got, "GOFLAGS"); flags != tc.want {
 				t.Errorf("GOFLAGS = %q, want %q", flags, tc.want)
+			}
+			toolchain, err := gotoolchain.TrimpathGoFlags(tc.environ, t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if entry := "GOFLAGS=" + lastValue(got, "GOFLAGS"); entry != toolchain {
+				t.Errorf("Staticcheck GOFLAGS entry %q is not the toolchain's %q", entry, toolchain)
 			}
 			if cache := lastValue(got, cacheKey); cache != "/c" {
 				t.Errorf("STATICCHECK_CACHE = %q, want /c", cache)
@@ -62,7 +77,10 @@ func TestJudgeCompilesBeforeTheDeadlineStarts(t *testing.T) {
 	// sleep(external): the fake compiler must outlast the Staticcheck deadline
 	// to prove the deadline does not include the compile; no condition exists
 	// to wait on because the delay IS the property under test.
-	fakeGo := "#!/bin/sh\necho \"GOFLAGS=$GOFLAGS $*\" >> " + record + "\nsleep 1.5\n"
+	// `go env GOFLAGS` is the toolchain asking for the effective value
+	// (gotoolchain.EffectiveGoFlags); the fake answers it empty at once and
+	// records only the compile.
+	fakeGo := "#!/bin/sh\nif [ \"$1\" = env ]; then echo; exit 0; fi\necho \"GOFLAGS=$GOFLAGS $*\" >> " + record + "\nsleep 1.5\n"
 	fakeStaticcheck := "#!/bin/sh\ncat > /dev/null\nexit 0\n"
 	for name, body := range map[string]string{"go": fakeGo, "staticcheck": fakeStaticcheck} {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o700); err != nil { //nolint:gosec // an executable test double

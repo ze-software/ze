@@ -66,6 +66,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -714,15 +715,116 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 // Environment answers the whole environment a Go command runs under. Test
 // children do not inherit the launching le's checkout or build identity.
 // Toolchain overrides follow inherited entries, so os/exec uses their values.
+// It carries exactly one GOFLAGS entry, the effective value with -trimpath
+// (TrimpathGoFlags), unless Go cannot answer what its effective value is.
 func (t Toolchain) Environment(opts EnvOptions) []string {
 	inherited := os.Environ()
 	if opts.Test {
 		inherited = env.Without(inherited, "ze.repo.root", "ze.le.build.name")
 	}
 	overrides := t.Overrides(opts)
-	full := make([]string, 0, len(inherited)+len(overrides))
+	full := make([]string, 0, len(inherited)+len(overrides)+1)
 	full = append(full, inherited...)
-	return append(full, overrides...)
+	full = append(full, overrides...)
+	flags, err := TrimpathGoFlags(full, t.Root)
+	if err != nil {
+		// The command still runs, and runs correctly: Go reads its own GOFLAGS
+		// as it would without le. What it loses is cache reuse across
+		// checkouts, so the loss is said and the command is not refused.
+		var tb textbuf.Buffer
+		_, _ = os.Stderr.WriteString(tb.Str("le: ").Err(err).
+			Str("; this Go command runs without -trimpath, so it reuses no compile from another checkout path. ").
+			Str("Run `go env GOFLAGS` to see why Go cannot answer\n").String())
+		return full
+	}
+	return append(withoutKey(full, goFlagsKey), flags)
+}
+
+// goFlagsKey is the variable the go command reads for its default flags.
+const goFlagsKey = "GOFLAGS"
+
+// trimpathFlag is the go flag that drops the source directory from every
+// compile action ID.
+const trimpathFlag = "-trimpath"
+
+// TrimpathGoFlags answers the GOFLAGS entry ("GOFLAGS=<value>") every
+// le-driven Go command runs under: the effective value a go command started
+// with environ in dir would read (EffectiveGoFlags), plus -trimpath unless a
+// field already is it. Environment applies it, and the Staticcheck gate
+// applies it to the environment it assembles for itself; nothing else in le
+// adds -trimpath, except the tracked-build gate
+// (internal/le/repo/compiles/repositorytrackedbuild.go), which assembles its
+// own environment without this toolchain and keeps the flag in its argv.
+//
+// -trimpath is what makes a fresh checkout reuse the shared Go cache. Go
+// hashes the package directory into every compile action ID unless the flag
+// is set ((*Builder).buildActionID, cmd/go/internal/work/exec.go), and each
+// verify run extracts the tree into a new worktree path, so every run compiled
+// the module cold. On 2026-10-16 the Staticcheck all-features row took 495.7s
+// cold (2157s of CPU) against 11.3s warm. golangci-lint has no -trimpath flag
+// of its own: its `go list -export` load sees only GOFLAGS, which is why the
+// flag lives in the environment and not in each argv. The flag changes no
+// diagnostic: a compile error names the same tree-relative file. It does
+// change runtime.Caller, which answers a module-path-prefixed name, so a test
+// MUST NOT find the repository from its own source path.
+func TrimpathGoFlags(environ []string, dir string) (string, error) {
+	flags, err := EffectiveGoFlags([]string{goProgram}, dir, environ)
+	if err != nil {
+		return "", err
+	}
+	if !slices.Contains(strings.Fields(flags), trimpathFlag) {
+		flags = strings.TrimSpace(flags + " " + trimpathFlag)
+	}
+	return goFlagsKey + "=" + flags, nil
+}
+
+// EffectiveGoFlags answers the GOFLAGS value a go command started from
+// goCommand (the argv prefix before the subcommand) with environ in dir would
+// use. A nonempty GOFLAGS variable already decides it: Go reads the variable
+// before its persistent configuration, and the last entry is the one a child
+// sees. An empty or absent one does not suppress the GOENV file or the
+// GOROOT go.env, so the answer then comes from `go env GOFLAGS` itself,
+// including its platform-specific default GOENV path. The query is bounded by
+// a minute, so a wedged go command cannot hold the caller forever.
+func EffectiveGoFlags(goCommand []string, dir string, environ []string) (string, error) {
+	for _, entry := range slices.Backward(environ) {
+		if value, found := strings.CutPrefix(entry, goFlagsKey+"="); found {
+			if value != "" {
+				return value, nil
+			}
+			break
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	args := make([]string, 0, len(goCommand)+1)
+	args = append(args, goCommand[1:]...)
+	args = append(args, "env", goFlagsKey)
+	cmd := exec.CommandContext(ctx, goCommand[0], args...) //nolint:gosec // the caller's own Go executable
+	cmd.Dir = dir
+	cmd.Env = environ
+	var output, diagnostic strings.Builder
+	cmd.Stdout = &output
+	cmd.Stderr = &diagnostic
+	if err := cmd.Run(); err != nil {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("resolve the effective GOFLAGS: ").Err(err).Str(": ").
+			Str(strings.TrimSpace(diagnostic.String())).String())
+	}
+	return strings.TrimSpace(output.String()), nil
+}
+
+// withoutKey answers environ with every entry for key removed, so the entry
+// appended after it is the only one and no reader can take an earlier one.
+func withoutKey(environ []string, key string) []string {
+	prefix := key + "="
+	kept := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		if !strings.HasPrefix(entry, prefix) {
+			kept = append(kept, entry)
+		}
+	}
+	return kept
 }
 
 // goRun returns the argv for `go run` on one script. The argv includes the full

@@ -10,20 +10,22 @@ package runner
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
-// repoRootForTest returns the repository root from this test file's location
-// (<root>/internal/test/runner/accept_only_lint_test.go -> <root>).
+// repoRootForTest returns the repository root from the package directory go test
+// runs the binary in (<root>/internal/test/runner -> <root>).
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	// go test runs a test binary in its package directory. runtime.Caller is
+	// not a path under -trimpath, which every le-driven go command sets
+	// (gotoolchain.TrimpathGoFlags): it answers a module-path-prefixed name.
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("read the package directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	return filepath.Clean(filepath.Join(dir, "..", "..", ".."))
 }
 
 // parseCI writes content to dir/name and returns the parsed Record.

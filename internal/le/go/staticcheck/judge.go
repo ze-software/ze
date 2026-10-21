@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // DeadlineKey is the dot-notation spelling of ZE_STATICCHECK_DEADLINE. It
@@ -144,7 +145,12 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 			Str("; matrix could not be judged").String())
 	}
 
-	environ := judgeEnvironment(os.Environ(), cache)
+	environ, err := judgeEnvironment(os.Environ(), cache, tree)
+	if err != nil {
+		var tb textbuf.Buffer
+		return Verdict{}, false, errors.New(tb.Str("could not set the Staticcheck environment: ").Err(err).
+			Str("; matrix could not be judged").String())
+	}
 	if err := warmBuildCache(tree, matrix, environ); err != nil {
 		return Verdict{}, false, err
 	}
@@ -292,40 +298,21 @@ func killGroup(cmd *exec.Cmd) func() error {
 	}
 }
 
-// goFlagsKey is the variable the go command reads for its default build flags.
-const goFlagsKey = "GOFLAGS"
-
-// trimpathFlag is the go build flag that drops the source directory from every
-// compile action ID.
-const trimpathFlag = "-trimpath"
-
 // judgeEnvironment answers the environment Staticcheck runs under: environ
-// with the gate's own cache and with -trimpath added to GOFLAGS.
+// with the gate's own cache and with the toolchain's GOFLAGS entry, which
+// carries -trimpath (gotoolchain.TrimpathGoFlags holds the measurement and
+// why the deadline depends on it). The gate does not compose the flag itself:
+// one declaration serves every le-driven Go command.
 //
 // The last entry for a key wins, so an inherited STATICCHECK_CACHE cannot
-// point this run back at a shared cache.
-//
-// -trimpath is load-bearing for the deadline. Staticcheck loads each row with
-// `go list -export -test -deps`, which compiles every package of the module
-// and its test variants into the Go build cache. Without -trimpath each compile
-// action ID carries the package's absolute directory, and every verify run
-// extracts the tree into a fresh directory, so every run compiled the whole
-// module cold. On 2026-10-16 the all-features row alone took 495.7s cold
-// (2157s of CPU) against 11.3s warm, which left 7 rows no room inside 10m30s.
-// With the flag the IDs are path-independent and a fresh tree reuses what the
-// previous run compiled. The flag changes no diagnostic: a compile error names
-// the same tree-relative file with or without it.
-func judgeEnvironment(environ []string, cache string) []string {
-	flags := ""
-	for _, entry := range environ {
-		if value, found := strings.CutPrefix(entry, goFlagsKey+"="); found {
-			flags = value
-		}
+// point this run back at a shared cache. An error means Go could not say what
+// its effective GOFLAGS are, and the matrix is not judged on a guess.
+func judgeEnvironment(environ []string, cache, dir string) ([]string, error) {
+	flags, err := gotoolchain.TrimpathGoFlags(environ, dir)
+	if err != nil {
+		return nil, err
 	}
-	if !slices.Contains(strings.Fields(flags), trimpathFlag) {
-		flags = strings.TrimSpace(flags + " " + trimpathFlag)
-	}
-	return append(slices.Clip(environ), cacheKey+"="+cache, goFlagsKey+"="+flags)
+	return append(slices.Clip(environ), cacheKey+"="+cache, flags), nil
 }
 
 // startFailure states why Staticcheck never ran, in the three forms a reader

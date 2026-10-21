@@ -982,3 +982,44 @@ func mustExistUnder(t *testing.T, root, rel string) {
 		t.Fatalf("published path %s does not exist at the checkout: %v", rel, err)
 	}
 }
+
+// TestAWorktreeSharesTheCheckoutLintCache proves a worktree run lints against
+// the checkout's golangci-lint cache, and that removing the worktree leaves
+// that cache in place.
+//
+// Method: a kept run exposes the worktree, whose lint cache must be a link to
+// the checkout's; a marker in the checkout's cache must survive a run whose
+// worktree is removed. golangci-lint keys its cache on the module-relative
+// path, so the only thing that made each run lint cold was LintCache resolving
+// inside the worktree, which the removal deletes.
+func TestAWorktreeSharesTheCheckoutLintCache(t *testing.T) {
+	repo := newFixtureRepo(t)
+	shared := gotoolchain.LintCache(repo.root)
+
+	kept := Run(context.Background(), repo.root, Options{Keep: true}, passingRunner)
+	if kept.Code != 0 {
+		t.Fatalf("kept run = %#v", kept)
+	}
+	target, err := os.Readlink(gotoolchain.LintCache(kept.Worktree))
+	if err != nil || target != shared {
+		t.Fatalf("worktree lint cache -> %q (%v), want a link to %q", target, err, shared)
+	}
+	if !strings.Contains(kept.Text(), "verify-worktree: shared lint cache: ") {
+		t.Fatalf("the run never reported the lint cache link: %s", kept.Text())
+	}
+
+	marker := filepath.Join(shared, "marker")
+	if err := os.WriteFile(marker, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	removed := Run(context.Background(), repo.root, Options{}, passingRunner)
+	if removed.Code != 0 {
+		t.Fatalf("second run = %#v", removed)
+	}
+	if _, err := os.Stat(removed.Worktree); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("worktree remains: %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("removing the worktree removed the checkout's lint cache: %v", err)
+	}
+}

@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -432,11 +431,14 @@ func TestLERootLocalDataAdapterExclusionIsExact(t *testing.T) {
 
 func repositoryRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller did not report this test file")
+	// go test runs a test binary in its package directory. runtime.Caller is
+	// not a path under -trimpath, which every le-driven go command sets
+	// (gotoolchain.TrimpathGoFlags): it answers a module-path-prefixed name.
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("read the package directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", ".."))
+	return filepath.Clean(filepath.Join(dir, "..", "..", "..", ".."))
 }
 
 func productionLocalDataCommands(t *testing.T, root string) map[string]string {

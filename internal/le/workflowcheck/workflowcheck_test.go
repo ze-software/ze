@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,11 +35,14 @@ const workflowsDir = ".github/workflows"
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source")
+	// go test runs a test binary in its package directory. runtime.Caller is
+	// not a path under -trimpath, which every le-driven go command sets
+	// (gotoolchain.TrimpathGoFlags): it answers a module-path-prefixed name.
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("read the package directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	return filepath.Clean(filepath.Join(dir, "..", "..", ".."))
 }
 
 func readFile(t *testing.T, path string) string {

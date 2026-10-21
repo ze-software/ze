@@ -739,3 +739,57 @@ func TestTheTestTempDirIsMadePrivateAndWritable(t *testing.T) {
 		t.Errorf("makeTestTempDir(read-only) = %q; want the chown remedy and no device check", err)
 	}
 }
+
+// TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS proves every
+// le-driven Go command builds with -trimpath, composed with the GOFLAGS the
+// owner already set rather than replacing them.
+//
+// Method: set the inherited GOFLAGS and a GOENV file, build the environment,
+// and read every GOFLAGS entry it holds. A GOFLAGS variable REPLACES the go
+// env file's value, so an entry built from the inherited variable alone drops
+// a `go env -w GOFLAGS=...` setting in silence; the GOENV case catches that.
+// Without -trimpath every compile action ID carries the package directory, so
+// each fresh verify worktree compiled the module cold.
+func TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS(t *testing.T) {
+	cases := []struct {
+		name      string
+		inherited string
+		file      string
+		want      string
+	}{
+		{name: "nothing set", want: "-trimpath"},
+		{name: "inherited value kept", inherited: "-mod=mod", want: "-mod=mod -trimpath"},
+		{name: "go env file value kept", file: "-mod=mod", want: "-mod=mod -trimpath"},
+		{name: "inherited wins over the file", inherited: "-mod=vendor", file: "-mod=mod", want: "-mod=vendor -trimpath"},
+		{name: "never doubled", inherited: "-trimpath -mod=mod", want: "-trimpath -mod=mod"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			goenv := filepath.Join(t.TempDir(), "env")
+			content := ""
+			if tc.file != "" {
+				content = "GOFLAGS=" + tc.file + "\n"
+			}
+			if err := os.WriteFile(goenv, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("GOENV", goenv)
+			t.Setenv("GOFLAGS", tc.inherited)
+			if tc.inherited == "" {
+				if err := os.Unsetenv("GOFLAGS"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			environment := Toolchain{Root: t.TempDir()}.Environment(EnvOptions{})
+			var entries []string
+			for _, entry := range environment {
+				if value, found := strings.CutPrefix(entry, "GOFLAGS="); found {
+					entries = append(entries, value)
+				}
+			}
+			if len(entries) != 1 || entries[0] != tc.want {
+				t.Fatalf("GOFLAGS entries = %q, want exactly [%q]", entries, tc.want)
+			}
+		})
+	}
+}

@@ -29,10 +29,11 @@ func checkCompileCommand(ctx context.Context, tree string, packages []string) (*
 	if err != nil {
 		return nil, baselineParseError("derive native Go test toolchain: " + err.Error())
 	}
-	// -trimpath lets identical source at another checkout path reuse compiled
-	// dependencies. The shared toolchain environment selects that checkout's
-	// cache and pin rather than the launching process's ambient Go settings.
-	args := toolchain.GoVet(gotoolchain.TestOptions{}, "-trimpath", "-framepointer")
+	// The shared toolchain environment selects that checkout's cache and pin
+	// rather than the launching process's ambient Go settings, and carries
+	// -trimpath (gotoolchain.TrimpathGoFlags), so identical source at another
+	// checkout path reuses compiled dependencies.
+	args := toolchain.GoVet(gotoolchain.TestOptions{}, "-framepointer")
 	args = append(args, packages...)
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // toolchain argv and checkout-derived package paths
 	cmd.Dir = tree

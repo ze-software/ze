@@ -59,8 +59,9 @@ fills that cache, so its trim walks a bounded population.
 
 Staticcheck loads each row with `go list -export -test -deps`, which compiles
 every package of the module and its test variants into the Go build cache. The
-gate adds `-trimpath` to `GOFLAGS` for that run (`judgeEnvironment`), for the
-reason the tracked build passes it: without it each compile action ID carries
+gate's environment carries `-trimpath` in `GOFLAGS` (`judgeEnvironment` appends
+`gotoolchain.TrimpathGoFlags`, the one declaration every le-driven Go command
+gets through `Toolchain.Environment`), for the reason the tracked build passes it: without it each compile action ID carries
 the package's absolute directory, and every verify run extracts the tree into a
 fresh one, so every run compiled the whole module cold. On 2026-10-16 the
 all-features row alone measured 495.7s cold (2157s of CPU) against 11.3s warm,

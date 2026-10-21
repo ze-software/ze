@@ -424,6 +424,22 @@ reason and its fix, and the run keeps Go's default. The directory is created
 `0700` on first use. `df -h ~/.zt` answers how much room it has. Like
 `GOCACHE`, a `GOTMPDIR` you exported yourself is overridden on a test run.
 
+Every le-driven Go command (`go test`, `go vet`, `go list`, the functional
+binary builds, golangci-lint and Staticcheck) runs with `-trimpath` in
+`GOFLAGS`. Go hashes the package directory into every compile action ID
+unless the flag is set, so without it each fresh verify worktree compiled the
+module cold. The entry is composed from the value Go would use anyway (your
+exported `GOFLAGS`, else `go env GOFLAGS`, which reads a `go env -w` setting),
+so your own flags are kept and `-trimpath` is never doubled. If Go cannot say
+what that value is, le writes one line to stderr and runs the command without
+the flag. The tracked-build gate keeps the flag in its own argv, because it
+does not use the toolchain environment. Two consequences: `runtime.Caller`
+answers a module-path-prefixed name, so a test finds the repository from its
+working directory (`os.Getwd`, the package directory) and never from its own
+source file; and the first le run after the flag landed rebuilt every cache
+once.
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment, TrimpathGoFlags, EffectiveGoFlags -->
+
 Under `sudo -E`, the test runs as root with your `HOME`, so root creates
 root-owned entries in `~/.zt` that your next run cannot use or remove. Give
 them back with `sudo chown -R $USER ~/.zt`.
@@ -580,7 +596,10 @@ is `tmp/go-cache` (`gotoolchain.BootstrapCache`), which the `le` script's own
 build, the deployment builds and the QEMU guest write. The LINT cache is
 `tmp/golangci-lint-cache`, which `Overrides` names through
 `gotoolchain.LintCache`, and it is emptied by deleting the directory because no
-`go clean` owns it. The equivalent by hand is:
+`go clean` owns it. A verify worktree's `tmp/golangci-lint-cache` is a link to
+the checkout's, so a worktree lint reuses what the last one cached and the
+worktree removal deletes only the link (`sharedLintCacheLink`,
+`internal/le/verify/lifecycle.go`). The equivalent by hand is:
 
 ```
 go clean -cache                                    # the ambient cache
@@ -934,7 +953,8 @@ The same direct-child boundary removes every spelling of the outer checkout
 root and named-build identity, while preserving the parent job setting. Keep
 `go test` as the direct command (an optional leading Go `-C` is supported);
 `job` does not parse shell commands or `env` wrappers.
-<!-- source: internal/le/job/process.go -- commandEnvironment, goTestDefaults, goTestRace, goFlagsRace -->
+<!-- source: internal/le/job/process.go -- commandEnvironment, goTestRace, goFlagsRace -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- EffectiveGoFlags -->
 
 Carry the feature tags from the recipe at the top of this page, or the run
 judges a tree in which no gated plugin registers.
