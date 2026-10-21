@@ -64,7 +64,7 @@
       "claim-sha": "2880aae9dc9a6e5a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "c8593ec74657cf13",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "d9eee1413aca677a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "f7d3e92a5c6c1a55",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "e4dd58d01b25ca5c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "db5a38946a7fa8ed",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "8f5fb34688344cb6",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -328,7 +328,7 @@
       "claim-sha": "c91dd2105f28d4f4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "359f4cbddcef0d90",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +350,7 @@
       "claim-sha": "adc745ddd5de64ce",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -361,7 +361,7 @@
       "claim-sha": "db280a0edecf34ba",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +372,7 @@
       "claim-sha": "77ce547ca7798da2",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "d870cd1efa11f601",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -472,7 +472,7 @@
       "claim-sha": "f6c11fc5c79b191e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
-      "producer-sha": "2685dfa6b65fe85a",
+      "producer-sha": "92e608b47c438c2b",
       "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00570200000040800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020A02020000FDE80000FDE9"
     },
@@ -506,7 +506,7 @@
       "claim-sha": "a3dfdd71df4a41a6",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -517,7 +517,7 @@
       "claim-sha": "0d5094e884bcbd91",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -682,7 +682,7 @@
       "claim-sha": "7da55248ea1e84df",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -693,7 +693,7 @@
       "claim-sha": "f7a99d95881bd146",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "0832262f7f8e9f77",
+      "producer-sha": "21fe78825d93b5dc",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -739,7 +739,7 @@
       "claim-sha": "916f34de09c7b622",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
-      "producer-sha": "2685dfa6b65fe85a",
+      "producer-sha": "92e608b47c438c2b",
       "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00570200000040800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020A02020000FDE80000FDE9"
     },

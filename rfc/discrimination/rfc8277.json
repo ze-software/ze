@@ -625,7 +625,7 @@
       "claim-sha": "dc66d35ae3a63e2b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
-      "producer-sha": "908f11d800886461",
+      "producer-sha": "c4bf13528ffe058f",
       "break": "body of mpReachNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

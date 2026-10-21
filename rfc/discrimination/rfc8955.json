@@ -53,7 +53,7 @@
       "claim-sha": "7f6a1458ee09bec2",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-      "producer-sha": "7e3a8b1964265148",
+      "producer-sha": "d4ad07c1e061d239",
       "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "02a2159a3d547a48",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-      "producer-sha": "7e3a8b1964265148",
+      "producer-sha": "d4ad07c1e061d239",
       "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "21ea75494f23f14b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-      "producer-sha": "7e3a8b1964265148",
+      "producer-sha": "d4ad07c1e061d239",
       "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "344647c5805e1b1a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-      "producer-sha": "8154580967ad27d2",
+      "producer-sha": "b59ad9e10bf3fe7a",
       "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "0c5a426726d16e25",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-      "producer-sha": "8154580967ad27d2",
+      "producer-sha": "b59ad9e10bf3fe7a",
       "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
