@@ -128,6 +128,13 @@ owner called them later phases and the release can go out without them.
 | D-8 | Who performs the second walk in child 4 | (a) a fresh agent context that is not given the first walk; (b) (a) plus one stem per tranche walked by a person, to calibrate the agent's agreement rate | (b). Two model walks can share a model's blind spot, and one human-walked stem per tranche measures it |
 | D-7 | The 4206 tagged units that carry no proof at all | (a) leave them grandfathered, as today; (b) a separate burn-down after child 2 | Not in the approved brief. Named here so that it is a decision and not an omission |
 
+D-7, BGP measurement (2026-10-21, closure of spec-rfc-verdict-fix-bgp): over the
+60 BGP stems of that child's 2026-09-28 population, 230 of 807 `enforced`
+verdicts carry no discrimination record at all, and on the 336 verdicts the
+child moved to `enforced`, 722 of 1538 unit tags have none. Both sets are
+this decision's population; that child's closure takes the change-scoped
+reading of its AC-C2.
+
 ## Required Reading
 
 ### Architecture Docs

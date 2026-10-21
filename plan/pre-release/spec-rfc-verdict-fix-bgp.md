@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
-| Phase | 48/48 (closure check: the derived listing re-run 2026-10-21 holds 6 weak, 0 wrong, each a "Blocked by" id) |
+| Phase | 48/48 (closure: the derived listing re-run 2026-10-21 holds 6 weak, 0 wrong; five are "Blocked by" ids, and DRAFT-IETF-BESS-MUP-SAFI-3.1-1 waits on its independent re-judge after the test fix in `32ff59085b`) |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -285,7 +285,17 @@ Copied from the parent's "Narrowing audit findings, 2026-09-28", where the proce
 
 This table records acceptance ownership, not a fresh conformance count. The initial transfers were checked on 2026-09-28; later transfers name their dates. The blocking spec owns the producer acceptance (AC-C4/P-3). The current weak/wrong population comes from the derived listing above; historical transfers already recorded as enforced are retained separately below.
 
-| ID | Verdict | Blocking spec |
+The Verdict column is the verdict at transfer. Re-read from `rfc/audit/*.json` on
+2026-10-21: RFC9494-4.2-6, RFC7999-3.1-2, RFC4271-9.2-7,
+DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 and RFC9252-5-3 are still `weak`;
+RFC6286-2.1-1 is `partial` (its deviation record); RFC9012-13-16 is
+`unimplemented`; every other row now reads `enforced`, and its row stays as the
+owner trail. DRAFT-IETF-BESS-MUP-SAFI-3.1-1 left this table on 2026-10-21: its
+weakness was test strength, not a producer defect, so this child fixed it
+(`TestMUPOtherRouteTypesSilentlyIgnoredAtIngress` asserts discarded 4 and
+withdrawn 0 apart, landed in `32ff59085b`) rather than transferring it.
+
+| ID | Verdict at transfer | Blocking spec |
 |----|---------|---------------|
 | RFC8669-6-1 | weak | `spec-bgp-prefix-sid-rfc-defects` |
 | RFC9252-7-2 | weak | `spec-bgp-prefix-sid-rfc-defects` (AC-7, 2026-09-30) |
@@ -308,7 +318,6 @@ This table records acceptance ownership, not a fresh conformance count. The init
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10 | weak | `spec-bgp-update-propagation-rfc-defects` |
-| DRAFT-IETF-BESS-MUP-SAFI-3.1-1 | weak | `spec-bgp-update-propagation-rfc-defects` AC-5 (2026-10-21: the ingress positive cannot tell a silent ignore from a treat-as-withdraw; test-strength fix named there) |
 | RFC9234-3.1-1 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC7999-3.1-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC9830-4.2.1-2 | weak | `spec-bgp-sr-policy-rfc-defects` |
@@ -1121,3 +1130,135 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-bgp.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- The 2026-09-28 weak-or-wrong population of this child (359 verdicts over 60 stems in the scratch baseline; the Task's 360 counts one more) is resolved: 336 now read `enforced`, 4 `partial`, 2 `unimplemented`, 12 ids no longer exist (split, merged or retired with a correction), and 5 are still `weak`, each a "Blocked by" row. Re-read from `rfc/audit/*.json` on 2026-10-21.
+- Tests strengthened and re-tagged across the packages under "Packages it owns", each change with a discrimination record and the `RFC-approved:` trailer (P-1); split, missing and row-quality rows corrected in `rfc/short/` with `rfc/corrections/` entries; extraction sign-offs for the owned stems.
+- Transfers under P-3 into the acceptance criteria of the blocking specs ("Blocked by" table), and ownership of the gap rows given to three specs (owner, 2026-10-11).
+- Closure, 2026-10-21: reseal of four SHIFTED verdicts (RFC4659-3.2-2, RFC4659-3.2.1.1-1, RFC7999-3.1-2, RFC8654-4-2); re-recorded revert records stale at HEAD (`a0c77aa15b`); `TestMUPOtherRouteTypesSilentlyIgnoredAtIngress` asserts discarded 4 and withdrawn 0 apart (`retainMUPCounts`, landed with `32ff59085b`); citers of this spec reworded (`13bc1a99af`).
+
+### Bugs Found/Fixed
+- D-8 producer fixes landed in their own commits during the package phases (see "Ownership repair landing and proof" and "Acceptance evidence" above); each carries its failing-first test and record.
+- DRAFT-IETF-BESS-MUP-SAFI-3.1-1: the positive could not tell a silent ignore from a treat-as-withdraw, because it summed discarded and withdrawn. Fixed in the test (`retainMUPCounts`), with a revert record over `rfc7606.go::RecognizeNLRI`.
+
+### Documentation Updates
+- `rfc/short/<stem>.md` rows and `Support` cells for the owned stems, regenerated into `docs/features/rfc-status.md` by `./le rfc index-update` in the package-phase commits. No other page describes what this child changed (tests, rows, verdicts).
+- `features/bgp-protocol.md` Defect review row: citation of this spec made a bare stem (`13bc1a99af`).
+
+### Deviations from Plan
+- DRAFT-IETF-BESS-MUP-SAFI-3.1-1 was first transferred to update-propagation AC-5 (2026-10-21) and then taken back and fixed here, because its weakness was test strength, not a producer defect (round-1 BLOCKER 1).
+- The ISD rows DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1/-3/-4 moved to `spec-bgp-unowned-rfc-rows` rows 13 to 15 (AC-9) rather than staying here as gap rows nobody owned.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The 2026-10-21 closure check called the producer-changed revert records for BFD-STRICT-MODE-6-1, RFC2918-2-1, RFC7705-4.2-3 and RFC9830-2.1-3 working-tree-only | Their producers changed in committed code (`2e32def1a9`, `7052b662a4`, `planBatchAttrs`), so they were stale at HEAD | round-1 review ISSUE 2 | re-recorded in `a0c77aa15b` |
+| approach | MUP-SAFI-3.1-1 was routed to a producer spec | The defect was in the test's assertion, which this child owns | round-1 review BLOCKER 1 | fixed here, transfer withdrawn |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| AC-C1 goal: listing holds only "Blocked by" ids | Partial | derived listing, Goal Validation | holds at commit B once MUP-SAFI-3.1-1 is re-judged independently |
+| P-1 approvals and trailers | Done | commit trailers, e.g. `32ff59085b` | |
+| P-2 re-judge only by `mode rejudge` | Done | `rfc/audit/*.json` | no hand-deleted entry |
+| P-3 blocked verdicts in the blocking specs' ACs | Done | "Blocked by" table | each row's AC read 2026-10-08 and 2026-10-21 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Partial | derived listing 2026-10-21: 6 weak, 0 wrong | MUP-SAFI-3.1-1 owes an independent re-judge |
+| AC-C2 | Done (change-scoped reading, see Goal Validation) | 336 of 336 moved verdicts carry a record | the literal every-unit reading holds for 47 of 336; disclosed and homed |
+| AC-C3 | Done | split-needed and missing-rows tables; 16 of 17 split rows and all 4 missing rows have their own row (spot check 2026-10-21) | |
+| AC-C4 | Done | no code-defect spec's defect declared or fixed here | |
+| AC-C5 | Partial | `./le rfc check` 2026-10-21 (Pre-Commit Verification) | STALE verdicts in owned stems from other agents' commits after this child's last stamp |
+| AC-C6 | Done | row-quality and mistagged-unit tables | |
+| AC-C7 | Done | Un-enrolled R-7 rows table and stem audit files | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit tagged by a listed verdict, per package | Done | packages under "Packages it owns" | 336 moved verdicts; records in `rfc/discrimination/` |
+| interop for D-8 fixes | Done | named scenarios in "Remaining closure obligations" (e.g. `bgp-addpath-readvertise-collision-frr`) | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `_test.go` and `.ci` of owned packages | Done | |
+| `rfc/{short,audit,discrimination,corrections,extraction}/<stem>` for owned stems | Done | |
+| acceptance criteria of blocking specs | Done | |
+
+### Audit Summary
+- **Total items:** 7 ACs, 4 Task requirements
+- **Done:** 9
+- **Partial:** 2 (AC-C1 and AC-C5; both close before commit B, no scope reduction asked)
+- **Skipped:** 0
+- **Changed:** 2 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-C1: the derived listing holds only "Blocked by" ids | data correctness | The "Derived listing" jq re-run 2026-10-21 over the working tree returns 6 weak, 0 wrong: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 (add-path AC-21), RFC4271-9.2-7 (rs-replacement AC-3), RFC7999-3.1-2 (update-propagation AC-5), RFC9252-5-3 (vpp-srv6-service-policy AC-7), RFC9494-4.2-6 (GR AC-4), and DRAFT-IETF-BESS-MUP-SAFI-3.1-1, no longer a "Blocked by" row. The goal holds only once that verdict is re-judged by a reader who did not write `retainMUPCounts`: `./le rfc audit-stamp stem draft-ietf-bess-mup-safi from <pending> mode rejudge` |
+| AC-C2: every verdict this child moved to `enforced` has records and an independent judge | data correctness | Two counts, both measured 2026-10-21 over the 60 stems of the 2026-09-28 population, joining `rfc/audit/<stem>.json` verdicts to `rfc/discrimination/<stem>.json` records by requirement id and unit. (1) The verdicts this child moved: 336 of the 359 baseline ids read `enforced`, and 336 of 336 carry at least one discrimination record (round-1's 335/336 predates `a0c77aa15b`, which re-recorded RFC2918-2-1). (2) Every `enforced` verdict in those 60 stems: 807, of which 577 carry a record and 230 carry none. The 230 are all verdicts this child did not move (they were `enforced` before 2026-09-28), so they are outside AC-C2 under either reading. The reading taken: AC-C2 says "its tagged units carry a discrimination record". Read literally, every tagged unit of a moved verdict: 47 of 336 verdicts meet it, and 722 of 1538 unit tags on moved verdicts have no record (this closure did not measure how many of those the child changed). Read change-scoped, as `ai/rules/rfc-compliance.md` states the obligation ("A tag you add, and a tagged unit whose behavior or claim you change, MUST carry a discrimination record in the same change") and as `./le rfc check` enforces per commit: met, with zero changed unproven units in the postcommit receipts ("Mechanical freshness" above). This closure takes the change-scoped reading and does not claim the literal one. The unrecorded units (the 230 verdicts and the 722 unit tags) are the population of `plan/pre-release/spec-rfc-evidence-strength-0-umbrella.md` D-7, "tagged units that carry no proof at all", an open owner decision. Independent judge: the record of it is "Remaining closure obligations", Independent judgments (2026-10-09); this closure did not re-derive the judge of each of the 336 |
+| AC-C5: no stale verdict in owned stems | data correctness | `./le rfc check` 2026-10-21: see Pre-Commit Verification; the STALE verdicts come from commits after this child's stamps and are owed before commit B |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Discrimination records for tagged units that carry none (230 enforced verdicts not moved by this child; 722 unit tags on moved verdicts) | outside AC-C2's change-scoped reading; a corpus-wide burn-down | `plan/pre-release/spec-rfc-evidence-strength-0-umbrella.md` (D-7) |
+| The five still-weak "Blocked by" verdicts | need another spec's producer fix (P-3) | the blocking specs named in the "Blocked by" table |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not yet recorded: round 2 owed to a fresh reviewer |
+| `./le spec review check` | not run |
+| Rounds | 1 (findings below); round 2 owed |
+| Reviewer lenses used | AC-by-AC reconciliation against `rfc/audit` and `rfc/discrimination`, citer sweep, freshness at HEAD |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | MUP-SAFI-3.1-1 is a test-strength weak, so transferring it to a producer spec parks it | `draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress` | `retainMUPCounts` asserts discarded and withdrawn apart, revert record taken; landed with `32ff59085b`; transfer withdrawn from update-propagation AC-5 (`13bc1a99af`) and from "Blocked by". Independent re-judge still owed |
+| 2 | ISSUE | Producer-changed revert records described as working-tree-only were stale at HEAD | `rfc/discrimination/{draft-ietf-idr-bgp-bfd-strict-mode,rfc2918,rfc7705,rfc9830}.json` | re-recorded, `a0c77aa15b` |
+| 3 | ISSUE | Goal Validation stated AC-C2 without numbers or the reading taken | this spec, Goal Validation | both counts, the two readings and the home of the unrecorded units written above |
+| 4 | ISSUE | Siblings cite this spec by path, which commit B leaves dangling | 14 plan specs, `features/bgp-protocol.md`, `plan/rfc-gap-difficulty-2026-10-18.md` | bare stems and current owners, `13bc1a99af`; ISD rows to unowned-rows AC-9 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/discrimination/draft-ietf-bess-mup-safi.json` | yes | committed in `32ff59085b`, clean against HEAD 2026-10-21 |
+| `internal/le/rfc/check_audit_baseline_test.go` | yes | Wiring Test carrier |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-C1 | 6 weak, 0 wrong | derived-listing jq output 2026-10-21, ids listed in Goal Validation |
+| AC-C2 | 336/336 moved verdicts recorded; 807 enforced, 230 unrecorded | jq join of `rfc/audit` and `rfc/discrimination` over the 60 baseline stems, 2026-10-21 |
+| AC-C5 | owned-stem reds named | `./le rfc check` 2026-10-21 exit 2, 57 violations: draft-ietf-bess-mup-safi 14 STALE verdicts (3.1-1, 3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1/-2/-3/-6/-7/-9/-10, 3.1.4-1, 3.1.4.1-1), SHIFTED 3.1.4.1-3 and 33 revert records no longer verifying, all from `32ff59085b`; RFC8955-4-3 STALE from `2dfb23ed0b` (`test/encode/flow-encode.ci`); SHIFTED RFC5575-4-8, RFC8955-6-1/-3, RFC8956-5-1 from an uncommitted FlowSpec edit of `rib_flowspec_validation_test.go`; test-file naming for rfc4760 and rfc7313 from other sessions' commits. Not this child's: rfc9117 SHIFTED, rfc7950 record, `bridgerun` vet |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` | none (Go carrier `TestCheckAuditRatchetSeesTipCommit`) | `checkAuditFindings` ran over the owned stems 2026-10-21 and reported the STALE verdicts above |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `14698ed9c4` stamped by `mode rejudge` |
+| A-2 | confirmed | every current weak id maps to a receiving AC, or (MUP-SAFI-3.1-1) is fixed here |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC status rows (checklist #9) | `rfc/short/<stem>.md` Meta rows regenerated by `./le rfc index-update` in the phase commits | yes |
+| Other categories No | only tests, ledger files and plan prose changed in this closure | yes |
