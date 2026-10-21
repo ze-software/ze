@@ -63,13 +63,15 @@ cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
 
 # The new forms are accepted. An announcement refused here fails the run,
 # because no expect=command-error consumes it. An End-of-RIB is parsed and then
-# refused only at dispatch, because no session is established to carry it.
+# refused only at dispatch, because no session is established to carry it:
+# eorNoPeerError (internal/component/bgp/reactor/reactor_api_forward.go) names
+# the family it could not send.
 command=send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24
 command=send bgp * update text origin igp next-hop 2001:db8::1 mp ipv6/unicast add 2001:db8:1::/48
 command=send bgp * update text nlri eor
-expect=command-error:contains=no established peers to send to
+expect=command-error:contains=no End-of-RIB sent for ipv4/unicast: no selected peer is established
 command=send bgp * update text mp ipv6/unicast eor
-expect=command-error:contains=no established peers to send to
+expect=command-error:contains=no End-of-RIB sent for ipv6/unicast: no selected peer is established
 
 # The removed forms are refused by name, and the error names the new form.
 command=send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
