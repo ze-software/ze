@@ -1820,3 +1820,17 @@ Left for closure, in order (the closer must not be this agent's author context):
 4. Commit A then commit B (`remove plan/pre-release/spec-rfc-verdict-fix-bgp.md`).
 The claim is held by agent a887f9b6 under session 8385ff13
 (`tmp/session/.session-8385ff13-...+a887f9b6a1c02b23e`); the continuation re-claims.
+
+## ExaBGP 6 case reruns, then conf-flow and MUP T1ST (2026-10-21, Mac subagent exa6x)
+
+Case results (working tree carries other sessions' uncommitted edits):
+- ze: `api-family-carry-v4` was not hung: it was RED. The bridge sends `send bgp 127.0.0.1,192.0.2.1 ...`
+  and a KindAddrs selector looked only at the port-179 map key, so peers on the harness port matched
+  nothing ("no peers match selector"); the script restarted five times and the mock server waited out
+  its 60 s frame timeout. Fixed in `matchPositive` (`peerAtAddr`, shared with KindAddr), unit test
+  `TestPeerSelectorAddrListOnNonDefaultPort` red before, green after. Now PASS, `api-refusals-v4` PASS.
+- ze with HEAD `update_text.go` minus the configured-family pre-check (GOFLAGS overlay): `api-family-carry-v4`
+  RED ("announce route 2001:db8:1::/48 ... answered ['done'], want the error marker").
+- ze old-5.0 `api-rib` PASS, `api-rr-rib` PASS. Pin (685f772e4) `api-rib` PASS, `api-rr-rib` PASS.
+- Found: a multi-peer `request peer <a>,<b> flush` is refused, the bridge only logs it; journal row in
+  `plan/journal/silent-fall-through.md`.

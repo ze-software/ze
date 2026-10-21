@@ -1811,26 +1811,16 @@ func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 		return peers
 
 	case selector.KindAddr:
-		if key := addrToKey(sel.IP()); key.IsValid() {
-			if peer, ok := a.r.peers[key]; ok {
-				return []*Peer{peer}
-			}
-		}
-		addrStr := sel.IP().String()
-		for _, peer := range a.r.peers {
-			if peer.settings.Name == addrStr || peer.settings.Address.String() == addrStr {
-				return []*Peer{peer}
-			}
+		if peer := a.peerAtAddr(sel.IP()); peer != nil {
+			return []*Peer{peer}
 		}
 		return nil
 
 	case selector.KindAddrs:
 		var peers []*Peer
 		for _, ip := range sel.IPs() {
-			if key := addrToKey(ip); key.IsValid() {
-				if peer, ok := a.r.peers[key]; ok {
-					peers = append(peers, peer)
-				}
+			if peer := a.peerAtAddr(ip); peer != nil {
+				peers = append(peers, peer)
 			}
 		}
 		return peers
@@ -1875,6 +1865,27 @@ func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 	default:
 		panic("BUG: invalid peer selector kind")
 	}
+}
+
+// peerAtAddr returns the peer an address selector names, or nil when no peer has
+// that address. The map key carries the session port, so the port-179 key is the
+// fast path and a peer on another port (a test harness, a non-standard session)
+// is found by its address or its name. A list selector resolves each address the
+// same way, so `a,b` matches what `a` and `b` match alone.
+// Caller must hold a.r.mu (read or write).
+func (a *reactorAPIAdapter) peerAtAddr(ip netip.Addr) *Peer {
+	if key := addrToKey(ip); key.IsValid() {
+		if peer, ok := a.r.peers[key]; ok {
+			return peer
+		}
+	}
+	addrStr := ip.String()
+	for _, peer := range a.r.peers {
+		if peer.settings.Name == addrStr || peer.settings.Address == ip {
+			return peer
+		}
+	}
+	return nil
 }
 
 // addrToKey converts a netip.Addr to the AddrPort key format used by the reactor.

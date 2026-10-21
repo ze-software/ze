@@ -275,3 +275,24 @@ func TestPeerSelectorNamePriority(t *testing.T) {
 	require.Len(t, peers, 1)
 	assert.Equal(t, "router-a", peers[0].settings.Name)
 }
+
+// TestPeerSelectorAddrListOnNonDefaultPort resolves an address list naming two
+// peers whose sessions use a port other than 179.
+//
+// VALIDATES: a KindAddrs selector matches a peer by its address whatever port
+// keys it, as the single-address selector already does.
+// PREVENTS: an ExaBGP script with two neighbours on a test port (the bridge sends
+// `send bgp <a>,<b> ...`) answered "no peers match selector" for peers that exist.
+func TestPeerSelectorAddrListOnNonDefaultPort(t *testing.T) {
+	r := New(&Config{})
+	for _, address := range []string{"10.0.0.1", "10.0.0.2"} {
+		settings := NewPeerSettings(mustParseAddr(address), 65000, 65001, 0x01010101)
+		settings.Port = 1790
+		r.peers[settings.PeerKey()] = NewPeer(settings)
+	}
+	adapter := &reactorAPIAdapter{r: r}
+
+	require.Len(t, matchPeers(adapter, "10.0.0.1"), 1, "single address on port 1790")
+	require.Len(t, matchPeers(adapter, "10.0.0.1,10.0.0.2"), 2, "address list on port 1790")
+	require.Len(t, matchPeers(adapter, "10.0.0.1,10.0.0.9"), 1, "an absent address matches nothing")
+}
