@@ -2849,3 +2849,34 @@ Main-thread decision for this run (M3): replace 6fafa673af's refusal of
 `teardown <code> <subcode>` with code other than 6 by widening ze so the bridge
 sends exactly what the pin sends. Then X-35, AC-37/AC-38, the old-4.2 and
 old-5.0 population runs, and the spec "Phase 7 state" line.
+
+## 2026-10-21 FlowSpec redirect-check interop and gates for b68de78958 (agent of 8385ff13)
+
+Gates over b68de78958 (HEAD then), all green:
+- reactor `-race -count=5 -timeout 40m -run 'Forward|Flush|Direct|RS|Replay'`: ok (45s).
+- rs and plugin/registry `-race`: ok.
+- `./le rfc check`: exit 2, 25 findings, none in rs, registry, plugin/server or
+  the reactor, and no discrimination record whose producer these commits touch.
+  The findings are rfc7950 config/yang records (producer-changed), SHIFTED or
+  STALE FlowSpec verdicts over another session's uncommitted
+  `nlri/flowspec/types_test.go` and `rfc8955_text_encode_reserved_test.go`, and
+  two file-name rows (rfc4760_mp_no_next_hop_send_test.go from e7354f3351,
+  rfc7313_local_resend_test.go from e21bd09703). Nothing re-taken: nothing of ours staled.
+- `internal/component/plugin/server`: the 31 "failing" tests are a missing build
+  tag, not a red. Bare `go test`: FAIL; with the `ze_*` tags of
+  `feature-gates.txt`: ok (21s). This is the documented trap
+  (`docs/contributing/running-commands.md`, "A bare `go test` is not
+  `./le test unit`"). No journal row.
+
+BLOCKER 2b landed: interop `bgp-flowspec-redirect-check-frr` (raw injector, no
+lab daemon originates a 0x0800 rule; no ExaBGP sender image exists). Checker
+`internal/le/interoplab/bgp/register_flowspec_redirect_check.go`; inventory row 52.
+Green at b68de78958 plus the scenario; red under the `refusedoff` overlay
+(FRR holds `"ecomlist":"FS:redirect IP 0x0"`, assertion 3 fails).
+Traps met: FRR's plain `show bgp ipv4 flowspec json` is the generic route
+printer and shows no extended communities (a first red run passed with it, so
+the check was vacuous until moved to `detail json`). The docker-lab guest
+builds the staged `test/interop/ze-linux` itself, so the guest-side
+`env 'GOFLAGS=-overlay=/workspace/...'` of the recipe does apply.
+Owed by the main thread: `./le doc check verify` (interop.md row), `./le go lint run`
+scoped to `internal/le/interoplab/bgp`.
