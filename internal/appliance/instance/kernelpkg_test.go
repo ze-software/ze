@@ -51,7 +51,7 @@ func writeKernelTree(t *testing.T, arch string) string {
 // fixture, with extraArgs appended to the cmdline.
 func testOptions(t *testing.T, extraArgs ...string) Options {
 	t.Helper()
-	return Options{ExtraKernelArgs: extraArgs, KernelTree: writeKernelTree(t, runtime.GOARCH), Arch: runtime.GOARCH}
+	return Options{Instance: Name, ExtraKernelArgs: extraArgs, KernelTree: writeKernelTree(t, runtime.GOARCH), Arch: runtime.GOARCH}
 }
 
 // TestAssembleKernelPackage verifies the assembled package is what gokrazy reads
@@ -206,7 +206,7 @@ func TestPrepareReplacesZeKernelModule(t *testing.T) {
 func TestPrepareRefusesWithoutKernelPackage(t *testing.T) {
 	root, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
 
-	_, cleanup, err := Prepare(srcParent, Options{})
+	_, cleanup, err := Prepare(srcParent, Options{Instance: Name})
 	if cleanup != nil {
 		cleanup()
 	}
@@ -321,7 +321,7 @@ func TestPrepareRefusesWithoutKernelModule(t *testing.T) {
 func TestPrepareRefusesANonexistentKernelTree(t *testing.T) {
 	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
 	tree := filepath.Join(t.TempDir(), "7.2.9-runtime-gone")
-	opts := Options{KernelTree: tree, Arch: runtime.GOARCH}
+	opts := Options{Instance: Name, KernelTree: tree, Arch: runtime.GOARCH}
 
 	parent, cleanup, err := Prepare(srcParent, opts)
 	if cleanup != nil {

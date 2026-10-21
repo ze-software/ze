@@ -141,6 +141,7 @@ func resolveBuildParentDir(cfg *applianceConfig) (string, func(), error) {
 		return "", noop, fmt.Errorf("resolve the %s runtime kernel: %w", cfg.Image.Arch, err)
 	}
 	prepared, cleanup, err := instance.Prepare(parentDir, instance.Options{
+		Instance:        instance.Name,
 		ExtraKernelArgs: extraArgs,
 		KernelTree:      tree,
 		Arch:            cfg.Image.Arch,

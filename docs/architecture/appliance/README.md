@@ -13,6 +13,7 @@ How a Ze appliance image is built, installed, and updated. Code lives in
 | `on-device-installer.md` | `ze install disk`, build-side verification, the un-brick path |
 | `iso-installer.md` | the bootable ISO transport |
 | `gokrazy-build-pins.md` | why a derived parent instance must carry the builddir |
+| `docker-host.md` | the docker-host image: the second gokrazy instance, the Lima guest boot, the systemctl shim |
 | `ota-push.md` | pushing an image to a running device |
 | `self-update.md` | a device pulling its own binary |
 | `remote-operations.md` | fleet push, config preview, parallel operations |

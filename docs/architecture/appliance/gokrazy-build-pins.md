@@ -5,6 +5,18 @@ gokrazy instance directly, because the kernel command line has to change. The
 build therefore prepares a temporary "derived parent" instance and runs `gok`
 inside it.
 
+Two instances exist: `gokrazy/ze` (the appliance) and `gokrazy/docker-host`
+(the lab Docker host, `docker-host.md`). `Prepare` copies the instance its
+caller names in `Options.Instance` and refuses an empty name or one that is not
+a single directory: there is no default instance. `le build gokrazy` takes the
+name from gok's `-i` flag and refuses a build that names a parent dir and no
+instance. Each instance carries its own `builddir`, and `./le build gosum`
+judges the go.sum files under every `gokrazy/<instance>/builddir/`.
+
+<!-- source: internal/appliance/instance/prepare.go -- Options.Instance, checkInstanceName -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- instanceOf -->
+<!-- source: internal/le/build/gosum/gokrazygosum.go -- inInstanceBuilddir -->
+
 <!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
 <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs, the caller that needs a derived parent -->
 
@@ -169,7 +181,8 @@ not receive these appliance replacements and remain outside this binding.
 
 ### The eight builddir modules
 
-`gokrazy/ze/builddir/` holds eight modules. Six are tracked locks whose
+`gokrazy/ze/builddir/` holds eight modules (`gokrazy/docker-host/builddir/`
+holds the same set less `heartbeat`, `ntp` and `serial-busybox`). Six are tracked locks whose
 `go.sum` shows a diff on a bump:
 
 ```text

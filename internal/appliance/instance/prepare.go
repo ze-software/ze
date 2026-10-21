@@ -33,8 +33,9 @@ const (
 	// instance must carry its own copy or every pin is lost.
 	buildDirName = "builddir"
 
-	// Name is the gokrazy instance name under the parent dir; it names both
-	// gokrazy/<instance>/ and the `gok -i` argument.
+	// Name is the ze appliance's gokrazy instance name under the parent dir; it
+	// names both gokrazy/ze/ and the `gok -i` argument of an appliance build.
+	// Other instances (gokrazy/docker-host) are named by their callers.
 	Name = "ze"
 
 	// GoModName is the module manifest filename, exported so tests that walk a
@@ -55,6 +56,11 @@ const (
 
 // Options controls how an instance is prepared.
 type Options struct {
+	// Instance is the gokrazy instance directory under the parent dir, and the
+	// `gok -i` argument the caller passes. Required: two instances exist (ze,
+	// docker-host), so there is no default to fall back to.
+	Instance string
+
 	// ExtraKernelArgs are appended to the instance's KernelExtraArgs.
 	ExtraKernelArgs []string
 
@@ -121,7 +127,10 @@ func deriveConfigJSON(src []byte, extraArgs []string) ([]byte, error) {
 // two versions NEWER than the pinned one into gokrazy/modcache, and re-fetched
 // ze itself from the proxy at a fresh pseudo-version each build.
 func Prepare(srcParent string, opts Options) (string, func(), error) {
-	srcInstance := filepath.Join(srcParent, Name)
+	if err := checkInstanceName(opts.Instance); err != nil {
+		return "", nil, err
+	}
+	srcInstance := filepath.Join(srcParent, opts.Instance)
 	srcConfig := filepath.Join(srcInstance, "config.json")
 	srcData, err := os.ReadFile(srcConfig) //nolint:gosec // trusted checked-in gokrazy instance dir
 	if err != nil {
@@ -159,7 +168,7 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 	}
 	cleanup := func() { _ = os.RemoveAll(tmpParent) }
 
-	tmpInstance := filepath.Join(tmpParent, Name)
+	tmpInstance := filepath.Join(tmpParent, opts.Instance)
 	if err := os.MkdirAll(tmpInstance, 0o750); err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("create prepared instance dir: %w", err)
@@ -225,6 +234,25 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 		return "", nil, err
 	}
 	return tmpParent, cleanup, nil
+}
+
+// checkInstanceName refuses an instance name that is empty or is not one
+// directory under the parent: the name is joined to two paths, the source and
+// the prepared copy, so a separator or a dot name would leave the parent.
+func checkInstanceName(name string) error {
+	if name == "" {
+		return fmt.Errorf("no gokrazy instance named: pass the instance directory under gokrazy/ (%q for the appliance)", Name)
+	}
+	if strings.ContainsRune(name, '/') {
+		return fmt.Errorf("gokrazy instance %q is not one directory name: name the directory under gokrazy/, without a path", name)
+	}
+	if name == "." {
+		return fmt.Errorf("gokrazy instance %q is not a directory name: name the directory under gokrazy/", name)
+	}
+	if name == ".." {
+		return fmt.Errorf("gokrazy instance %q is not a directory name: name the directory under gokrazy/", name)
+	}
+	return nil
 }
 
 // replaceKernel points KernelModule at the assembled kernel package inside the

@@ -1,0 +1,159 @@
+package dockerhost
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+	"testing"
+)
+
+// recordingSystem is a System that performs nothing privileged: it records
+// each mount, hostname and chown so the test can assert the sequence.
+type recordingSystem struct {
+	mounts   []MountRequest
+	hostname string
+	chowns   map[string][2]int
+}
+
+func (r *recordingSystem) Mount(m MountRequest) error {
+	r.mounts = append(r.mounts, m)
+	return nil
+}
+
+func (r *recordingSystem) Sethostname(name string) error {
+	r.hostname = name
+	return nil
+}
+
+func (r *recordingSystem) Chown(path string, uid, gid int) error {
+	if r.chowns == nil {
+		r.chowns = map[string][2]int{}
+	}
+	r.chowns[path] = [2]int{uid, gid}
+	return nil
+}
+
+func (r *recordingSystem) FindCidata() (string, error) { return "/dev/vdb", nil }
+
+func (r *recordingSystem) mounted(target string) (MountRequest, bool) {
+	for _, m := range r.mounts {
+		if m.Target == target {
+			return m, true
+		}
+	}
+	return MountRequest{}, false
+}
+
+// TestDockerHostBootSequenceOverATempRoot runs the boot over a temp root with
+// the cidata fixture already where the mount would put it, and asserts every
+// file and request the Lima contract needs.
+//
+// VALIDATES: spec Phase 1 boot (D-3, R-2, R-3, A-3): passwd, group with the
+// docker group, sudoers, authorized_keys, hostname, the /etc remount, the
+// /usr/local overlay, the machine id persisted to /perm, the systemd private
+// marker, and the boot.sh command with LIMA_CIDATA_MNT.
+// PREVENTS: a guest Lima cannot log in to, or a boot.sh that waits forever.
+func TestDockerHostBootSequenceOverATempRoot(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"perm", "etc"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cidataDir := filepath.Join(root, "mnt", "lima-cidata")
+	if err := os.MkdirAll(cidataDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	fixture := copyCidata(t)
+	for _, name := range []string{"lima.env", "param.env", "meta-data", "user-data"} {
+		data, err := os.ReadFile(filepath.Join(fixture, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(cidataDir, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	sys := &recordingSystem{}
+	booted, err := Boot(sys, root)
+	if err != nil {
+		t.Fatalf("Boot: %v", err)
+	}
+
+	etc, ok := sys.mounted("/etc")
+	if !ok || !etc.Remount || !strings.Contains(etc.Data, "size=") {
+		t.Errorf("/etc not remounted larger: %+v", etc)
+	}
+	cidata, ok := sys.mounted("/mnt/lima-cidata")
+	if !ok || cidata.Source != "/dev/vdb" || cidata.FSType != "iso9660" || !cidata.ReadOnly {
+		t.Errorf("cidata mount = %+v", cidata)
+	}
+	local, ok := sys.mounted("/usr/local")
+	if !ok || local.FSType != "overlay" || !strings.Contains(local.Data, "lowerdir=/usr/local") {
+		t.Errorf("/usr/local overlay = %+v", local)
+	}
+	if sys.hostname != "lima-ze-probe" {
+		t.Errorf("hostname set to %q", sys.hostname)
+	}
+
+	read := func(rel string) string {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		return string(data)
+	}
+	if !strings.Contains(read("etc/passwd"), "thomas:x:501:501:Thomas Mangin:/home/thomas.linux:/bin/bash\n") {
+		t.Errorf("passwd:\n%s", read("etc/passwd"))
+	}
+	if !strings.Contains(read("etc/group"), "docker:x:1000:thomas\n") {
+		t.Errorf("group:\n%s", read("etc/group"))
+	}
+	if read("etc/sudoers.d/90-lima-users") != "thomas ALL=(ALL) NOPASSWD:ALL\n" {
+		t.Errorf("sudoers.d: %q", read("etc/sudoers.d/90-lima-users"))
+	}
+	if !strings.Contains(read("etc/sudoers"), "@includedir /etc/sudoers.d") {
+		t.Errorf("sudoers does not include sudoers.d")
+	}
+	keys := filepath.Join("home", "thomas.linux", ".ssh", "authorized_keys")
+	if !strings.Contains(read(keys), "thomas@mac\n") {
+		t.Errorf("authorized_keys: %q", read(keys))
+	}
+	if got := sys.chowns["/"+filepath.ToSlash(keys)]; got != [2]int{501, 501} {
+		t.Errorf("authorized_keys owner = %v", got)
+	}
+	if read("etc/hostname") != "lima-ze-probe\n" {
+		t.Errorf("hostname file %q", read("etc/hostname"))
+	}
+
+	machineID := read("perm/machine-id")
+	if !regexp.MustCompile(`^[0-9a-f]{32}\n$`).MatchString(machineID) {
+		t.Errorf("machine id %q is not 32 lowercase hex", machineID)
+	}
+	if read("etc/machine-id") != machineID {
+		t.Errorf("/etc/machine-id differs from /perm/machine-id")
+	}
+	if _, err := os.Stat(filepath.Join(root, "run", "user", "501", "systemd", "private")); err != nil {
+		t.Errorf("systemd private marker: %v", err)
+	}
+
+	cmd := booted.BootScript(t.Context())
+	if !slices.Equal(cmd.Args, []string{"/bin/sh", "/mnt/lima-cidata/boot.sh"}) {
+		t.Errorf("boot.sh argv = %q", cmd.Args)
+	}
+	if !slices.Contains(cmd.Env, "LIMA_CIDATA_MNT=/mnt/lima-cidata") {
+		t.Errorf("boot.sh env lacks LIMA_CIDATA_MNT: %q", cmd.Env)
+	}
+
+	// A second boot keeps the machine id: it is the guest's identity.
+	if _, err := Boot(&recordingSystem{}, root); err != nil {
+		t.Fatalf("second Boot: %v", err)
+	}
+	if read("perm/machine-id") != machineID {
+		t.Errorf("machine id changed across boots")
+	}
+}

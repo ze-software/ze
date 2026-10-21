@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains",
+		ShortHelp: "the packed gokrazy/<instance>/builddir/**/go.sum files agree with the root module about what a version contains",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.

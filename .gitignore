@@ -167,6 +167,11 @@ internal/appliance/build/
 # this file. The other gokrazy/ze/builddir go.sum files stay tracked because
 # kernel dependencies that appear nowhere else.
 gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
+gokrazy/docker-host/builddir/github.com/ze-software/ze/go.sum
+
+# The docker-host image's third-party binaries (busybox, OpenSSH, sudo) are
+# assembled per arch at build time from pinned inputs, never committed.
+gokrazy/docker-host/extrafiles_*.tar
 
 # Derived documentation indexes, generated on demand and never committed.
 # `./le doc index write` writes them

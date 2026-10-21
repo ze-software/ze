@@ -190,3 +190,20 @@ CONFIG_IP6_NF_MATCH_HL
 CONFIG_IP6_NF_MATCH_RT
 CONFIG_IP6_NF_MATCH_IPV6HEADER
 CONFIG_NETFILTER_XT_MATCH_STATE
+
+# The docker-host image as a Lima/Colima and QEMU docker-lab guest; the reason
+# for each sits beside its request in runtime.config.
+# Lima guest agent vsock:
+CONFIG_VSOCKETS
+CONFIG_VIRTIO_VSOCKETS
+# Lima guest agent UDP port listing over sock_diag:
+CONFIG_INET_UDP_DIAG
+# Colima virtiofs mounts:
+CONFIG_VIRTIO_FS
+# VPP /dev/vhost-net (MACVTAP lifts TAP, which caps VHOST_NET, to y):
+CONFIG_MACVTAP
+CONFIG_VHOST_NET
+# Rosetta binfmt registration:
+CONFIG_BINFMT_MISC
+# vz console hvc0:
+CONFIG_VIRTIO_CONSOLE

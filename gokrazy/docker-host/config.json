@@ -1,0 +1,26 @@
+{
+    "Hostname": "docker-host",
+    "Update": {},
+    "Environment": [
+        "GOOS=linux"
+    ],
+    "Packages": [
+        "github.com/ze-software/ze/cmd/ze-docker-host"
+    ],
+    "GokrazyPackages": [
+        "github.com/gokrazy/gokrazy/cmd/randomd",
+        "github.com/gokrazy/gokrazy/cmd/dhcp"
+    ],
+    "PackageConfig": {
+        "github.com/ze-software/ze/cmd/ze-docker-host": {
+            "ExtraFilePaths": {
+                "/": "extrafiles"
+            }
+        }
+    },
+    "SerialConsole": "ttyS0,115200",
+    "KernelExtraArgs": ["console=hvc0", "loglevel=8", "printk.devkmsg=on"],
+    "KernelPackage": "ze.invalid/kernel",
+    "FirmwarePackage": "",
+    "EEPROMPackage": ""
+}

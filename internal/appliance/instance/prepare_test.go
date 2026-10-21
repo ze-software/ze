@@ -550,3 +550,47 @@ func TestPrepareBindsCanonicalVendorSources(t *testing.T) {
 		t.Fatalf("parent module contains the nested module, causing ambiguous imports: %v", err)
 	}
 }
+
+// TestPrepareTakesTheInstanceName verifies Prepare copies the instance the
+// caller names, and refuses a name that is empty or is not one directory.
+//
+// VALIDATES: plan/spec-ze-image-docker-host.md Phase 1, a second instance
+// (gokrazy/docker-host) prepared through the same function as gokrazy/ze.
+// PREVENTS: a build of one instance silently preparing the other, and a name
+// that escapes the parent dir.
+func TestPrepareTakesTheInstanceName(t *testing.T) {
+	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"docker-host"}`))
+	if err := os.Rename(filepath.Join(srcParent, "ze"), filepath.Join(srcParent, "docker-host")); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := testOptions(t)
+	opts.Instance = "docker-host"
+	parent, cleanup, err := Prepare(srcParent, opts)
+	if err != nil {
+		t.Fatalf("Prepare docker-host: %v", err)
+	}
+	defer cleanup()
+	config, err := os.ReadFile(filepath.Join(parent, "docker-host", "config.json"))
+	if err != nil {
+		t.Fatalf("read prepared docker-host config: %v", err)
+	}
+	if !strings.Contains(string(config), `"docker-host"`) {
+		t.Errorf("prepared config is not the docker-host instance's:\n%s", config)
+	}
+	if _, err := os.Stat(filepath.Join(parent, "docker-host", "builddir")); err != nil {
+		t.Errorf("builddir did not travel with the docker-host instance: %v", err)
+	}
+
+	for _, name := range []string{"", "ze", "a/b", ".", ".."} {
+		bad := testOptions(t)
+		bad.Instance = name
+		_, badCleanup, err := Prepare(srcParent, bad)
+		if badCleanup != nil {
+			badCleanup()
+		}
+		if err == nil {
+			t.Errorf("Prepare accepted instance %q", name)
+		}
+	}
+}

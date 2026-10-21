@@ -1,6 +1,6 @@
 // Design: docs/architecture/appliance/gokrazy-build-pins.md -- the packed go.sum gate
 //
-// Package buildgosum compares the tracked `gokrazy/ze/builddir/**/go.sum`
+// Package buildgosum compares the tracked `gokrazy/<instance>/builddir/**/go.sum`
 // files with the root module's go.sum. A go.sum line is `module version hash`,
 // so the same (module, version) carrying two DIFFERENT hashes says one of the
 // two files records a module content that the other would refuse.
@@ -36,9 +36,19 @@ import (
 // file carries, which is why one constant serves the root read and the suffix
 // test: they are the same file name in two places.
 const (
-	builddirPrefix = "gokrazy/ze/builddir/"
-	rootGosum      = "go.sum"
+	rootGosum = "go.sum"
 )
+
+// inInstanceBuilddir reports whether path lies in a gokrazy instance's
+// builddir, gokrazy/<instance>/builddir/: every instance (ze, docker-host)
+// carries pins, so every one is judged, not only the appliance's.
+func inInstanceBuilddir(path string) bool {
+	parts := strings.SplitN(path, "/", 4)
+	if len(parts) != 4 {
+		return false
+	}
+	return parts[0] == "gokrazy" && parts[2] == "builddir"
+}
 
 // name is the word this command is typed as.
 const name = "build gosum"
@@ -97,7 +107,7 @@ func trackedGosums(tree string) ([]string, error) {
 
 	var found []string
 	for path := range strings.SplitSeq(string(out), "\n") {
-		if strings.HasPrefix(path, builddirPrefix) && strings.HasSuffix(path, rootGosum) {
+		if inInstanceBuilddir(path) && strings.HasSuffix(path, rootGosum) {
 			found = append(found, path)
 		}
 	}

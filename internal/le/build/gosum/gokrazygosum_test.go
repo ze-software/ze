@@ -288,3 +288,24 @@ func TestAnswerReportsTheTreeItJudges(t *testing.T) {
 		t.Fatalf("Answer reported %d conflicts", len(report.Conflicts))
 	}
 }
+
+// TestEveryInstanceBuilddirIsJudged verifies a go.sum under any gokrazy
+// instance's builddir is read, the docker-host instance's as well as the
+// appliance's, and that paths outside a builddir are not.
+//
+// VALIDATES: plan/spec-ze-image-docker-host.md Phase 1, the second instance
+// carries pins the gate checks.
+// PREVENTS: a docker-host pin drifting from the root module unnoticed.
+func TestEveryInstanceBuilddirIsJudged(t *testing.T) {
+	for path, want := range map[string]bool{
+		"gokrazy/ze/builddir/example.com/y/go.sum":          true,
+		"gokrazy/docker-host/builddir/example.com/y/go.sum": true,
+		"gokrazy/modcache/example.com/y/go.sum":             false,
+		"gokrazy/docker-host/go.sum":                        false,
+		"internal/builddir/x/go.sum":                        false,
+	} {
+		if got := inInstanceBuilddir(path); got != want {
+			t.Errorf("inInstanceBuilddir(%q) = %v, want %v", path, got, want)
+		}
+	}
+}

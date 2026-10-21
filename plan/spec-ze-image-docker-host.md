@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-10-21 |
 
@@ -160,6 +160,7 @@ M10 makes every lab Docker daemon run on Ze's kernel and Ze's system. Today the 
 | A-11 | Colima's runtime data disk (`disk.sh`) can be left failing: `30-install-packages.sh` exits with the dependency scripts' code, and boot still reaches `boot-done`; docker data then lives on `/perm` | `boot.sh` writes boot-done unconditionally; colima `disk.go` `useRuntimeDisk` only adds the disk when `limautil.HasDisk()` | if Colima mounts the data disk over `/var/lib/docker` later, data moves; the program then implements the data disk (format by label, mount) in Go | AC-2 and a second `colima start` after `colima stop` keeps pulled images | unvalidated |
 | A-12 | A `docker-host` builder container for OpenSSH and sudo is a build tool, not a VM or test guest, so M1 and M10 do not govern its base image | M1 names "VMs and test guests", M10 the lab Docker host | the owner rules otherwise | owner ruling at the design gate | confirmed 2026-10-21: owner chose Alpine for this role (D-13) |
 | A-13 | Lima's DNS for the guest works without `iptables` in the guest (`09-host-dns-setup.sh` skips when `iptables` is absent) because the DHCP lease names a usable resolver | `09-host-dns-setup.sh` `command -v iptables`; Colima `HostResolver.Enabled` when no DNS is configured | image pulls fail on name resolution; the program writes `/etc/resolv.conf` from `lima.env`'s DNS address | AC-13 (the lab pulls its images) | unvalidated |
+| A-14 | `CONFIG_VHOST_NET=y` in `runtime.config` resolves to `=y` | AC-4 lists it as a plain request | the build refuses it | Phase 1 arm64 kernel build | broken 2026-10-21: refused "CONFIG_VHOST_NET did not resolve to =y"; Kconfig caps it at TAP, which arm64 defconfig sets to m through MACVTAP=m. Fixed by `CONFIG_MACVTAP=y` (runtime.config, runtime.require); rebuild owed (`plan/handover/13-ze-image-docker-host-phase-1.md`) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -308,7 +309,7 @@ N-A: tooling. The labs these daemons serve are the interop suites themselves; AC
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC; the labs' RFC evidence keeps its tags |
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/qemu-integration.md` (docker-lab section, guest section, kernel pairing, and the "QEMU VM has no Docker" paragraph ~845), `docs/architecture/testing/interop.md` (~637-673 route text, ~811), `docs/architecture/testing/ci-workflows.md` (docker-lab jobs), `docs/architecture/testing/runner-architecture.md` (~142: docker-lab's "two admitted cross-compiles" become the linux ze compile plus the image build, both under the verb root; the guest le compile goes), `docs/labs/l2tp-interop.md`, `docs/labs/pppoe-interop.md` |
 | 11 | Affects daemon comparison? | N-A | none |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/build-artifacts.md` (second gokrazy instance, pin file, cache path); `docs/architecture/appliance/gokrazy-build-pins.md` (named prepared instance, every instance's builddir pinned); `docs/guide/appliance.md` (~408: `Prepare` copies the named instance); a new section in `docs/architecture/appliance/README.md` for the docker-host instance |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/build-artifacts.md` (second gokrazy instance, pin file, cache path); `docs/architecture/appliance/gokrazy-build-pins.md` (named prepared instance, every instance's builddir pinned); `docs/guide/appliance.md` (~408: `Prepare` copies the named instance); a new section in `docs/architecture/appliance/README.md` for the docker-host instance; `docs/architecture/appliance/docker-host.md` (new in Phase 1: the instance, the guest boot, the systemctl shim) |
 | 13 | Route metadata keys added/changed? | N-A | none |
 | 14 | Prometheus counters added/changed? | N-A | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | le area only |

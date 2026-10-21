@@ -8,6 +8,7 @@ package buildgokrazy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,6 +84,28 @@ func subcommandOf(args []string) string {
 	return ""
 }
 
+// instanceOf answers the value of gok's -i/--instance flag, the instance
+// directory under --parent_dir that a build prepares. gok falls back to its own
+// default instance when the flag is absent, which is not a directory of this
+// repository, so a build that names a parent dir and no instance is refused.
+func instanceOf(args []string) (string, error) {
+	for i, a := range args {
+		if strings.HasPrefix(a, "--instance=") {
+			return strings.TrimPrefix(a, "--instance="), nil
+		}
+		if strings.HasPrefix(a, "-i=") {
+			return strings.TrimPrefix(a, "-i="), nil
+		}
+		if a != "-i" && a != "--instance" {
+			continue
+		}
+		if i+1 < len(args) {
+			return args[i+1], nil
+		}
+	}
+	return "", errors.New("no gokrazy instance named: pass -i <instance>, the directory under " + parentDirFlag + " to build (-i " + instance.Name + " for the appliance)")
+}
+
 // prepareArgs rewrites gok's --parent_dir to a prepared copy under the project
 // tmp/ for image-building subcommands, so a build never runs from, or writes to,
 // the tracked gokrazy directory. It returns the rewritten arguments and a
@@ -130,7 +153,11 @@ func prepareArgs(args []string) ([]string, func(), error) {
 		if err != nil {
 			return nil, noop, fmt.Errorf("resolve the %s runtime kernel: %w", arch, err)
 		}
-		prepared, cleanup, err := instance.Prepare(abs, instance.Options{KernelTree: tree, Arch: arch})
+		name, err := instanceOf(args)
+		if err != nil {
+			return nil, noop, err
+		}
+		prepared, cleanup, err := instance.Prepare(abs, instance.Options{Instance: name, KernelTree: tree, Arch: arch})
 		if err != nil {
 			return nil, noop, fmt.Errorf("prepare gokrazy instance from %s: %w", abs, err)
 		}
