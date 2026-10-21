@@ -328,7 +328,7 @@ Approved by the owner on 2026-10-13 (Q7). The gate reads approvals from the comm
 | Scenario | Peer daemon | What it asserts | Status |
 |----------|-------------|-----------------|--------|
 | `bgp-sr-policy-gobgp` (new; `test/interop/scenarios/bgp-sr-policy-gobgp/` with `ze.conf` and `gobgp.toml`; checker in `internal/le/interoplab/bgp/check_extras.go`, name constant in `names.go`) | GoBGP v3.31.0 (`test/interop/Dockerfile.gobgp`) | Ze originates an IPv4 and an IPv6 SR Policy with `binding-sid mpls 1048575` and segments `type-a mpls 16` and `type-a mpls 1048575`, with an IPv4-address Route Target; `gobgp global rib -a ipv4-srpolicy -j` (and `ipv6-srpolicy`) shows the session up, both NLRIs with their distinguisher/color/endpoint, and the Binding SID and segment labels exactly 1048575 and 16. Shows another implementation reads Ze's 20-bit labels and NLRI lengths as sent. It is goal validation for origination only: no revert of this spec's change turns it red (the asserted values are in range, so the D2 range check never fires), so it is NOT claimed as the discriminating interop test for any change here | written 2026-10-14; GREEN on Linux 2026-10-20 (65651c27e0). A-1 resolved differently from the plan: no gobgp release (v3.31.0 to v4.10.0) names SAFI 73 in its `-a` switch, and GoBGP v3.31.0 apiutil corrupts SR Policy on the way back from API form (NLRI Length divided by 8 twice, Binding SID shifted 12 more bits, so 1048575 printed 1044480). The checker runs `gobgp-paths` (`test/interop/Dockerfile.gobgp`): gRPC ListPath with `EnableOnlyBinary`, decoded by GoBGP's packet decoder, matching its `String()` output. Journal row in `plan/journal/field-carries-two-meanings.md` |
-| `bgp-sr-policy-malformed-receive-gobgp` (new; `test/interop/scenarios/bgp-sr-policy-malformed-receive-gobgp/` with `ze.conf`, `gobgp.toml`, `inject.msg` and, if needed, `inject-args`; checker in `internal/le/interoplab/bgp/check_extras.go`, name constant in `names.go`) | raw injector (`le test peer`, 172.30.0.9) upstream of Ze; GoBGP v3.31.0 downstream | The injector first announces two well-formed IPv4 SR Policies (A and B) with one type-15 TLV each, then sends an UPDATE carrying A's 12-octet NLRI beside a 13-octet NLRI, then an UPDATE re-announcing B with no attribute 23. GoBGP's `gobgp global rib -a ipv4-srpolicy -j` shows A and B present after the first step and both absent after the last; the Ze-GoBGP session and the injector-Ze session stay Established throughout (no NOTIFICATION on either). The Ze-GoBGP session staying up is also the observable for "no 13-octet NLRI reaches GoBGP": GoBGP cannot decode such an NLRI, so it never appears in `-j`, and it drops the session instead (see the red-phase text). That session-up assertion rests on Q2 (a): the synthesized MP_UNREACH carries only A's well-formed NLRI, so no 13-octet NLRI reaches GoBGP in either MP attribute | written 2026-10-14; GREEN on Linux 2026-10-20 (65651c27e0), through the same `gobgp-paths` reader, which is what "GoBGP's text RIB" below now means. Both revert-reds below are still owed: on 2026-10-20 the Mac's Colima daemon refused the suite before any scenario (it applies AppArmor and cannot load `ze-kernel-probe`, whose setup is Linux-only and needs root), so they run in the QEMU guest (`./le test qemu docker-lab`) or on Linux. As written it adds a control policy C (color 400, endpoint 10.0.0.5) that nothing touches: each absence step carries C as its proof, and C still present at the end shows the injector-Ze session was never reset (the injector takes one connection, and Ze withdraws C with a dropped session). A is required absent after step 2 and B after step 3, read from GoBGP's text RIB for the reason in the row above |
+| `bgp-sr-policy-malformed-receive-gobgp` (new; `test/interop/scenarios/bgp-sr-policy-malformed-receive-gobgp/` with `ze.conf`, `gobgp.toml`, `inject.msg` and, if needed, `inject-args`; checker in `internal/le/interoplab/bgp/check_extras.go`, name constant in `names.go`) | raw injector (`le test peer`, 172.30.0.9) upstream of Ze; GoBGP v3.31.0 downstream | The injector first announces two well-formed IPv4 SR Policies (A and B) with one type-15 TLV each, then sends an UPDATE carrying A's 12-octet NLRI beside a 13-octet NLRI, then an UPDATE re-announcing B with no attribute 23. GoBGP's `gobgp global rib -a ipv4-srpolicy -j` shows A and B present after the first step and both absent after the last; the Ze-GoBGP session and the injector-Ze session stay Established throughout (no NOTIFICATION on either). The Ze-GoBGP session staying up is also the observable for "no 13-octet NLRI reaches GoBGP": GoBGP cannot decode such an NLRI, so it never appears in `-j`, and it drops the session instead (see the red-phase text). That session-up assertion rests on Q2 (a): the synthesized MP_UNREACH carries only A's well-formed NLRI, so no 13-octet NLRI reaches GoBGP in either MP attribute | written 2026-10-14; GREEN on Linux 2026-10-20 (65651c27e0), through the same `gobgp-paths` reader, which is what "GoBGP's text RIB" below now means. On 2026-10-20 the Mac's Colima daemon refused the suite before any scenario (it applies AppArmor and cannot load `ze-kernel-probe`, whose setup is Linux-only and needs root). On 2026-10-21 it ran on the Mac (macOS arm64) in the Ze-kernel QEMU guest under HVF (runtime kernel 7.2.9, `docker setup` verdict pass), as `./le test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=bgp-sr-policy-malformed-receive-gobgp'` run from a `git archive` export of 1eac14c311, which contains this spec's fix: GREEN, `interop: 1 passed, 0 failed` (images 2m40s, scenario 1m45s). Both revert-reds are recorded in the red-phase text below, each from the same export with one line broken. The restore-green is that GREEN run: each break was undone by restoring the file from 1eac14c311, so the restored source is byte-identical to what passed. Two post-restore reruns never reached the scenario, both failing in suite setup at `cross-compile ze into test/interop/ze-linux: context deadline exceeded` while another session's QEMU run held the CPU, so they give no verdict (journal `bound-too-small-for-its-own-burst.md`, `labBuildTimeout` row). As written it adds a control policy C (color 400, endpoint 10.0.0.5) that nothing touches: each absence step carries C as its proof, and C still present at the end shows the injector-Ze session was never reset (the injector takes one connection, and Ze withdraws C with a dropped session). A is required absent after step 2 and B after step 3, read from GoBGP's text RIB for the reason in the row above |
 
 Red-phase proof per `interop-and-goal-validation.md`, for
 `bgp-sr-policy-malformed-receive-gobgp`: revert the registered length rule,
@@ -348,6 +348,40 @@ step's absence assertion follows a presence assertion of the same policy on the
 same session, so an absence caused by a dead session or a never-relayed route
 fails the presence step first. The D2 origination change is discriminated by
 the `.ci` refusals (config and `ze bgp encode`), not by interop.
+
+Recorded 2026-10-21 on the Mac, in the Ze-kernel QEMU guest under HVF. Each
+run came from a `git archive` export of 1eac14c311 with one line broken, and
+the in-guest suite rebuilt ze and its images from that source. Assertions are
+numbered across the scenario's two lists: 1 GoBGP session up, 2 the fence route
+added, 3 A, B and C present, 4 A absent with C as proof, 5 B absent with C as
+proof, 6 C present, 7 session up.
+
+- Red (a), length rule reverted (the `nlrisyntax.Register` loop in
+  `srpolicy/register.go` given an empty slice): RED, `FAIL (2m6s): scenario
+  bgp-sr-policy-malformed-receive-gobgp assertion 4: ... wait for gobgp
+  negative state timed out`. The last GoBGP RIB still held A (color 100) and C.
+  **The predicted reason did not happen.** GoBGP v3.31.0 did not drop the
+  session: it logged `"Cap":"ipv4-srpolicy","Error":"Invalid length 14 for SR
+  Policy NLRI" ... "State":"BGP_FSM_ESTABLISHED" ... "msg":"Capability was
+  disabled"`. The log holds no Peer Down and no NOTIFICATION. So v3.31.0
+  applies AFI/SAFI disable, where the v4.4.0 reading predicted SESSION_RESET.
+  The red is still caused by the break: Ze relayed the 13-octet NLRI, GoBGP
+  refused that UPDATE, and A stayed installed. The step that catches it is
+  A's absence (assertion 4), not the final session check (assertion 7). So
+  the scenario's "session up proves no 13-octet NLRI reached GoBGP" clause
+  does not hold for v3.31.0. A's absence step is the observable that
+  discriminates.
+- Red (b), D4 branch reverted (`if false && srPolicyAnnounced(...)` in
+  `applyTunnelEncap`): RED, `FAIL (3m1s): scenario
+  bgp-sr-policy-malformed-receive-gobgp assertion 5: ... wait for gobgp
+  negative state timed out`. The last GoBGP RIB held B (color 300) and C, with
+  A already gone, and the log holds no Peer Down. That is the predicted reason:
+  B stays installed with the session up, while Ze still applied the length
+  rule to the 13-octet NLRI (`RFC 9830 Section 5: SR Policy NLRI length 104
+  bits`). A first run of this red, on the same base except a newer
+  `register.go` (4e01d13a6e, `update text` ADD-PATH only), failed the same
+  way at assertion 5.
+- Restore: the GREEN run in the Interop row, on the unbroken 1eac14c311 source.
 
 ### Goal Validation (planned evidence)
 | Goal | Evidence that will prove it |
