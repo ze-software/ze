@@ -2120,3 +2120,32 @@ Still owed:
 2. Gates over `7b0bf3a723`: lint over `internal/component/bgp/reactor`, the exabgp-test
    stage, `./le test functional encode`/`plugin` (flowspec), interop (wire-visible change),
    `go test -race -count=20` on the reactor, and an independent review.
+
+### bgp-open-session D2/D1 proofs (2026-10-21, Mac)
+
+Spec: `plan/immediate/spec-bgp-open-session-rfc-defects.md`. Claim taken over by a
+continuation agent from the finished agent `a2c395bd09a52530c`.
+
+- D2 red is recorded in the spec (commit `1ee515439a`). Two Go `-overlay` copies of
+  `capabilityChanges` in `pkg/plugin/sdk/capability_declaration.go`, the tracked file
+  untouched: `acceptall` (comparison disabled) reddens the five refused reload `.ci` and the
+  SDK and plugin capability-reload units; `refuseall` (every declared code a change) reddens
+  `reload-capability-unchanged-accepted` and `reload-gr-explicit-family-list-accepted` and
+  the same units. `TestCapabilitySelectors` goes red under an overlay of
+  `configjson.CapabilitySelectors` that drops the remote IP.
+- D1 interop `bgp-open-extended-params-boundary-frr` passes at `be35caa194` and fails with
+  the `d1rev` overlay of `internal/core/bgp/capability/optional_params.go` (FRR sends OPEN
+  Message Error/Unspecific, `0 passed, 1 failed`). A-5 is validated by the green run.
+- Runs go through the QEMU docker-lab:
+  `./le job run label X command env ZE_QEMU_SSH_PORT=2290 'ze.qemu.ssh.port=2290' bash -c "cd <export> && ./le test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=<name> GOFLAGS=-overlay=/workspace/tmp/ov/<overlay>.json'"`.
+  The non-default port avoids a race on 2222. The guest has a five-minute compile timeout,
+  so the first runs fail until the guest build cache fills; retry. The runs used a
+  `git archive` export of HEAD because `le` did not build from the working tree then (a
+  foreign ExaBGP bridge change in progress). The overlay JSON and replacement sources live
+  under the export's `tmp/ov/`, so the guest sees them at `/workspace/tmp/ov/`.
+- A-4 is invalidated: the `le` test peer has no `option=open` refusal value (its value arms
+  are in `internal/test/peer/expect_keys.go`), so the fallback was used.
+- Owed: D3 `frr-software-version` green at HEAD and red with the `d3rev` overlay (drops the
+  `logNotificationReceived` call in `internal/component/bgp/reactor/session_handlers.go`);
+  spec A-4/A-5 rows, decision blocks, header; an independent judge for the RFC9072-2-1
+  enforced stamp and the RFC6286-2.1-1 re-judge against its deviation record; the Review Gate.
