@@ -149,6 +149,11 @@ func (s *Setup) Run() (*Report, int) {
 		report.Add(s.visitTool(report, tool, manager, installer))
 	}
 
+	// A docker CLI on PATH is not the whole capability: the labs build through
+	// BuildKit, which the CLI reaches only through its buildx plugin. The tool
+	// row above has put docker there when it can.
+	report.Add(s.visitBuildx(report))
+
 	// A language server on PATH is not sufficient; it must answer.
 	report.Add(visitServer(s.goplsHealth()))
 

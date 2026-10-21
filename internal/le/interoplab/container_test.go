@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	lesetup "github.com/ze-software/ze/internal/le/setup"
 )
 
 // VALIDATES: AC-11, AC-12: a detached container renders every typed need in
@@ -193,7 +195,8 @@ func TestBuildRendersNamedContexts(t *testing.T) {
 
 // VALIDATES: AC-7: a build that carries a named context refuses before
 // `docker build` runs when the docker CLI has no buildx plugin, and names
-// BuildKit, buildx and the install for macOS and Linux. A build with no named
+// BuildKit, buildx, the setup command that installs it, and the install by
+// hand for macOS and Linux. A build with no named
 // context never probes, so its argv and command count stay as they were.
 // PREVENTS: the legacy builder's usage text `unknown flag: --build-context`
 // as the whole answer, or the named context dropped to make the build run.
@@ -212,7 +215,7 @@ func TestBuildRefusesNamedContextsWithoutBuildKit(t *testing.T) {
 	if err == nil {
 		t.Fatal("Build with a named context ran without BuildKit")
 	}
-	for _, want := range []string{"BuildKit", "buildx", "legacy builder", "freertr", "brew install docker-buildx", "cliPluginsExtraDirs", "docker-buildx-plugin", "unknown command"} {
+	for _, want := range []string{lesetup.BuildKitSetupCommand, "BuildKit", "buildx", "legacy builder", "freertr", "brew install docker-buildx", "cliPluginsExtraDirs", "docker-buildx-plugin", "unknown command"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal lacks %q:\n%v", want, err)
 		}
@@ -355,4 +358,33 @@ func mustBuildKitRefusal(t *testing.T, runner *recordingRunner) string {
 		t.Fatal("Build with a named context ran without buildx")
 	}
 	return err.Error()
+}
+
+// VALIDATES: the BuildKit refusal names the docker config file the CLI in hand
+// reads: $DOCKER_CONFIG/config.json when the docker environment sets it, the
+// same path the setup step edits (lesetup.DockerConfigPath).
+// PREVENTS: an instruction to edit ~/.docker/config.json on a host whose docker
+// never opens that file.
+func TestBuildKitRefusalNamesTheDockerConfigInUse(t *testing.T) {
+	runner := &recordingRunner{}
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
+		if command.Arguments[1] == "buildx" {
+			return ProcessResult{ExitCode: 1, Stderr: "docker: unknown command: docker buildx\n"}, nil
+		}
+		return ProcessResult{Stdout: "sha256:abc\n"}, nil
+	}
+	docker := newDocker(runner)
+	docker.environ = append(slices.Clone(docker.environ), "DOCKER_CONFIG=/test/docker-config")
+	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Dockerfile: "Dockerfile.freertr", Context: "/repo",
+		NamedContexts: []NamedBuildContext{{Name: "freertr", Path: "/src/rtr"}}}
+	_, err := docker.Build(t.Context(), build)
+	if err == nil {
+		t.Fatal("Build with a named context ran without BuildKit")
+	}
+	if !strings.Contains(err.Error(), "to /test/docker-config/config.json") {
+		t.Errorf("the refusal does not name the config DOCKER_CONFIG selects:\n%v", err)
+	}
+	if strings.Contains(err.Error(), "~/.docker/config.json") {
+		t.Errorf("the refusal names ~/.docker/config.json although DOCKER_CONFIG moves it:\n%v", err)
+	}
 }

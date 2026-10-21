@@ -216,7 +216,9 @@ The target and its checked feature population are documented in
   `brew shellenv` has exported it, then the `brew` binary's own location
   (`<prefix>/bin/brew`), then the two documented defaults. The `brew` link is
   not followed: on Intel it points into `<prefix>/Homebrew`, which would answer
-  with the wrong prefix.
+  with the wrong prefix. The `docker-buildx` step (Docker labs, below) is the
+  one consumer that asks `brew --prefix`: it needs brew to install the formula
+  anyway, and Homebrew's caveat for that formula names the same path.
 - **e2fsprogs** is keg-only on Homebrew, so none of it is linked onto `PATH` and
   `which` finds nothing however well it is installed. It is looked for under
   `<prefix>/opt/e2fsprogs/sbin`, the link kept at the current version, and under
@@ -259,6 +261,33 @@ kernel that lacks one.
   profile `ze-lab-net-sysctl` the same way, loaded with
   `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`; the action with no
   `confirm` lists every profile and the steps each one runs.
+- **BuildKit:** the interop labs build some images with a named build context,
+  which only BuildKit accepts, and the docker CLI reaches BuildKit through its
+  buildx plugin. When `docker` is on PATH, setup runs a `docker-buildx` step
+  that is judged by `docker buildx version` answering, never by a package being
+  present. `./le setup check` reports it `MISSING` and changes nothing. On
+  macOS, `./le setup install` runs `brew install docker-buildx` when brew does
+  not hold the formula. It then adds `$(brew --prefix)/lib/docker/cli-plugins`
+  to `cliPluginsExtraDirs` in the docker config, because the docker CLI does
+  not search the Homebrew directory until the config names it. The config is
+  `$DOCKER_CONFIG/config.json` when `DOCKER_CONFIG` is set, else
+  `~/.docker/config.json`. The edit keeps every other key and its value, adds
+  no entry that is already there, refuses a file that is not a JSON object
+  rather than replacing it, and replaces the file by rename after a sync. A
+  symbolic link is followed, and a link to a file that does not exist is
+  refused rather than replaced. With no home directory and no `DOCKER_CONFIG`
+  the step refuses instead of writing a relative path. Each failure (brew
+  cannot install, brew names no prefix, the plugin still does not answer)
+  leaves the step `pending` with the reason and the next command to run. On a Mac with no
+  Homebrew the step changes nothing and names <https://brew.sh>. On Linux the
+  plugin is a root package and setup runs no `sudo` for it. The step names the
+  package that matches the installed docker, `docker-buildx-plugin` beside
+  Docker's `docker-ce` when dpkg reports it `install ok installed`, and
+  `docker-buildx` beside the distribution's
+  `docker.io`, with the `sudo apt-get install` line, and reports it `pending`.
+  The lab's BuildKit refusal names `./le setup install` as its fix.
+  With no docker CLI the step is `skipped`.
+<!-- source: internal/le/setup/buildx.go -- visitBuildx, addPluginDir, DockerConfigPath, BuildKitSetupCommand -->
 
 `docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
 guest", is the guest path; the scheduled nightly runs the same path on amd64
