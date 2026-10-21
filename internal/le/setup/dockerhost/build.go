@@ -251,11 +251,21 @@ func sourceDigest(repo, arch string, sizeGiB int) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+// dockerHostRuntimeKernel resolves the runtime kernel for an image of arch.
+// Its refusal on a host that cannot build that arch names this image build,
+// on an arch host or for this host's arch, never a bare kernel build, which
+// would fill another host's cache.
+func dockerHostRuntimeKernel(arch string) (string, error) {
+	return appliance.ImageRuntimeKernelTree(arch, func(arch string) string {
+		return "./le setup docker-host build arch " + arch
+	})
+}
+
 // systemBuilder is the builder that runs the real steps.
 func systemBuilder(cacheDir string, fetcher Fetcher) *builder {
 	return &builder{
 		cacheDir:     cacheDir,
-		kernelTree:   appliance.RuntimeKernelTree,
+		kernelTree:   dockerHostRuntimeKernel,
 		fetch:        fetcher.Fetch,
 		runContainer: runBuilderContainer,
 		gok:          runGok,

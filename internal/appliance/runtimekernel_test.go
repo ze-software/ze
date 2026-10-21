@@ -275,3 +275,45 @@ func TestForeignArchBuildFetchesNoFirmware(t *testing.T) {
 		t.Errorf("firmware was fetched for a build this host refuses (stat: %v)", statErr)
 	}
 }
+
+// TestImageRuntimeKernelTreeNamesTheImageBuild verifies the refusal an image
+// build of a foreign arch meets on a cold cache names that image build, on the
+// foreign host and on this one, and never a bare kernel build: a kernel built
+// on another host fills that host's cache, so `ze appliance kernel` there
+// leaves this host's image build refused.
+//
+// VALIDATES: spec-ze-image-docker-host AC-4 (the amd64 image's refusal on an
+// arm64 host).
+// PREVENTS: `./le setup docker-host build arch amd64` on a Mac answering a
+// command that cannot make it succeed.
+func TestImageRuntimeKernelTreeNamesTheImageBuild(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeRuntimeKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	foreign := archARM64
+	if runtime.GOARCH == archARM64 {
+		foreign = archAMD64
+	}
+	setTestKernelBuild(t, func(kernelBuildSpec) error {
+		t.Fatalf("a %s kernel build started on a %s host", foreign, runtime.GOARCH)
+		return nil
+	})
+	imageBuild := func(arch string) string { return "./le setup docker-host build arch " + arch }
+
+	_, err := ImageRuntimeKernelTree(foreign, imageBuild)
+	if err == nil {
+		t.Fatal("a cold cache for a foreign arch resolved a kernel")
+	}
+	for _, want := range []string{
+		"this " + runtime.GOARCH + " host cannot build it",
+		"build the image on an " + foreign + " host:\n./le setup docker-host build arch " + foreign,
+		"or build an " + runtime.GOARCH + " image here:\n./le setup docker-host build arch " + runtime.GOARCH,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not name %q:\n%v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "ze appliance kernel") {
+		t.Errorf("error names a kernel build, which fills another host's cache:\n%v", err)
+	}
+}

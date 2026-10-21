@@ -513,6 +513,18 @@ func (e *foreignArchKernelError) forInstance(dir, name string) error {
 		"\"} in " + ConfigPath(dir, name) + " to build an " + host + " image here; then run:\nze appliance --dir " + shellArg(dir) + " build " + shellArg(name)))
 }
 
+// forImage answers the refusal for an image build whose command for an arch
+// is imageBuild(arch). The kernel cannot be built here, so the moves that work
+// are building the image on an e.arch host, or building this host's arch here.
+func (e *foreignArchKernelError) forImage(imageBuild func(arch string) string) error {
+	host := kernelbuilder.HostArch()
+	if e.unsupported {
+		return errors.New(e.refusal("build an " + host + " image here:\n" + imageBuild(host)))
+	}
+	return errors.New(e.refusal("build the image on an " + e.arch + " host:\n" + imageBuild(e.arch) +
+		"\nor build an " + host + " image here:\n" + imageBuild(host)))
+}
+
 // forGokrazy answers the refusal for `./le build gokrazy` run with args, whose
 // GOARCH asked for e.arch. The kernel cannot be built here, so the moves that
 // work are building on an e.arch host, or building this host's arch here.

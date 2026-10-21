@@ -191,7 +191,15 @@ The key is `ImageKey` over the pins, the runtime kernel cache entry's name and
 a source digest of `cmd/ze-docker-host`, `internal/appliance/dockerhost`,
 `gokrazy/docker-host` (the extra files tar excepted), the arch's busybox tar,
 the builder recipe and the size. When the entry holds the image, the build
-answers it and runs nothing. Otherwise, in this order:
+answers it and runs nothing. Before anything else it resolves the arch's
+runtime kernel (`dockerHostRuntimeKernel`, through
+`appliance.ImageRuntimeKernelTree`): from the cache, else a native build on a
+host of that arch. On a host of the other arch with no cache entry, it refuses
+and names this command on a host of that arch, or the same command for this
+host's arch, never a bare kernel build, which would fill the other host's
+cache and leave this one refused. Otherwise, in this order:
+<!-- source: internal/le/setup/dockerhost/build.go -- dockerHostRuntimeKernel -->
+<!-- source: internal/appliance/runtimekernel.go -- ImageRuntimeKernelTree -->
 
 1. every pinned input is fetched and checked against its sha256, so a
    mismatch refuses before anything is written;

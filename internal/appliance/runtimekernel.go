@@ -18,6 +18,20 @@ func RuntimeKernelTree(arch string) (string, error) {
 	return resolveKernel(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
 }
 
+// ImageRuntimeKernelTree is RuntimeKernelTree for a caller that builds an
+// image of arch. Its refusal for a kernel this host cannot build names
+// imageBuild(arch) on an arch host, or imageBuild(host) here, never a bare
+// kernel build: a kernel built on another host fills that host's cache, so the
+// image build here would stay refused. imageBuild MUST answer the exact
+// command that builds the image for the arch it is given.
+func ImageRuntimeKernelTree(arch string, imageBuild func(arch string) string) (string, error) {
+	tree, err := RuntimeKernelTree(arch)
+	if foreign, ok := errors.AsType[*foreignArchKernelError](err); ok {
+		return "", foreign.forImage(imageBuild)
+	}
+	return tree, err
+}
+
 // GokrazyRuntimeKernelReachable answers the refusal `./le build gokrazy` with
 // args meets at the runtime kernel for arch, before anything long starts: nil
 // when this host can build arch or the cache holds its kernel, else a refusal
