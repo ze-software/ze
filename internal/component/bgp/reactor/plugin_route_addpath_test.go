@@ -85,6 +85,62 @@ func TestPluginRouteAddPathWritesPathID(t *testing.T) {
 	}
 }
 
+// TestPluginRouteGroupSplitsOnPathID checks that grouped plugin routes with
+// different Path Identifiers never share an UPDATE.
+//
+// Method: build a peer whose plugin routes are two grouped ipv4/mvpn routes with
+// identical attributes and path-information 1 and 2, store a send context with
+// ADD-PATH on, run sendPluginRoutesVia and read MP_REACH_NLRI out of each UPDATE.
+//
+// VALIDATES: RFC 7911 Section 3: each NLRI is preceded by its own Path
+// Identifier. pluginRouteGroupKey holds PathID, so the two routes form two
+// groups, and each UPDATE carries one NLRI behind its own identifier.
+// PREVENTS: both routes packed into one UPDATE behind the representative's
+// identifier (sendPluginRouteGroup frames every member with g.rep.PathID), which
+// sends the second route under the first route's path and loses one path.
+func TestPluginRouteGroupSplitsOnPathID(t *testing.T) {
+	mvpn, ok := family.LookupFamily("ipv4/mvpn")
+	require.True(t, ok, "ipv4/mvpn must be registered")
+
+	mvpnA := []byte{0x01, 0x05, 0xAA, 0xAA, 0xAA, 0xAA, 0x01}
+	mvpnB := []byte{0x01, 0x05, 0xBB, 0xBB, 0xBB, 0xBB, 0x02}
+	settings := &PeerSettings{
+		Connection: ConnectionBoth,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
+		PluginRoutes: []PluginRoute{
+			{Family: "ipv4/mvpn", NLRI: mvpnA, NextHop: netip.MustParseAddr("10.0.0.1"), Group: true, PathID: 1},
+			{Family: "ipv4/mvpn", NLRI: mvpnB, NextHop: netip.MustParseAddr("10.0.0.1"), Group: true, PathID: 2},
+		},
+	}
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+	peer.negotiated.Store(&NegotiatedCapabilities{
+		families: map[family.Family]bool{mvpn: true},
+	})
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{mvpn: true}))
+
+	var got [][]byte
+	peer.sendPluginRoutesVia(nil, func(u *message.Update) error {
+		_, nlri := pluginMPReachNLRI(t, u.PathAttributes)
+		got = append(got, append([]byte(nil), nlri...))
+		return nil
+	})
+
+	want := [][]byte{
+		concatPluginNLRIs(mustHex(t, "00000001"), mvpnA),
+		concatPluginNLRIs(mustHex(t, "00000002"), mvpnB),
+	}
+	require.Len(t, got, len(want), "one UPDATE per Path Identifier, got NLRI fields %x", got)
+	for i := range want {
+		if !bytes.Equal(got[i], want[i]) {
+			t.Errorf("UPDATE %d NLRI = %x, want %x", i, got[i], want[i])
+		}
+	}
+}
+
 // pluginMPReachNLRI returns the SAFI and NLRI field of the MP_REACH_NLRI
 // attribute in packed path attributes.
 func pluginMPReachNLRI(t *testing.T, attrs []byte) (uint8, []byte) {
