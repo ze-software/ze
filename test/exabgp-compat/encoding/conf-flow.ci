@@ -6,7 +6,7 @@ option=file:conf-flow.conf
 
 # flow source-ipv4 10.0.0.2/32 next-hop 1.2.3.4 extended-community copy-to-nexthop
 1:cmd:announce ipv4 flow source-ipv4 10.0.0.2/32 next-hop 1.2.3.4 extended-community [copy-to-nexthop]
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003F:02:000000284001010040020040050400000064800E0C00018500000602200A000002C010080800000000000001
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003F:02:00000028800E0C00018500000602200A0000024001010040020040050400000064C01008010C010203040001
 1:jsv4:{"exabgp":"4.0.1","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":576460752303423489,"string":"copy-to-nexthop"}]},"announce":{"ipv4 flow":{"1.2.3.4":[{"source-ipv4":["10.0.0.2/32"],"next-hop":"1.2.3.4","string":"flow source-ipv4 10.0.0.2/32"}]}}}}}}
 1:jsv6:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":576460752303423489,"string":"copy-to-nexthop"}]},"announce":{"ipv4 flow":{"1.2.3.4":[{"source-ipv4":["10.0.0.2/32"],"string":"flow source-ipv4 10.0.0.2/32"}]}}}}}}
 
@@ -34,7 +34,7 @@ option=file:conf-flow.conf
 
 # flow destination-ipv6 2a02:b80:15::7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =UDP traffic-class =46 flow-label =2013 extended-community discard
 1:cmd:announce ipv6 flow destination-ipv6 2a02:b80:15:0:7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =udp traffic-class =46 flow-label =2013 extended-community [rate-limit:0]
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005A:02:000000434001010040020040050400000064800E270002850000210180002A020B80001500007ACA39FFFEAEA87A028078010381110B812E0D9107DDC010088006000000000000
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005C:02:000000454001010040020040050400000064800E290002850000230180002A020B80001500007ACA39FFFEAEA87A028078010381110B812E0DA1000007DDC010088006000000000000
 1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":9225060886715039744,"string":"rate-limit:0"}]},"announce":{"ipv6 flow":{"no-nexthop":[{"destination-ipv6":["2a02:b80:15:0:7aca:39ff:feae:a87a/128/0"],"source-ipv6":["::1/128/120"],"next-header":["=udp"],"traffic-class":["=46"],"flow-label":["=2013"],"string":"flow destination-ipv6 2a02:b80:15:0:7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =udp traffic-class =46 flow-label =2013"}]}}}}}}
 
 # flow packet-length >200&<300 >400&<500 extended-community mark 10
@@ -44,13 +44,13 @@ option=file:conf-flow.conf
 
 # flow route-distinguisher 65535:65536 source-ipv4 10.0.0.3/32 next-hop 5.6.7.8 extended-community redirect-to-nexthop
 1:cmd:announce ipv4 flow source-ipv4 10.0.0.3/32 rd 65535:65536 next-hop 5.6.7.8 extended-community [redirect-to-nexthop]
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0047:02:000000304001010040020040050400000064800E1400018600000E0000FFFF0001000002200A000003C010080800000000000000
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:004B:02:00000034800E180001860405060708000E0000FFFF0001000002200A0000034001010040020040050400000064C010080800000000000000
 1:jsv4:{"exabgp":"4.0.1","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":576460752303423488,"string":"redirect-to-nexthop"}]},"announce":{"ipv4 flow-vpn":{"5.6.7.8":[{"source-ipv4":["10.0.0.3/32"],"rd":"65535:65536","next-hop":"5.6.7.8","string":"flow source-ipv4 10.0.0.3/32 rd 65535:65536"}]}}}}}}
 1:jsv6:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":576460752303423488,"string":"redirect-to-nexthop"}]},"announce":{"ipv4 flow-vpn":{"5.6.7.8":[{"source-ipv4":["10.0.0.3/32"],"rd":"65535:65536","string":"flow source-ipv4 10.0.0.3/32 rd 65535:65536"}]}}}}}}
 
 # flow destination-ipv4 192.168.0.1/32 next-hop 1.2.3.4 extended-community redirect-to-nexthop
 1:cmd:announce ipv4 flow destination-ipv4 192.168.0.1/32 next-hop 1.2.3.4 extended-community [redirect-to-nexthop]
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003F:02:000000284001010040020040050400000064800E0C0001850000060120C0A80001C010080800000000000000
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003F:02:00000028800E0C0001850000060120C0A800014001010040020040050400000064C01008010C010203040000
 1:jsv4:{"exabgp":"4.0.1","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":576460752303423488,"string":"redirect-to-nexthop"}]},"announce":{"ipv4 flow":{"1.2.3.4":[{"destination-ipv4":["192.168.0.1/32"],"next-hop":"1.2.3.4","string":"flow destination-ipv4 192.168.0.1/32"}]}}}}}}
 1:jsv6:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":576460752303423488,"string":"redirect-to-nexthop"}]},"announce":{"ipv4 flow":{"1.2.3.4":[{"destination-ipv4":["192.168.0.1/32"],"string":"flow destination-ipv4 192.168.0.1/32"}]}}}}}}
 

@@ -177,19 +177,34 @@ func (c *numericComponent) Len() int {
 	}
 	n := 1 // type byte
 	for _, m := range c.matches {
-		n++ // operator byte
-		switch {
-		case m.Value <= 0xFF:
-			n++
-		case m.Value <= 0xFFFF:
-			n += 2
-		case m.Value <= 0xFFFFFFFF:
-			n += 4
-		default:
-			n += 8
-		}
+		_, valueLen := operandWidth(c.compType, m.Value)
+		n += 1 + int(valueLen) // operator byte, then the value
 	}
 	return n
+}
+
+// operandWidth returns the numeric_op len code and the value octets for one
+// operand, the single width decision Len and writeToAFI share so the length
+// they report and the bytes they write cannot disagree.
+//
+// Every other component takes the shortest width the value fits.
+func operandWidth(compType FlowComponentType, value uint64) (lenCode, valueLen byte) {
+	// RFC 8956 Section 3.7: "Type 13 component values SHOULD be encoded as
+	// 4-octet quantities (numeric_op len=10)." A Flow Label is 20 bits, so
+	// four octets always hold it.
+	if compType == FlowFlowLabel && value <= 0xFFFFFFFF {
+		return 2, 4
+	}
+	switch {
+	case value <= 0xFF:
+		return 0, 1
+	case value <= 0xFFFF:
+		return 1, 2
+	case value <= 0xFFFFFFFF:
+		return 2, 4
+	default:
+		return 3, 8
+	}
 }
 
 // WriteTo writes the component directly to buf at offset.
@@ -211,18 +226,7 @@ func (c *numericComponent) writeToAFI(buf []byte, off int, afi AFI) int {
 			// choosing its width, including IPv6's absent Don't Fragment bit.
 			m.Value &= fragmentMask(afi)
 		}
-		// Determine value length
-		var lenCode, valueLen byte
-		switch {
-		case m.Value <= 0xFF:
-			lenCode, valueLen = 0, 1
-		case m.Value <= 0xFFFF:
-			lenCode, valueLen = 1, 2
-		case m.Value <= 0xFFFFFFFF:
-			lenCode, valueLen = 2, 4
-		default:
-			lenCode, valueLen = 3, 8
-		}
+		lenCode, valueLen := operandWidth(c.compType, m.Value)
 
 		// Build operator byte
 		op := lenCode << 4

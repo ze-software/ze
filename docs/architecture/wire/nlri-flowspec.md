@@ -70,7 +70,7 @@ else:
 | 8 | ICMP Code | Both | 1 byte |
 | 10 | Packet Length | Both | 1-2 bytes |
 | 11 | DSCP / Traffic Class | IPv4/IPv6 | 1 byte |
-| 13 | Flow Label | IPv6 only | 1-4 bytes |
+| 13 | Flow Label | IPv6 only | 4 bytes sent, 1-4 accepted |
 
 ### Binary Components (ID 9, 12)
 
@@ -191,7 +191,13 @@ RFC 8955 recommends one or two octets for destination port (type 5), source port
 (type 6) and packet length (type 10), and one octet for ICMP code (type 8).
 Ze chooses the shortest encoding: values through 255 emit one octet; 256
 through 65535 emit two. For types 5, 6 and 10, using one rather than two octets
-for 255 is Ze's policy, not an additional RFC requirement. The typed
+for 255 is Ze's policy, not an additional RFC requirement. The Flow Label (type 13)
+is the exception to shortest-width: every value is written as four octets, as
+RFC 8956 Section 3.7 asks ("Type 13 component values SHOULD be encoded as
+4-octet quantities (numeric_op len=10)") and as ExaBGP 6.0 sends it, and a
+narrower received operand is reconstructed at four octets. `operandWidth` is the
+one width decision `Len` and the writer share; `TestFlowLabelEmitsFourOctets`
+pins it. The typed
 constructors, generic numeric builder, registered config parser and registered
 text NLRI encoder share this writer. These emission **SHOULDs** do not impose
 receiving-width **MUSTs**. Reconstructing a parsed component chooses the smallest
@@ -212,6 +218,8 @@ validation.
 
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go -- TestFlowSpecPreferredNumericEmission -->
 <!-- source: internal/core/bgp/nlri/flowspec/numeric_wide_reception_test.go -- TestFlowSpecPreferredNumericWideReception -->
+<!-- source: internal/core/bgp/nlri/flowspec/types_numeric.go -- operandWidth -->
+<!-- source: internal/core/bgp/nlri/flowspec/flow_label_test.go -- TestFlowLabelEmitsFourOctets -->
 <!-- source: internal/component/bgp/reactor/rfc8955_width_wire_test.go -- TestFlowSpecPreferredNumericForwarding -->
 
 ---
