@@ -37,6 +37,8 @@ Owner decisions, 2026-10-20 ("ok"):
 | D-1 | `CONFIG_VHOST_NET` goes into Ze's runtime kernel (`gokrazy/kernel/runtime.config` and `runtime.require`), because VPP on the appliance needs it too |
 | D-2 | This work has its own spec. Owner: "we should have all the modprobe in the le setup for linux" |
 
+-> Pointer (2026-10-21, `plan/spec-ze-image-docker-host.md`): D-1 landed in 81fab69967. `gokrazy/kernel/runtime.config` sets `CONFIG_VHOST_NET=y` and `runtime.require` lists it, with the reason line naming this spec's AC-4. Found there: Kconfig caps `VHOST_NET` at `TAP`, which the arm64 defconfig sets to `m` through `MACVTAP=m`, so `VHOST_NET` resolved to `m` and the arm64 build refused until `CONFIG_MACVTAP=y` was added too (also in `runtime.require`). A-2 is therefore broken as written on arm64 (`TUN=y` alone does not lift it) and holds with `MACVTAP=y`. The kernel cache entry `7.2.9-runtime-arm64-runtime-docker-387d6b76-34cba457` carries both `=y`. That kernel serves the `ze` Colima profile, where AC-15 of that spec ran `vpp-test` and `vpp-iface-test`. This spec's AC-4 kernel build is met by that commit; its other ACs (the setup modprobe route) stay this spec's.
+
 | ID | Goal |
 |----|------|
 | G-1 | Each kernel feature a Docker lab or a deployment proof needs is declared once, by the lab that needs it, and every consumer derives from that declaration |

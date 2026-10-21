@@ -67,3 +67,32 @@ change lands, and fix them (they are Phase 5's).
 6. Gates for the main thread: scoped golangci-lint over `internal/le/test/qemu`,
    `./le test unit all`, `./le verify worktree`, `./le doc check verify`
    (the `developer-setup.md` anchor on `dockerLabKernel` needs repointing).
+
+## Final state, 2026-10-21 ~20:00 BST (Phase 6 agent)
+
+Items 1 to 3 above are done: AC-10 passed and its evidence is committed
+(63d1b8561d); the docker-lab tests went green in ca386b6ae3; the
+`ZE_DOCKER_LAB_GUEST` removal is written and race-green but NOT committed (see
+below). Phase 6 (AC-13, AC-14, AC-15) ran on the `ze` Colima profile; its
+evidence is in the spec under Implementation Steps, Phase 6, and A-6 and A-13
+are confirmed there.
+
+| Commit | What |
+|--------|------|
+| 63d1b8561d | spec: AC-10 evidence |
+| 7a98e14ab6 | vpp-iface-test: the uRPF and LCP fixtures put `address` under `unit` (the schema has it under `ipv4`), so uRPF failed on every run; and a Ctrl-C made `awaitFeature` poll on and print a FAIL. Fixed with `TestAnInterruptedScenarioEndsWithTheInterruption`; the full proof now exits 0 on the `ze` profile |
+| (next) | spec Phase 6 evidence, the sibling-spec pointers, the M1 journal row for the remaining Alpine `Run` guests (`gate-verdict-depends-on-the-machine.md`) |
+
+Still uncommitted, this spec's: `internal/le/interoplab/kernelcheck.go`,
+`kernelcheck_test.go` and the matching `docs/architecture/testing/interop.md`
+hunks (row ~733, anchor ~895). The same page carries the rrdep session's hunk
+(~line 2237) describing `test/interop/scenarios/bgp-addpath-departure-reflector-frr`,
+which is untracked and not in HEAD, so the page cannot be committed until that
+session lands its scenario. Its `le-rrdep` process was still running at 19:50.
+Commit the code and the page together once their hunk is in HEAD, never the
+code alone.
+
+Before the review gate: the gates in item 6 plus `./le test weakened check`;
+AC-9 amd64 (nightly); handover item 4 (`Hugepages.applianceEnv`); no test parses
+the vpp-iface scenario configs through the schema, which is how the `address`
+fixture defect stayed hidden (owed: a parse test over every scenario config).
