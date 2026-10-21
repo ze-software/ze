@@ -72,6 +72,9 @@ type Recognizer func(nlriBytes []byte, addPath bool) Verdict
 var (
 	mu          sync.RWMutex
 	recognizers = map[family.Family]Recognizer{}
+	// bodyJudged holds the families whose recognizer was installed by
+	// RegisterBodyRecognizer.
+	bodyJudged = map[family.Family]bool{}
 )
 
 // Register installs fn as Section 5.4's recognizer for fam.
@@ -102,6 +105,40 @@ func Register(fam family.Family, fn Recognizer) error {
 	}
 	recognizers[fam] = fn
 	return nil
+}
+
+// RegisterBodyRecognizer installs fn as Register does, for a family whose
+// recognizer also judges the NLRI body and answers Withdraw for a malformed one.
+//
+// The family says so because a malformed NLRI cannot name its own route on the
+// wire. Its route key forms, so the Adj-RIB-In entry it replaces is known, but a
+// receiver decodes every field of a withdrawn NLRI, and the bytes the peer sent
+// are the bytes Ze's own recognizer refused. A receiver that relays the
+// treat-as-withdraw therefore needs the earlier, well-formed generation of the
+// same route to withdraw it by, and JudgesBody tells it which families to keep
+// that generation for.
+//
+// Errors are those of Register.
+func RegisterBodyRecognizer(fam family.Family, fn Recognizer) error {
+	if err := Register(fam, fn); err != nil {
+		return err
+	}
+	if fn == nil {
+		return nil
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	bodyJudged[fam] = true
+	return nil
+}
+
+// JudgesBody reports whether fam's recognizer was installed by
+// RegisterBodyRecognizer, so it can answer Withdraw for an NLRI whose bytes are
+// malformed.
+func JudgesBody(fam family.Family) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return bodyJudged[fam]
 }
 
 // Get returns the registered recognizer for fam, or nil when no ruling exists.
@@ -295,6 +332,7 @@ func ResetForTest() {
 	mu.Lock()
 	defer mu.Unlock()
 	recognizers = map[family.Family]Recognizer{}
+	bodyJudged = map[family.Family]bool{}
 	updateChecks = map[family.Family]UpdateCheck{}
 }
 
@@ -316,14 +354,18 @@ func SnapshotForTest() func() {
 	defer mu.Unlock()
 	saved := make(map[family.Family]Recognizer, len(recognizers))
 	maps.Copy(saved, recognizers)
+	savedJudged := make(map[family.Family]bool, len(bodyJudged))
+	maps.Copy(savedJudged, bodyJudged)
 	savedChecks := make(map[family.Family]UpdateCheck, len(updateChecks))
 	maps.Copy(savedChecks, updateChecks)
 	recognizers = map[family.Family]Recognizer{}
+	bodyJudged = map[family.Family]bool{}
 	updateChecks = map[family.Family]UpdateCheck{}
 	return func() {
 		mu.Lock()
 		defer mu.Unlock()
 		recognizers = saved
+		bodyJudged = savedJudged
 		updateChecks = savedChecks
 	}
 }

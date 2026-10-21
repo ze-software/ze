@@ -6,8 +6,10 @@
 # well-formed route L. Section 3.1.3.1: "< 0: the mandatory fields exceed the declared
 # Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw." The malformed
 # copy shares K's key (RD and prefix), so treating it as withdrawn removes K: the
-# receiving peer, which already holds K, sees K withdrawn and L announced, and the
-# malformed octets are never announced to it. No session is reset.
+# receiving peer, which already holds K, sees K withdrawn and L announced. The
+# withdrawal names K by the bytes Ze held for it, because a receiver decodes every
+# field of a withdrawn NLRI and K' is malformed (GoBGP 3.31.0 panics on it), so the
+# malformed octets never reach the receiver at all. No session is reset.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
@@ -40,10 +42,11 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 
 # Receiver (conn=2, AS 65002, rs-client): K first.
 expect=bgp:conn=2:seq=1:contains=010003180000FDE900000001200A000001000000010920C000020100
-# Then K withdrawn: an MP_UNREACH_NLRI for AFI 1 / SAFI 85 whose first route is K'
-# (its key is K's). AFI and SAFI directly followed by an NLRI occur only in
-# MP_UNREACH_NLRI, because MP_REACH_NLRI carries the next hop between them.
-expect=bgp:conn=2:seq=2:contains=000155010003160000FDE900000001200A000001000000010920C00002
+# Then K withdrawn: an MP_UNREACH_NLRI for AFI 1 / SAFI 85 whose first route is K,
+# the generation Ze held for the key K' shares with it. AFI and SAFI directly followed by an NLRI
+# occur only in MP_UNREACH_NLRI, because MP_REACH_NLRI carries the next hop between
+# them.
+expect=bgp:conn=2:seq=2:contains=000155010003180000FDE900000001200A000001000000010920C000020100
 # And L announced.
 expect=bgp:conn=2:seq=2:contains=010003180000FDE900000001200A000002000000010920C000020100
 expect=bgp:conn=2:seq=3:announced=180A0000
@@ -52,6 +55,8 @@ expect=bgp:conn=2:seq=3:announced=180A0000
 # the next hop or after L.
 reject=bgp:conn=2:pattern=040101010100010003160000FDE900000001200A000001000000010920C00002
 reject=bgp:conn=2:pattern=010003180000FDE900000001200A000002000000010920C000020100010003160000FDE900000001200A000001000000010920C00002
+# Nor withdrawn: no MP_UNREACH_NLRI, nor any other byte of what Ze sends, carries K'.
+reject=bgp:conn=2:pattern=010003160000FDE900000001200A000001000000010920C00002
 
 EOF_PEER
 

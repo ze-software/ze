@@ -547,6 +547,14 @@ type Session struct {
 	// can be withdrawn allocates nothing. Only the receive path reads it.
 	typedNLRIKeyScratch [nlrisplit.PrefixKeyScratchSize]byte
 
+	// typedNLRIHeld is, for each route key of a family whose recognizer judges
+	// the NLRI body (nlritype.JudgesBody), the last well-formed generation this
+	// session received, so the treat-as-withdraw of a later malformed NLRI is
+	// relayed by bytes a receiver can decode (session_validation_nlritype_held.go).
+	// Bounded by the routes the peer holds in those families. Read and written
+	// only on the receive goroutine; nil until the first such route arrives.
+	typedNLRIHeld map[fwdPathKey][]byte
+
 	// addrLabel caches settings.Address.String() to avoid per-message allocations.
 	addrLabel string
 

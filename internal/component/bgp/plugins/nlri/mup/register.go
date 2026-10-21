@@ -19,11 +19,12 @@ func init() {
 	// RFC 7606 Section 5.4: BGP-MUP is a typed address family and
 	// draft-ietf-bess-mup-safi states no deviation, so a route whose architecture and
 	// route type ze does not implement must be discarded. draft-ietf-bess-mup-safi
-	// Section 3.1.3.1: a malformed route is treated as withdrawn (recognizerFor). Registered here, beside the
-	// families, so removing this plugin removes both the advertisement and the
-	// obligation.
+	// Section 3.1.3.1: a malformed route is treated as withdrawn (recognizerFor), so
+	// the recognizer judges the body and is registered as one that does. Registered
+	// here, beside the families, so removing this plugin removes both the
+	// advertisement and the obligation.
 	for _, fam := range []Family{IPv4MUP, IPv6MUP} {
-		if err := nlritype.Register(fam, recognizerFor(fam.AFI)); err != nil {
+		if err := nlritype.RegisterBodyRecognizer(fam, recognizerFor(fam.AFI)); err != nil {
 			fmt.Fprintf(os.Stderr, "mup: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
 			os.Exit(1)
 		}

@@ -107,6 +107,14 @@ const (
 // Section 3.g keep-first strip, and attrsOffset its start within that payload.
 // attrs is the view a family's UPDATE-level check reads (nlritype.UpdateCheck):
 // pathAttrs with the codes attribute-discard removes after this pass marked absent.
+// withdrawAll says the whole UPDATE is treated as withdrawn (RFC 7606 Section 2),
+// so no route it announces is held (typedNLRIHold).
+//
+// A withdrawal in a family whose recognizer judges the body is relayed by the
+// generation of the route this session held, never by malformed bytes, and not at
+// all when no generation is held (session_validation_nlritype_held.go). That
+// applies to the routes moved out of the MP_REACH_NLRI and to a received
+// MP_UNREACH_NLRI alike.
 func (s *Session) applyTypedNLRIDiscard(
 	wu *wireu.WireUpdate,
 	pathAttrs []byte,
@@ -114,13 +122,14 @@ func (s *Session) applyTypedNLRIDiscard(
 	attrs *nlritype.UpdateAttrs,
 	mpReach, mpUnreach message.MPNLRILocation,
 	addPathFor func(afi uint16, safi uint8) bool,
+	withdrawAll bool,
 ) (out *wireu.WireUpdate, outAttrs []byte, outcome typedNLRIOutcome, withdrawBody []byte) {
 	edits := make([]mpNLRIEdit, 0, 2)
-	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, attrs, addPathFor)
+	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, attrs, addPathFor, withdrawAll)
 	if !ok {
 		return wu, pathAttrs, typedNLRIUnparseable, nil
 	}
-	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, attrs, addPathFor)
+	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, attrs, addPathFor, withdrawAll)
 	if !ok {
 		return wu, pathAttrs, typedNLRIUnparseable, nil
 	}
@@ -133,7 +142,8 @@ func (s *Session) applyTypedNLRIDiscard(
 	// RFC 7606 Section 2 treat-as-withdraw, per route: the NLRIs the family's own
 	// specification answers that way (draft-ietf-bess-mup-safi Section 3.1.3.1) left
 	// the MP_REACH above and become a withdrawal here, so an earlier generation of the
-	// same route leaves the Adj-RIB-In and is withdrawn wherever it was relayed.
+	// same route leaves the Adj-RIB-In and is withdrawn wherever it was relayed. A
+	// malformed NLRI is withdrawn by that earlier generation's bytes (typedNLRIEdit).
 	// RFC 7606 Section 3(g) refuses a second MP_UNREACH_NLRI in one UPDATE, so when the
 	// rewritten UPDATE still carries one the withdrawal rides its own withdraw-only
 	// UPDATE, which the caller dispatches; otherwise it joins this one.
@@ -215,6 +225,7 @@ func (s *Session) typedNLRIEdit(
 	pathAttrs []byte,
 	attrs *nlritype.UpdateAttrs,
 	addPathFor func(afi uint16, safi uint8) bool,
+	withdrawAll bool,
 ) ([]mpNLRIEdit, bool) {
 	if !loc.Present {
 		return edits, true
@@ -301,13 +312,53 @@ func (s *Session) typedNLRIEdit(
 		s.logTypedNLRIMalformed(fam, code, retained)
 	}
 
-	if dropped+malformed+retained.WithdrawnCount == 0 {
+	// A family whose recognizer judges the body holds each route's last well-formed
+	// generation, and every withdrawal it relays names a held route by those bytes.
+	withdrawn := retained.Withdrawn
+	relayDropped, relayChanged := 0, false
+	if recognize != nil && nlritype.JudgesBody(fam) {
+		relay, holdErr := s.typedNLRIRelayEdit(fam, recognize, kept, withdrawn, addPath, announce, withdrawAll)
+		if holdErr != nil {
+			sessionLogger().Warn("RFC 7606 Section 5.3: typed NLRI section cannot be walked",
+				"peer", s.settings.Address, "family", fam, "attr", code, "error", holdErr)
+			return edits, false
+		}
+		relayDropped, relayChanged = relay.dropped, relay.changed
+		if announce {
+			withdrawn = relay.nlri
+		} else {
+			kept = relay.nlri
+		}
+		if relayDropped > 0 {
+			// Debug, for the reason the Section 5.4 line above gives.
+			sessionLogger().Debug("RFC 7606 Section 2: withdrawn NLRIs naming no held route not relayed",
+				"peer", s.settings.Address, "family", fam, "attr", code, "dropped", relayDropped)
+		}
+	}
+
+	if dropped+malformed+retained.WithdrawnCount == 0 && !relayChanged {
 		return edits, true
 	}
 	return append(edits, mpNLRIEdit{
 		code: code, afi: loc.AFI, safi: loc.SAFI,
-		nlri: kept, dropped: dropped + malformed, withdrawn: retained.Withdrawn,
+		nlri: kept, dropped: dropped + malformed + relayDropped, withdrawn: withdrawn,
 	}), true
+}
+
+// typedNLRIRelayEdit applies the held-generation rule to one MP attribute of a
+// body-judged family. For an MP_REACH_NLRI it files the kept routes
+// (typedNLRIHold) and returns the withdrawable form of the routes moved out of it;
+// for an MP_UNREACH_NLRI it returns the withdrawable form of the section itself.
+func (s *Session) typedNLRIRelayEdit(
+	fam family.Family, recognize nlritype.Recognizer, kept, withdrawn []byte, addPath, announce, withdrawAll bool,
+) (typedNLRIRelay, error) {
+	if !announce {
+		return s.typedNLRIWithdrawable(fam, recognize, kept, addPath, true)
+	}
+	if err := s.typedNLRIHold(fam, kept, addPath, withdrawAll); err != nil {
+		return typedNLRIRelay{}, err
+	}
+	return s.typedNLRIWithdrawable(fam, recognize, withdrawn, addPath, false)
 }
 
 // logTypedNLRIMalformed records the NLRIs a family's recognizer answered
@@ -387,9 +438,14 @@ func updateCarriesNoRoutes(body []byte) bool {
 // attribute's NLRI replaced, and an attribute whose NLRI is now empty removed.
 //
 // Attribute flags are preserved byte for byte, including the Extended Length
-// bit. A replacement NLRI is never longer than the one it replaces, so the
-// original length encoding always still fits and re-deciding it could only
-// introduce a difference the peer did not send.
+// bit, whenever the original length encoding still fits, so the rebuild
+// introduces no difference the peer did not send. A replacement NLRI is shorter
+// than the one it replaces except where a malformed withdrawn NLRI is replaced by
+// the held generation of its route (typedNLRIWithdrawable), which can be longer:
+// a one-octet length that no longer fits gains the Extended Length bit, as
+// RFC 4271 Section 4.3 allows ("The fourth high-order bit (bit 3) of the
+// Attribute Flags octet is the Extended Length bit. It defines whether the
+// Attribute Length is one octet (if set to 0) or two octets (if set to 1).").
 func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 	out := make([]byte, 0, len(pathAttrs))
 
@@ -445,6 +501,10 @@ func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 			continue
 		}
 		newLen := start + len(edit.nlri)
+		if lenWidth == 1 && newLen > 0xff {
+			flags |= byte(attribute.FlagExtLength)
+			lenWidth = 2
+		}
 		out = append(out, flags, code)
 		if lenWidth == 2 {
 			out = append(out, byte(newLen>>8), byte(newLen))

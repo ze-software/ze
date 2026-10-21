@@ -136,7 +136,8 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 		attrs := typedNLRIUpdateAttrs(pathAttrs, result)
 		var outcome typedNLRIOutcome
 		wu, pathAttrs, outcome, validation.typedWithdrawBody = s.applyTypedNLRIDiscard(
-			wu, pathAttrs, offset, &attrs, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor)
+			wu, pathAttrs, offset, &attrs, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor,
+			result.Action == message.RFC7606ActionTreatAsWithdraw)
 		body = wu.Payload()
 		switch outcome {
 		case typedNLRIUnparseable:

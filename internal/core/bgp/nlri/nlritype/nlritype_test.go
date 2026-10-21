@@ -253,6 +253,50 @@ func TestGetReturnsOnlyRuledFamilies(t *testing.T) {
 	}
 }
 
+// VALIDATES: RegisterBodyRecognizer installs the recognizer as Register does and marks
+// the family as one whose recognizer judges the body; Register alone does not, a nil
+// recognizer marks nothing, a refused registration marks nothing, and SnapshotForTest
+// restores the mark.
+// PREVENTS: a family that withdraws malformed NLRIs left without the held generation its
+// withdrawals need, and a type-only family paying for one.
+func TestRegisterBodyRecognizerMarksFamily(t *testing.T) {
+	t.Cleanup(SnapshotForTest())
+
+	if err := Register(evpnFamily, recognizeUpToFive); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if JudgesBody(evpnFamily) {
+		t.Fatal("Register alone must not mark the family as judging the body")
+	}
+	if err := RegisterBodyRecognizer(mupFamily, nil); err != nil {
+		t.Fatalf("a nil recognizer must be accepted: %v", err)
+	}
+	if JudgesBody(mupFamily) {
+		t.Fatal("a nil recognizer must mark nothing")
+	}
+	noSplitter := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFI(250)}
+	if err := RegisterBodyRecognizer(noSplitter, withdrawAll); !errors.Is(err, ErrNoSplitter) {
+		t.Fatalf("want ErrNoSplitter, got %v", err)
+	}
+	if JudgesBody(noSplitter) {
+		t.Fatal("a refused registration must mark nothing")
+	}
+	if err := RegisterBodyRecognizer(mupFamily, withdrawAll); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !JudgesBody(mupFamily) || Get(mupFamily) == nil {
+		t.Fatal("RegisterBodyRecognizer must install the recognizer and mark the family")
+	}
+	restore := SnapshotForTest()
+	if JudgesBody(mupFamily) {
+		t.Fatal("a snapshot must empty the mark with the recognizers")
+	}
+	restore()
+	if !JudgesBody(mupFamily) {
+		t.Fatal("restoring the snapshot must restore the mark")
+	}
+}
+
 var mupFamily = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}
 
 // mupISD frames an IPv4 Interwork Segment Discovery NLRI (draft-ietf-bess-mup-safi

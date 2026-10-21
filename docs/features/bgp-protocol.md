@@ -362,6 +362,15 @@ instead, because no withdrawal can name it. Both are logged at debug with the
 NLRI bytes and counted in `ze_bgp_update_nlri_malformed_total`
 (`docs/guide/monitoring.md`).
 
+The withdrawal never carries the malformed bytes. A receiver decodes every field
+of a withdrawn NLRI, so for a family whose recognizer judges the body
+(`nlritype.RegisterBodyRecognizer`) each session keeps the last well-formed
+generation it received for each route key, and the withdrawal of a malformed
+route names that generation. When no generation is held, the session never
+installed the route and nothing is relayed for it. The same rule applies to a
+malformed or unkeyable NLRI a peer sends in an MP_UNREACH_NLRI. FRR and BIRD
+build their withdrawals the same way, from the route they hold.
+
 A family can also register an UPDATE-level check beside its recognizer, for a
 rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
 draft-ietf-bess-mup-safi Section 3.3.6: a Direct Segment Discovery route in an
@@ -374,13 +383,14 @@ When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
 Section 5.3 resets the session.
 
-<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain -->
+<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain, RegisterBodyRecognizer, JudgesBody -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
 <!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable -->
 
 ### RFC 7911 Path Identifier regeneration
 

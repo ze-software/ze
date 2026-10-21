@@ -32,7 +32,7 @@ func TestTypedNLRIEditConsultsRegistry(t *testing.T) {
 		loc := message.MPNLRILocation{Present: true, AFI: uint16(fam.AFI), SAFI: uint8(fam.SAFI)}
 		pathAttrs := mpReachAttrs(fam, nlri)
 		attrs := nlritype.NewUpdateAttrs(pathAttrs)
-		return s.typedNLRIEdit(nil, code, loc, pathAttrs, &attrs, nil)
+		return s.typedNLRIEdit(nil, code, loc, pathAttrs, &attrs, nil, false)
 	}
 
 	if _, ok := edit(evpn, badEVPN); ok {
