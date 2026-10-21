@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"bytes"
+	"errors"
 	"net/netip"
 	"slices"
 	"sync"
@@ -13,8 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
 // replacementRail names which route-server rail carries the owner's withdrawal.
@@ -204,4 +207,112 @@ func (observer *replacementRailObserver) rail() replacementRail {
 		return replacementRailFastPath
 	}
 	return replacementRailCached
+}
+
+// TestRSOwnerWithdrawalSkipsDestinationOwnPath proves AC-13 on C's wire. C
+// itself announces 10.9.0.0/24 with the shortest AS_PATH, so its own path is
+// the RIB's best overall; sources B then A announce it too, A with the shorter
+// path, so A owns it at C. A withdraws: the RIB excludes C's own candidates
+// before electing, so C receives B's route, never a withdrawal and never its
+// own route reflected back.
+//
+// VALIDATES: AC-13, the destination's own path is never its replacement.
+// PREVENTS: a client left with no route, or sent its own path, when another
+// source still offers the prefix.
+func TestRSOwnerWithdrawalSkipsDestinationOwnPath(t *testing.T) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := lowLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	// RFC 4271 Section 9.1.2.2, step a: C's path is shortest, then A's, then B's.
+	attrsC := firstASAttrs(4, 65004)
+	attrsA := firstASAttrs(4, 65002, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003, 65003)
+
+	ownershipLiveSend(t, c, nil, attrsC, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, a, prefix, attrsC)
+	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsB)
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsA)
+
+	marker := netip.MustParsePrefix("10.9.255.0/24")
+	ownershipLiveSend(t, a, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+	ownershipLiveSend(t, a, nil, attrsA, marker)         // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, marker, attrsA)
+
+	deadline := time.Now().Add(5 * time.Second)
+	view := ownershipLiveRead(t, c)
+	for len(view.announcements[prefix]) < 3 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+		view = ownershipLiveRead(t, c)
+	}
+	// RFC 4271 Section 9.2: "All newly installed routes and all newly
+	// unfeasible routes for which there is no replacement route SHALL be
+	// advertised to its peers by means of an UPDATE message."
+	ownershipLiveRoute(t, view, prefix, attrsB)
+	ownershipLiveWithdrawals(t, view, prefix, 0)
+	ownershipLiveAnnouncements(t, view, prefix, attrsB, attrsA, attrsB)
+	ownershipLiveEstablished(t, peers)
+}
+
+// TestRSOwnerWithdrawalLookupFailureRetiresDestination proves AC-11 for a
+// lookup error: A owns 10.9.0.0/24 at C and withdraws it, and C's recovery
+// lookup fails. The key cannot be decided, so C's session is retired with
+// Cease / Out of Resources, and C is never left holding A's withdrawn route
+// on a session that stays up. Sources A and B, whose own lookups succeed,
+// stay Established.
+//
+// VALIDATES: AC-11, a failed lookup retires the destination.
+// PREVENTS: a client silently keeping a route its source withdrew.
+func TestRSOwnerWithdrawalLookupFailureRetiresDestination(t *testing.T) {
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	peers := lowLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+
+	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsB)
+	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, c, prefix, attrsA)
+
+	destination := c.peer.Settings().Address
+	var failed atomic.Int32
+	publishLookupTap(t, func(request *ribevents.RecoveryRequest, outcomes []ribevents.RecoveryOutcome, err error) ([]ribevents.RecoveryOutcome, error) {
+		if request.Destination != destination {
+			return outcomes, err
+		}
+		failed.Add(1)
+		return nil, errors.New("injected recovery lookup failure")
+	})
+
+	ownershipLiveSend(t, a, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
+
+	// RFC 4486 Section 4: Cease (6) with subcode Out of Resources (8).
+	lowEventually(t, func() bool { return publicationCeaseSent(c) }, "Cease / Out of Resources to C")
+	lowEventually(t, func() bool { return c.peer.State() != PeerStateEstablished }, "C left Established")
+	if failed.Load() == 0 {
+		t.Fatal("C's recovery lookup was never asked")
+	}
+	for _, source := range []*lowLivePeer{a, b} {
+		if got := source.peer.SessionState(); got != fsm.StateEstablished {
+			t.Errorf("source %s session = %s, want Established", source.peer.Settings().Address, got)
+		}
+	}
 }
