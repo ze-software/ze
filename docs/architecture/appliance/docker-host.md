@@ -11,7 +11,12 @@ Docker daemon runs on Ze's kernel and Ze's system (owner decisions M1 and M10 in
 
 `gokrazy/docker-host/config.json` packs one Ze program, `cmd/ze-docker-host`,
 plus gokrazy's `randomd` and `dhcp`. It bakes no `/etc/machine-id`: the program
-generates one per disk on the first boot. The kernel command line names both
+generates one per disk on the first boot. `Update.NoPassword` is set, so
+gokrazy's web server listens only on its unix socket
+(`/run/gokrazy-http.sock`, gokrazy `listeners.go` `updateListeners`) and never
+on TCP port 80: Lima forwards every TCP port a guest listens on to the Mac,
+and the guest exposes nothing there but sshd (Lima's own channel) and,
+through it, the Docker socket. The kernel command line names both
 consoles, `hvc0` (vz, virtio console) and `ttyS0` (QEMU), so either boot logs.
 The third-party binaries (busybox, a static musl OpenSSH built without OpenSSL,
 a static musl sudo) reach the image as the extra files tar
@@ -42,8 +47,17 @@ second into the boot, after the kernel printed its own banner. Then it:
 4. keeps the machine id in `/perm/machine-id` and copies it to
    `/etc/machine-id`;
 5. sets `/perm/home` to mode 0755 (gokrazy init creates it 0700, which kept
-   sshd from reading `authorized_keys`), binds it on `/home`, and overlays a tmpfs on the read-only
-   `/usr/local`, where Lima installs its guest agent;
+   sshd from reading `authorized_keys`), binds it on `/home`, and overlays a
+   tmpfs on two read-only trees: `/usr/local`, where Lima installs its guest
+   agent, and `/lib/modules`, where busybox `modprobe` writes its
+   `modules.dep.bb` index on its first call. Without that index busybox's
+   modprobe (modprobe-small) reads every module in the tree on each call, and
+   Lima's `00-modprobe.sh` makes 21 calls: the boot took 101 s to the guest
+   agent, 64 to 89 s of it in that script. With the index the first call
+   reads the tree once (about 23 s on a cold page cache) and the other 20
+   answer at once: 47 s to the guest agent. Busybox `ash` runs its own
+   `modprobe` applet in-process whatever `/sbin` holds, so making the index
+   writable is the fix rather than a different `modprobe` binary;
 6. writes `passwd`, `group` (a `docker` group, gid 1000, holding the Lima
    user), `shadow` (every account locked), `sudoers` and
    `sudoers.d/90-lima-users`, and the user's `authorized_keys`;

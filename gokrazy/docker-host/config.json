@@ -1,6 +1,8 @@
 {
     "Hostname": "docker-host",
-    "Update": {},
+    "Update": {
+        "NoPassword": true
+    },
     "Environment": [
         "GOOS=linux"
     ],
