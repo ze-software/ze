@@ -59,3 +59,36 @@ session's parallel golangci-lint; every earlier scoped run reported 0 issues),
 `./le test unit all`, `./le verify worktree`. Commits carried
 `structural-red-ok`: staticcheck parts 2 and 3 have been red since the 12:27Z
 verify, before this phase.
+
+## Phase 4 landed (2026-10-21, after the full disk)
+
+Open item 1 is done in `af4c0708ed` ("le: macOS labs use the ze Colima
+profile's daemon or refuse"). On darwin with DOCKER_HOST unset or empty, every
+lab docker command, the kernel check and every `ze appliance build` le runs
+(`./le test qemu install-*`, `vpp-hugepages-test`, `mpls-boot-test`,
+`crash-capture-*`) name `~/.colima/ze/docker.sock`, or refuse naming it and
+`./le setup docker-host start`. `Hugepages.applianceEnv`, the sibling the first
+Phase 4 agent left, now goes through `dockerhost.Inherited()` too
+(`hugepages_env_test.go`, red on the old body, green on the fix). The two
+dockerhost tests of the old `default`/context fallback left the suite with
+their row in `test/weakened/5122291c.md`.
+
+- Vet clean on darwin and linux/amd64 over `internal/le/dockerhost`,
+  `interoplab`, `setup/dockerkernel`, `site/terminaldemo`, `test/qemu`; scoped
+  golangci-lint with every feature tag: 0 issues.
+- Race tests: green except `TestDockerKernelInstallCacheBuildsUnderTheVerbRoot`
+  and `TestDockerLabBuildsUnderTheVerbRoot`, both "ran go under a canceled
+  root: env GOFLAGS", the open row in
+  `plan/journal/stop-leaves-the-work-running.md` (`EffectiveGoFlags` ignores the
+  caller's context). Phase 5's `TestDockerLabForwardsOneInterruptThenStopsTheVM`
+  was red once ("forwarded Docker socket ... has mode 644, not 0600") and green
+  on the rerun: flaky, in Phase 5's uncommitted `dockerlab.go`.
+- AC-8 (a) run: `env -u DOCKER_HOST ./le setup docker-kernel check` gives
+  `verdict pass`, exit 0, while `docker context show` names `colima` (Ubuntu
+  6.8.0-117-generic) and the `ze` socket answers `7.2.9-ze`.
+- Still owed: `./le test unit all`, `./le verify worktree`, the linux flavour
+  of `./le go lint run`; the commit carried `structural-red-ok` for the 17:22Z
+  verify (staticcheck part 2 timed out at 10m30s during the full disk).
+- Owed by Phase 5 (spec Phase 5 notes, R-11): `ZE_DOCKER_LAB_GUEST` stands in
+  `interoplab/kernelcheck.go` with nothing setting it; that file is now
+  committed, so Phase 5 is free to delete it.
