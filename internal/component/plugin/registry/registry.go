@@ -464,6 +464,13 @@ var (
 	// undeclared process gets: nothing is waited for that cannot report.
 	runtimeSessionReady func(process string) bool
 
+	// runtimeRegistryNames resolves a running process name to the registry
+	// names its config uses (`plugin { internal rs { use bgp-rs } }` answers
+	// ["bgp-rs"]), for a declaration only a compile-time Registration carries:
+	// FencesLiveForwards. The plugin server installs it beside
+	// runtimeSessionReady. Nil answers no names, so an alias fences nothing.
+	runtimeRegistryNames func(process string) []string
+
 	// builtinFamilies maps family names to source names for engine-builtin families
 	// (e.g., ipv4/unicast) that are not registered through the plugin system.
 	builtinFamilies = make(map[string]string)
@@ -1065,6 +1072,16 @@ func SetRuntimeSessionReady(fn func(process string) bool) {
 	runtimeSessionReady = fn
 }
 
+// SetRuntimeRegistryNames installs the seam that resolves a process name to
+// the registry names its config uses, so a declaration made by a compile-time
+// Registration reaches a process the operator attached under an alias
+// (FencesLiveForwards). Called once at server startup; nil removes it.
+func SetRuntimeRegistryNames(fn func(process string) []string) {
+	mu.Lock()
+	defer mu.Unlock()
+	runtimeRegistryNames = fn
+}
+
 // rpcHandlers holds RPC method handlers registered by plugins via AddRPCHandlers.
 // Separate from Registration.RPCHandlers to allow registration from packages that
 // cannot be imported by the plugin's register.go without creating cycles.
@@ -1392,6 +1409,7 @@ func Reset() {
 	// Cleared with the registry it belongs to: a seam surviving Reset answers
 	// for a plugin server the next test never started.
 	runtimeSessionReady = nil
+	runtimeRegistryNames = nil
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
@@ -1672,12 +1690,39 @@ func TopologicalGraphTiers(deps map[string][]string) ([][]string, error) {
 	return tiers, nil
 }
 
-// FencesLiveForwards reports whether the plugin registered under name declares
-// Registration.FencesLiveForwards. An unregistered name answers false: a plugin
-// that never declared the fence is never waited for.
+// FencesLiveForwards reports whether the plugin running under name declares
+// Registration.FencesLiveForwards. name is a PROCESS name, which is a registry
+// key only when the operator attached the plugin under its own name: an alias
+// (`plugin { internal rs { use bgp-rs } }`) is resolved through the plugin
+// server's runtimeRegistryNames seam, the same resolution SignalsSessionReady
+// makes. Without it, a route server attached as "rs" raised no replay fence,
+// and its live forwards reached a peer ahead of its own peer-up replay. A name
+// that resolves to no fencing registration answers false: a plugin that never
+// declared the fence is never waited for.
 func FencesLiveForwards(name string) bool {
 	mu.RLock()
 	reg := plugins[name]
+	resolve := runtimeRegistryNames
 	mu.RUnlock()
-	return reg != nil && reg.FencesLiveForwards && reg.SignalsSessionReady
+
+	if reg != nil {
+		return reg.FencesLiveForwards && reg.SignalsSessionReady
+	}
+	if resolve == nil {
+		return false
+	}
+	// Resolved outside mu: the seam reads the process manager, and a nested
+	// read lock deadlocks behind a waiting writer.
+	for _, implName := range resolve(name) {
+		mu.RLock()
+		impl := plugins[implName]
+		mu.RUnlock()
+		if impl == nil {
+			continue
+		}
+		if impl.FencesLiveForwards && impl.SignalsSessionReady {
+			return true
+		}
+	}
+	return false
 }

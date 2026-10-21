@@ -107,8 +107,22 @@ later MessageID also releases it. A source that sends nothing more releases its
 parked rules at the worker's idle timeout, with a warning, because the UPDATE is
 not coming (a route server started after it, or an UPDATE not delivered to it).
 A source that goes down drops them, with a warning, and its peer-down withdraws
-its routes. One parked entry is kept per rule.
-<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation, parkValidation, markProcessed, releaseParkedValidations, dropParkedValidations -->
+its routes. One parked entry is kept per rule. A rule is parked even when it
+has no target yet, because a target coming up meanwhile takes its cut before
+the rule's UPDATE reaches the route server, and the release selects targets
+again.
+
+A target's peer-up replay and the live rail split FlowSpec at the target's cut
+the way they split unicast: `replayFlowSpecs` carries the rules whose UPDATE is
+at or below the cut, and leaves a later generation to the source worker's
+validation relay. The replay passes the target's replay fence and a live
+forward waits behind it, so a replayed post-cut rule reached the target ahead
+of the live unicast UPDATEs its source sent first. The fence itself is raised
+for every process whose registration declares `FencesLiveForwards`, resolved
+through the process's `use` spelling, so a route server attached as
+`internal rs { use bgp-rs }` holds live forwards until its replay reports.
+<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation, parkValidation, markProcessed, releaseParkedValidations, dropParkedValidations, relayFlowSpecValidation, replayFlowSpecs -->
+<!-- source: internal/component/plugin/registry/registry.go -- FencesLiveForwards -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore, forwardValidationWire -->
 <!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, buildRelayWithdrawal -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- dispatchOverflow, forwardSourceCurrent -->

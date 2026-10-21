@@ -98,8 +98,9 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
 				NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 			// The selecting RIB can be one event ahead of this forwarding
-			// consumer. The live forward carries no FlowSpec rule, so the
-			// post-cut sibling is the peer-up replay's to deliver as well
+			// consumer. The post-cut sibling (43) is the live rail's: the
+			// source worker relays it once it handles UPDATE 43, after the
+			// unicast routes sent before it, so the replay MUST NOT carry it
 			// (TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp).
 			newer := key
 			newer.PathID = 7
@@ -170,14 +171,14 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("peer-up replay never completed")
 			}
-			if !slices.Equal(delivered, []string{"rule-42", "rule-43", "eor", "ready"}) {
-				t.Fatalf("initial FlowSpec delivery order = %v", delivered)
+			if !slices.Equal(delivered, []string{"rule-42", "eor", "ready"}) {
+				t.Fatalf("initial FlowSpec delivery order = %v; want only the rule at or below the cut", delivered)
 			}
 			rs.mu.Lock()
 			rs.peers[target].ReplayGen++
 			rs.mu.Unlock()
 			rs.replayForPeer(target, 1, 42, 17, make(chan struct{}))
-			if !slices.Equal(delivered, []string{"rule-42", "rule-43", "eor", "ready"}) {
+			if !slices.Equal(delivered, []string{"rule-42", "eor", "ready"}) {
 				t.Fatalf("old-session replay reached reconnected peer: %v", delivered)
 			}
 		})
@@ -185,13 +186,18 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 }
 
 // TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp proves that a FlowSpec
-// rule received after a target's peer-up cut still reaches that target. The
-// live forward carries no FlowSpec rule, so the rule's only other export is
-// the RIB's ValidationChange, and that event is not ordered against this route
-// server's peer-up event: it can be processed while the target is not yet a
-// forward target. Method: process the ValidationChange first (it must reach
-// nobody), then bring the target up with a cut below the rule's MessageID, and
-// require the peer-up replay to deliver the rule before End-of-RIB.
+// rule received after a target's peer-up cut reaches that target exactly once,
+// by the live rail and after the replay. The RIB's ValidationChange is not
+// ordered against this route server's peer-up event, so it can reach the source
+// worker while the target is not yet a forward target and before the worker
+// has handled the rule's UPDATE. The worker parks it until that UPDATE, which
+// arrives after the cut, so the target is then a target. Replaying the rule as
+// well sent it twice, and the replayed copy passed the target's replay fence
+// ahead of the live unicast UPDATEs the source sent before the rule (handover
+// 03, "FlowSpec ordering race"). Method: process the ValidationChange first (it
+// must reach nobody), bring the target up with a cut below the rule's
+// MessageID, then let the worker handle UPDATE 43, and require End-of-RIB
+// followed by one relay of the rule.
 func TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp(t *testing.T) {
 	const source, target = "192.0.2.1", "192.0.2.2"
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
@@ -257,10 +263,11 @@ func TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("peer-up replay never completed")
 	}
+	rs.markProcessed(workerKey{sourcePeer: source}, 43)
 	mu.Lock()
 	defer mu.Unlock()
-	if !slices.Equal(delivered, []string{target + " rule-43", target + " eor"}) {
-		t.Fatalf("rule judged before peer-up reached the target as %v; want it replayed before End-of-RIB", delivered)
+	if !slices.Equal(delivered, []string{target + " eor", target + " rule-43"}) {
+		t.Fatalf("rule judged before peer-up reached the target as %v; want End-of-RIB, then one live relay", delivered)
 	}
 }
 

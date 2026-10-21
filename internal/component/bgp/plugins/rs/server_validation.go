@@ -80,9 +80,15 @@ func (rs *routeServer) replayValidation(key workerKey, route ribevents.Validatio
 }
 
 // relayFlowSpecValidation relays the RIB's current path for a FlowSpec rule,
-// or its withdrawal, to every target. With no target it does nothing and parks
-// nothing: a target that comes up later takes the rule from replayFlowSpecs.
+// or its withdrawal, to every target. A path whose UPDATE this worker has not
+// handled yet is parked even with no target: the UPDATE reaches this route
+// server after any target up now in progress took its cut, so replayFlowSpecs
+// leaves the rule to this relay, and the release selects the targets again.
 func (rs *routeServer) relayFlowSpecValidation(key workerKey, route ribevents.ValidationRoute, targets []string, mayPark bool) {
+	path, present := ribevents.LookupFlowSpecPath(route)
+	if present && mayPark && rs.parkValidation(key, route, path.MsgID) {
+		return
+	}
 	if len(targets) == 0 {
 		return
 	}
@@ -90,10 +96,7 @@ func (rs *routeServer) relayFlowSpecValidation(key workerKey, route ribevents.Va
 		SourcePeer: key.sourcePeer, Family: route.Family.String(), PathID: route.PathID,
 		NLRIHex: hex.EncodeToString([]byte(route.NLRI)), NLRIFraming: rpc.NLRIFramingPrefixOnly, Withdraw: true,
 	}
-	if path, present := ribevents.LookupFlowSpecPath(route); present {
-		if mayPark && rs.parkValidation(key, route, path.MsgID) {
-			return
-		}
+	if present {
 		stored.AttrHex = hex.EncodeToString(path.Attributes)
 		stored.MsgID = path.MsgID
 		stored.Withdraw = false
@@ -232,15 +235,19 @@ func (rs *routeServer) workerBatch(key workerKey) *forwardBatch {
 // The optional Adj-RIB-In excludes these families, preventing duplicate replay.
 // Each reconstruction still crosses authorization and egress policies.
 //
-// It replays every current path, including a generation received after the
-// destination's peer-up cut. The live forward carries no FlowSpec rule
-// (reactor flowSpecSection), and the RIB's ValidationChange for a post-cut
-// generation is not ordered against this route server's peer-up event, so it
-// can be processed before the destination is a target and reach nobody. A
-// generation judged inside that window can then reach the destination twice,
-// as the same announcement, and never not at all. The reflector's peer-up
-// replay has no cut either.
-func (rs *routeServer) replayFlowSpecs(destination string, gen uint64) {
+// It replays the paths at or below the destination's peer-up cut and leaves
+// every later generation to the live rail, the same split Adj-RIB-In's replay
+// makes for unicast (replay_cut.go). The live rail for a FlowSpec rule is the
+// source worker's validation relay, and that relay runs only once the worker
+// has handled the rule's UPDATE (parkValidation). A generation above the cut is
+// one this route server took delivery of after the destination came up, so its
+// worker handles it with the destination already a target, and the relay leaves
+// behind the unicast UPDATEs the source sent before the rule. Replaying it here
+// as well sent the rule twice and, worse, ahead of those unicast UPDATEs: the
+// replay passes the destination's replay fence while the live unicast waits
+// behind it. A path whose MessageID is unknown (0) is replayed: sent twice,
+// never dropped.
+func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
 	// A timed-out optional-store replay must not cancel this independent phase.
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
@@ -262,6 +269,9 @@ func (rs *routeServer) replayFlowSpecs(destination string, gen uint64) {
 		path, present := ribevents.LookupFlowSpecPath(key)
 		if !present {
 			continue
+		}
+		if path.MsgID != 0 && path.MsgID > cut {
+			continue // the live rail's: relayed by the source worker (parkValidation)
 		}
 		route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,

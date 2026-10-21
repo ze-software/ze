@@ -130,3 +130,43 @@ func TestDeclaresSessionReadyResolvesEveryInternalSpelling(t *testing.T) {
 	assert.True(t, s.declaresSessionReady("verbed"),
 		"the ze plugin verb pair names the same implementation")
 }
+
+// TestFencesLiveForwardsResolvesTheProcessAlias proves the replay fence asks
+// the same alias question the session-ready barrier asks.
+//
+// VALIDATES: a plugin whose registration declares FencesLiveForwards fences a
+// peer's live forwards when the operator attached it under an alias
+// (`internal rs { use bgp-rs }`), once this server has installed its seam.
+// PREVENTS: the route server attached as "rs" raising no replay fence, so the
+// fence fell with the first other reporter and a live FlowSpec relay reached a
+// peer ahead of the unicast route the route server's peer-up replay still owed
+// it (handover 03, "FlowSpec ordering race", fsdbgx-07 and fsdbgx-33).
+func TestFencesLiveForwardsResolvesTheProcessAlias(t *testing.T) {
+	const fencing, silent = "test-fence-implementation", "test-fence-silent-implementation"
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	for _, reg := range []registry.Registration{
+		{Name: fencing, FencesLiveForwards: true, SignalsSessionReady: true},
+		{Name: silent, SignalsSessionReady: true},
+	} {
+		reg.Description = "replay fence declaration test fixture"
+		reg.RunEngine = func(net.Conn) int { return 0 }
+		reg.CLIHandler = func([]string) int { return 0 }
+		require.NoError(t, registry.Register(reg))
+	}
+
+	s := sessionReadyTestServer()
+	runningProcess(s, "aliased-fence", fencing)
+	runningProcess(s, "aliased-silent", silent)
+	registry.SetRuntimeRegistryNames(s.processRegistryNames)
+	t.Cleanup(func() { registry.SetRuntimeRegistryNames(nil) })
+
+	assert.True(t, registry.FencesLiveForwards("aliased-fence"),
+		"the alias must be answered from the registration its use spelling names")
+	assert.True(t, registry.FencesLiveForwards(fencing),
+		"a process attached under the implementation name answers the same way")
+	assert.False(t, registry.FencesLiveForwards("aliased-silent"),
+		"resolving the alias must not turn a plugin that declares no fence into a fence owner")
+	assert.False(t, registry.FencesLiveForwards("never-started"),
+		"a process the server cannot see fences nothing")
+}

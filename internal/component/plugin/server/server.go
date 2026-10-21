@@ -612,6 +612,8 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// so this server is the only thing that can answer for it
 	// (declaresSessionReady, events.go).
 	registry.SetRuntimeSessionReady(s.declaresSessionReady)
+	// The replay fence asks the same alias question (registry.FencesLiveForwards).
+	registry.SetRuntimeRegistryNames(s.processRegistryNames)
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins

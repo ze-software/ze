@@ -2699,3 +2699,32 @@ Owed gates for 123c46d4b5 and 8719b6ea1a: `./le go lint run` scoped to rs and
 the runner, `./le verify worktree` (debt rows in `plan/verification-debt/21a4961e.md`).
 Foreign red seen: `TestCIAcceptOnlyLint` on `test/parse/iface-unnumbered-loopback.ci`
 (3c2c96ec01).
+
+### FlowSpec ordering race: both remaining shapes fixed (2026-10-21, Mac)
+
+A file-writing debug overlay (reactor write/dispatch/overflow, adj-rib-in and
+rs replay; not committed) showed both causes:
+- (a) receiver up with cut 0: `replayFlowSpecs` replayed rule 14 (above the
+  cut) with InitialUpdate, which passes the replay fence, while the live
+  unicast 13 waited behind it. Fix: the FlowSpec replay carries only rules at
+  or below the target's cut, like Adj-RIB-In's unicast replay; the source
+  worker now parks a relay even with no target yet, so a target coming up
+  meanwhile gets the rule live after the worker handles its UPDATE.
+- (b) receiver up after both (cut 14): the live validation relay of rule 14
+  (InitialUpdate false) was released when the receiver's initial sync ended,
+  before rs's replay sent unicast 13: the replay fence was never raised for
+  rs. `registry.FencesLiveForwards` looked up the PROCESS name, and the
+  fixtures attach `internal rs { use bgp-rs }`, so "rs" matched no
+  registration. Fix: alias resolution through a plugin-server seam
+  (`SetRuntimeRegistryNames`, `Server.processRegistryNames`), the resolution
+  `declaresSessionReady` already makes.
+Red first: `TestPeerUpReplaysExistingFlowSpecBeforeEOR`,
+`TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp` (against HEAD rs code),
+`TestFencesLiveForwardsResolvesTheProcessAlias` (resolution disabled by
+overlay). Proof: 0 failures in 25 x 40 = 1000 parallel runs. The fsdbgx copies
+are deleted. Owed gates (main thread): reactor `-race -count=5 -timeout 40m
+-run 'Forward|Flush|Direct|RS|Replay'`, `./le rfc check` and re-takes,
+`./le go lint run` scoped to rs, registry, plugin/server, `./le verify
+worktree`. Foreign red: `internal/component/plugin/server` has 31 failing
+tests at HEAD versions of the touched files too (command registry tests,
+e.g. `TestValidBgpEventTypes`), not from this change.

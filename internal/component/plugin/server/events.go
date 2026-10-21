@@ -139,3 +139,19 @@ func (s *Server) declaresSessionReady(process string) bool {
 	}
 	return false
 }
+
+// processRegistryNames returns the registry names the running process named
+// process uses, resolving an operator's alias (`internal rs { use bgp-rs }`).
+// Installed as registry.SetRuntimeRegistryNames. Nil for a name the process
+// manager does not hold. The registry calls it outside its lock.
+func (s *Server) processRegistryNames(process string) []string {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil
+	}
+	proc := pm.GetProcess(process)
+	if proc == nil {
+		return nil
+	}
+	return plugin.RegistryNames(proc.Config())
+}
