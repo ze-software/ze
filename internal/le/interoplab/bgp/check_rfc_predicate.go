@@ -753,9 +753,12 @@ const (
 	speakerFieldPlugin       = "plugin"
 	speakerFieldRouteUpdates = "route-bearing-updates"
 	speakerFieldEVPNNLRI     = "evpn-nlri"
-	speakerNoteMarker        = "note:"
-	speakerFailMarker        = "fail:"
-	speakerResultPass        = "PASS"
+	// The no-repeated-large-community oracle's counts.
+	speakerFieldLargeCommunityUpdates  = "large-community-updates"
+	speakerFieldLargeCommunityDistinct = "large-community-distinct"
+	speakerNoteMarker                  = "note:"
+	speakerFailMarker                  = "fail:"
+	speakerResultPass                  = "PASS"
 )
 
 // speakerReportField returns the value the speaker printed for key, and reports

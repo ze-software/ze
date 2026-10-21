@@ -507,6 +507,12 @@ func TestSpeakerNoRepeatedLargeCommunityOracle(t *testing.T) {
 	if failures := judge(attribute(value(1), value(3), value(2))); len(failures) != 0 {
 		t.Fatalf("distinct values failed: %v", failures)
 	}
+	counted := &speakerVerdict{plugin: speakerOracleNoRepeatedLargeCommunity}
+	applySpeakerOracle(decodeSpeakerUpdate(buildSpeakerUpdate(attribute(value(1), value(3), value(2)), []byte{24, 10, 0, 0})), counted)
+	applySpeakerOracle(decodeSpeakerUpdate(buildSpeakerUpdate([]byte{0x40, 1, 1, 0}, []byte{24, 10, 0, 0})), counted)
+	if counted.largeCommunityUpdates != 1 || counted.largeCommunityDistinct != 3 {
+		t.Fatalf("counts = updates %d distinct %d, want 1 and 3", counted.largeCommunityUpdates, counted.largeCommunityDistinct)
+	}
 	if failures := judge([]byte{0xc0, largeCommunityAttribute, 5, 1, 2, 3, 4, 5}); len(failures) != 1 {
 		t.Fatalf("bad length verdict = %v", failures)
 	}

@@ -45,6 +45,12 @@ type speakerVerdict struct {
 	failures []string
 	notes    []string
 	evpnNLRI int
+	// largeCommunityUpdates counts the UPDATEs that carried a LARGE_COMMUNITY,
+	// and largeCommunityDistinct the most distinct values one of them carried,
+	// so the no-repeated-large-community verdict cannot pass on a run where the
+	// attribute never arrived.
+	largeCommunityUpdates  int
+	largeCommunityDistinct int
 }
 
 func (v *speakerVerdict) fail(message string) {
@@ -483,6 +489,11 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	if verdict.plugin == speakerOracleNoUnrecognizedEVPNType {
 		verdict.notes = append(verdict.notes, fmt.Sprintf("evpn-nlri: %d", verdict.evpnNLRI))
 	}
+	if verdict.plugin == speakerOracleNoRepeatedLargeCommunity {
+		verdict.notes = append(verdict.notes,
+			fmt.Sprintf("%s: %d", speakerFieldLargeCommunityUpdates, verdict.largeCommunityUpdates),
+			fmt.Sprintf("%s: %d", speakerFieldLargeCommunityDistinct, verdict.largeCommunityDistinct))
+	}
 	return nil
 }
 
@@ -572,6 +583,7 @@ func applyNoRepeatedLargeCommunityOracle(update speakerUpdate, verdict *speakerV
 			verdict.fail(fmt.Sprintf("LARGE_COMMUNITY length %d is not a multiple of 12", len(attribute.value)))
 			continue
 		}
+		verdict.largeCommunityUpdates++
 		seen := make(map[string]struct{}, len(attribute.value)/largeCommunityValueOctets)
 		for offset := 0; offset < len(attribute.value); offset += largeCommunityValueOctets {
 			value := string(attribute.value[offset : offset+largeCommunityValueOctets])
@@ -580,6 +592,7 @@ func applyNoRepeatedLargeCommunityOracle(update speakerUpdate, verdict *speakerV
 			}
 			seen[value] = struct{}{}
 		}
+		verdict.largeCommunityDistinct = max(verdict.largeCommunityDistinct, len(seen))
 	}
 }
 

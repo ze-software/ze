@@ -668,8 +668,11 @@ var scenarioOperations = map[string][]operation{
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: [ 65000:1:1, 65000:3:3, 65000:2:2]}"}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		// GoBGP removes repeats on receipt, so the discriminating read is the
-		// native speaker's: its oracle judges the LARGE_COMMUNITY as sent.
-		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 120 * time.Second, fields: map[string]string{fieldEstablished: logValueYes, "result": speakerResultPass}, minimum: map[string]int{"route-bearing-updates": 1}},
+		// native speaker's: its oracle judges the LARGE_COMMUNITY as sent. The
+		// injected route carries three distinct values once tagged (1:1, 3:3,
+		// 2:2) and GoBGP's fence two, so a distinct count of 3 proves the
+		// injected route reached the speaker with its egress tags.
+		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 120 * time.Second, fields: map[string]string{fieldEstablished: logValueYes, "result": speakerResultPass}, minimum: map[string]int{"route-bearing-updates": 1, speakerFieldLargeCommunityUpdates: 1, speakerFieldLargeCommunityDistinct: 3}},
 	},
 	// draft-ietf-bess-mup-safi Section 3.1.3.1, judged by GoBGP. K
 	// (10.0.0.1/32) arrives well-formed first; then K' (same key, malformed)
