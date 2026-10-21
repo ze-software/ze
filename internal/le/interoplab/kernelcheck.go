@@ -43,30 +43,26 @@ const (
 // DockerKernelRoute answers the next step a refusal names for a reader on goos
 // (owner D-6), its command on a line of its own (user-facing-errors.md). On
 // Linux the labs run on the host's Docker, so the step is a kernel with the
-// feature or Ze's own (D-5) through the install action, which never reboots;
-// inside the Docker lab's QEMU guest, whose kernel is the appliance's, the step
-// is that kernel's config and the host's cache rebuild instead. On macOS the
-// labs run on the `ze` Colima profile, which boots Ze's docker-host image on
-// Ze's runtime kernel (owner decision M10, dockerhost.Environment), so the step
-// is that profile: unset a DOCKER_HOST naming another daemon, or extend the
-// runtime kernel and rebuild the image, then start the profile. Elsewhere the
-// labs run inside the Alpine QEMU guest booted on Ze's runtime
-// kernel, and the Linux-only install would refuse: the command reruns lab, the
-// le words of the run that was refused, inside that guest, under environment,
-// the NAME=value selector assignments that chose its scenario, through the
-// guest's `env` keyword. Without them the rerun would run the whole suite. With
-// no lab, or a lab or an assignment the guest's `lab` and `env` keywords cannot
-// carry intact, the command boots the guest and runs its kernel check only,
-// which is still a command the reader can run as printed.
+// feature or Ze's own (D-5) through the install action, which never reboots.
+// On macOS the labs run on the `ze` Colima profile, which boots Ze's
+// docker-host image on Ze's runtime kernel (owner decision M10,
+// dockerhost.Environment), so the step is that profile: unset a DOCKER_HOST
+// naming another daemon, or extend the runtime kernel and rebuild the image,
+// then start the profile. Elsewhere the labs run from the host le against the
+// Docker daemon of the QEMU guest `./le test qemu docker-lab` boots on Ze's
+// docker-host image, and the Linux-only install would refuse: the command
+// reruns lab, the le words of the run that was refused, under that guest,
+// with environment, the NAME=value selector assignments that chose its
+// scenario, through the verb's `env` keyword. Without them the rerun would run
+// the whole suite. With no lab, or a lab or an assignment the `lab` and `env`
+// keywords cannot carry intact, the command boots the guest and runs its
+// kernel check only, which is still a command the reader can run as printed.
+//
+// A refusal that read the daemon's kernel release answers through
+// dockerKernelRouteFor instead, which names the runtime kernel's own fix when
+// the daemon already runs Ze's kernel.
 func DockerKernelRoute(goos string, lab, environment []string) string {
 	if goos == "linux" {
-		if inDockerLabGuest() {
-			return "This check ran inside the throwaway Ze-kernel QEMU guest of `./le test qemu docker-lab`," +
-				" which boots the appliance's runtime kernel, so installing a kernel there changes nothing:" +
-				" the appliance kernel lacks the feature. Add its options to gokrazy/kernel/runtime.config" +
-				" and gokrazy/kernel/runtime.require, then rebuild the kernel cache entry on the host with:\n" +
-				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, "")
-		}
 		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 			" The install prints its steps and runs none until you confirm the release:\n" +
 			"  ./le setup docker-kernel install"
@@ -86,20 +82,36 @@ func DockerKernelRoute(goos string, lab, environment []string) string {
 		if environmentOK {
 			command += " env " + quotedEnvironment
 		}
-		return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Run the same lab there with:\n" + command
+		return "On " + goos + " the labs run against the Docker daemon of the Ze-kernel QEMU guest. Run the same lab there with:\n" + command
 	}
-	return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Boot it and check its kernel with:\n" +
+	return "On " + goos + " the labs run against the Docker daemon of the Ze-kernel QEMU guest. Boot it and check its kernel with:\n" +
 		"  ./le test qemu docker-lab"
 }
 
-// DockerLabGuestVariable is set to 1 by the shell line the Docker lab's QEMU
-// guest runs (testqemu dockerLabCommand), so a refusal inside that guest names
-// the appliance kernel's own fix rather than an install into a throwaway VM.
-const DockerLabGuestVariable = "ZE_DOCKER_LAB_GUEST"
+// zeKernelReleaseSuffix ends the release of every kernel Ze builds. Its source
+// is CONFIG_LOCALVERSION in gokrazy/kernel/runtime.config, and
+// TestZeKernelReleaseSuffixIsTheRuntimeConfigs compares the two.
+const zeKernelReleaseSuffix = "-ze"
 
-// inDockerLabGuest reports whether this process runs inside the Docker lab's
-// QEMU guest. A var so a unit test names either answer.
-var inDockerLabGuest = func() bool { return os.Getenv(DockerLabGuestVariable) == "1" }
+// dockerKernelRouteFor is DockerKernelRoute for a daemon whose kernel release
+// was read. A daemon on Linux already running Ze's kernel (the QEMU guest of
+// `./le test qemu docker-lab`, or a host after `./le setup docker-kernel
+// install`) gains nothing from installing Ze's kernel again: what it lacks is
+// missing from the runtime kernel's config, so the step is that config and the
+// kernel cache rebuild. macOS keeps its own route, which already names that
+// config for the profile's image.
+func dockerKernelRouteFor(goos, release string, lab, environment []string) string {
+	if goos == hostGOOSDarwin {
+		return DockerKernelRoute(goos, lab, environment)
+	}
+	if !strings.HasSuffix(release, zeKernelReleaseSuffix) {
+		return DockerKernelRoute(goos, lab, environment)
+	}
+	return "The Docker daemon already runs Ze's own kernel (" + release + "), so installing Ze's kernel changes nothing:" +
+		" Ze's runtime kernel lacks the feature. Add its options to gokrazy/kernel/runtime.config" +
+		" and gokrazy/kernel/runtime.require, then rebuild the kernel cache entry with:\n" +
+		buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, "")
+}
 
 // quotedGuestWords answers words as one single-quoted shell word for the
 // guest's `lab` or `env` keyword, and false when there are none or a word is
@@ -350,7 +362,7 @@ func appArmorRefusal(goos, release, finding string) error {
 			Str(" The profile adds no kernel feature: every feature the daemon's kernel (").
 			Str(release).Str(") lacks stays missing either way.\n")
 	}
-	return errors.New(refusal.Str(DockerKernelRoute(goos, leWords(), selectorEnvironment())).String())
+	return errors.New(refusal.Str(dockerKernelRouteFor(goos, release, leWords(), selectorEnvironment())).String())
 }
 
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
@@ -440,7 +452,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
 		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
 		Str(missing.String()).
-		Byte('\n').Str(DockerKernelRoute(docker.owner.goos, leWords(), selectorEnvironment()))
+		Byte('\n').Str(dockerKernelRouteFor(docker.owner.goos, release, leWords(), selectorEnvironment()))
 	if denied {
 		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel.").
 			Str(deniedFix(docker.owner.goos, appArmor, deniedBySELinux))

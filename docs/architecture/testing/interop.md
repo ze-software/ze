@@ -730,7 +730,7 @@ It refuses when:
 
 | Answer | Refusal names |
 |--------|---------------|
-| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; inside the Docker lab's QEMU guest, which exports `ZE_DOCKER_LAB_GUEST=1` before its check, the appliance kernel's own fix instead (add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry on the host with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); on macOS the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel: unset a DOCKER_HOST that names another daemon, or add the options to `gokrazy/kernel/runtime.config` and `runtime.require` and rebuild the image with `./le setup docker-host build`, then `./le setup docker-host start`; on any other system the refused run's own le words inside the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
+| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; on a daemon whose kernel release already ends in `-ze` (Ze's `CONFIG_LOCALVERSION`: the QEMU guest of `./le test qemu docker-lab`, or a host after the install), on any client system but macOS, Ze's runtime kernel's own fix instead (`dockerKernelRouteFor`: add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); on macOS the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel: unset a DOCKER_HOST that names another daemon, or add the options to `gokrazy/kernel/runtime.config` and `runtime.require` and rebuild the image with `./le setup docker-host build`, then `./le setup docker-host start`; on any other system the refused run's own le words against the Docker daemon of the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
 | every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
@@ -892,7 +892,7 @@ profile, `./le setup docker-host start`; on any other system the guest route,
 <!-- source: internal/le/dockerhost/dockerhost.go -- ColimaProfile, ColimaSSH -->
 <!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions, readHostFacts, hostDependencies, zeKernelServesHost -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
-<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute, dockerKernelRouteFor, zeKernelReleaseSuffix -->
 
 To ask a host by hand, stage ze with any lab once and run the command above.
 `TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against
@@ -1631,9 +1631,10 @@ scenario that loses the setting shows the reason in Ze's log.
 | `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
 | `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 completes the TLS handshake through ze's Finished, ze refuses to export the RFC 5216 Section 2.3 MSK because the session has no RFC 7627 extended master secret, charon receives EAP-Failure, and neither end installs an XFRM state (`checkResponderEAPTLS12`) |
 
-No IKEv2 EAP-TLS initiator sends RFC 7627 on TLS 1.2: strongSwan through 6.1.0
-defines the extension constant and never sends it, Libreswan has no EAP-TLS
-initiator, and OpenIKED has no EAP-TLS. So `responder-eap-tls12` asserts the
+None of the open-source IKEv2 implementations surveyed sends RFC 7627 from an
+EAP-TLS initiator on TLS 1.2: strongSwan through 6.1.0 defines the extension
+constant and never sends it, Libreswan has no EAP-TLS initiator, and OpenIKED
+has no EAP-TLS. So `responder-eap-tls12` asserts the
 refusal, and the extended master secret stays required (owner decision,
 2026-10-21).
 
@@ -1647,9 +1648,11 @@ these fixes was recorded until 2026-10-21, when all four ran green in the
 Docker lab. The tunnel and transport rebind scenarios went red under their
 reverted fixes. `responder-eap-tls12` went red when crypto/tls was patched to
 export keying material without RFC 7627: charon then established the IKE SA,
-and assertion 3 (EAP-Failure) timed out. The EAP port scenario has no reachable
-red, because the earlier EAP rounds adopt the endpoint before the Child SA is
-built.
+and assertion 3 (EAP-Failure) timed out. The EAP port scenario stays green with
+the D1b adoption line in `handleResponderEAP` removed, because the earlier EAP
+rounds adopt the endpoint before the Child SA is built, so a unit test carries
+D1b. Its ports still go through `childEncapPorts`, which the tunnel scenario's
+red covers.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
 <!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap, checkResponderEAPTLS12 -->

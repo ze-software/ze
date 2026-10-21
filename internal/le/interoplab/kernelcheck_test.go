@@ -299,9 +299,6 @@ func TestStagedZePathIsTheZeOutput(t *testing.T) {
 // the reader must edit (`"<le words>"`) before it runs, and a route that reruns
 // the whole suite in place of the one scenario that was refused.
 func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
-	originalGuest := inDockerLabGuest
-	t.Cleanup(func() { inDockerLabGuest = originalGuest })
-	inDockerLabGuest = func() bool { return false }
 	lab := []string{"test", "integration", "interop", "ipsec"}
 	selected := []string{"IPSEC_INTEROP_SCENARIO=mobike-responder"}
 	for _, tc := range []struct {
@@ -365,26 +362,75 @@ func TestInvokedLeWordsReadTheCommandLine(t *testing.T) {
 	}
 }
 
-// VALIDATES: review round 4, NOTE 2. A refusal inside the Docker lab's QEMU
-// guest names the appliance kernel's own fix: its config files and the host's
-// kernel cache rebuild, each command on a line of its own.
-// PREVENTS: an install and a reboot prescribed for a throwaway VM whose kernel
-// is the appliance's, which changes nothing.
-func TestDockerKernelRouteInsideTheDockerLabGuest(t *testing.T) {
-	originalGuest := inDockerLabGuest
-	t.Cleanup(func() { inDockerLabGuest = originalGuest })
-	inDockerLabGuest = func() bool { return true }
-	route := DockerKernelRoute("linux", []string{"test", "integration", "interop-ipsec"}, nil)
-	if strings.Contains(route, "docker-kernel install") || strings.Contains(route, "reboot") {
-		t.Errorf("the guest route prescribes an install into the throwaway guest: %s", route)
+// VALIDATES: review round 4, NOTE 2, after the guest variable left with the
+// Alpine guest (spec ze-image-docker-host R-11). A refusal from a daemon whose
+// kernel release is Ze's names the runtime kernel's own fix: its config files
+// and the kernel cache rebuild, each command on a line of its own, on Linux
+// and on any other client system; a daemon on another kernel keeps the
+// platform route, and macOS keeps the profile's route.
+// METHOD: checkDockerKernel over a scripted daemon answering a "-ze" release
+// and one absent row, then dockerKernelRouteFor for each client system.
+// PREVENTS: an install and a reboot prescribed for a daemon that already runs
+// Ze's kernel, which changes nothing.
+func TestDockerKernelRouteForZesKernelNamesTheRuntimeConfig(t *testing.T) {
+	const release = "7.2.9" + zeKernelReleaseSuffix
+	answer := `{"ready": false, "capabilities": [
+ {"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent"}]}`
+	runner := &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
+		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
+			return ProcessResult{Stdout: noAppArmor}, nil
+		}
+		if slices.Contains(command.Arguments, "info") {
+			return ProcessResult{Stdout: release + "\n"}, nil
+		}
+		if slices.Contains(command.Arguments, "label="+labelMarker) {
+			return ProcessResult{}, nil
+		}
+		return ProcessResult{Stdout: answer, ExitCode: 1}, nil
+	}}
+	docker := newDocker(runner)
+	docker.owner.goos = hostGOOSLinux
+	err := checkDockerKernel(context.Background(), docker, kernelCheckZe)
+	if err == nil {
+		t.Fatal("a Ze kernel lacking a feature was accepted")
 	}
-	for _, want := range []string{"gokrazy/kernel/runtime.config", "gokrazy/kernel/runtime.require"} {
-		if !strings.Contains(route, want) {
-			t.Errorf("the guest route does not name %s: %s", want, route)
+	if strings.Contains(err.Error(), "docker-kernel install") {
+		t.Errorf("the refusal prescribes installing Ze's kernel on a daemon that runs it: %v", err)
+	}
+	for _, want := range []string{release, "gokrazy/kernel/runtime.config", "gokrazy/kernel/runtime.require"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %s: %v", want, err)
 		}
 	}
 	for line := range strings.SplitSeq(buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, ""), "\n") {
-		requireCommandOnItsOwnLine(t, errors.New(route), strings.TrimSpace(line))
+		requireCommandOnItsOwnLine(t, err, strings.TrimSpace(line))
+	}
+	lab := []string{"test", "integration", "interop-ipsec"}
+	if got := dockerKernelRouteFor("freebsd", release, lab, nil); !strings.Contains(got, "runtime.config") {
+		t.Errorf("a Ze-kernel daemon reached from freebsd is not sent to runtime.config: %s", got)
+	}
+	if got, want := dockerKernelRouteFor(hostGOOSLinux, "6.8.0-117-generic", lab, nil), DockerKernelRoute(hostGOOSLinux, lab, nil); got != want {
+		t.Errorf("another kernel's route = %q, want the Linux route %q", got, want)
+	}
+	if got, want := dockerKernelRouteFor(hostGOOSDarwin, release, lab, nil), DockerKernelRoute(hostGOOSDarwin, lab, nil); got != want {
+		t.Errorf("the macOS route = %q, want the profile's route %q", got, want)
+	}
+}
+
+// VALIDATES: zeKernelReleaseSuffix is the release suffix the runtime kernel
+// config declares, so a refusal recognizes the kernel Ze builds today.
+// METHOD: read CONFIG_LOCALVERSION from gokrazy/kernel/runtime.config, from the
+// package directory the test runs in.
+// PREVENTS: a renamed localversion that leaves every Ze-kernel daemon told to
+// install Ze's kernel.
+func TestZeKernelReleaseSuffixIsTheRuntimeConfigs(t *testing.T) {
+	config, err := os.ReadFile(filepath.Join("..", "..", "..", "gokrazy", "kernel", "runtime.config"))
+	if err != nil {
+		t.Fatalf("read the runtime kernel config: %v", err)
+	}
+	want := `CONFIG_LOCALVERSION="` + zeKernelReleaseSuffix + `"`
+	if !slices.Contains(strings.Split(string(config), "\n"), want) {
+		t.Errorf("gokrazy/kernel/runtime.config holds no line %s", want)
 	}
 }
 
@@ -418,9 +464,8 @@ func TestSelectorEnvironmentCarriesTheDeclaredSelectors(t *testing.T) {
 // macOS that command reruns the refused lab. Both client systems run on
 // every host, so the verdict does not depend on the machine.
 func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
-	original, originalEnvironment, originalGuest := leWords, selectorEnvironment, inDockerLabGuest
-	t.Cleanup(func() { leWords, selectorEnvironment, inDockerLabGuest = original, originalEnvironment, originalGuest })
-	inDockerLabGuest = func() bool { return false }
+	original, originalEnvironment := leWords, selectorEnvironment
+	t.Cleanup(func() { leWords, selectorEnvironment = original, originalEnvironment })
 	leWords = func() []string { return []string{"test", "integration", "interop-ipsec"} }
 	selectorEnvironment = func() []string { return []string{"IPSEC_INTEROP_SCENARIO=mobike-responder"} }
 	answer := `{"ready": false, "capabilities": [
@@ -731,9 +776,6 @@ func TestStagedZeMissingNamesTheCommandThatStagesIt(t *testing.T) {
 // is unchanged, word for word.
 // PREVENTS: a Mac developer sent to a daemon owner decision M10 rules out.
 func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
-	originalGuest := inDockerLabGuest
-	t.Cleanup(func() { inDockerLabGuest = originalGuest })
-	inDockerLabGuest = func() bool { return false }
 	darwin := DockerKernelRoute(hostGOOSDarwin, []string{"test", "integration", "interop-ipsec"}, nil)
 	requireCommandOnItsOwnLine(t, errors.New(darwin), "./le setup docker-host start")
 	for _, want := range []string{"the `ze` Colima profile", "./le setup docker-host build", "unset it"} {
