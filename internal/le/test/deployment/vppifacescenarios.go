@@ -118,8 +118,10 @@ const (
     backend vpp;
     dummy urpf0 {
         unit default {
-            address 10.98.0.1/24;
-            ipv4 { rpf-check strict; }
+            ipv4 {
+                address [ 10.98.0.1/24 ];
+                rpf-check strict;
+            }
         }
     }
 }
@@ -127,7 +129,7 @@ const (
 	lcpBlock = `interface {
     backend vpp;
     dummy loop0 {
-        unit default { address 10.99.0.1/32; }
+        unit default { ipv4 { address [ 10.99.0.1/32 ]; } }
     }
 }
 `

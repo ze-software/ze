@@ -9,12 +9,47 @@ package testdeployment
 // read what it answers, with no Docker and no container anywhere.
 
 import (
+	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
+
+// VALIDATES: a scenario whose run was interrupted ends at once with the
+// interruption as its error, never a FAIL. Method: a canceled root and a Docker
+// fixture that refuses every exec under it, as dockerd does after a Ctrl-C.
+// PREVENTS: awaitFeature polling a VPP nobody can query until ScenarioWait ran
+// out, then answering "not observed", a FAIL verdict for a feature the run never
+// finished probing (vpp-iface-test on the ze Colima profile, 2026-10-21: a FAIL
+// 24 s after one Ctrl-C).
+func TestAnInterruptedScenarioEndsWithTheInterruption(t *testing.T) {
+	v := fixtureVPPIface(t)
+	v.ScenarioWait = 3 * time.Second
+	v.Docker = interoplab.NewFixtureDocker(&argvRecorder{})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	v.ctx = ctx
+
+	started := time.Now()
+	_, matched, err := v.awaitFeature("ze-vpp-iface-test", &vppScenarios[0])
+	elapsed := time.Since(started)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("awaitFeature answered error %v, want the interruption (context.Canceled)", err)
+	}
+	if matched {
+		t.Fatal("awaitFeature reported the feature seen on a run nobody could query")
+	}
+	if elapsed >= scenarioPoll {
+		t.Fatalf("awaitFeature took %s after the interruption, want under one poll (%s)", elapsed, scenarioPoll)
+	}
+}
 
 // fixtureVPPIface answers a run over a checkout carrying the one file the build
 // tags derive from.

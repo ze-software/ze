@@ -390,7 +390,10 @@ func (v *vppIface) proveOne(container string, one *vppScenario, loaded map[strin
 	defer seen.wait()
 	defer ze.stop()
 
-	text, matched := v.awaitFeature(container, one)
+	text, matched, err := v.awaitFeature(container, one)
+	if err != nil {
+		return result, fmt.Errorf("the run stopped while VPP was asked for %s: %w", one.feature, err)
+	}
 	if !matched {
 		result.Outcome = OutcomeFail
 		result.Detail = one.missingDetail
@@ -420,7 +423,12 @@ func (v *vppIface) proveOne(container string, one *vppScenario, loaded map[strin
 // the needle `gre`, and the fallback reported a tunnel that was never created
 // (plan/journal/zero-value-as-valid-answer.md). awaitFeature always answers the
 // last text it saw. Thus, a failure still reports what VPP said.
-func (v *vppIface) awaitFeature(container string, one *vppScenario) (string, bool) {
+//
+// An interrupted run answers the interruption as its error, at once: after a
+// Ctrl-C every query fails, so polling on until the bound and answering "not
+// matched" would turn the interruption into a FAIL verdict for a feature the run
+// never finished probing.
+func (v *vppIface) awaitFeature(container string, one *vppScenario) (string, bool, error) {
 	deadline := time.Now().Add(v.ScenarioWait)
 	last := ""
 	for {
@@ -428,24 +436,34 @@ func (v *vppIface) awaitFeature(container string, one *vppScenario) (string, boo
 		if ok {
 			last = text
 			if containsAny(text, one.needles) {
-				return text, true
+				return text, true, nil
 			}
+		}
+		if err := v.ctx.Err(); err != nil {
+			return last, false, err
 		}
 		if !time.Now().Before(deadline) {
 			break
 		}
-		time.Sleep(scenarioPoll)
+		select {
+		case <-v.ctx.Done():
+			return last, false, v.ctx.Err()
+		case <-time.After(scenarioPoll):
+		}
 	}
 
 	if one.fallback == "" {
-		return last, false
+		return last, false, nil
 	}
 
 	text, ok := v.vppctl(container, one.fallback)
 	if !ok {
-		return last, false
+		if err := v.ctx.Err(); err != nil {
+			return last, false, err
+		}
+		return last, false, nil
 	}
-	return text, containsAny(text, one.fallbackNeedles)
+	return text, containsAny(text, one.fallbackNeedles), nil
 }
 
 // pluginLoaded reports whether VPP has loaded the named plugin.
