@@ -656,13 +656,14 @@ var scenarioOperations = map[string][]operation{
 	},
 	// RFC 8092 Section 3, judged by GoBGP. The relayed route carries 65000:1:1
 	// and 65000:3:3, and Ze's export policy adds 65000:1:1 and 65000:2:2 twice.
-	// GoBGP prints the values in wire order inside one brace pair, so the whole
-	// attribute is matched: each value once, in the order Ze appends them.
+	// GoBGP 3.31.0 prints the values in wire order inside one bracket pair,
+	// `{LargeCommunity: [ a, b, c]}` (seen on the first run, 2026-10-21), so the
+	// whole attribute is matched: each value once, in the order Ze appends them.
 	"bgp-large-community-no-repeat-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 90 * time.Second},
-		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: 65000:1:1, 65000:3:3, 65000:2:2}"}},
+		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: [ 65000:1:1, 65000:3:3, 65000:2:2]}"}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	// draft-ietf-bess-mup-safi Section 3.1.3.1, judged by GoBGP. K
