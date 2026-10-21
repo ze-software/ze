@@ -5,6 +5,7 @@
 package flowspec
 
 import (
+	"fmt"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -95,17 +96,25 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*f
 
 	if vals, ok := matchCriteria[flowspec.KwDSCP]; ok {
 		seen[flowspec.KwDSCP] = true
-		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
+		octets, err := parseFlowDSCPSlice(vals)
+		switch {
+		case err != nil:
+			dropped = append(dropped, flowspec.KwDSCP+" "+err.Error())
+		case len(octets) > 0:
 			add(flowspec.KwDSCP, flowspec.NewFlowDSCPComponent(octets...))
-		} else {
+		default:
 			dropped = append(dropped, flowspec.KwDSCP)
 		}
 	}
 	if vals, ok := matchCriteria[flowspec.KwTrafficClass]; ok {
 		seen[flowspec.KwTrafficClass] = true
-		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
+		octets, err := parseFlowDSCPSlice(vals)
+		switch {
+		case err != nil:
+			dropped = append(dropped, flowspec.KwTrafficClass+" "+err.Error())
+		case len(octets) > 0:
 			add(flowspec.KwTrafficClass, flowspec.NewFlowDSCPComponent(octets...))
-		} else {
+		default:
 			dropped = append(dropped, flowspec.KwTrafficClass)
 		}
 	}
@@ -268,21 +277,31 @@ func parseFlowMatches(s string) []flowspec.FlowMatch {
 	return result
 }
 
-// parseFlowOctets parses octet values (DSCP, traffic-class).
-func parseFlowOctets(s string) []uint8 {
+// parseFlowDSCP parses the DSCP values of a type 11 criterion (`dscp`, and
+// `traffic-class`, ExaBGP's spelling of the same component).
+//
+// RFC 8955 Section 4.2.2.11: "The six least significant bits contain the DSCP
+// value." A value above 63 needs a bit the component has no room for, so no
+// packet can match it: it is refused with the limit, the bound the text path
+// applies through componentMaxValue, never sent.
+func parseFlowDSCP(s string) ([]uint8, error) {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
 	var result []uint8
+	dscpMax := componentMaxValue(flowspec.FlowDSCP)
 
 	for _, p := range parts {
 		p = strings.TrimPrefix(p, "=")
-		n, err := strconv.ParseUint(p, 10, 8)
+		n, err := strconv.ParseUint(p, 10, 64)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("%q is not a decimal DSCP value: write a number from 0 to %d", p, dscpMax)
+		}
+		if n > dscpMax {
+			return nil, fmt.Errorf("%d is above %d: RFC 8955 Section 4.2.2.11 carries the DSCP in six bits, so write a value from 0 to %d", n, dscpMax, dscpMax)
 		}
 		result = append(result, uint8(n))
 	}
-	return result
+	return result, nil
 }
 
 // icmpTypeNames maps ICMP type symbolic names to values.
@@ -490,17 +509,21 @@ func parseFlowMatchesSlice(vals []string) []flowspec.FlowMatch {
 	return result
 }
 
-// parseFlowOctetsSlice parses octet values from a pre-split slice.
-func parseFlowOctetsSlice(vals []string) []uint8 {
+// parseFlowDSCPSlice parses DSCP values from a pre-split slice. An empty
+// element answers no values and no error, which the caller drops as unparseable.
+func parseFlowDSCPSlice(vals []string) ([]uint8, error) {
 	result := make([]uint8, 0, len(vals))
 	for _, v := range vals {
-		octets := parseFlowOctets(v)
+		octets, err := parseFlowDSCP(v)
+		if err != nil {
+			return nil, err
+		}
 		if len(octets) == 0 {
-			return nil
+			return nil, nil
 		}
 		result = append(result, octets...)
 	}
-	return result
+	return result, nil
 }
 
 // parseFlowLabelsSlice parses flow-label values from a pre-split slice.

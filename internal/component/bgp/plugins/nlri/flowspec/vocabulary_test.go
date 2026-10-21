@@ -4,6 +4,7 @@ package flowspec
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
@@ -105,5 +106,31 @@ func TestTrafficClassIsOneComponentInBothPaths(t *testing.T) {
 	}
 	if got := fs.Components()[0].Type(); got != flowspec.FlowDSCP {
 		t.Errorf("config path built component type %v, want %v", got, flowspec.FlowDSCP)
+	}
+}
+
+// TestConfigDSCPAboveSixBitsIsRefused builds type 11 from the config path with
+// the largest six-bit value and the first value past it, under both spellings.
+//
+// VALIDATES: RFC 8955 Section 4.2.2.11, "The six least significant bits contain
+// the DSCP value": 63 builds one component, 64 and 101 are refused with the
+// limit named, as the text path already refuses them (componentMaxValue).
+// PREVENTS: `traffic-class 101` in a flow route sent as 0x65, a rule no packet
+// can match, which ExaBGP 6.0 refuses at config.
+func TestConfigDSCPAboveSixBitsIsRefused(t *testing.T) {
+	for _, key := range []string{flowspec.KwDSCP, flowspec.KwTrafficClass} {
+		fs, dropped := buildFlowSpecComponents(map[string][]string{key: {"63"}}, false)
+		if len(dropped) != 0 || fs == nil || len(fs.Components()) != 1 {
+			t.Fatalf("%s 63: dropped %v, built %v, want one component", key, dropped, fs)
+		}
+		for _, value := range []string{"64", "=101"} {
+			_, dropped := buildFlowSpecComponents(map[string][]string{key: {value}}, false)
+			if len(dropped) != 1 {
+				t.Fatalf("%s %s: dropped %v, want it refused", key, value, dropped)
+			}
+			if !strings.Contains(dropped[0], key) || !strings.Contains(dropped[0], "63") {
+				t.Errorf("%s %s: refusal %q does not name the criterion and the limit 63", key, value, dropped[0])
+			}
+		}
 	}
 }
