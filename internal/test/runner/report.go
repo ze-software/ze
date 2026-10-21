@@ -101,6 +101,10 @@ func (r *Report) printTimeoutReport(rec *Record) {
 	c := r.colors
 
 	r.printFailedPeers(rec)
+	// A timeout needs the peer's frames as much as a mismatch does: the count
+	// below says how many arrived, never which, and a frame that arrived in the
+	// wrong place is the usual cause of an expectation that never matches.
+	r.printRawPeerOutput(rec)
 
 	r.writeln(c.LineSeparator())
 	r.writeln(c.Yellow("PROGRESS:"))
@@ -198,24 +202,31 @@ func (r *Report) printFailedPeers(rec *Record) {
 	r.writeln(c.Yellow(tb.Str("FAILED CHECK PEERS: ").Join(rec.FailedPeers, ", ").String()))
 }
 
+// printRawPeerOutput shows what the check peer printed, every frame it
+// received included, so a failure is diagnosed from the frames rather than from
+// a count of them.
+func (r *Report) printRawPeerOutput(rec *Record) {
+	if rec.PeerOutput == "" {
+		return
+	}
+	c := r.colors
+	r.writeln(c.LineSeparator())
+	r.writeln(c.Yellow("RAW PEER OUTPUT (first 3000 chars):"))
+	r.writeln(c.LineSeparator())
+	out := rec.PeerOutput
+	if len(out) > 3000 {
+		var tb textbuf.Buffer
+		out = tb.Str(out[:3000]).Str("...").String()
+	}
+	r.writeln(out)
+	r.writeln("")
+}
+
 func (r *Report) printMismatchReport(rec *Record) {
 	c := r.colors
 
 	r.printFailedPeers(rec)
-
-	// Debug: show raw peer output to diagnose mismatch
-	if rec.PeerOutput != "" {
-		r.writeln(c.LineSeparator())
-		r.writeln(c.Yellow("RAW PEER OUTPUT (first 3000 chars):"))
-		r.writeln(c.LineSeparator())
-		out := rec.PeerOutput
-		if len(out) > 3000 {
-			var tb textbuf.Buffer
-			out = tb.Str(out[:3000]).Str("...").String()
-		}
-		r.writeln(out)
-		r.writeln("")
-	}
+	r.printRawPeerOutput(rec)
 
 	// Client output: ze's stderr/log is often where the real cause shows up
 	// (parser errors, config warnings, plugin failures) even when the failure
@@ -475,7 +486,31 @@ func likelyCauseTimeout(rec *Record) string {
 		return b.Reset().Str("Partial exchange (").Int(int64(received)).Byte('/').Int(int64(expected)).Str(" messages) — check message ").Int(int64(received + 1)).Str(" expectations against config").String()
 	}
 
-	return "All expected messages received but test still timed out — check for extra unexpected messages"
+	// The peer names the expectation it still owes when it stops on its own
+	// (peer.ErrExpectationsUnmet), and that beats any reading of the counts.
+	if owed := peerUnmetLine(rec.PeerOutput); owed != "" {
+		return owed
+	}
+
+	// As many frames as expectations proves nothing about which expectation
+	// matched: in the FlowSpec redirect-check hang the receiver got two frames
+	// against two hex expectations and never the route a contains= expectation
+	// owed, and "all expected messages received" sent the reader after an extra
+	// message that did not exist.
+	var b textbuf.Buffer
+	return b.Reset().Str("Timed out with ").Int(int64(received)).Str(" messages received against ").Int(int64(expected)).
+		Str(" expected: a count does not show which expectation is still unmet, so compare each expect= line with the frames in RAW PEER OUTPUT above, then rerun with ./le test <suite> <id> -v").String()
+}
+
+// peerUnmetLine returns the check peer's own report of the expectation it still
+// owed (internal/test/peer, ErrExpectationsUnmet), or "" when it printed none.
+func peerUnmetLine(peerOutput string) string {
+	for line := range strings.SplitSeq(peerOutput, "\n") {
+		if _, owed, found := strings.Cut(line, "expectations unmet: "); found {
+			return "The check peer stopped with an expectation unmet: " + strings.TrimSpace(owed)
+		}
+	}
+	return ""
 }
 
 // Helper functions
