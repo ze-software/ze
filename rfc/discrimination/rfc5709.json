@@ -154,6 +154,17 @@
       "producer": "internal/plugins/ospf/auth_keystore.go::lastKeyExtendedIndex",
       "producer-sha": "acf8ec3e05f78f1f",
       "break": "body of lastKeyExtendedIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5709-3.2-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5709_key_persistence_test.go::TestRFC5709KeysSurviveRestart",
+      "unit-sha": "b52fdbef836ec7f2",
+      "claim-sha": "3e469a39ff434264",
+      "route": "revert",
+      "producer": "internal/component/config/storage/pointer.go::PromoteCandidate",
+      "producer-sha": "5a4552e35dff6ddb",
+      "break": "body of PromoteCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
