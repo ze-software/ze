@@ -494,7 +494,7 @@ func revertBreak(reader *sourceReader, index *scopeIndex,
 		return overlayFile{}, parseErr(tb.Str(rel).
 			Str(": the producer names a file this tree does not hold"))
 	}
-	texts := index.funcTexts(*content, symbol)
+	texts := index.keyTexts(*content, symbol)
 	if len(texts) != 1 {
 		return overlayFile{}, parseErr(tb.Str(rel).Str(" declares ").Int(int64(len(texts))).
 			Str(" function(s) named ").Str(symbol).

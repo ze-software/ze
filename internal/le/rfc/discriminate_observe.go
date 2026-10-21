@@ -143,7 +143,7 @@ func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
 		return "", parseErr(tb.Str(record.Unit).
 			Str(": an interop record names one checker FUNCTION, which is what declares the scenario"))
 	}
-	texts := index.funcTexts(*content, symbol)
+	texts := index.keyTexts(*content, symbol)
 	if len(texts) != 1 {
 		return "", parseErr(tb.Str(rel).Str(" declares ").Int(int64(len(texts))).
 			Str(" function(s) named ").Str(symbol))

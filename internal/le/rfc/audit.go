@@ -129,7 +129,7 @@ var fingerprintMaps = [...]string{fingerprintTests, fingerprintUnits, fingerprin
 // newline the way the path's character class can.
 var (
 	fingerprintKeyRE = regexp.MustCompile(
-		`^(?P<file>[^:#\x00]+)(?:::(?P<symbol>[A-Za-z_][A-Za-z0-9_]*))?(?:#(?:[2-9]|[1-9][0-9]+))?\n?$`)
+		`^(?P<file>[^:#\x00]+)(?:::(?P<symbol>(?:[A-Za-z_][A-Za-z0-9_]*\.)?[A-Za-z_][A-Za-z0-9_]*))?(?:#(?:[2-9]|[1-9][0-9]+))?\n?$`)
 	retiredKeyRE = regexp.MustCompile(`^(?P<file>[^:\x00]+):(?P<line>\d+)\n?$`)
 )
 
@@ -137,7 +137,8 @@ var (
 // the very check meant to catch an invalid value.
 var shaRE = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
-// fingerprintKey splits `path::Symbol`, `path::Symbol#2` or a bare `path`.
+// fingerprintKey splits `path::Symbol`, `path::Type.Method`, `path::Symbol#2`
+// or a bare `path`. A symbol resolves through scopeIndex.keyTexts.
 //
 // It answers (path, symbol) with an empty symbol for a file-scoped key. The
 // ordinal is validated and then dropped: it distinguishes two tags inside ONE

@@ -762,7 +762,7 @@ func resolveKeyText(lookup func(string) *string, index *scopeIndex,
 	if symbol == "" {
 		return *content, true, nil
 	}
-	found := index.funcTexts(*content, symbol)
+	found := index.keyTexts(*content, symbol)
 	if len(found) != 1 || found[0] == "" {
 		return "", false, nil
 	}

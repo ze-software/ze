@@ -355,10 +355,28 @@ func functionAtLine(index *scopeIndex, content string, line int) string {
 	}
 	for _, found := range index.of(content) {
 		if offset >= found.begin && offset < found.end {
-			return funcNameIn(content[found.begin:found.end])
+			return keySymbolOf(index, content, content[found.begin:found.end])
 		}
 	}
 	return ""
+}
+
+// keySymbolOf answers the key symbol that resolves back to the function
+// text: its bare name when keyTexts resolves that name to this text alone, and
+// `Type.Method` for a method whose bare name a sibling shares. A bare key that
+// already names its producer keeps its spelling, so a record minted before
+// receiver-qualified keys existed still names the same text.
+func keySymbolOf(index *scopeIndex, content, text string) string {
+	name := funcNameIn(text)
+	if resolved := index.keyTexts(content, name); len(resolved) == 1 && resolved[0] == text {
+		return name
+	}
+	receiver := funcReceiverIn(text)
+	if receiver == "" {
+		return name
+	}
+	var tb textbuf.Buffer
+	return tb.Str(receiver).Byte('.').Str(name).String()
 }
 
 // proposeBreaks answers the candidate breaks for every unproven unit tag.

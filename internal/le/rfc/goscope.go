@@ -310,6 +310,75 @@ func (s *scopeIndex) funcTexts(content, name string) []string {
 	return names[name]
 }
 
+// keyTexts answers the text of every top-level func a fingerprint key's symbol
+// names, for a key a person authored rather than a name read off a tag line.
+//
+// `Type.Method` names the method of that receiver type. A bare name answers as
+// funcTexts does, except where it is shared: a file can declare a package-level
+// function beside methods of the same name (flowspec's CheckMatchable is one
+// function and two methods), and the bare name then names the function, the one
+// declaration a reader calls by that name alone. Two methods sharing a bare name
+// with no package-level function stay a refusal, because picking either would
+// fingerprint text nobody chose.
+func (s *scopeIndex) keyTexts(content, symbol string) []string {
+	receiver, method, qualified := strings.Cut(symbol, ".")
+	if qualified {
+		var out []string
+		for _, text := range s.funcTexts(content, method) {
+			if funcReceiverIn(text) == receiver {
+				out = append(out, text)
+			}
+		}
+		return out
+	}
+	found := s.funcTexts(content, symbol)
+	if len(found) < 2 {
+		return found
+	}
+	var plain []string
+	for _, text := range found {
+		if funcReceiverIn(text) == "" {
+			plain = append(plain, text)
+		}
+	}
+	if len(plain) == 1 {
+		return plain
+	}
+	return found
+}
+
+// funcReceiverIn answers the receiver type a span's declaration names, without
+// its pointer star or type parameters, and "" for a package-level function or a
+// span that declares nothing. `func (f *FlowSpec) CheckMatchable()` answers
+// "FlowSpec".
+func funcReceiverIn(text string) string {
+	for start := 0; start < len(text); {
+		line := text[start:]
+		if end := strings.IndexByte(line, '\n'); end >= 0 {
+			line = line[:end]
+		}
+		if _, declared := funcDeclName(line); declared {
+			rest := trimRE2Space(strings.TrimPrefix(line, "func"))
+			if !strings.HasPrefix(rest, "(") {
+				return ""
+			}
+			inner, _, _ := strings.Cut(rest[1:], ")")
+			fields := strings.Fields(inner)
+			if len(fields) == 0 {
+				return ""
+			}
+			receiver, _, _ := strings.Cut(strings.TrimLeft(fields[len(fields)-1], "*"), "[")
+			return receiver
+		}
+		next := strings.IndexByte(text[start:], '\n')
+		if next < 0 {
+			return ""
+		}
+		start += next + 1
+	}
+	return ""
+}
+
 // FunctionUnit is one top-level Go function, including its contiguous doc
 // comment and ending immediately after its closing brace.
 type FunctionUnit struct {

@@ -222,7 +222,7 @@ func unitSHAs(keys []string, reader *sourceReader, index *scopeIndex, where stri
 		}
 		text := content
 		if symbol != "" {
-			found := index.funcTexts(content, symbol)
+			found := index.keyTexts(content, symbol)
 			if len(found) != 1 {
 				var why textbuf.Buffer
 				if len(found) == 0 {
