@@ -195,6 +195,8 @@ Owner decisions, 2026-10-21 ("Yes to 1, 2 and 3"): (1) a separate `ze` Colima pr
 
 ### Closure attempt, 2026-10-21 (not closed)
 
+-> Decision (owner, 2026-10-22): AC-5 stays as written, exit 0 included. Asked whether to narrow it to its label and cleanup halves, Thomas answered "stay open until those IPsec bugs" are fixed. This spec closes only after `ike-padded-probe-strongswan` and `mobike-initiator` pass in the AC-5 run; their fixes are owed by the journal rows named in the AC-5 Results rows.
+
 A `/ze-close` agent (parent session e1f02c94, not the author f2de520e) stopped before commit A, because one AC is unmet as written.
 
 | Item | State |
