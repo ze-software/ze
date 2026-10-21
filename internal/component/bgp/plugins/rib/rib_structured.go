@@ -177,6 +177,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		peerRIB = storage.NewPeerRIB(peerAddr.String())
 		r.bgpPeers[peerAddr] = peerRIB
 	}
+	// Noted before the inserts below: events reach this handler one at a
+	// time, so no sent projection runs between here and the inserts, and a
+	// lifecycle removal that fences in between leaves this fresh path alone.
+	r.noteReceivedLocked(peerAddr, msg.MessageID)
 	r.peerMu.Unlock()
 
 	// WITHDRAWALS RUN FIRST, AND THE ORDER IS LOAD-BEARING.
@@ -494,13 +498,16 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 
 // storeSentEntries walks NLRI bytes and stores ribOutEntry records in ribOut.
 // recovery marks the sent event of a recovery write: each stored entry then
-// passes projectRecoveryWriteLocked. Caller must hold write lock.
+// passes projectRecoveryWriteLocked. Any other write whose received message a
+// lifecycle removal of its source followed passes projectForwardedWriteLocked.
+// Caller must hold write lock.
 func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nlriData []byte, addPath bool,
 	entry ribOutEntry, sourcePeer string, replay, recovery bool, sources []wireu.SentPathSource, ordinal uint32) uint32 {
 
 	if replay {
 		return ordinal
 	}
+	followed := !recovery && r.lifecycleFollowedLocked(sourcePeer, entry.SourceMessageID)
 	split := nlrisplit.Get(fam)
 	if split == nil {
 		logger().Warn("sent: unsupported NLRI family", "family", fam)
@@ -541,6 +548,9 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 		r.ribOut[peerAddr][fam][key] = stored
 		if recovery {
 			r.projectRecoveryWriteLocked(peerAddr, fam, key)
+		}
+		if followed {
+			r.projectForwardedWriteLocked(peerAddr, fam, key)
 		}
 		return true
 	})

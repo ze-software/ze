@@ -86,6 +86,7 @@ func sentReceivedOwner(fam family.Family, key ribOutKey, entry *ribOutEntry) (re
 // projection; absence of an old revision alone is not a purge instruction.
 // Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
 func (r *RIBManager) withdrawRemovedSentLocked(source netip.Addr, removed removedReceivedOwners) []sentLifecycleWrite {
+	r.fenceSentLifecycleLocked(source)
 	var writes []sentLifecycleWrite
 	sourcePeer := source.String()
 	for destination, destinations := range r.ribOut {
@@ -121,6 +122,7 @@ func (r *RIBManager) withdrawRemovedSentLocked(source netip.Addr, removed remove
 // generations. An empty keep list is the explicit release-routes operation.
 // Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
 func (r *RIBManager) pruneSentSourceLocked(source netip.Addr, keep []family.Family) []sentLifecycleWrite {
+	r.fenceSentLifecycleLocked(source)
 	var writes []sentLifecycleWrite
 	sourcePeer := source.String()
 	for destination, destinations := range r.ribOut {
@@ -287,8 +289,7 @@ func sentLifecycleMeta(write sentLifecycleWrite) map[string]any {
 // recovery-removal dispatcher, never sent on the event path. Caller MUST hold
 // peerMu.
 func (r *RIBManager) projectRecoveryWriteLocked(destination netip.Addr, fam family.Family, key ribOutKey) {
-	routes := r.ribOut[destination][fam]
-	entry, stored := routes[key]
+	entry, stored := r.ribOut[destination][fam][key]
 	if !stored {
 		return
 	}
@@ -302,15 +303,100 @@ func (r *RIBManager) projectRecoveryWriteLocked(destination netip.Addr, fam fami
 	if !gone {
 		return
 	}
+	r.removeProjectedLocked(destination, fam, key, entry)
+}
+
+// projectForwardedWriteLocked is R-12 for a forwarded write. A lifecycle
+// removal (purge-stale, release-routes, restart-time expiry, a community
+// purge, retain-routes pruning a family) emits a removal only where the source
+// already owns the sent entry. The sent event of a forwarded write of the
+// removed path can still be queued behind it, because commands and events
+// reach bgp-rib on different goroutines: that entry is projected after the
+// removal and would stay at the destination with nothing left to remove it.
+// It is removed here when forwardedSourceGone says the path is gone, and the
+// removal the lifecycle would have emitted is queued for the R-12 dispatcher.
+// The caller MUST call it only for an event lifecycleFollowedLocked reported
+// true for. Caller MUST hold peerMu.
+func (r *RIBManager) projectForwardedWriteLocked(destination netip.Addr, fam family.Family, key ribOutKey) {
+	entry, stored := r.ribOut[destination][fam][key]
+	if !stored {
+		return
+	}
+	if !r.forwardedSourceGone(fam, key, entry) {
+		return
+	}
+	r.removeProjectedLocked(destination, fam, key, entry)
+}
+
+// removeProjectedLocked deletes one just-projected entry whose source path is
+// gone and queues the removal for the R-12 dispatcher, never sending it on the
+// event path. Caller MUST hold peerMu.
+func (r *RIBManager) removeProjectedLocked(destination netip.Addr, fam family.Family, key ribOutKey, entry ribOutEntry) {
 	r.queueRecoveryRemovalLocked(sentRemoval(destination, fam, key, &entry))
 	// The family map stays even when empty: storeSentEntries is still
 	// writing into it for the rest of the UPDATE.
-	delete(routes, key)
+	delete(r.ribOut[destination][fam], key)
 	entry.release()
 }
 
+// sourceApplied records how far bgp-rib has applied one source's received
+// UPDATEs, which a forwarded write's sent projection needs to tell a path a
+// lifecycle removal took from one not applied yet (forwardedSourceGone).
+type sourceApplied struct {
+	// received is the highest received UPDATE message ID applied.
+	received uint64
+	// lifecycle is received's value when a lifecycle removal of the source's
+	// sent copies last ran: every received message up to it was applied
+	// before that removal.
+	lifecycle uint64
+}
+
+// noteReceivedLocked records that the received UPDATE message of source was
+// applied. Message IDs grow in receipt order, so the highest is kept. The
+// entry lives as long as peerUp's: one per source address. Caller MUST hold
+// peerMu.
+func (r *RIBManager) noteReceivedLocked(source netip.Addr, message uint64) {
+	applied := r.sourceApplied[source]
+	if message <= applied.received {
+		return
+	}
+	applied.received = message
+	r.sourceApplied[source] = applied
+}
+
+// fenceSentLifecycleLocked marks a lifecycle removal of source's sent copies:
+// a write of any received message applied so far can now have lost its path
+// to this removal before its sent event was projected. Caller MUST hold
+// peerMu.
+func (r *RIBManager) fenceSentLifecycleLocked(source netip.Addr) {
+	applied, known := r.sourceApplied[source]
+	if !known {
+		return
+	}
+	applied.lifecycle = applied.received
+	r.sourceApplied[source] = applied
+}
+
+// lifecycleFollowedLocked reports whether a lifecycle removal of the source
+// ran after bgp-rib applied the received message a forwarded write carries,
+// once per sent event, so a write no removal followed (every write outside a
+// GR or LLGR cleanup) pays one parse and one lookup and no inventory walk. A
+// write with no source (a local origination) or no received message answers
+// false. Caller MUST hold peerMu.
+func (r *RIBManager) lifecycleFollowedLocked(sourcePeer string, message uint64) bool {
+	if message == 0 {
+		return false
+	}
+	source, err := netip.ParseAddr(sourcePeer)
+	if err != nil {
+		return false
+	}
+	return message <= r.sourceApplied[source].lifecycle
+}
+
 // recoveryRemovals is the long-lived bgp-rib lifecycle dispatcher that sends
-// the removals projectRecoveryWriteLocked queues. A synchronous engine RPC on
+// the removals projectRecoveryWriteLocked and projectForwardedWriteLocked
+// queue (R-12). A synchronous engine RPC on
 // the event path would stop bgp-rib applying events while it is in flight, so
 // every destination's drain would wait behind it.
 //
@@ -343,7 +429,7 @@ func (r *RIBManager) startRecoveryRemovals(parent context.Context, send func(con
 // stopRecoveryRemovals cancels, then joins, then drops the pending removals.
 // It MUST be called after startRecoveryRemovals. Dropping is the fault window
 // of a stopped bgp-rib: no recovery owner exists then, and a destination still
-// holding a purged survivor keeps it until the next decision for its key.
+// holding a purged path keeps it until the next decision for its key.
 func (r *RIBManager) stopRecoveryRemovals() {
 	r.peerMu.Lock()
 	d := r.removals
@@ -361,8 +447,11 @@ func (r *RIBManager) stopRecoveryRemovals() {
 
 // queueRecoveryRemovalLocked appends one removal and wakes the dispatcher
 // without blocking. The pending list is unbounded by design: it holds one
-// entry per recovery write whose survivor was purged, never one per event.
-// Caller MUST hold peerMu.
+// entry per projected write whose source path was gone at its projection,
+// never one per event. A forwarded write is checked only once a lifecycle
+// removal of its source followed its received message, and each queued entry
+// left ribOut, so the list stays below the source's routes times the
+// destinations. Caller MUST hold peerMu.
 func (r *RIBManager) queueRecoveryRemovalLocked(write sentLifecycleWrite) {
 	r.recoveryPending = append(r.recoveryPending, write)
 	if r.removals == nil {

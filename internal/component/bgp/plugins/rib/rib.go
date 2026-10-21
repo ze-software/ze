@@ -300,6 +300,11 @@ type RIBManager struct {
 	removals        *recoveryRemovals
 	recoveryPending []sentLifecycleWrite
 
+	// sourceApplied is how far each source's received UPDATEs are applied,
+	// and how far they were when a lifecycle removal of its sent copies last
+	// ran (rib_sent_lifecycle.go, R-12 for forwarded writes). Under peerMu.
+	sourceApplied map[netip.Addr]sourceApplied
+
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and
@@ -641,6 +646,7 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		ribOut:           make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
 		peerUp:           make(map[netip.Addr]bool),
 		peerMeta:         make(map[netip.Addr]*peerMetadata),
+		sourceApplied:    make(map[netip.Addr]sourceApplied),
 		retainedPeers:    make(map[netip.Addr]bool),
 		grState:          make(map[netip.Addr]*peerGRState),
 		bestPrev:         newBestPrevShards(),
@@ -948,6 +954,7 @@ func (r *RIBManager) handleSent(event *Event) {
 				LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
+	followed := !recovery && r.lifecycleFollowedLocked(sourcePeer, uint64(sourceMessageID))
 	for fam, ops := range event.FamilyOps {
 		var ordinal uint32
 		sourceIndex := 0
@@ -999,6 +1006,9 @@ func (r *RIBManager) handleSent(event *Event) {
 					r.ribOut[peerAddr][fam][key] = stored
 					if recovery {
 						r.projectRecoveryWriteLocked(peerAddr, fam, key)
+					}
+					if followed {
+						r.projectForwardedWriteLocked(peerAddr, fam, key)
 					}
 				}
 			case routeaction.Del:
@@ -1098,6 +1108,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	r.updatePeerMetadata(event, peerAddr)
 
 	r.handleReceivedPool(event, peerAddr)
+	r.noteReceivedLocked(peerAddr, event.GetMsgID())
 }
 
 // handleReceivedPool stores routes in pool storage.

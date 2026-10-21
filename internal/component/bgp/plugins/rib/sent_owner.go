@@ -175,6 +175,36 @@ func (r *RIBManager) recoveryCandidateGone(fam family.Family, key ribOutKey, sen
 	if err != nil {
 		return false, false
 	}
+	return r.sourcePathGone(source, fam, key, sent)
+}
+
+// forwardedSourceGone answers R-12 for one projected forwarded write whose
+// received message a lifecycle removal of its source followed
+// (lifecycleFollowedLocked): the source's received inventory holds neither
+// the write's received path nor a newer revision of it. That fence is what
+// makes absence mean removal. Without it, absence can mean "not applied yet",
+// because the reactor's fast path forwards from the session read goroutine
+// before the received event is queued, so a sent projection can precede its
+// own received message; and it can mean a received withdrawal, whose own
+// forward reaches the destination behind the announcement and needs no
+// removal from bgp-rib. A path a received withdrawal took after the fence is
+// judged gone too; the removal is then late but safe, because the writer
+// admits it only while the destination still holds the same revision. An
+// invalid labeled key answers false. Caller holds peerMu.
+func (r *RIBManager) forwardedSourceGone(fam family.Family, key ribOutKey, sent ribOutEntry) bool {
+	source, err := netip.ParseAddr(sent.SourcePeer)
+	if err != nil {
+		return false
+	}
+	gone, valid := r.sourcePathGone(source, fam, key, sent)
+	return valid && gone
+}
+
+// sourcePathGone reports whether source's received inventory holds neither
+// the received path a sent copy names nor a newer revision of it. A source
+// with no received inventory holds nothing. valid is false when a labeled key
+// does not parse. Caller holds peerMu.
+func (r *RIBManager) sourcePathGone(source netip.Addr, fam family.Family, key ribOutKey, sent ribOutEntry) (gone, valid bool) {
 	received := r.bgpPeers[source]
 	if received == nil {
 		return true, true

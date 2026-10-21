@@ -1473,6 +1473,8 @@ func BenchmarkShowLargeTable(b *testing.B) {
 			ribInPool: make(map[redistevents.ProtocolID]map[string]*storage.PeerRIB),
 			peerUp:    make(map[netip.Addr]bool),
 			peerMeta:  make(map[netip.Addr]*peerMetadata),
+
+			sourceApplied: make(map[netip.Addr]sourceApplied),
 		}
 		r.maximumPaths.Store(1)
 		return r
