@@ -2115,15 +2115,21 @@ func (r *Reactor) cleanup() {
 	// any new dispatch from racing with the cleanup write lock.
 	r.releaseEventSubscriptions()
 
+	// Stop the forward pool first, and BEFORE taking r.mu: it drains in-flight
+	// dispatches and waits for every worker to exit, before peers are stopped,
+	// avoiding log noise from ErrInvalidState. A worker reads the peer table
+	// under r.mu.RLock (its onCongested and onResumed callbacks,
+	// emitCongestionEvent, and the sent-message notification), and Stop empties
+	// the overflow, so a congested worker always fires onResumed on its way
+	// out. Waiting for it while holding r.mu would never return.
+	if r.fwdPool != nil {
+		r.fwdPool.Stop()
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	// Phase 1: Signal everything to stop (non-blocking).
-	// Stop forward pool first — drains in-flight dispatches and workers
-	// before peers are stopped, avoiding log noise from ErrInvalidState.
-	if r.fwdPool != nil {
-		r.fwdPool.Stop()
-	}
 	// The plugin server is stopped only when this reactor OWNS it, which is the
 	// guard abortStartup already applies. In borrow mode (production) the hub
 	// constructs the server, hosts this reactor's own bgp engine inside it, and

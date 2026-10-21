@@ -7,6 +7,7 @@ package reactor
 import (
 	"context"
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -187,4 +188,58 @@ func TestReactorCleanupStopsTheServerItOwns(t *testing.T) {
 
 	assert.False(t, owned.Running(),
 		"the reactor left its OWN plugin server running, so a standalone consumer has no stop for it")
+}
+
+// TestReactorStopsWithACongestedForwardWorker proves that a reactor whose
+// forward worker is congested at shutdown finishes its cleanup. A worker whose
+// queue drains fires onResumed, which reads the peer table under r.mu; Stop
+// itself empties the overflow, so a congested worker always fires it on the
+// way out. The test parks one worker in its batch handler, fills its queue
+// until TryDispatch fails (onCongested), stops the reactor, and releases the
+// handler only once the pool is stopping, so the worker's onResumed lands
+// while cleanup waits for it.
+//
+// VALIDATES: cleanup waits for the forward workers without holding r.mu.
+// PREVENTS: a daemon whose shutdown hangs because cleanup held r.mu while
+// fwdPool.Stop waited for a worker blocked on r.mu.RLock (the reactor Wait has
+// no bound in production).
+func TestReactorStopsWithACongestedForwardWorker(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	// The handler is replaced before any worker exists, so no worker reads
+	// the production one.
+	r.fwdPool.handler = func(fwdKey, []fwdItem) {
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-release
+	}
+	srv := newBorrowedPluginServer(t, r)
+	r.SetPluginServer(srv)
+	require.NoError(t, r.StartWithContext(context.Background()))
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("192.0.2.9:179")}
+	require.True(t, r.fwdPool.Dispatch(key, &fwdItem{}))
+	<-entered
+	for range r.fwdPool.cfg.chanSize + 1 {
+		if !r.fwdPool.TryDispatch(key, &fwdItem{}) {
+			break
+		}
+	}
+	require.False(t, r.fwdPool.TryDispatch(key, &fwdItem{}), "the worker's queue never filled")
+
+	r.Stop()
+	stopping := func() bool {
+		r.fwdPool.mu.RLock()
+		defer r.fwdPool.mu.RUnlock()
+		return r.fwdPool.stopped
+	}
+	lowEventually(t, stopping, "the forward pool is stopping")
+	close(release)
+
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, r.Wait(waitCtx), "the reactor did not finish its cleanup with a congested forward worker")
 }
