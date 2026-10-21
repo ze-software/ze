@@ -1640,7 +1640,7 @@
       "claim-sha": "c3257e5e26e96064",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-      "producer-sha": "3340671b3373584c",
+      "producer-sha": "40a40c53e05d9bb3",
       "break": "body of runOnce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
