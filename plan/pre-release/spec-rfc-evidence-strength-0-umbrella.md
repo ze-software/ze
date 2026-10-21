@@ -128,12 +128,27 @@ owner called them later phases and the release can go out without them.
 | D-8 | Who performs the second walk in child 4 | (a) a fresh agent context that is not given the first walk; (b) (a) plus one stem per tranche walked by a person, to calibrate the agent's agreement rate | (b). Two model walks can share a model's blind spot, and one human-walked stem per tranche measures it |
 | D-7 | The 4206 tagged units that carry no proof at all | (a) leave them grandfathered, as today; (b) a separate burn-down after child 2 | Not in the approved brief. Named here so that it is a decision and not an omission |
 
-D-7, BGP measurement (2026-10-21, closure of spec-rfc-verdict-fix-bgp): over the
-60 BGP stems of that child's 2026-09-28 population, 230 of 807 `enforced`
-verdicts carry no discrimination record at all, and on the 336 verdicts the
-child moved to `enforced`, 722 of 1538 unit tags have none. Both sets are
-this decision's population; that child's closure takes the change-scoped
-reading of its AC-C2.
+D-7, BGP transfer (owner ruling, Thomas, 2026-10-21, answering "b": "B. Close
+after the 54, move the 424 to D-7: every test this spec touched is proven; the
+424 tags on untouched tests become scheduled proof work under M2"). This is owned
+work, scheduled under M2, not a backlog left grandfathered. Measured 2026-10-21 at
+`3444b9d8f2` over the 60 BGP stems of `spec-rfc-verdict-fix-bgp`'s 2026-09-28
+population (360 ids rebuilt from `git show cb4801b4cc:rfc/audit/*.json` with that
+spec's "Derived listing" filter plus the pre-rename paths
+`internal/plugins/fib/kernel/nexthop_srv6_linux_test.go` and
+`internal/plugins/isis/bgpls_export_rfc9552_test.go`): on the verdicts that child
+moved to `enforced`, 478 unit tags over 320 distinct units carry no discrimination
+record (joined to `rfc/discrimination/<stem>.json` on requirement id and unit with
+the `#n` suffix stripped). That child records the 54 tags on the 13 units its own
+commits changed. The other **424 tags** are transferred here: 410 on units no commit
+changed between `cb4801b4cc` and `3444b9d8f2`, and 14 on units changed only by other
+specs' producer commits (`82591173b6`, `69b67933a2`, `6019dd0675`, `dce906c381`).
+Separately, 230 of the 807 `enforced` verdicts in those stems (enforced before
+2026-09-28) carry no record at all and belong to this decision too. Per-tag list:
+rerun the method in `plan/handover/03-session-2026-10-18-linux-continue.md`,
+section "rfc-verdict-fix-bgp round-2 findings 1 and 2", and drop the 13 units named
+in that spec's Goal Validation row AC-C2 (the list written on the machine that
+measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
 
 ## Required Reading
 

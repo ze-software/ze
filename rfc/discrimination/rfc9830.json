@@ -178,6 +178,39 @@
       "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs",
+      "unit-sha": "15f31c607d87d882",
+      "claim-sha": "0b38e18724c2e073",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs",
+      "unit-sha": "15f31c607d87d882",
+      "claim-sha": "a73f4ea8d6c61024",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs",
+      "unit-sha": "15f31c607d87d882",
+      "claim-sha": "033c2fd49145eb53",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.1-5",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -308,6 +341,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-10",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "b6ec8bbef741a3b9",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-10",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "3cbf03eccb398716",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.2-11",
@@ -442,6 +497,28 @@
       "break": "body of buildBindingSIDSubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.2-6",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "440f6a3cc7bb35ed",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-6",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "3dc28a4f18389aba",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.2-8",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -484,6 +561,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-8",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "c1b255901e5c3b85",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-8",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "70370dce20e4d533",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.3-5",
@@ -530,6 +629,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.3-5",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "b4db308af136b887",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.3-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "4b9cbbe767d906f1",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.3-7",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -572,6 +693,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.3-7",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "ca33cb505abac27e",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.3-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "e5b7066ce999895a",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4-5",
@@ -618,6 +761,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.4-5",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "fcee9bc419fac4a0",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "76a0476b85d65938",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.4.1-5",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -660,6 +825,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.1-5",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "7df27f639fe21beb",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.1-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "a98bf79c250875fa",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.1-7",
@@ -706,6 +893,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.4.1-7",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "76a0ee90a5e2bb98",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.1-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "64aa4facdb095f14",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.4.2.1-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -748,6 +957,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.1-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "c7bc80d7438742c7",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.1-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "3fc5c4c79a9ffac7",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.1-5",
@@ -794,6 +1025,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.4.2.1-5",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "531e0d14625912af",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.1-5",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "24f67490d8960173",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.4.2.2-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -836,6 +1089,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.2-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "b3fee8b24d9bf799",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.2-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "6b31a4197724b3be",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.3-2",
@@ -882,6 +1157,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.4.2.3-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "51b52e79d3c997c5",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.3-2",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "46a27812aa6c7592",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.4.2.3-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt",
@@ -902,6 +1199,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.3-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "13dad422acb7b5ff",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.3-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "b5e4ad2d7ddc7974",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.4-3",
@@ -948,6 +1267,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.4.2.4-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "51b2d9f62cdc1e47",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.4.2.4-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "f2a0fe487735bb62",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.6-6",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -990,6 +1331,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.6-6",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "fad4200fa1e9b12e",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.6-6",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "875ca3c100d4e295",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.7-7",
@@ -1036,6 +1399,28 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.4.7-7",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "fd8fbbd5a7b91a6e",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.7-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "64acfdecff17410b",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.8-7",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
@@ -1078,6 +1463,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.8-7",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "ff3301e5540c0eff",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.8-7",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+      "unit-sha": "beac6722ff53de86",
+      "claim-sha": "604afa1e0659820f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-4.2.1-2",

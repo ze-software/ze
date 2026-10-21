@@ -2208,6 +2208,50 @@
     },
     {
       "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress",
+      "unit-sha": "a8f255b1003ba06d",
+      "claim-sha": "06acbcc79bd5ffca",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
+      "producer-sha": "b726a25d8ef5c754",
+      "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail",
+      "unit-sha": "99ead1c5508dd3c1",
+      "claim-sha": "f1a57c2dbea54c86",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
+      "producer-sha": "b726a25d8ef5c754",
+      "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress",
+      "unit-sha": "d7d133006aefac10",
+      "claim-sha": "b9fb75b5da4803b3",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
+      "producer-sha": "b726a25d8ef5c754",
+      "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier",
+      "unit-sha": "5485e0d0afbfda82",
+      "claim-sha": "f1a57c2dbea54c86",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
+      "producer-sha": "b726a25d8ef5c754",
+      "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified",
       "unit-sha": "15bd3f82151bea88",

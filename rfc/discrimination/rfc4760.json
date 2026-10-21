@@ -79,6 +79,28 @@
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4760-3-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref",
+      "unit-sha": "fe26dd86580ae9be",
+      "claim-sha": "57627a6dc6dc843d",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+      "producer-sha": "e7dd8c913660084d",
+      "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-3-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref",
+      "unit-sha": "fe26dd86580ae9be",
+      "claim-sha": "ff8ee2e5b9ee736c",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+      "producer-sha": "e7dd8c913660084d",
+      "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4760-7-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes",

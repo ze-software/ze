@@ -123,6 +123,17 @@
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7752-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent",
+      "unit-sha": "c53e404e00f645c0",
+      "claim-sha": "63e73d3b7f4e865e",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7752-3.2-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71",
@@ -187,6 +198,17 @@
       "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
       "producer-sha": "6829bc06b1cfd284",
       "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-6.2.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved",
+      "unit-sha": "e103516de61346fe",
+      "claim-sha": "8e7ff2907f4c18d4",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::iterateAttrTLVs",
+      "producer-sha": "193a961cd2733ca4",
+      "break": "body of iterateAttrTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7752-6.2.2-2",
