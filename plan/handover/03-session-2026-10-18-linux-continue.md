@@ -2654,3 +2654,48 @@ five discrimination records (RFC9687-4.3-8 x3, RFC9494-4.3-3 x2), re-taken by
 this agent's `retake.sh`; see its report for the outcome. The runner still
 reports a check-peer mismatch as TYPE timeout when ze keeps running: a second
 journal-worthy defect in `internal/test/runner`.
+
+### FlowSpec ordering race: rs worker fix landed, two shapes remain (2026-10-21, Mac)
+
+Landed:
+- 123c46d4b5 `rs: park a FlowSpec relay until its source worker batches the
+  UPDATE`. Confirmed first by a debug overlay in `processValidation`: in the
+  failures `path-msg-id=20 worker-processed=0`. The source worker parks a
+  FlowSpec relay whose path MessageID is above the highest MessageID it has
+  handled (`forwardBatch.processed`), releases it after that UPDATE (flush, then
+  relay); pool `onIdle` releases with a warning, `onClose` drops with a warning.
+  Three tests in `server_validation_test.go`, all red with parking disabled by
+  overlay; rs package green under `-race`.
+- 8719b6ea1a `runner: report a check-peer mismatch, not timeout, past the
+  deadline` (`failPastDeadline`, `TestPastDeadlineReportsPeerMismatch` red
+  first). `bin/le` must be refreshed (`./le --update`) before the runner shows it.
+- Reactor `-race -count=5 -timeout 40m -run 'Forward|Flush|Direct|RS'`: ok (42s).
+- `./le rfc check` after both: exit 2, every finding in other sessions'
+  uncommitted FlowSpec test files or rfc7950; none in rs or the runner.
+
+NOT done: the proof. The 40 parallel copies still fail: 1 in 120, then 2 in 80
+(was 3 in 40). A second overlay (`DEBUG-FSVALID` in `relayFlowSpecValidation`,
+`DEBUG-FSREPLAY` in `replayFlowSpecs`) shows two further shapes, both with the
+receiver getting the rule and then failing on the unicast (13; rule is 14):
+- (a) fsdbgx-16: receiver up with `cut=0`; the worker relayed with
+  `handled=14`, right after the flush that logged `ForwardUpdatesDirect id=14
+  suppressed`, and rs sent the receiver its EOR 1 ms later. So the relay was
+  ordered after 13 inside rs, and the overtake is downstream: the receiver was
+  inside its peer-up replay, so look at the reactor rails (receive fast path in
+  `forward_rs.go` vs the API path in `reactor_api_forward.go`, the replay fence
+  `forwardOrderHold`, overflow) for how 13 can land behind a later live relay,
+  or be dropped.
+- (b) fsdbgx-19: the receiver came up after both UPDATEs (`target-cut=14`), so
+  13 is owed by the adj-rib-in replay and the rule by `replayFlowSpecs`
+  (`replayForPeer` runs them in that order). adj-rib-in sends its replay from
+  its own process; whether its routes reach the engine before rs's
+  `RelayStoredRoute` is not ordered. Check whether the replay command answers
+  before its routes are dispatched.
+Both are rows in `plan/journal/new-caller-assumes-the-old-callers-timing.md`
+(open). The 40 gitignored copies `test/draft/plugin/fsdbgx-NN.ci` are KEPT for
+the continuation; remove them once 0 failures over 1000 runs is shown
+(`tmp/.../scratch/hang/loop.sh N`; pass `GOFLAGS=-overlay=<json>` for debug).
+Owed gates for 123c46d4b5 and 8719b6ea1a: `./le go lint run` scoped to rs and
+the runner, `./le verify worktree` (debt rows in `plan/verification-debt/21a4961e.md`).
+Foreign red seen: `TestCIAcceptOnlyLint` on `test/parse/iface-unnumbered-loopback.ci`
+(3c2c96ec01).
