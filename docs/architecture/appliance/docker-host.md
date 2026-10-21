@@ -98,7 +98,10 @@ A failure in steps 1 to 9 is printed on the console and the program exits
 with status 125, which gokrazy's supervisor reads as "do not restart": the
 sequence is half applied by then, and a restart would fail on an earlier step
 (the cidata volume is already mounted) and bury the first error. A program
-restarted after step 9 completed serves the supervisor only.
+restarted after step 9 completed also exits with status 125, and prints that
+the guest needs a reboot (`colima restart ze`): the services the first run
+started outlive it, and a new supervisor that knows none of them would start a
+second sshd on the bound port and a second dockerd on the same data root.
 
 <!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountBinfmtMisc, mountShares, sealShareRoots, shareRequest -->
 <!-- source: internal/appliance/dockerhost/etc.go -- mountWritableEtc -->
@@ -123,7 +126,11 @@ kernel's peer credentials decide, never the request), 5 for an unknown unit,
 naming the units the guest knows. `reload` sends SIGHUP to the unit's main
 process (Lima's `11-colorterm-environment.sh` reloads sshd after adding
 `AcceptEnv`); a unit with no running process refuses with exit status 1. A service that exits is started again under
-its `Restart=` policy, with a backoff from 1 to 30 seconds.
+its `Restart=` policy, with a backoff from 1 to 30 seconds. `stop` sends
+SIGTERM, then SIGKILL after the unit's grace: 30 seconds for `docker.service`,
+which stops its containers first, and 10 seconds for every other unit. A stop
+that lands during a restart backoff ends the service without starting the next
+process.
 
 <!-- source: internal/appliance/dockerhost/systemctl.go -- verbs, Serve, RunShim -->
 <!-- source: internal/appliance/dockerhost/supervise.go -- Supervisor, service.supervise -->
@@ -205,10 +212,13 @@ cache and leave this one refused. Otherwise, in this order:
    mismatch refuses before anything is written;
 2. OpenSSH, sudo and legacy iptables are built as static musl binaries in the
    pinned Alpine builder container (`staticRecipe`), cached under
-   `<arch>/static-<key>/`. The container runs on the daemon the `docker` CLI
-   reaches by its own environment (`DOCKER_HOST` or the current context): it
-   is a build tool, not a lab, so the lab endpoint rules do not choose it. It
-   is named `ze-docker-host-build-<pid>` and removed by name afterwards;
+   `<arch>/static-<key>/`. The container is an interoplab one-shot
+   (`interoplab.NewBuildToolDocker`, `RunOneShot`), the one route to the
+   `docker` binary, and runs on the daemon the CLI reaches by this process's
+   own environment (`DOCKER_HOST` or the current context): it is a build tool,
+   not a lab, so the lab endpoint rules do not choose it. It runs with `--rm`
+   under a one-hour bound and is removed by name when the bound or a cancel
+   ends it;
 3. `extrafiles_<arch>.tar` is written into the instance directory: busybox
    from ze-serial-shell's tar, the static binaries (sudo `04755`) and
    Docker's binaries under `/usr/lib/ze-docker-host/`, every member owned by

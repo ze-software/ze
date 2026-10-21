@@ -292,6 +292,19 @@ func NewDocker() *Docker {
 	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: environ, endpointRefusal: endpointRefusal}
 }
 
+// NewBuildToolDocker returns the real Docker client for a build tool: a
+// container run only to produce files on the host (the docker-host image's
+// static binaries), never a lab. It hands the docker CLI this process's own
+// environment, so the CLI asks the daemon DOCKER_HOST or its current context
+// names; the lab endpoint selection (dockerhost.Inherited) does not apply,
+// because no lab runs there and the `ze` profile it requires is what the
+// build produces. Everything else, the labels, the one-shot name and the
+// bounded removal, is NewDocker's.
+func NewBuildToolDocker() *Docker {
+	owner, judge := processIdentity()
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: os.Environ()}
+}
+
 // run runs one docker command under environ. It is the only route to the
 // runner, so no command reaches a daemon the endpoint selection did not name,
 // and each answers endpointRefusal before it starts when the selection refused.

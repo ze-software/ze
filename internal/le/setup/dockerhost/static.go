@@ -7,16 +7,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // staticBinaryNames are the files the builder container leaves in /out, each
@@ -74,8 +74,6 @@ for binary in /out/*; do file "$binary"; file "$binary" | grep -Eq 'statically l
 
 // containerRun is one run of the builder container.
 type containerRun struct {
-	// name is the container's name, removed by name after the run.
-	name string
 	// image is the builder image, pinned by digest.
 	image string
 	// arch is the image architecture the binaries are built for.
@@ -114,7 +112,6 @@ func (b *builder) staticBinaries(ctx context.Context, req buildRequest, sources 
 	defer os.RemoveAll(partial) //nolint:errcheck // gone already once renamed into place
 
 	run := containerRun{
-		name:   "ze-docker-host-build-" + strconv.Itoa(os.Getpid()),
 		image:  req.pins.Builder(),
 		arch:   req.arch,
 		inDir:  filepath.Dir(sources[staticSourceNames[0]]),
@@ -175,42 +172,35 @@ func hasEveryBinary(dir string) bool {
 	return true
 }
 
-// containerRemoveTimeout bounds the removal of the builder container.
-const containerRemoveTimeout = time.Minute
+// builderTimeout bounds one builder container run: OpenSSH, sudo and
+// iptables built from source under emulation (an amd64 build on an arm64
+// Mac) take tens of minutes, never an hour.
+const builderTimeout = time.Hour
 
-// runBuilderContainer runs the recipe in the builder container on the Docker
-// daemon the docker CLI reaches by its own environment (DOCKER_HOST or the
-// current context): the builder is a build tool, not a lab, so the lab
-// endpoint rules do not choose its daemon. The container is removed by name
-// afterwards, whatever the outcome, so nothing of the run stays on the daemon.
+// runBuilderContainer runs the recipe in the builder container through
+// interoplab's build-tool client, the one route to the docker binary
+// (docs/architecture/module-tiers.md, "The docker route"). That client asks
+// the daemon the docker CLI reaches by this process's own environment
+// (DOCKER_HOST or the current context): the builder is a build tool, not a
+// lab, so the lab endpoint rules do not choose its daemon. The one-shot runs
+// with --rm and is removed by name when the bound or ctx ends it, so nothing
+// of the run stays on the daemon.
 func runBuilderContainer(ctx context.Context, run containerRun) error {
-	if _, err := exec.LookPath("docker"); err != nil {
-		return errors.New("the docker CLI is not on PATH, and the static binaries are built in a container. " +
-			"Fix: install the docker CLI (brew install docker) and point it at a running daemon")
-	}
-	defer removeContainer(run.name)
-
-	argv := []string{dockerCLI, "run", "--name", run.name, "--platform", "linux/" + run.arch,
-		"--volume", run.inDir + ":/in:ro", "--volume", run.outDir + ":/out",
-		run.image, "sh", "-c", run.script}
-	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // argv built here from the pins
-	command.Stdout = os.Stderr
-	command.Stderr = os.Stderr
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("the builder container %s failed: %w (its output is above). "+
-			"Fix: correct what the build names, then run `./le setup docker-host build` again", run.name, err)
+	_, err := interoplab.NewBuildToolDocker().RunOneShot(ctx, interoplab.OneShotContainer{
+		Image: run.image,
+		Mounts: []interoplab.Mount{
+			{Source: run.inDir, Target: "/in", ReadOnly: true},
+			{Source: run.outDir, Target: "/out"},
+		},
+		Arguments: []string{"--platform", "linux/" + run.arch},
+		Command:   []string{"sh", "-c", run.script},
+		Timeout:   builderTimeout,
+		Stdout:    os.Stderr,
+		Stderr:    os.Stderr,
+	})
+	if err != nil {
+		return fmt.Errorf("the builder container failed: %w (its output is above). "+
+			"Fix: correct what the build names, then run `./le setup docker-host build` again", err)
 	}
 	return nil
-}
-
-// removeContainer removes the builder container by name. A container that is
-// already gone is the expected case after a failed create.
-func removeContainer(name string) {
-	ctx, cancel := context.WithTimeout(context.Background(), containerRemoveTimeout)
-	defer cancel()
-	output, err := exec.CommandContext(ctx, "docker", "rm", "--force", name).CombinedOutput() //nolint:gosec // the name this run gave
-	if err != nil && !strings.Contains(string(output), "No such container") {
-		_, _ = os.Stderr.WriteString("docker-host: could not remove the builder container " + name + ": " + //nolint:errcheck // a warning line
-			strings.TrimSpace(string(output)) + ". Fix: docker rm --force " + name + "\n")
-	}
 }
