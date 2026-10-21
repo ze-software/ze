@@ -490,9 +490,10 @@ error restores the old endpoints. A failed rollback removes both endpoint
 candidates and reports `ErrTunnelMigrationLost`; failed deletions remain tracked
 for teardown. The engine closes a MOBIKE IKE SA after either migration failure,
 retiring the Child pair instead of reinstalling its keys. A NAT rebind without
-MOBIKE (`rebindChildSAs`, ipsec-9 "The rebind") closes the IKE SA only on
-`ErrTunnelMigrationLost`; after any other failure the old endpoints stand, and it
-rekeys the Child SA onto the new endpoint instead.
+MOBIKE (`rebindChildSAs`, ipsec-9 "The rebind") closes the IKE SA on
+`ErrTunnelMigrationLost`, and for a transport-mode Child SA whose peer changed
+address, which no migration or rekey can follow; after any other migration failure
+the old endpoints stand, and it rekeys the Child SA onto the new endpoint instead.
 
 The dataplane package is registered in the native QEMU integration pass.
 `TestXFRMMigrationPreservesLiveKernelState` covers legacy, bitmap and ESN replay

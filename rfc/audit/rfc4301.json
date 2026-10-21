@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-20",
+  "audited": "2026-10-21",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -635,10 +635,10 @@
     },
     "RFC4301-5.1-7": {
       "code": {
-        "internal/component/ike/engine/child.go::installChildSA": "013319f92073f39b",
+        "internal/component/ike/engine/child.go::installChildSA": "6fc1a0f4e179999f",
         "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy": "9591a4573e493268"
       },
-      "note": "Re-judged 2026-10-20 (independent judge, after 166ef7cf27 and 0b324c6182). Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" installChildSA changed in two places only: the failed-install rollback removes through removeZePolicy (SPD ledger) instead of dp.RemovePolicyParams, and comments (Linux limitation pointer, 'installed once, on the first configuration apply'). PROTECT entries are still installed only beside a Child SA IKEv2 already negotiated, and no XFRM acquire is handled anywhere under internal/component/ike (grep for acquire finds none in non-test code), so no outbound packet invokes IKEv2. {gap} text at rfc/short/rfc4301.md:540 remains accurate. Gap stands.",
+      "note": "Re-judged 2026-10-21 (independent judge, over the uncommitted errChildEncapPort change for plan/immediate/spec-ike-eap-rfc-defects.md). Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" installChildSA changed in one place only: before anything is installed it refuses a Child SA with UDPEncap set and a zero udpLocalPort or udpRemotePort (errChildEncapPort). That narrows which negotiated SAs install; it adds no path from an outbound packet to IKEv2. PROTECT entries are still installed only beside a Child SA IKEv2 already negotiated, and no XFRM acquire is handled under internal/component/ike (the non-test 'acquire' hits are a netlink receiver comment, redistevents.AcquireBatch and a lock comment). {gap} text at rfc/short/rfc4301.md:540 remains accurate. Gap stands.",
       "requirement_sha": "fd7074473f3565e7",
       "verdict": "unimplemented"
     },

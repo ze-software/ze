@@ -365,7 +365,16 @@ an INFORMATIONAL Delete for the pair and keeps the IKE SA. The EAP responder
 adopts the endpoint once the final AUTH-from-MSK verifies, before it builds the
 Child SA, as the non-EAP responder does before `buildAuthResponse`.
 
-<!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts, takeEncapPorts -->
+A tunnel-mode Child SA also takes its tunnel remote address from the IKE SA once
+the peer's endpoint is authenticated (`peerTunnelAddress`), so a CREATE_CHILD_SA or
+a rekey after the peer moved sends ESP where IKE now goes. A MOBIKE SA is not
+given it on rekey: its address moves by UPDATE_SA_ADDRESSES and the migration,
+after the return routability check (RFC 4555 Section 3.7). `installChildSA` refuses
+a Child SA that needs encapsulation and reached it with a zero port, before anything
+is installed.
+
+<!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts, takeEncapPorts, peerTunnelAddress, takePeerTunnelAddress -->
+<!-- source: internal/component/ike/engine/child.go -- installChildSA -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->
 
 ### The rebind: a NAT that moves the peer after establishment
@@ -382,8 +391,9 @@ once for the IKE SA:
 
 | Case | What happens | Log line |
 |------|--------------|----------|
-| Tunnel mode, the dataplane can migrate (`childMigrationAvailable`, the predicate MOBIKE negotiation uses) | The current pair and a distinct superseded pair are migrated in place to the new endpoint, from the NAT-T socket's port, keeping their SPIs, keys and replay state | Info, "Child SAs migrated to the new address and port" |
-| Transport mode, a dataplane without a `TunnelMigrator` (VPP, a kernel without `XFRM_MSG_MIGRATE_STATE`), or a parallel IKE SA setting up a pending child | A Child SA rekey is owed; the owner tick raises it beside the soft lifetime, so a hold defers it and never drops it. The rekeyed child takes the IKE SA's ports, so it lands on the new endpoint | Info, "Child SA cannot be migrated here, so it is rekeyed", with `reason` |
+| The installed pair is transport mode, and the peer changed address (not only port) | The IKE SA closes: a transport-mode Child SA's selectors name the IKE SA's address pair (RFC 7296 Section 2.23.1), so neither a migration nor a rekey can follow the peer. It is set up again only with the configured remote address (the initiator redials it, and the responder accepts only it), so a peer that keeps its new address needs that address configured | Info, "a transport-mode Child SA cannot follow it, so the IKE SA is closed", naming the configuration step |
+| Tunnel mode, the pair encapsulates ESP in UDP, and the dataplane can migrate (`childMigrationAvailable`, the predicate MOBIKE negotiation uses) | The current pair and a distinct superseded pair are migrated in place to the new endpoint, from the NAT-T socket's port, keeping their SPIs, keys and replay state | Info, "Child SAs migrated to the new address and port" |
+| Transport mode with the address unchanged, a pair that does not encapsulate ESP in UDP (a migration would encapsulate it), a dataplane without a `TunnelMigrator` (VPP, a kernel without `XFRM_MSG_MIGRATE_STATE`), or a parallel IKE SA setting up a pending child | A Child SA rekey is owed; the owner tick raises it beside the soft lifetime, so a hold defers it and never drops it. The rekeyed child takes the IKE SA's ports and, in tunnel mode, its peer address (`takePeerTunnelAddress`), so it lands on the new endpoint | Info, "Child SA cannot be migrated here, so it is rekeyed", with `reason` |
 | The migration failed with any error but `ErrTunnelMigrationLost` | The old endpoints stand (the `TunnelMigrator` contract), and the rekey is owed as above | Info, "migrating the Child SA failed and the old endpoints stay in place" |
 | The migration lost the tunnel | The IKE SA closes and is set up again, as a MOBIKE SA does: lost keys are never reinstalled | Error, naming `ze doctor` |
 

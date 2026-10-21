@@ -54,13 +54,15 @@ under the new IKE SA rather than retaining an old-SA request identifier.
 <!-- source: internal/component/ike/engine/sa.go -- inheritSendPath -->
 
 **A rekey owed by a rebind.** When the peer's endpoint moves after
-establishment and a Child SA cannot be migrated to it (transport mode, a dataplane
-with no `TunnelMigrator`, a refused migration, a pending child), `rebindChildSAs`
+establishment and a Child SA cannot be migrated to it (transport mode with the
+address unchanged, a pair that does not encapsulate ESP in UDP, a dataplane with no
+`TunnelMigrator`, a refused migration, a pending child), `rebindChildSAs`
 sets `rebindRekeyOwed`. `serviceChildRekeyTrigger` raises a Child SA rekey on the
 owner tick while that flag or the soft lifetime stands and no rekey is pending, so
 a held request window, a TEMPORARY_FAILURE hold or a refusal hold defers the rekey
 to a later tick and never drops it. The rekeyed child takes its encapsulation ports
-from the IKE SA, which is what moves it. The flag clears when a rekeyed Child SA
+from the IKE SA, and a tunnel-mode one its peer address too (`takePeerTunnelAddress`,
+rather than `newRekeyedChild`'s copy of the retired pair's), which is what moves it. The flag clears when a rekeyed Child SA
 installs, ze-initiated in `applyChildRekeyResponse`'s caller or peer-initiated
 after `respondChildRekey`, and when `resolvePendingAfterOwnerLoop` promotes a
 pending child. A flag left by an IKE SA that died costs the next IKE SA's Child SA
@@ -68,6 +70,7 @@ one rekey, which also clears it.
 
 <!-- source: internal/component/ike/engine/established.go -- serviceChildRekeyTrigger, startChildRekey -->
 <!-- source: internal/component/ike/engine/rebind.go -- rebindChildSAs -->
+<!-- source: internal/component/ike/engine/create_child.go -- takePeerTunnelAddress -->
 <!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
 
 **Child rekey is non-PFS.** This matches `createFirstChildSA`, which ignores the

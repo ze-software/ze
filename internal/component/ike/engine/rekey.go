@@ -535,6 +535,7 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// side is TSi in the set recorded above.
 	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true, sa.NegotiatedPairs)
 	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
+	child.takePeerTunnelAddress(sa)
 	if err := child.takeEncapPorts(sa); err != nil {
 		keys.Clear()
 		return nil, fmt.Errorf("child rekey response: %w", err)
@@ -762,6 +763,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// side is TSi in the set narrowChildSelectors recorded.
 	child := newRekeyedChild(old, inSPI, peerSPI, keys, false, sa.NegotiatedPairs)
 	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
+	child.takePeerTunnelAddress(sa)
 	if err := child.takeEncapPorts(sa); err != nil {
 		keys.Clear()
 		return nil, nil, fmt.Errorf("child rekey request: %w", err)
@@ -799,7 +801,8 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 // newRekeyedChild builds a replacement Child SA inheriting addresses and ifID from the
 // old one, with fresh SPIs, fresh keys, and the scope THIS exchange negotiated. It sets
 // no UDP encapsulation port: both callers take those from the IKE SA next
-// (takeEncapPorts), never from the retired pair.
+// (takeEncapPorts), never from the retired pair, and a tunnel-mode child's peer address
+// with them (takePeerTunnelAddress), so a rekey after a rebind lands on the new address.
 // localIsInitiator records whether we sent Ni for this rekey exchange (true when we
 // initiated it), which selects the ESP send/receive key halves in installChildSA
 // (RFC 7296 Section 2.17).

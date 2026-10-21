@@ -333,10 +333,12 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	// for both kinds of policy this backend installs, for the same underlying
 	// reason: a selector is not owned by one installer.
 	//
-	// A Child SA rekey re-installs an IDENTICAL selector. newRekeyedChild
+	// A Child SA rekey re-installs the SAME selector. newRekeyedChild
 	// (engine/rekey.go) inherits TSLocal, TSRemote, IfID, ReqID and Mode from the
-	// retired pair, so the replacement's policies match the retired pair's in every
-	// field xfrmPolicyFromParams sets. Under NEWPOLICY the replacement's install
+	// retired pair, so the replacement's policies match the retired pair's selector.
+	// Their template usually matches too; after a NAT rebind the tunnel-mode
+	// replacement takes the IKE SA's new peer address (takePeerTunnelAddress), and
+	// the upsert is then what moves the template to it. Under NEWPOLICY the replacement's install
 	// failed with EEXIST on every make-before-break rekey, the rekey response was
 	// abandoned, and the tunnel died at the Child SA's hard lifetime. MEASURED
 	// against strongSwan: "child-sa: install inbound policy: xfrm: policy add: file

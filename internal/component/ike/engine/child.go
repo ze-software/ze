@@ -449,6 +449,20 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// was built. They are set whenever UDPEncap is, and NATDetected implies UDPEncap, so
 	// every branch below that reads them finds them set.
 	localPort, remotePort := child.udpLocalPort, child.udpRemotePort
+	// The second half of that check. takeEncapPorts is a step each builder must
+	// remember, so a child that skipped it would install an ESP-in-UDP template on port
+	// 0 here, and the XFRM backend passes the ports through without a check. It is
+	// refused before anything is installed.
+	if child.UDPEncap {
+		if localPort == 0 {
+			return fmt.Errorf("%w: peer %s: Child SA reached install with no local port (ze defect)",
+				errChildEncapPort, child.Owner)
+		}
+		if remotePort == 0 {
+			return fmt.Errorf("%w: peer %s: Child SA reached install with no peer port (ze defect)",
+				errChildEncapPort, child.Owner)
+		}
+	}
 
 	// RFC 3948: UDP encapsulation follows EITHER the NAT verdict OR the port this SA
 	// runs on. createFirstChildSA sets UDPEncap from a disjunction, so either condition

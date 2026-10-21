@@ -46,7 +46,8 @@ type childSpec struct {
 // RFC 4555 Section 3.3: "When an IPsec SA is created, the tunnel header IP addresses
 // (and port, if doing UDP encapsulation) are taken from the IKE_SA, not the IP header of
 // the IKEv2 message requesting the IPsec SA." A MOBIKE SA's current path therefore wins
-// over the configured addresses.
+// over the configured addresses, and so does the authenticated peer endpoint of a
+// tunnel-mode Child SA (peerTunnelAddress).
 func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA, error) {
 	srcIP := net.ParseIP(localAddr)
 	dstIP := net.ParseIP(remoteAddr)
@@ -56,6 +57,11 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		}
 		if remote := sa.remoteUDPAddr(); remote != nil {
 			dstIP = append(net.IP(nil), remote.IP...)
+		}
+	} else if spec.mode != modeTransport {
+		// RFC 4555 Section 3.3
+		if peer := peerTunnelAddress(sa); peer != nil {
+			dstIP = peer
 		}
 	}
 	if srcIP == nil {
@@ -118,6 +124,51 @@ func (c *ChildSA) takeEncapPorts(sa *SA) error {
 	}
 	c.udpLocalPort, c.udpRemotePort = local, remote
 	return nil
+}
+
+// peerTunnelAddress answers the address a tunnel-mode Child SA sends ESP to: the
+// address of the peer's authenticated IKE endpoint, the one IKE answers
+// (remoteUDPAddr). After a NAT rebinding moves that endpoint (rebindChildSAs), every
+// Child SA built from then on, by CREATE_CHILD_SA or by a rekey, follows it; a child
+// built from the configured remote, or copied from the retired pair, would send ESP to
+// an address IKE no longer uses. It answers nil while no endpoint is authenticated, and
+// the caller then keeps the configured remote.
+//
+// RFC 4555 Section 3.3: "When an IPsec SA is created, the tunnel header IP addresses
+// (and port, if doing UDP encapsulation) are taken from the IKE_SA, not the IP header of
+// the IKEv2 message requesting the IPsec SA."
+//
+// A transport-mode Child SA has no tunnel header and is not given this address: its
+// selectors name the IKE SA's address pair (transportSelectorPairs), so a peer that
+// changed address cannot be followed by a rekey, and rebindChildSAs retires the IKE SA.
+func peerTunnelAddress(sa *SA) net.IP {
+	if sa.peerEndpoint == nil {
+		return nil
+	}
+	return append(net.IP(nil), sa.peerEndpoint.IP...)
+}
+
+// takePeerTunnelAddress points a rekeyed tunnel-mode Child SA at the IKE SA's
+// authenticated peer address (peerTunnelAddress). newRekeyedChild copies the retired
+// pair's addresses, so both rekey directions call this next, beside takeEncapPorts.
+//
+// RFC 4555 Section 3.3: "the tunnel header IP addresses (and port, if doing UDP
+// encapsulation) are taken from the IKE_SA".
+//
+// A MOBIKE SA is left alone: its peer address moves by UPDATE_SA_ADDRESSES, and
+// setMobikePath writes peerEndpoint before the return routability check, which RFC
+// 4555 Section 3.7 says "SHOULD be done before updating the IPsec SAs". The MOBIKE
+// migration moves its Child SAs once the path is settled.
+func (c *ChildSA) takePeerTunnelAddress(sa *SA) {
+	if c.Mode == modeTransport {
+		return
+	}
+	if sa.mobike.enabled {
+		return
+	}
+	if peer := peerTunnelAddress(sa); peer != nil {
+		c.RemoteAddr = peer
+	}
 }
 
 // errChildEncapPort marks a Child SA refused because the UDP encapsulation it needs has
