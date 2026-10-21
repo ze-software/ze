@@ -1937,6 +1937,33 @@ Note: while another session's internal/component/config/yang and internal/exabgp
 do not build, run Go tests with `-overlay` mapping those dirty files to HEAD, and functional
 tests with `GOFLAGS=-overlay=<json>` (the harness's go build inherits it).
 
+## 2026-10-21 ExaBGP 6 FlowSpec child, continuation (budget handoff)
+
+Landed: be35caa194 (migration `flowRedirectAction`, every 6.0 keyword, tests red then green, docs
+exabgp-syntax.md); 81020ca754 (journal rows: 6.0 conf-flow state, asdot migration test red at HEAD).
+
+Owed, in order:
+1. Reseal RFC5575-4-8, RFC8955-6-1, RFC8955-6-3, RFC8956-5-1, RFC9117-4.1-1, RFC9117-4.2-1
+   (shifted by c4c085b727 in rib_flowspec_validation_test.go) with `./le rfc reseal`, commit only those
+   rfc/audit files; then `./le rfc check` for records in those stems. Not started.
+2. 6.0 `encoding/conf-flow.ci` holds 4.x frames. `--dut ze`: conf-flow-redirect PASS, conf-flow FAIL
+   on the now-correct IETF frame. `--dut exabgp` (pin) fails first on IPv6 flow-label: pin `A1000007DD`,
+   fixture `9107DD`. Regenerate the frames from the pin via the mock recorder (`newFrameRecorder`,
+   `saveDir` flag, interoplab/bgp/exabgp_server.go), pick one flow-label width, then old-4.2/old-5.0
+   allowances, then mark the journal row fixed.
+3. Bridge: `update text` (route/route_community.go `parseExtendedCommunity`) has no IETF
+   redirect-to-IP word and no attribute-25 support, so bridge_flow.go `readRedirect`/`readWord` cannot
+   send `redirect <ip>`/`copy <ip>` as 6.0 does until update text learns both. bridge_wire_json.go's
+   rename table already matches the 6.0 reprs. bridge_flow_test.go asserts the Simpson form today.
+4. Forwarding strips a received 0x0800 next hop: forward_next_hop.go `payloadNextHop` sets only
+   `mpIgnored` for FlowSpec and `applyNextHopFamily` clears it. Keep the address when
+   `attribute.FlowSpecRedirectsToNextHop` holds; Simpson-02 Section 3: "When a flow-spec route with
+   this community is advertised to an EBGP peer the next-hop address in the MP_REACH_NLRI SHOULD be
+   reset to an address of the advertising router by default, per normal BGP procedures." (no IBGP
+   rule, so unchanged toward IBGP). Check `applyFactsNextHop` handles a FlowSpec family. Red first.
+5. plan/verification-debt/485edca9.md has an uncommitted count bump, possibly from a refused script
+   of this agent. Gate owed: ./le go lint run on internal/exabgp/migration.
+
 ## 2026-10-21: closing spec-plugin-ownership-imports (closure agent ran out of budget)
 
 Done and committed: `9997a1b5a8` (numberparse: three AS parses to `asn.Parse`, stale
