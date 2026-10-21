@@ -30,3 +30,23 @@ held for over three hours.
 
 The spec edits of 2026-10-21 (Assumptions A-5, A-7, A-9) and this handover are
 committed together.
+
+## Progress, 2026-10-21 afternoon (closure agent, session 0b4a8e87)
+
+- Spec claimed. The Deliverables Checklist is added and `plan/TEMPLATE-CLOSURE.md` is
+  appended and filled except the cells marked in capitals (GOAL-D1, GOAL-D2,
+  INTEROP-TABLE, LINUX-INT, FULL-VERIFY, REVIEW-ARTIFACT, REVIEW-CHECK, A1/A4/A6/A8
+  evidence): each waits for the run that answers it.
+- The interop runs go from a `git archive` export of `5785852cbb`, not the shared tree,
+  so the greens and the mutant reds are over committed code. The heavy slot was held
+  all afternoon by two other sessions' `./le verify worktree` and a sibling's interop
+  loop; the first attempt failed in setup (QEMU host port 2222 taken by a VM started
+  the same minute), which is no verdict.
+- Mutants for the walk: (1) `childEncapPorts` returns `transport.NATTPort` twice
+  (tunnel and transport phase one); (2) `rebindChildSAs` returns `ownedOutcome{}` first
+  (both rebind steps); (3) the `sa.adoptAuthenticatedEndpoint(...)` line before
+  `buildAuthResponse` in `handleResponderEAP` removed (EAP scenario).
+- The Linux integration test binary cross-builds with
+  `./le job run label ike-int-build command env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go test -c -tags "integration ze_core <feature tags>" -o <out> ./internal/component/ike/engine/`
+  (13 s); run it in the guest with `-test.v -test.run TestRFC3948InstalledStateCarriesTheIKEPeerPort`
+  and check it says PASS, not SKIP (it skips without CLONE_NEWNET).
