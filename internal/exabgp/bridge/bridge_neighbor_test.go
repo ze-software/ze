@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -348,5 +349,55 @@ func TestConvertNeighborControlLeavesEveryOtherLine(t *testing.T) {
 				t.Errorf("an unclaimed line carries no command, got %q", onlyCommand(translation))
 			}
 		})
+	}
+}
+
+// TestNeighborDisableEnable checks the ExaBGP 6.0 administrative hold
+// commands (reactor/api/command/neighbor.py, disable and enable): disable's
+// words, read as shlex.split reads them, become the ze command's message, and
+// enable carries nothing.
+//
+// VALIDATES: AC-41, the bridge half.
+// PREVENTS: `neighbor <ip> disable "back soon"` refused as unknown, or the
+// quotes reaching the Shutdown Communication on the wire.
+func TestNeighborDisableEnable(t *testing.T) {
+	cases := []struct {
+		name string
+		rest string
+		want string
+	}{
+		{"quoted message", `disable "back soon"`, "request peer 127.0.0.1 disable back soon"},
+		{"single quotes", `disable 'it''s' later`, "request peer 127.0.0.1 disable its later"},
+		{"escaped quote", `disable "say \"hi\""`, `request peer 127.0.0.1 disable say "hi"`},
+		{"no message", "disable", "request peer 127.0.0.1 disable"},
+		{"enable", "enable", "request peer 127.0.0.1 enable"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, ok, err := convertNeighborControl("127.0.0.1", tc.rest)
+			if !ok || err != nil {
+				t.Fatalf("ok=%v err=%v, want a translation", ok, err)
+			}
+			if onlyCommand(translation) != tc.want {
+				t.Errorf("command = %q, want %q", onlyCommand(translation), tc.want)
+			}
+			if translation.Selector != "127.0.0.1" {
+				t.Errorf("selector = %q", translation.Selector)
+			}
+		})
+	}
+}
+
+// TestNeighborDisableEnableRefusals checks the two refusals ExaBGP answers:
+// an unclosed quote in disable, and an argument to enable.
+func TestNeighborDisableEnableRefusals(t *testing.T) {
+	for rest, want := range map[string]string{
+		`disable "back soon`: "No closing quotation",
+		"enable now":         "enable takes no argument",
+	} {
+		_, ok, err := convertNeighborControl("127.0.0.1", rest)
+		if !ok || err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: ok=%v err=%v, want a refusal containing %q", rest, ok, err, want)
+		}
 	}
 }

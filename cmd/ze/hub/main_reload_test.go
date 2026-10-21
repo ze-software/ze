@@ -73,6 +73,8 @@ func (r *reloadTestReactor) PeerNegotiatedCapabilities(netip.Addr) *plugin.PeerC
 	return nil
 }
 func (r *reloadTestReactor) Stop()                                        {}
+func (r *reloadTestReactor) DisablePeer(netip.Addr, string) error         { return nil }
+func (r *reloadTestReactor) EnablePeer(netip.Addr) error                  { return nil }
 func (r *reloadTestReactor) TeardownPeer(netip.Addr, uint8, string) error { return nil }
 func (r *reloadTestReactor) Reload() error                                { return nil }
 func (r *reloadTestReactor) DrainPeerSync(_ context.Context) error        { return nil }

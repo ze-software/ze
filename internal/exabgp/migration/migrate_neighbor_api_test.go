@@ -383,3 +383,52 @@ func TestMigrateIPv6RouteIPv4NextHopIsMapped(t *testing.T) {
 		t.Errorf("an IPv4 route's IPv4 next hop must be kept as written:\n%s", output)
 	}
 }
+
+// TestMigrateShutdownHoldsPeer proves ExaBGP's `shutdown true` (the neighbor
+// starts disabled, ExaBGP peer.py `Notify(6, 2) if neighbor.shutdown`) reaches
+// ze's peer shutdown container, which ze's own schema accepts, and that
+// `shutdown false` writes nothing.
+//
+// VALIDATES: AC-41, the migration half: `shutdown true` is carried, not refused.
+// PREVENTS: "unknown field in neighbor: shutdown", or a peer that connects at
+// once although the operator's config held it down.
+func TestMigrateShutdownHoldsPeer(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	local-as 1;
+	peer-as 1;
+	shutdown true;
+}
+neighbor 127.0.0.2 {
+	local-as 1;
+	peer-as 1;
+	shutdown false;
+}
+`
+	output, _ := migrateText(t, input)
+
+	if strings.Count(output, "shutdown {") != 1 {
+		t.Fatalf("want one shutdown container, for 127.0.0.1 alone:\n%s", output)
+	}
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatalf("load ze schema: %v", err)
+	}
+	tree, err := config.NewParser(schema).Parse(output)
+	if err != nil {
+		t.Fatalf("ze refuses the migrated config: %v\n%s", err, output)
+	}
+	var held []string
+	for _, group := range tree.GetContainer("bgp").GetList("group") {
+		for _, peer := range group.GetList("peer") {
+			if peer.GetContainer("shutdown") == nil {
+				continue
+			}
+			ip, _ := peer.GetContainer("connection").GetContainer("remote").Get("ip")
+			held = append(held, ip)
+		}
+	}
+	if len(held) != 1 || held[0] != "127.0.0.1" {
+		t.Fatalf("want 127.0.0.1 alone held in ze's parse, got %v:\n%s", held, output)
+	}
+}

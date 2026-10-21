@@ -61,9 +61,11 @@ const (
 	// PeerStateEstablished means the BGP session is established.
 	PeerStateEstablished
 	// PeerStateIdleHold means the peer is deliberately down and is trying
-	// nothing. A prefix limit stopped the session and the offending family
-	// asked for no reconnect (ze-bgp-conf.yang, prefix reconnect never), so the
-	// peer waits for an operator. It is distinct from PeerStateStopped, which
+	// nothing, and waits for an operator. Two holds set it: a prefix limit
+	// stopped the session and the offending family asked for no reconnect
+	// (ze-bgp-conf.yang, prefix reconnect never), or the peer is held
+	// administratively down (the shutdown container or request peer disable,
+	// peer_admin.go). It is distinct from PeerStateStopped, which
 	// means the peer is not running at all.
 	//
 	// New values go at the END: plugin.PeerState mirrors this list and
@@ -378,6 +380,15 @@ type Peer struct {
 	// places a conn becomes a session rather than on each rail that reaches them.
 	stopping atomic.Bool
 
+	// adminDown holds the peer administratively down (peer_admin.go): the run
+	// loop opens no session while it is set. NewPeer seeds it from the
+	// `shutdown` container; Disable and Enable change it at runtime. runOnce
+	// reads it in the p.mu hold that publishes a session, and Disable writes it
+	// in a p.mu hold, so a session can never start unseen by a Disable.
+	adminDown atomic.Bool
+	// adminWake carries one token to the run loop when adminDown changes.
+	adminWake chan struct{}
+
 	// Active prefix-threshold and prefix-stale warnings live on the report bus
 	// (internal/core/report). Producer-side dedup uses Session.prefixCounts.warned;
 	// the bus is the single source of truth for queries and the login banner.
@@ -681,11 +692,14 @@ func NewPeer(settings *PeerSettings) *Peer {
 		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		sourceOwner:     sourceOwner,
 		inboundNotify:   make(chan struct{}, 1),
+		adminWake:       make(chan struct{}, 1),
 		addrString:      addrStr,
 		localAddrString: settings.LocalAddress.String(),
 		history:         newFSMHistory(),
 		health:          newSessionHealth(addrStr, clk),
 	}
+
+	p.adminDown.Store(settings.AdminShutdown.Held)
 
 	// A dynamic peer's template pair is captured here, before the peer starts,
 	// so no establishment and no reload swap ever sees it unset: the chains

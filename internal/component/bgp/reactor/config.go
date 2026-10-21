@@ -311,6 +311,14 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		}
 	}
 
+	// Administrative shutdown from the shutdown presence container.
+	if shutdownMap, ok := mapMap(tree, "shutdown"); ok {
+		ps.AdminShutdown.Held = true
+		if v, ok := mapString(shutdownMap, "message"); ok {
+			ps.AdminShutdown.Message = v
+		}
+	}
+
 	// Protocol event capture from capture > {enabled,directory,maximum-size,on-limit}.
 	if captureMap, ok := mapMap(tree, "capture"); ok {
 		if err := parseCaptureSettings(name, captureMap, &ps.Capture); err != nil {

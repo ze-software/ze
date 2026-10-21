@@ -234,6 +234,14 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
+	// Write shutdown presence container (peer > shutdown).
+	if tree.GetContainer("shutdown") != nil {
+		buf.WriteString(indent)
+		buf.WriteString("shutdown {\n")
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
 	// Write local container (for sub-containers like connection > local).
 	if local := tree.GetContainer("local"); local != nil {
 		buf.WriteString(indent)

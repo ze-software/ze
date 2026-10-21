@@ -131,6 +131,12 @@ ze config migrate -o new.conf old.conf
 ```
 <!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate -->
 
+A neighbor with `shutdown true` migrates to the peer `shutdown {}` container,
+so the migrated peer stays held down as it was under ExaBGP, and `request peer
+<selector> enable` releases it (`docs/guide/configuration.md`, "Holding a peer
+administratively down").
+<!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields; internal/exabgp/migration/migrate_serialize.go -->
+
 ### Running ExaBGP Plugins
 
 Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:

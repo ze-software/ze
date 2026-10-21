@@ -658,11 +658,24 @@ func (p *Peer) printf(format string, args ...any) {
 }
 
 // doOpenHandshake reads the peer's OPEN, sends our mirrored OPEN + KEEPALIVE,
-// and returns the peer's router-id extracted from the OPEN body.
+// and returns the peer's router-id extracted from the OPEN body. Under
+// inspect-open-message a NOTIFICATION in place of the OPEN is returned as is,
+// with no reply and a zero router-id.
 func (p *Peer) doOpenHandshake(conn net.Conn) (header, body []byte, routerID uint32, err error) {
 	header, body, err = ReadMessage(conn)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("read OPEN: %w", err)
+	}
+	// A daemon may refuse a connection with a NOTIFICATION before any OPEN (a
+	// held-down peer answers Cease, Connection Rejected, RFC 4486 Section 4).
+	// Under inspect-open-message the first message is itself an expectation, so
+	// it goes back to the checker unanswered: no OPEN is sent to a speaker that
+	// has already closed the session.
+	if header[18] == MsgNOTIFICATION {
+		if p.config.InspectOpenMessage {
+			p.printPayload("notification recv", header, body)
+			return header, body, 0, nil
+		}
 	}
 	if header[18] != MsgOPEN {
 		return nil, nil, 0, fmt.Errorf("expected OPEN, got type %d", header[18])

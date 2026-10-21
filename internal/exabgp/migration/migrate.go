@@ -598,7 +598,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	leafFields := []string{
 		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
 		"hold-time", "passive", "listen", "connect", "ttl-security",
-		"md5-password", "md5-base64", "group-updates", "auto-flush", "manual-eor",
+		"md5-password", "md5-base64", "group-updates", "auto-flush", "manual-eor", "shutdown",
 	}
 	for _, key := range leafFields {
 		if v, ok := neighbor.Get(key); ok {
@@ -745,6 +745,14 @@ func copySimpleFields(src, dst *config.Tree) {
 			continue
 		}
 		dst.GetOrCreateContainer("behavior").Set(field, v)
+	}
+
+	// ExaBGP `shutdown true` starts the neighbor disabled until the API's
+	// `neighbor <ip> enable` (ExaBGP peer.py, issue #1013). ze's peer shutdown
+	// container holds the peer the same way; `shutdown false` is the default and
+	// writes nothing.
+	if v, ok := src.Get("shutdown"); ok && v == "true" {
+		dst.GetOrCreateContainer("shutdown")
 	}
 
 	// Fields that move into session > asn: local-as -> local, peer-as -> remote.

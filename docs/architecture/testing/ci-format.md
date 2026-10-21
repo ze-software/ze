@@ -555,7 +555,7 @@ wearing a skip's clothing.
 | Value | Description |
 |-------|-------------|
 | `send-unknown-capability` | Add unknown capability (code 66) to OPEN |
-| `inspect-open-message` | Validate received OPEN against expectations |
+| `inspect-open-message` | Validate received OPEN against expectations. A NOTIFICATION ze sends in place of the OPEN (a held-down peer refusing a connection) is judged the same way and gets no reply (`test/plugin/peer-admin-shutdown-inbound.ci`) |
 | `send-unknown-message` | Send unknown message type (255) after OPEN |
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |

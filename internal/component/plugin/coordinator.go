@@ -341,6 +341,22 @@ func (c *Coordinator) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg s
 	return ErrNoReactor
 }
 
+// DisablePeer holds a peer administratively down.
+func (c *Coordinator) DisablePeer(addr netip.Addr, shutdownMsg string) error {
+	if r := c.getReactor(); r != nil {
+		return r.DisablePeer(addr, shutdownMsg)
+	}
+	return ErrNoReactor
+}
+
+// EnablePeer releases a peer's administrative hold.
+func (c *Coordinator) EnablePeer(addr netip.Addr) error {
+	if r := c.getReactor(); r != nil {
+		return r.EnablePeer(addr)
+	}
+	return ErrNoReactor
+}
+
 // PausePeer pauses reading from a specific peer's session.
 func (c *Coordinator) PausePeer(addr netip.Addr) error {
 	if r := c.getReactor(); r != nil {

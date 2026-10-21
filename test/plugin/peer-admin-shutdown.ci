@@ -1,0 +1,92 @@
+# Test: the peer shutdown container holds a peer down until `request peer
+# <selector> enable`, and `request peer <selector> disable <text>` closes the
+# session with Cease 6/2 carrying the RFC 9003 Shutdown Communication.
+#
+# VALIDATES: AC-41 through the real config and the real command dispatch.
+#            1. A peer whose config holds `shutdown {}` opens no session: its
+#               state reads idle-hold and the reactor logs the hold.
+#            2. `request peer peer1 enable` releases it and the session comes up.
+#            3. `request peer peer1 disable back soon` sends Cease, subcode 2
+#               (Administrative Shutdown), whose data is the RFC 9003 length
+#               octet and the text, asserted in hex below.
+# PREVENTS:  a hold that only the unit tests see. Without the run-loop hold the
+#            peer connects at startup, never reads idle-hold, and the first
+#            engine step times out.
+#
+# The inbound half of the hold (an incoming connection answered Cease 6/5) is
+# test/plugin/peer-admin-shutdown-inbound.ci.
+
+option=env:var=ze.log.bgp.reactor.peer:value=info
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# The End-of-RIB ze sends once the session is up (IPv4 unicast, empty UPDATE).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# NOTIFICATION, Len=001F(31): code 06 (Cease), subcode 02 (Administrative
+# Shutdown), then RFC 9003 Section 2: length 09 and "back soon" in UTF-8
+# (6261636B20736F6F6E).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001F030602096261636B20736F6F6E
+EOF_PEER
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		shutdown {
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
+
+# 1. Held by config: no session, the state names the hold.
+command=show bgp peer list
+expect=output:contains=idle-hold:timeout=10
+# 2. Released: the peer connects straight away.
+command=request peer peer1 enable
+command=show bgp peer list
+expect=output:contains=established:timeout=15
+# 3. Disabled again with a Shutdown Communication; ze-peer asserts the bytes.
+command=request peer peer1 disable back soon
+command=show bgp peer list
+expect=output:contains=idle-hold:timeout=10
+expect=exit:code=0
+expect=stderr:contains=peer held administratively down
+expect=stderr:contains=peer administrative hold released
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

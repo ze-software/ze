@@ -7,7 +7,7 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
-    revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner."; }
+    revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner. request peer disable and enable hold a peer administratively down and release it."; }
     revision 2026-10-18 { description "The peer selector summary names * for every peer, so the selector guard's refusal, which quotes it, names the explicit every-peer form."; }
     // One verb pair for one runtime resource: create and delete, the pair the
     // verb table declares. peer-add and the delete verb's own spelling were
@@ -519,6 +519,32 @@ answer echoes the truncated text that went on the wire.";
 is refused. Ze puts it in the Cease NOTIFICATION it sends before it closes the session.";
                     ze:help "BGP cease NOTIFICATION subcode";
                 }
+            }
+
+            container disable {
+                config false;
+                ze:command "ze-bgp:peer-disable";
+                ze:rpc "ze-bgp-api:peer-disable";
+                description "Ze closes a running session with Cease subcode 2, Administrative Shutdown,
+and opens none until 'request peer <selector> enable'. The words after disable
+are the RFC 9003 Shutdown Communication, and the answer echoes the text that
+fits on the wire.";
+                ze:help "Hold a peer administratively down.";
+                leaf message {
+                    type string;
+                    description "Every word after disable, joined by one space. Absent, the Cease carries
+no communication.";
+                    ze:help "Shutdown communication";
+                }
+            }
+
+            container enable {
+                config false;
+                ze:command "ze-bgp:peer-enable";
+                ze:rpc "ze-bgp-api:peer-enable";
+                description "Ze releases the hold of 'request peer <selector> disable' or of the peer
+shutdown container, and the peer connects straight away. It takes no argument.";
+                ze:help "Release a peer's administrative hold.";
             }
 
             container pause {

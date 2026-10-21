@@ -378,6 +378,12 @@ type PeerSettings struct {
 	// (capture_replay.go).
 	Capture CaptureSettings
 
+	// AdminShutdown is the `shutdown` container: the peer starts held
+	// administratively down (peer_admin.go). It is hot-swappable: a reload
+	// that adds it closes the session with its message, one that removes it
+	// releases the hold (Peer.applyAdminShutdownChange).
+	AdminShutdown AdminShutdown
+
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool

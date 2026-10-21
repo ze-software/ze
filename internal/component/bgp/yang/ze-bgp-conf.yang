@@ -8,6 +8,10 @@ module ze-bgp-conf {
 
     description "BGP configuration for ZeBGP";
 
+    revision 2026-10-21 {
+        description "Add the peer shutdown container: the peer is held administratively down.";
+    }
+
     revision 2026-09-20 {
         description "peer > connection > link-local and peer > attach > process > content > attribute are removed. No code read either one, so both accepted a value at commit and changed nothing.";
     }
@@ -1146,6 +1150,26 @@ module ze-bgp-conf {
                 description "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer
                     expires. This is a legacy ExaBGP option, kept for migration.";
                 ze:help "Withdraw every route advertised to this peer when the session goes down.";
+            }
+        }
+
+        container shutdown {
+            presence "The peer is held administratively down";
+            description "While the container is present Ze opens no session with the peer and answers an
+                inbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4).
+                'request peer <selector> enable' releases the hold until a commit adds or removes the
+                container, and 'request peer <selector> disable' sets it again. A commit that adds the
+                container to a peer whose session is up closes it with Cease subcode 2, Administrative
+                Shutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the
+                peer connect.";
+            ze:help "Hold the peer administratively down.";
+
+            leaf message {
+                type string;
+                description "The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the
+                    container to a peer whose session is up. Ze truncates it to the 255 octets the wire
+                    carries.";
+                ze:help "Shutdown communication sent with the Cease.";
             }
         }
 

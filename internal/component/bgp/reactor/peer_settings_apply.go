@@ -110,6 +110,7 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	if !bfdOptInStrict(dst.BFD) && !bfdOptInStrict(src.BFD) {
 		dst.BFD = src.BFD
 	}
+	dst.AdminShutdown = src.AdminShutdown
 }
 
 // peerSettingsRestartRequired reports whether applying next to a peer currently
@@ -337,6 +338,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	r := p.reactor
 	session := p.session
 	bindingsBefore := p.settings.ProcessBindings
+	shutdownBefore := p.settings.AdminShutdown
 	announced := p.upPhaseLocked(session)
 	p.mu.RUnlock()
 	stateUp := p.State() == PeerStateEstablished
@@ -462,6 +464,26 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// the write itself, so an opt-in judged swappable always reaches the
 	// client.
 	p.applyBFDOptInChange(&bfd)
+	// Step 6: the administrative hold follows the shutdown container.
+	p.applyAdminShutdownChange(shutdownBefore, next.AdminShutdown)
+}
+
+// applyAdminShutdownChange moves the administrative hold when a reload added or
+// removed the shutdown container. Only a change of presence moves it: a reload
+// that leaves the container as it was must not undo a runtime `enable` or
+// `disable`, and a changed message alone has no session to go to until the next
+// disable.
+func (p *Peer) applyAdminShutdownChange(before, after AdminShutdown) {
+	if before.Held == after.Held {
+		return
+	}
+	if after.Held {
+		if err := p.Disable(after.Message); err != nil {
+			peerLogger().Warn("shutdown container: closing the session failed", "peer", p.settings.Address, "error", err)
+		}
+		return
+	}
+	p.Enable()
 }
 
 // refreshPrefixStale republishes the prefix-staleness verdict from the peer's

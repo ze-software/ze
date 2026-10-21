@@ -2626,6 +2626,8 @@ Many commands take a `peer <selector>` argument:
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
+| `request peer <sel> disable [<message>]` | write | Hold the peer administratively down: a running session closes with Cease subcode 2 (Administrative Shutdown) carrying the words after `disable` as the RFC 9003 Shutdown Communication, and ze opens no session and answers an inbound connection with Cease subcode 5 until `enable`. It overrides the config `shutdown` container until a commit adds or removes that container <!-- source: internal/component/bgp/plugins/cmd/peer/admin.go -- disable handler; internal/component/bgp/reactor/peer_admin.go -- Peer.Disable --> |
+| `request peer <sel> enable` | write | Release the hold of `disable` or of the config `shutdown` container; the peer connects straight away. Takes no argument <!-- source: internal/component/bgp/reactor/peer_admin.go -- Peer.Enable --> |
 | `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang --> |
 
 `show bgp peer <sel> capabilities` and `show bgp peer <sel> statistics` answer

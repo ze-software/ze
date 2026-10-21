@@ -76,6 +76,8 @@ var errTeardownSubcode = errors.New("teardown takes one BGP cease subcode, 0 to 
 // that are not routes. It reports false when the line is not one of them.
 //
 //	neighbor <ip> teardown <subcode>  -> request peer <ip> teardown <subcode>
+//	neighbor <ip> disable [<text>]    -> request peer <ip> disable [<text>]
+//	neighbor <ip> enable              -> request peer <ip> enable
 //	create neighbor <ip> ...          -> create bgp peer <ip> asn <asn> ...
 //	delete neighbor <ip>              -> delete bgp peer <ip>
 //	neighbor <ip> receive ...         -> refused, this is an event, not a command
@@ -107,6 +109,10 @@ func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 	switch {
 	case verb == "teardown":
 		return convertTeardown(selector, lowerFields(fields))
+	case verb == "disable":
+		return convertDisable(selector, rest)
+	case verb == "enable":
+		return convertEnable(selector, fields)
 	case verb == "create" && names:
 		return convertNeighborCreate(fields[2:])
 	case verb == "delete" && names:
@@ -170,6 +176,120 @@ func convertTeardown(selector string, fields []string) (Translation, bool, error
 		Selector: selector,
 	}, true, nil
 }
+
+// errEnableArgument is the answer for an enable that carries a word, which
+// ExaBGP refuses with the same text (neighbor.py, enable).
+var errEnableArgument = errors.New("enable takes no argument")
+
+// errUnclosedQuote is Python shlex's answer for an unbalanced quote, which is
+// what ExaBGP's disable answers with (neighbor.py, disable: shlex.split raises
+// ValueError and the handler answers str(exc)).
+var errUnclosedQuote = errors.New("No closing quotation") //nolint:staticcheck // ST1005: ExaBGP's exact text, which a script may match
+
+// convertDisable writes the ze command that holds a peer administratively down.
+//
+// ExaBGP 6.0 (reactor/api/command/neighbor.py, disable) reads the words after
+// the verb with shlex.split and joins them with one space; that text is the RFC
+// 9003 Shutdown Communication of the Cease, Administrative Shutdown it sends.
+// The words go to ze unquoted: ze's handler joins its tokens with one space,
+// so the communication on the wire is the one ExaBGP would send.
+func convertDisable(selector, rest string) (Translation, bool, error) {
+	_, after, _ := strings.Cut(strings.TrimSpace(rest), " ")
+	words, err := shlexSplit(after)
+	if err != nil {
+		return Translation{}, true, err
+	}
+	var tb textbuf.Buffer
+	tb.Str("request peer ").Str(selector).Str(" disable")
+	for _, word := range words {
+		tb.Str(" ").Str(word)
+	}
+	return Translation{Commands: textCommands(tb.String()), Selector: selector}, true, nil
+}
+
+// convertEnable writes the ze command that releases an administrative hold.
+// ExaBGP's enable takes no argument and refuses one.
+func convertEnable(selector string, fields []string) (Translation, bool, error) {
+	if len(fields) > 1 {
+		return Translation{}, true, fmt.Errorf("%w, got %q", errEnableArgument, strings.Join(fields[1:], " "))
+	}
+	var tb textbuf.Buffer
+	return Translation{
+		Commands: textCommands(tb.Str("request peer ").Str(selector).Str(" enable").String()),
+		Selector: selector,
+	}, true, nil
+}
+
+// shlexSplit splits text as Python's shlex.split does in POSIX mode, for the
+// forms an ExaBGP script writes: words separated by blanks, a single-quoted
+// run taken as written, a double-quoted run where a backslash escapes `"` or
+// `\`, and a backslash outside quotes escaping the next character. An
+// unclosed quote is refused with shlex's own text.
+func shlexSplit(text string) ([]string, error) {
+	var words []string
+	var word strings.Builder
+	inWord := false
+	quote := rune(0)
+	escaped := false
+	for _, r := range text {
+		if escaped {
+			word.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if quote == '\'' {
+			if r == '\'' {
+				quote = 0
+				continue
+			}
+			word.WriteRune(r)
+			continue
+		}
+		if quote == '"' {
+			if r == '"' {
+				quote = 0
+				continue
+			}
+			if r == '\\' {
+				escaped = true
+				continue
+			}
+			word.WriteRune(r)
+			continue
+		}
+		if r == ' ' || r == '\t' {
+			if inWord {
+				words = append(words, word.String())
+				word.Reset()
+				inWord = false
+			}
+			continue
+		}
+		inWord = true
+		if r == '\'' || r == '"' {
+			quote = r
+			continue
+		}
+		if r == '\\' {
+			escaped = true
+			continue
+		}
+		word.WriteRune(r)
+	}
+	if quote != 0 {
+		return nil, errUnclosedQuote
+	}
+	if escaped {
+		return nil, errNoEscapedCharacter
+	}
+	if inWord {
+		words = append(words, word.String())
+	}
+	return words, nil
+}
+
+// errNoEscapedCharacter is shlex's answer for a line ending in a backslash.
+var errNoEscapedCharacter = errors.New("No escaped character") //nolint:staticcheck // ST1005: shlex's exact text
 
 // The `create bgp peer` keywords this converter writes. Each one is a leaf of
 // the same name in ze-peer-cmd.yang, and each is named three times here: in the

@@ -480,6 +480,14 @@ type ReactorPeerController interface {
 	// RFC 8203: shutdownMsg is included for subcodes 2/4 (empty = default message).
 	TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error
 
+	// DisablePeer holds a peer administratively down: a running session is
+	// closed with Cease, Administrative Shutdown and shutdownMsg as its RFC 9003
+	// Shutdown Communication, and no session opens until EnablePeer.
+	DisablePeer(addr netip.Addr, shutdownMsg string) error
+
+	// EnablePeer releases an administrative hold, so the peer connects again.
+	EnablePeer(addr netip.Addr) error
+
 	// PausePeer pauses reading from a specific peer's session.
 	// Used by flow control to apply backpressure when a plugin's worker pool saturates.
 	PausePeer(addr netip.Addr) error

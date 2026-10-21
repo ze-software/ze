@@ -13,7 +13,7 @@ module ze-bgp-api {
     // peer-add and the delete verb's bgp-peer were two spellings of one
     // lifecycle; ze-bgp:peer-create and ze-bgp:peer-delete name the pair.
     revision 2026-10-21 {
-        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal; declare bgp-health, moved from ze-cli-show-api.";
+        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal; declare bgp-health, moved from ze-cli-show-api; declare peer-disable and peer-enable, the administrative hold.";
     }
 
     revision 2026-10-09 {
@@ -579,6 +579,47 @@ session receives the NOTIFICATION, and the peer stays configured.";
                 description "The Cease subcode, 0 to 255, that the NOTIFICATION carries under error code
 6. Subcodes 2 and 4 can carry a shutdown communication message.";
                 ze:help "CEASE subcode";
+            }
+        }
+    }
+
+    rpc peer-disable {
+        description "Ze holds the peer administratively down. A running session is closed with a
+Cease NOTIFICATION, subcode 2 (Administrative Shutdown), carrying the message as
+its RFC 9003 Shutdown Communication, truncated to the 255 octets the wire
+carries. A peer with no session is held all the same: Ze opens no session and
+answers an inbound connection with Cease subcode 5 (Connection Rejected), until
+peer-enable. The routes queued for the peer are kept and sent once it is enabled.";
+        ze:help "Hold a peer administratively down.";
+        input {
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address or a peer name. A selector that matches more than one peer is
+refused.";
+                ze:help "Peer filter";
+            }
+            leaf message {
+                type string;
+                description "The RFC 9003 Shutdown Communication. Absent, the Cease carries none.";
+                ze:help "Shutdown communication";
+            }
+        }
+    }
+
+    rpc peer-enable {
+        description "Ze releases the administrative hold of peer-disable or of the peer shutdown
+container, and the peer connects straight away. A peer that is not held is left
+as it is. The release lasts until a commit adds or removes the shutdown
+container.";
+        ze:help "Release a peer's administrative hold.";
+        input {
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address or a peer name. A selector that matches more than one peer is
+refused.";
+                ze:help "Peer filter";
             }
         }
     }

@@ -75,6 +75,8 @@ module exabgp {
         leaf group-updates { type boolean; default true; }
         leaf auto-flush { type boolean; default true; }
         leaf manual-eor { type boolean; default false; }
+        // ExaBGP peer.py: `Notify(6, 2) if neighbor.shutdown`, the peer starts disabled.
+        leaf shutdown { type boolean; default false; }
 
         // Family block (ExaBGP uses space: "ipv4 unicast")
         container family {

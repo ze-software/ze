@@ -82,6 +82,8 @@ func (m *mockReactor) Stop() {
 	m.stopped = true
 }
 
+func (m *mockReactor) DisablePeer(netip.Addr, string) error { return nil }
+func (m *mockReactor) EnablePeer(netip.Addr) error          { return nil }
 func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
 	m.teardownCalls = append(m.teardownCalls, struct {
 		addr    netip.Addr

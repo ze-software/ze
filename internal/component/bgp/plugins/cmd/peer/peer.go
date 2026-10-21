@@ -93,9 +93,10 @@ var cmdBgpUpdateDelayColumns = command.ColumnOrder{
 }
 
 var (
-	errReactorNotAvailable = errors.New("reactor not available")
-	errMissingCeaseSubcode = errors.New("missing cease subcode")
-	errEmptyString         = errors.New("empty string")
+	errReactorNotAvailable   = errors.New("reactor not available")
+	errMissingCeaseSubcode   = errors.New("missing cease subcode")
+	errEmptyString           = errors.New("empty string")
+	errEnableTakesNoArgument = errors.New("enable takes no argument")
 )
 
 // messageCounters renders one direction of the per-message-type counters that
@@ -127,6 +128,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: handleBgpPeerDetail},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-disable", Handler: handlePeerDisable, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-enable", Handler: handlePeerEnable, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},

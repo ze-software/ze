@@ -963,6 +963,30 @@ exemption reads the communities THAT SESSION agreed to, so a peer running RTBH o
 the exemption does nothing, and Ze logs that at configure time naming the peer.
 <!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/blackholecfg/blackholecfg.go -- Rule, Parse, Carries, Agreed; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType; internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go -- agreedSelector; internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- match; internal/component/bgp/plugins/filter_modify/match.go -- matchCond; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
 
+## Holding a peer administratively down
+
+The peer `shutdown` container holds the peer down while it is present. Ze opens
+no session, answers an inbound connection with Cease subcode 5 (Connection
+Rejected, RFC 4486 Section 4), and the peer state reads `idle-hold`. A commit
+that adds the container to a peer whose session is up closes it with Cease
+subcode 2 (Administrative Shutdown) carrying `message` as the RFC 9003
+Shutdown Communication. A commit that removes it lets the peer connect.
+
+```
+peer edge1 {
+    ...
+    shutdown {
+        message "planned maintenance"
+    }
+}
+```
+
+`request peer <selector> enable` releases the hold without a commit, and
+`request peer <selector> disable [<message>]` sets it again; a runtime change
+lasts until a commit adds or removes the container. ExaBGP's `shutdown true`
+migrates to this container.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- shutdown; internal/component/bgp/reactor/peer_admin.go -- holdAdminDown, rejectAdminDownConnection; internal/component/bgp/reactor/peer_settings_apply.go -- applyAdminShutdownChange -->
+
 ## Capabilities
 
 Configured under `capability { }` at any inheritance level.

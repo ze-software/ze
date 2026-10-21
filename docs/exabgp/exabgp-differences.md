@@ -112,6 +112,15 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/ann
 
 ---
 
+## Neighbor disable and enable -- no difference
+
+ExaBGP 6 `neighbor <ip> disable [<message>]` and `neighbor <ip> enable` reach
+`request peer <ip> disable` and `enable` unchanged, and the `api-disable`
+compatibility test passes against Ze and against the pinned ExaBGP alike. The
+config side matches too: `shutdown true` migrates to the peer `shutdown {}`
+container (`exabgp-migration.md`).
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertDisable, convertEnable -->
+
 ## Neighbor Qualifier Syntax (Multi-Session)
 
 **ExaBGP behavior:**

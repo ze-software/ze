@@ -58,6 +58,7 @@ type mockReactor struct {
 	softClearCalls []string // peer selectors
 
 	// Peer operations tracking
+	adminCalls    []adminCall
 	teardownCalls []struct {
 		addr    netip.Addr
 		subcode uint8
@@ -170,6 +171,23 @@ func (m *mockReactor) FlushForwardPool(_ context.Context) error { return nil }
 func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, addr string) error {
 	m.flushedPeers = append(m.flushedPeers, addr)
 	return nil
+}
+
+func (m *mockReactor) DisablePeer(addr netip.Addr, shutdownMsg string) error {
+	m.adminCalls = append(m.adminCalls, adminCall{addr: addr, disable: true, message: shutdownMsg})
+	return nil
+}
+
+func (m *mockReactor) EnablePeer(addr netip.Addr) error {
+	m.adminCalls = append(m.adminCalls, adminCall{addr: addr})
+	return nil
+}
+
+// adminCall records one DisablePeer (disable true) or EnablePeer call.
+type adminCall struct {
+	addr    netip.Addr
+	disable bool
+	message string
 }
 
 func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {

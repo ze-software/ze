@@ -1527,6 +1527,29 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8, shutdow
 	return peer.Teardown(subcode, shutdownMsg)
 }
 
+// DisablePeer holds a peer administratively down (Peer.Disable).
+func (a *reactorAPIAdapter) DisablePeer(addr netip.Addr, shutdownMsg string) error {
+	a.r.mu.RLock()
+	peer, exists := a.r.findPeerByAddr(addr)
+	a.r.mu.RUnlock()
+	if !exists {
+		return ErrPeerNotFound
+	}
+	return peer.Disable(shutdownMsg)
+}
+
+// EnablePeer releases a peer's administrative hold (Peer.Enable).
+func (a *reactorAPIAdapter) EnablePeer(addr netip.Addr) error {
+	a.r.mu.RLock()
+	peer, exists := a.r.findPeerByAddr(addr)
+	a.r.mu.RUnlock()
+	if !exists {
+		return ErrPeerNotFound
+	}
+	peer.Enable()
+	return nil
+}
+
 // PausePeer pauses reading from a specific peer's session.
 func (a *reactorAPIAdapter) PausePeer(addr netip.Addr) error {
 	return a.r.PausePeer(addr)

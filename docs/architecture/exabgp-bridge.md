@@ -361,6 +361,8 @@ gets.
 | ExaBGP line | Answer |
 |---|---|
 | `neighbor <ip> teardown <subcode>` | `request peer <ip> teardown <subcode>` |
+| `neighbor <ip> disable [<message>]` | `request peer <ip> disable [<message>]` |
+| `neighbor <ip> enable` | `request peer <ip> enable` |
 | `create neighbor <ip> ...` | `create bgp peer <ip> asn <asn> ...` |
 | `delete neighbor <ip>` | `delete bgp peer <ip>` |
 | `neighbor <ip> receive update ...` | refused: this is an event, not a command |
@@ -369,6 +371,12 @@ The teardown carries a BGP cease subcode, and that subcode is what goes on the
 wire. ze sends Cease, which is RFC 4271 error code 6, and it supplies the RFC
 8203 shutdown communication itself when the command gives none. So the ExaBGP
 grammar, which carries a subcode and nothing else, needs no message added to it.
+
+ExaBGP 6 `disable` and `enable` (`neighbor.py`) map one to one: `disable` holds the
+peer down and sends Cease subcode 2 with the rest of the line, split the way
+ExaBGP splits it (quotes group words), as the RFC 9003 Shutdown Communication;
+`enable` releases the hold and takes nothing after it.
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertDisable, convertEnable -->
 
 `create neighbor` reaches `create bgp peer`, the command `ze-bgp:peer-create`
 answers. The peer ze builds lives in the running daemon, and like ExaBGP's own

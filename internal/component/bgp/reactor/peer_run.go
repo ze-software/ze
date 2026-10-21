@@ -57,6 +57,15 @@ func (p *Peer) run() {
 		default: // no cancellation pending
 		}
 
+		// A peer held administratively down opens nothing until Enable
+		// (peer_admin.go). The hold re-reads the flag itself, so this read is
+		// the cheap early exit and runOnce's publish-time read is the correct one.
+		if p.adminDown.Load() {
+			p.holdAdminDown()
+			delay = p.reconnectMin
+			continue
+		}
+
 		attempt++
 		attemptStart := p.clock.Now()
 		peerLabel := p.peerAddrLabel()
@@ -152,6 +161,10 @@ func (p *Peer) run() {
 			case <-p.ctx.Done():
 				return
 			case <-p.clock.After(fsm.Jitter(delay)):
+			case <-p.adminWake:
+				// Disable during the backoff parks now; Enable retries now.
+				delay = p.reconnectMin
+				continue
 			case <-p.inboundNotify:
 				// Inbound connection arrived while session was nil.
 				// Restart runOnce immediately without doubling delay.
@@ -291,6 +304,15 @@ func (p *Peer) runOnce() error {
 		// nil, not an error: run()'s loop top is the single place the seal ends
 		// the loop, and it is one statement away. An error here would send run()
 		// into its backoff select first, to sit there until the cancel.
+		return nil
+	}
+	// The same hold for the administrative flag: Disable writes it under p.mu,
+	// so a Disable that ran before this point is seen here, and one that runs
+	// after it sees the published session and closes it (peer_admin.go). nil,
+	// not an error, for the same reason as the seal above: the loop top parks.
+	if p.adminDown.Load() {
+		p.mu.Unlock()
+		p.stopCapture(capture)
 		return nil
 	}
 	p.session = session
