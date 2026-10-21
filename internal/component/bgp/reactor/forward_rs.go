@@ -373,7 +373,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 
 	// RFC 8669 Section 8 needs the same one bit per UPDATE: whether the source
 	// carries a Prefix-SID attribute at all. It matters most here. An RS client
-	// keeps the source next-hop (RFC 7947 Section 2.2.2), so applyFactsNextHop
+	// keeps the source next-hop (RFC 7947 Section 2.2.1), so applyFactsNextHop
 	// records nothing for one and the attribute reached every RS client until
 	// applyFactsPrefixSID existed (forward_prefix_sid.go).
 	srcHasPrefixSID := payloadHasAttr(wire.Payload(), attribute.AttrPrefixSID)
@@ -514,19 +514,19 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 
 		applyFactsNextHop(facts, &mods, srcNextHop.mpFamily)
-		applyNextHopFamily(&mods, srcNextHop)
+		applyNextHopFamily(facts, &mods, srcNextHop)
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// RFC 2545 Section 3; draft-ietf-idr-linklocal-capability Section 4.
-		// Keep the effective Global unchanged (RFC 7947 Section 2.2.2),
+		// Keep the effective Global unchanged (RFC 7947 Section 2.2.1),
 		// normalizing its Link-Local exactly as the cached forwarding rail.
 		applyEgressNextHopScope(peer, facts, &mods, wire.Payload(), srcNextHop.mpFamily)
 
 		// The egress gates that refuse an announcement because of the next hop
 		// about to be written. The general rail (forwardUpdateCore) asks the same
 		// function, which carries every quote, so the two rails cannot answer
-		// differently. RFC 7947 Section 2.2.2 requires a route server to pass
+		// differently. RFC 7947 Section 2.2.1 requires a route server to pass
 		// NEXT_HOP through untouched, and withholding keeps that promise: no
 		// client is ever sent a next hop this speaker invented.
 		if !mods.IsWithdraw() {

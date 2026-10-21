@@ -224,7 +224,9 @@ func clusterListHandler() filterapi.AttrModHandler {
 // MP_REACH_NLRI would strip the entire route, which is a withdraw -- that is
 // expressed via ModAccumulator.SetWithdraw(), not via this handler.
 // A Set with an empty buffer is a real rewrite for a family without next hops,
-// not an absent operation. Such a family cannot acquire a next hop from any Set.
+// not an absent operation. Such a family acquires a next hop only from a 4- or
+// 16-octet Set, which applyNextHopFamily records for a FlowSpec redirect-to-IP
+// route alone; it has cleared every other Set to empty by then.
 //
 // An AttrModReplaceNLRI op replaces the NLRI field and keeps AFI, SAFI and the
 // next hop (or the next hop a Set writes). An empty replacement drops the
@@ -302,12 +304,13 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		}
 		switch {
 		case nextHopKept:
+		case noNextHop && newNHLen != 0:
+			// FlowSpec carries an address only as a redirect-to-IP target,
+			// which applyNextHopFamily alone writes (a 4- or 16-octet
+			// address, draft-simpson-idr-flowspec-redirect-02 Section 3).
+			nextHopKept = newNHLen != 4 && newNHLen != 16
 		case noNextHop:
-			if nhLen == 0 {
-				nextHopKept = true
-				break
-			}
-			newNHLen = 0
+			nextHopKept = nhLen == 0
 		case newNHLen != 4 && newNHLen != 12 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 && newNHLen != vpnNextHopPairOctets:
 			nextHopKept = true
 		case !familyAdmitsNextHopOctets(val, newNHLen):

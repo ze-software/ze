@@ -498,6 +498,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 		return nil, 0, 0, errRelayAttrs
 	}
 
+	if len(nextHop) == 0 && !fam.NeedsNextHop() {
+		nextHop = relayFlowSpecNextHop(attrs, fam)
+	}
+
 	needNextHop := relayNeedsNextHopAttr(scanned, fam)
 	// The stored next hop belongs to this route. A mixed received UPDATE can
 	// also carry a legacy NEXT_HOP belonging to a different IPv4 announcement.
@@ -698,4 +702,40 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 	a.r.recentUpdates.retainN(updateID, 1)
 	a.r.recentUpdates.Activate(updateID, 0)
 	return update, updateID, 1, nil
+}
+
+// relayFlowSpecNextHop returns the next-hop field of the stored MP_REACH_NLRI
+// for a FlowSpec route, or nil when the block holds none for fam.
+//
+// A FlowSpec route is stored by the selecting RIB, whose path block keeps the
+// received MP_REACH_NLRI (ribevents.FlowSpecPath) and whose callers send no
+// separate next hop. Reconstruction must still put the received field back:
+// draft-simpson-idr-flowspec-redirect-02 Section 3 sends redirected packets
+// "towards the IPv4 or IPv6 address specified in the 'Network Address of
+// Next-Hop' field of the associated MP_REACH_NLRI", so an empty field voids the
+// route's redirect action before forwardUpdateCore decides it. Every other
+// FlowSpec field is cleared there (applyNextHopFamily, RFC 8955 Section 4).
+//
+// The slice aliases attrs, which outlives the payload write that copies it.
+//
+//	+0 AFI(2) +2 SAFI(1) +3 NHLen(1) +4 NH(NHLen) ...
+func relayFlowSpecNextHop(attrs []byte, fam family.Family) []byte {
+	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+	if !found {
+		return nil
+	}
+	if len(value) < 4 {
+		return nil
+	}
+	if family.AFI(binary.BigEndian.Uint16(value)) != fam.AFI {
+		return nil
+	}
+	if family.SAFI(value[2]) != fam.SAFI {
+		return nil
+	}
+	end := 4 + int(value[3])
+	if end > len(value) {
+		return nil
+	}
+	return value[4:end]
 }

@@ -394,7 +394,7 @@ the receiver ignores the community, as the draft says.
 Forwarding applies that family contract after destination policy and before
 next-hop withholding. Received FlowSpec next-hop bytes are ignored for forwarding
 decisions; `self`, explicit addresses and filter rewrites cannot supply a
-FlowSpec next hop. The registered MP_REACH edit handler removes the received
+FlowSpec next hop, except to a redirect-to-IP route (below). The registered MP_REACH edit handler removes the received
 field in the destination-owned output without changing the cached input, rule,
 route distinguisher or actions. A genuine legacy-unicast sibling retains its own
 next-hop decisions. The route-server proof drives actual TCP sessions and
@@ -406,6 +406,30 @@ ran before the RIB selected it.
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler -->
 <!-- test: internal/component/bgp/reactor/flowspec_forward_wire_test.go TestFlowSpecForwardingOmitsNextHop -->
 <!-- test: internal/component/bgp/reactor/flowspec_rs_wire_test.go TestFlowSpecRouteServerOmitsNextHop -->
+
+A received redirect-to-IP route is the exception on the forward rails too. When
+its EXTENDED_COMMUNITIES carry 0x0800 and its MP_REACH next hop is a 4- or
+16-octet address, that address is the redirect target, and each destination's
+decision is computed once per facts snapshot:
+
+| Destination | Next hop sent |
+|-------------|---------------|
+| IBGP, next hop auto or unchanged | the received address |
+| EBGP, next hop auto | this speaker's address (connected endpoint, else `local ip`), per draft-simpson-idr-flowspec-redirect-02 Section 3 "SHOULD be reset to an address of the advertising router by default" |
+| EBGP, next hop unchanged | the received address, the draft's "MAY be configured to keep the next-hop unchanged" |
+| Next hop self or explicit | that address |
+| Route-server client, next hop auto | the received address, RFC 7947 Section 2.2.1 |
+| Not sent extended communities, or EBGP auto with no own address | zero length: no redirect action reaches it |
+
+An IPv4 address is written as its 4 octets under either FlowSpec AFI, never
+IPv4-mapped. A route the route server or reflector relays from the selecting
+RIB keeps its received field, because reconstruction takes it from the stored
+MP_REACH_NLRI when no separate next hop is stored.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeRedirectNextHop -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- flowSpecRedirectNextHop, applyRedirectNextHop -->
+<!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- relayFlowSpecNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_forward_wire_test.go TestFlowSpecRedirectForwardNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_forward_wire_test.go TestFlowSpecRedirectRouteServerKeepsNextHop -->
 
 **Flow example (FlowSpec via the generic plugin path):**
 ```go

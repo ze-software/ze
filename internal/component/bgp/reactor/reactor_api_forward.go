@@ -829,7 +829,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		}
 		applyFactsNextHop(facts, &mods, baseNextHop.mpFamily)
 		applyFactsSendCommunity(facts, &mods)
-		applyNextHopFamily(&mods, baseNextHop)
+		applyNextHopFamily(facts, &mods, baseNextHop)
 		// A raw policy can introduce a second next hop even when the received
 		// UPDATE was single-field. Its AIGP decision needs each output section,
 		// but always the original received metric and next hop.
@@ -1383,9 +1383,11 @@ func (a *reactorAPIAdapter) UnregisterCacheConsumer(name string) {
 func applyNextHopMod(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 	switch dest.NextHopMode {
 	case NextHopAuto:
-		// Default: rewrite for eBGP, preserve for iBGP. No mod needed --
-		// eBGP next-hop is handled by AS-PATH rewriting path which already
-		// sets next-hop, and iBGP preserves the original.
+		// No mod. The AS-PATH rewrite (wireu.ASPathIntent) does not touch the
+		// next hop, so under auto a forwarded route keeps its received next
+		// hop toward eBGP and iBGP alike; precomputeNextHop maps auto to
+		// nhModeNone on the live rail too. Only a FlowSpec redirect-to-IP
+		// route is reset toward eBGP (precomputeRedirectNextHop).
 		return
 	case NextHopSelf:
 		if !dest.LocalAddress.IsValid() {

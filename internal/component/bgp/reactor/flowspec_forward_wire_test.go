@@ -73,6 +73,8 @@ func TestFlowSpecForwardingOmitsNextHop(t *testing.T) {
 
 func flowForwardNextHopSettings(settings *PeerSettings, mode string) {
 	switch mode {
+	case "auto":
+		settings.NextHopMode = NextHopAuto
 	case "unchanged":
 		settings.NextHopMode = NextHopUnchanged
 	case "self":

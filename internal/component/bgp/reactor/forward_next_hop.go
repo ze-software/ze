@@ -56,6 +56,14 @@ type nextHopValue struct {
 	// A received field that the family forbids must leave on advertisement,
 	// but its bytes never identify a forwarding address or a withholding gate.
 	mpIgnored bool
+
+	// mpRedirect records a FlowSpec UPDATE whose EXTENDED_COMMUNITIES carry
+	// the redirect/mirror-to-IP-next-hop action (0x0800) and whose MP_REACH
+	// next hop is a 4- or 16-octet address: the one FlowSpec field that is the
+	// route's action target, not an address RFC 8955 Section 4 says to ignore
+	// (attribute.FlowSpecRedirectsToNextHop). applyNextHopFamily then keeps,
+	// rewrites or strips it per destination. mpIgnored stays set beside it.
+	mpRedirect bool
 }
 
 // has reports whether any address this UPDATE offers is addr.
@@ -134,6 +142,7 @@ func payloadNextHop(payload []byte) nextHopValue {
 					out.mpVPNUnspecifiedPair = vpnUnspecifiedNextHopPair(value[4 : 4+nhLen])
 				} else {
 					out.mpIgnored = nhLen != 0
+					out.mpRedirect = flowSpecRedirectNextHop(attrs, nhLen)
 				}
 			}
 		}
@@ -141,30 +150,83 @@ func payloadNextHop(payload []byte) nextHopValue {
 	return out
 }
 
+// flowSpecRedirectNextHop reports whether a FlowSpec UPDATE's next hop is the
+// target of its redirect/mirror-to-IP-next-hop action: the attribute section
+// carries the 0x0800 community and the field holds an IPv4 or IPv6 address.
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "If an MP_REACH_NLRI
+// containing one or more flow-spec NLRI does not have a valid IPv4 or IPv6
+// address in its next-hop field, or the length of the next-hop is 0, then the
+// redirect-to-IP extended community, if present, should be ignored." So any
+// other length leaves the RFC 8955 Section 4 zero length in charge.
+func flowSpecRedirectNextHop(attrs []byte, nhLen int) bool {
+	if nhLen != 4 && nhLen != 16 {
+		return false
+	}
+	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrExtCommunity)
+	if !found {
+		return false
+	}
+	return attribute.FlowSpecRedirectsToNextHop(value)
+}
+
 // applyNextHopFamily enforces the same family contract as origination before
 // any egress next-hop decision. RFC 8955 Section 4: "When advertising Flow
 // Specifications, the Length of the Next-Hop Network Address MUST be set to 0.
 // The Network Address of the Next-Hop field MUST be ignored."
 //
+// The exception is a FlowSpec route whose action is redirect-to-IP-next-hop
+// (base.mpRedirect): its next hop is the redirect target, so the destination's
+// precomputed decision (f.redirect, precomputeRedirectNextHop) keeps, rewrites
+// or strips it.
+//
 // Clear only MP operations, retaining a genuine legacy sibling's NEXT_HOP.
 // Reuse existing operation slots rather than growing the accumulator. Received
-// bytes remain immutable; the registered handler materializes the empty field
-// in the destination-owned output. An already empty, unchanged field costs no
-// edit and keeps the forwarding identity path.
-func applyNextHopFamily(mods *filterapi.ModAccumulator, base nextHopValue) {
+// bytes remain immutable; the registered handler materializes the field in the
+// destination-owned output. An already empty, unchanged field costs no edit
+// and keeps the forwarding identity path.
+func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue) {
 	if base.mpFamily.NeedsNextHop() {
 		return
 	}
+	if base.mpRedirect {
+		applyRedirectNextHop(f, mods)
+		return
+	}
+	setMPNextHop(mods, nil, base.mpIgnored)
+}
+
+// applyRedirectNextHop writes this destination's redirect-to-IP next hop.
+// Keep records nothing, so the received address leaves unchanged; rewrite
+// replaces every MP next-hop operation with the precomputed address; strip
+// falls back to the RFC 8955 Section 4 zero length.
+func applyRedirectNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
+	switch f.redirect.action {
+	case redirectKeep:
+		return
+	case redirectRewrite:
+		setMPNextHop(mods, f.redirect.hop(), true)
+	case redirectStrip, redirectUnspecified:
+		// Unspecified is a facts snapshot precomputeRedirectNextHop never saw:
+		// the zero length is the RFC 8955 Section 4 answer that cannot leak an
+		// address this destination was not meant to receive.
+		setMPNextHop(mods, nil, true)
+	}
+}
+
+// setMPNextHop points every MP_REACH_NLRI Set operation at hop, and records
+// one when none exists and add is true. A nil hop is the empty field.
+func setMPNextHop(mods *filterapi.ModAccumulator, hop []byte, add bool) {
 	found := false
 	ops := mods.Ops()
 	for i := range ops {
 		if ops[i].Code == uint8(attribute.AttrMPReachNLRI) && ops[i].Action == filterapi.AttrModSet {
-			ops[i] = filterapi.AttrOp{Code: uint8(attribute.AttrMPReachNLRI), Action: filterapi.AttrModSet}
+			ops[i] = filterapi.AttrOp{Code: uint8(attribute.AttrMPReachNLRI), Action: filterapi.AttrModSet, Buf: hop}
 			found = true
 		}
 	}
-	if base.mpIgnored && !found {
-		mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, nil)
+	if add && !found {
+		mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, hop)
 	}
 }
 

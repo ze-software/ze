@@ -111,6 +111,55 @@ type peerForwardFacts struct {
 	nhVPNLinkLocal bool
 
 	scMask sendCommunityMask
+
+	// redirect is the next hop a FlowSpec redirect-to-IP route leaves with
+	// (precomputeRedirectNextHop, applyNextHopFamily).
+	redirect redirectNextHop
+}
+
+// redirectAction is what a destination does with the next hop of a received
+// FlowSpec route whose action is redirect/mirror-to-IP-next-hop.
+type redirectAction uint8
+
+const (
+	redirectUnspecified redirectAction = iota
+	redirectKeep                       // the received address leaves unchanged
+	redirectRewrite                    // the address becomes redirectNextHop's
+	redirectStrip                      // the RFC 8955 Section 4 zero length
+)
+
+// redirectNextHop is one destination's precomputed redirect-to-IP decision.
+// The address is held in its wire form, so the forward rails copy nothing per
+// UPDATE.
+type redirectNextHop struct {
+	action redirectAction
+	is4    bool
+	legacy [4]byte  // an IPv4 address
+	global [16]byte // an IPv6 address
+}
+
+// hop returns the address as the next-hop field carries it, under either
+// FlowSpec AFI. draft-simpson-idr-flowspec-redirect-02 Section 3 sends packets
+// "towards the IPv4 or IPv6 address specified in the 'Network Address of
+// Next-Hop' field", so an IPv4 address is its 4 octets, never IPv4-mapped: the
+// mapped form is no usable IPv6 global (egressNextHopWithheld refuses it).
+func (r *redirectNextHop) hop() []byte {
+	if r.is4 {
+		return r.legacy[:]
+	}
+	return r.global[:]
+}
+
+// set records addr as the rewrite address.
+func (r *redirectNextHop) set(addr netip.Addr) {
+	r.action = redirectRewrite
+	addr = addr.Unmap()
+	if addr.Is4() {
+		r.is4 = true
+		r.legacy = addr.As4()
+		return
+	}
+	r.global = addr.As16()
 }
 
 func (p *Peer) forwardFacts() *peerForwardFacts {
@@ -255,6 +304,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	applyLinkLocalNextHop(s, facts, p.llScope.Load())
 	precomputeVPNNextHop(facts)
 	precomputeSendCommunity(s, facts)
+	precomputeRedirectNextHop(s, facts)
 
 	return facts
 }
@@ -468,6 +518,66 @@ func sendCommunitySuppression(list []string) sendCommunityMask {
 		mask |= scSuppressLarge
 	}
 	return mask
+}
+
+// precomputeRedirectNextHop decides, once per facts snapshot, what this
+// destination does with a FlowSpec redirect-to-IP route's next hop. It runs
+// after precomputeNextHop and precomputeSendCommunity, whose results it reads.
+func precomputeRedirectNextHop(s *PeerSettings, f *peerForwardFacts) {
+	// The 0x0800 community is an extended community. A destination that is
+	// not sent extended communities receives no redirect action, so its next
+	// hop is the RFC 8955 Section 4 one: "MUST be set to 0".
+	if f.scMask&scSuppressExtended != 0 {
+		f.redirect.action = redirectStrip
+		return
+	}
+	switch s.NextHopMode {
+	case NextHopUnchanged:
+		f.redirect.action = redirectKeep
+	case NextHopSelf, NextHopExplicit:
+		f.redirect.action = redirectStrip
+		if f.nhSelfWithheld {
+			// The forward rails withhold the whole announcement already.
+			return
+		}
+		// Only the modes precomputeNextHop armed carry an address.
+		switch f.nhMode {
+		case nhModeSelf4, nhModeExplicit4:
+			f.redirect.set(netip.AddrFrom4(f.nhLegacy))
+		case nhModeSelfV6, nhModeSelfV6LL, nhModeExplicitV6:
+			f.redirect.set(netip.AddrFrom16(f.nhGlobal))
+		}
+	case NextHopAuto:
+		// RFC 7947 Section 2.2.1: "the NEXT_HOP attribute MUST be passed
+		// unmodified to the route server clients".
+		if f.rsClient {
+			f.redirect.action = redirectKeep
+			return
+		}
+		if !f.isEBGP {
+			f.redirect.action = redirectKeep
+			return
+		}
+		// draft-simpson-idr-flowspec-redirect-02 Section 3: "When a flow-spec
+		// route with this community is advertised to an EBGP peer the
+		// next-hop address in the MP_REACH_NLRI SHOULD be reset to an address
+		// of the advertising router by default, per normal BGP procedures."
+		// The address is the one next-hop self uses (precomputeNextHop).
+		local := f.connectedLocal
+		if !local.IsValid() {
+			local = s.LocalAddress
+		}
+		if !local.IsValid() {
+			// No address of this speaker to reset to. Passing the received
+			// one is the configured-only alternative the same paragraph
+			// names, so the redirect action is voided with the zero length.
+			f.redirect.action = redirectStrip
+			return
+		}
+		f.redirect.set(local)
+	default:
+		f.redirect.action = redirectStrip
+	}
 }
 
 func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFamily family.Family) {
