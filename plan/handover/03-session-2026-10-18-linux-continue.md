@@ -3153,3 +3153,29 @@ no generic attribute keyword, bridge refuses by design, needs an update-text
 feature + page + .ci); IPv6 flow `/N/M` offsets; mcast-vpn; ipv6 multicast;
 unicast withdraw differences; vpls withdraw with attributes; refresh and
 operational judge branch; AC-38 TestOldResponses50/42.
+
+## 2026-10-21 Phase 7 item E, exa16 agent (budget hit at 100 calls; no commit script prepared)
+
+Done, uncommitted, all green on scoped package tests (`go test -tags ze_bgp` format, types, rr, rs, route, test/fixture; bridge green except TestOldCommands50/42 which were red before; counts unchanged 5.0 3935/4250, 4.2 2430/2541; vet clean):
+
+A. ADD-PATH withdraw-only fix:
+- internal/component/bgp/types/rawmessage.go: new `RawMessage.SourceEncodingContext()` reads `WireUpdate.SourceCtxID()` (AttrsWire is built from the same id by WireUpdate.Attrs, so they agree when both exist; nil for a withdraw-only UPDATE).
+- Four readers switched: format/text_update.go (fast path + generic path), plugins/rr/withdrawal.go updateWithdrawalMapWire, plugins/rs/server_inventory.go extractWireNLRIRecords (bgpctx import dropped from rr/rs). reactor_api_batch.go batch.Wire.SourceContext reads ASN4 of an outgoing attribute block: not the same flaw.
+- Tests (each red with the three-file fix reverted via `git apply -R` of a machine-local patch of the fix, green restored): format/rfc7911_withdraw_only_test.go (JSON del with path-id 7; text ends `nlri ipv4/unicast del 10.0.0.0/8`), rr/rfc7911_withdraw_only_test.go (map empty after withdraw), rs/rfc7911_withdraw_only_test.go (one del record 10.0.0.0/8; red got 4 records).
+- Functional: test/plugin/addpath-withdraw-only-event.ci + fixture `plugin/addpath-withdraw-event` (internal/test/fixture/plugin_fixture_02_events.go, addPathWithdrawEvent02/addPathEntries02). Green: `./le --name exa15 test bgp plugin addpath-withdraw-only-event` pass. Red with fix reverted: add line arrives, "ZE-OBSERVER-FAIL: ADDPATH-EVENT: no ipv4/unicast withdrawal event arrived". Note first draft used NEXT_HOP 127.0.0.1, which ze treats-as-withdraw; now 192.0.2.1.
+- OWED: format test carries `RFC requirement: RFC7911-3-1` tag, so it needs `./le rfc discriminate-record` (producer spelling for the method unresolved: `rawmessage.go::RawMessage.SourceEncodingContext` refused; find the method form used in rfc/discrimination/*.json, or use route mutant). Hook also reported rfc/requirements/rfc2661.md derived-file build failure (foreign).
+- mpls-vpn sighting: REAL output shape, not an engine framing defect. A well-formed ADD-PATH ipv4 mpls-vpn MP_REACH renders correctly (new internal/exabgp/bridge/rfc7911_vpn_render_test.go TestAddPathVPNAnnounceRenders, green). `"ipv4 mpls-vpn":{}` reproduced exactly when the NLRI does not split (first draft had a 10-byte RD): appendParsedUpdateJSONDirect drops the mp.NLRIs error (`if err == nil`). Journal row added.
+- Journal plan/journal/zero-value-as-valid-answer.md: row 100 -> fixed; two new open rows (rr/rs unicast records discard NLRIIterator path id; MP_REACH/UNREACH split error rendered as empty list).
+- LEFTOVER: internal/exabgp/bridge/zz_probe_test.go is a throwaway probe awaiting owner/parent approval to delete; never commit it.
+
+B. MUP:
+- bridge_attribute.go: on top of the prepared change, added consts mupFieldPrefix/mupFieldAddress (goconst) and split the compound guard in shapePluginNLRI into three guards. The machine-local script tmp/commit-79c638a5-a-2965c4.sh is therefore STALE (its blob 881b05187b): regenerate.
+- New exabgp-compat case: test/exabgp-compat/api/api-mup-address-v4.ci, etc/api-mup-address-v4.conf, etc/run/api-mup-address-v4.run (mup-dsd with prefix-sid and mup-t2st lines, bytes from encoding/conf-srv6-mup.ci). Green on ze and on the pin (685f772e4e); red on ze with the MUP fix reverted: "ipv4/mup encode: MUP DSD requires address".
+- old_commands_test.go oldJudge comment corrected (4.2/5.0 pack a Path Identifier only when negotiated).
+- exabgp-bridge.md names no MUP shaping: no page edit.
+
+Next: delete zz_probe_test.go; record the RFC7911-3-1 discrimination; then ONE script via ./le commit create:
+ 1) MUP: bridge_attribute.go, bridge_route_line_test.go, old_commands_test.go, test/exabgp-compat/{api/api-mup-address-v4.ci,etc/api-mup-address-v4.conf,etc/run/api-mup-address-v4.run}, plan/verification-debt/79c638a5.md (its hunk for 1)
+ 2) internal/component/bgp/route/route.go (ParseRouteArgs deletion)
+ 3) types/rawmessage.go, format/text_update.go, rr/withdrawal.go, rs/server_inventory.go, the three rfc7911_withdraw_only_test.go, bridge/rfc7911_vpn_render_test.go, fixture plugin_fixture_02_events.go, test/plugin/addpath-withdraw-only-event.ci, plan/journal/zero-value-as-valid-answer.md, rfc/discrimination record
+Gates owed (main thread): ./le verify current, ./le rfc check, ./le arch compound-guard check, lint.
