@@ -167,8 +167,9 @@ func sentSourcePaths(received *storage.PeerRIB, fam family.Family, key ribOutKey
 // nlrisplit.GetPrefixKey, and the two agree for every non-CIDR family but
 // FlowSpec: there the sent key holds the bare components, while the stored
 // identity is the canonically framed rule, so it is rebuilt from the copy's
-// native NLRI. The result aliases sent's NLRI, key, or scratch, which MUST
-// hold nlrisplit.PrefixKeyScratchSize octets.
+// native NLRI. The result is the caller's own copy; scratch, which MUST hold
+// nlrisplit.PrefixKeyScratchSize octets, satisfies storage.RouteKey's
+// contract. ok is false when a FlowSpec copy's native NLRI is too short.
 //
 // RFC 8955 Section 4.1: "If the NLRI length is smaller than 240 (0xf0 hex)
 // octets, the length field can be encoded as a single octet." and
@@ -228,7 +229,7 @@ func (r *RIBManager) recoveryCandidateGone(fam family.Family, key ribOutKey, sen
 // removal from bgp-rib. A path a received withdrawal took after the fence is
 // judged gone too; the removal is then late but safe, because the writer
 // admits it only while the destination still holds the same revision. An
-// invalid labeled key answers false. Caller holds peerMu.
+// invalid labeled key or FlowSpec route answers false. Caller holds peerMu.
 func (r *RIBManager) forwardedSourceGone(fam family.Family, key ribOutKey, sent ribOutEntry) bool {
 	source, err := netip.ParseAddr(sent.SourcePeer)
 	if err != nil {
@@ -241,7 +242,7 @@ func (r *RIBManager) forwardedSourceGone(fam family.Family, key ribOutKey, sent 
 // sourcePathGone reports whether source's received inventory holds neither
 // the received path a sent copy names nor a newer revision of it. A source
 // with no received inventory holds nothing. valid is false when a labeled key
-// does not parse. Caller holds peerMu.
+// or a FlowSpec route does not parse. Caller holds peerMu.
 func (r *RIBManager) sourcePathGone(source netip.Addr, fam family.Family, key ribOutKey, sent ribOutEntry) (gone, valid bool) {
 	received := r.bgpPeers[source]
 	if received == nil {

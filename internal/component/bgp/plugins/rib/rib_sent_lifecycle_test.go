@@ -428,7 +428,8 @@ func lifecycleMarkAndPurge(t *testing.T, r *RIBManager, source netip.Addr) {
 // removal is queued.
 //
 // VALIDATES: the forwarded R-12 check keys IPv6, labeled, EVPN, MVPN,
-// FlowSpec and RTC paths and ADD-PATH identifiers as the purge does.
+// FlowSpec (both length framings, and FlowSpec VPN) and RTC paths and ADD-PATH
+// identifiers as the purge does.
 // PREVENTS: a live route withdrawn from a client after a GR cleanup of an
 // unrelated path.
 func TestRIBForwardedProjectionKeyShapes(t *testing.T) {
@@ -443,6 +444,10 @@ func TestRIBForwardedProjectionKeyShapes(t *testing.T) {
 		{"evpn", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, nativeEVPNRoute(), nativeEVPNRoute()},
 		{"mvpn", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}, []byte{1, 12, 0, 0, 0, 0, 0, 0, 0, 1, 192, 0, 2, 1}, []byte{1, 12, 0, 0, 0, 0, 0, 0, 0, 1, 192, 0, 2, 1}},
 		{"flowspec", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{5, 1, 24, 192, 0, 2}, []byte{5, 1, 24, 192, 0, 2}},
+		// RFC 8955 Section 4.1: the sent copy in the extended 2-octet length
+		// framing names the rule stored in the 1-octet framing.
+		{"flowspec-extended", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{0xf0, 5, 1, 24, 192, 0, 2}, []byte{5, 1, 24, 192, 0, 2}},
+		{"flowspec-vpn", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}, []byte{13, 0, 0, 0xfd, 0xe8, 0, 0, 0, 1, 1, 24, 192, 0, 2}, []byte{13, 0, 0, 0xfd, 0xe8, 0, 0, 0, 1, 1, 24, 192, 0, 2}},
 		{"rtc", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIRTC}, []byte{96, 0, 0, 0xfd, 0xe8, 0, 2, 0xfd, 0xe8, 0, 0, 0, 1}, []byte{96, 0, 0, 0xfd, 0xe8, 0, 2, 0xfd, 0xe8, 0, 0, 0, 1}},
 	} {
 		for _, present := range []bool{true, false} {

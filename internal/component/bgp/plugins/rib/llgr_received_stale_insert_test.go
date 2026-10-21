@@ -66,6 +66,26 @@ func TestInsertPoolNLRIsWritesReceivedStale(t *testing.T) {
 	assert.True(t, entry.ReceivedLLGRStale)
 }
 
+// TestInsertPoolNLRIsLabeledWritesMessageID verifies the JSON event path's
+// labeled branch stores the received message ID on the route, which R-12
+// reads to tell a live path from a purged one (sourcePathGone).
+//
+// VALIDATES: insertPoolNLRIs hands its message ID to insertLabeled.
+// PREVENTS: an out-of-process RIB storing a labeled route under a stale
+// message ID, which a forwarded projection after a GR cleanup would read as
+// purged and withdraw from a client.
+func TestInsertPoolNLRIsLabeledWritesMessageID(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerRIB := storage.NewPeerRIB("192.0.2.13")
+	wire := labeledNLRI(0, false, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100})
+	cidr := []byte{8, 10}
+
+	r.insertPoolNLRIs(peerRIB, labeledFamily, wire, staleInsertAttrs, false, 81, false)
+	entry, ok := peerRIB.Lookup(labeledFamily, cidr)
+	require.True(t, ok, "the labeled route is stored")
+	assert.Equal(t, uint64(81), entry.MsgID, "the received message ID is stored")
+}
+
 // TestReceivedLLGRStaleFromMetaJSONNumber verifies the verdict is read from a
 // JSON event's route-meta, where the level decodes as a float64.
 //
