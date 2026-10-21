@@ -2926,3 +2926,56 @@ internal/exabgp/bridge; corpora qa/old/commands-*.json, responses-*.json.gz at
 the pin), spec Phase 7 state line. Gates owed: `./le go lint run` (flowspec,
 bridge, cmd/peer, reactor, message), `./le verify worktree`, `./le rfc check`
 (expect the 3 STALE rfc8955 verdicts + foreign rows).
+
+## 2026-10-21 ExaBGP 6 Phase 7 exa11 agent handoff
+
+Committed: 54960ccd41 (exa10 handoff copied here), 496f6e123a (old-4.2 and
+old-5.0 conf-flow: `allowed-error` was `traffic-class 101 is above 63`, ze
+refuses with `traffic-class value 101 exceeds max 63`; reason now also quotes
+RFC 8955 4.2.2.11 "The six least significant bits contain the DSCP value.";
+both SKIP as allowed on ze; journal conflicting-feature-contracts row Fix
+updated). The spec's Phase 7 state line rides with this section.
+
+C (teardown notify) NOT committed, NOT changed: the brief's premise does not
+hold. The per-script API version (bridge_script_version.go) holds BOTH the
+6.0 api population script and the old-5.0 script to v4: each sends `announce
+route ...` first (`hasV6Translation` answers APIV4) and then the identical line
+`neighbor 127.0.0.1 teardown 4`. The pin's own `qa/api/api-teardown.ci`
+(685f772e) expects `0015 03 0604` for that v4 script; old-5.0 expects
+`002A 03 0604 14 "Administrative Reset"`. Same version, same line, different
+octets, so a v4 branch turns the 6.0 api population red. The pin's teardown
+handler takes no API version (`reactor/api/command/neighbor.py` `teardown`
+calls `teardown_notification`; `Notify._wire_text` returns `b''` for 6/4 with
+no detail). The pin's own `qa/bin/test_old_scripts` ALLOWED carries both:
+`('5.0', 'api-teardown')`: "`teardown 4` is Cease, Administrative Reset, in
+both: 5.0 added the name of the subcode as an RFC 9003 communication, 6.0
+sends none unless it is given one"; `('4.2', 'api-teardown')`: "the same
+`teardown 4` communication as 5.0 api-teardown". Decision for the main
+thread: allowance rows in old-4.2/old-5.0 api-teardown.ci quoting that entry
+(ExaBGP 6.0 made the change deliberately, so 6.0 compatibility is the empty
+Data), or name another discriminator. The allowed-error text needs one ze run
+to read (expected A2 frame missing). Independent review of C still owed
+(no Agent tool in this agent).
+
+Blocked run: `./le test exabgp old-5.0 --dut exabgp api-teardown` could not
+build ze: `undefined: peerTunnelAddress` in
+`internal/component/ike/engine/create_child.go`, another session's
+uncommitted edit. The flag goes before the test name (`api-teardown --dut
+exabgp` answers `test "--dut" not found`).
+
+E (X-35, AC-37, AC-38) not started. Sizing for the successor: corpora at
+`~/Code/github.com/Exa-Networks/exabgp/main/qa/old/` (`git show
+685f772e:<path>` works in that checkout). commands-5.0.json: 4250 entries,
+commands-4.2.json: 2541, each `{command, accepted, messages: [UPDATE hex]}`
+keyed by the command line. responses-*.json.gz: 929 / 894 entries keyed by a
+config text, each a map event-name to `{json, text}`. The pin's judges are
+`qa/bin/test_old_commands` (decodes the UPDATEs to routes and compares
+announced/withdrawn) and `qa/bin/test_old_responses` (JSON compared parsed
+minus time, host, pid, ppid, counter; text as is; ALLOWED table to port).
+Route for commands in ze: `Translator.Line`, then the `update text` parser
+(`internal/component/bgp/plugins/cmd/update/update_text.go`), then decode the
+recorded UPDATEs and compare routes; corpora need a home under testdata, with
+`test/exabgp-compat/LICENCE-ExaBGP.txt` as precedent.
+
+F: no Go committed by this agent, so no lint owed for it. C's Go still owes
+`./le go lint run` on bridge, cmd/peer, reactor, message once it lands.
