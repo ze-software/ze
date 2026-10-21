@@ -78,3 +78,36 @@ Landed: 41a2edc8fd (part 2's owed items 1 to 3), d5c39a49a1 (journal row, foreig
 - Scoped: fixture package `go test -race` green; `./le cli grammar` OK; `./le doc check verify` red only on `../gh-pages/reference/command-equivalents/clear-bgp-rib-advertised` (foreign, published site surface).
 
 Still owed to the main thread: independent review, `./le go lint run` (the stop driver was written from the shell, so the edit-time lint saw only part of it), `./le test unit all`, `./le test functional gating`, the full `./le verify worktree`, and the AC-16 measurement.
+
+## Closure attempt (closure agent, 2026-10-21): stopped before the closure commits
+
+Done: the spec carries every closure section (Implementation Summary to
+Pre-Commit Verification). The closure-gate review ran once over
+ce93be1bba~1..1c6bb9e95d: 0 BLOCKER, 0 ISSUE, NOTEs in the spec's Review Gate.
+The artifact is `tmp/review/verify-gate-warm-timed-first-red-7bb0320c-9702-4807-ab31-18dc4458da48.md`
+(43 code files). It is machine-local, so a closure on another machine records
+it again with `./le spec review record ... rounds 1`. Fresh evidence: 16 package
+tests green under `go test -race`, `./le test functional runner` 16/16, and
+the four root-finding packages green under `GOFLAGS=-trimpath` (the
+`internal/test/runner` red is `TestCIAcceptOnlyLint`, foreign). The scoped
+`./le go lint run` found 2 issues, both in `plugin_fixture_14.go` and
+`plugin_fixture_16.go`, which are not this spec's files.
+
+Why it stopped: A-1 and A-7 are still `unvalidated`, and Implementation Step 7
+owes the run that settles them. One run settles both:
+`./le verify worktree commit ee108f4731fd2e380cd5a87561c02e0a9563ee72`. It is
+cost-ordered now, because the checkout's history holds 55 lines for that
+commit. Compare its `### Stage result:` lines one by one against the saved
+declared-order run
+`tmp/verify-worktree-logs/20261021T092444.791342000Z-p50233-r1-ee108f4731fd/ze-verify.log`
+(A-1). Then compare the verdicts of its `(cached)` unit packages against the
+same packages in that run, which had 0 cached of 1290 `ok` lines (A-7). The
+run's own red stages are known to be foreign. A differing verdict is a finding
+only if it is not foreign flakiness.
+
+After that run: set A-1 and A-7 in both the Assumptions table and Pre-Commit
+Verification. Then commit A (`file plan/spec-verify-gate-warm-timed-first-red.md`)
+and commit B (`remove plan/spec-verify-gate-warm-timed-first-red.md`,
+`remove plan/handover/10-verify-gate-warm-timed-first-red.md`; precedent
+7bcc8a7e1d). The one other tracked citer is the bare stem in
+`gotoolchain_cachereuse_test.go` and in two journal rows, which needs no repoint.

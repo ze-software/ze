@@ -160,13 +160,13 @@ behaviour and no shortened run can ever read as a pass.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Stages are order-independent: no stage reads an artifact an earlier stage writes | Each stage is its own le process over the tree (`dispatch.RunAction`); CI already runs them on 6 machines in a different grouping | Cost order changes a verdict | Grep each stage action for writes under the root; one cost-ordered full run and one declared-order run at the same commit name the same reds | unvalidated |
-| A-2 | `-trimpath` changes no diagnostic of lint, vet, Staticcheck or go test beyond the path spelling of `runtime.Caller` | `judge.go` comment (compile errors name the same tree-relative file), rfc and tracked-build precedent | A stage's output or attribution parse changes | Full run with the flag: every red's failure groups still name checkout-relative files (`failuregroup.CleanPath` accepts them) | unvalidated |
-| A-3 | Only the four `runtime.Caller` tests depend on absolute source paths | grep of `runtime.Caller(`, `CallersFrames`, `frame.File` over `internal cmd pkg` | More reds appear under the flag | `./le test unit` with the flag set: the red list is exactly the four, then zero after the repair | unvalidated |
-| A-4 | golangci-lint's cache is safe for two processes at once | It is a fork of cmd/go's cache (atomic rename writes); in-place lint at the checkout and a worktree lint can already run together on the same machine | Corrupted lint cache, false red | Two concurrent `./le go lint run` (checkout and kept worktree) both green; failure would show as cache read errors in the log | unvalidated |
-| A-5 | golangci-lint 2.14.0's cache key is module-relative | `computePkgHash` read in the module cache copy of v2.14.0 | Shared lint cache still misses | Second run's lint stage seconds well below the first's in the history file | unvalidated |
-| A-6 | The commissioning agent's lint cold figure (18 passes, 29.5 min) holds | Reported, not reproduced here; the 2026-10-18 lint log shows the passes but carries no time | Expected gain smaller | The first timed run records lint's seconds | unvalidated |
-| A-7 | A test whose behaviour depends on an env var it reads through `os.Environ` (not logged by the test cache) gives the same answer across two verify runs of one commit | Today's worktree runs never hit the test cache, so this was never exercised there; in-place `./le test unit` has had the same property all along | A cached pass hides a red that only a different environment shows | Compare the second run's `(cached)` set against a `-count=1` run of the same packages: identical verdicts | unvalidated |
+| A-1 | Stages are order-independent: no stage reads an artifact an earlier stage writes | Each stage is its own le process over the tree (`dispatch.RunAction`); CI already runs them on 6 machines in a different grouping | Cost order changes a verdict | Grep each stage action for writes under the root; one cost-ordered full run and one declared-order run at the same commit name the same reds | unvalidated: the declared-order run exists (ee108f4731, saved logs `tmp/verify-worktree-logs/20261021T092444.791342000Z-p50233-r1-ee108f4731fd/`, Order line shows every stage unrecorded so declared order), the cost-ordered run at the same commit has not run; owed before closure (Implementation Step 7), so the spec stays open |
+| A-2 | `-trimpath` changes no diagnostic of lint, vet, Staticcheck or go test beyond the path spelling of `runtime.Caller` | `judge.go` comment (compile errors name the same tree-relative file), rfc and tracked-build precedent | A stage's output or attribution parse changes | Full run with the flag: every red's failure groups still name checkout-relative files (`failuregroup.CleanPath` accepts them) | confirmed: the ee108f4731 run's `01-go-lint-run.log` names 193 `internal/...go:N` checkout-relative positions and 0 under `verify-worktree/`; its failure group `related` lists are checkout-relative |
+| A-3 | Only the four `runtime.Caller` tests depend on absolute source paths | grep of `runtime.Caller(`, `CallersFrames`, `frame.File` over `internal cmd pkg` | More reds appear under the flag | `./le test unit` with the flag set: the red list is exactly the four, then zero after the repair | broken: the path claim held (no source-path red beyond the four), but three env-pinning tests also went red under the flag (TestPlanPinsEveryArgvEnvironmentScopeAndOrder, TestEachActionPinsArgvAndEnvironment, TestNamedToolFailureKeepsItsReportAndCode, ee108f4731 run); fixed in f9c7f3edfe and 1c6bb9e95d; Mistake Log row |
+| A-4 | golangci-lint's cache is safe for two processes at once | It is a fork of cmd/go's cache (atomic rename writes); in-place lint at the checkout and a worktree lint can already run together on the same machine | Corrupted lint cache, false red | Two concurrent `./le go lint run` (checkout and kept worktree) both green; failure would show as cache read errors in the log | confirmed: golangci-lint v2.14.0 `internal/go/cache/cache.go` is cmd/go's multi-process cache (writes then truncates, `lockedfile` for trim); the ee108f4731 lint stage ran 2807s over the linked cache and its log carries no cache error (0 lines matching `cache`) |
+| A-5 | golangci-lint 2.14.0's cache key is module-relative | `computePkgHash` read in the module cache copy of v2.14.0 | Shared lint cache still misses | Second run's lint stage seconds well below the first's in the history file | confirmed by source, not by timing (owner, 2026-10-21: timing is noise): `(*Cache).computePkgHash` in `internal/cache/cache.go` of v2.14.0 keys each file as `pkg.Module.Path + "/" + rel` (`toRelativePath`) plus its content hash |
+| A-6 | The commissioning agent's lint cold figure (18 passes, 29.5 min) holds | Reported, not reproduced here; the 2026-10-18 lint log shows the passes but carries no time | Expected gain smaller | The first timed run records lint's seconds | broken: the first timed run (ee108f4731) recorded `go lint/run seconds=2807.300`, not 1770; the host was loaded by other sessions, which the owner rules makes timing noise, so the figure bounds nothing; Mistake Log row |
+| A-7 | A test whose behaviour depends on an env var it reads through `os.Environ` (not logged by the test cache) gives the same answer across two verify runs of one commit | Today's worktree runs never hit the test cache, so this was never exercised there; in-place `./le test unit` has had the same property all along | A cached pass hides a red that only a different environment shows | Compare the second run's `(cached)` set against a `-count=1` run of the same packages: identical verdicts | unvalidated: the ee108f4731 run answered 0 `(cached)` of 1290 unit `ok` lines (645 + 232 + 206 + 207), so it is the uncached reference; the second run at the same commit that A-1 owes supplies the cached side; owed before closure (Implementation Step 7), so the spec stays open |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -456,3 +456,159 @@ N-A: tooling.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `-trimpath` once, in `Toolchain.Environment` through `TrimpathGoFlags` and the one resolver `EffectiveGoFlags` (`internal/le/go/toolchain/gotoolchain.go`); Staticcheck's `judgeEnvironment` composes it, the private copies in `judge.go`, `check_compile.go` and `job.goTestDefaults` are deleted (1b8693f797, ec40d13a40).
+- Shared lint cache link `sharedLintCacheLink` (`internal/le/verify/lifecycle.go`) beside the build and module cache links.
+- Stage timing: `### Stage timing:` line, `StageReport.Start`/`Seconds`, index `start`/`seconds` (`engine/run.go`, `engine/artifacts.go`); history `tmp/ze-verify-stage-times.tsv` (`engine/stagetimes.go`: `AppendStageTimes`, `ReadStageCosts`, `costOrder`, `Plan`).
+- First-red: keyword on `verify worktree` and `verify current`, refused with `part` (`firstRedWithPart`), separate registry work (`worktreeArgv`, `fastArgv`), stop and unreached stages in `runMode`, stop lines, `verify reds` names a stopped run (`stoppedAt`), unreached structural stages charged (`structuralGateReds`).
+- Worktree failure index published to the checkout (`PublishFailureIndex`), merged under a lock with carried verdicts for stages a run did not hold (`writeFailureIndex`, `carryForward`).
+
+### Bugs Found/Fixed
+- The worktree never published its failure index, so the commit gate charged nothing after a red worktree run (`TestAWorktreeRunPublishesItsFailureIndex`).
+- A piece or fast run that replaced the index erased a full run's red (`carryForward`, tests in `engine/carry_test.go`).
+- An over-long history line voided the whole history (`TestAMalformedHistoryLineIsSkippedAndCounted`, 6961e2c112).
+- A first-red red at the last stage was reported as a stop (49a20220d7).
+- Three env-suffix unit tests pinned the environment without the GOFLAGS entry (f9c7f3edfe), and their fixture checker passed vacuously when Go could not answer (1c6bb9e95d, `toolchaintest.CheckEnvironmentTail`, red proven by removing the GOFLAGS append).
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`: GOFLAGS `-trimpath`, "Stage times, and stopping at the first red", carried verdicts; anchors `stagetimes.go`, `run.go -- planOrder`, `lifecycle.go -- worktreeArgv, firstRedWithPart`, `verification.go -- structuralGateReds`, `artifacts.go -- carryForward`.
+- `docs/architecture/testing/verify-freshness-scope.md`: cost order, first-red, four structural sets, carry-forward, publication.
+- `docs/architecture/testing/tracked-build-gate.md`: `-trimpath` paragraph names the toolchain declaration.
+- `docs/functional-tests.md`: `tmp/ze-verify-stage-times.tsv` artifact row.
+- `./le doc check verify` and `doc check links`: the ee108f4731 run's stages 24 and 25 name no file of this spec (grep of both logs for the four pages and the changed packages: no hit beyond two baseline WARN lines for `docs/functional-tests.md` citations of `test/api/` and `test/interop/scenarios/NN-name/`, which this spec did not touch).
+
+### Deviations from Plan
+- `TestOverridesComposeTrimpathWithTheEffectiveGOFLAGS` became `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS`: `Overrides` does not see the inherited environment.
+- `part`/`of` did not exist on `verify worktree`; they were added with the refusal.
+- The engine owns the history through `Plan.History`; there is no separate publication step for times.
+- AC-16 proven by `TestASecondCheckoutPathReusesTheFirstOnesTestResult` instead of two full runs (owner, 2026-10-21).
+- A-3 and A-6 broke (Mistake Log).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3: only the four `runtime.Caller` tests would go red under `-trimpath` | Three more tests pinned the exact child environment and lacked the new GOFLAGS entry | Full verify at ee108f4731, unit stages | f9c7f3edfe, 1c6bb9e95d; shared checker `toolchaintest.CheckEnvironmentTail` |
+| assumption | A-6: lint cold is 29.5 min | First timed run recorded 2807.3s under a host loaded by other sessions | Stage timing line of the ee108f4731 run | Recorded only: timing is noise on this host (owner, 2026-10-21) |
+| approach | New tests were written after the code they cover | No red phase existed for most of them | Handover part 2 | Reds forced and recorded for the lint link, the stop in `RunMode`, the env checker and AC-16 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Warm caches in the worktree | Done | `gotoolchain.go` `Environment`, `TrimpathGoFlags`; `lifecycle.go` `sharedLintCacheLink` | AC-16 test |
+| Per-stage timing recorded | Done | `engine/run.go` `runMode`; `engine/stagetimes.go` `AppendStageTimes` | 55 lines appended by the ee108f4731 run |
+| First-red mode, cheap stages first | Done | `engine/run.go` `planOrder`, `runMode`; `stagetimes.go` `costOrder` | `verify-first-red-stops.ci` |
+| CI keeps run-to-end shards, no shortened run reads as a pass | Done | `verify list` unchanged (`TestVerifyListKeepsTheDeclaredOrder`); STALE certificate (`TestAStoppedRunIsStaleForEveryPathList`); unreached charged | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS` | |
+| AC-2 | Done | same test (env, GOENV file, already present) | |
+| AC-3 | Done | `TestJudgeRunsWithPathIndependentCompiles`; `judge.go` `judgeEnvironment` | |
+| AC-4 | Done | the four packages pass under `GOFLAGS=-trimpath` (below) | `TestCIAcceptOnlyLint` red is foreign |
+| AC-5 | Done | `TestAWorktreeSharesTheCheckoutLintCache` | red recorded with `os.Symlink` removed |
+| AC-6 | Done | `TestEveryStageLogCarriesItsTimingBeforeItsResult`, `TestStageResultStillParsesALogWithATimingLine` | 55 timing lines in the ee108f4731 log |
+| AC-7 | Done | `TestStageTimesReachTheCheckoutOnGreenAndRed`, `TestEveryReachedStageIsAppendedToTheHistory` | |
+| AC-8 | Done | `TestAWorktreeRunPublishesItsFailureIndex` | |
+| AC-9 | Done | `TestAnUncutRunRunsCheapestRecordedStageFirst`, `TestACutRunKeepsTheDealtOrder`, `TestVerifyListKeepsTheDeclaredOrder` | |
+| AC-10 | Done | `TestFirstRedStopsAndRecordsEveryUnreachedStage`, `verify-first-red-stops.ci` | |
+| AC-11 | Done | `TestAnUnreachedStructuralStageIsCharged` | |
+| AC-12 | Done | `TestAStoppedRunIsStaleForEveryPathList`, `verify-first-red-stops.ci` STALE line | |
+| AC-13 | Done | `TestFirstRedIsSeparateWorkFromAWholeRun` | |
+| AC-14 | Done | `TestFirstRedWithAPartIsRefused`, `verify-first-red-refuses-a-cut.ci` | |
+| AC-15 | Done | `TestRedsNamesAStoppedRun` | |
+| AC-16 | Done | `TestASecondCheckoutPathReusesTheFirstOnesTestResult` | red with `-trimpath` removed (second path `ok example.com/warm/warm 0.182s`) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every row of the Unit Tests table | Done | files named in that table | all in packages that pass below |
+| `verify-first-red-refuses-a-cut`, `verify-first-red-stops` | Done | `test/runner/` | 16/16 runner PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every row of Files to Modify and Files to Create | Done | plus `toolchaintest/environment.go`, `register_verify_first_red.go` (Changed: hook requires `register` file name) |
+
+### Audit Summary
+- **Total items:** 16 ACs, 4 requirements, 2 functional tests
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the four Deviations above
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A second verification of one commit reuses what the first compiled | deterministic unit test over the real go command | `TestASecondCheckoutPathReusesTheFirstOnesTestResult` passes; red with `-trimpath` removed |
+| Every stage's time is on disk after every run | full run | ee108f4731 run: 55 `### Stage timing:` lines for 55 stages; `tmp/ze-verify-stage-times.tsv` holds 55 lines for that commit |
+| A first-red run reports a red in a cheap stage within minutes | functional | `verify-first-red-stops` PASS in 1.2s: seeded cheap red runs first, run stops, one history line |
+| CI keeps run-to-end, no shortened run reads as a pass | unit + functional | `TestVerifyListKeepsTheDeclaredOrder`, `TestARunWithoutFirstRedStillRunsPastARed`, STALE in `verify-first-red-stops`, `TestAnUnreachedStructuralStageIsCharged` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none in scope: resumable per-stage green and local stage parallelism are named under Known Limitations as separate later work, outside this spec's ACs | owner-approved split at spec approval | none (not in scope) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verify-gate-warm-timed-first-red-7bb0320c-9702-4807-ab31-18dc4458da48.md` (43 code files) |
+| `./le spec review check` | clean: `review_gate: OK (43 code files, clean, hashes match ...)` |
+| Rounds | 1 closure-gate round over the complete diff (ce93be1bba~1..1c6bb9e95d). Before it, five independent implementation-phase review rounds: four ending approve after 0fc794b9fa, one over f9c7f3edfe (one ISSUE, fixed in 1c6bb9e95d) |
+| Reviewer lenses used | wiring + logic + guard audit (failure-index charge, first-red stop, carry-forward), security (history parsing, lint link, lock), style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | (prior round) env-tail checker passed when Go could not answer GOFLAGS | `toolchaintest.CheckEnvironmentTail` | 1c6bb9e95d |
+
+Closure round NOTEs (no BLOCKER, no ISSUE): `EffectiveGoFlags` no longer forwards signals to its bounded `go env` query, which the old `job.goTestDefaults` did; `Environment` runs one `go env GOFLAGS` per environment when GOFLAGS is unset (cold path); the history is keyed by stage name across modes, so a fast run's time orders a full run (order only); the history file is never trimmed (R-7, stated on `running-commands.md`); a first-red stop's unreached charge is superseded by a later run that does not hold the stage (stated in `verify-freshness-scope.md`). Pre-checks: `./le commit audit base origin/main` 28 WEAKENED, none in this spec's files; `./le repo check` 6 issues, none in this spec's files.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/verify/engine/stagetimes.go`, `test/runner/verify-first-red-refuses-a-cut.ci`, `test/runner/verify-first-red-stops.ci`, `internal/test/fixture/misc_fixture_runner_first_red.go` | yes | covered by the review artifact hash list; both `.ci` ran PASS (runner 8/16 and 9/16) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-16 | the tests in Implementation Audit pass | 2026-10-21 `./le job run label unit-pkg quiet command go test -race -tags "$tags"` over verify/..., go/toolchain/..., go/lint, test/unit, chaos/selftest, commit, go/staticcheck, rfc, job, test/fixture: 16 `ok` lines, exit 0 |
+| AC-4 | root-finding tests pass under `-trimpath` | `GOFLAGS=-trimpath` go test: `ok internal/component/command/registry`, `ok internal/perf`, `ok internal/le/workflowcheck`; `internal/test/runner` red only on `TestCIAcceptOnlyLint` for `test/parse/iface-unnumbered-loopback.ci` (foreign, 3c2c96ec01) |
+| AC-10, AC-12, AC-14 | functional | `./le test functional runner`: `pass 16/16`, `verify-first-red-refuses-a-cut` and `verify-first-red-stops` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le verify current fast first-red` | `test/runner/verify-first-red-stops.ci` | driver runs the real le binary, asserts stop line, combined log, index, one history line, STALE |
+| `le verify worktree part 1 of 2 first-red` | `test/runner/verify-first-red-refuses-a-cut.ci` | driver asserts exit 2, reason, both spellings, no worktree directory |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | unvalidated | owed: cost-ordered full run at ee108f4731 compared stage by stage with the saved declared-order run |
+| A-2 | confirmed | Assumptions table |
+| A-3 | broken | Assumptions table, Mistake Log |
+| A-4 | confirmed | Assumptions table |
+| A-5 | confirmed (source) | Assumptions table |
+| A-6 | broken | Assumptions table, Mistake Log |
+| A-7 | unvalidated | owed by the same second run: its `(cached)` packages against the first run's verdicts |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `running-commands.md` stage times, first-red, carried verdicts | `stagetimes.go` `AppendStageTimes` (one O_APPEND write, nothing trims), `run.go` `planOrder`, `artifacts.go` `carryForward`, `verification.go` `structuralGateReds` read in the closure review | yes |
+| `verify-freshness-scope.md` four structural sets and the unreached exception | `structuralGateReds` charges `Reached == false && !OutsideRun` only | yes |
