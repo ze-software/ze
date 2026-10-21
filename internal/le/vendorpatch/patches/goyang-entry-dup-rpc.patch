@@ -1,0 +1,87 @@
+Ze-Reviewed-Against: github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
+
+goyang gives every copy of an rpc or action the input and output of the
+original. Entry.dup copies the RPC field by pointer, so each use of a grouping
+that defines an action shares one input and one output, parented to the
+grouping. Modules.Process applies augments and deviations to that shared
+entry, so one aimed at the parameters of one use reaches every use, against
+RFC 7950 Section 7.17: "This node is called the augment's target node. ...
+It is augmented with the nodes defined in the substatements that follow the
+"augment" statement." The target is the one use's input, not every use's.
+Entry.dup now copies the input and output with dup() and parents them to the
+copy.
+
+An input or output goyang creates for an augment, when the action declares
+the other one only, had no parent, so a path climbing from a leaf in it
+reached nothing; RFC 7950 Section 6.4.1: "The node representing the operation
+being defined has the operation's input parameters as children." Find now
+parents it to its operation.
+
+Upstream pull request: not opened yet (opening one needs the owner's order).
+Delete this patch once the goyang release go.mod requires contains the fix.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
+module".
+
+diff --git a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+--- a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
++++ b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+@@ -1379,19 +1379,25 @@ func (e *Entry) Find(name string) *Entry {
+ 			switch part {
+ 			case "input":
+ 				if e.RPC.Input == nil {
++					// An input created for an augment is a child of its
++					// operation like a declared one (RFC 7950 Section 6.4.1).
+ 					e.RPC.Input = &Entry{
+-						Name: "input",
+-						Kind: InputEntry,
+-						Dir:  make(map[string]*Entry),
++						Name:   "input",
++						Kind:   InputEntry,
++						Dir:    make(map[string]*Entry),
++						Parent: e,
+ 					}
+ 				}
+ 				e = e.RPC.Input
+ 			case "output":
+ 				if e.RPC.Output == nil {
++					// An output created for an augment is a child of its
++					// operation like a declared one (RFC 7950 Section 6.4.1).
+ 					e.RPC.Output = &Entry{
+-						Name: "output",
+-						Kind: OutputEntry,
+-						Dir:  make(map[string]*Entry),
++						Name:   "output",
++						Kind:   OutputEntry,
++						Dir:    make(map[string]*Entry),
++						Parent: e,
+ 					}
+ 				}
+ 				e = e.RPC.Output
+@@ -1510,6 +1516,26 @@ func (e *Entry) dup() *Entry {
+ 		}
+ 	}
+ 
++	// RPC is a pointer, so the copy above would share one input and one output
++	// between every copy of an rpc or action, such as each use of a grouping
++	// that defines an action. An augment or a deviation aimed at the input or
++	// output of one use would then reach every use, against RFC 7950 Section
++	// 7.17: the augment's target node "is augmented with the nodes defined in
++	// the substatements that follow the "augment" statement". Copy the input
++	// and output too, parented to this copy.
++	if e.RPC != nil {
++		rpc := *e.RPC
++		if e.RPC.Input != nil {
++			rpc.Input = e.RPC.Input.dup()
++			rpc.Input.Parent = &ne
++		}
++		if e.RPC.Output != nil {
++			rpc.Output = e.RPC.Output.dup()
++			rpc.Output.Parent = &ne
++		}
++		ne.RPC = &rpc
++	}
++
+ 	ne.Extra = make(map[string][]interface{})
+ 	for k, v := range e.Extra {
+ 		vc := make([]interface{}, len(v))

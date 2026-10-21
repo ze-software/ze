@@ -533,8 +533,8 @@ func operationContext(leaf *yang.Entry) *pathContext {
 // the children are the parameters of ctx.params alone, so an input path never
 // reads an output parameter. No other rpc, action or notification is in the
 // tree, including another use of the grouping that defines this one: the
-// operation is matched by its entry, which reparentOperationParams makes
-// the parent of its own input and output.
+// operation is matched by its entry, which goyang makes the parent of its
+// own input and output (vendor patch goyang-entry-dup-rpc.patch).
 func (ctx *pathContext) child(parent *yang.Entry, name string) *yang.Entry {
 	if ctx.operation == nil {
 		return schemaChild(parent, name)

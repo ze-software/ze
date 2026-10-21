@@ -404,3 +404,82 @@ func TestLeafrefOperationOutsideTreeNamed(t *testing.T) {
 		})
 	}
 }
+
+// TestAugmentAndDeviationReachOneUseOfGroupedAction loads an action from a
+// grouping used in box1 and box2, then changes the input of box1's use alone
+// from a second module: an augment adding leaf z, or a deviation removing
+// leaf x. A leafref in box2's input sees box2's own input only, so `../b:z`
+// is refused there and `../a:x` still loads, while box1's input holds z and
+// lacks x. Each use's input is its own copy, made when goyang instantiates
+// the grouping (vendor patch goyang-entry-dup-rpc.patch); a shared input let
+// the augment and the deviation reach box2 too.
+//
+// VALIDATES: an augment or a deviation aimed at one use of a grouped action
+// changes that use only (RFC 7950 Section 7.17: "This node is called the
+// augment's target node. ... It is augmented with the nodes defined in the
+// substatements that follow the "augment" statement."; Section 7.20.3, a
+// deviation's target node).
+// PREVENTS: a leafref loading against a node its own input does not hold,
+// and a refusal naming a node no module defined (review round 9, ISSUE 1,
+// probes P10 to P12).
+func TestAugmentAndDeviationReachOneUseOfGroupedAction(t *testing.T) {
+	const a = `module a { yang-version 1.1; namespace "urn:ze:test:a"; prefix a;
+        grouping ga { action act { input { leaf x { type string; } } } }
+        container box1 { uses ga; } container box2 { uses ga; } }`
+	module := func(body string) string {
+		return `module b { yang-version 1.1; namespace "urn:ze:test:b"; prefix b;
+            import a { prefix a; } ` + body + ` }`
+	}
+	leafref := func(box, path string) string {
+		return `augment "/a:` + box + `/a:act/a:input" { leaf r { type leafref { path "` + path + `"; } } }`
+	}
+	const addZ = `augment "/a:box1/a:act/a:input" { leaf z { type string; } } `
+	const dropX = `deviation "/a:box1/a:act/a:input/a:x" { deviate not-supported; } `
+
+	// P10: z was added to box1's input only, so box2's input holds no z.
+	err := loadModuleTexts(t, a, module(addZ+leafref("box2", "../b:z")))
+	require.ErrorIs(t, err, ErrLeafrefPath)
+	assert.Contains(t, err.Error(), "/a/box2/act/input/r")
+	assert.Contains(t, err.Error(), `"b:z"`)
+	assert.NotContains(t, err.Error(), "/a/box1/")
+
+	// P11: box1's input does hold z.
+	require.NoError(t, loadModuleTexts(t, a, module(addZ+leafref("box1", "../b:z"))))
+
+	// P12: x was removed from box1's input only, so box2's x still loads.
+	require.NoError(t, loadModuleTexts(t, a, module(dropX+leafref("box2", "../a:x"))))
+
+	// The deviation did reach box1: its input holds no x.
+	err = loadModuleTexts(t, a, module(dropX+leafref("box1", "../a:x")))
+	require.ErrorIs(t, err, ErrLeafrefPath)
+	assert.Contains(t, err.Error(), "/a/box1/act/input/r")
+	assert.NotContains(t, err.Error(), "/a/box2/")
+}
+
+// TestAugmentCreatesInputOfAction augments the input of an action that
+// declares an output and no input. The input goyang creates for the augment is a parameter
+// node of that action like a declared one, so a leafref beside the added
+// leaf climbs through it to the action and loads, and a refusal names the
+// leaf under the action's path.
+//
+// VALIDATES: an input an augment creates is parented to its action (RFC 7950
+// Section 7.17: "The target node MUST be either a container, list, choice,
+// case, input, output, or notification node."; Section 6.4.1, the operation
+// node has its input parameters as children).
+// PREVENTS: an augmented input with no parent, whose leafrefs climb to
+// nothing and whose refusals name "/input/r".
+func TestAugmentCreatesInputOfAction(t *testing.T) {
+	const a = `module a { yang-version 1.1; namespace "urn:ze:test:a"; prefix a;
+        container box { action act { output { leaf o { type string; } } } } }`
+	module := func(path string) string {
+		return `module b { yang-version 1.1; namespace "urn:ze:test:b"; prefix b;
+            import a { prefix a; }
+            augment "/a:box/a:act/a:input" { leaf z { type string; }
+              leaf r { type leafref { path "` + path + `"; } } } }`
+	}
+	require.NoError(t, loadModuleTexts(t, a, module("../b:z")))
+
+	err := loadModuleTexts(t, a, module("../b:missing"))
+	require.ErrorIs(t, err, ErrLeafrefPath)
+	assert.Contains(t, err.Error(), "/a/box/act/input/r")
+}
