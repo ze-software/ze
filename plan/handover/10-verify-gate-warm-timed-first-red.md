@@ -45,6 +45,24 @@ Files and symbols:
 - `TestGoTestDefaultsUseTheToolchainResolver`: covered by the existing GOENV cases in `internal/le/job/process_test.go` (lines near 281) now running through `gotoolchain.EffectiveGoFlags`; no new test.
 - The spec's TDD table and Wiring table still carry the old names: update them.
 
+## Part 2 (continuation agent, 2026-10-21)
+
+Landed: 88fb40e846 "verify: cost-ordered runs, first-red stop, stage-time history" (AC-7 rest, AC-9..AC-15, docs).
+
+- `engine/stagetimes.go`: `Plan{History, FirstRed}`, `StageTimesPath`, `ReadStageCosts` (latest per stage, malformed counted), `costOrder`, `AppendStageTimes` (one O_APPEND write per run). The engine itself reads and appends at `Plan.History` (the checkout root), passed by `lifecycle.run` and `runFast`; there is no separate publication step.
+- `engine/run.go`: `RunMode`/`RunPart` take `plan`; `planOrder`, `recordStageTimes`, `StoppedMarker`; `Report.StoppedAt`, `Report.Unreached`. `artifacts.go`: `reached`, `stopped-at`, unreached entries.
+- `lifecycle.go`: `Options.FirstRed`, refusal in `Options.part` (`firstRedWithPart`), `worktreeArgv(sha, part, firstRed)`, stop line. `actions.go`: keywords `first-red`, `part`, `of` (part/of did NOT exist on `verify worktree` before; the spec's Current Behavior was wrong). `current.go`: `first-red` on `verify current`, `fastArgv(firstRed)`.
+- `commit/verification.go`: `structuralReds.Unreached`, charged; `prepare.go` names them. `reds.go`: `Reds.StoppedAt`, `stoppedAt`.
+- Tests: engine `TestAnUncutRunRunsCheapestRecordedStageFirst`, `TestFirstRedStopsAndRecordsEveryUnreachedStage`, `TestARunWithoutFirstRedStillRunsPastARed` (run_test.go), `TestAMalformedHistoryLineIsSkippedAndCounted`, `TestEveryReachedStageIsAppendedToTheHistory` (stagetimes_test.go), `TestACutRunKeepsTheDealtOrder` (part_test.go), `TestAStoppedRunIsStaleForEveryPathList` (status_test.go); verify `firstred_test.go`: `TestFirstRedReachesTheEngineFromBothEntryPoints`, `TestFirstRedIsSeparateWorkFromAWholeRun`, `TestFirstRedWithAPartIsRefused`, `TestStageTimesReachTheCheckoutOnGreenAndRed`, `TestVerifyListKeepsTheDeclaredOrder`, `TestRedsNamesAStoppedRun`; commit `TestAnUnreachedStructuralStageIsCharged`. `test/runner/verify-first-red-refuses-a-cut.ci` with fixture `misc_fixture_runner_first_red.go` is NOT run yet (needs a rebuilt le).
+- Green: `go test -race` under `./le job run` over `./internal/le/commit/ ./internal/le/verify/... ./internal/test/fixture/`.
+- Recorded red: `TestAWorktreeSharesTheCheckoutLintCache` with the `os.Symlink` call in `sharedLintCacheLink` removed failed at its `os.Readlink` assertion (no such file or directory); restored, green.
+- The new tests were written after the code (they could not compile before it); no red phase was recorded for them.
+
+Still owed (same package):
+1. `test/runner/verify-first-red-stops.ci` and its fixture (throwaway checkout, `le verify current fast first-red` stops, the log names unreached stages, `le verify status check` answers STALE). Not written.
+2. Run `verify-first-red-refuses-a-cut.ci` (`./le test functional runner`).
+3. Spec edits (the plan/ write hook needs the Edit tool and the budget ran out): TDD, Wiring and Deliverables tables to the names above and to Part 1's "Spec corrections"; Current Behavior's `actions.go` line (part/of added, refusal in `Options.part`); Decision: the engine owns the history through `Plan.History`. `TestStageResultStillParsesALogWithATimingLine` was not found by name; check `reds_test.go`.
+
 ## Owed to the main thread
 
 Review (independent), `./le go lint run`, `./le test unit all`, `./le test functional gating`, `./le doc check verify`, the full `./le verify worktree`, and the AC-16 two-run measurement.
