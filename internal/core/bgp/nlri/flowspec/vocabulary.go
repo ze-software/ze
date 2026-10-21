@@ -34,7 +34,10 @@ const (
 )
 
 // keywordComponentType maps each component keyword to the type it encodes.
-// RFC 8955 Section 4.2.2 and RFC 8956 Section 3 number the types.
+// RFC 8955 Section 4.2.2 and RFC 8956 Section 3 number the types. It is the one
+// statement of which keyword names which component: the FlowSpec plugin's text
+// parser (parseComponentText), the ExaBGP bridge and the ExaBGP migration read
+// it through KeywordComponentType rather than listing the keywords again.
 var keywordComponentType = map[string]FlowComponentType{
 	KwDestinationIPv4: FlowDestPrefix,
 	KwDestinationIPv6: FlowDestPrefix,

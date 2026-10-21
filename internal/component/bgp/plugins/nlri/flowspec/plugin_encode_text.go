@@ -136,43 +136,38 @@ func parseComponentText(args []string, fam flowspec.Family) (flowspec.FlowCompon
 	}
 
 	keyword := strings.ToLower(args[0])
-
-	switch keyword {
-	case flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6:
-		return parsePrefixComponentText(args, flowspec.FlowDestPrefix, fam)
-	case flowspec.KwSourceIPv4, flowspec.KwSourceIPv6:
-		return parsePrefixComponentText(args, flowspec.FlowSourcePrefix, fam)
-	case flowspec.KwProtocol, flowspec.KwNextHeader:
-		return parseProtocolComponentText(args[1:])
-	case flowspec.KwPort:
-		return parseNumericComponentText(args[1:], flowspec.FlowPort)
-	case flowspec.KwDestPort:
-		return parseNumericComponentText(args[1:], flowspec.FlowDestPort)
-	case flowspec.KwSourcePort:
-		return parseNumericComponentText(args[1:], flowspec.FlowSourcePort)
-	case flowspec.KwICMPType:
-		return parseNumericComponentText(args[1:], flowspec.FlowICMPType)
-	case flowspec.KwICMPCode:
-		return parseNumericComponentText(args[1:], flowspec.FlowICMPCode)
-	case flowspec.KwTCPFlags:
-		return parseTCPFlagsComponentText(args[1:])
-	case flowspec.KwPacketLength:
-		return parseNumericComponentText(args[1:], flowspec.FlowPacketLength)
-	case flowspec.KwDSCP, flowspec.KwTrafficClass:
-		return parseNumericComponentText(args[1:], flowspec.FlowDSCP)
-	case flowspec.KwFragment:
-		return parseFragmentComponentText(args[1:])
-	case flowspec.KwFlowLabel:
-		return parseNumericComponentText(args[1:], flowspec.FlowFlowLabel)
-	case flowspec.KwRD:
+	if keyword == flowspec.KwRD {
 		// EncodeFlowSpecComponents removes the rd pair from a VPN family's arguments
 		// before this walk starts, so an rd reaching here names a family that carries
 		// no Route Distinguisher.
 		return nil, 0, errRdOnlyForVpnFamily
 	}
 
-	// Unknown keyword - return error (not silent ignore)
-	return nil, 0, fmt.Errorf("unknown component: %s", keyword)
+	// The core vocabulary states which keyword encodes which type; this walk
+	// only chooses the value parser for the type (flowspec.KeywordComponentType).
+	componentType, ok := flowspec.KeywordComponentType(keyword)
+	if !ok {
+		// Unknown keyword - return error (not silent ignore)
+		return nil, 0, fmt.Errorf("unknown component: %s", keyword)
+	}
+
+	// Class C: KeywordComponentType answers only the named types below.
+	switch componentType {
+	case flowspec.FlowDestPrefix, flowspec.FlowSourcePrefix:
+		return parsePrefixComponentText(args, componentType, fam)
+	case flowspec.FlowIPProtocol:
+		return parseProtocolComponentText(args[1:])
+	case flowspec.FlowTCPFlags:
+		return parseTCPFlagsComponentText(args[1:])
+	case flowspec.FlowFragment:
+		return parseFragmentComponentText(args[1:])
+	case flowspec.FlowPort, flowspec.FlowDestPort, flowspec.FlowSourcePort,
+		flowspec.FlowICMPType, flowspec.FlowICMPCode, flowspec.FlowPacketLength,
+		flowspec.FlowDSCP, flowspec.FlowFlowLabel:
+		return parseNumericComponentText(args[1:], componentType)
+	default:
+		panic("BUG: flowspec.KeywordComponentType answered a type no text parser handles")
+	}
 }
 
 // parsePrefixComponentText parses destination or source prefix from text.
@@ -354,14 +349,11 @@ func parseFragmentComponentText(args []string) (flowspec.FlowComponent, int, err
 
 // isComponentKeyword checks if token is a component keyword.
 func isComponentKeyword(token string) bool {
-	switch token {
-	case flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6, flowspec.KwSourceIPv4, flowspec.KwSourceIPv6,
-		flowspec.KwProtocol, flowspec.KwNextHeader, flowspec.KwPort, flowspec.KwDestPort, flowspec.KwSourcePort,
-		flowspec.KwICMPType, flowspec.KwICMPCode, flowspec.KwTCPFlags, flowspec.KwPacketLength, flowspec.KwDSCP, flowspec.KwTrafficClass,
-		flowspec.KwFragment, flowspec.KwFlowLabel, flowspec.KwRD:
+	if token == flowspec.KwRD {
 		return true
 	}
-	return false
+	_, ok := flowspec.KeywordComponentType(token)
+	return ok
 }
 
 // componentMaxValue returns max valid value for component type.

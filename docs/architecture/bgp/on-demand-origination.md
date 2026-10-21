@@ -128,9 +128,11 @@ named a first token no operator types and spelled the rest as `<args>`.
 
 **The vocabulary a command borrows is declared by the plugin that owns it.**
 `send bgp <selector> flowspec` takes seventeen match components, and they belong to the
-FlowSpec codec: `isComponentKeyword`
-(`internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go`) is their
-single producer, and `handleAnnounceFlowspec` never reads them. So the flowspec
+FlowSpec codec: `flowspec.KeywordComponentType`
+(`internal/core/bgp/nlri/flowspec/vocabulary.go`) is their single producer,
+which the codec's `isComponentKeyword` and `parseComponentText`
+(`internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go`) read, and
+`handleAnnounceFlowspec` never reads them. So the flowspec
 plugin declares them itself, through an `augment` onto the announce module's
 `flowspec` container, and the announce module never restates another plugin's
 words. Two things follow that a reader will otherwise meet as a silent
