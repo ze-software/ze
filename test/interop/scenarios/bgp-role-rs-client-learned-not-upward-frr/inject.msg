@@ -13,14 +13,16 @@
 option=tcp_connections:value=1
 option=bind:value=0.0.0.0
 option=timeout:value=180s
+# Hold the session open while the checker reads FRR and Ze's RIB, whatever Ze
+# sends. A dropped session withdraws the route: bgp-rib then purges it, so the
+# routes-in check never passes, and its absence at FRR proves nothing. Ze sends
+# this RS-Client its own static 10.77.4.0/24 and End-of-RIB, so an expect=bgp
+# list of KEEPALIVEs is a mismatch that closes the session (the first two runs,
+# 2026-10-21). linger never closes and answers every KEEPALIVE.
+option=linger:value=true
 option=open:value=add-capability:code=9:hex=02
 
 # 10.10.0.0/24 and End-of-RIB, sent as soon as Ze opens the session.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304AC1E0009180A0A00
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Hold the session open while the checker reads FRR. A dropped session would
-# withdraw the route, and its absence at FRR would then prove nothing.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
