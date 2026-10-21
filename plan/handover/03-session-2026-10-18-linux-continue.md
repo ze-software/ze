@@ -2315,3 +2315,49 @@ Left open (budget):
   no `rfc/short` summary, so these tests carry no requirement tags.
 - FRR and BIRD clones are under `tmp/ext-frr-fs`, `tmp/ext-bird-fs`, and the
   successor drafts under `tmp/ext-drafts-fs` (untracked data).
+
+## 2026-10-21 fsr3 agent: review fixes for 15c484a543 and 62a025c7b8 (budget reached)
+
+Landed (each test red first, green after):
+- 27edca2c3f BLOCKER 1: both rails asked the refusal by the forward cache id;
+  replay (RelayStoredRoute) leaked 0x0800. Now the received generation.
+  `TestFlowSpecRedirectRefusedRouteServer` red then green;
+  `TestFlowSpecRedirectRefusedReplay` (origin flip twice, no FlowSpec UPDATE)
+  and rib `TestFlowSpecRedirectConfigSwitchRejudges` (installConfig off/on) new.
+- ccf6880bb7 ISSUE 1: refusal is per rule now.
+  `ribevents.FlowSpecRedirectRefused(route ValidationRoute, msgID)`, answered
+  from `flowSpecState.paths[key]`; `forwardValidationWire` splits refused rules
+  into a third UPDATE in place (three reversals, no allocation) and
+  `forwardUpdateValidated` sends it with `forwardSourceInfo.flowSpecRedirectRefused`.
+  The RS-rail ask was removed: FlowSpec never takes that rail
+  (`sourceUsesCachedForward`). Tests `TestForwardValidationSplitsRedirectRefusedRules`,
+  `TestFlowSpecRedirectVPNVerdictPerRule`, both red under their mutations.
+- 8f11c35354 ISSUE 2: LocalASN 0 is external (fail closed).
+  `TestFlowSpecRedirectUnknownLocalASIsChecked` red then green.
+- 072fb3bdf0 item 7: `TestFlowSpecUnmatchableReceivedRuleWithdraw`.
+- 2e8121d321 BLOCKER 2a (parse half) and ISSUE 4: `test/parse/flowspec-redirect-check.ci`
+  (three levels, both values, non-boolean refused with "expected
+  true/false/enable/disable"); guide row in `docs/guide/configuration.md`;
+  `ze-rib.yang` description made true (rule's own domain, per rule, no match
+  refuses, unknown local AS checked).
+- 4cf6dd6152 re-took RFC9494-4.3-3 (both polarities) and RFC9552-5.1-3,
+  staled by the rail edits. `./le rfc check` then had no violation over
+  this work; the 18 left are other sessions' (rfc7950 config/yang records,
+  rfc4659/rfc8277 mpReachNextHopHandler, RFC8955-4-3 stale requirement, two
+  file-name rows).
+
+Still owed:
+- BLOCKER 2a functional half: a `.ci` through the daemon (two ze-peers, the
+  RIB attached) where an EBGP-learned redirect is forwarded without 0x0800
+  and with next-hop length 0 when the check refuses, and with both when
+  `flowspec-redirect-check { enabled false }`. Model: `test/plugin/bgp-rs-fastpath.ci`.
+- BLOCKER 2b interop: FRR scenario via the QEMU docker-lab (recipe in the
+  "bgp-open-session D2/D1 proofs" section above, `ZE_QEMU_SSH_PORT=2290`,
+  `ze.qemu.ssh.port=2290`): FRR sends a redirect rule whose X resolves to a
+  route originated in another AS; a second FRR or GoBGP must receive it
+  without 0x0800; red with the check disabled by overlay; inventory row in
+  `docs/architecture/testing/interop.md`.
+- Owner only: `./le rfc approve` for the [WEAKENED] flag on
+  `rib_flowspec_validation_test.go` (15c484a543's refactor). Not approved here.
+- Gates: `./le verify worktree` over 27edca2c3f..4cf6dd6152 (debt rows in
+  `plan/verification-debt/8675d4bc.md`), and `./le test functional parse`.
