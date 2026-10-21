@@ -2,12 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | deferred |
 | Scope | config |
 | Depends | - |
 | Phase | 1 |
 | Handoff | - |
-| Updated | 2026-10-18 |
+| Updated | 2026-10-21 |
+
+Deferred under M12 (full YANG coverage runs after the initial release). Remaining: review round 10 over a639bb22e9 (the grouped-action fix), and the two goyang journal rows of 2026-10-21 (action without input refuses an augment of its input, `parser-refuses-a-form-its-producer-emits.md`; a uses augment is never applied, `silent-fall-through.md`).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
