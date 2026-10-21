@@ -120,3 +120,34 @@ func TestWatchdogAndNameWithNoValue(t *testing.T) {
 		t.Errorf("med with no value was translated, want a refusal")
 	}
 }
+
+// TestMUPLeadingFieldNamed verifies that the field ExaBGP writes bare after a
+// MUP route type reaches ze under the name ze's encoder reads for that type.
+//
+// VALIDATES: ExaBGP reads `mup-isd <ip prefix>`, `mup-dsd <ip address>`,
+// `mup-t1st <ip prefix>` and `mup-t2st <endpoint address>` (the grammar
+// comments in configuration/static/mpls.py, 5.0.1), and ze's MUP encoder reads
+// `prefix` for the first and third and `address` for the other two
+// (nlri/mup/encode.go).
+// PREVENTS: every DSD and T2ST line refused with "requires address".
+func TestMUPLeadingFieldNamed(t *testing.T) {
+	for _, tc := range []struct {
+		line string
+		want string
+	}{
+		{"announce ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 10.0.0.2", " route-type mup-isd prefix 10.0.1.0/24 "},
+		{"announce ipv4 mup mup-dsd 10.0.0.1 rd 100:100 next-hop 10.0.0.2", " route-type mup-dsd address 10.0.0.1 "},
+		{"announce ipv4 mup mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 10.0.0.2", " route-type mup-t1st prefix 192.168.0.1/32 "},
+		{"announce ipv6 mup mup-t2st 2001::1 rd 100:100 teid 12345/32 next-hop 2001::2", " route-type mup-t2st address 2001::1 "},
+	} {
+		translation, err := TranslateLine(tc.line)
+		if err != nil {
+			t.Errorf("%q: %v", tc.line, err)
+			continue
+		}
+		texts := commandTexts(translation)
+		if len(texts) != 1 || !strings.Contains(texts[0]+" ", tc.want) {
+			t.Errorf("%q became %q, want it to hold %q", tc.line, texts, tc.want)
+		}
+	}
+}

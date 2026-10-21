@@ -552,13 +552,23 @@ func takeDelimited(parts []string, start int, open, close byte) (string, int, er
 	return "", start, errUnclosedGroup
 }
 
-// bridgeMUPRouteTypes are the four MUP route types, which ExaBGP writes as the
-// FIRST token of the NLRI and ze writes after the keyword `route-type`.
+// bridgeMUPRouteTypes maps the four MUP route types, which ExaBGP writes as
+// the FIRST token of the NLRI and ze writes after the keyword `route-type`, to
+// the ze keyword naming the field ExaBGP writes bare after the type.
 //
-// Source: ExaBGP src/exabgp/configuration/announce/mup.py, the schema children.
-var bridgeMUPRouteTypes = map[string]bool{
-	"mup-isd": true, "mup-dsd": true, "mup-t1st": true, "mup-t2st": true,
+// ExaBGP reads `mup-isd <ip prefix>`, `mup-dsd <ip address>`, `mup-t1st <ip
+// prefix>` and `mup-t2st <endpoint address>` (the grammar comments above each
+// reader in configuration/static/mpls.py, 5.0.1), and ze's encoder reads those
+// fields as `prefix` and `address` (nlri/mup/encode.go, EncodeNLRIHex).
+var bridgeMUPRouteTypes = map[string]string{
+	"mup-isd": mupFieldPrefix, "mup-dsd": mupFieldAddress, "mup-t1st": mupFieldPrefix, "mup-t2st": mupFieldAddress,
 }
+
+// The two ze keywords that name the field after a MUP route type.
+const (
+	mupFieldPrefix  = "prefix"
+	mupFieldAddress = "address"
+)
 
 // shapePluginNLRI rewrites an NLRI token run into the spelling the family's ze
 // plugin encoder reads. It answers the run unchanged for every family whose
@@ -566,16 +576,26 @@ var bridgeMUPRouteTypes = map[string]bool{
 //
 // mvpn agrees: ExaBGP writes `shared-join rp <ip> group <ip> rd <rd> source-as
 // <asn>` and the ze encoder reads exactly that. mup does not: ExaBGP leads with
-// the route type and the prefix bare, ze names both
+// the route type and its prefix or address bare, ze names both
 // (internal/component/bgp/plugins/nlri/mup/encode.go, EncodeNLRIHex).
 func shapePluginNLRI(family string, tokens []string) []string {
 	_, safi, ok := strings.Cut(family, "/")
-	if !ok || safi != bridgeMUPSAFI || len(tokens) < 2 || !bridgeMUPRouteTypes[strings.ToLower(tokens[0])] {
+	if !ok {
+		return tokens
+	}
+	if safi != bridgeMUPSAFI {
+		return tokens
+	}
+	if len(tokens) < 2 {
+		return tokens
+	}
+	field, isRouteType := bridgeMUPRouteTypes[strings.ToLower(tokens[0])]
+	if !isRouteType {
 		return tokens
 	}
 
 	shaped := make([]string, 0, len(tokens)+2)
-	shaped = append(shaped, "route-type", tokens[0], "prefix", tokens[1])
+	shaped = append(shaped, "route-type", tokens[0], field, tokens[1])
 	return append(shaped, tokens[2:]...)
 }
 

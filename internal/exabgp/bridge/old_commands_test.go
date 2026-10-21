@@ -156,9 +156,12 @@ func loadOldCommands(t *testing.T, release string) map[string]oldRecorded {
 }
 
 // oldJudge holds the two ways an UPDATE is read: without ADD-PATH, then with
-// it on every family. 5.0 packs a Path Identifier for a route given
-// `path-information` whether or not the session negotiated it, and the pin's
-// judge reads each message both ways for that reason (content, test_old_commands).
+// it on every family. 4.2 and 5.0 pack a Path Identifier only when the session
+// negotiated ADD-PATH (5.0.1 nlri/inet.py pack_nlri), and neighbor.conf
+// negotiates none, so a recorded UPDATE normally carries no identifier. The
+// ADD-PATH reading is the fallback for a message the plain reading cannot
+// decode, as the pin's judge reads each message both ways (content,
+// test_old_commands).
 type oldJudge struct {
 	plain   SessionFacts
 	addPath SessionFacts
