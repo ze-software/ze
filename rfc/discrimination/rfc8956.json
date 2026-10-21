@@ -64,7 +64,7 @@
       "claim-sha": "682a025ec2f0689f",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
-      "producer-sha": "7fe5d130bba96fc8",
+      "producer-sha": "60d1d6394148d40e",
       "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "c8154ef69be64df2",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
-      "producer-sha": "7fe5d130bba96fc8",
+      "producer-sha": "60d1d6394148d40e",
       "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "8d3cca13b78626ab",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
-      "producer-sha": "7fe5d130bba96fc8",
+      "producer-sha": "60d1d6394148d40e",
       "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "72dba64e9e476c9f",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
-      "producer-sha": "7fe5d130bba96fc8",
+      "producer-sha": "60d1d6394148d40e",
       "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
