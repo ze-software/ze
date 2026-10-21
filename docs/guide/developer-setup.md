@@ -242,6 +242,15 @@ kernel that lacks one.
   wrapper builds without `appliance`), then run a lab as
   `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
   `lab` the action stops after the guest's Docker kernel check.
+- **macOS, the `ze` Colima profile:** `./le setup docker-host start` builds
+  Ze's docker-host image (Ze's runtime kernel, dockerd, containerd) and runs it
+  as the Colima profile `ze`, never touching Colima's `default` profile. Its
+  socket is `~/.colima/ze/docker.sock`; until the labs select it themselves,
+  name it with `DOCKER_HOST=unix://$HOME/.colima/ze/docker.sock`.
+  `./le setup docker-host check` names anything missing (colima, lima, docker,
+  `brew install e2fsprogs` for `mkfs.ext4`), and
+  `./le setup docker-host stop` stops it. The image build and the profile's
+  lifecycle are in `docs/architecture/appliance/docker-host.md`.
 - **Linux:** the labs run on the host's own Docker, on a kernel that carries
   every registered feature. `./le setup docker-kernel check` asks the
   Docker daemon in hand and names each missing feature. It cross-builds the

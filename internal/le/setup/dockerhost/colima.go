@@ -1,0 +1,257 @@
+// Design: docs/architecture/appliance/docker-host.md -- the ze Colima profile
+// Related: build.go -- the image start boots
+// Related: lock.go -- the hold start and stop run under
+
+package dockerhost
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+// colimaProfile is the only Colima profile setup names. Colima's `default`
+// profile runs Ubuntu, which M10 rules out as a lab host, and it belongs to
+// the owner: setup never starts, stops, edits or deletes it.
+const colimaProfile = "ze"
+
+// archARM64 is the Go name of the arch Rosetta and aarch64 belong to.
+const archARM64 = "arm64"
+
+// colimaRecordFileName holds the image key and path the ze profile was last
+// started with, under the docker-host cache root.
+const colimaRecordFileName = "colima-ze.started"
+
+// colimaArgv is the only builder of a colima command line. Every argv it
+// answers names the ze profile right after the verb, so no path in setup can
+// reach Colima's default profile by omitting the flag (spec R-6).
+func colimaArgv(verb string, options ...string) []string {
+	return append([]string{"colima", verb, "--profile", colimaProfile}, options...)
+}
+
+// colimaStartArgv is the argv that boots the image as the ze profile.
+// `--activate=false` leaves the operator's current Docker context alone: labs
+// select the ze socket themselves. `--force-disk-image` is needed because
+// Colima accepts only its own Ubuntu disk images without it.
+func colimaStartArgv(image, arch string) []string {
+	options := []string{
+		"--vm-type", "vz",
+		"--arch", colimaArch(arch),
+		"--runtime", dockerCLI,
+		"--disk-image", image,
+		"--force-disk-image",
+		"--mount-type", "virtiofs",
+		"--cpus", "4",
+		"--memory", "8",
+		"--activate=false",
+	}
+	if arch == archARM64 {
+		options = append(options, "--vz-rosetta")
+	}
+	return colimaArgv("start", options...)
+}
+
+// colimaArch is Colima's name for a Go architecture.
+func colimaArch(arch string) string {
+	if arch == archARM64 {
+		return "aarch64"
+	}
+	return "x86_64"
+}
+
+// profileState is what setup knows of the ze profile before it acts.
+type profileState struct {
+	// exists is true when Lima holds an instance for the profile.
+	exists bool
+	// running is true when `colima status --profile ze` succeeds.
+	running bool
+}
+
+// colimaHost drives the ze profile. Each external effect is a field so a
+// test records the argv sequence instead of running Colima.
+type colimaHost struct {
+	// run runs one colima argv, streaming its output; it fails on a non-zero exit.
+	run func(ctx context.Context, argv []string) error
+	// state answers whether the profile exists and runs.
+	state func(ctx context.Context) (profileState, error)
+	// recordPath is the file holding the started image key and path.
+	recordPath string
+	// progress receives one line per colima argv before it runs.
+	progress io.Writer
+}
+
+// startOutcome says what start did.
+type startOutcome struct {
+	Profile  string `json:"profile"`
+	Image    string `json:"image"`
+	Key      string `json:"key"`
+	Action   string `json:"action"`
+	Recorded string `json:"recorded-key"`
+}
+
+// Start actions, as start reports them.
+const (
+	startActionNone     = "none: the profile already runs this image"
+	startActionStart    = "started"
+	startActionRecreate = "recreated: the image changed"
+)
+
+// start makes the ze profile run image. With the recorded key equal to the
+// image's and the profile running it starts nothing. When the profile exists
+// with another image it stops it, deletes it and starts it afresh, because
+// Colima keeps an existing disk and would ignore the new image (spec AC-7,
+// R-5). The key is recorded only after the start succeeded.
+func (h colimaHost) start(ctx context.Context, image builtImage, arch string) (startOutcome, error) {
+	recorded, _, err := readColimaRecord(h.recordPath)
+	if err != nil {
+		return startOutcome{}, err
+	}
+	state, err := h.state(ctx)
+	if err != nil {
+		return startOutcome{}, err
+	}
+	outcome := startOutcome{Profile: colimaProfile, Image: image.Path, Key: image.Key, Recorded: recorded}
+	if recorded == image.Key && state.running {
+		outcome.Action = startActionNone
+		return outcome, nil
+	}
+	outcome.Action = startActionStart
+	if state.exists && recorded != image.Key {
+		outcome.Action = startActionRecreate
+		if state.running {
+			if err := h.runShown(ctx, colimaArgv("stop")); err != nil {
+				return startOutcome{}, err
+			}
+		}
+		if err := h.runShown(ctx, colimaArgv("delete", "--force")); err != nil {
+			return startOutcome{}, err
+		}
+	}
+	if err := h.runShown(ctx, colimaStartArgv(image.Path, arch)); err != nil {
+		return startOutcome{}, err
+	}
+	if err := writeColimaRecord(h.recordPath, image); err != nil {
+		return startOutcome{}, err
+	}
+	return outcome, nil
+}
+
+// stop stops the ze profile when it runs, and does nothing otherwise.
+func (h colimaHost) stop(ctx context.Context) (map[string]string, error) {
+	state, err := h.state(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !state.running {
+		return map[string]string{"profile": colimaProfile, "action": "none: the profile is not running"}, nil
+	}
+	if err := h.runShown(ctx, colimaArgv("stop")); err != nil {
+		return nil, err
+	}
+	return map[string]string{"profile": colimaProfile, "action": "stopped"}, nil
+}
+
+// runShown prints the argv, then runs it.
+func (h colimaHost) runShown(ctx context.Context, argv []string) error {
+	if _, err := io.WriteString(h.progress, "runs: "+strings.Join(argv, " ")+"\n"); err != nil {
+		return err
+	}
+	return h.run(ctx, argv)
+}
+
+// readColimaRecord answers the key and image path the profile was last
+// started with, both empty when it never was.
+func readColimaRecord(path string) (key, image string, err error) {
+	data, err := os.ReadFile(path) //nolint:gosec // the record in the docker-host cache
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("read %s: %w", path, err)
+	}
+	key, image, found := strings.Cut(strings.TrimSpace(string(data)), " ")
+	if !found {
+		return "", "", fmt.Errorf("%s holds %q, not `<key> <image path>`. Fix: delete it, then run `./le setup docker-host start`", path, string(data))
+	}
+	return key, image, nil
+}
+
+// writeColimaRecord records the image the profile now runs.
+func writeColimaRecord(path string, image builtImage) error {
+	if err := os.WriteFile(path, []byte(image.Key+" "+image.Path+"\n"), 0o644); err != nil { //nolint:gosec // the record in the docker-host cache
+		return fmt.Errorf("record the started image in %s: %w", path, err)
+	}
+	return nil
+}
+
+// colimaHome is Colima's configuration root, where it keeps one directory per
+// profile and Lima's instances under _lima.
+func colimaHome() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("find the home directory: %w", err)
+	}
+	return filepath.Join(home, ".colima"), nil
+}
+
+// zeSocketPath is the Docker socket Colima forwards for the ze profile.
+func zeSocketPath() (string, error) {
+	root, err := colimaHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, colimaProfile, "docker.sock"), nil
+}
+
+// systemColimaHost is the colimaHost that runs the real colima binary.
+func systemColimaHost(cacheDir string) colimaHost {
+	return colimaHost{
+		run:        runColima,
+		state:      colimaProfileState,
+		recordPath: filepath.Join(cacheDir, colimaRecordFileName),
+		progress:   os.Stderr,
+	}
+}
+
+// runColima runs argv with its output on stderr and no stdin, so a prompt
+// fails instead of waiting.
+func runColima(ctx context.Context, argv []string) error {
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // argv from colimaArgv
+	command.Stdout = os.Stderr
+	command.Stderr = os.Stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("`%s` failed: %w (its output is above). Fix: read Colima's message, then run "+
+			"`colima delete --profile ze --force` and `./le setup docker-host start` if the profile is broken", strings.Join(argv, " "), err)
+	}
+	return nil
+}
+
+// colimaProfileState asks Lima's instance directory whether the profile
+// exists and `colima status` whether it runs.
+func colimaProfileState(ctx context.Context) (profileState, error) {
+	root, err := colimaHome()
+	if err != nil {
+		return profileState{}, err
+	}
+	instance := filepath.Join(root, "_lima", "colima-"+colimaProfile)
+	if _, err := os.Stat(instance); errors.Is(err, fs.ErrNotExist) {
+		return profileState{}, nil
+	} else if err != nil {
+		return profileState{}, fmt.Errorf("inspect %s: %w", instance, err)
+	}
+	argv := colimaArgv("status")
+	statusErr := exec.CommandContext(ctx, argv[0], argv[1:]...).Run() //nolint:gosec // argv from colimaArgv
+	if _, exited := errors.AsType[*exec.ExitError](statusErr); exited {
+		return profileState{exists: true}, nil
+	}
+	if statusErr != nil {
+		return profileState{}, fmt.Errorf("run `%s`: %w. Fix: install Colima (brew install colima)", strings.Join(argv, " "), statusErr)
+	}
+	return profileState{exists: true, running: true}, nil
+}

@@ -161,6 +161,69 @@ the same inputs always give the same key and a change to any gives a new one.
 <!-- source: internal/le/setup/dockerhost/pins.go -- LoadPins, ImageKey -->
 <!-- source: internal/le/setup/dockerhost/fetch.go -- Fetcher.Fetch -->
 
+## Building the image: `./le setup docker-host build`
+
+`./le setup docker-host build [arch <amd64|arm64>] [size <GiB>] [pins <file>]`
+writes the raw image to
+`~/.cache/ze/docker-host/<arch>/<key>/docker-host.img` and prints its path.
+The key is `ImageKey` over the pins, the runtime kernel cache entry's name and
+a source digest of `cmd/ze-docker-host`, `internal/appliance/dockerhost`,
+`gokrazy/docker-host` (the extra files tar excepted), the arch's busybox tar,
+the builder recipe and the size. When the entry holds the image, the build
+answers it and runs nothing. Otherwise, in this order:
+
+1. every pinned input is fetched and checked against its sha256, so a
+   mismatch refuses before anything is written;
+2. OpenSSH, sudo and legacy iptables are built as static musl binaries in the
+   pinned Alpine builder container (`staticRecipe`), cached under
+   `<arch>/static-<key>/`. The container runs on the daemon the `docker` CLI
+   reaches by its own environment (`DOCKER_HOST` or the current context): it
+   is a build tool, not a lab, so the lab endpoint rules do not choose it. It
+   is named `ze-docker-host-build-<pid>` and removed by name afterwards;
+3. `extrafiles_<arch>.tar` is written into the instance directory: busybox
+   from ze-serial-shell's tar, the static binaries (sudo `04755`) and
+   Docker's binaries under `/usr/lib/ze-docker-host/`, every member owned by
+   root;
+4. gok builds the image through `le build gokrazy`'s path (prepared instance,
+   the arch's runtime kernel, `--target_storage_bytes` of the size, 16 GiB by
+   default, 2 to 1024 accepted);
+5. `/perm`, partition 4 of the image's GPT, is formatted ext4 when it carries
+   no superblock: gok formats it only where `mkfs.ext4` is on its PATH, which
+   a Mac does not have. The offset comes from the partition table.
+
+`build`, `start` and `stop` take an exclusive lock on
+`~/.cache/ze/docker-host/setup.lock`; a second run refuses at once naming the
+holder's pid.
+
+<!-- source: internal/le/setup/dockerhost/build.go -- builder.build, sourceDigest -->
+<!-- source: internal/le/setup/dockerhost/static.go -- staticRecipe, runBuilderContainer -->
+<!-- source: internal/le/setup/dockerhost/extrafiles.go -- writeExtraFiles -->
+<!-- source: internal/le/setup/dockerhost/perm.go -- formatPerm, permPartition -->
+<!-- source: internal/le/setup/dockerhost/lock.go -- takeLock -->
+
+## The `ze` Colima profile: `start`, `stop`, `check`
+
+On macOS, `./le setup docker-host start` builds the host arch's image when
+needed and boots it as the Colima profile `ze`:
+`colima start --profile ze --vm-type vz --arch <aarch64|x86_64> --runtime docker
+--disk-image <image> --force-disk-image --mount-type virtiofs --cpus 4
+--memory 8 --activate=false`, plus `--vz-rosetta` on arm64. `--activate=false`
+leaves the operator's current Docker context alone. The Docker socket is
+`~/.colima/ze/docker.sock`. The image key and path the profile was started
+with are recorded in `~/.cache/ze/docker-host/colima-ze.started`. With the
+same key and the profile running, `start` does nothing; with a new key it runs
+`colima stop --profile ze`, `colima delete --profile ze --force`, then the
+start above, because Colima keeps an existing disk and would ignore a new
+image. Every colima argv is built by `colimaArgv`, which always passes
+`--profile ze`: setup never names Colima's `default` profile.
+
+`stop` stops the profile when it runs. `check` reports colima, limactl, docker
+and `mkfs.ext4`, the recorded image, whether the profile runs and whether its
+socket exists, and exits 1 naming the fix for each failure.
+
+<!-- source: internal/le/setup/dockerhost/colima.go -- colimaArgv, colimaStartArgv, colimaHost.start -->
+<!-- source: internal/le/setup/dockerhost/actions.go -- checkRows -->
+
 ## Kernel
 
 The runtime profile carries what a Lima guest needs beyond the Docker set:
