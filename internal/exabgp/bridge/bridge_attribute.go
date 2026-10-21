@@ -38,7 +38,8 @@ const (
 	// arityList is a keyword followed by one token or by a bracketed list,
 	// which ExaBGP writes `[ a b c ]` and may write unspaced as `[a b c]`.
 	arityList
-	// arityGroup is a keyword followed by a parenthesised group, `( ... )`.
+	// arityGroup is a keyword followed by one token or a parenthesised group,
+	// `( ... )`.
 	arityGroup
 )
 
@@ -77,7 +78,7 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	bridgeAttrLargeCommunity:  {Ze: bridgeAttrLargeCommunity, Arity: arityList},
 	bridgeAttrExtCommunity:    {Ze: bridgeAttrExtCommunity, Arity: arityList},
 	bridgeAttrAtomicAggregate: {Ze: bridgeAttrAtomicAggregate, Arity: arityFlag},
-	bridgeAttrAggregator:      {Ze: bridgeAttrAggregator, Arity: arityValue},
+	bridgeAttrAggregator:      {Ze: bridgeAttrAggregator, Arity: arityGroup},
 	bridgeAttrOriginatorID:    {Ze: bridgeAttrOriginatorID, Arity: arityValue},
 	bridgeAttrClusterList:     {Ze: bridgeAttrClusterList, Arity: arityList},
 	bridgeAttrAIGP:            {Ze: bridgeAttrAIGP, Arity: arityValue},
@@ -212,6 +213,13 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			return routeAttributes{}, fmt.Errorf("%w: %q", errAttributeNotEncodable, key)
 		}
 
+		if attr.Ze == bridgeAttrAggregator {
+			single, err := aggregatorValue(value)
+			if err != nil {
+				return routeAttributes{}, err
+			}
+			value = single
+		}
 		if attr.Ze == bridgeAttrExtCommunity {
 			if err := CheckExtendedCommunityList(value); err != nil {
 				return routeAttributes{}, err
@@ -363,10 +371,34 @@ func attrValueName(key string) string {
 		// number or as an IPv4 address (pathIDNumber).
 		return "<path identifier, a number or an IPv4 address>"
 	}
+	if key == bridgeAttrAggregator {
+		return "<asn>:<router-id>, in brackets or not"
+	}
 	return "<value>"
 }
 
+// aggregatorValue answers the one `<asn>:<router-id>` word of an AGGREGATOR
+// value, unwrapped from its brackets, or refuses the value.
+//
+// ExaBGP reads an AGGREGATOR "in brackets or not: `( 65000:10.0.0.1 )`,
+// `(65000:10.0.0.1)`" (AggregatorType.parse, configuration/grammar/types/bgp.py
+// at 685f772e), and refuses anything but one word, bare or bracketed. ze's
+// update text reads the bare word. A group of several words would otherwise
+// become extra ze tokens past the repeated-attribute check, so it is refused.
+func aggregatorValue(written string) (string, error) {
+	word := written
+	if inner, bracketed := strings.CutPrefix(word, "("); bracketed {
+		word = strings.TrimSpace(strings.TrimSuffix(inner, ")"))
+	}
+	if strings.ContainsAny(word, " \t()") {
+		return "", fmt.Errorf("%w: aggregator %q: %w", ErrLineNotTranslated, written, errAggregatorShape)
+	}
+	return word, nil
+}
+
 var (
+	errAggregatorShape = errors.New("aggregator takes one <asn>:<router-id>, " +
+		"in brackets or not: write aggregator ( 65000:10.0.0.1 )")
 	errMissingAttrValue = errors.New("is written with no value")
 	errUnclosedGroup    = errors.New("unclosed group")
 )
