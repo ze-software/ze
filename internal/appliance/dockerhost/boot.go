@@ -56,11 +56,6 @@ const (
 	// makes.
 	fsTmpfs = "tmpfs"
 
-	// usrLocalRuntime holds the writable upper layer of /usr/local, where
-	// Lima's 25-guestagent-base.sh installs lima-guestagent: the squashfs root
-	// is read-only (spec R-3).
-	usrLocalRuntime = "/run/ze-docker-host/usr-local"
-
 	// machineIDName is the guest's persistent identity on /perm, which gokrazy
 	// init's MachineID reads first.
 	machineIDName = "/perm/machine-id"
@@ -142,8 +137,24 @@ func Boot(sys System, root string) (*Cidata, error) {
 	return c, nil
 }
 
+// writableOverlays are the read-only squashfs trees the guest writes into,
+// each covered by an overlay whose upper layer lives on the /run tmpfs, so
+// the writes last for one boot.
+var writableOverlays = []struct{ dir, runtime string }{
+	// Lima's 25-guestagent-base.sh installs lima-guestagent under
+	// /usr/local/bin (spec R-3).
+	{dir: "/usr/local", runtime: "/run/ze-docker-host/usr-local"},
+	// busybox modprobe (modprobe-small) scans every module under
+	// /lib/modules/<release> unless it finds its modules.dep.bb index, which
+	// its first call writes there. On the read-only tree each call scanned
+	// again: Lima's 00-modprobe.sh makes 21 calls, 64 to 89 s of boot before
+	// the guest agent (spec R-1). Busybox ash runs its own modprobe applet
+	// in-process, so the index is what makes every caller fast.
+	{dir: "/lib/modules", runtime: "/run/ze-docker-host/lib-modules"},
+}
+
 // mountWritableTrees backs /home with /perm/home and puts a tmpfs upper
-// layer over the read-only /usr/local.
+// layer over each writableOverlays tree.
 func mountWritableTrees(sys System, root string) error {
 	if err := os.MkdirAll(guest(root, homeStore), 0o755); err != nil { //nolint:gosec // every account reads its home through /home
 		return fmt.Errorf("create %s: %w", homeStore, err)
@@ -157,16 +168,18 @@ func mountWritableTrees(sys System, root string) error {
 	if err := sys.Mount(MountRequest{Source: homeStore, Target: "/home", Bind: true}); err != nil {
 		return fmt.Errorf("bind %s on /home: %w", homeStore, err)
 	}
-	upper := usrLocalRuntime + "/upper"
-	work := usrLocalRuntime + "/work"
-	for _, dir := range []string{upper, work} {
-		if err := os.MkdirAll(guest(root, dir), 0o755); err != nil { //nolint:gosec // the /usr/local overlay serves every account
-			return fmt.Errorf("create %s: %w", dir, err)
+	for _, overlay := range writableOverlays {
+		upper := overlay.runtime + "/upper"
+		work := overlay.runtime + "/work"
+		for _, dir := range []string{upper, work} {
+			if err := os.MkdirAll(guest(root, dir), 0o755); err != nil { //nolint:gosec // the overlay serves every account
+				return fmt.Errorf("create %s: %w", dir, err)
+			}
 		}
-	}
-	data := "lowerdir=/usr/local,upperdir=" + upper + ",workdir=" + work
-	if err := sys.Mount(MountRequest{Source: "overlay", Target: "/usr/local", FSType: "overlay", Data: data}); err != nil {
-		return fmt.Errorf("mount the /usr/local overlay: %w", err)
+		data := "lowerdir=" + overlay.dir + ",upperdir=" + upper + ",workdir=" + work
+		if err := sys.Mount(MountRequest{Source: "overlay", Target: overlay.dir, FSType: "overlay", Data: data}); err != nil {
+			return fmt.Errorf("mount the %s overlay: %w", overlay.dir, err)
+		}
 	}
 	return nil
 }
