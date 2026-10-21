@@ -36,6 +36,7 @@ type FileReport struct {
 	FilePath      string  `json:"filePath"`
 	TotalMutants  int     `json:"totalMutants"`
 	KilledMutants int     `json:"killedMutants"`
+	NotViable     int     `json:"notViable"`
 	MutationScore float64 `json:"mutationScore"`
 }
 
@@ -56,6 +57,19 @@ type TypeStatistics struct {
 	Total    int `json:"total"`
 	Killed   int `json:"killed"`
 	Survived int `json:"survived"`
+}
+
+// MutationScore returns killed as a percentage of the viable mutants.
+//
+// NOT_VIABLE mutants fail to compile and cannot be killed or survive, so they
+// are excluded from the denominator. It returns 0 when no viable mutants exist.
+func MutationScore(killed, total, notViable int) float64 {
+	viable := total - notViable
+	if viable <= 0 {
+		return 0
+	}
+
+	return float64(killed) / float64(viable) * 100
 }
 
 // New creates a new report generator with the specified output format.
@@ -133,11 +147,7 @@ func (g *Generator) calculateStatistics(results []mutation.Result) Statistics {
 		stats.MutationTypes[mutationType] = typeStats
 	}
 
-	// Calculate mutation score excluding NOT_VIABLE mutants
-	validMutants := len(results) - stats.NotViable
-	if validMutants > 0 {
-		stats.Score = float64(stats.Killed) / float64(validMutants) * 100
-	}
+	stats.Score = MutationScore(stats.Killed, len(results), stats.NotViable)
 
 	return stats
 }

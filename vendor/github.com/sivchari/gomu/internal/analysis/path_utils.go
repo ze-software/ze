@@ -1,6 +1,9 @@
 package analysis
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"strings"
 )
@@ -45,4 +48,16 @@ func IsExcludedPath(path string) bool {
 	}
 
 	return false
+}
+
+// IsGeneratedFile reports whether the file at path carries the standard Go
+// generated-code marker (https://go.dev/s/generatedcode). Files that cannot
+// be read or parsed are treated as not generated.
+func IsGeneratedFile(path string) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.PackageClauseOnly|parser.ParseComments)
+	if err != nil {
+		return false
+	}
+
+	return ast.IsGenerated(file)
 }

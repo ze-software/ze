@@ -6,11 +6,22 @@ package mutation
 func getAllMutators() []Mutator {
 	return []Mutator{
 		&ArithmeticMutator{},
+		&AssignmentRemovalMutator{},
 		&BitwiseMutator{},
+		&BoundaryValueMutator{},
 		&BranchMutator{},
+		&BreakContinueMutator{},
 		&ConditionalMutator{},
+		&EmptyBlockMutator{},
 		&ErrorHandlingMutator{},
+		&ExpressionRemovalMutator{},
+		&InvertNegativesMutator{},
 		&LogicalMutator{},
+		&LoopConditionMutator{},
+		&RemoveSelfAssignmentsMutator{},
 		&ReturnMutator{},
+		&StatementRemovalMutator{},
+		&StringLiteralMutator{},
+		&SwitchMutator{},
 	}
 }

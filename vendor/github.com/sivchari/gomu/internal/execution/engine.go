@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +17,8 @@ import (
 
 // Engine handles test execution using overlay-based mutation.
 type Engine struct {
-	overlay *OverlayMutator
+	overlay  *OverlayMutator
+	testArgs []string
 }
 
 // New creates a new execution engine.
@@ -28,6 +31,13 @@ func New() (*Engine, error) {
 	return &Engine{
 		overlay: overlay,
 	}, nil
+}
+
+// SetTestArgs sets the flags forwarded to "go test" (and, for the flags that
+// go build also understands, the compile check that precedes it). Call it
+// before RunMutations or RunMutationsWithOptions.
+func (e *Engine) SetTestArgs(args []string) {
+	e.testArgs = args
 }
 
 // Close cleans up the execution engine.
@@ -127,11 +137,13 @@ func (e *Engine) runSingleMutation(mutant mutation.Mutant, timeout int) mutation
 // checkCompilationWithOverlay verifies that the mutated code compiles using overlay.
 // No timeout is applied because compilation always terminates.
 func (e *Engine) checkCompilationWithOverlay(mutCtx *MutationContext) error {
-	// Get the directory containing the original file for compilation
 	compileDir := filepath.Dir(mutCtx.OriginalPath)
 
-	// Build the entire package with overlay to properly resolve dependencies
-	cmd := exec.Command("go", "build", "-overlay="+mutCtx.OverlayPath, ".")
+	// -o discards the binary so a package main does not write into the user's working tree.
+	args := append([]string{"build", "-o", os.DevNull, "-overlay=" + mutCtx.OverlayPath}, splitBuildFlags(e.testArgs)...)
+	args = append(args, ".")
+
+	cmd := exec.CommandContext(context.Background(), "go", args...)
 	cmd.Dir = compileDir
 
 	output, err := cmd.CombinedOutput()
@@ -140,6 +152,23 @@ func (e *Engine) checkCompilationWithOverlay(mutCtx *MutationContext) error {
 	}
 
 	return nil
+}
+
+// isTestBinaryFailure reports whether go test output shows that the test
+// binary failed to build or set up, so no test was executed.
+func isTestBinaryFailure(output string) bool {
+	return strings.Contains(output, "[build failed]") || strings.Contains(output, "[setup failed]")
+}
+
+// goTestArgs builds the "go test" argv for one mutant run.
+//
+// -vet=off keeps go test's vet pass from rejecting a mutant (for example an
+// emptied printf format string) before any test runs, which would be
+// misreported as killed. Unmutated code is vetted by the project's own CI.
+func goTestArgs(overlayPath string, extra []string) []string {
+	args := append([]string{"test", "-overlay=" + overlayPath, "-vet=off"}, extra...)
+
+	return append(args, ".")
 }
 
 // runTestWithOverlay runs tests using the overlay configuration.
@@ -155,7 +184,7 @@ func (e *Engine) runTestWithOverlay(mutCtx *MutationContext, mutant mutation.Mut
 	// Get the directory containing the original file for running tests
 	testDir := filepath.Dir(mutCtx.OriginalPath)
 
-	cmd := exec.CommandContext(ctx, "go", "test", "-overlay="+mutCtx.OverlayPath, ".")
+	cmd := exec.CommandContext(ctx, "go", goTestArgs(mutCtx.OverlayPath, e.testArgs)...)
 	cmd.Dir = testDir
 
 	output, err := cmd.CombinedOutput()
@@ -170,17 +199,19 @@ func (e *Engine) runTestWithOverlay(mutCtx *MutationContext, mutant mutation.Mut
 
 	result.Output = string(output)
 
-	if err != nil {
-		// Tests failed - check if it's because the mutant was killed
-		if cmd.ProcessState != nil && cmd.ProcessState.ExitCode() != 0 {
-			result.Status = mutation.StatusKilled
-		} else {
-			result.Status = mutation.StatusError
-			result.Error = err.Error()
-		}
-	} else {
-		// Tests passed - mutant survived
+	exitedNonZero := cmd.ProcessState != nil && cmd.ProcessState.ExitCode() != 0
+
+	switch {
+	case err == nil:
 		result.Status = mutation.StatusSurvived
+	case !exitedNonZero:
+		result.Error = err.Error()
+	case isTestBinaryFailure(result.Output):
+		// A test package that never built or set up ran no test, so it
+		// cannot have killed the mutant.
+		result.Error = err.Error()
+	default:
+		result.Status = mutation.StatusKilled
 	}
 
 	return result
