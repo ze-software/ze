@@ -84,7 +84,7 @@ func TestLabeledWithdrawalLeavesTheWithdrawalMap(t *testing.T) {
 	if len(left) != 1 || left[0] != "11.0.0.0/8" {
 		t.Fatalf("withdrawal map holds %v after withdrawing 10.0.0.0/8, want [11.0.0.0/8]", left)
 	}
-	if info := rr.withdrawals[peer][rrLabeledIPv4.String()+"|11.0.0.0/8"]; info.Family != rrLabeledIPv4.String() {
+	if info := rr.withdrawals[peer][rrLabeledIPv4.String()+"|11.0.0.0/8"]; info.Family != rrLabeledIPv4 {
 		t.Fatalf("11.0.0.0/8 is not keyed by its family and prefix: %v", rr.withdrawals[peer])
 	}
 }
@@ -158,7 +158,7 @@ func rrAssertLabeledInventory(t *testing.T, rr *routeReflector, fam family.Famil
 	t.Helper()
 	got := make(map[string]bool)
 	for _, info := range rr.withdrawals["192.0.2.1"] {
-		if info.Family != fam.String() {
+		if info.Family != fam {
 			t.Fatalf("family = %s, want %s", info.Family, fam)
 		}
 		if info.WireForm != info.AddPath {

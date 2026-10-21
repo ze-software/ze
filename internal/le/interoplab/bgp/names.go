@@ -213,6 +213,10 @@ const (
 // the same word.
 const zeTestCommandSpeaker = "speaker"
 
+// The prefix bgp-addpath-departure-reflector-frr/inject.msg announces twice,
+// under Path Identifiers 11 and 12.
+const addPathDeparturePrefix = "10.0.0.0/8"
+
 // Lab addresses. networkHostAddress gives each peer a host number on the
 // scenario's own /24, and these are the spellings on the default network.
 const (

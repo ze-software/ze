@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md -- route reflector plugin
 // Detail: withdrawal.go -- NLRI tracking and peer-down withdrawal
+// RFC: rfc/short/rfc7911.md -- Section 2, a departure is withdrawn under ze's own Path Identifier
 //
 // RFC 4456: BGP Route Reflection.
 // Subscribes to UPDATE events and forwards them to all peers via cache-forward.
@@ -30,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -101,6 +103,16 @@ type routeReflector struct {
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
 	// sourcePeer -> routeKey (family|prefix) -> withdrawalInfo.
 	withdrawals map[string]map[string]withdrawalInfo
+
+	// downWG counts the running peer-down lifecycles (sendPeerDown). Event
+	// delivery MUST stop and downCtx MUST be canceled before downWG.Wait, and
+	// the wait MUST end before the plugin connection is released.
+	downWG sync.WaitGroup
+	// downCtx bounds every peer-down recovery request. It is canceled at
+	// shutdown and carries no deadline: the engine keeps a departure's keys
+	// owed until it decides them, so a command timeout would only stop the
+	// waiter. Nil in struct-literal unit owners, which have no lifecycle.
+	downCtx context.Context
 }
 
 // runRouteReflector runs the Route Reflector plugin using the SDK RPC protocol.
@@ -109,11 +121,15 @@ func runRouteReflector(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rr", conn)
 	defer func() { _ = p.Close() }()
 
+	downCtx, stopDown := context.WithCancel(context.Background())
 	rr := &routeReflector{
 		plugin:      p,
 		peers:       make(map[string]*peerState),
 		withdrawals: make(map[string]map[string]withdrawalInfo),
+		downCtx:     downCtx,
 	}
+	defer rr.downWG.Wait()
+	defer stopDown()
 
 	// Register structured event handler for DirectBridge delivery (hot path).
 	p.OnStructuredEvent(func(events []any) error {
@@ -244,12 +260,24 @@ func (rr *routeReflector) updateRouteWithMeta(peerSelector, command string, meta
 	}
 }
 
-// updateRouteSel sends a route update using a typed selector via DirectBridge.
-func (rr *routeReflector) updateRouteSel(sel *selector.Selector, command string) {
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
-	defer cancel()
-
-	_, _, err := rr.plugin.UpdateRouteSel(ctx, sel, command)
+// recoverRouteSel sends a departed source's withdrawal as a source-owned DOWN
+// request (recovery-source), through the normal UPDATE grammar and a typed
+// selector. The engine reconciles each selected destination against bgp-rib:
+// it sends the best surviving route in place of the departed one, or the
+// withdrawal, under the Path Identifier ze advertised to that destination.
+//
+// RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST generate
+// its own Path Identifier to be associated with the re-advertised route." The
+// command names the source's identifiers, so only the engine, which minted the
+// destination's, can withdraw the path that destination holds.
+func (rr *routeReflector) recoverRouteSel(sel *selector.Selector, command, source string) {
+	ctx := rr.downCtx
+	if ctx == nil {
+		// Struct-literal unit owners have no running plugin lifecycle.
+		ctx = context.Background()
+	}
+	meta := map[string]any{"recovery-source": source}
+	_, _, err := rr.plugin.UpdateRouteSelWithMeta(ctx, sel, command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rr.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)",
@@ -309,13 +337,15 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 }
 
-// handleStateDown sends withdrawals for all routes from the downed source peer.
-// Routes are batched by family, wire form and ADD-PATH to minimize RPCs. An
-// ADD-PATH route is withdrawn with the SOURCE's Path Identifier, which is wrong
-// toward a destination that negotiated ADD-PATH send: ze advertised the path
-// there under its own identifier, and nothing here maps one to the other (open,
-// plan/journal/identity-default-hides-a-mapping.md).
-// Withdrawals are sent asynchronously (per-lifecycle goroutine, not hot path).
+// handleStateDown hands every route the downed source peer still announces to
+// the engine as a source-DOWN recovery (recoverRouteSel), except the routes of
+// a family bgp-gr retains for the source (GR or LLGR). Routes are batched by
+// family, wire form and ADD-PATH to minimize RPCs. The engine, not this plugin,
+// names what each destination is sent: the best surviving route, or the
+// withdrawal under the Path Identifier ze advertised to that destination, which
+// differs from the source's own toward a destination that negotiated ADD-PATH
+// send (RFC 7911 Section 2). The requests run in one joined lifecycle goroutine
+// per down (sendPeerDown), never on the event delivery goroutine.
 //
 // Concurrency: OnStructuredEvent is called serially by the engine's delivery
 // goroutine, so handleStateDown and UPDATE processing for the same peer cannot
@@ -332,55 +362,91 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		return
 	}
 
-	// VPN routes, and ADD-PATH labeled and unicast routes, retain native bytes
-	// and the ADD-PATH negotiation, so their group goes out as hex.
-	type withdrawalGroup struct {
-		family   string
-		wireForm bool
-		addPath  bool
+	// RFC 4724 Section 4.2: "it MUST retain the routes received from the
+	// peer for all the address families that were previously received in
+	// the Graceful Restart Capability". Resolve retention here,
+	// synchronously, as bgp-rs does: a reconnect or expiry must not change
+	// this DOWN decision before the lifecycle goroutine runs. The RIB owns a
+	// retained family's routes and their eventual purge, so a retained route
+	// MUST NOT reach the engine as a departure: the recovery would withdraw
+	// it from every destination during the restart window.
+	retained := make(map[family.Family]bool)
+	for key, info := range entries {
+		keep, seen := retained[info.Family]
+		if !seen {
+			keep = retention.Family(peerAddr, info.Family)
+			retained[info.Family] = keep
+		}
+		if keep {
+			delete(entries, key)
+		}
 	}
+
 	byGroup := make(map[withdrawalGroup][]string)
 	for _, info := range entries {
 		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath}
 		byGroup[group] = append(byGroup[group], info.Prefix)
 	}
+	if len(byGroup) == 0 {
+		// Every route belonged to a retained family.
+		return
+	}
 
-	// Send batched withdrawals to all peers except the one that went down.
-	// Cap each RPC at withdrawalBatchSize prefixes to bound command length.
 	addr, err := netip.ParseAddr(peerAddr)
 	if err != nil {
 		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
 		return
 	}
-	excludeSel := selector.ExcludeAddr(addr)
-	go func() {
-		var command textbuf.Buffer
-		for group, prefixes := range byGroup {
-			slices.Sort(prefixes)
-			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
-				end := min(i+withdrawalBatchSize, len(prefixes))
-				if !group.wireForm {
-					rr.updateRouteSel(excludeSel, nlriDelCmd(group.family, textbuf.Join(prefixes[i:end], ",")))
-					continue
-				}
-				// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI
-				// attribute to withdraw a route whose NLRI was previously
-				// specified in an MP_REACH_NLRI attribute, the lengths and
-				// values of the respective prefixes must match, and the
-				// respective AFI/SAFIs must match." Native bytes keep RD
-				// and prefix; RFC 7911 framing keeps the identifier,
-				// including zero.
-				command.Reset().Str("update hex nlri ").Str(group.family)
-				if group.addPath {
-					command.Str(" addpath")
-				}
-				for _, prefix := range prefixes[i:end] {
-					command.Str(" del ").Str(prefix)
-				}
-				rr.updateRouteSel(excludeSel, command.String())
+	rr.downWG.Add(1)
+	go rr.sendPeerDown(addr, byGroup)
+}
+
+// withdrawalGroup names one batched peer-down command: every route in it shares
+// a family and a command form. VPN routes, and ADD-PATH labeled and unicast
+// routes, retain native bytes and the ADD-PATH negotiation, so their group goes
+// out as hex.
+type withdrawalGroup struct {
+	family   family.Family
+	wireForm bool
+	addPath  bool
+}
+
+// sendPeerDown owns one DOWN lifecycle. It sends the departed source's routes
+// to every peer except that source, at most withdrawalBatchSize routes per
+// request to bound command length, and MUST call downWG.Done when it returns.
+func (rr *routeReflector) sendPeerDown(source netip.Addr, byGroup map[withdrawalGroup][]string) {
+	defer rr.downWG.Done()
+
+	excludeSel := selector.ExcludeAddr(source)
+	recoverySource := source.String()
+	var command textbuf.Buffer
+	for group, prefixes := range byGroup {
+		// Map iteration is unordered; sorting makes one down emit one byte
+		// sequence. Cold path, once per peer-down.
+		slices.Sort(prefixes)
+		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
+			end := min(i+withdrawalBatchSize, len(prefixes))
+			if !group.wireForm {
+				rr.recoverRouteSel(excludeSel, nlriDelCmd(group.family.String(), textbuf.Join(prefixes[i:end], ",")), recoverySource)
+				continue
 			}
+			// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI
+			// attribute to withdraw a route whose NLRI was previously
+			// specified in an MP_REACH_NLRI attribute, the lengths and
+			// values of the respective prefixes must match, and the
+			// respective AFI/SAFIs must match." Native bytes keep RD and
+			// prefix; RFC 7911 framing keeps the source's identifier,
+			// including zero, which the engine maps to the destination's.
+			command.Reset().Str("update hex nlri ").Str(group.family.String())
+			if group.addPath {
+				command.Str(" addpath")
+			}
+			for _, prefix := range prefixes[i:end] {
+				command.Str(" del ").Str(prefix)
+			}
+			rr.recoverRouteSel(excludeSel, command.String(), recoverySource)
 		}
-	}()
+	}
 }
 
 // rrOpenUnreadable is the warning for a received OPEN the route reflector

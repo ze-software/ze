@@ -363,6 +363,27 @@ var scenarioOperations = map[string][]operation{
 	"bgp-4byte-asn-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST
+	// generate its own Path Identifier to be associated with the re-advertised
+	// route." The injector announces two paths of 10.0.0.0/8 through bgp-rr to
+	// FRR, an ADD-PATH receiving client. Two paths at FRR prove both that the
+	// capability was negotiated (without it FRR holds one) and that Ze sent
+	// each under its own identifier. Stopping the injector is the departure:
+	// FRR must then drop every path, which it does only when the withdrawals
+	// name the identifiers Ze advertised to it rather than the source's. A
+	// session reset would also clear them, so the final read requires the one
+	// session FRR established at the start to be the one still up: FRR counts
+	// an Established session in "Connections established" and its loss in
+	// "dropped", and a reset and reconnect reads "established 2; dropped 1".
+	"bgp-addpath-departure-reflector-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + addPathDeparturePrefix},
+			contains: []string{"Paths: (2 available"}, timeout: 90 * time.Second},
+		{kind: opSignal, peer: peerInject, argument: signalTERM},
+		{kind: opFRRRouteAbsent, argument: addPathDeparturePrefix, timeout: 60 * time.Second},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp neighbor " + zeLabAddress},
+			contains: []string{"BGP state = Established", "Connections established 1; dropped 0"}},
+	},
 	// RFC 7705, both mechanisms in one lab (names.go, rfc7705Prefix).
 	//
 	// FRR: the session establishing at all is the Section 4.2 fallback, because

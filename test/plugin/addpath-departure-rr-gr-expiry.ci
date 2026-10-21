@@ -1,0 +1,135 @@
+# addpath-departure-rr-gr-expiry: a Graceful Restart source announces two
+# paths of one prefix through bgp-rr to a receiver that negotiated ADD-PATH,
+# then its TCP session drops and it never reconnects.
+# RFC 4724 Section 4.2: "If the session does not get re-established within
+# the "Restart Time" that the peer advertised previously, the Receiving
+# Speaker MUST delete all the stale routes from the peer that it is
+# retaining."
+# VALIDATES: the source advertises a Restart Time of 2 seconds and sends
+# 10.0.0.0/8 under Path Identifiers 11 and 12; ze re-advertises both to the
+# receiver under its own identifiers 0 and 1. The source closes TCP with no
+# NOTIFICATION, so bgp-gr retains ipv4/unicast and bgp-rr hands no departure
+# to the engine. When the Restart Time expires the retained paths are
+# deleted, and the receiver is sent the withdrawal of ze's identifiers 0 and
+# 1, the identifiers it holds.
+# PREVENTS: a retained family kept out of the source-DOWN recovery and then
+# never withdrawn through bgp-rr, so the receiver held both paths of a source
+# that never came back.
+
+# The await needle below is bgp-gr's debug line for the source's OPEN.
+option=env:var=ze.log.bgp.gr:value=debug
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+option=open:value=graceful-restart:restart-time=2
+option=await-file:path=receiver-up
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 100,
+# NLRI [0000000B][8][10] [0000000C][8][10].
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001540010100400200400304C0000201400504000000640000000B080A0000000C080A
+# The receiver's own route reflected here proves the receiver already holds
+# both paths: it sends 198.51.100.0/24 only after it was sent them.
+expect=bgp:conn=1:seq=2:contains=18C63364
+# A TCP close with no NOTIFICATION: RFC 4724 Section 4.2 retention applies,
+# and the source never reconnects, so the Restart Time expires.
+action=close:conn=1:seq=3
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=linger:value=true
+option=established-file:path=receiver-up
+# ze's own identifiers come from one counter in a fresh daemon: 0 and 1 for
+# the two paths of 10.0.0.0/8.
+expect=bgp:conn=1:seq=1:announced=00000000080A00000001080A
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.2, LOCAL_PREF 100,
+# NLRI 198.51.100.0/24: the signal bgp-rr reflects to the source.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C00002024005040000006418C63364
+# At expiry: one withdrawal UPDATE per path, each naming ze's identifier
+# [00000000][8][10] and [00000001][8][10], never the source's 11 and 12.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D02000600000000080A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D02000600000001080A0000
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rr; }
+    internal gr { use bgp-gr; }
+}
+bgp {
+    peer source {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart { restart-time 60; }
+                add-path { direction receive; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        timer { connect-retry 5; }
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path { direction send; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
+# The receiver lingers, so ze is stopped once each peer has met every
+# expectation.
+await=stderr:contains=gr: stored peer GR capability:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

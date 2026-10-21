@@ -1,0 +1,123 @@
+# addpath-departure-rr-addpath-receiver: an ADD-PATH source announces two paths
+# of one prefix through bgp-rr to a receiver that negotiated ADD-PATH, then
+# leaves.
+# RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST generate
+# its own Path Identifier to be associated with the re-advertised route."
+# VALIDATES: the source sends 10.0.0.0/8 under Path Identifiers 11 and 12
+# (0x0B, 0x0C), then 172.16.0.0/16 under 1. ze re-advertises them to the
+# receiver under its own identifiers. When the source closes, bgp-rr hands the
+# departure to the engine's recovery (recovery-source), and the receiver is
+# sent each withdrawal under the identifier ze advertised there.
+# PREVENTS: the departure withdrawal carrying the SOURCE's identifiers 11, 12
+# and 1, which name no path the receiver holds, so it kept all three
+# (plan/journal/identity-default-hides-a-mapping.md, 2026-10-21).
+# The registered fixture releases each source action only after the receiver
+# was sent the preceding UPDATE.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+expect=bgp:conn=1:seq=1:contains=18C00002
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 100,
+# NLRI [0000000B][8][10] [0000000C][8][10].
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001540010100400200400304C0000201400504000000640000000B080A0000000C080A
+expect=bgp:conn=1:seq=3:contains=18C63364
+# The same attributes announce [00000001][16][172.16].
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020000001540010100400200400304C0000201400504000000640000000110AC10
+expect=bgp:conn=1:seq=5:contains=18CB0071
+action=close:conn=1:seq=6
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=linger:value=true
+# ze's own identifiers come from one counter in a fresh daemon: 0 and 1 for
+# the two paths of 10.0.0.0/8, 2 for 172.16.0.0/16. None is the source's.
+expect=bgp:conn=1:seq=1:announced=00000000080A00000001080A
+expect=bgp:conn=1:seq=2:announced=0000000210AC10
+# The departure: one UPDATE per recovered path, in any order, each a Withdrawn
+# Routes field holding [identifier ze advertised][length][prefix] and no
+# attributes.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D02000600000000080A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D02000600000001080A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200070000000210AC100000
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rr; }
+    external addpath-departure {
+        run "le test fixture plugin/vpn-withdrawal-inventory rr 3"
+        encoder json
+    }
+}
+bgp {
+    peer source {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path { direction receive; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process addpath-departure { send [ update ]; }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path { direction send; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=90s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

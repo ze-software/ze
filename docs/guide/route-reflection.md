@@ -157,20 +157,27 @@ For IPv4 and IPv6 unicast from a source that negotiated ADD-PATH, the route
 server and reflector track each path by prefix and Path Identifier, so a
 withdrawal of one path leaves the source's other paths of that prefix to be
 withdrawn when the source leaves. That departure withdrawal names the native
-NLRI with the source's identifier. The route server hands it to the engine as a
-recovery, which withdraws each destination's own copy under the identifier that
-destination was sent. The reflector does not yet: toward a destination that
-negotiated ADD-PATH send, it withdraws under the source's identifier, which is
-not the one ze advertised there (a known defect, RFC 7911 Section 2).
+NLRI with the source's identifier. The route server and the reflector both hand
+it to the engine as a recovery, which withdraws each destination's own copy
+under the identifier that destination was sent. Toward a destination that
+negotiated ADD-PATH send, that is ze's own identifier, not the source's
+(RFC 7911 Section 2). The reflector's VPN and labeled departures go out the
+same way.
 <!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkUnicastNLRIs -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- sendPeerDown, recoverRouteSel -->
+<!-- source: test/plugin/addpath-departure-rr-addpath-receiver.ci -- unicast departure under ze's identifiers -->
+<!-- source: test/plugin/addpath-departure-rr-addpath-receiver-vpn.ci -- VPNv4 departure under ze's identifiers -->
 <!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendUnicastRecords, recordKey -->
 
 For VPNv4 and VPNv6, a received withdrawal removes only the route with the
 matching RD, prefix and negotiated Path Identifier. The Compatibility field
-does not affect the match. In the route server, a source-peer departure
+does not affect the match. In the route server and the reflector, a source-peer departure
 reconciles the remaining inventory through the selecting RIB. On a destination without ADD-PATH, an
 eligible surviving best route replaces the departed source with its own
-attributes; a route without a usable replacement is withdrawn. ADD-PATH
+attributes; a route without a usable replacement is withdrawn. A candidate
+reflection may not send to that destination, a non-client's route toward a
+non-client (RFC 4456 Section 6), is stepped past for the next in election
+order. ADD-PATH
 destinations keep surviving source paths and withdraw only the departed source's
 advertised identifiers, including zero. Native VPN identity is preserved.
 This cold departure path does not change the steady-state forward-all model.
@@ -183,13 +190,18 @@ does not reset a destination that has already reconnected.
 <!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkVPNNLRIs -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoverySentNLRI -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, queueRecoveryOutcome -->
+<!-- source: test/plugin/addpath-departure-rr-replacement.ci -- the surviving route replaces the departed best -->
+<!-- source: test/plugin/addpath-departure-rr-nonclient-skip.ci -- a non-client candidate is stepped past toward a non-client -->
 
 The VPN daemon fixtures wait for the owning server or reflector to report both
 peers UP before releasing the source's first route. They then fence each marker
 on the destination's sent UPDATE count; the receiving peer checks the actual
-VPN bytes, not those counters.
-<!-- source: internal/test/fixture/register_vpn_withdrawal.go -- vpnWithdrawalInventory, vpnWithdrawalWaitSent -->
+VPN bytes, not those counters. A test can also hold back another source until
+the destination is up (`release <peer address>`: the fixture sends that peer a
+trigger route, and its script announces on receipt), and make the first source
+wait until bgp-rib holds a route from a named peer (`held <peer address>`).
+<!-- source: internal/test/fixture/register_vpn_withdrawal.go -- vpnWithdrawalInventory, vpnWithdrawalWaitSent, vpnWithdrawalPeerArgs -->
 
 The reflector forwards each received UPDATE through `UpdateRoute` with the
 `cached <id>` command. The engine adds `send bgp <selector>` and dispatches

@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestPrefixBytesToKey_IPv4 verifies IPv4 prefix conversion from wire bytes to string key.
@@ -73,11 +75,11 @@ func TestHandleStateDown_BatchesByFamily(t *testing.T) {
 
 	// Populate withdrawal map: 3 IPv4 routes + 2 IPv6 routes from peer 10.0.0.1.
 	rr.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24":     {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24":     {Family: "ipv4/unicast", Prefix: "prefix 10.0.1.0/24"},
-		"ipv4/unicast|10.0.2.0/24":     {Family: "ipv4/unicast", Prefix: "prefix 10.0.2.0/24"},
-		"ipv6/unicast|2001:db8::/32":   {Family: "ipv6/unicast", Prefix: "prefix 2001:db8::/32"},
-		"ipv6/unicast|2001:db8:1::/48": {Family: "ipv6/unicast", Prefix: "prefix 2001:db8:1::/48"},
+		"ipv4/unicast|10.0.0.0/24":     {Family: family.IPv4Unicast, Prefix: "prefix 10.0.0.0/24"},
+		"ipv4/unicast|10.0.1.0/24":     {Family: family.IPv4Unicast, Prefix: "prefix 10.0.1.0/24"},
+		"ipv4/unicast|10.0.2.0/24":     {Family: family.IPv4Unicast, Prefix: "prefix 10.0.2.0/24"},
+		"ipv6/unicast|2001:db8::/32":   {Family: family.IPv6Unicast, Prefix: "prefix 2001:db8::/32"},
+		"ipv6/unicast|2001:db8:1::/48": {Family: family.IPv6Unicast, Prefix: "prefix 2001:db8:1::/48"},
 	}
 
 	// No SDK plugin, so updateRoute will panic. Capture the batched commands instead.
@@ -91,7 +93,7 @@ func TestHandleStateDown_BatchesByFamily(t *testing.T) {
 	delete(rr.withdrawals, "10.0.0.1")
 	rr.withdrawalMu.Unlock()
 
-	byFamily := make(map[string][]string)
+	byFamily := make(map[family.Family][]string)
 	for _, info := range entries {
 		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
 	}

@@ -4,7 +4,8 @@
 // RFC 4456 Section 8: when a client peer goes down, the route reflector
 // must withdraw all routes previously advertised from that peer.
 // This file tracks announced/withdrawn NLRIs per source peer so that
-// handleStateDown can send explicit withdrawals to remaining peers.
+// handleStateDown can hand them to the engine as a source-DOWN recovery, which
+// withdraws them from the remaining peers.
 
 package rr
 
@@ -24,7 +25,7 @@ import (
 // withdrawalInfo stores the minimum information needed to send a withdrawal
 // command when a source peer goes down.
 type withdrawalInfo struct {
-	Family   string
+	Family   family.Family
 	Prefix   string // Text NLRI, or native hex when WireForm is true.
 	WireForm bool
 	AddPath  bool // Native hex carries a Path Identifier, including zero.
@@ -59,7 +60,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, addPath, actionDel)
+				rr.walkUnicastNLRIs(sourcePeer, fam, iter, addPath, actionDel)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
@@ -69,7 +70,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 
 	// IPv4 body Withdrawn -- withdrawn routes (del).
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, addPathV4, actionDel)
+		rr.walkUnicastNLRIs(sourcePeer, family.IPv4Unicast, iter, addPathV4, actionDel)
 	}
 
 	// MP_REACH_NLRI -- announced routes (add).
@@ -78,7 +79,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, addPath, actionAdd)
+				rr.walkUnicastNLRIs(sourcePeer, fam, iter, addPath, actionAdd)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
@@ -88,7 +89,7 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 
 	// IPv4 body NLRIs -- announced routes (add).
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, addPathV4, actionAdd)
+		rr.walkUnicastNLRIs(sourcePeer, family.IPv4Unicast, iter, addPathV4, actionAdd)
 	}
 }
 
@@ -101,7 +102,7 @@ func isUnicast(f family.Family) bool {
 // walkUnicastNLRIs walks NLRIs via iterator and updates the withdrawal map.
 // It builds one route-key string per NLRI from the raw prefix bytes, and an
 // announcement also allocates the stored withdrawal text.
-// addPath MUST be the ADD-PATH receive state of famName on the source session,
+// addPath MUST be the ADD-PATH receive state of fam on the source session,
 // the same value the iterator was built with.
 //
 // RFC 7911 Section 5: "a new advertisement for a given address prefix and a
@@ -109,8 +110,9 @@ func isUnicast(f family.Family) bool {
 // prefix and Path Identifier." Under ADD-PATH the identifier is part of the
 // route's identity, so it is part of the key, and the peer-down withdrawal goes
 // out as the native NLRI with its identifier, as the MPLS-label arm does.
-func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlri.NLRIIterator, addPath bool, action string) {
-	isV6 := strings.HasPrefix(famName, "ipv6/")
+func (rr *routeReflector) walkUnicastNLRIs(sourcePeer string, fam family.Family, iter *nlri.NLRIIterator, addPath bool, action string) {
+	famName := fam.String()
+	isV6 := fam.AFI == family.AFIIPv6
 	for {
 		prefix, pathID, ok := iter.Next()
 		if !ok {
@@ -133,12 +135,12 @@ func (rr *routeReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlr
 			}
 			if addPath {
 				rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{
-					Family: famName, Prefix: addPathUnicastHex(pathID, prefix),
+					Family: fam, Prefix: addPathUnicastHex(pathID, prefix),
 					WireForm: true, AddPath: true,
 				}
 				continue
 			}
-			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: tb.Reset().Str("prefix ").Str(key).String()}
+			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: fam, Prefix: tb.Reset().Str("prefix ").Str(key).String()}
 		case actionDel:
 			if rr.withdrawals[sourcePeer] != nil {
 				delete(rr.withdrawals[sourcePeer], routeKey)
@@ -209,7 +211,7 @@ func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 		for _, n := range nlris {
 			s := n.String()
 			tb.Reset().Str(familyStr).Byte('|').Str(nlriKey(s))
-			info := withdrawalInfo{Family: familyStr, Prefix: s}
+			info := withdrawalInfo{Family: fam, Prefix: s}
 			if fam.SAFI == family.SAFIMPLSLabel {
 				if wire, ok := n.(*nlri.WireNLRI); ok && wire.HasAddPath() {
 					// The prefix alone does not identify a negotiated path.
@@ -272,7 +274,7 @@ func (rr *routeReflector) walkVPNNLRIs(sourcePeer string, fam family.Family, nlr
 				rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 			}
 			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{
-				Family: familyName, Prefix: tb.Reset().Hex(wire.Bytes()).String(),
+				Family: fam, Prefix: tb.Reset().Hex(wire.Bytes()).String(),
 				WireForm: true, AddPath: wire.HasAddPath(),
 			}
 		case actionDel:
@@ -299,9 +301,9 @@ type familyOperation struct {
 }
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
-// Caller must hold rr.withdrawalMu. The incoming map is keyed by family.Family;
-// withdrawalInfo.Family still carries the registered name text because it is
-// re-emitted verbatim as a dispatched command argument.
+// Caller must hold rr.withdrawalMu. The incoming map is keyed by family.Family,
+// which withdrawalInfo.Family keeps, so the peer-down retention query needs no
+// name lookup.
 func (rr *routeReflector) updateWithdrawalMapText(sourcePeer string, ops map[family.Family][]familyOperation) {
 	for fam, familyOps := range ops {
 		famName := fam.String()
@@ -315,7 +317,7 @@ func (rr *routeReflector) updateWithdrawalMapText(sourcePeer string, ops map[fam
 				for _, s := range op.nlris {
 					if s != "" {
 						routeKey := tb.Reset().Str(famName).Byte('|').Str(nlriKey(s)).String()
-						rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: s}
+						rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: fam, Prefix: s}
 					}
 				}
 			case actionDel:

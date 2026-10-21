@@ -171,7 +171,13 @@ expiry and release encode their source-specific withdrawals here.
 ### Source-DOWN replacement and sent ordering
 
 RS drains the departed source's workers and submits its existing native/text
-withdrawal batches with the source address alone. No received-message cut
+withdrawal batches with the source address alone. RR submits its peer-down
+withdrawal batches the same way, as one joined lifecycle per down. RR has no
+worker to drain: it forwards each UPDATE on the event delivery goroutine that
+also delivers the DOWN, so every earlier forward of the source was issued
+before the DOWN is handled. Both apply the same retention filter first: a
+family `bgp-gr` still retains for the source (GR or LLGR) is left out of the
+batches, because the RIB owns those routes and their eventual purge. No received-message cut
 travels with them: the reactor's writer owes a key only where the departed
 source owns it through a session that is no longer current, so a reconnected
 session's newer route is never taken for the old one. The
@@ -208,6 +214,7 @@ sent projection; final writer admission still requires its live owner receipt.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerCurrent -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- sendPeerDown, recoverRouteSel -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
@@ -220,12 +227,35 @@ event of a recovery write therefore carries the `recovery-write` meta key
 checks the projected entry of such an event against the source's received
 inventory. When the source holds neither the candidate's received path nor a
 newer revision of it, the projection deletes the entry in the same `peerMu`
-section and queues the removal the purge would have emitted. Only a recovery
-write is checked: its candidate came out of bgp-rib's own lookup, so its path
-was applied before the write and its absence can only mean removal, while a
-forwarded write's own later withdrawal reaches the destination in source
-order. An entry without its candidate's provenance (source, owner, received
-message) is stored as before and logged. The queued removals leave through
+section and queues the removal the purge would have emitted. A recovery
+write is checked unconditionally: its candidate came out of bgp-rib's own
+lookup, so its path was applied before the write and its absence can only
+mean removal. An entry without its candidate's provenance (source, owner,
+received message) is stored as before and logged.
+
+A forwarded write meets the same window from the other side. Commands and
+events reach bgp-rib on different goroutines, so a lifecycle removal of A's
+retained path (purge-stale, release-routes, restart-time expiry, a community
+purge, a standalone retain-routes pruning a family; the DOWN handoff prunes
+nothing and leaves sent ownership to the route server or reflector that sends
+the source-DOWN recovery) can run while the sent event of A's
+earlier forward to C is still queued. The removal finds no entry of A's at C
+and emits nothing, and the late projection would leave C holding a route A no
+longer has. Its absence alone proves nothing for a forwarded write, though:
+the reactor's fast path forwards from the session read goroutine before the
+received event is queued, so a sent projection can precede its own received
+message, and a received withdrawal also removes the path while its own forward
+reaches C behind the announcement. bgp-rib therefore keeps, per source, the
+highest received message it applied and that value at the last lifecycle
+removal of the source's sent copies (`sourceApplied`). A forwarded write is
+checked only when its received message is at or below that fence, so only a
+path applied before a lifecycle removal and absent after it is removed and its
+removal queued; a path a received withdrawal took after the fence is judged
+gone too, and the late removal is refused by the writer's revision check or
+withdraws what the withdrawal would have. A forwarded write no removal
+followed pays one address parse and one map lookup per stored NLRI section
+of a sent event and no
+inventory walk. The queued removals leave through
 one long-lived dispatcher, never through an RPC on the event path, which would
 stop bgp-rib applying events while the RPC is in flight. The plugin's run
 function starts it before events flow and stops it after `Run` drains
@@ -237,8 +267,8 @@ the key when it stages a recovery section, in a fresh copy of the item's meta,
 because the item's meta is the update's shared map and every write hands it to
 its sent event; a forwarded write never carries it.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection (recovery branch) -->
-<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- projectRecoveryWriteLocked, recoveryRemovals, startRecoveryRemovals, stopRecoveryRemovals -->
-<!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- recoveryCandidateGone -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- projectRecoveryWriteLocked, projectForwardedWriteLocked, lifecycleFollowedLocked, fenceSentLifecycleLocked, recoveryRemovals, startRecoveryRemovals, stopRecoveryRemovals -->
+<!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- recoveryCandidateGone, forwardedSourceGone, sourcePathGone -->
 
 Sent event callbacks enqueue delivery; they do not synchronously update the RIB.
 The destination's recovery worker first snapshots its owed keys under the

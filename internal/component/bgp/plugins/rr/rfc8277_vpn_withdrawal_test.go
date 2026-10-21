@@ -82,7 +82,7 @@ func rrAssertVPNInventory(t *testing.T, rr *routeReflector, fam family.Family, w
 	t.Helper()
 	got := make(map[string]bool)
 	for _, entry := range rr.withdrawals["192.0.2.1"] {
-		if entry.Family != fam.String() {
+		if entry.Family != fam {
 			t.Fatalf("inventory family = %v, want %v", entry.Family, fam)
 		}
 		if !entry.WireForm {

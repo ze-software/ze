@@ -1,0 +1,154 @@
+# addpath-departure-rr-replacement: through bgp-rr, a source that held the best
+# path toward a destination without ADD-PATH leaves while another source's path
+# of the same prefix survives.
+# RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
+# routes for which there is no replacement route SHALL be advertised to its
+# peers by means of an UPDATE message." 10.0.0.0/8 has a replacement here, so
+# the destination is sent it, not the withdrawal.
+# VALIDATES: B (127.0.0.5, LOCAL_PREF 100, NEXT_HOP 192.0.2.5) announces
+# 10.0.0.0/8, then A (127.0.0.1, LOCAL_PREF 200, NEXT_HOP 192.0.2.1) announces
+# it, so the receiver holds A's path (the latest advertisement wins at a
+# destination without ADD-PATH). When A closes, bgp-rr hands the departure to
+# the engine's recovery (recovery-source), bgp-rib elects B's surviving path,
+# and the receiver is sent B's route, reflected, as the replacement.
+# PREVENTS: the departure reaching the receiver as a bare withdrawal of
+# 10.0.0.0/8, which leaves it with no route while B's path still exists.
+# The sources carry no relay `send [ update ]`, so nothing is reflected to
+# them and each peer script sees only what it asserts. The registered fixture
+# releases each A action only after the receiver was sent the preceding UPDATE,
+# and releases B (`release 127.0.0.5`, sending it 198.18.0.0/24) only once the
+# receiver is up: B's route reaching ze while the receiver is still connecting
+# is reflected to no one, and nothing replays it later, because the receiver
+# does not attach bgp-adj-rib-in with `send [ update ]`.
+
+stdin=sourcea:terminator=EOF_SOURCEA
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+expect=bgp:conn=1:seq=1:contains=18C00002
+expect=bgp:conn=1:seq=2:contains=18C63364
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 200, NLRI 10.0.0.0/8.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304C0000201400504000000C8080A
+expect=bgp:conn=1:seq=4:contains=18CB0071
+action=close:conn=1:seq=5
+EOF_SOURCEA
+
+stdin=sourceb:terminator=EOF_SOURCEB
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=linger:value=true
+option=open:value=router-id:id=127.0.0.5
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.5, LOCAL_PREF 100, NLRI 10.0.0.0/8.
+# The fixture releases this peer (198.18.0.0/24) once the receiver is up.
+expect=bgp:conn=1:seq=1:contains=18C61200
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304C000020540050400000064080A
+EOF_SOURCEB
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=linger:value=true
+# Each reflected route carries ORIGINATOR_ID (the source's BGP Identifier) and
+# CLUSTER_LIST 10.0.0.1 after the received attributes (RFC 4456 Section 8).
+# B's route, then A's.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000002340010100400200400304C0000205400504000000648009047F000005800A040A000001080A
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000002340010100400200400304C0000201400504000000C88009047F000001800A040A000001080A
+# The departure: B's surviving route replaces A's, with B's own attributes.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000002340010100400200400304C0000205400504000000648009047F000005800A040A000001080A
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rr; }
+    external addpath-departure {
+        run "le test fixture plugin/vpn-withdrawal-inventory rr 3 release 127.0.0.5"
+        encoder json
+    }
+}
+bgp {
+    peer sourcea {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process addpath-departure { send [ update ]; }
+    }
+    peer sourceb {
+        attach process addpath-departure { send [ update ]; }
+        connection {
+            remote { ip 127.0.0.5; }
+            local { ip 127.0.0.6; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=sourcea
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=sourceb
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=90s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

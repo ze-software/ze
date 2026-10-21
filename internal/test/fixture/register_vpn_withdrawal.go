@@ -6,7 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -20,16 +22,22 @@ func init() {
 // was sent the preceding UPDATE. Exact route assertions live in the peer script.
 // An optional second argument is the UPDATE count the destination is sent once
 // the source has left (default 4: two announcements, one withdrawal and one
-// peer-down withdrawal per surviving VPN route).
+// peer-down withdrawal per surviving VPN route). Pairs may follow it:
+// `release <peer address>` holds back a peer whose script announces only once it
+// receives vpnWithdrawalReleasePrefix, which the fixture sends after that peer
+// and both inventory peers are up, so a destination is never still connecting
+// when the route arrives; `held <peer address>` then makes the source wait until
+// bgp-rib holds a route from that peer.
 func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 	if len(args) < 1 {
 		return errors.New("vpn-withdrawal-inventory requires rs or rr, then an optional final UPDATE count")
 	}
-	if len(args) > 2 {
-		return fmt.Errorf("vpn-withdrawal-inventory takes at most two arguments (rs or rr, then an optional final UPDATE count), got %d", len(args))
+	peers, err := vpnWithdrawalPeerArgs(args)
+	if err != nil {
+		return err
 	}
 	finalCount := 4
-	if len(args) == 2 {
+	if len(args) >= 2 {
 		count, err := strconv.Atoi(args[1])
 		if err != nil {
 			return fmt.Errorf("vpn-withdrawal-inventory final UPDATE count %q is not a number: %w", args[1], err)
@@ -68,9 +76,25 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 				address, _ := row["address"].(string)
 				up[address], _ = row["up"].(bool)
 			}
+			for _, address := range peers.release {
+				if !up[address] {
+					return false
+				}
+			}
 			return up["127.0.0.1"] && up["127.0.0.2"]
 		}) {
-			return errors.New("inventory owner never reported both VPN peers up")
+			return errors.New("inventory owner never reported both VPN peers, and every released peer, up")
+		}
+		for _, address := range peers.release {
+			command := "update text origin igp nhop 1.1.1.1 nlri add " + vpnWithdrawalReleasePrefix
+			if _, _, err := plugin.UpdateRoute(ctx, address, command); err != nil {
+				return fmt.Errorf("release of %s failed: %w", address, err)
+			}
+		}
+		for _, address := range peers.held {
+			if !vpnWithdrawalWaitHeld(ctx, plugin, address) {
+				return fmt.Errorf("bgp-rib never held a route received from %s; the source acts only once it does", address)
+			}
 		}
 		for index, prefix := range []string{"192.0.2.0/24", prefixTestNet2, "203.0.113.0/24"} {
 			if index > 0 {
@@ -88,6 +112,66 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 		}
 		return nil
 	}, true)
+}
+
+// vpnWithdrawalReleasePrefix is the route the fixture sends a released peer.
+// The peer's script expects it (NLRI bytes 18C61200) before it announces.
+const vpnWithdrawalReleasePrefix = "198.18.0.0/24"
+
+// vpnWithdrawalPeers holds the addresses named in the `held` and `release`
+// pairs, each list in argument order.
+type vpnWithdrawalPeers struct {
+	held    []string
+	release []string
+}
+
+// vpnWithdrawalPeerArgs reads the `held <peer address>` and `release <peer
+// address>` pairs in the arguments that follow the role and the final UPDATE
+// count. A held peer is one whose received route bgp-rib must hold before the
+// source acts, which is how a test orders a route the destination never sees
+// ahead of the source. A released peer announces only once the fixture sends
+// it vpnWithdrawalReleasePrefix, after the destination is up.
+func vpnWithdrawalPeerArgs(args []string) (vpnWithdrawalPeers, error) {
+	var peers vpnWithdrawalPeers
+	if len(args) <= 2 {
+		return peers, nil
+	}
+	rest := args[2:]
+	for index := 0; index < len(rest); index += 2 {
+		if index+1 >= len(rest) {
+			return vpnWithdrawalPeers{}, vpnWithdrawalPairError(args)
+		}
+		keyword, address := rest[index], rest[index+1]
+		if _, err := netip.ParseAddr(address); err != nil {
+			return vpnWithdrawalPeers{}, fmt.Errorf("vpn-withdrawal-inventory %s peer %q is not an IP address: %w", keyword, address, err)
+		}
+		if keyword == "held" {
+			peers.held = append(peers.held, address)
+			continue
+		}
+		if keyword == "release" {
+			peers.release = append(peers.release, address)
+			continue
+		}
+		return vpnWithdrawalPeers{}, vpnWithdrawalPairError(args)
+	}
+	return peers, nil
+}
+
+// vpnWithdrawalPairError names the argument grammar a malformed pair broke.
+func vpnWithdrawalPairError(args []string) error {
+	return fmt.Errorf("vpn-withdrawal-inventory takes rs or rr, an optional final UPDATE count, then `held <peer address>` or `release <peer address>` pairs; got %q", args)
+}
+
+// vpnWithdrawalWaitHeld polls bgp-rib's Adj-RIB-In until it holds a route row
+// received from address. Every row names its peer, so the quoted address
+// appears in the answer only once such a row exists.
+func vpnWithdrawalWaitHeld(ctx context.Context, plugin *sdk.Plugin, address string) bool {
+	quoted := strconv.Quote(address)
+	return Poll(ctx, 100, 250*time.Millisecond, func() bool {
+		result := command13(ctx, plugin, "show bgp rib received")
+		return done13(result) && strings.Contains(result.text(), quoted)
+	})
 }
 
 func vpnWithdrawalWaitSent(ctx context.Context, plugin *sdk.Plugin, count int) bool {

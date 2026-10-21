@@ -85,6 +85,10 @@ func init() {
 		// Reverse dependency delivery puts GR's retention decision before the
 		// route server decides which source families to withdraw on DOWN.
 		OptionalDependencies: []string{"bgp-rs"},
+		// The same delivery order for the route reflector, which asks the
+		// same retention question on DOWN (rr.go, handleStateDown). Order
+		// only: a GR configuration does not load bgp-rr.
+		StartAfter: []string{"bgp-rr"},
 		// A graceful-restart configuration this plugin REFUSES stops ze, and
 		// an operator who mistyped an address family is told so instead of
 		// getting a running router that silently carries no Graceful Restart.

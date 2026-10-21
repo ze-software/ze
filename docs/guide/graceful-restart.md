@@ -225,13 +225,28 @@ the child engine get that same treatment.
 
 The route-server DOWN handler also uses an in-process query owned by `bgp-gr`.
 After draining that source's forwarding worker it asks which families are still
-retained, and withdraws only the others. The query reads GR's existing family
+retained, and withdraws only the others. The route reflector's DOWN handler asks
+the same query, synchronously, before it hands the source's routes to the
+engine's departure recovery, and leaves a retained family's routes out. Without
+that filter a reflector would withdraw every retained route from its other
+peers during the restart window. `bgp-gr` orders itself against both owners so
+its retention decision for a DOWN is delivered before either handler asks:
+`bgp-rs` is an optional dependency of `bgp-gr`, and `bgp-rr` is named in its
+`StartAfter` (order only, since a GR configuration does not load the
+reflector). When the Restart Time expires without a reconnect, the retained
+routes are deleted and the reflector's other peers are sent their withdrawal,
+under the Path Identifier each was sent. The query reads GR's existing family
 state; it does not keep a second route inventory. No owner means no retention.
 A child-process `bgp-gr` cannot publish that owner into the daemon, so this query
 does **not** establish external-plugin LLGR support. Use internal `bgp-gr`,
-`bgp-rib`, and `bgp-rs` for the coordinated lifecycle described here.
+`bgp-rib`, and `bgp-rs` or `bgp-rr` for the coordinated lifecycle described here.
 <!-- source: internal/component/bgp/retention/retention.go -- Publish, Family -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
+<!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
+<!-- source: test/plugin/addpath-departure-rr-gr-retained.ci -- a retained family is not withdrawn by the reflector -->
+<!-- source: test/plugin/addpath-departure-rr-gr-expiry.ci -- at Restart Time expiry the reflected paths are withdrawn under ze's identifiers -->
+
 
 ## CLI
 

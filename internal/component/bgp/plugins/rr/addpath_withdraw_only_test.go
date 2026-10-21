@@ -94,7 +94,7 @@ func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("withdrawal map holds %d routes after withdrawing path 1, want 1 (path 2): %v", len(entries), entries)
 	}
-	want := withdrawalInfo{Family: "ipv4/unicast", Prefix: "00000002080a", WireForm: true, AddPath: true}
+	want := withdrawalInfo{Family: family.IPv4Unicast, Prefix: "00000002080a", WireForm: true, AddPath: true}
 	for key, got := range entries {
 		if got != want {
 			t.Fatalf("withdrawal map entry %q = %+v, want %+v", key, got, want)
