@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/ospfv3.md -- OSPF Segment Routing IPv6 inter-area
 // Prefix-SID propagation (RFC 8666 §8.2). When this router is an ABR, it re-advertises the
 // Prefix-SID of each intra-area prefix it learned into the OTHER active areas inside an
-// E-Inter-Area-Prefix-LSA (0x2023). The propagated Prefix-SID sets NP and clears E (a
+// E-Inter-Area-Prefix-LSA (0xA023, U-bit set per RFC 8362 Section 2). The propagated Prefix-SID sets NP and clears E (a
 // prefix reached through the ABR is never directly attached to it, so the far egress must
 // not PHP at this ABR); a Prefix-SID for a prefix directly attached to the ABR keeps its
 // originated flags. The prefix carriage is the Extended Prefix Range TLV (type 9, Range

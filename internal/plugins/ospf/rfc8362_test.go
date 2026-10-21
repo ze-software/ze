@@ -66,8 +66,9 @@ func originateSRExtendedLSAs(t *testing.T, eng *engine, router types.RouterID) {
 // RFC requirement: RFC8362-2-1 positive -- every RFC 8362 Extended LSA ze puts on the wire
 // carries the U-bit set in its LS Type field. The SR origination pass builds an
 // E-Router-LSA and an E-Intra-Area-Prefix-LSA (v6OriginateSR, sr_origination_v6.go), and
-// the two octets stored for the wire read 0xA021 and 0xA029, the values RFC 8362 Section 2
-// assigns. With the U-bit clear (0x2021 / 0x2029) RFC 5340 Appendix A.4.2.1 tells a router
+// the two octets stored for the wire read 0xA021 and 0xA029; the ABR pass builds an
+// E-Inter-Area-Prefix-LSA (v6OriginateInterAreaSR, sr_interarea_v6.go) that reads 0xA023.
+// These are the values RFC 8362 Section 2 assigns. With the U-bit clear (0x2021 / 0x2029) RFC 5340 Appendix A.4.2.1 tells a router
 // that does not recognize the function code to "Treat the LSA as if it had link-local
 // flooding scope", so the LSA and its RFC 8666 Prefix-SID stop at the first such router.
 func TestRFC8362ExtendedLSAsSetUBitOnTheWire(t *testing.T) {
@@ -92,6 +93,30 @@ func TestRFC8362ExtendedLSAsSetUBitOnTheWire(t *testing.T) {
 		if got&0x8000 == 0 {
 			t.Errorf("%s wire LS Type 0x%04X has the U-bit clear", c.name, got)
 		}
+	}
+
+	// The third Extended LSA Ze originates is the E-Inter-Area-Prefix-LSA, built only
+	// when this router acts as an ABR propagating a learned intra-area Prefix-SID
+	// (v6OriginateInterAreaSR, sr_interarea_v6.go). Its wire LS Type is 0xA023.
+	eng.setConfig(v6RIConfig(t, "area"))
+	area1 := types.AreaID{0, 0, 0, 1}
+	installRemoteV6EPrefix(t, eng, area1, types.RouterID{9, 9, 9, 9}, 3,
+		[]sr.PrefixSIDConfig{{Prefix: netip.MustParsePrefix("2001:db8:1::9/128"), Index: 9}})
+	keep := map[ospflsdb.SelfLSARef]struct{}{}
+	if n := eng.v6OriginateInterAreaSR(router, []types.AreaID{types.BackboneArea, area1}, nil, keep); n == 0 {
+		t.Fatalf("the ABR originated no E-Inter-Area-Prefix-LSA")
+	}
+	interArea := types.LSAKey{
+		Type:              types.LSType(ospfv3types.LSTypeEInterAreaPrefix),
+		LinkStateID:       v6SummaryLSID(1),
+		AdvertisingRouter: router,
+	}
+	got := wireLSType(t, eng, types.BackboneArea, interArea)
+	if got != 0xA023 {
+		t.Errorf("E-Inter-Area-Prefix-LSA wire LS Type = 0x%04X, want 0xA023", got)
+	}
+	if got&0x8000 == 0 {
+		t.Errorf("E-Inter-Area-Prefix-LSA wire LS Type 0x%04X has the U-bit clear", got)
 	}
 }
 

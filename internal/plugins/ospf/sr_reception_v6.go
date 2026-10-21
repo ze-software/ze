@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/ospfv3.md -- OSPF Segment Routing IPv6 reception.
 // Parses the Prefix-SID sub-TLVs (RFC 8666 §6) carried in received RFC 8362 Extended
-// prefix LSAs (E-Intra-Area-Prefix 0x2029, E-Inter-Area-Prefix 0x2023, E-AS-External
-// 0x4025, E-Type-7 0x2027) and returns them keyed by prefix so the shared reception->
+// prefix LSAs (E-Intra-Area-Prefix 0xA029, E-Inter-Area-Prefix 0xA023, E-AS-External
+// 0xC025, E-Type-7 0xA027) and returns them keyed by prefix so the shared reception->
 // install driver (sr_install.go) computes labels and programs mpls-fib exactly like the
 // IPv4 opaque Extended-Prefix path. Two carriages are honored: the Intra/Inter/External
 // Prefix TLV (types 6/3/5) with a nested Prefix-SID sub-TLV, and the Extended Prefix Range

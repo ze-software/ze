@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-21",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Re-judged 2026-09-29 by an independent judge. TestRFC5443NotOperationalLinkAdvertisedAtMaxCost builds the engine from config, runs the production applyLDPSyncOverride, originates the Router-LSA and decodes it: the p2p link is exactly 0xFFFF before session-up and again during hold-down, while the subnet stub keeps 100 (only the link is costed out). TestRFC5443OperationalLinkAdvertisedAtConfiguredCost synchronizes (session-up, hold-down fired) and reads the configured 100, so an always-max stub fails. Both have observed-red revert records on applyLDPSyncOverride. The older helper-level tags (effectiveP2PCost, show path only) stay and add nothing. The 'fully operational' definition itself is RFC5443-2-5.",
       "requirement_sha": "db5684738fd31f75",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "9e546619d1947e81",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "f65fb36cdef0ae89",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "f65fb36cdef0ae89",
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "c9958c38f3f744bf",
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "c9958c38f3f744bf"
       },
@@ -23,17 +24,17 @@
       "verdict": "enforced"
     },
     "RFC5443-2-2": {
-      "note": "Re-judged 2026-09-29. The positive reads exactly 0xFFFF from the originated, decoded Router-LSA. TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost configures 0xFFFE: not-synchronized reads 0xFFFF (not the configured near-max value), synchronized returns 0xFFFE, so a cost-out to any value other than LSInfinity goes red. Revert records on lsdb routerLinks, which sets LSInfinity for LDPSyncMaxMetric. The older tags (constant check, unmanaged interface) stay and prove only neighbouring facts.",
+      "note": "Re-judged 2026-10-21 after TestLDPSyncMaxMetricValue was rewritten. The proof is the two origination units: TestRFC5443NotOperationalLinkAdvertisedAtMaxCost decodes the originated Router-LSA and reads the literal 0xFFFF on the p2p link both before session-up and during hold-down, with the stub at the configured 100; TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost configures 0xFFFE and reads 0xFFFF while not synchronized and 0xFFFE once synchronized, so a cost-out to any value but LSInfinity goes red. Their records are on lsdb routerLinks, which sets LSInfinity under LDPSyncMaxMetric. The rewritten TestLDPSyncMaxMetricValue now compares effectiveP2PCost to the literal 0xFFFF in not-synchronized and hold-down, but effectiveP2PCost feeds only the show ospf ldp-sync snapshot (ldp_sync.go snapshot), never origination, so it and its effectiveP2PCost record prove the displayed metric, a neighbouring fact. TestLDPSyncDisabledIsNoOp proves an unmanaged interface keeps its configured cost, also neighbouring. Not counted: the OSPFv3 cost-out (origination_v6.go, v6MaxLinkMetric 0xffff) has no unit; RFC 5443 cites only RFC 2328.",
       "requirement_sha": "8ab035e1618eab7e",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "9e546619d1947e81",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "f65fb36cdef0ae89",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "f65fb36cdef0ae89",
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "c9958c38f3f744bf",
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "c9958c38f3f744bf"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "f62d5cb141facec8",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "79b9dbc18c0c7c7c",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "4e51c6e90ede40da",
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "ffe3c68734b84458",
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "d0ddcbc7f5ff6173"
       },
@@ -45,8 +46,8 @@
       "tests": {
         "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "631eb3d34c22ecaa",
         "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "631eb3d34c22ecaa",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "9e546619d1947e81",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "9e546619d1947e81"
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "f65fb36cdef0ae89",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "f65fb36cdef0ae89"
       },
       "units": {
         "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "a9b9b12914b313b3",
@@ -60,8 +61,8 @@
       "note": "Re-judged 2026-09-29 (independent judge). TestRFC5443BroadcastCostOutCoversWholeSegment builds a real engine with broadcast eth1, two Full IGP peers, a real ospfspf.Computer over a three-router LSDB with an alternate path, runs production applyLDPSyncOverride and decodes the originated Router-LSA: not synchronized -> 0 transit and 0 point-to-point links (only the subnet stub), synchronized -> exactly 1 transit link to the pseudonode and 0 per-peer links, so the cost-out never has per-peer granularity. Negative TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut: an LDP session up with hold-down pending still yields 0 transit and 0 per-peer links. Ze applies the RFC 6138 transit-link withhold on broadcast, which is the whole-link cost-out. Note: LDP session events are per interface, so the negative cannot name WHICH peer came up; it proves no partial cost-in. Revert records on applyLDPSyncOverride.",
       "requirement_sha": "064dbbac553b9cfb",
       "tests": {
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "9e546619d1947e81",
-        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "9e546619d1947e81",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "f65fb36cdef0ae89",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "f65fb36cdef0ae89",
         "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "c1c795ba28a13064",
         "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut": "c1c795ba28a13064"
       },

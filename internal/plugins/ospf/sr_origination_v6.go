@@ -1,8 +1,8 @@
 // Design: docs/architecture/wire/ospfv3.md -- OSPF Segment Routing IPv6 origination.
 // When SR is enabled on an OSPFv3 (IPv6) engine, this file originates the SR-bearing
-// RFC 8362 Extended LSAs off the shared v6OriginateSelf seam: the E-Router-LSA (0x2021)
+// RFC 8362 Extended LSAs off the shared v6OriginateSelf seam: the E-Router-LSA (0xA021)
 // carrying an Adj-SID/LAN-Adj-SID sub-TLV per adjacency under each Router-Link TLV, and
-// the E-Intra-Area-Prefix-LSA (0x2029) carrying a Prefix-SID sub-TLV under an Intra-Area
+// the E-Intra-Area-Prefix-LSA (0xA029) carrying a Prefix-SID sub-TLV under an Intra-Area
 // Prefix TLV for each configured node prefix (typically the IPv6 loopback). The RFC 8362
 // TLV framing comes from v3/packet/lsa_extended.go; the SR sub-TLV VALUE codecs from
 // sr/codec_v6.go. Inter-area propagation (AC-15) lives in sr_interarea_v6.go. The E-LSA

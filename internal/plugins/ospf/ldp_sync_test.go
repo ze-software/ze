@@ -158,9 +158,16 @@ func TestLDPSyncForcesMaxMetric(t *testing.T) {
 // RFC requirement: RFC5443-2-2 positive -- the OSPF max-cost value the mechanism
 // substitutes is exactly LSInfinity, the 16-bit 0xFFFF.
 func TestLDPSyncMaxMetricValue(t *testing.T) {
-	// A-2: the substituted value is exactly LSInfinity 0xFFFF (RFC 5443 §2).
-	if uint16(ospflsdb.LSInfinity) != 0xFFFF {
-		t.Fatalf("LSInfinity = %#x, want 0xFFFF", uint16(ospflsdb.LSInfinity))
+	// A-2: the cost effectiveP2PCost substitutes while LDP is not operational is the
+	// literal 0xFFFF (RFC 5443 §2), compared against the number rather than the
+	// LSInfinity constant, so a changed constant or a substitute of any other value
+	// (0xFFFE, the configured cost) goes red. The configured cost of 1 keeps the
+	// expected value from coinciding with the input.
+	const configured uint16 = 1
+	for _, st := range []int{ldpSyncNotSynchronized, ldpSyncHoldDown} {
+		if got := effectiveP2PCost(st, true, configured); got != 0xFFFF {
+			t.Fatalf("state %s: substituted cost = %#x, want 0xFFFF", ldpSyncStateName(st), got)
+		}
 	}
 }
 

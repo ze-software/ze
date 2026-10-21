@@ -58,6 +58,17 @@
     },
     {
       "rid": "RFC5443-2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue",
+      "unit-sha": "eb6a2973ab8bf1df",
+      "claim-sha": "0857239e4c8ea192",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ldp_sync.go::effectiveP2PCost",
+      "producer-sha": "d3009aa306552573",
+      "break": "body of effectiveP2PCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-2-2",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost",
       "unit-sha": "75b92478c2f7b165",

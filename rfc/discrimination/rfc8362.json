@@ -16,12 +16,12 @@
       "rid": "RFC8362-2-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8362_test.go::TestRFC8362ExtendedLSAsSetUBitOnTheWire",
-      "unit-sha": "6c07362cb5f9bf3a",
-      "claim-sha": "8b6056b9ca840d88",
+      "unit-sha": "f9aaa09c2bc2c235",
+      "claim-sha": "5e7cc7d123d7a65f",
       "route": "revert",
-      "producer": "internal/plugins/ospf/origination_v6.go::v6OriginHeader",
-      "producer-sha": "367294e33f1af68d",
-      "break": "body of v6OriginHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/sr_interarea_v6.go::v6OriginateInterAreaSR",
+      "producer-sha": "ea5b686c9a5865be",
+      "break": "body of v6OriginateInterAreaSR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8362-3.2-1",
