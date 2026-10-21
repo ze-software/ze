@@ -491,9 +491,16 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 	attrsE := firstASAttrs(4, 65006, 65006, 65006)
 	marker := netip.MustParsePrefix("10.9.255.0/24")
 
+	// Each source's UPDATE arrives on its own session, so the next source
+	// sends only once A, a client with no export policy, holds this one: the
+	// newest write owns C's entry, and C's forward queue keeps the order in
+	// which the sources' UPDATEs were processed. Without the wait, E's UPDATE
+	// could be processed after A's and own C's entry before A withdraws.
 	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, a, prefix, attrsB)
 	if withE {
 		ownershipLiveSend(t, peers[3], nil, attrsE, prefix) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, a, prefix, attrsE)
 	}
 	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
 	// A denied announcement reaches C as a withdrawal of a route C never
@@ -572,7 +579,10 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 	attrsBNewer := firstASAttrs(4, 65003, 65003, 65003)
 	attrsE := firstASAttrs(4, 65006, 65006, 65006, 65006)
 
+	// B's UPDATE is processed before E's sends, A holding it, so the newest
+	// write at C is E's (policyDeniedSurvivors).
 	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
+	ownershipLiveThrough(t, a, prefix, attrsB)
 	ownershipLiveSend(t, e, nil, attrsE, prefix) // RFC 4271 Section 4.3.
 	ownershipLiveThrough(t, c, prefix, attrsE)
 	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.

@@ -12,16 +12,19 @@ import (
 	"net/netip"
 	"runtime"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -778,8 +781,13 @@ func bufferShortageDefersKeys(t *testing.T, spare int) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
+	// B's export policy denies A's routes, so A's withdrawal owes keys at C
+	// alone. Otherwise B's own recovery, which this test does not hold,
+	// returns the buffers its writes staged while the pool is meant to be dry.
+	settings[1].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
+	policyDenyASNs(a.peer.reactor, b.peer.Settings().Address, "65002")
 	attrsA := firstASAttrs(4, 65002)
 	attrsB := firstASAttrs(4, 65003, 65003)
 	prefixes := churnPrefixes(60, keys)
@@ -794,6 +802,14 @@ func bufferShortageDefersKeys(t *testing.T, spare int) {
 	publishLookupTap(t, tap.after)
 	ownershipLiveSend(t, a, prefixes, nil) // RFC 4271 Section 4.3.
 	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == keys }, "C owes every withdrawn key")
+	// The pool is drained only once C's first round is held at its lookup:
+	// the round's source and RIB barriers before the lookup can take longer
+	// than the 300 ms window below under -race, and every round the window
+	// counts must find the pool already dry.
+	lowEventually(t, func() bool {
+		requests, _, _ := tap.result()
+		return requests >= 1
+	}, "C's recovery lookup is held")
 
 	held := drainReadPool(t)
 	for range min(spare, len(held)) {
@@ -830,31 +846,34 @@ func bufferShortageDefersKeys(t *testing.T, spare int) {
 }
 
 // rsLiveRouter is lowLiveRouter for the scenarios of this spec that hold
-// many read buffers in flight. The read pools and their byte budget are
-// process globals that earlier tests of this binary leave grown against the
-// budget the router installs (plan/journal/registry-contamination.md). These
-// scenarios do not test the budget, so it is lifted for their run; a test
-// that does pins it again (drainReadPool).
+// many read buffers in flight, under an explicit read-pool byte budget far
+// above anything they allocate. The read pools are process globals, and a
+// block an earlier test of this binary grew stays allocated (collapse keeps a
+// pool's last block): an extended-message test leaves a 64K block of 8 MiB,
+// and New seeds the new reactor's shared budget with it. The auto-sized
+// budget is then the floor of one 4K block and one 64K block, so this
+// router's sessions would share 128 4K buffers. Lifting the budget after
+// start does not hold either: the weight tracker re-sizes it on the peers'
+// family and End-of-RIB events. With ze.fwd.pool.maxbytes set the reactor
+// installs the budget once and never re-sizes it, so a test that pins it
+// (drainReadPool) keeps what it pinned (plan/journal/registry-contamination.md).
 func rsLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 	t.Helper()
-	peers := lowLiveRouter(t, settings...)
-	unboundedReadPool(t)
-	return peers
+	if err := env.Set("ze.fwd.pool.maxbytes", strconv.FormatInt(rsLiveReadBudget, 10)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set("ze.fwd.pool.maxbytes", ""); err != nil {
+			t.Error(err)
+		}
+	})
+	return lowLiveRouter(t, settings...)
 }
 
-// unboundedReadPool lifts the shared byte budget of the read pools for the
-// test, and restores it at cleanup.
-func unboundedReadPool(t *testing.T) {
-	t.Helper()
-	bufMuxStd.mux.mu.Lock()
-	budget := bufMuxStd.mux.budget
-	bufMuxStd.mux.mu.Unlock()
-	if budget == nil {
-		return // No budget: the pools are unbounded already.
-	}
-	previous := budget.maxBytes.Swap(0)
-	t.Cleanup(func() { budget.maxBytes.Store(previous) })
-}
+// rsLiveReadBudget is the explicit read-pool byte budget of rsLiveRouter:
+// 1 GiB, about 250 000 4K buffers, where the largest scenario holds a few
+// thousand.
+const rsLiveReadBudget = 1 << 30
 
 // drainReadPool pins the shared byte budget at what the pools have allocated,
 // so neither can grow, and takes every free 4K buffer. Cleanup returns any
@@ -1000,8 +1019,13 @@ func TestOwedKeyBufferStallsCountOnlyConsecutive(t *testing.T) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
+	// B's export policy denies A's routes, so each phase's withdrawal owes
+	// keys at C alone: B's own recovery would return the buffers its writes
+	// staged while the pool is meant to be dry.
+	settings[1].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
+	policyDenyASNs(a.peer.reactor, b.peer.Settings().Address, "65002")
 	attrsA := firstASAttrs(4, 65002)
 	attrsB := firstASAttrs(4, 65003, 65003)
 	prefixes := churnPrefixes(80, keys)
@@ -1015,8 +1039,13 @@ func TestOwedKeyBufferStallsCountOnlyConsecutive(t *testing.T) {
 		ownershipLiveSend(t, a, nil, attrsA, prefixes...) // RFC 4271 Section 4.3.
 		waitOwnedBy(t, c.peer, a.peer, keys)
 		gate.close()
+		parked := gate.count()
 		ownershipLiveSend(t, a, prefixes, nil) // RFC 4271 Section 4.3.
 		lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == keys }, "C owes every withdrawn key")
+		// The pool is drained only once the phase's first round is parked at
+		// its lookup, so the window below counts rounds that all found the
+		// pool dry rather than the barriers before a slow first lookup.
+		lowEventually(t, func() bool { return gate.count() > parked }, "C's recovery lookup is parked")
 		held := drainReadPool(t)
 		before := gate.count()
 		gate.open()
