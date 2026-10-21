@@ -96,3 +96,32 @@ Before the review gate: the gates in item 6 plus `./le test weakened check`;
 AC-9 amd64 (nightly); handover item 4 (`Hugepages.applianceEnv`); no test parses
 the vpp-iface scenario configs through the schema, which is how the `address`
 fixture defect stayed hidden (owed: a parse test over every scenario config).
+
+## amd64 and gates, 2026-10-21 ~21:20 BST (finishing agent)
+
+| Commit | What |
+|--------|------|
+| e6fc0d382e | `./le setup docker-host build arch amd64` on an arm64 host now names the image build on an amd64 host, or `arch arm64` here, never the bare kernel build (`appliance.ImageRuntimeKernelTree`, `TestImageRuntimeKernelTreeNamesTheImageBuild` red then green) |
+| 9064f9a188 | journal row: `internal/exabgp/bridge/addpath_vpn_render_test.go` (d2682e5b19, another session) lacks `//go:build ze_bgp`, so staticcheck part 2 of 6 is red and `./le commit create` needs `structural-red-ok` |
+| 7ed46cac0d | spec: AC-4 amd64 config evidence and why no amd64 image exists |
+
+- amd64 on this Mac: no kernel, image or boot is possible. Ze builds a kernel
+  only on a host of its arch, and the docker-host build resolves the kernel
+  first. The x86_64 config, resolved with the build's own Kconfig steps in a
+  throwaway container, has every AC-4 symbol `=y` and every require-manifest
+  symbol `=y`. Owed on an amd64 host or the nightly: the amd64 kernel build,
+  `./le setup docker-host build arch amd64`, AC-9 amd64 under KVM (R-9).
+- `./le verify current` at 9064f9a188 (19:13 to 21:21 UTC+1): exit 3, and the
+  verdict is void. The disk filled during the run (26G free at the start,
+  1.7G at the end) and the stage logs could not be saved ("no space left on
+  device"), so its 15 red stages (tree-check, functional gating, compound-guard,
+  tier, sensitivity, unit-race-changed parts 1 and 3, doc links, vulnerability,
+  site facts, rfc check, doc wiring, exabgp-test, retired-commands, staticcheck
+  part 4) cannot be classified. A wave of unrelated red on a full disk is the
+  disk first (`running-commands.md`, "When the disk is full").
+- Classified before the run: staticcheck part 2 (the exabgp tag row above) and
+  part 3 (a syntax error in `rib_sent_lifecycle_test.go`, an uncommitted edit
+  by another session) are not this spec's.
+- Owed: free disk (owner: `./le scratch cache-clean`; the go cache is 15G),
+  then `./le verify current` and `./le test unit all` again, and classify each
+  red against this spec's commits.
