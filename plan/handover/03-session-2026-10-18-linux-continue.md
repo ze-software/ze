@@ -2034,3 +2034,34 @@ Owed:
    missing build tag); not yet investigated.
 6. Watchdog: `internal/component/bgp/plugins/watchdog/config.go` ignores a parse error on
    extended-community (silent fall-through); fix with a refusal (M4) or journal it.
+
+## rfc-verdict-fix-bgp round-2 findings 1 and 2, 2026-10-21 (agent handoff, budget reached)
+
+Finding 1 (dangling citers, stale claims) is done: `3444b9d8f2`. `./le spec citation` OK.
+
+Finding 2 is measured, records NOT yet taken. The measured numbers and the 13 units are
+in the spec's Goal Validation row AC-C2 (`plan/pre-release/spec-rfc-verdict-fix-bgp.md`).
+Method, so a successor can repeat it: rebuild the 2026-09-28 population from
+`git show cb4801b4cc:rfc/audit/*.json` with the spec's "Derived listing" filter plus the
+pre-rename paths `internal/plugins/fib/kernel/nexthop_srv6_linux_test.go` and
+`internal/plugins/isis/bgpls_export_rfc9552_test.go` (gives 360); join the `enforced` ones
+at HEAD to `rfc/discrimination/<stem>.json` on (rid, unit with `#n` stripped); for each
+unrecorded unit compare the function body at `cb4801b4cc` and HEAD with
+`git log --follow --name-status` to follow renames, and name each commit whose body change
+it is. Result: 478 unrecorded tags over 320 units; 54 tags (32 id-unit pairs, 13 units) on
+units this child changed (6 commits naming the child or carrying D-15 trailers, plus
+`a936e853c7`, which writes owned-stem audit files).
+
+Still owed before commit B:
+1. Take 32 records with `./le rfc discriminate-record id <id> polarity <p> unit <file>::<Func>
+   route revert producer <file>::<Func>` for the 13 units in Goal Validation. Read each
+   unit's `RFC requirement:` tag lines first: the audit's tests map for RFC4760-3-4 names
+   `TestRFC4760IBGPMPReachCarriesLocalPref`, whose tags read RFC4760-7-1, so the recorder may
+   refuse that pair; that is a mistagged-unit finding to fix, not to skip. Producers: the
+   sibling records of each id name them (e.g. RFC9552-8.2.2-x `rfc7606_bgpls.go::validateBGPLSAttr`,
+   RFC4271-9.1.2.2-1 `rib/bestpath.go::comparePair`). The interop carrier
+   `interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape` needs the interop route.
+2. Write the records taken into Goal Validation (replace "Records taken in this round: none yet")
+   and remove the first Work Not Done row.
+3. The owner answers strict versus change-scoped; the spec now states both with numbers.
+4. Fresh review round 3 over `3444b9d8f2` and the Goal Validation edit, then commit B.
