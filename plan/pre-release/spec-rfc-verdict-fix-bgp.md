@@ -310,7 +310,7 @@ withdrawn 0 apart, landed in `32ff59085b`) rather than transferring it.
 | RFC9494-4.2-8 | weak | `spec-bgp-graceful-restart-rfc-defects` |
 | RFC9494-4.3-1 | weak | `spec-bgp-graceful-restart-rfc-defects` |
 | RFC6286-2.1-1 | weak | `spec-bgp-open-session-rfc-defects` |
-| RFC9494-4.3-3 | weak | `spec-bgp-graceful-restart-rfc-defects` (the current audit retains this finding; the prior prose below incorrectly called it enforced) |
+| RFC9494-4.3-3 | weak | `spec-bgp-graceful-restart-rfc-defects` (re-judged `enforced` 2026-10-18 in `rfc/audit/rfc9494.json`) |
 | RFC9072-2-1 | weak | `spec-bgp-open-session-rfc-defects` |
 | RFC4271-4.3-3 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC4271-4.3-4 | weak | `spec-bgp-update-propagation-rfc-defects` |
@@ -349,7 +349,7 @@ checkpoint `f3b2eb3c65`; their stored enforced verdicts are not pending judgment
 
 - RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
 - RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.
-- RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json`. RFC9494-4.3-3 remains `weak` and is listed above. The graceful-restart spec owns both producer defects.
+- RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json`. RFC9494-4.3-3 was `weak` at transfer (listed above) and reads `enforced` in `rfc/audit/rfc9494.json` since its independent re-judge of 2026-10-18. The graceful-restart spec owns the 4.3-2 producer defect.
 - RFC9252-5-2 is `unimplemented`, not weak or wrong. Owner: `plan/immediate/spec-srv6-bestpath-resolvability.md` (noted 2026-10-11).
 - RFC2545 now has explicit Section3 rows and remains part of this child's current proof work; the old "no row" description is obsolete. The BMP spec retains its AC-4/AC-5 acceptance ownership. The committing spec also renews records changed by the shared `peerDownFor` repair (R-6 of the parent).
 - RFC 9830 Section 2.4.2 D2 (the BSID label width) has no row; its producer change stales the srpolicy records the same way.
@@ -1229,7 +1229,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 | 1 | BLOCKER | MUP-SAFI-3.1-1 is a test-strength weak, so transferring it to a producer spec parks it | `draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress` | `retainMUPCounts` asserts discarded and withdrawn apart, revert record taken; landed with `32ff59085b`; transfer withdrawn from update-propagation AC-5 (`13bc1a99af`) and from "Blocked by". Independent re-judge still owed |
 | 2 | ISSUE | Producer-changed revert records described as working-tree-only were stale at HEAD | `rfc/discrimination/{draft-ietf-idr-bgp-bfd-strict-mode,rfc2918,rfc7705,rfc9830}.json` | re-recorded, `a0c77aa15b` |
 | 3 | ISSUE | Goal Validation stated AC-C2 without numbers or the reading taken | this spec, Goal Validation | both counts, the two readings and the home of the unrecorded units written above |
-| 4 | ISSUE | Siblings cite this spec by path, which commit B leaves dangling | 14 plan specs, `features/bgp-protocol.md`, `plan/rfc-gap-difficulty-2026-10-18.md` | bare stems and current owners, `13bc1a99af`; ISD rows to unowned-rows AC-9 |
+| 4 | ISSUE | Siblings cite this spec by path, which commit B leaves dangling | 10 plan specs, `features/bgp-protocol.md`, `plan/rfc-gap-difficulty-2026-10-18.md` (`13bc1a99af`); round 2 found three more path citers it missed, in `spec-bgp-sr-policy-rfc-defects`, `spec-bmp-sflow-export-rfc-defects` and `spec-bgp-unowned-rfc-rows` | bare stems and current owners, `13bc1a99af` and the round-2 commit; ISD rows to unowned-rows AC-9 |
 
 ## Pre-Commit Verification
 
@@ -1244,7 +1244,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 |-------|-------|----------------|
 | AC-C1 | 6 weak, 0 wrong | derived-listing jq output 2026-10-21, ids listed in Goal Validation |
 | AC-C2 | 336/336 moved verdicts recorded; 807 enforced, 230 unrecorded | jq join of `rfc/audit` and `rfc/discrimination` over the 60 baseline stems, 2026-10-21 |
-| AC-C5 | owned-stem reds named | `./le rfc check` 2026-10-21 exit 2, 57 violations: draft-ietf-bess-mup-safi 14 STALE verdicts (3.1-1, 3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1/-2/-3/-6/-7/-9/-10, 3.1.4-1, 3.1.4.1-1), SHIFTED 3.1.4.1-3 and 33 revert records no longer verifying, all from `32ff59085b`; RFC8955-4-3 STALE from `2dfb23ed0b` (`test/encode/flow-encode.ci`); SHIFTED RFC5575-4-8, RFC8955-6-1/-3, RFC8956-5-1 from an uncommitted FlowSpec edit of `rib_flowspec_validation_test.go`; test-file naming for rfc4760 and rfc7313 from other sessions' commits. Not this child's: rfc9117 SHIFTED, rfc7950 record, `bridgerun` vet |
+| AC-C5 | owned-stem reds named | `./le rfc check` 2026-10-21 exit 2, 57 violations: draft-ietf-bess-mup-safi 14 STALE verdicts (3.1-1, 3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1/-2/-3/-6/-7/-9/-10, 3.1.4-1, 3.1.4.1-1), SHIFTED 3.1.4.1-3 and 33 revert records no longer verifying, all from `32ff59085b`; RFC8955-4-3 STALE from `2dfb23ed0b` (`test/encode/flow-encode.ci`); SHIFTED RFC5575-4-8, RFC8955-6-1/-3, RFC8956-5-1 from the FlowSpec edit of `rib_flowspec_validation_test.go` committed in `c4c085b727` (ExaBGP 6 compatibility work, not this child); test-file naming for rfc4760 and rfc7313 from other sessions' commits. Not this child's: rfc9117 SHIFTED, rfc7950 record, `bridgerun` vet |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
