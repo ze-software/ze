@@ -9,6 +9,8 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -17,7 +19,7 @@
       "note": "RFC 5575 Section 4: \"Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760].\" RFC 8955 Section 4 restates this obligation; the existing superseded disposition is retained. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is only registration/constructed-capability evidence. The current reactor/rfc5575_capability_wire_test.go TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily additionally decodes buildOpen OptionalParams produced from real parsed configuration, verifies Code-1 families, and sends through AnnounceNLRIBatch. Matching SAFI sends exactly the required MP_REACH bytes; advertising only the other FlowSpec SAFI returns ErrNoPeersAcceptedFamily and writes zero bytes. Producers session_negotiate.go buildOpen, capability.Negotiate and reactor_api_batch.go AnnounceNLRIBatch/buildBatchAnnounceUpdate were read. Distinct matched/mismatched negotiation arms are a genuine positive/negative pair. Removed only the now-false single-polarity annotation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "6e0283b093f53403",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "b1310f88880f7079",
+        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "150529c25377afd6",
         "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "44aafccadd4f630f",
         "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "44aafccadd4f630f"
       },
@@ -32,8 +34,8 @@
       "note": "Re-judged 2026-10-16 after the codec moved to internal/core/bgp/nlri/flowspec; the two types_test units changed only by package qualification. RFC 5575 Section 4: \"The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type.\" TestFlowSpecIPv4Basic/TestFlowSpecVPNFamily pin the plugin-registered families (register.go family.MustRegister) to AFI 1/SAFI 133 and AFI 1-2/SAFI 134. The proof is the reactor unit TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily: for flow and flow-vpn it requires the configured OPEN to advertise the pair, requires the MP_REACH AFI/SAFI and NLRI to equal it exactly through AnnounceNLRIBatch, and with the crossed SAFI negotiated requires ErrNoPeersAcceptedFamily and zero bytes written. Scoped go test of core flowspec, plugin flowspec, message and flowspec-firewall packages green on this tree.",
       "requirement_sha": "cc0ead3ebab90fe6",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "369dd5aaffff3a63",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "369dd5aaffff3a63",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "4e0cdc2eeb016fb7",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "4e0cdc2eeb016fb7",
         "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "44aafccadd4f630f",
         "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "44aafccadd4f630f"
       },
@@ -49,9 +51,9 @@
       "note": "Re-judged 2026-10-16 after the codec move; units changed only by package qualification. RFC 5575 Section 4: \"Flow specification components must follow strict type ordering.\" TestFlowSpecComponentsAscendingOrder adds types 5,12,3,1 and requires the re-parsed wire order 1,3,5,12 (red on insertion-order emission by core writeComponentsSorted); TestFlowSpecJoinsRepeatedTypeIntoOneComponent requires one Type 4 component with exact merged bytes; TestParseFlowSpecRefusesRepeatedComponentType requires ErrFlowSpecDuplicateType from core parseComponents on a repeated type 4, with the merged control accepted.",
       "requirement_sha": "c04c0ab66ec3b35a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "369dd5aaffff3a63",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecJoinsRepeatedTypeIntoOneComponent": "369dd5aaffff3a63",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesRepeatedComponentType": "369dd5aaffff3a63"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "4e0cdc2eeb016fb7",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecJoinsRepeatedTypeIntoOneComponent": "4e0cdc2eeb016fb7",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesRepeatedComponentType": "4e0cdc2eeb016fb7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "ced2b5aa0d12f25a",
@@ -64,8 +66,8 @@
       "note": "Re-judged 2026-10-16 after the codec move; units changed only by package qualification. RFC 5575 Section 4: \"if present, it MUST precede any component of higher numeric type value.\" Positive asserts strictly ascending emitted types and the exact order 1,3,5,12; negative TestParseFlowSpecRefusesDescendingComponentType requires ErrFlowSpecTypeOrder from core parseComponents on 5-then-3, with the same components ascending accepted, so the refusal is isolated to order.",
       "requirement_sha": "ebaab5cd3bb6fab3",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "369dd5aaffff3a63",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "369dd5aaffff3a63"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "4e0cdc2eeb016fb7",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "4e0cdc2eeb016fb7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "ced2b5aa0d12f25a",
@@ -123,7 +125,7 @@
       "note": "Forbidden: non-zero bytes in the five octets before the DSCP, or the DSCP elsewhere. TestFlowSpecTrafficMarkingReservedBytesZero asserts ec[2..6]==0 and ec[7]==dscp with type 0x80/0x09; red on either. {single-polarity} marker present.",
       "requirement_sha": "8dc19f50552f03fb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "369dd5aaffff3a63"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "4e0cdc2eeb016fb7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "a1cd8cc8e523e6e0"
