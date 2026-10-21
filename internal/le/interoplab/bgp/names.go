@@ -488,6 +488,9 @@ const (
 	bfdRefcountTwoJSON                  = `"refcount": 2`
 	zeShowBFDSessions                   = "show bfd sessions"
 	speakerOracleNoUnrecognizedEVPNType = "no-unrecognized-evpn-type"
+	// speakerOracleNoRepeatedLargeCommunity is the RFC 8092 Section 3 oracle:
+	// no LARGE_COMMUNITY value is transmitted twice in one UPDATE.
+	speakerOracleNoRepeatedLargeCommunity = "no-repeated-large-community"
 )
 
 // ExaBGP helper modes and API commands.

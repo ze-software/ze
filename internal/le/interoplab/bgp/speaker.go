@@ -529,18 +529,57 @@ func readSpeakerExact(connection net.Conn, size int, deadline time.Time, allowId
 	return buffer, false, nil
 }
 
+// applySpeakerOracle judges one received UPDATE with the oracle the run named,
+// looked up in speakerUpdateOracles. An oracle with no per-UPDATE judgement (the
+// BFD strict-mode one judges ordering) has no entry and judges nothing here.
 func applySpeakerOracle(update speakerUpdate, verdict *speakerVerdict) {
-	switch verdict.plugin {
-	case speakerOracleNoDuplicateAttribute:
-		seen := make(map[byte]struct{}, len(update.attributes))
-		for _, attribute := range update.attributes {
-			if _, exists := seen[attribute.code]; exists {
-				verdict.fail(fmt.Sprintf("path attribute type %d appears more than once in one UPDATE", attribute.code))
-			}
-			seen[attribute.code] = struct{}{}
+	oracle, ok := speakerUpdateOracles[verdict.plugin]
+	if !ok {
+		return
+	}
+	oracle(update, verdict)
+}
+
+// applyNoDuplicateAttributeOracle fails a run whose UPDATE carries one path
+// attribute type twice.
+func applyNoDuplicateAttributeOracle(update speakerUpdate, verdict *speakerVerdict) {
+	seen := make(map[byte]struct{}, len(update.attributes))
+	for _, attribute := range update.attributes {
+		if _, exists := seen[attribute.code]; exists {
+			verdict.fail(fmt.Sprintf("path attribute type %d appears more than once in one UPDATE", attribute.code))
 		}
-	case speakerOracleNoUnrecognizedEVPNType:
-		applyEVPNOracle(update, verdict)
+		seen[attribute.code] = struct{}{}
+	}
+}
+
+// largeCommunityAttribute is the LARGE_COMMUNITY path attribute type code and
+// largeCommunityValueOctets the size of one of its values (RFC 8092 Section 3).
+const (
+	largeCommunityAttribute   = 32
+	largeCommunityValueOctets = 12
+)
+
+// applyNoRepeatedLargeCommunityOracle fails a run whose UPDATE carries one
+// LARGE_COMMUNITY value twice. RFC 8092 Section 3: "Duplicate BGP Large Community
+// values MUST NOT be transmitted." It reads the wire as sent, before any
+// receiver's own removal of repeats, which is what a daemon receiver cannot show.
+func applyNoRepeatedLargeCommunityOracle(update speakerUpdate, verdict *speakerVerdict) {
+	for _, attribute := range update.attributes {
+		if attribute.code != largeCommunityAttribute {
+			continue
+		}
+		if len(attribute.value)%largeCommunityValueOctets != 0 {
+			verdict.fail(fmt.Sprintf("LARGE_COMMUNITY length %d is not a multiple of 12", len(attribute.value)))
+			continue
+		}
+		seen := make(map[string]struct{}, len(attribute.value)/largeCommunityValueOctets)
+		for offset := 0; offset < len(attribute.value); offset += largeCommunityValueOctets {
+			value := string(attribute.value[offset : offset+largeCommunityValueOctets])
+			if _, repeated := seen[value]; repeated {
+				verdict.fail(fmt.Sprintf("RFC 8092 Section 3: LARGE_COMMUNITY value %x transmitted twice in one UPDATE", value))
+			}
+			seen[value] = struct{}{}
+		}
 	}
 }
 

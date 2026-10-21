@@ -6,7 +6,16 @@ import "io"
 // speakerRunners is populated at package initialization and read thereafter.
 // Each personality owns its registration; the dispatcher knows no oracle names.
 var speakerRunners = map[string]func(speakerOptions, io.Writer) error{
-	speakerOracleNoDuplicateAttribute:   runOracleSpeaker,
-	speakerOracleNoUnrecognizedEVPNType: runOracleSpeaker,
-	speakerOracleBFDStrictHold:          runOracleSpeaker,
+	speakerOracleNoDuplicateAttribute:     runOracleSpeaker,
+	speakerOracleNoUnrecognizedEVPNType:   runOracleSpeaker,
+	speakerOracleBFDStrictHold:            runOracleSpeaker,
+	speakerOracleNoRepeatedLargeCommunity: runOracleSpeaker,
+}
+
+// speakerUpdateOracles holds the per-UPDATE judgement of each oracle that has one,
+// read by applySpeakerOracle. Populated at package initialization.
+var speakerUpdateOracles = map[string]func(speakerUpdate, *speakerVerdict){
+	speakerOracleNoDuplicateAttribute:     applyNoDuplicateAttributeOracle,
+	speakerOracleNoUnrecognizedEVPNType:   applyEVPNOracle,
+	speakerOracleNoRepeatedLargeCommunity: applyNoRepeatedLargeCommunityOracle,
 }

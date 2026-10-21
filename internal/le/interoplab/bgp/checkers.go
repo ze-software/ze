@@ -659,12 +659,17 @@ var scenarioOperations = map[string][]operation{
 	// GoBGP 3.31.0 prints the values in wire order inside one bracket pair,
 	// `{LargeCommunity: [ a, b, c]}` (seen on the first run, 2026-10-21), so the
 	// whole attribute is matched: each value once, in the order Ze appends them.
+	// That read cannot go red: GoBGP removes repeats on receipt, so the second
+	// run with the egress removal reverted still printed each value once.
 	"bgp-large-community-no-repeat-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 90 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: [ 65000:1:1, 65000:3:3, 65000:2:2]}"}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
+		// GoBGP removes repeats on receipt, so the discriminating read is the
+		// native speaker's: its oracle judges the LARGE_COMMUNITY as sent.
+		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 120 * time.Second, fields: map[string]string{fieldEstablished: logValueYes, "result": speakerResultPass}, minimum: map[string]int{"route-bearing-updates": 1}},
 	},
 	// draft-ietf-bess-mup-safi Section 3.1.3.1, judged by GoBGP. K
 	// (10.0.0.1/32) arrives well-formed first; then K' (same key, malformed)

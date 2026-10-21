@@ -479,3 +479,35 @@ func jsonObject(t *testing.T, value any) map[string]any {
 	}
 	return object
 }
+
+// TestSpeakerNoRepeatedLargeCommunityOracle pins the RFC 8092 Section 3 oracle:
+// a LARGE_COMMUNITY value transmitted twice fails the run, distinct values pass.
+//
+// VALIDATES: one failure naming the repeated value; none for three distinct
+// values; a length that is not a multiple of 12 is reported, not panicked on.
+// PREVENTS: the D2 interop scenario reading the wire through a receiver that
+// removes repeats on receipt, as GoBGP does, and so never going red.
+func TestSpeakerNoRepeatedLargeCommunityOracle(t *testing.T) {
+	value := func(n byte) []byte { return []byte{0, 0, 0xfd, 0xe8, 0, 0, 0, n, 0, 0, 0, n} }
+	attribute := func(values ...[]byte) []byte {
+		var body []byte
+		for _, v := range values {
+			body = append(body, v...)
+		}
+		return append([]byte{0xc0, largeCommunityAttribute, byte(len(body))}, body...)
+	}
+	judge := func(attrs []byte) []string {
+		verdict := &speakerVerdict{plugin: speakerOracleNoRepeatedLargeCommunity}
+		applySpeakerOracle(decodeSpeakerUpdate(buildSpeakerUpdate(attrs, []byte{24, 10, 0, 0})), verdict)
+		return verdict.failures
+	}
+	if failures := judge(attribute(value(1), value(3), value(1))); len(failures) != 1 || !strings.Contains(failures[0], "transmitted twice") {
+		t.Fatalf("repeated value verdict = %v", failures)
+	}
+	if failures := judge(attribute(value(1), value(3), value(2))); len(failures) != 0 {
+		t.Fatalf("distinct values failed: %v", failures)
+	}
+	if failures := judge([]byte{0xc0, largeCommunityAttribute, 5, 1, 2, 3, 4, 5}); len(failures) != 1 {
+		t.Fatalf("bad length verdict = %v", failures)
+	}
+}
