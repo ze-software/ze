@@ -4,6 +4,29 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-21 night, later: AC-9 landed, AC-10 found done, 3b next
+
+- Coordinator ruling: round 8 (0 BLOCKER, 0 ISSUE) satisfies the gate; the
+  note fixes in `d53835791a` owe no round 9. Round 9 is owed only for new
+  production code.
+- AC-9 landed in `4a8862c7c2` (test only):
+  `TestRSOwnerWithdrawalAddPathSourceKeepsOtherPath`
+  (`reactor/rs_withdrawal_addpath_test.go`, fixture `addPathLiveRouter`),
+  both rails, reds recorded in the spec Design Insights.
+- AC-10 is already DONE, not owed: `e30abc5e48` (2026-10-18) changed
+  `TestRFC8654FatalLengthReelectsAlternateBest` to AC-10 under the owner's
+  `RFC-approved:` trailer and re-took its RFC8654-5-4 record (unit-sha
+  `3f035f768aec519e`); `./le rfc check` on 2026-10-21 does not list it stale.
+  The rows below that still call it owed are stale.
+- NEXT: Phase 3b (labelled withdrawal framing, `RecoveryRequest.PrefixOnly`
+  has no producer, the `buildWithdrawalPayload` source-context change and the
+  re-records of `TestAIGPForwardedMetricsReachFinalWire` and
+  `TestRFC7311DirectLinkCostNeverWrapsOrDisappears`), then 3a (AC-6, AC-18),
+  4, 5, 6. 3b is production code: commit it, then stop for round 9.
+- `.git/index.lock` (empty, from 20:23) is still held; commit scripts land but
+  cannot repoint the shared index. The coordinator is raising it with Thomas;
+  leave it alone.
+
 ## STATE 2026-10-21 night: round 8 ran (4 NOTE, fixed), round 9 owed
 
 - Round 8 (Thomas: "ok round 8") over `9e2b655e4c`: 0 BLOCKER, 0 ISSUE,
