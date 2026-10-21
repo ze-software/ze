@@ -1567,8 +1567,8 @@ func TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode(t *testing.T) {
 	parsedAnd, err := flowspec.ParseFlowSpec(IPv4FlowSpec, leadingAnd)
 	require.NoError(t, err)
 
-	// RFC 8955 Section 4.2.1.1: "the AND bit ... SHOULD be encoded as unset and MUST be
-	// treated as always unset on decoding."
+	// RFC 8955 Section 4.2.1.1: "In the first operator octet of a sequence, it MUST be
+	// encoded as unset and MUST be treated as always unset on decoding."
 	// RFC requirement: RFC8955-4.2.1.1-2 positive -- a leading operator with the AND bit clear decodes as its own OR term (§4.2.1.1)
 	jsonClean := flowSpecToJSON(parsedClean, "ipv4/flow", nil)
 	assert.Equal(t, [][]string{{"=80"}, {"=22"}}, jsonClean["destination-port"])
