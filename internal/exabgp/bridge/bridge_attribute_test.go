@@ -122,8 +122,9 @@ func TestPathInformationWithoutValueRefused(t *testing.T) {
 // TestExtCommunityInterfaceSetRefused proves an interface-set written inside
 // extended-community is refused on every route command form, as ExaBGP refuses it.
 //
-// VALIDATES: the route, attributes and family flow forms each refuse the item,
-// and the reason names the interface-set keyword to write it with.
+// VALIDATES: the route, attributes, family flow and sr-policy announce and
+// withdraw forms each refuse the item, and the reason names the interface-set
+// keyword to write it with.
 // PREVENTS: Ze announcing an interface-set ExaBGP's extended_community
 // (configuration/grammar/types/bgp.py) has no type for and refuses.
 func TestExtCommunityInterfaceSetRefused(t *testing.T) {
@@ -132,6 +133,10 @@ func TestExtCommunityInterfaceSetRefused(t *testing.T) {
 		"announce route 10.0.0.0/24 next-hop 1.1.1.1 extended-community interface-set:input:1234:10",
 		"announce attributes next-hop 1.1.1.1 extended-community [ target:65000:1 interface-set:input:1234:10 ] nlri 10.0.0.0/24",
 		"announce ipv4 flow destination 1.2.3.4/32 extended-community [ interface-set:input:1234:10 ] discard",
+		// ExaBGP's sr_policy.py `_values` parses extended-community through
+		// ExtendedCommunitiesType on announce and withdraw alike.
+		"announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 extended-community [ interface-set:input:1:1 ]",
+		"withdraw ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 extended-community [ interface-set:input:1:1 ]",
 	} {
 		t.Run(line, func(t *testing.T) {
 			translation, err := TranslateLine(line)

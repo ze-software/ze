@@ -680,9 +680,17 @@ func convertFamilyRoute(selector, rest, verb string) ([]Command, bool, error) {
 	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
 		afi := strings.ToLower(match[1])
 		if verb == nlriDel {
-			return []Command{convertWithdrawSRPolicy(selector, afi, match[2])}, true, nil
+			command, err := convertWithdrawSRPolicy(selector, afi, match[2])
+			if err != nil {
+				return nil, true, err
+			}
+			return []Command{command}, true, nil
 		}
-		return []Command{convertAnnounceSRPolicy(selector, afi, match[2])}, true, nil
+		command, err := convertAnnounceSRPolicy(selector, afi, match[2])
+		if err != nil {
+			return nil, true, err
+		}
+		return []Command{command}, true, nil
 	}
 
 	match := bridgeFamilyRE.FindStringSubmatch(rest)
@@ -759,7 +767,10 @@ func familyOfRoute(routeStr string) string {
 // Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
 // lifts the communities ExaBGP accepts among the sub-TLVs to the attributes
 // that precede `mp`, then appends all remaining tunnel-encap tokens verbatim.
-func convertAnnounceSRPolicy(selector, afi, rest string) Command {
+//
+// It reports an extended-community item ExaBGP refuses
+// (CheckExtendedCommunityList), so the route is not sent.
+func convertAnnounceSRPolicy(selector, afi, rest string) (Command, error) {
 	rest = strings.TrimSpace(rest)
 	parts := strings.Fields(rest)
 
@@ -774,6 +785,11 @@ func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 		// the sub-TLVs; update text refuses an attribute after an nlri section.
 		case bridgeAttrCommunity, bridgeAttrLargeCommunity, bridgeAttrExtCommunity:
 			value, next := collectBridgeAttrValue(parts, i+1)
+			if key == bridgeAttrExtCommunity {
+				if err := CheckExtendedCommunityList(value); err != nil {
+					return Command{}, err
+				}
+			}
 			attrs = append(attrs, key+" "+value)
 			i = next - 1
 		case bridgeAttrNextHop, srPolicyDistinguisher, srPolicyColor, srPolicyEndpoint:
@@ -823,7 +839,7 @@ func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 		Text:       tb.String(),
 		Key:        srPolicyKey(afi, distinguisher, color, endpoint, false),
 		Withdrawal: withdrawal.String(),
-	}
+	}, nil
 }
 
 // srPolicyKey names one SR-Policy candidate path, stated where the command is
@@ -841,7 +857,11 @@ func srPolicyKey(afi, distinguisher, color, endpoint string, withdraw bool) Rout
 }
 
 // convertWithdrawSRPolicy translates ExaBGP SR-Policy withdraw to Ze's update text format.
-func convertWithdrawSRPolicy(selector, afi, rest string) Command {
+//
+// ExaBGP parses the attributes of a withdrawal as it parses an announce
+// (sr_policy.py `_values`), so an extended-community item ExaBGP refuses is
+// reported here too (CheckExtendedCommunityList).
+func convertWithdrawSRPolicy(selector, afi, rest string) (Command, error) {
 	rest = strings.TrimSpace(rest)
 
 	var tb textbuf.Buffer
@@ -856,6 +876,12 @@ func convertWithdrawSRPolicy(selector, afi, rest string) Command {
 	var distinguisher, color, endpoint string
 	for i := 0; i+1 < len(fields); i++ {
 		switch strings.ToLower(fields[i]) {
+		case bridgeAttrExtCommunity:
+			value, next := collectBridgeAttrValue(fields, i+1)
+			if err := CheckExtendedCommunityList(value); err != nil {
+				return Command{}, err
+			}
+			i = next - 1
 		case srPolicyDistinguisher:
 			distinguisher = fields[i+1]
 		case srPolicyColor:
@@ -864,7 +890,7 @@ func convertWithdrawSRPolicy(selector, afi, rest string) Command {
 			endpoint = fields[i+1]
 		}
 	}
-	return Command{Text: tb.String(), Key: srPolicyKey(afi, distinguisher, color, endpoint, true)}
+	return Command{Text: tb.String(), Key: srPolicyKey(afi, distinguisher, color, endpoint, true)}, nil
 }
 
 // The three keywords that name an SR-Policy candidate path. One declaration

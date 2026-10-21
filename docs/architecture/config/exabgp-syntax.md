@@ -239,8 +239,11 @@ These stop the migration, as ExaBGP refuses them:
   community type, and the error names the `interface-set` keyword to write it
   with
 
-The ExaBGP bridge refuses the same values in an API command.
+The ExaBGP bridge refuses the same values in an API command. That covers the
+`extended-community` of an `sr-policy` announce or withdraw too, because
+ExaBGP parses the attributes of both.
 <!-- source: internal/exabgp/bridge/bridge_flow.go -- CheckInterfaceSet, CheckExtendedCommunityItem -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- convertAnnounceSRPolicy, convertWithdrawSRPolicy -->
 <!-- source: internal/exabgp/migration/migrate_flow_scope.go -- interface-set conversion -->
 
 ### Redirect and copy
