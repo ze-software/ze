@@ -116,6 +116,16 @@ keeps"). Four differences remain.
 A value-less attribute (`path-information` alone) and a mask that is no number
 (`10.0.0.0/x`) are refused by both. ExaBGP 5.0 ignored the first and took the
 second as the host route `10.0.0.0/32`.
+
+A flow route that repeats a prefix component (two `destination` or two
+`source` prefixes) is refused by both. RFC 8955 Section 4.2: "A given component
+type MAY (exactly once) be present in the Flow Specification." ExaBGP 4.2 and
+5.0 sent it as two type 1 or type 2 components; ExaBGP 6.0 refuses to encode
+it (`_check_component_order`, `src/exabgp/bgp/message/update/nlri/flow.py`),
+and Ze refuses it by name, because a second prefix has no operator list to
+merge into the first (`FlowSpec.AddComponent`). A 4.2 or 5.0 script that sent
+one meets on Ze what it would meet on upgrading ExaBGP.
+
 Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/announce.py`,
 `src/exabgp/configuration/grammar/tree/static.py`, CHANGELOG 6.0.0.
 
@@ -124,6 +134,7 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/ann
 <!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine -->
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable_values.go -- checkComponentValues, checkPortValues -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- AddComponent -->
 
 ---
 
