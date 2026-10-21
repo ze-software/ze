@@ -4,6 +4,22 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-21 late: round 7 ran and its findings are fixed, round 8 owed
+
+- Round 7 (Thomas: "ok round 7") over 562a215cb8, 2624ccf8bf and the held page
+  paragraph: 0 BLOCKER, 1 ISSUE, 4 NOTE, recorded (rounds 7). All fixed in
+  `9e2b655e4c`, including a real FlowSpec key mismatch in `sentSourcePaths`
+  (now `sentReceivedIdentity`). Spec Design Insights, last entry, has the reds.
+- STOPPED HERE: `9e2b655e4c` is production code; round 8 needs Thomas. Nothing
+  after it started (AC-9, AC-10 re-record, 3b, 3a, 4, 5, 6 as below).
+- AC-9 groundwork read, not written: `lowLiveRouter`
+  (`rfc7705_live_behavior_test.go`) hardcodes the remote OPEN's optional
+  parameters (ASN4 + MP ipv4/unicast), so an ADD-PATH source needs a variant
+  that also puts `capability.AddPath` (`AddPathSend` from A) in A's OPEN and in
+  Ze's settings for A.
+- The page paragraph is still held behind the RR hunk (below); it now also
+  carries the round-7 wording fixes.
+
 ## STATE 2026-10-21 evening: AC-19 purge defect fixed, review round 7 owed
 
 - `2624ccf8bf` fixes the bgp-rib defect behind the AC-19 flake (journal row
