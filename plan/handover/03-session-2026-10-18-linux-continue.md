@@ -3035,3 +3035,57 @@ event → {json, text}; the judge is the pin's `qa/bin/test_old_responses`
 ALLOWED to port). Needs the bridge encoders driven per config.
 
 Gates owed: `./le go lint run` (bridge), `./le verify worktree`.
+
+## 2026-10-21 ExaBGP 6 Phase 7 item E continuation (exa13 agent)
+
+Committed: 9e2e72603d (judge only: `ZE_OLD_VERBOSE=1` lists unreadables).
+Unreadable 99/99 is genuine: every one is a flow route given no match, which
+4.2 and 5.0 packed as a flowspec NLRI of length 0 (MP_REACH `0001 85 00 00
+00`, MP_UNREACH `0001 85 00`). Same commands in both corpora, hence the
+identical count. No fix owed.
+
+PREPARED, NOT RUN, owes independent review (non-test Go):
+`tmp/commit-98f554c4-c-754cef.sh` (message `tmp/commit-msg-98f554c4-c-fcb83c.txt`;
+both machine-local, so a new machine re-creates it from the five files):
+`bridge_command.go` (Line resolves escapes first), new `bridge_escape.go` +
+`bridge_escape_test.go`, `bridge_attribute.go` (list merge, NLRI last-wins,
+SRv6 0xFFFF) + new `bridge_attribute_merge_test.go`. Each test red before,
+green after; bridge package green untagged. With it: 5.0 3707/4250, 4.2
+2304/2541. Sources: unescape (4.2/5.0 configuration/core/format.py `tokens`,
+pin grammar/lexer.py); add_attribute LIST_ATTRIBUTES and Collected.apply
+Target.NLRI (pin grammar/tree/static.py); prefix_sid_srv6 `behavior = 0xFFFF`
+(5.0.1 static/mpls.py), RFC 9252 Section 3.1 opaque behavior sentence.
+
+Owed with that commit, on pages the teardown agent holds (not touched):
+`docs/exabgp/exabgp-differences.md` line 97 and
+`docs/architecture/exabgp-bridge.md` line 731 say every repeated attribute
+keeps its first; now a community list is merged and label/rd/path-information
+take the last. exabgp-bridge.md also owes a sentence that a command line is
+read with its backslash escapes resolved, and that an SRv6 SID with no
+behavior is sent with 0xFFFF. Also owed: a functional `.ci` under
+`test/exabgp-compat/api/` proving the three through the real entry point.
+Possible defect for a journal row: ze's update text defaults an omitted SRv6
+endpoint behavior to 0 (`internal/core/bgp/attribute/prefixsid.go`), a
+reserved codepoint; ExaBGP sends 0xFFFF. ze also reads only a hex behavior,
+ExaBGP decimal too.
+
+Remaining classes (both corpora summed), not started:
+- `origin:<asn>:<large n>` read by ze as IPv4 origin (41): 5.0 rendered
+  `origin:2345:101124105` as `origin:2345:6.7.8.9`; read 5.0's extended
+  community parser before deciding.
+- `path-information` in `announce attributes ... nlri` (about 38 IPv4 unicast,
+  plus mpls-vpn): 5.0 packed no Path Identifier there; ze packs one, and the
+  judge's plain decode then reads garbage (`0.0.0.0/0`, `raw 00`) instead of
+  failing. Find whether the pin drops it for the attributes form.
+- `announce attribute(s) ... split /N nlri` on mpls-vpn: 5.0 split, ze did not.
+- `announce attribute(s) ... withdraw nlri`: 5.0 ANNOUNCED (flag ignored in
+  this form); ze withdraws. Find the pin's reading.
+- `bgp-prefix-sid` refused by the bridge (36) and read as a prefix by update
+  text (32); `mup` extended community (30); `watchdog`/`name` with no value
+  (24 each); flowspec duplicate `destination-ipv4` (22); generic `attribute
+  [ ... ]` (about 90); IPv6 flow `/128/120` offsets (21); `ipv4 nlri-mpls`
+  (14); mcast-vpn route differences (52); ipv6 multicast differences (22+).
+- route-refresh/operational judge branch; AC-38 TestOldResponses50/42.
+
+Gates owed: `./le go lint run` over `internal/exabgp/bridge`, `./le verify
+worktree` after the reviewed commit lands.
