@@ -54,7 +54,7 @@ func buildGuestLe(ctx context.Context, root, goarch string) error {
 	admission.Out = os.Stderr
 
 	output := filepath.Join(root, GuestLeRel(goarch))
-	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
+	environment := append(toolchain.EnvironmentContext(ctx, gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	if _, code := admission.RunContext(ctx, "qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {
 		if err := ctx.Err(); err != nil {

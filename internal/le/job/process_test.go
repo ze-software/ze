@@ -59,7 +59,7 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 		{"go", "-C", "/fixture", "test", "./..."},
 		{"go", "-C=/fixture", "test", "./..."},
 	} {
-		got, err := commandEnvironment(command, "", inherited)
+		got, err := commandEnvironment(t.Context(), command, "", inherited)
 		if err != nil {
 			t.Fatalf("%v environment: %v", command, err)
 		}
@@ -84,7 +84,7 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 		{"le", "test", "unit", "all"}, {"go", "build"}, {"go"}, nil,
 		{"go", "-C", "/fixture"}, {"go", "-C=/fixture"},
 	} {
-		got, err := commandEnvironment(command, "", inherited)
+		got, err := commandEnvironment(t.Context(), command, "", inherited)
 		if err != nil {
 			t.Fatalf("%v environment: %v", command, err)
 		}
@@ -327,7 +327,7 @@ func TestExplicitRaceDoesNotQueryGoConfiguration(t *testing.T) {
 		{"-race", "CGO_ENABLED=1"},
 		{"-race=false", "CGO_ENABLED=0"},
 	} {
-		environ, err := commandEnvironment([]string{missing, "test", one.flag}, "", []string{"GOENV=off"})
+		environ, err := commandEnvironment(t.Context(), []string{missing, "test", one.flag}, "", []string{"GOENV=off"})
 		if err != nil {
 			t.Fatalf("%s queried Go: %v", one.flag, err)
 		}

@@ -122,7 +122,7 @@ func assertPlanRunsUnderTheActivatedToolchain(
 	t.Setenv("GOROOT", tree)
 
 	var received []string
-	_, code := execute(plan, toolchain, root, func(_ string, _ []string, _ string, environ []string) int {
+	_, code := execute(t.Context(), plan, toolchain, root, func(_ string, _ []string, _ string, environ []string) int {
 		received = environ
 		return 0
 	})
@@ -199,7 +199,7 @@ func TestCompilerFailureIsTheActionExitAndTheStructuredReportCode(t *testing.T) 
 				return compilerCode
 			}
 
-			report, code := execute(plan, toolchain, root, run)
+			report, code := execute(t.Context(), plan, toolchain, root, run)
 			if !called {
 				t.Fatal("the compiler runner was not called")
 			}
@@ -231,6 +231,7 @@ func TestSuccessfulBuildReportsTheArtifactAndZeroExit(t *testing.T) {
 	for _, plan := range plans {
 		t.Run(plan.action, func(t *testing.T) {
 			report, code := execute(
+				t.Context(),
 				plan,
 				toolchain,
 				root,
@@ -254,7 +255,7 @@ func TestUnreadableToolchainFailsClosedBeforeTheCompiler(t *testing.T) {
 		return 0
 	}
 
-	payload, code := runWithRoot(root, hostPlan, run)
+	payload, code := runWithRoot(t.Context(), root, hostPlan, run)
 	if code != 1 {
 		t.Fatalf("code = %d, want 1", code)
 	}

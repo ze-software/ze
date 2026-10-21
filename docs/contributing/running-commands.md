@@ -435,13 +435,16 @@ without the flag. The entry is composed from the value Go would use anyway (your
 exported `GOFLAGS`, else `go env GOFLAGS`, which reads a `go env -w` setting),
 so your own flags are kept and `-trimpath` is never doubled. If Go cannot say
 what that value is, le writes one line to stderr and runs the command without
-the flag. The tracked-build gate keeps the flag in its own argv, because it
+the flag. The `go env GOFLAGS` query runs under the caller's signal root where
+it holds one (`EnvironmentContext`, and `job` for a `go test` child): after a
+Ctrl-C or a SIGTERM has ended the verb it starts no go process and prints no
+line, because the command it would have served does not start either. The tracked-build gate keeps the flag in its own argv, because it
 does not use the toolchain environment. Two consequences: `runtime.Caller`
 answers a module-path-prefixed name, so a test finds the repository from its
 working directory (`os.Getwd`, the package directory) and never from its own
 source file; and the first le run after the flag landed rebuilt every cache
 once.
-<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment, TrimpathGoFlags, EffectiveGoFlags -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment, EnvironmentContext, TrimpathGoFlags, EffectiveGoFlags -->
 
 Under `sudo -E`, the test runs as root with your `HOME`, so root creates
 root-owned entries in `~/.zt` that your next run cannot use or remove. Give

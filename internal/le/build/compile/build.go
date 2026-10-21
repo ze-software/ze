@@ -67,7 +67,7 @@ func Host() (any, int) {
 // its own (gaterun.StreamContext), so a Ctrl-C reaches le alone, and the
 // root's cancel kills the whole group: a canceled ctx starts no build at all.
 func BuildHost(ctx context.Context, root string) (BuildReport, int) {
-	payload, code := runWithRoot(root, hostPlan, func(action string, argv []string, dir string, environ []string) int {
+	payload, code := runWithRoot(ctx, root, hostPlan, func(action string, argv []string, dir string, environ []string) int {
 		_, code, _ := gaterun.RunContext(ctx, action, argv, dir, environ)
 		return code
 	})
@@ -89,10 +89,14 @@ func runAtRoot(plan func(string, gotoolchain.Toolchain) buildPlan) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runWithRoot(root, plan, streamBuild)
+	// A whole build verb holds no signal root of its own.
+	return runWithRoot(context.Background(), root, plan, streamBuild)
 }
 
+// runWithRoot builds plan in root under ctx, which also bounds the
+// `go env GOFLAGS` query behind the build's environment.
 func runWithRoot(
+	ctx context.Context,
 	root string,
 	plan func(string, gotoolchain.Toolchain) buildPlan,
 	run buildRunner,
@@ -102,7 +106,7 @@ func runWithRoot(
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return execute(plan(root, toolchain), toolchain, root, run)
+	return execute(ctx, plan(root, toolchain), toolchain, root, run)
 }
 
 func hostPlan(root string, toolchain gotoolchain.Toolchain) buildPlan {
@@ -142,13 +146,14 @@ func installerPlan(_ string, toolchain gotoolchain.Toolchain, arch string) build
 }
 
 func execute(
+	ctx context.Context,
 	plan buildPlan,
 	toolchain gotoolchain.Toolchain,
 	root string,
 	run buildRunner,
 ) (BuildReport, int) {
 	overrides := toolchain.Overrides(plan.environ)
-	code := run(plan.action, plan.command, root, toolchain.Environment(plan.environ))
+	code := run(plan.action, plan.command, root, toolchain.EnvironmentContext(ctx, plan.environ))
 	report := BuildReport{
 		Action:      plan.action,
 		Command:     plan.command,

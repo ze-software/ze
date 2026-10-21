@@ -33,7 +33,8 @@ func RunProcess(argv []string, processIO ProcessIO) (int, error) {
 	if len(argv) == 0 {
 		return gaterun.CannotStart, ErrNoCommand
 	}
-	environ, err := commandEnvironment(argv, processIO.Dir, processIO.Environ)
+	// RunProcess holds no signal root: it forwards signals to the child itself.
+	environ, err := commandEnvironment(context.Background(), argv, processIO.Dir, processIO.Environ)
 	if err != nil {
 		return gaterun.CannotStart, err
 	}
@@ -61,8 +62,9 @@ func RunProcess(argv []string, processIO ProcessIO) (int, error) {
 var testTempDir = gotoolchain.TestTempDir
 
 // commandEnvironment isolates direct Go tests and selects CGO for their race
-// flag. Other commands retain their launch context and CGO setting.
-func commandEnvironment(argv []string, dir string, environ []string) ([]string, error) {
+// flag. Other commands retain their launch context and CGO setting. ctx is
+// the caller's signal root: a done ctx starts no `go env GOFLAGS` query.
+func commandEnvironment(ctx context.Context, argv []string, dir string, environ []string) ([]string, error) {
 	if environ == nil {
 		environ = os.Environ()
 	}
@@ -90,7 +92,7 @@ func commandEnvironment(argv []string, dir string, environ []string) ([]string, 
 	}
 	race, explicit := goTestRace(args[1:], false)
 	if !explicit {
-		flags, err := gotoolchain.EffectiveGoFlags(argv[:len(argv)-len(args)], dir, environ)
+		flags, err := gotoolchain.EffectiveGoFlags(ctx, argv[:len(argv)-len(args)], dir, environ)
 		if err != nil {
 			return nil, fmt.Errorf("resolve Go test GOFLAGS: %w", err)
 		}

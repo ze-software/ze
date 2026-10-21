@@ -818,7 +818,7 @@ func (a *Admission) stream(ctx context.Context, argv []string, dir string, envir
 		a.note("error: a job declared no command to run")
 		return gaterun.CannotStart
 	}
-	environ, err := commandEnvironment(argv, dir, environ)
+	environ, err := commandEnvironment(ctx, argv, dir, environ)
 	if err != nil {
 		a.note(errorLine(err))
 		return gaterun.CannotStart

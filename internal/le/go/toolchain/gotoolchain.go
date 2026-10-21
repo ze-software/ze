@@ -717,7 +717,21 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 // Toolchain overrides follow inherited entries, so os/exec uses their values.
 // It carries exactly one GOFLAGS entry, the effective value with -trimpath
 // (TrimpathGoFlags), unless Go cannot answer what its effective value is.
+//
+// Environment holds no signal root, so the `go env GOFLAGS` query it may run
+// cannot be stopped. A caller that holds one (a verb's root, a build under
+// job admission) MUST call EnvironmentContext instead, or a SIGTERM that has
+// already ended the verb still starts a go process.
 func (t Toolchain) Environment(opts EnvOptions) []string {
+	return t.EnvironmentContext(context.Background(), opts)
+}
+
+// EnvironmentContext is Environment under ctx: a done ctx starts no
+// `go env GOFLAGS` query, and the answer then carries no GOFLAGS entry. That
+// environment builds the same result as one with the entry, so it is still a
+// correct answer, and no warning is printed, because the caller's own command
+// is refused by the same done ctx and nothing would run without -trimpath.
+func (t Toolchain) EnvironmentContext(ctx context.Context, opts EnvOptions) []string {
 	inherited := os.Environ()
 	if opts.Test {
 		inherited = env.Without(inherited, "ze.repo.root", "ze.le.build.name")
@@ -726,8 +740,13 @@ func (t Toolchain) Environment(opts EnvOptions) []string {
 	full := make([]string, 0, len(inherited)+len(overrides)+1)
 	full = append(full, inherited...)
 	full = append(full, overrides...)
-	flags, err := TrimpathGoFlags(full, t.Root)
+	flags, err := TrimpathGoFlags(ctx, full, t.Root)
 	if err != nil {
+		if ctx.Err() != nil {
+			// The root ended before Go answered: the caller's command will
+			// not start, so there is no loss to report.
+			return full
+		}
 		// The command still runs, and runs correctly: Go reads its own GOFLAGS
 		// as it would without le. What it loses is cache reuse across
 		// checkouts, so the loss is said and the command is not refused. One
@@ -783,8 +802,11 @@ const trimpathFlag = "-trimpath"
 // matrix runs under a deadline measured with warm, path-independent compiles,
 // so a cold run would time out and read as a red the tree never earned, and a
 // verdict the gate cannot stand behind is refused rather than guessed.
-func TrimpathGoFlags(environ []string, dir string) (string, error) {
-	flags, err := EffectiveGoFlags([]string{goProgram}, dir, environ)
+//
+// ctx bounds the `go env` query: a done ctx starts no go process and answers
+// its error.
+func TrimpathGoFlags(ctx context.Context, environ []string, dir string) (string, error) {
+	flags, err := EffectiveGoFlags(ctx, []string{goProgram}, dir, environ)
 	if err != nil {
 		return "", err
 	}
@@ -800,9 +822,11 @@ func TrimpathGoFlags(environ []string, dir string) (string, error) {
 // before its persistent configuration, and the last entry is the one a child
 // sees. An empty or absent one does not suppress the GOENV file or the
 // GOROOT go.env, so the answer then comes from `go env GOFLAGS` itself,
-// including its platform-specific default GOENV path. The query is bounded by
-// a minute, so a wedged go command cannot hold the caller forever.
-func EffectiveGoFlags(goCommand []string, dir string, environ []string) (string, error) {
+// including its platform-specific default GOENV path. The query runs under
+// ctx, the caller's signal root, so a done ctx starts no go process
+// (exec.Cmd.Start refuses one), and it is bounded by a minute besides, so a
+// wedged go command cannot hold the caller forever.
+func EffectiveGoFlags(ctx context.Context, goCommand []string, dir string, environ []string) (string, error) {
 	for _, entry := range slices.Backward(environ) {
 		if value, found := strings.CutPrefix(entry, goFlagsKey+"="); found {
 			if value != "" {
@@ -811,7 +835,7 @@ func EffectiveGoFlags(goCommand []string, dir string, environ []string) (string,
 			break
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	args := make([]string, 0, len(goCommand)+1)
 	args = append(args, goCommand[1:]...)

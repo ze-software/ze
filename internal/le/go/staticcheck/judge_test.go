@@ -43,7 +43,7 @@ func TestJudgeRunsWithPathIndependentCompiles(t *testing.T) {
 			if flags := lastValue(got, "GOFLAGS"); flags != tc.want {
 				t.Errorf("GOFLAGS = %q, want %q", flags, tc.want)
 			}
-			toolchain, err := gotoolchain.TrimpathGoFlags(tc.environ, t.TempDir())
+			toolchain, err := gotoolchain.TrimpathGoFlags(t.Context(), tc.environ, t.TempDir())
 			if err != nil {
 				t.Fatal(err)
 			}

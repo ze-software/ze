@@ -308,7 +308,8 @@ func killGroup(cmd *exec.Cmd) func() error {
 // point this run back at a shared cache. An error means Go could not say what
 // its effective GOFLAGS are, and the matrix is not judged on a guess.
 func judgeEnvironment(environ []string, cache, dir string) ([]string, error) {
-	flags, err := gotoolchain.TrimpathGoFlags(environ, dir)
+	// Judge holds no signal root; the query keeps its own one-minute bound.
+	flags, err := gotoolchain.TrimpathGoFlags(context.Background(), environ, dir)
 	if err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ import (
 // purpose.
 func CheckEnvironmentTail(t testing.TB, label string, environment, overrides []string, root string) {
 	t.Helper()
-	flags, err := gotoolchain.TrimpathGoFlags(append(os.Environ(), overrides...), root)
+	flags, err := gotoolchain.TrimpathGoFlags(t.Context(), append(os.Environ(), overrides...), root)
 	if err != nil {
 		t.Errorf("%s: Go cannot answer its effective GOFLAGS in %s (%v); give the fixture a root that exists", label, root, err)
 		return
