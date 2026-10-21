@@ -136,7 +136,7 @@ Other maps:
 | Where a spec goes, and its template | `plan/README.md`, `plan/TEMPLATE.md` |
 | Past decisions and known traps | `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/journal/` |
 | Terminal colors and TUI styling | `docs/architecture/cli/color-system.md` |
-| A WAVE of red: unrelated packages fail to build, `no space left on device`, `cache entry not found` | `docs/contributing/running-commands.md`, "When the disk is full". The cache disk is full before this is a code defect. `./le scratch cache-clean` empties the build caches |
+| A WAVE of red: unrelated packages fail to build, `no space left on device`, `cache entry not found` | `docs/contributing/running-commands.md`, "When the disk is full". The cache disk is full before this is a code defect. Run `./le scratch store-trim`, then `./le scratch cache-clean` (removes only entries older than three hours, safe while others build). `./le scratch cache-clean all` empties everything and refuses while any build runs |
 
 # Core Architecture
 

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 )
@@ -51,7 +52,7 @@ func TestCleanReportKeepsAndSizesEachPatchedTree(t *testing.T) {
 		keys = append(keys, key)
 	}
 
-	kept := keptTrees(root)
+	kept := patchedTrees(root, time.Now())
 	if len(kept) != len(keys) {
 		t.Fatalf("kept = %+v, want one row for each of %v", kept, keys)
 	}
@@ -71,7 +72,7 @@ func TestCleanReportKeepsAndSizesEachPatchedTree(t *testing.T) {
 		}
 	}
 
-	report := CleanReport{Kept: kept}
+	report := CleanReport{Trees: kept}
 	text := report.Text()
 	for _, key := range keys {
 		if !strings.Contains(text, "KEEP     "+key) {
@@ -89,7 +90,85 @@ func TestCleanReportKeepsAndSizesEachPatchedTree(t *testing.T) {
 // VALIDATES: a checkout with no tree directory reports no kept row.
 // PREVENTS: a missing cache/stdpatch read as an error.
 func TestCleanReportKeepsNothingWithoutATree(t *testing.T) {
-	if kept := keptTrees(t.TempDir()); len(kept) != 0 {
+	if kept := patchedTrees(t.TempDir(), time.Now()); len(kept) != 0 {
 		t.Errorf("kept = %+v, want none", kept)
+	}
+}
+
+// patchedKey writes a tree at dir/name whose VERSION and src/go.mod are links,
+// each naming a real file when its live flag is set and nothing otherwise.
+func patchedKey(t *testing.T, dir, name string, versionLive, goModLive bool) string {
+	t.Helper()
+	real := t.TempDir()
+	key := filepath.Join(dir, name)
+	src := filepath.Join(key, "goroot", "src")
+	if err := os.MkdirAll(src, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for link, live := range map[string]bool{
+		filepath.Join(key, "goroot", "VERSION"): versionLive,
+		filepath.Join(src, "go.mod"):            goModLive,
+	} {
+		target := filepath.Join(real, "gone", filepath.Base(link))
+		if live {
+			target = filepath.Join(real, filepath.Base(link))
+			if err := os.WriteFile(target, []byte("go1.27.2"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return key
+}
+
+// VALIDATES: a tree whose VERSION or src/go.mod link dangles is dropped with a
+// DROP row, a live tree is kept, a staging directory older than stagingIdleAge
+// is dropped, and a young one, which a build may be writing, is kept.
+// PREVENTS: the 2026-10-21 staticcheck reds. Homebrew removed go 1.27.2, the
+// tree's src/go.mod link dangled, goroot/src stopped being a module, and
+// `go list ./...` walked into it, while cache-clean printed KEEP for it
+// (plan/journal/gate-verdict-depends-on-the-machine.md). Killed builds left
+// tmp-* staging directories nobody reaped.
+func TestPatchedTreesDropTheDeadAndKeepTheLive(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	dir := gen.CacheDirs(root)[0]
+	live := patchedKey(t, dir, "live", true, true)
+	deadVersion := patchedKey(t, dir, "dead-version", false, true)
+	deadGoMod := patchedKey(t, dir, "dead-gomod", true, false)
+	oldStaging := filepath.Join(dir, gen.StagingPrefix+"1")
+	youngStaging := filepath.Join(dir, gen.StagingPrefix+"2")
+	for path, age := range map[string]time.Duration{oldStaging: stagingIdleAge + time.Hour, youngStaging: time.Minute} {
+		if err := os.MkdirAll(filepath.Join(path, "goroot"), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, now.Add(-age), now.Add(-age)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	trees := patchedTrees(root, now)
+
+	for _, kept := range []string{live, youngStaging} {
+		if _, err := os.Lstat(kept); err != nil {
+			t.Errorf("%s, which a build may use, was removed: %v", kept, err)
+		}
+	}
+	for _, dropped := range []string{deadVersion, deadGoMod, oldStaging} {
+		if _, err := os.Lstat(dropped); !os.IsNotExist(err) {
+			t.Errorf("%s, which no build can use, survived: %v", dropped, err)
+		}
+	}
+	report := CleanReport{Trees: trees}
+	text := report.Text()
+	for _, want := range []string{"KEEP     " + live, "DROP     " + deadVersion, "DROP     " + deadGoMod, "DROP     " + oldStaging, "KEEP     " + youngStaging} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text = %q, want a row %q", text, want)
+		}
+	}
+	if code := report.verdict(); code != 0 {
+		t.Errorf("verdict = %d, want 0", code)
 	}
 }

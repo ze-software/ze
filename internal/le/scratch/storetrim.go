@@ -649,7 +649,7 @@ func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process,
 		refused[sharedCache] = perUserErr.Error()
 	}
 	ambient, ambientErr := ambientGoCache(ctx)
-	pass := cachePass{now: time.Now(), floor: cacheEntryAgeFloor, remove: removeCacheEntry}
+	pass := cachePass{now: time.Now(), floor: cacheEntryAgeFloor, remove: removeCacheEntry, run: storeTrimRun}
 	report.Budgets, report.Stores = trimCaches(ctx, cleanTargets(root, ambient, perUser), refused, readBudget, pass)
 	if ambientErr != nil {
 		for index := range report.Stores {

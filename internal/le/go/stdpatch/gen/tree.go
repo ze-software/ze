@@ -40,9 +40,11 @@ type builder struct {
 	layout string
 }
 
-// stagingPrefix starts the name of every directory a build writes before its
+// StagingPrefix starts the name of every directory a build writes before its
 // rename, so nothing that judges finished trees mistakes one for a tree.
-const stagingPrefix = "tmp-"
+// `le scratch cache-clean` reads it to remove the staging directories a killed
+// build left behind.
+const StagingPrefix = "tmp-"
 
 // build answers the tree, building it when its key directory is absent.
 //
@@ -70,7 +72,7 @@ func (b builder) build() (string, error) {
 		return tree, nil
 	}
 
-	staging, err := os.MkdirTemp(b.cache, stagingPrefix)
+	staging, err := os.MkdirTemp(b.cache, StagingPrefix)
 	if err != nil {
 		return "", fmt.Errorf("stdpatch: %w", err)
 	}
@@ -132,7 +134,7 @@ func (b builder) build() (string, error) {
 // the guest (2026-10-15). Such a tree is only ignored, because no build here
 // derives its key. A staging directory is never a key, so it is never judged.
 func dropDeadTree(dir string) error {
-	if !deadTree(filepath.Join(dir, "goroot")) {
+	if !DeadTree(filepath.Join(dir, "goroot")) {
 		return nil
 	}
 	if err := os.RemoveAll(dir); err != nil {
@@ -141,16 +143,32 @@ func dropDeadTree(dir string) error {
 	return nil
 }
 
-// deadTree answers whether tree holds its VERSION link and the link names
-// nothing. VERSION is a top-level entry, so it is a link in every tree
-// (populate), and the losing side of a build race reads it too (build).
-// A tree with no VERSION entry is not one this rule can judge, so it stays.
-func deadTree(tree string) bool {
-	version := filepath.Join(tree, "VERSION")
-	if _, err := os.Lstat(version); err != nil {
+// DeadTree answers whether tree holds a toolchain link that names nothing:
+// its VERSION link, or its src/go.mod link. VERSION is a top-level entry, so it
+// is a link in every tree (populate), and the losing side of a build race reads
+// it too (build). src/go.mod is the link that makes goroot/src a module of its
+// own; once it dangles, `go list ./...` from a checkout whose cache/ holds the
+// tree walks into goroot/src as packages of the main module
+// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-21). Both name
+// the one real GOROOT, so either one dangling means no build can use the tree.
+// A tree with neither entry is not one this rule can judge, so it stays.
+// `le scratch cache-clean` reads it to drop such a tree at any key.
+func DeadTree(tree string) bool {
+	for _, link := range []string{"VERSION", filepath.Join("src", "go.mod")} {
+		if danglingLink(filepath.Join(tree, link)) {
+			return true
+		}
+	}
+	return false
+}
+
+// danglingLink answers whether path exists as an entry and what it names
+// does not.
+func danglingLink(path string) bool {
+	if _, err := os.Lstat(path); err != nil {
 		return false
 	}
-	_, err := os.Stat(version)
+	_, err := os.Stat(path)
 	return errors.Is(err, fs.ErrNotExist)
 }
 

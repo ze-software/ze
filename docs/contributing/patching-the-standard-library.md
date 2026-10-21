@@ -108,8 +108,8 @@ The generator does this, each time:
    and even when the diff would still apply. A patch with no stamp stops the
    same way. The error ends with the command to run after the repair,
    `./le go stdpatch goroot`.
-3. When `cache/stdpatch/<key>/goroot` exists and its `VERSION` link names
-   nothing on this machine, remove that one key directory, so the next step
+3. When `cache/stdpatch/<key>/goroot` exists and its `VERSION` or `src/go.mod`
+   link names nothing on this machine, remove that one key directory, so the next step
    builds it again; otherwise, when it exists, answer it. A tree goes dead when
    its GOROOT goes, such as a package manager replacing the toolchain in place,
    and a dead tree breaks every go command that reads it. Only the build's own
@@ -135,8 +135,15 @@ The generator does this, each time:
 <!-- source: internal/le/go/stdpatch/gen/tree.go -- dropDeadTree -->
 <!-- source: internal/le/doc/index/docstocode.go -- skipPaths -->
 
-`./le scratch cache-clean` leaves `cache/stdpatch/` alone and reports the size of
-each tree, because a build in another session may be running under one of them.
+`./le scratch cache-clean` reports the size of each tree and keeps every live
+one, because a build in another session may be running under it. It drops only
+what no build can use: a tree at ANY key whose `VERSION` or `src/go.mod` link
+names nothing on this machine (`gen.DeadTree`), and a `tmp-*` staging directory
+more than three hours old, which a killed build left. A build judges only its
+own key, because it also runs in a QEMU guest where the host's links name
+nothing; cache-clean is an operator's command on the machine that owns the
+cache, and the guest's tree directory is a tmpfs of its own.
+<!-- source: internal/le/scratch/cacheclean.go -- patchedTrees, judgePatchedTree, stagingIdleAge -->
 
 ## What a build sets
 

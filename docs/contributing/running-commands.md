@@ -474,19 +474,34 @@ the row stays green.
 
 ## When another session cleans the cache under you
 
-`cache/go-cache/...: no such file or directory`, on files that are there, is a
-CONCURRENT `./le scratch cache-clean` (owner, 2026-08-31). Sessions share this
-checkout and they share one build cache, so a clean run by one session empties
-the cache the others are mid-build against. It clears by itself on a retry,
-because the next build repopulates what it needs. The store trim is the second
-cause: it removes entries older than three hours from the same caches while
-other sessions build, so a build that had located such an entry and not yet
-opened it meets the same error, and the same single retry clears it.
+`cache/go-cache/...: no such file or directory`, or `cache entry not found`, on
+files that are there, is a cache entry removed under a running build (owner,
+2026-08-31). Sessions share this checkout and they share the build caches. Both
+cleaners, the store trim and `./le scratch cache-clean` by default, remove only
+entries older than 3h. An entry is safe for 2h after Go last looked it up: Go
+refreshes an entry's mtime when it uses one, but at most once an hour, and the
+floor is 3h. An entry a build last looked up more than 2h ago can be removed,
+and the build's next lookup misses and recompiles it rather than failing. So a
+cleaner can cause this error only for a build that looked an entry up and had
+not opened it 2h later; a single retry clears that, because the retry
+repopulates what it needs.
+<!-- source: internal/le/scratch/cachetrim.go -- cacheEntryAgeFloor -->
+<!-- source: internal/le/scratch/cacheclean.go -- cleanOldCacheEntries -->
+
+The floor and the hourly refresh are both fixed: `cacheEntryAgeFloor` in le,
+`mtimeInterval` in Go's `cmd/go/internal/cache`.
+
+The full empty, `./le scratch cache-clean all`, is the cause that does not
+clear so easily: emptied mid-run, the staticcheck matrix lost its parts 2 and 3
+on 2026-10-21. It refuses while another session's build may be using the
+caches. It names each process: pid, command line, and the job label when the
+process holds a `./le job run` or verify slot. Wait, or run the default. The
+check is a snapshot taken before the empty starts, so a build that starts while
+the empty runs is not seen and can still lose its entries.
 
 Do not read it as a full disk: that case says `no space left on device` and
 survives a retry. Do not read it as a code defect either. Retry the command
-once, and if you are the session about to run `cache-clean`, remember that every
-other session in this checkout pays for it.
+once.
 
 Store trim charges allocated blocks for directory entries as well as files.
 An `ENOTEMPTY` directory remains charged; `ENOENT` releases its recorded bytes
@@ -556,34 +571,70 @@ Five caches fill, and emptying one leaves the others full. Four are Go caches,
 on as many as three filesystems. The fifth is golangci-lint's, which no
 `go clean` reaches and which the scratch relocation leaves on the checkout's own
 device; it held 9.5G on 2026-09-13, more than the two Go caches measured beside
-it. `./le scratch cache-clean` empties all of them and prints what each one
-returned:
+it.
 
-One row for each cache, in this shape:
+Reach for the safe tools first, in this order, because other sessions are
+building against these caches while you read this:
+
+1. `./le scratch store-trim` trims the caches to their budgets now (see below).
+2. `./le scratch cache-clean` cleans all five caches. By default it removes every
+   cache entry older than 3h, the store trim's floor, and keeps the younger
+   ones. It is safe while other sessions build: an entry is safe for 2h after Go
+   last looked it up (Go refreshes an entry's mtime at most hourly; the floor is
+   3h), and a build that later misses an older entry recompiles it.
+3. `./le scratch cache-clean all` empties all five outright. Use it only when no
+   build runs: it refuses, and exits 1, while it sees any `go`, `compile`,
+   `link`, `vet`, `asm`, `cgo`, `cover`, `staticcheck`, `golangci-lint` or
+   compiled test binary (`*.test`) process, or any process holding a slot in
+   this checkout's job registry (`./le job run`, a verify run). The refusal
+   names each one with its pid, command line and job label. A process table
+   or registry it cannot read refuses too, because it then cannot tell whether
+   a build runs. The check is a snapshot before the empty starts: a build that
+   starts during the empty is not seen, and can fail with `cache entry not
+   found`. It reads program names, not each process's environment, so a
+   build in an unrelated checkout also refuses it. That is the right answer,
+   because the ambient cache it empties is the default every `go` command
+   without its own GOCACHE writes.
+
+The default prints one row for each cache, in this shape:
 
 ```
 $ ./le scratch cache-clean
-checkout  /path/to/checkout/cache/go-cache                 freed 89.0G, free 123.2G
-shared    /Users/thomas/.cache/ze/go-cache                 freed 13.0G, free 136.2G
-ambient   /Users/thomas/Library/Caches/go-build            freed 1.2G, free 137.4G
-bootstrap /path/to/checkout/tmp/go-cache                   freed 1.3G, free 138.7G
-lint      /path/to/checkout/tmp/golangci-lint-cache        freed 9.5G, free 148.2G
+checkout  /path/to/checkout/cache/go-cache                 removed 81.3G (402118 entries), kept 7.7G younger than 3h0m0s, freed 81.2G, free 115.4G
+shared    /Users/thomas/.cache/ze/go-cache                 removed 12.1G (60321 entries), kept 0.9G younger than 3h0m0s, freed 12.1G, free 127.5G
+ambient   /Users/thomas/Library/Caches/go-build            removed 1.2G (8812 entries), kept 0.0G younger than 3h0m0s, freed 1.2G, free 128.7G
+bootstrap /path/to/checkout/tmp/go-cache                   removed 1.1G (5410 entries), kept 0.2G younger than 3h0m0s, freed 1.1G, free 129.8G
+lint      /path/to/checkout/tmp/golangci-lint-cache        removed 8.8G (90214 entries), kept 0.7G younger than 3h0m0s, freed 8.8G, free 138.6G
 ```
+
+`removed` is the size of the entries past the floor that are gone after the run:
+the ones it deleted, and any a concurrent trim deleted first, because both
+returned that space. The entry count in brackets is only what this run deleted.
+`kept` is what the floor kept, and `freed` and `free` are the device's own
+reading before and after, taken on the cache path. `all` prints the same rows
+without the `removed` and `kept` parts. A cache that does not exist yet is a
+skip, not a refusal. `| json` renders each row with the keys `removed`,
+`entries-removed` and `kept-young` beside `freed`.
 
 With `cache/` linked to the per-user target, the shared row reads instead:
 
 ```
-shared    SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already emptied
+shared    SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already cleaned
 ```
 
 The patched GOROOT trees under `cache/stdpatch/` (or `tmp/stdpatch/` where
 `cache/` is not usable) are not emptied, because a build in another session may
-be compiling with `GOROOT` inside one. Each key gets a `KEEP` row with its size,
-so you can remove a key whose toolchain is gone by hand
+be compiling with `GOROOT` inside one. Each key gets a `KEEP` row with its size.
+Both modes drop the two kinds no build can be using, each with a `DROP` row: a
+key whose `VERSION` or `src/go.mod` link names nothing on this machine (the
+package manager replaced the toolchain in place; such a tree also made
+`go list ./...` walk into its `goroot/src`), and a `tmp-*` staging directory
+more than three hours old, which a killed tree build left
 (`patching-the-standard-library.md`):
 
 ```
 stdpatch  KEEP     /path/to/checkout/cache/stdpatch/94a7…             27.0M, a patched GOROOT a running build may use
+stdpatch  DROP     /path/to/checkout/cache/stdpatch/398f…             26.8M, its toolchain links name nothing on this machine, so no build can use it
 ```
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
@@ -591,18 +642,21 @@ The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
 `gotoolchain.GoCache` names it. The SHARED cache is the per-user
 `cacheTarget()/go-cache`, which every verify worktree writes; when the checkout's
 `cache/` links to that same directory, the row says SKIP because it IS the
-checkout cache, and it is emptied once. The AMBIENT cache is the one a bare `go build`
+checkout cache, and it is cleaned once. The AMBIENT cache is the one a bare `go build`
 writes outside le. The action asks `go env GOCACHE` for that path with the
 inherited override removed, so a checkout whose default already IS the checkout
-cache gets a SKIP row rather than one cache emptied twice. The BOOTSTRAP cache
+cache gets a SKIP row rather than one cache cleaned twice. The BOOTSTRAP cache
 is `tmp/go-cache` (`gotoolchain.BootstrapCache`), which the `le` script's own
 build, the deployment builds and the QEMU guest write. The LINT cache is
 `tmp/golangci-lint-cache`, which `Overrides` names through
-`gotoolchain.LintCache`, and it is emptied by deleting the directory because no
-`go clean` owns it. A verify worktree's `tmp/golangci-lint-cache` is a link to
+`gotoolchain.LintCache`. It keeps Go's entry layout, so the default mode walks
+it with the same age rule; `all` empties it by deleting the directory, because
+no `go clean` owns it. A verify worktree's `tmp/golangci-lint-cache` is a link to
 the checkout's, so a worktree lint reuses what the last one cached and the
 worktree removal deletes only the link (`sharedLintCacheLink`,
-`internal/le/verify/lifecycle.go`). The equivalent by hand is:
+`internal/le/verify/lifecycle.go`). `all` is the equivalent of this by hand,
+which carries the same hazard and none of the refusal, so do not type it while
+a build runs:
 
 ```
 go clean -cache                                    # the ambient cache
@@ -611,6 +665,9 @@ env GOCACHE="$HOME/.cache/ze/go-cache" go clean -cache  # the shared cache, unle
 env GOCACHE="$PWD/tmp/go-cache" go clean -cache     # the bootstrap cache
 rm -rf tmp/golangci-lint-cache                     # the lint cache
 ```
+<!-- source: internal/le/scratch/cacheclean.go -- CleanCaches, cleanOldCacheEntries, patchedTrees -->
+<!-- source: internal/le/scratch/cacheuse.go -- refuseFullEmpty, cacheUsers, cacheReaders -->
+<!-- source: internal/le/job/holders.go -- Holders -->
 
 The clean costs recompilation, which makes the next run slow once, so le also
 bounds four of the five caches by itself, a little at a time. Every le

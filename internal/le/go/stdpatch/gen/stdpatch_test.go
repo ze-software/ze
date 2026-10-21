@@ -300,7 +300,7 @@ func TestStdpatchBuildDropsATreeWhoseLinksDangle(t *testing.T) {
 	ownKey := build.key(targets)
 	deadTreeAt(t, cache, ownKey)
 	other := deadTreeAt(t, cache, "guest-key")
-	staging := deadTreeAt(t, cache, stagingPrefix+"in-flight")
+	staging := deadTreeAt(t, cache, StagingPrefix+"in-flight")
 
 	tree, err := build.build()
 	if err != nil {

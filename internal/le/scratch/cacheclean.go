@@ -1,8 +1,23 @@
 // Design: docs/architecture/core-design.md -- native scratch-link gates
 // Overview: scratch.go -- filesystem policy and implementation
+// Related: cacheuse.go -- who may be using the caches, which a full empty refuses on
+// Related: cachetrim.go -- the entry walk, the age floor and the removal both share
 //
-// This file empties the five build caches a Ze checkout fills, and reports the
-// disk space each one returned. The same list is the store list the store trim
+// This file cleans the five build caches a Ze checkout fills, and reports the
+// disk space each one returned. By default it removes only the entries older
+// than cacheEntryAgeFloor (3h), the floor the store trim keeps: other sessions
+// build against these caches all the time, and an entry is safe for 2h after
+// Go last looked it up, because Go refreshes an entry's mtime when it uses one
+// but at most once an hour (cache.(*DiskCache).used), so the 3h floor leaves an
+// hour of margin. An entry a build last looked up more than 2h ago can still be
+// removed, and that build recompiles it on its next miss rather than failing.
+// Emptying them outright under a running build failed it with
+// "cache entry not found" or "no such file", a red that names no cause (the
+// staticcheck matrix, 2026-10-21, plan/journal/gate-verdict-depends-on-the-machine.md).
+// The full empty is the `all` keyword, and it refuses while any build may be
+// using the caches (cacheuse.go). The check is a snapshot taken before the
+// empty starts: a build that starts while the empty runs is not seen, and can
+// still fail with "cache entry not found". The same list is the store list the store trim
 // reads (storetrim.go): each target carries its kind and its budget, so the
 // caches are declared once for both.
 //
@@ -38,7 +53,9 @@
 //
 // The patched GOROOT trees under cache/stdpatch (internal/le/go/stdpatch/gen)
 // are not a cache this action empties: a build in flight compiles inside one.
-// No target reaches them, and the report names each key with its size.
+// No target reaches them. The report names each key with its size, and drops
+// only what no build can be using: a tree whose toolchain links dangle on this
+// machine, and a staging directory older than stagingIdleAge.
 package scratch
 
 import (
@@ -57,6 +74,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/job"
+	"github.com/ze-software/ze/internal/le/procscan"
 )
 
 // cleanTimeout bounds one `go clean -cache` run. The measurement on
@@ -88,15 +107,60 @@ const bytesPerGiB = 1 << 30
 // bytesPerMiB converts a kept tree's byte count to the unit its row prints.
 const bytesPerMiB = 1 << 20
 
-// CacheClean is what one `go clean -cache` run did to one cache.
+// cleanMode is how much of each cache a run removes.
+type cleanMode uint8
+
+const (
+	// unspecifiedClean is the zero value and never a valid mode.
+	unspecifiedClean cleanMode = iota
+	// cleanOldEntries removes the entries older than cacheEntryAgeFloor, which
+	// no running build can be about to read. It is the default.
+	cleanOldEntries
+	// cleanEverything empties every cache, and runs only when no process is
+	// seen that may be using one (cacheUsers). It is the `all` keyword.
+	cleanEverything
+)
+
+// The names the report gives the two modes.
+const (
+	oldEntriesMode = "old-entries"
+	everythingMode = "all"
+)
+
+// String names the mode as the report and the JSON answer print it.
+func (mode cleanMode) String() string {
+	switch mode {
+	case cleanOldEntries:
+		return oldEntriesMode
+	case cleanEverything:
+		return everythingMode
+	case unspecifiedClean:
+		return "unspecified"
+	default:
+		panic("BUG: cache-clean has an unknown mode")
+	}
+}
+
+// CacheClean is what one run did to one cache. Freed is what the device
+// returned, measured with statfs before and after. A run in the default mode
+// also says what it removed and what the age floor kept; a full empty keeps
+// nothing, so those stay zero there.
+//
+// Removed is the bytes of the entries past the floor that are gone after the
+// run: the ones this run deleted, and any a concurrent trim (another session's
+// store trim, or Go's own) deleted first, because both returned that space.
+// EntriesRemoved counts only the entries this run deleted.
 type CacheClean struct {
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	FreeBefore uint64 `json:"free_before"`
-	FreeAfter  uint64 `json:"free_after"`
-	Freed      int64  `json:"freed"`
-	Skipped    string `json:"skipped,omitempty"`
-	Error      string `json:"error,omitempty"`
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	FreeBefore     uint64 `json:"free_before"`
+	FreeAfter      uint64 `json:"free_after"`
+	Freed          int64  `json:"freed"`
+	Removed        int64  `json:"removed,omitempty"`
+	EntriesRemoved int    `json:"entries-removed,omitempty"`
+	KeptYoung      int64  `json:"kept-young,omitempty"`
+	Skipped        string `json:"skipped,omitempty"`
+	Error          string `json:"error,omitempty"`
 
 	// Contended carries the emptier's complaint when the sweep FREED space and
 	// then met a writer, rather than failing to clean. `go clean -cache` walks
@@ -114,31 +178,62 @@ type CacheClean struct {
 	Contended string `json:"contended,omitempty"`
 }
 
-// CleanReport is the answer of one cache-clean run, one row for each cache,
-// and one row for each patched GOROOT the run kept.
+// CleanReport is the answer of one cache-clean run: its mode, one row for each
+// cache, and one row for each patched GOROOT entry. A full empty that found a
+// process that may be using the caches carries that process list and the
+// refusal instead, and touched nothing.
 type CleanReport struct {
-	Caches []CacheClean `json:"caches"`
-	Kept   []KeptTree   `json:"kept"`
+	Mode    string        `json:"mode"`
+	Refusal string        `json:"refusal,omitempty"`
+	Users   []CacheUser   `json:"users,omitempty"`
+	Caches  []CacheClean  `json:"caches"`
+	Trees   []PatchedTree `json:"trees"`
 }
 
-// KeptTree is one patched GOROOT (cache/stdpatch/<key>, or tmp/stdpatch/<key>
-// where cache/ is not usable) that cache-clean leaves in place. Another
-// session's build may be compiling with GOROOT inside it, and a GOROOT removed
-// under a running compile fails that build with "no such file" errors that
-// never name the cause. A key is about 30 MiB and a stale key is never
-// selected again, so the row's size is what lets the owner remove a key whose
-// toolchain is gone (docs/contributing/patching-the-standard-library.md).
-type KeptTree struct {
-	Path  string `json:"path"`
-	Bytes int64  `json:"bytes"`
-	Error string `json:"error,omitempty"`
+// PatchedTree is one entry of a patched GOROOT directory (cache/stdpatch, or
+// tmp/stdpatch where cache/ is not usable): a key, or a build's staging
+// directory. A live key stays: another session's build may be compiling with
+// GOROOT inside it, and a GOROOT removed under a running compile fails that
+// build with "no such file" errors that never name the cause. A key is about
+// 30 MiB and a stale key is never selected again, so its size is printed.
+//
+// Dropped says why the run removed it. Only two kinds go, because no build can
+// be using either: a tree whose toolchain links name nothing on this machine
+// (gen.DeadTree: the package manager replaced the toolchain in place), and a
+// staging directory older than stagingIdleAge, which a killed build left
+// (docs/contributing/patching-the-standard-library.md).
+type PatchedTree struct {
+	Path    string `json:"path"`
+	Bytes   int64  `json:"bytes"`
+	Dropped string `json:"dropped,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
+
+// stagingIdleAge is the age past which a staging directory belongs to no build.
+// A build writes its staging directory, applies the patch and renames it into
+// place in well under a minute (the `go list` of sameStdlib is its longest
+// step), and the directory's mtime is set when the build starts, so three hours
+// is a build that was killed, never one still running.
+const stagingIdleAge = 3 * time.Hour
+
+// The reasons a patched GOROOT entry is dropped.
+const (
+	deadTreeDrop = "its toolchain links name nothing on this machine, so no build can use it"
+	stagingDrop  = "a staging directory older than the staging age, which a killed build left"
+)
 
 // Text renders one line for each cache. Freed and free are gibibytes, because
 // the number a person acts on is whether the disk has room for a build.
 func (r CleanReport) Text() string {
 	var text textbuf.Buffer
 	text.Reset()
+	if r.Refusal != "" {
+		text.Str("REFUSE   ").Str(r.Refusal).Byte('\n')
+		for _, user := range r.Users {
+			text.Str("  ").Str(user.line()).Byte('\n')
+		}
+		return text.String()
+	}
 	for _, cache := range r.Caches {
 		var line textbuf.Buffer
 		line.PadRight(cache.Name, cacheNameWidth)
@@ -148,70 +243,162 @@ func (r CleanReport) Text() string {
 		case cache.Skipped != "":
 			line.Str("SKIP     ").Str(cache.Path).Str(": ").Str(cache.Skipped)
 		case cache.Contended != "":
-			line.PadRight(cache.Path, 48).Str(" freed ").Str(gibibytes(cache.Freed)).
-				Str(", free ").Str(gibibytes(int64(cache.FreeAfter))). //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
-				Str(" (a concurrent build kept writing: ").Str(cache.Contended).Byte(')')
+			cache.measured(&line)
+			line.Str(" (a concurrent build kept writing: ").Str(cache.Contended).Byte(')')
 		default:
-			line.PadRight(cache.Path, 48).Str(" freed ").Str(gibibytes(cache.Freed)).
-				Str(", free ").Str(gibibytes(int64(cache.FreeAfter))) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
+			cache.measured(&line)
 		}
 		text.Str(line.String()).Byte('\n')
 	}
-	for _, tree := range r.Kept {
+	for _, tree := range r.Trees {
 		var line textbuf.Buffer
 		line.PadRight(stdpatchTrees, cacheNameWidth)
-		if tree.Error == "" {
+		switch {
+		case tree.Error != "" && tree.Dropped != "":
+			line.Str("REFUSE   ").Str(tree.Path).Str(": ").Str(tree.Dropped).Str(", and removing it failed: ").Str(tree.Error).
+				Str(". No build can use it, so fix the permission the error names, or delete the directory by hand,").
+				Str(" then run `./le scratch cache-clean` again")
+		case tree.Error != "":
+			line.Str("KEEP     ").Str(tree.Path).Str(": its size is unknown: ").Str(tree.Error)
+		case tree.Dropped != "":
+			line.Str("DROP     ").PadRight(tree.Path, 48).Str(" ").Str(mebibytes(tree.Bytes)).Str(", ").Str(tree.Dropped)
+		default:
 			line.Str("KEEP     ").PadRight(tree.Path, 48).Str(" ").Str(mebibytes(tree.Bytes)).
 				Str(", a patched GOROOT a running build may use")
-		} else {
-			line.Str("KEEP     ").Str(tree.Path).Str(": its size is unknown: ").Str(tree.Error)
 		}
 		text.Str(line.String()).Byte('\n')
 	}
 	return text.String()
 }
 
-// keptTrees answers one row for each patched GOROOT key under root, measured
-// with the store trim's treeBytes (allocated size, symlinks not followed, so a
-// link into the real GOROOT costs only itself) and never removed. A tree
-// directory that does not exist holds no key.
-func keptTrees(root string) []KeptTree {
-	var kept []KeptTree
+// measured renders a cleaned cache's numbers: what the run removed and what
+// the age floor kept when it ran in the default mode, then what the device
+// returned and holds free.
+func (cache CacheClean) measured(line *textbuf.Buffer) {
+	line.PadRight(cache.Path, 48)
+	if cache.Removed != 0 || cache.KeptYoung != 0 || cache.EntriesRemoved != 0 {
+		line.Str(" removed ").Str(gibibytes(cache.Removed)).Str(" (").Int(int64(cache.EntriesRemoved)).
+			Str(" entries), kept ").Str(gibibytes(cache.KeptYoung)).Str(" younger than ").Str(cacheEntryAgeFloor.String()).Byte(',')
+	}
+	line.Str(" freed ").Str(gibibytes(cache.Freed)).
+		Str(", free ").Str(gibibytes(int64(cache.FreeAfter))) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
+}
+
+// patchedTrees answers one row for each entry of every patched GOROOT
+// directory under root, measured with the store trim's treeBytes (allocated
+// size, symlinks not followed, so a link into the real GOROOT costs only
+// itself). It removes a dead tree and an old staging directory, and nothing
+// else. A tree directory that does not exist holds no key.
+//
+// Every key is judged, where a build judges only its own (gen.dropDeadTree).
+// The build runs in a QEMU guest as well, where the host's links name nothing;
+// this action is an operator's command on the machine whose cache it is, and
+// a guest's tree directory is a tmpfs of its own (guestPatchedTree,
+// internal/le/test/qemu/run.go), so "dead here" is the answer that matters.
+func patchedTrees(root string, now time.Time) []PatchedTree {
+	var trees []PatchedTree
 	for _, dir := range gen.CacheDirs(root) {
 		entries, err := os.ReadDir(dir)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
 		if err != nil {
-			kept = append(kept, KeptTree{Path: dir, Error: err.Error()})
+			trees = append(trees, PatchedTree{Path: dir, Error: err.Error()})
 			continue
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
-			path := filepath.Join(dir, entry.Name())
-			bytes, err := treeBytes(path)
-			if err != nil {
-				kept = append(kept, KeptTree{Path: path, Error: err.Error()})
-				continue
-			}
-			kept = append(kept, KeptTree{Path: path, Bytes: bytes})
+			trees = append(trees, judgePatchedTree(filepath.Join(dir, entry.Name()), entry, now))
 		}
 	}
-	return kept
+	return trees
 }
 
-// CleanCaches empties every build cache this checkout fills and reports what
-// each one returned.
+// judgePatchedTree measures one entry and removes it when no build can be
+// using it.
+func judgePatchedTree(path string, entry os.DirEntry, now time.Time) PatchedTree {
+	tree := PatchedTree{Path: path}
+	bytes, err := treeBytes(path)
+	if err != nil {
+		tree.Error = err.Error()
+		return tree
+	}
+	tree.Bytes = bytes
+	if strings.HasPrefix(entry.Name(), gen.StagingPrefix) {
+		info, err := entry.Info()
+		if err != nil {
+			tree.Error = err.Error()
+			return tree
+		}
+		if now.Sub(info.ModTime()) < stagingIdleAge {
+			return tree
+		}
+		tree.Dropped = stagingDrop
+	} else {
+		if !gen.DeadTree(filepath.Join(path, "goroot")) {
+			return tree
+		}
+		tree.Dropped = deadTreeDrop
+	}
+	if err := os.RemoveAll(path); err != nil {
+		tree.Error = err.Error()
+	}
+	return tree
+}
+
+// CleanCaches cleans every build cache this checkout fills and reports what
+// each one returned. The default mode removes the entries older than the age
+// floor; cleanEverything empties every cache, and refuses before touching any
+// when a process that may be using one is running (cacheUsers).
 //
 // The ambient cache is resolved by asking `go env GOCACHE` with the inherited
 // GOCACHE removed, so the answer is the machine default rather than whatever
 // le set for the calling process. A checkout whose GOCACHE already IS the
-// machine default is emptied once and the second row says so. The shared
+// machine default is cleaned once and the second row says so. The shared
 // cache is resolved from this manager's environment (cacheTarget), the same
 // answer a verify worktree's cache/ link reaches.
-func (m *Manager) CleanCaches() (CleanReport, int) {
+func (m *Manager) CleanCaches(mode cleanMode) (CleanReport, int) {
+	return m.cleanCaches(mode, cleanPass{
+		scan:    procscan.Scan,
+		holders: job.Holders,
+		self:    []int{os.Getpid(), os.Getppid()},
+		entries: cachePass{now: time.Now(), floor: cacheEntryAgeFloor, remove: removeCacheEntry, run: cacheCleanRun},
+	})
+}
+
+// cleanPass is what one cache-clean run reads besides the tree: the process
+// scanner and the job registry a full empty is refused on, the pids that are
+// this run itself, and the clock, floor and remover the default mode uses. A
+// test replaces each one.
+type cleanPass struct {
+	scan    func() ([]procscan.Process, error)
+	holders func(root string) ([]job.Holder, error)
+	self    []int
+	entries cachePass
+}
+
+// cleanCaches is CleanCaches with the pass a test replaces.
+func (m *Manager) cleanCaches(mode cleanMode, pass cleanPass) (CleanReport, int) {
+	report := CleanReport{Mode: mode.String()}
+	switch mode {
+	case cleanOldEntries:
+	case cleanEverything:
+		// The process table is read before this run starts any `go` of its
+		// own, so the only processes of this run it can see are the pids in
+		// pass.self.
+		if refusal, users := m.refuseFullEmpty(pass); refusal != "" {
+			report.Refusal = refusal
+			report.Users = users
+			return report, 1
+		}
+	case unspecifiedClean:
+		panic("BUG: cache-clean was asked to run with no mode")
+	default:
+		panic("BUG: cache-clean has an unknown mode")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), cleanTimeout)
 	defer cancel()
 
@@ -221,7 +408,6 @@ func (m *Manager) CleanCaches() (CleanReport, int) {
 	ambient, ambientErr := ambientGoCache(ctx)
 	perUser, perUserErr := m.cacheTarget()
 
-	var report CleanReport
 	for _, target := range cleanTargets(m.Root, ambient, perUser) {
 		switch {
 		case target.name == ambientCache && ambientErr != nil:
@@ -232,11 +418,13 @@ func (m *Manager) CleanCaches() (CleanReport, int) {
 			report.Caches = append(report.Caches, CacheClean{
 				Name: target.name, Path: target.path, Skipped: target.skipped,
 			})
-		default:
+		case mode == cleanEverything:
 			report.Caches = append(report.Caches, measureClean(target.name, target.path, target.emptier(ctx)))
+		default:
+			report.Caches = append(report.Caches, cleanOldCacheEntries(ctx, target, pass.entries))
 		}
 	}
-	report.Kept = keptTrees(m.Root)
+	report.Trees = patchedTrees(m.Root, pass.entries.now)
 	return report, report.verdict()
 }
 
@@ -320,10 +508,10 @@ func cleanTargets(root, ambient, perUser string) []cleanTarget {
 	// The checkout's cache/ is linked to the per-user target only after
 	// links-ensure or migrate ran, so the two are compared on disk, not assumed.
 	if sameDirectory(filepath.Dir(checkout), perUser) {
-		targets[1].skipped = "cache/ links here, so this is the checkout cache, which this run already emptied"
+		targets[1].skipped = "cache/ links here, so this is the checkout cache, which this run already cleaned"
 	}
 	if ambient == checkout {
-		targets[2].skipped = "the machine default is the checkout cache, which this run already emptied"
+		targets[2].skipped = "the machine default is the checkout cache, which this run already cleaned"
 	}
 	// A built kernel takes about thirty minutes to rebuild, on a host of its
 	// own arch, so no clean or trim reaches into a kernel cache, or empties a
@@ -374,8 +562,19 @@ func sameDirectory(first, second string) bool {
 // reached for was `rm -rf` on a cache directory, which is the action this
 // command exists to make unnecessary (plan/journal/full-disk-false-red.md).
 func (r CleanReport) verdict() int {
+	if r.Refusal != "" {
+		return 1
+	}
 	for _, cache := range r.Caches {
 		if cache.Error != "" {
+			return 1
+		}
+	}
+	for _, tree := range r.Trees {
+		if tree.Dropped == "" {
+			continue
+		}
+		if tree.Error != "" {
 			return 1
 		}
 	}
@@ -414,6 +613,55 @@ func measureClean(name, path string, empty func() error) CacheClean {
 		cache.Contended = emptyErr.Error()
 	}
 	cache.Freed = int64(after) - int64(before) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
+	return cache
+}
+
+// cleanOldCacheEntries removes every entry of one cache older than the age
+// floor, oldest first, with the store trim's walk and removal, and measures
+// the device before and after. It is the store trim with a budget of zero: the
+// floor alone decides, so an entry a running build may be about to read stays
+// (cacheEntryAgeFloor). A cache that does not exist holds nothing to clean.
+func cleanOldCacheEntries(ctx context.Context, target cleanTarget, pass cachePass) CacheClean {
+	cache := CacheClean{Name: target.name, Path: target.path}
+	if _, err := os.Lstat(target.path); errors.Is(err, os.ErrNotExist) {
+		cache.Skipped = absentStoreSkip
+		return cache
+	}
+	before, err := diskspace.Free(target.path)
+	if err != nil {
+		cache.Error = err.Error()
+		return cache
+	}
+	cache.FreeBefore = before
+	entries, err := walkGoFormatCache(ctx, target.path, 0, pass.run)
+	if err != nil {
+		cache.Error = err.Error()
+		return cache
+	}
+	for _, entry := range entries {
+		if pass.now.Sub(entry.modified) < pass.floor {
+			cache.KeptYoung += entry.bytes
+		}
+	}
+
+	line := BudgetTrim{}
+	rows := []StoreTrim{{Name: target.name, Path: target.path}}
+	removeOldest(ctx, entries, pass, &line, rows)
+	cache.Removed = line.SizeBefore - line.SizeAfter
+	cache.EntriesRemoved = line.EntriesRemoved
+	cache.Contended = rows[0].Contended
+	after, err := diskspace.Free(target.path)
+	if err != nil {
+		cache.Error = err.Error()
+		return cache
+	}
+	cache.FreeAfter = after
+	cache.Freed = int64(after) - int64(before) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
+	if line.Error != "" {
+		cache.Error = line.Error
+		return cache
+	}
+	cache.Error = rows[0].Error
 	return cache
 }
 

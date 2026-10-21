@@ -64,6 +64,33 @@ type cachePass struct {
 	now    time.Time
 	floor  time.Duration
 	remove func(path string, directory bool) error
+	run    trimRun
+}
+
+// trimRun names the command a walk and a removal run under, and the time limit
+// that command sets, so the error a limit produces names the operation the
+// operator typed and the fix: the store trim and cache-clean share both.
+type trimRun struct {
+	command string
+	limit   time.Duration
+}
+
+// The two commands that walk and remove cache entries.
+var (
+	storeTrimRun  = trimRun{command: "./le scratch " + storeTrimVerb, limit: storeTrimTimeout}
+	cacheCleanRun = trimRun{command: "./le scratch cache-clean", limit: cleanTimeout}
+)
+
+// limitReached answers the error a run gives when its time limit stops it at
+// where. The limit is an hour, far past any measured run, so reaching it means
+// a filesystem that stopped answering, and the fix is to check that device
+// before running the command again.
+func (run trimRun) limitReached(where string) string {
+	var text textbuf.Buffer
+	return text.Str("`").Str(run.command).Str("` reached its ").Str(run.limit.String()).Str(" limit ").Str(where).
+		Str(", so the filesystem holding the cache stopped answering or is far slower than normal.").
+		Str(" Check that device with `df -h` on the cache path, then run `").Str(run.command).
+		Str("` again; the entries already removed stay removed").String()
 }
 
 // cacheEntry is one -a or -d entry found in a store.
@@ -119,7 +146,7 @@ func trimCaches(ctx context.Context, targets []cleanTarget, refused map[string]s
 			continue
 		}
 		line.Budget = budget
-		entries := collectGroup(ctx, targets, target.budget, refused, rows)
+		entries := collectGroup(ctx, targets, target.budget, refused, rows, pass.run)
 		removeOldest(ctx, entries, pass, &line, rows)
 		budgets = append(budgets, line)
 	}
@@ -148,7 +175,7 @@ func refuseGroup(targets []cleanTarget, group budgetGroup, reason string, rows [
 // in a PARENT, such as a linked cache/, is how the stores are laid out and is
 // resolved rather than refused.
 func collectGroup(ctx context.Context, targets []cleanTarget, group budgetGroup,
-	refused map[string]string, rows []StoreTrim,
+	refused map[string]string, rows []StoreTrim, run trimRun,
 ) []cacheEntry {
 	seen := map[string]string{}
 	var entries []cacheEntry
@@ -194,7 +221,7 @@ func collectGroup(ctx context.Context, targets []cleanTarget, group budgetGroup,
 		}
 		seen[real] = target.name
 
-		found, err := walkGoFormatCache(ctx, real, index)
+		found, err := walkGoFormatCache(ctx, real, index, run)
 		if err != nil {
 			rows[index].Error = err.Error()
 			continue
@@ -240,7 +267,7 @@ func removeOldest(ctx context.Context, entries []cacheEntry, pass cachePass, lin
 			break
 		}
 		if ctx.Err() != nil {
-			line.Error = "the trim reached its " + storeTrimTimeout.String() + " limit and stopped"
+			line.Error = pass.run.limitReached("while removing entries, and stopped")
 			break
 		}
 		err := pass.remove(entry.path, entry.directory)
@@ -300,12 +327,12 @@ func youngerThanFloor(young []cacheEntry, floor time.Duration) string {
 // The answer holds one element per entry, which the filesystem bounds; at
 // about a hundred bytes each, a cache of a million entries costs a hundred
 // megabytes in the child for the length of its run.
-func walkGoFormatCache(ctx context.Context, root string, store int) ([]cacheEntry, error) {
+func walkGoFormatCache(ctx context.Context, root string, store int, run trimRun) ([]cacheEntry, error) {
 	var entries []cacheEntry
 	for high := range len(hexDigits) {
 		for low := range len(hexDigits) {
 			if ctx.Err() != nil {
-				return nil, errors.New("the trim reached its " + storeTrimTimeout.String() + " limit while walking " + root)
+				return nil, errors.New(run.limitReached("while walking " + root))
 			}
 			subdirectory := filepath.Join(root, string([]byte{hexDigits[high], hexDigits[low]}))
 			found, err := walkCacheSubdirectory(subdirectory, store)

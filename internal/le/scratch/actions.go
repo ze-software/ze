@@ -20,19 +20,27 @@ var actions = leaction.New(area,
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: "quiet"}},
 		AnswerArgs: runEnsure},
-	leaction.Action{Verb: "cache-clean", Why: "empty EVERY build cache this checkout fills and report the disk space" +
-		" each one returned: the checkout Go cache at cache/go-cache that every le" +
+	leaction.Action{Verb: "cache-clean", Why: "clean EVERY build cache this checkout fills and report, for each, what it" +
+		" removed, what it kept and the disk space left: the checkout Go cache at cache/go-cache that every le" +
 		" action writes, the shared per-user Go cache at ~/.cache/ze/go-cache that" +
 		" every verify worktree writes (a SKIP row when cache/ links to it), the" +
 		" ambient Go cache a bare `go` command writes, the bootstrap Go cache at" +
-		" tmp/go-cache, and the golangci-lint cache at tmp/golangci-lint-cache that" +
-		" no `go clean` reaches. Run it when unrelated packages fail to build, when a linker" +
-		" says `no space left on device`, or when a whole suite goes red at once." +
-		" Read free space with `df -h` on the cache path, never with `stat -f`," +
+		" tmp/go-cache, and the golangci-lint cache at tmp/golangci-lint-cache." +
+		" By default it removes only the entries older than the store trim's 3h floor, so it is safe" +
+		" while other sessions build: an entry is safe for 2h after Go last looked it up (Go refreshes" +
+		" an entry's mtime at most hourly; the floor is 3h), and a build that later misses an older" +
+		" entry recompiles it rather than failing." +
+		" `" + everythingMode + "` empties every cache outright, and refuses, naming each process, while any" +
+		" go, compile, link, vet, staticcheck, golangci-lint or test binary runs, or a le job or verify run" +
+		" holds a slot; a build that starts while the empty runs is not seen. Both modes drop a patched GOROOT under cache/stdpatch whose toolchain links dangle," +
+		" and a staging directory a killed tree build left. Run it when unrelated packages fail to build," +
+		" when a linker says `no space left on device`, or when a whole suite goes red at once, after" +
+		" `./le scratch store-trim`. Read free space with `df -h` on the cache path, never with `stat -f`," +
 		" which is a format flag on macOS and prints the path back" +
 		" (plan/journal/full-disk-false-red.md)",
-		Writes: true,
-		Answer: runCacheClean},
+		Writes:     true,
+		Parameters: []leaction.Parameter{{Keyword: everythingMode}},
+		AnswerArgs: runCacheClean},
 	leaction.Action{Verb: storeTrimVerb, Why: "bound the build stores this checkout fills, now, without waiting for" +
 		" the hourly automatic trim every le invocation starts as a detached child" +
 		" (`" + backgroundKeyword + "` is that child's keyword: it writes to" +
@@ -76,13 +84,22 @@ func answerEnsure(manager *Manager, arguments leaction.Arguments, stderr io.Writ
 	return report, code
 }
 
-func runCacheClean() (any, int) {
+func runCacheClean(arguments leaction.Arguments) (any, int) {
 	manager, err := managerHere()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return manager.CleanCaches()
+	return manager.CleanCaches(cleanModeOf(arguments))
+}
+
+// cleanModeOf answers the mode the cache-clean keywords select: the safe
+// default with no keyword, and the full empty only for `all`.
+func cleanModeOf(arguments leaction.Arguments) cleanMode {
+	if arguments.Has(everythingMode) {
+		return cleanEverything
+	}
+	return cleanOldEntries
 }
 
 func runMigrate() (any, int) {
