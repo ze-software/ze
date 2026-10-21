@@ -48,6 +48,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -444,20 +445,29 @@ func packOldResult(result *bgptypes.UpdateTextResult) [][]byte {
 	return bodies
 }
 
-type nlriWriter interface {
-	PathID() uint32
-	Bytes() []byte
-}
-
-func oldNLRIBytes[N nlriWriter](routes []N) []byte {
-	var packed []byte
+// oldNLRIBytes packs routes as the reactor does for this session
+// (writeBatchNLRI, reactor_api_batch.go, given peer.addPathFor). neighbor.conf
+// negotiates no ADD-PATH, so a route's Path Identifier is not written, and the
+// pin's judge packs the same way: `packed` hands UpdateCollection the
+// negotiated session, not the ADD-PATH one (qa/bin/test_old_commands).
+// RFC 7911 Section 5: "A BGP speaker MUST follow the procedures defined in
+// [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to
+// a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer
+// indicating its ability to send multiple paths for the <AFI, SAFI>, and also
+// receives the ADD-PATH Capability from the peer indicating its ability to
+// receive multiple paths for the <AFI, SAFI>".
+func oldNLRIBytes(routes []nlri.NLRI) []byte {
+	const addPath = false
+	size := 0
 	for _, route := range routes {
-		if id := route.PathID(); id != 0 {
-			packed = binary.BigEndian.AppendUint32(packed, id)
-		}
-		packed = append(packed, route.Bytes()...)
+		size += nlri.LenWithContext(route, addPath)
 	}
-	return packed
+	packed := make([]byte, size)
+	offset := 0
+	for _, route := range routes {
+		offset += nlri.WriteNLRI(route, packed, offset, addPath)
+	}
+	return packed[:offset]
 }
 
 func packOldAnnounce(group *bgptypes.NLRIGroup) []byte {
