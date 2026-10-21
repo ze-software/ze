@@ -589,10 +589,10 @@ with field offsets.
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/bgp-sr-policy-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (verdict `findings`, 10 files, machine-local) |
-| `./le spec review check` | not clean: round 2 verdict `findings` (0 BLOCKER, 3 ISSUE) |
-| Rounds | 2. Round 1 (2026-10-20, independent reviewer, over commits `6ca8175fbc`, `8da63d389a`, `02b886d7b1`, `b73176e7ea`, `ca5ae1feaa`, `65ecdbf014` as at HEAD `df7d3abc23`). Round 2 (2026-10-21, a second independent reviewer, narrow: the round 1 fixes `7052b662a4`, `55be07dd57`, `11ea7bebde` and what they touch) |
-| Reviewer lenses used | Round 1: wiring + functional coverage; logic + removed-behavior + test rewrites; RFC 9830 / RFC 7911 + docs drift. Round 2: disposition verification at the producer; RFC 7911 framing logic per rail and family; test discrimination of each new line |
+| Artifact | `tmp/review/bgp-sr-policy-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (verdict `clean`, rounds 3, 49 files, machine-local) |
+| `./le spec review check` | OK after round 3 (0 BLOCKER, 0 ISSUE); interop revert-reds (N-3) still owed |
+| Rounds | 3. Round 3 (2026-10-21, a third independent reviewer, narrow: the round 2 fixes `4e01d13a6e`, `7d6406fb5d`, `49f53c4a9f`, `cb7a3ca68f`, `ce9193df5d`, `11e72ea79e`, plus `69088b9fd5`). Round 1 (2026-10-20, independent reviewer, over commits `6ca8175fbc`, `8da63d389a`, `02b886d7b1`, `b73176e7ea`, `ca5ae1feaa`, `65ecdbf014` as at HEAD `df7d3abc23`). Round 2 (2026-10-21, a second independent reviewer, narrow: the round 1 fixes `7052b662a4`, `55be07dd57`, `11ea7bebde` and what they touch) |
+| Reviewer lenses used | Round 1: wiring + functional coverage; logic + removed-behavior + test rewrites; RFC 9830 / RFC 7911 + docs drift. Round 2: disposition verification at the producer; RFC 7911 framing logic per rail and family; test discrimination of each new line. Round 3: disposition verification at the producer; removed-behavior (parser at `4e01d13a6e^` against HEAD); test discrimination by mutation in an export; docs drift |
 
 ### Findings open (round 1)
 | # | Severity | Finding | Location | Fixed by |
@@ -659,3 +659,29 @@ Round 2 verdict: 0 BLOCKER, 3 ISSUE (I-3, I-4, I-5), 2 NOTE. The gate is not cle
 | re-record | `rfc/discrimination/rfc2545.json`: RFC2545-3-1 positive and RFC2545-3-2 positive (`TestSRPolicyEncodeNextHopWire`), RFC2545-3-1 negative (`TestSRPolicyEncodeRejectsInvalidIPv6NextHop`), producer `srpolicy/encode.go::EncodeRoute`, re-recorded by `./le rfc discriminate-record` (green clean, red halted); `./le rfc check` no longer reports them | `cb7a3ca68f` |
 
 Owed to round 3 and the main thread: `./le verify worktree` over these commits (verification debt `plan/verification-debt/9ce43bcc.md`). `./le rfc check` still reports producer-changed records for RFC9830-2.1-3 at `reactor_api_batch.go::planBatchAttrs`, BFD strict, RFC 2918, RFC 7705 and RFC 7950; none is produced by these commits.
+
+### Round 3 (2026-10-21, independent reviewer, narrow over `4e01d13a6e`, `7d6406fb5d`, `49f53c4a9f`, `cb7a3ca68f`, `ce9193df5d`, `11e72ea79e`, and the test fix `69088b9fd5`)
+
+Dispositions verified at the producer:
+
+| # | Verdict | Evidence |
+|---|---------|----------|
+| I-3 | Fixed | `update/update_text_nlri.go::parseRegistryNLRISection` no longer consults a refusal; an `add` run reaches `parseRegistryRouteSection`, which frames `route.NLRI` through `wireNLRI(fam, route.NLRI, accum.PathID, accum.HasPathID)`; a `del` run goes through `encodeViaRegistry` with the same identifier. No `NLRIAddPathRefusal`, `NLRIAddPathRefusalFor`, `errFamilyRefusesAddPath` or `refuseAddPath` is left in the tree outside `plan/` (one historical mention in the `.ci` PREVENTS comment). `srpolicy/types.go` `PathID`/`HasPathID`/`SupportsAddPath` comments match the code. `test/plugin/update-text-sr-policy-addpath.ci` hex checked by hand: MP_REACH `800E1A` (26 = 2+1+1+4+1+4+1+12) carries `00000007 60 00000000 0000012C 0A000003`; MP_UNREACH `800F14` (20); UPDATE lengths `0x79` and `0x3C` add up. Behaviour change judged: a `path-information` right after the family, before `add`/`del`, was never accepted for a registry family. At `4e01d13a6e^` mup and mvpn (no refusal registered) already answered `ErrMissingAddDel` from the `mode == ""` branch, and sr-policy answered `errFamilyRefusesAddPath`, so no previously accepted form is lost; native families never reach this parser. `update-syntax.md` states the registry-family exception beside the general `mp <family> [<modifier>]*` grammar |
+| I-4 | Fixed | `flowspec`, `mup`, `vpls` `encode_addpath_test.go` call `EncodeRoute` with `addPath` false then true and compare the returned NLRI and the MP_REACH NLRI field against `00000000` + the bare NLRI. Each `message.PluginNLRI(nlriBytes, 0, addPath)` line replaced by `_ = addPath` in a `git archive HEAD` export: all three red (`0301080a`, `0100...`, `0011...` without the prefix). A framing that ignored `addPath` and always framed would also go red (bare NLRI then carries the prefix twice in `want`) |
+| I-5 | Fixed | `TestPluginRouteGroupSplitsOnPathID` red in the export with `b.Uint(uint64(r.PathID))` removed from `reactor/peer_initial_sync.go::pluginRouteGroupKey`; UPDATE order is deterministic (`slices.Sort(groupOrder)` in `sendPluginRoutesVia`) |
+| re-record | Accepted | `cb7a3ca68f` moves only `producer-sha` for the three RFC 2545 records (same units, same break); `./le rfc check` at HEAD reports no RFC 2545 record for `srpolicy/encode.go::EncodeRoute` |
+| docs | Accepted | `ce9193df5d` test anchors resolve (`TestPluginRouteGroupSplitsOnPathID`, the `.ci`) |
+| test fix `69088b9fd5` | Correct | draft-simpson-idr-flowspec-redirect-02 Section 3 (read from the IETF archive text; not under `rfc/drafts/`): routers "redirect them (C=0) or copies them (C=1) towards the IPv4 or IPv6 address specified in the 'Network Address of Next-Hop' field of the associated MP_REACH_NLRI", and the community is ignored when "the length of the next-hop is 0". The new hex carries `800E10 0001 85 04 01020304 00` and extended community `0800 000000000001` (C bit set, `copy-to-nexthop`); lengths `0x43`, `0x2C`, `0x10` add up. `4358372547` (`message.MPReachCarriesNextHop`) is the producer |
+
+Mutation run: one `git archive HEAD` export under the session scratch, five lines mutated there (never the shared tree); `go test -tags ze_core,ze_distro` red in flowspec, mup, vpls, reactor and update (`path-id/top_level_add`, `path-id/top_level_mixed`). Unmutated HEAD: the same tests green.
+
+RFC9830-2.1-3 producer-changed record (`reactor_api_batch.go::planBatchAttrs`, recorded `a4807de00d`): no commit of this spec changed it. `git log -L` over `planBatchAttrs` since `a4807de00d` names only `e7354f3351` (body: the `legacyNextHopApplies` arm deleted, RFC 4760 Section 3) and `035b795734` (comment edit), both carrying verification debt `485edca9`, the RFC 4760 NEXT_HOP work of another session. `e7354f3351` sits inside `7052b662a4..HEAD` by date only. The re-record belongs to that work.
+
+### Notes (round 3, non-blocking)
+| # | Note |
+|---|------|
+| N-6 | `docs/architecture/wire/nlri.md` row "a `path-information` inside the run: refused by the config-route parser" holds for an `add` run; a `del` run goes to `srpolicy/encode.go::EncodeNLRIHex`, whose `parseSRPolicyNLRIArgs` default arm refuses it. It is refused either way; no unit row drives `path-information` inside a `del` run |
+| N-7 | `test/plugin/update-text-sr-policy-addpath.ci` MP_REACH comment writes the NLRI as `60 0000000000000000012C 0A000003` (14 octets); the expect hex is right |
+| N-3 | Still owed: the interop revert-reds of `bgp-sr-policy-malformed-receive-gobgp`, run separately. Owed evidence, not a finding |
+
+Round 3 verdict: 0 BLOCKER, 0 ISSUE, 3 NOTE. The code review is clean. The artifact is re-recorded `clean`, rounds 3, 49 code files of this spec's commits, `./le spec review check` OK; `internal/component/bgp/plugins/nlri/mup/encode.go` is left out of the pin because it holds another session's uncommitted hunk (it does not touch the framing line). Still owed before closure: the interop revert-reds (N-3) and `./le verify worktree` (verification debt `9ce43bcc`).
