@@ -360,7 +360,7 @@ gets.
 
 | ExaBGP line | Answer |
 |---|---|
-| `neighbor <ip> teardown [<code>] [<subcode>] [<text>]` | `request peer <ip> teardown <subcode> [<text>]` |
+| `neighbor <ip> teardown [<code>] [<subcode>] [<text>]` | `request peer <ip> notify <code> <subcode> [hex <octets>]` |
 | `neighbor <ip> disable [<message>]` | `request peer <ip> disable [<message>]` |
 | `neighbor <ip> enable` | `request peer <ip> enable` |
 | `create neighbor <ip> ...` | `create bgp peer <ip> asn <asn> ...` |
@@ -372,13 +372,29 @@ The teardown grammar is the pinned ExaBGP's `teardown_notification`
 (quotes group words). Up to two leading all-digit words are numbers, each from
 0 to 255: none means Cease, Administrative Shutdown (6, 2), one is a Cease
 subcode, two are a code and a subcode. The words left, joined with one space,
-are the text, which ze sends as the RFC 9003 Shutdown Communication. ze's
-teardown sends a Cease only, so two numbers whose code is not 6 are refused
-(`errTeardownNotCease`). The other refusals carry ExaBGP's own text: `expected
-a code or a subcode, got '<word>'`, `'<n>' is not a value from 0 to 255`, and
-`No closing quotation`. The differences on the wire are in
-`docs/exabgp/exabgp-differences.md`, "Neighbor teardown".
-<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertTeardown, errTeardownNotCease -->
+are the text. Every form reaches ze's `notify`, with the code and the subcode,
+and the Data field in its `hex` form. ze's own `teardown` is not used, because
+it sends a Cease only and names the subcode when no text is given.
+
+The bridge builds the Data field the pin's `Notify._wire_text` builds
+(`teardownWireData`), so for an ASCII text the peer receives the octets
+ExaBGP 6 sends. ExaBGP 6 reads a script's stdout as ASCII and drops the process
+on any other octet, while the bridge sends the NOTIFICATION
+(`docs/exabgp/exabgp-differences.md`, "Refusals and keep-first"). Under
+Cease 2 and 4 it is the RFC 9003 Shutdown Communication: a length octet, then
+the text's UTF-8 octets cut to the pin's 128 (`SHUTDOWN_COMM_MAX_LEGACY`, RFC
+9003 Section 3), back to the last whole character. Under every other pair it is
+the text encoded as Python's `encode('ascii', 'backslashreplace')` encodes it:
+an ASCII character as it is, any other as `\xNN`, `\uNNNN` or `\UNNNNNNNN`. No
+text sends an empty Data field, and every Data field is cut to the pin's 4075
+octets (`DATA_MAX_OCTETS`). The hex form sends those octets as they are, so the
+text never passes through ze's command tokenizer: a `"`, a backslash and a run
+of spaces reach the peer as the script wrote them. The refusals carry ExaBGP's
+own text: `expected a code or a subcode, got '<word>'`, `'<n>' is not a value
+from 0 to 255`, and `No closing quotation`. The `api-teardown` compatibility
+test passes against ze and against the pinned ExaBGP alike.
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertTeardown, teardownWireData -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- handlePeerNotify, notifyData -->
 
 ExaBGP 6 `disable` and `enable` (`neighbor.py`) map one to one: `disable` holds the
 peer down and sends Cease subcode 2 with the rest of the line, split the way
@@ -698,10 +714,14 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | An `interface-set:` item inside `extended-community`, on a flow route or any other route | refused, naming the `interface-set` keyword to write it with: ExaBGP has no such extended community type |
 | An interface-set whose transitivity is neither `transitive` nor `non-transitive`, or whose AS number holds a period | refused, transitivity judged first as ExaBGP does |
 | An attribute written with no value (`path-information`) | refused, naming the value to write |
+| `aggregator` with more than one word, or with a bracket left open, doubled or unmatched (`aggregator ( 65001:192.0.2.1`, `aggregator 65001:192.0.2.1)`) | refused, naming the form to write: one `<asn>:<router-id>`, bare or in brackets, as ExaBGP's `AggregatorType` reads it |
 | A prefix whose mask is no number (`10.0.0.0/x`) | refused, naming the mask |
 | `announce operational` with an unknown kind, or none | refused, naming the command and the kinds |
 | `announce operational` with a known kind | refused: Ze does not send OPERATIONAL |
-| An attribute written twice (`next-hop 1.1.1.1 next-hop 2.2.2.2`) | the first is sent, the line is done, a warning names the dropped value |
+| An attribute that is not a list written twice (`next-hop 1.1.1.1 next-hop 2.2.2.2`) | the first is sent, the line is done, a warning names the dropped value |
+| `community`, `extended-community` or `large-community` written twice | the second list is merged into the first, the line is done, no warning |
+| `label`, `rd` or `path-information` written twice | the last is sent, the line is done, no warning |
+| A route line holding a `\u` escape without four hexadecimal digits | refused, naming the escape and the two ways to write it |
 | `split /<n>` shorter than the prefix | the prefix is sent whole, the line is done, a warning says so |
 
 The route with no carrying peer is refused by Ze itself, as ExaBGP refuses it:
@@ -717,11 +737,41 @@ a dispatch at the answer's terminator, whose message is the failure.
 Keep-first is the bridge's own work. Ze's update-text parser keeps the LAST of
 a repeated attribute, so the bridge forwards only the first, keyed on the ze
 keyword. The warnings go to the bridge's log as `exabgp-bridge route line`.
-`api-refusals-v4` and `api-keep-first-v4` are the cases.
+Keep-first covers only the attributes that are not lists. ExaBGP 6.0 merges a
+list given twice (`LIST_ATTRIBUTES` and `add_attribute`,
+`configuration/grammar/tree/static.py`), so the bridge merges the communities,
+the extended communities and the large communities into the first value. A
+repeated large community stays in the merged list, which ExaBGP drops as it
+merges: Ze drops it on the way out, as RFC 8092 Section 3 requires
+("Duplicate BGP Large Community values MUST NOT be transmitted"). A label, an
+RD and a path identifier are fields of the NLRI, which ExaBGP sets as it reads
+them, so the last one written is the route's. ExaBGP 4.2 merged no list and
+5.0 merged only the extended communities. The bridge follows 6.0, so a 4.2 or
+5.0 script meets what it would meet on upgrading ExaBGP.
+
+A route line's backslash escapes are resolved before it is split into words,
+as every ExaBGP release reads a route command (`unescape` in
+`configuration/grammar/lexer.py`; `tokens` in 4.2 and 5.0). `\b`, `\f`, `\n`,
+`\r` and `\t` are those characters, `\uXXXX` is the character it names, and
+any other escaped character is itself, so `med 100\n` sends MED 100. Only a
+route, flow, vpls or attributes line is read that way. A neighbor control, a
+refresh or an operational line reaches its converter with its backslashes as
+written, as ExaBGP reads those with `shlex.split` on the raw text.
+
+An SRv6 service group that names a SID and no endpoint behavior
+(`bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: )`) is sent with the
+behavior 0xFFFF, ExaBGP's default for that group. Ze's update text reads an
+omitted behavior as 0, so the bridge writes it out. RFC 9252 Section 3.1: "The
+opaque SRv6 Endpoint Behavior (i.e., value 0xFFFF) MAY be used when the
+advertising router wishes to abstract the actual behavior of its locally
+instantiated SRv6 SID."
+
+`api-refusals-v4` and `api-repeated-attributes-v4` are the cases.
 
 <!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- terminatorResult -->
 <!-- source: internal/component/bgp/reactor/reactor_api_carry.go -- SelectedPeersCarry -->
-<!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine, attrValueName -->
+<!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine, attrValueName, mergedListValue, srv6WithBehavior -->
+<!-- source: internal/exabgp/bridge/bridge_escape.go -- resolveLineEscapes, errBadEscape -->
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- splitPrefix, refuseMaskNotNumber -->
 <!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational -->
 <!-- source: internal/exabgp/bridge/bridge_command.go -- Translator.servedSelector, errSelectorMatchesNoPeer -->

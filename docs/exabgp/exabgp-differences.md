@@ -72,7 +72,7 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/__init__.py
 
 The bridge answers ExaBGP 6.0's refusals and keep-first rules as ExaBGP does
 (`docs/architecture/exabgp-bridge.md`, "What the bridge refuses, and what it
-keeps"). Three differences remain.
+keeps"). Four differences remain.
 
 - **OPERATIONAL is not sent.** ExaBGP sends `announce operational <kind> ...`
   for a known kind (draft-ietf-idr-operational-message). Ze does not originate
@@ -94,9 +94,24 @@ keeps"). Three differences remain.
   the values reaches Ze as `update text`, which Ze refuses
   (`docs/architecture/wire/nlri-flowspec.md`, "Combinations that match no
   packet").
-- **The warning goes to Ze's log.** A repeated attribute keeps its first value
-  and a `split` shorter than the prefix sends the prefix whole. ExaBGP logs
-  each; Ze logs `exabgp-bridge route line` with the dropped value.
+- **A teardown text that is not ASCII.** ExaBGP 6.0 decodes a script's
+  stdout as ASCII (`buf = str(os.read(stdout.fileno(), 16384), 'ascii')`,
+  `src/exabgp/reactor/api/processes.py` line 810). A line holding any other
+  octet raises `UnicodeDecodeError`, a `ValueError`, which line 854 hands to
+  `_handle_problem`, so ExaBGP drops the process and no NOTIFICATION is sent.
+  The bridge reads the line as UTF-8 and sends a NOTIFICATION: under Cease 2
+  and 4 the text's UTF-8 octets, under every other pair the escaped octets
+  `encode('ascii', 'backslashreplace')` writes (`\xNN`, `\uNNNN`). The octets
+  are those ExaBGP would build if its reader let the text through; ExaBGP
+  itself never sends them.
+- **The warning goes to Ze's log.** A repeated attribute that is not a list
+  keeps its first value, and a `split` shorter than the prefix sends the prefix
+  whole. ExaBGP logs each; Ze logs `exabgp-bridge route line` with the dropped
+  value. A repeated `community`, `extended-community` or `large-community` is
+  merged into the first and logs nothing, and a repeated `label`, `rd` or
+  `path-information` replaces the first, as on ExaBGP 6.0. ExaBGP 4.2 merged no
+  list and 5.0 merged only the extended communities; the bridge follows 6.0, so
+  a 4.2 or 5.0 script meets on Ze what it would meet on upgrading ExaBGP.
 
 A value-less attribute (`path-information` alone) and a mask that is no number
 (`10.0.0.0/x`) are refused by both. ExaBGP 5.0 ignored the first and took the
@@ -120,21 +135,6 @@ compatibility test passes against Ze and against the pinned ExaBGP alike. The
 config side matches too: `shutdown true` migrates to the peer `shutdown {}`
 container (`exabgp-migration.md`).
 <!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertDisable, convertEnable -->
-
-## Neighbor teardown -- Cease only, and the Data field
-
-`neighbor <ip> teardown [<code>] [<subcode>] [<text>]` is read as ExaBGP 6
-reads it and reaches `request peer <ip> teardown <subcode> [<text>]`
-(`exabgp-bridge.md`). Three things differ from what ExaBGP puts on the wire:
-
-| Line | ExaBGP 6 | Ze |
-|------|----------|----|
-| `teardown <code> <subcode>` with a code other than 6 | sends that NOTIFICATION | refused: Ze's teardown sends a Cease only |
-| `teardown <subcode> <text>` with a subcode other than 2 or 4 | the text, as ASCII, is the Data field | no Data field (RFC 9003 defines one only for subcodes 2 and 4) |
-| `teardown`, or `teardown 2` or `4` with no text | an empty Data field | the subcode's name as the Shutdown Communication |
-<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertTeardown, errTeardownNotCease -->
-<!-- source: internal/component/bgp/message/notification.go -- BuildCeaseData -->
-<!-- source: internal/component/bgp/reactor/session_connection.go -- teardown -->
 
 ## Neighbor Qualifier Syntax (Multi-Session)
 

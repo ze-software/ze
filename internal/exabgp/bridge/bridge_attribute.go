@@ -68,6 +68,10 @@ type bridgeRouteAttr struct {
 	WireSilent bool
 }
 
+// bridgeAttrPrefixSIDSRv6 is ExaBGP's SRv6 service SID attribute, which ze's
+// update text reads under the same name.
+const bridgeAttrPrefixSIDSRv6 = "bgp-prefix-sid-srv6"
+
 var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	bridgeAttrNextHop:         {Ze: "nhop", Arity: arityValue},
 	bridgeAttrOrigin:          {Ze: bridgeAttrOrigin, Arity: arityValue},
@@ -94,7 +98,7 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	// (routeAttributes.Split) rather than writing a keyword.
 	"split": {Arity: arityValue},
 
-	"bgp-prefix-sid-srv6": {Ze: "bgp-prefix-sid-srv6", Arity: arityGroup},
+	bridgeAttrPrefixSIDSRv6: {Ze: bridgeAttrPrefixSIDSRv6, Arity: arityGroup},
 
 	// ze has no update-text spelling for this one, so a line carrying it is
 	// REFUSED rather than announced without it. `attribute` is ExaBGP's generic
@@ -138,6 +142,10 @@ type routeAttributes struct {
 	// written records each ze keyword the line carried, so a caller can ask
 	// what was present without re-reading the token stream it produced.
 	written map[string]bool
+	// valueAt is where in Tokens the value of each community list and each
+	// field of the NLRI sits, so a repeat of a list is merged into it
+	// (mergedListValue) and a repeat of a field replaces it.
+	valueAt map[string]int
 }
 
 // Command renders the attributes as the ze text that precedes the nlri section.
@@ -171,7 +179,7 @@ func (a routeAttributes) Has(zeKeyword string) bool { return a.written[zeKeyword
 // without an attribute the operator wrote is a different route, and the script
 // that wrote it is acknowledged either way.
 func parseRouteAttributes(parts []string) (routeAttributes, error) {
-	out := routeAttributes{written: make(map[string]bool, len(parts)/2)}
+	out := routeAttributes{written: make(map[string]bool, len(parts)/2), valueAt: map[string]int{}}
 	for i := 0; i < len(parts); {
 		key := strings.ToLower(parts[i])
 
@@ -226,6 +234,9 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			}
 			value = qualifyExtCommunities(value)
 		}
+		if attr.Ze == bridgeAttrPrefixSIDSRv6 {
+			value = srv6WithBehavior(value)
+		}
 		// ExaBGP writes an ADD-PATH path identifier as an IPv4 address as well
 		// as a number, and its own qa/api corpus uses the dotted form. ze reads
 		// a uint32, so the dotted form is converted rather than passed on to
@@ -238,8 +249,24 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			value = converted
 		}
 
-		// A repeated attribute keeps its first value: the RIB holds one
-		// attribute of each kind, and ExaBGP's API keeps the one it read
+		// A community list given again is merged into the first: ExaBGP
+		// merges "a list one given twice" for an API command as for a file
+		// (add_attribute, configuration/grammar/tree/static.py at 685f772e).
+		if at, listed := out.valueAt[attr.Ze]; listed && bridgeListAttrs[attr.Ze] {
+			out.Tokens[at] = mergedListValue(out.Tokens[at], value)
+			continue
+		}
+		// A label, a route distinguisher or a path identifier given again
+		// replaces the first: each is a field of the NLRI, which ExaBGP sets
+		// as it reads it (Collected.apply, `self.settings.set(spec.field,
+		// value)` for Target.NLRI, configuration/grammar/tree/static.py at
+		// 685f772e), so the last one read is the route's.
+		if at, field := out.valueAt[attr.Ze]; field && bridgeNLRIFields[attr.Ze] {
+			out.Tokens[at] = value
+			continue
+		}
+		// Any other repeated attribute keeps its first value: the RIB holds
+		// one attribute of each kind, and ExaBGP's API keeps the one it read
 		// first and logs the one it dropped (X-26, X-27). Forwarding both
 		// would let ze's parser pick, and it does not pick the first.
 		if out.written[attr.Ze] {
@@ -250,10 +277,84 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 		out.written[attr.Ze] = true
 		out.Tokens = append(out.Tokens, attr.Ze)
 		if attr.Arity != arityFlag {
+			if bridgeListAttrs[attr.Ze] || bridgeNLRIFields[attr.Ze] {
+				out.valueAt[attr.Ze] = len(out.Tokens)
+			}
 			out.Tokens = append(out.Tokens, value)
 		}
 	}
 	return out, nil
+}
+
+// bridgeListAttrs are the attributes ExaBGP merges when a line gives one
+// twice, its LIST_ATTRIBUTES (configuration/grammar/tree/static.py at
+// 685f772e). 5.0 merged the extended communities alone (Attributes.add), and
+// 4.2 none; the pin's merge is what a 4.2 or 5.0 script meets on upgrade.
+var bridgeListAttrs = map[string]bool{
+	bridgeAttrCommunity:      true,
+	bridgeAttrLargeCommunity: true,
+	bridgeAttrExtCommunity:   true,
+}
+
+// bridgeNLRIFields are the ze keywords of the values ExaBGP writes into the
+// NLRI rather than into an attribute: RouteValue with Target.NLRI
+// (configuration/grammar/tree/static.py at 685f772e).
+var bridgeNLRIFields = map[string]bool{
+	bridgeAttrLabel:           true,
+	"rd":                      true,
+	bridgeAttrPathInformation: true,
+}
+
+// mergedListValue is one community list holding the items of first, then
+// those of added, each a bare item or a bracketed list, a repeated item
+// included. The pin's add_attribute concatenates the communities and the
+// extended communities, and keeps a repeated one; it merges the large
+// communities as sorted(set(...)), so a repeat is dropped there. The bridge
+// leaves that repeat in the list because ze drops it on the way out:
+// compactLargeCommunities (bgp/reactor/session_egress_normalize.go) follows
+// RFC 8092 Section 3, "Duplicate BGP Large Community values MUST NOT be
+// transmitted", and the order of the values carries no meaning.
+func mergedListValue(first, added string) string {
+	items := listItems(first)
+	items = append(items, listItems(added)...)
+	var tb textbuf.Buffer
+	return tb.Byte('[').Str(textbuf.Join(items, " ")).Byte(']').String()
+}
+
+// listItems answers the items of one list value, unwrapped from its brackets.
+func listItems(value string) []string {
+	inner := strings.TrimSpace(value)
+	inner = strings.TrimPrefix(inner, "[")
+	inner = strings.TrimSuffix(inner, "]")
+	return strings.Fields(inner)
+}
+
+// srv6WithBehavior answers an ExaBGP SRv6 service group with its endpoint
+// behavior written out: the opaque 0xFFFF when the group names a service and
+// a SID and nothing more, any other group as written.
+//
+// ExaBGP reads `( l3-service <sid> )` with `behavior = 0xFFFF` until a value
+// follows the SID (prefix_sid_srv6, configuration/static/mpls.py, 5.0.1), and
+// ze's update text reads an omitted behavior as 0, so the bridge writes the
+// pin's default out.
+//
+// RFC 9252 Section 3.1: "The opaque SRv6 Endpoint Behavior (i.e., value
+// 0xFFFF) MAY be used when the advertising router wishes to abstract the
+// actual behavior of its locally instantiated SRv6 SID.".
+func srv6WithBehavior(group string) string {
+	inner, bracketed := strings.CutPrefix(strings.TrimSpace(group), "(")
+	if !bracketed {
+		return group
+	}
+	fields := strings.Fields(strings.TrimSuffix(inner, ")"))
+	if len(fields) != 2 {
+		return group
+	}
+	if fields[0] != "l3-service" && fields[0] != "l2-service" {
+		return group
+	}
+	var tb textbuf.Buffer
+	return tb.Str("( ").Str(fields[0]).Byte(' ').Str(fields[1]).Str(" 0xFFFF )").String()
 }
 
 // warnRouteLine logs each warning a route line's attributes carry, once, when

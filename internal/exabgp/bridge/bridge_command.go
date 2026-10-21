@@ -382,6 +382,18 @@ func (t Translator) Line(line string) (Translation, error) {
 	if refused, err := convertOperational(rest); refused {
 		return Translation{}, err
 	}
+	// A route line's words are its words after its backslash escapes are
+	// resolved, so a `\n` a script wrote ends a word as a newline would.
+	// ExaBGP resolves them only on the lines its configuration lexer reads
+	// (route, flow, vpls and attribute commands: lex_command and read_command,
+	// configuration/grammar/lexer.py at 685f772e; Tokeniser.set_api in 4.2 and
+	// 5.0). Its neighbor control, refresh and operational lines read the raw
+	// text, so the converters above see the backslashes as written.
+	resolved, err := resolveLineEscapes(rest)
+	if err != nil {
+		return Translation{}, fmt.Errorf("%w: %q", err, line)
+	}
+	rest = strings.Join(strings.Fields(resolved), " ")
 	if commands, translated, err := t.convertRoute(selector, rest); translated {
 		if err != nil {
 			return Translation{}, fmt.Errorf("%w: %q", err, line)
