@@ -110,3 +110,35 @@ func TestRFC9072OptionalParamsBoundary(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildOpenRefusesCapabilitiesBeyondTheExtendedLength proves AC-1x at the
+// reactor: a capability set no OPEN encoding can describe makes buildOpen fail
+// with the packer's size error, so no OPEN goes out with capabilities missing.
+//
+// VALIDATES: capTotal 65532 (Extended Opt. Parm. Length 3 + 65532 = 65535, the
+// largest the two-octet field holds) builds an OPEN whose one type-2 parameter
+// carries every capability; capTotal 65533 returns no OPEN and an error that
+// wraps capability.ErrOptionalParamsTooLarge and names the size, 65536 octets,
+// and the limit, 65535.
+// PREVENTS: buildOpen dropping the packer's error and sending an OPEN whose
+// Optional Parameters are empty or truncated, so the peer negotiates without
+// capabilities ze configured.
+//
+// Method: the same sized capabilities TestRFC9072OptionalParamsBoundary uses,
+// through Session.buildOpen, the function every OPEN ze sends is built by.
+func TestBuildOpenRefusesCapabilitiesBeyondTheExtendedLength(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	settings.DisableASN4 = true
+	s := NewSession(settings)
+
+	largest := capabilitiesTotaling(65532)
+	open, err := s.buildOpen(settings, largest)
+	require.NoError(t, err, "capTotal 65532 fits the Extended Opt. Parm. Length")
+	require.True(t, open.ExtendedParams, "capTotal 65532 uses the RFC 9072 form")
+	require.Len(t, open.OptionalParams, 3+65532, "one type-2 parameter carrying every capability")
+
+	open, err = s.buildOpen(settings, capabilitiesTotaling(65533))
+	require.ErrorIs(t, err, capability.ErrOptionalParamsTooLarge)
+	require.ErrorContains(t, err, "65536 octets, limit 65535")
+	require.Nil(t, open, "no OPEN is built when the capabilities cannot be encoded")
+}

@@ -99,16 +99,38 @@ func requireFRRRefusesDraftForm(ctx context.Context, lab interoplab.CheckerLab, 
 	return requireZeWarnsOpenRefused(ctx, lab, frrAddress)
 }
 
+// openRefusalCodes is the code and subcode FRR's NOTIFICATION to the draft form
+// carries, as Session.logNotificationReceived writes them.
+const openRefusalCodes = `code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0`
+
+// openRefusedWarnLine reports whether line is the WARN Session.logNotificationReceived
+// writes for a NOTIFICATION that refused ze's OPEN: the peer attribute peerAttr
+// ("peer=<address> "), the FSM state OPENSENT or OPENCONFIRM (ze sent its OPEN
+// and the session never reached Established), and openRefusalCodes. A line
+// naming any other state is a NOTIFICATION on a session that came up, which
+// does not prove an operator sees why an OPEN was refused.
+func openRefusedWarnLine(line, peerAttr string) bool {
+	if !strings.Contains(line, `level=WARN msg="notification received"`) {
+		return false
+	}
+	if !strings.Contains(line, peerAttr) {
+		return false
+	}
+	if !strings.Contains(line, openRefusalCodes) {
+		return false
+	}
+	return strings.Contains(line, " state=OPENSENT ") || strings.Contains(line, " state=OPENCONFIRM ")
+}
+
 // requireZeWarnsOpenRefused requires ze's log to carry the one WARN line a
 // received NOTIFICATION leaves (Session.logNotificationReceived): FRR's 2/0
-// for the draft form, named with code and subcode numbers, at ze's default log
-// level. Before that line existed the refusal reached only `show bgp peer` and
-// the counters, so an operator reading the log saw a session that never came up
-// and nothing saying why.
+// for the draft form, received in OpenSent or OpenConfirm, named with code and
+// subcode numbers, at ze's default log level. Before that line existed the
+// refusal reached only `show bgp peer` and the counters, so an operator reading
+// the log saw a session that never came up and nothing saying why.
 func requireZeWarnsOpenRefused(ctx context.Context, lab interoplab.CheckerLab, frrAddress string) error {
 	var text textbuf.Buffer
 	peerAttr := text.Str("peer=").Str(frrAddress).Str(" ").String()
-	const refusal = `code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0`
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
 		Interval:    2 * time.Second,
@@ -124,8 +146,7 @@ func requireZeWarnsOpenRefused(ctx context.Context, lab interoplab.CheckerLab, f
 		return result.Text, nil
 	}, func(output string) bool {
 		for line := range strings.SplitSeq(output, "\n") {
-			if strings.Contains(line, `level=WARN msg="notification received"`) &&
-				strings.Contains(line, peerAttr) && strings.Contains(line, refusal) {
+			if openRefusedWarnLine(line, peerAttr) {
 				return true
 			}
 		}
@@ -133,7 +154,8 @@ func requireZeWarnsOpenRefused(ctx context.Context, lab interoplab.CheckerLab, f
 	})
 	if err != nil {
 		return fmt.Errorf("draft form: ze recorded FRR's 2/0 but its log carries no WARN "+
-			"`notification received` line for peer %s naming %s: %w", frrAddress, refusal, err)
+			"`notification received` line for peer %s naming state OPENSENT or OPENCONFIRM and %s: %w",
+			frrAddress, openRefusalCodes, err)
 	}
 	return nil
 }
