@@ -2264,14 +2264,14 @@ the route); 9e465ecb28 (parseComponentText, isComponentKeyword and the bridge
 derive from `flowspec.KeywordComponentType`); the RFC commit that follows this
 entry (RFC8955-4.2-3 `{partial}`, tags, records).
 
-Owed, not started (needs `internal/component/bgp/reactor/`, which another agent
-was editing on 2026-10-21):
-- RFC 8955 Section 4.2 receive side: a FlowSpec route received from a peer with
-  an ICMP type or code beside a port is decoded (`flowspec.ParseFlowSpec`) and
-  nothing on the receive or forward path calls `flowspec.CheckMatchable`, so it
-  is still propagated. The row's `{partial}` gap names it. Decide where the
-  withhold sits (ingress treat-as-withdraw vs egress skip), quote the RFC, test
-  both polarities through a received UPDATE, then retire the `{partial}`.
+Receive side landed concurrently in 62a025c7b8 (rib `reconcileFlowSpecs` asks
+`flowspec.CheckMatchable`), so the `{partial}` ba12c0b7ac wrote is removed in the
+next commit. Owed:
+- Tag `TestFlowSpecUnmatchableReceivedRuleIsNotPropagated` (rib) with
+  RFC8955-4.2-3 and take its discrimination records, so the receive half is on
+  the ledger beside origination.
+- Regenerate `rfc/requirements/` and `ai/RFC-REQUIREMENTS.md`
+  (`./le rfc index-update`, tree-wide).
 - RFC8955-4.2-3 has no audit verdict: an independent `/ze-rfc-audit` judge owes
   one. Note for the judge: the positive record is a revert of `anyPresent`,
   which halts the unit in its negative loop before the positive loop runs; a
