@@ -335,8 +335,11 @@ func (r scriptRunner) Dispatch(ctx context.Context, command string) error {
 	return err
 }
 
-// Flush drains the forward pool of the peers selector names.
-func (r scriptRunner) Flush(ctx context.Context, selector string) { r.s.flush(ctx, r.d, selector) }
+// Flush drains the forward pool of the peers selector names, and answers ze's
+// refusal: a flush that did not happen is a barrier that did not hold.
+func (r scriptRunner) Flush(ctx context.Context, selector string) error {
+	return r.s.flush(ctx, r.d, selector)
+}
 
 // Status performs a `status` line.
 func (r scriptRunner) Status(ctx context.Context, asJSON bool) ([]byte, bridge.BatchAnswer) {
@@ -349,13 +352,14 @@ func (r scriptRunner) Dispatched(selector string, command bridge.Command) {
 }
 
 // flush drains the forward pool of the peers selector names, so what was
-// dispatched for them is on the wire before the caller goes on.
-func (s *script) flush(ctx context.Context, d Dispatcher, selector string) {
+// dispatched for them is on the wire before the caller goes on. It answers
+// ze's refusal unlogged: the bridge caller reports it, once, with the script
+// and the selector (bridge.LineRunner.Flush, bridge.ExitRunner.Flush).
+func (s *script) flush(ctx context.Context, d Dispatcher, selector string) error {
 	var tb textbuf.Buffer
 	flush := tb.Str("request peer ").Str(selector).Str(" flush").String()
-	if _, _, err := d.DispatchCommand(ctx, flush); err != nil {
-		s.log.Warn("exabgp-bridge flush failed", "script", s.name, "error", err, "peer", selector)
-	}
+	_, _, err := d.DispatchCommand(ctx, flush)
+	return err
 }
 
 // exited settles the routes of a child that has exited

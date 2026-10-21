@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -43,6 +44,10 @@ type recorder struct {
 	// answers is the payload a command is answered with, keyed by the exact
 	// command. A command it does not hold is answered with no payload.
 	answers map[string]json.RawMessage
+
+	// refused is the commands ze refuses, keyed by the exact command, each
+	// answered with its error. A command it does not hold succeeds.
+	refused map[string]error
 }
 
 func (r *recorder) DispatchCommand(_ context.Context, command string) (string, json.RawMessage, error) {
@@ -53,6 +58,9 @@ func (r *recorder) DispatchCommand(_ context.Context, command string) (string, j
 
 	if gate != nil && strings.HasSuffix(command, " flush") {
 		<-gate
+	}
+	if err := r.refused[command]; err != nil {
+		return "", nil, err
 	}
 	return "ok", r.answers[command], nil
 }
@@ -650,6 +658,50 @@ func TestFleetAcksARouteOnlyAfterItsFlush(t *testing.T) {
 	waitFor(t, "the script to be acked once the flush completed", func() bool {
 		return strings.TrimSpace(readFile(t, acked)) == "done"
 	})
+
+	cancel()
+	fleet.Stop()
+}
+
+// TestFleetAnswersARouteErrorWhenItsFlushIsRefused proves a refused flush
+// reaches the script. The route command itself is accepted; only the flush
+// that would put it on the wire is refused. `done` would tell the script a
+// barrier held that did not, so the route line is answered `error`.
+//
+// The flush refusal travels scriptRunner.Flush -> bridge.LineRunner.Flush ->
+// failSelectorLines. A Flush that dropped the error (logged it and answered
+// nothing) acks the line `done`, and this test goes red.
+func TestFleetAnswersARouteErrorWhenItsFlushIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	acked := filepath.Join(dir, "acked")
+	script := writeScript(t, dir, "refused.sh",
+		"echo 'announce route 1.1.1.1/32 next-hop 11.11.11.11'\n"+
+			"read ack\n"+
+			"echo \"$ack\" > "+acked+"\n"+
+			"read never\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rec := &recorder{refused: map[string]error{
+		"request peer * flush": errors.New("peer * not established"),
+	}}
+	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "refused", Argv: []string{script}, Encoder: bridge.EncoderText},
+	})
+	if err := fleet.Start(ctx, rec); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	waitFor(t, "the script to be answered", func() bool {
+		return lines(t, acked) > 0
+	})
+	if got := strings.TrimSpace(readFile(t, acked)); !strings.HasPrefix(got, "error") {
+		t.Errorf("a route whose flush ze refused was answered %q, want an error", got)
+	}
+	if !rec.held("request peer * flush") {
+		t.Errorf("the route was never flushed: %v", rec.seen())
+	}
 
 	cancel()
 	fleet.Stop()
