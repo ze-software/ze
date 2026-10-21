@@ -3219,3 +3219,15 @@ ZE_QEMU_SSH_PORT=2290), a .ci for a non-ADD-PATH destination (surviving path
 replaces the departed best; RFC 4456 Section 6 non-client to non-client
 skipped), docs rib-storage-design.md and graceful-restart.md, journal row,
 then re-review.
+
+## 2026-10-21 rr departure subagent handoff (copied from the session state file, M9)
+
+Done, uncommitted:
+1. addpath-departure-rr-gr-retained.ci green rerun (1/1).
+2. New test/plugin/addpath-departure-rr-replacement.ci and addpath-departure-rr-nonclient-skip.ci: green, both RED with the recovery meta removed (receiver got bare withdrawal 0002080A0000). Residual race in nonclient-skip: B (non-client) is unpaced, sent at session start.
+3. Interop test/interop/scenarios/bgp-addpath-departure-reflector-frr/ (ze.conf, frr.conf, inject.msg, inject-args) + typed ops in internal/le/interoplab/bgp/checkers.go + const addPathDeparturePrefix in names.go; package test green. Green run result below. Red run owed: GOFLAGS=-overlay (scratch ov/red.json, replaces rr.go with ov/rr-red.go whose meta is empty), run with `./le --name rrdep job run label X command env ZE_QEMU_SSH_PORT=2290 'ze.qemu.ssh.port=2290' ./le --name rrdep test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=bgp-addpath-departure-reflector-frr GOFLAGS=-overlay=<abs path>/ov/red.json'` (--name required: shared bin/le is stale and lacked the checker).
+4. Docs edited: rib-storage-design.md, graceful-restart.md, route-reflection.md, interop.md; journal identity-default-hides-a-mapping.md row updated.
+5. Gates: 10/10 bgp-rr plugin .ci green; plugin boundary check OK; compound-guard no finding in these files; rr+gr race green. doc check verify exit 1, cause unread (scratch doccheck.log).
+Next: interop red, doc-check cause, commit message paragraph (retention + GR ordering), ./le commit create, STOP for re-review.
+
+Interop green run (summary of the scratch log): `bgp-addpath-departure-reflector-frr: pass (7s)`, 1 passed, 0 failed, docker-lab left behind none, lab-exit 0, check-exit 0, accelerator hvf.
