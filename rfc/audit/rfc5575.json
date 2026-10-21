@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-20",
+  "audited": "2026-10-21",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -77,15 +77,15 @@
       "verdict": "enforced"
     },
     "RFC5575-4-8": {
-      "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 5575 Section 4: \"Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.\" The only changed unit is TestFlowSpecOriginationOmitsConfiguredNextHop (37f9650797): the four literal packets (ipv4-flow, ipv4-flow-vpn, ipv6-flow, ipv6-flow-vpn) move MP_REACH_NLRI ahead of ORIGIN/AS_PATH/LOCAL_PREF; every attribute TLV is byte-identical, including the MP_REACH next-hop length octet 00, and message lengths are unchanged. The test still compares complete wire packets for absent, IPv4 and IPv6 configured hops on every originating rail. Other carriers unchanged. Passes at HEAD (go test, feature tags). Verdict stands.",
+      "note": "Re-judged 2026-10-21 (independent auditor, authored none of 4f0134cacd). RFC 5575 Section 4: \"Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.\" 4f0134cacd changed one line of TestFlowSpecForwardingOmitsNextHop: the drive is now forwardViaRIB, which forwards the received UPDATE live (that rail keeps no FlowSpec rule since 4f0134cacd) and then relays each rule through the real reactorAPIAdapter.RelayStoredRoute with the received attribute block and generation, the way rs replays the RIB's ValidationChange. That is the one rail a received FlowSpec rule now leaves by, so the test follows the product rather than a retired path. Assertions unchanged and exact: exactly one recipient UPDATE per case, and assertFlowForwardWire compares the whole MP_REACH value to AFI/SAFI/len 0/reserved/NLRI with the traffic-rate action intact, across unchanged, self, explicit4 and explicit6 next-hop modes and empty, peer-address and IPv6 received hops; a relay that kept or rewrote the hop, or dropped the rule, fails. The helper builds the StoredRoute itself rather than through rs, so rs's own construction is covered by TestFlowSpecRouteServerOmitsNextHop, unchanged. The two revert records on this unit (applyNextHopFamily, payloadNextHop) were re-taken over the relay drive. Other carriers (wire contract, origination, rib receive-ignore) unchanged. Verdict stands.",
       "requirement_sha": "274b77e34ff118dd",
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "0c3cf4704d7e9ed6",
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "0c3cf4704d7e9ed6",
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "3eafc93869261790",
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "3eafc93869261790",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "76c424a89abc6791",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "76c424a89abc6791",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "b883019b7d43172f",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "b883019b7d43172f",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "35393b715d2814ad",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "35393b715d2814ad",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "3cddaf419ff97267",
@@ -96,8 +96,8 @@
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384",
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "1826e0984f47222a",
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "1826e0984f47222a",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "adfeec4586666b55",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "adfeec4586666b55",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "0b4f5756d9a4e420",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "0b4f5756d9a4e420",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "e1f3d8b9277ec8db",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "e1f3d8b9277ec8db",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "af3f647998b5033c",

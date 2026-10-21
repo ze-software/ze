@@ -285,7 +285,7 @@
       "claim-sha": "017dd8a93cc08dfb",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
-      "producer-sha": "169033962b02409b",
+      "producer-sha": "0c4011c61e729836",
       "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stdout:contains=ICMP has no ports"
     },
