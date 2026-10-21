@@ -1834,3 +1834,22 @@ Case results (working tree carries other sessions' uncommitted edits):
 - ze old-5.0 `api-rib` PASS, `api-rr-rib` PASS. Pin (685f772e4) `api-rib` PASS, `api-rr-rib` PASS.
 - Found: a multi-peer `request peer <a>,<b> flush` is refused, the bridge only logs it; journal row in
   `plan/journal/silent-fall-through.md`.
+
+Committed: `209a278438` (address-list selector on any port, item 1), `63b2159e48` (config refuses a
+DSCP above 63: `parseFlowDSCP` bounds through `componentMaxValue`; `TestConfigDSCPAboveSixBitsIsRefused`
+red then green; 6.0 conf-flow fixture moved to traffic-class 46, the pin's own value, 0B8165 -> 0B812E,
+also `native/conf-flow.conf`). Agent stopped at its call budget. Left, in order:
+1. **Red now, owed:** `test/encode/flow-encode.ci` route 6 carries `traffic-class =101` (main thread holds
+   the file: change it to 46 and its bytes), old-5.0 and old-4.2 conf-flow (recorded 0x65: observed allowance).
+2. conf-flow redirect, the rest of item B: 6.0 conf-flow on ze is red on the first UPDATE (MP_REACH next hop
+   1.2.3.4 + 0x0800, the fixture wants no next hop + 010C01020304 0000). The pin's own fixture is
+   `~/.cache/uv/git-v0/checkouts/f954c44d1361f3bc/685f772e4/{etc/exabgp,qa/encoding}/conf-flow.*`: `copy 1.2.3.4`
+   is `C01008 010C 01020304 0001`, IETF copy. Ze vocabulary today: `redirect-to-nexthop <ip>` IETF (no copy),
+   `redirect-to-nexthop-draft` simpson 0x0800 value 0, bare `copy-to-nexthop` simpson value 1
+   (`flowSpecActionKeywords`, attribute/flowspec_action.go; `parseExtCommunity` two-word switch,
+   config/routeattr_community.go; also extcomm_decoded.go renderer, flowspec-firewall translate.go reads
+   `copy-to-nexthop `). The IETF copy form is absent: needs a keyword decision (e.g. `copy-to-nexthop <ip>`
+   with the bare simpson word renamed `copy-to-nexthop-draft`), encoders with copy flag 1 (v4 and v6 attr 25),
+   draft-ietf-idr-flowspec-redirect-ip fetched to rfc/drafts/ and quoted. Then migrate_routes.go arms and the
+   bridge flow translation, old-5.0/old-4.2 allowances. Forwarding-strips-next-hop journal row not started.
+3. MUP T1ST zero source length (journal row 2026-10-21): not started.
