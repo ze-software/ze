@@ -39,6 +39,8 @@ func (r *Run) executePlan(ctx context.Context, report *RunReport) (RunReport, er
 		errorFile.Close()          //nolint:errcheck // the diagnostics have already been read
 		r.ops.FS.Remove(errorName) //nolint:errcheck // this per-run resource must not persist
 	}()
+	// A VM whose le was killed outright still holds its cores and its port.
+	r.reapOrphanVMs(os.Stderr)
 	fmt.Fprintf(os.Stderr, "Booting Alpine VM (ssh forwarded on host port %d)...\n", report.Plan.SSHPort) //nolint:errcheck // progress output
 
 	// #nosec G204 -- Run.Plan fixes the executable and option sequence; settings and resolved fixture paths each occupy one argv entry and never enter a shell.
@@ -46,6 +48,12 @@ func (r *Run) executePlan(ctx context.Context, report *RunReport) (RunReport, er
 	// The existing stopVM owner preserves the interrupt-then-kill shutdown
 	// contract for QEMU; CommandContext's default would kill it immediately.
 	command.Cancel = func() error { return nil }
+	// QEMU leads its own process group, so a Ctrl-C at the terminal does not
+	// end the VM under the guest command; stopGuestCommand forwards it to the
+	// guest first, and stopVM ends the VM after. Out of the terminal's group,
+	// it would outlive a le killed outright, so it dies with le on Linux
+	// (childProcAttr) and is recorded for the next run's reap everywhere.
+	command.SysProcAttr = childProcAttr()
 	command.Env = r.ops.Environ()
 	stdin, err := command.StdinPipe()
 	if err != nil {
@@ -59,6 +67,13 @@ func (r *Run) executePlan(ctx context.Context, report *RunReport) (RunReport, er
 	if err := r.ops.Start(command); err != nil {
 		return *report, fmt.Errorf("start %s: %w", report.Plan.QEMUBinary, err)
 	}
+	removeRecord, err := r.recordVM(command.Process.Pid)
+	if err != nil {
+		stopVM(command)
+		return *report, fmt.Errorf("record the VM so a later run can stop it if this le dies: %w", err)
+	}
+	// Deferred before the stop below, so it runs after the VM has stopped.
+	defer removeRecord()
 	vmWaitOwned := false
 	defer func() {
 		if !vmWaitOwned {
@@ -232,9 +247,11 @@ func (r *Run) waitForSSH(ctx context.Context, port int, timeout time.Duration) e
 	deadline := r.ops.Now().Add(timeout)
 	for r.ops.Now().Before(deadline) {
 		args := append(r.sshOptions(port), "-o", "ConnectTimeout=2", "root@localhost", "true")
+		// The probe leads its own group, as every ssh client of a run does
+		// (commandSpec.OwnGroup), so a Ctrl-C reaches le alone.
 		result, err := r.runCommand(ctx, commandSpec{
-			Name: "ssh", Args: args, Env: r.ops.Environ(),
-			Stdin: strings.NewReader(""),
+			Name: sshProgram, Args: args, Env: r.ops.Environ(),
+			Stdin: strings.NewReader(""), OwnGroup: true,
 		})
 		if err != nil {
 			return err
@@ -249,16 +266,24 @@ func (r *Run) waitForSSH(ctx context.Context, port int, timeout time.Duration) e
 	return fmt.Errorf("SSH was not reachable after %s", timeout)
 }
 
+// sshRun runs remote in the guest under timeout and the caller's ctx.
 func (r *Run) sshRun(ctx context.Context, plan *RunPlan, remote string, timeout time.Duration, stream bool) (int, error) {
 	deadline, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	return r.sshSession(deadline, plan, remote, stream)
+}
+
+// sshSession runs remote in the guest until it ends or ctx does. The ssh
+// client leads its own process group (commandSpec.OwnGroup), so a Ctrl-C at
+// the terminal reaches le alone and ctx decides when the session ends.
+func (r *Run) sshSession(ctx context.Context, plan *RunPlan, remote string, stream bool) (int, error) {
 	args := append(r.sshOptions(plan.SSHPort), "-o", "ServerAliveInterval=30", "root@localhost", remote)
-	spec := commandSpec{Name: "ssh", Args: args, Env: r.ops.Environ()}
+	spec := commandSpec{Name: sshProgram, Args: args, Env: r.ops.Environ(), OwnGroup: true}
 	if stream {
 		spec.Stdout = os.Stdout
 		spec.Stderr = os.Stderr
 	}
-	result, err := r.runCommand(deadline, spec)
+	result, err := r.runCommand(ctx, spec)
 	if err != nil {
 		return 0, err
 	}
@@ -288,25 +313,6 @@ func (r *Run) assertRuntimeKernel(ctx context.Context, plan *RunPlan) (string, e
 	}
 	b.Reset()
 	return b.Str("guest is not running ze's ").Str(want).Str(" runtime kernel").String(), nil
-}
-
-func (r *Run) runGuestCommand(ctx context.Context, report *RunReport) (RunReport, error) {
-	var b textbuf.Buffer
-	body := b.Str(report.Plan.SetupCommand).Str(" && ").Str(r.Options.Command).String()
-	fmt.Fprintf(os.Stderr, "  running: %s\n", r.Options.Command) //nolint:errcheck // progress output
-	b.Reset()
-	remote := b.Str("sh -c ").Str(shellQuote(body)).String()
-	code, err := r.sshRun(ctx, &report.Plan, remote, r.Options.Timeout, true)
-	if err != nil {
-		return *report, err
-	}
-	report.GuestExitCode = code
-	if code == 0 {
-		report.Verdict = RunVerdictPass
-		return *report, nil
-	}
-	report.Verdict = RunVerdictFail
-	return *report, nil
 }
 
 // keepAliveProfile is the login profile a keep-alive guest writes to

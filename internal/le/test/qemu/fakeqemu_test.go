@@ -3,6 +3,7 @@
 package testqemu
 
 import (
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -22,7 +23,11 @@ func init() {
 	}
 }
 
-// fakeQEMUProcess stands in for a QEMU that never reaches a login prompt, so
+// fakeQEMUConsole, when set, makes the fake QEMU boot to a login prompt.
+const fakeQEMUConsole = "FAKE_QEMU_CONSOLE"
+
+// fakeQEMUProcess stands in for a QEMU that never reaches a login prompt (unless
+// fakeQEMUConsole is set), so
 // the caller's boot timeout fires and stopVM signals it. It installs its
 // signal handler as its first action -- microseconds after exec, with no
 // shell to fork or script to parse -- so it is always ready for the SIGINT
@@ -32,6 +37,13 @@ func init() {
 func fakeQEMUProcess() int {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	if os.Getenv(fakeQEMUConsole) != "" {
+		// A serial console that reaches its login prompt and echoes every line
+		// written to it, as a real one does, so the echo of the bootstrap
+		// command carries the SSHD_READY the run waits for.
+		os.Stdout.WriteString("login:\n") //nolint:errcheck // the run reads it or times out
+		go io.Copy(os.Stdout, os.Stdin)   //nolint:errcheck // ends when the run closes the console
+	}
 	<-stop
 	if marker := os.Getenv("MARKER"); marker != "" {
 		os.WriteFile(marker, []byte("stopped"), 0o600) //nolint:errcheck // best-effort marker, matching the shell fixture it replaces

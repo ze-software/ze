@@ -434,21 +434,31 @@ beside the guest le (`tmp/qemu/linux-<arch>/ze`, daemon feature tags), and only
 then runs `le <lab>`. The guest le cannot be that `ze`: a `ze_le` build started
 under the name `ze` answers "unknown command: doctor".
 
-The action takes its signal root before its first child, so a SIGINT or SIGTERM
-to le ends whichever phase it lands in. The host driver's compile behind the
+The action takes its signal root before its first child, so a SIGINT, SIGTERM
+or SIGHUP to le ends whichever phase it lands in. The host driver's compile behind the
 cache query heads a process group the cancel kills. The guest le and the linux
 `ze` are built through job admission (`Admission.RunContext`), so the cancel
 ends the wait for a slot, refuses a build not yet started, and sends a running
 one SIGTERM. A build the cancel stopped says that an interrupt or SIGTERM
 stopped it, and names no exit code: the 2 a queue answers or the 127 of a
-start the root refused reads as a failed compile. Once the guest runs, the
-cancel stops QEMU and the ssh session as for every guest verb, and a canceled
-root starts no phase after the one it ended.
+start the root refused reads as a failed compile. Once the lab runs in the
+guest, the interrupt is forwarded to the guest le, as for every guest command
+("Stopping a guest command" below), so the lab's own removals run before the VM
+stops. A canceled root starts no phase after the one it ended.
+
+Right before the lab, the guest line arms an EXIT trap (`dockerLabLeftoverTrap`).
+Once the lab ends, normally, failed or interrupted, it prints what the guest
+dockerd still holds of the lab, before the VM stops: containers and networks
+carrying the `ze.lab` label, and the run-owned `ze-interop-retained:` image
+tags. The DUT image kept under its cache tag is allowed to stay and is not
+listed. The line reads `interop guest: left behind: none`, or the list, or
+`unknown` when dockerd does not answer the listing.
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, BuildLinuxZe -->
 <!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
 <!-- test: internal/le/job/runcontext_test.go TestRunContextEndsTheWaitForASlot, TestRunContextStartsNoChildUnderADoneRoot, TestRunContextStopsARunningChildWithSIGTERM, TestRunContextEndsTheFollowOfASharedRun, TestRunContextNotesAStopRatherThanItsError -->
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot, TestDockerLabBuildsSayTheyWereStopped -->
+<!-- test: internal/le/test/qemu/dockerlab_leftover_test.go TestDockerLabReportsWhatTheGuestStillHolds, TestDockerLabArmsTheLeftoverReportBeforeTheLab -->
 
 The host's environment does not reach the guest, so a suite's one-scenario
 selector travels as `env`, a list of `NAME=value` assignments the lab alone runs
@@ -462,6 +472,91 @@ tag `integration`, host only) runs to prove the guest boots, Docker starts and
 the kernel passes.
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, BuildLinuxZe, dockerLabEnvironment, dockerLabCommand -->
 <!-- source: internal/le/test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir -->
+
+## Stopping a guest command
+
+A Ctrl-C on a run that has reached its guest command (`run`, `docker-lab`,
+`ipsec-mobike-test`, the stress harness) stops that command the way a terminal stops a command
+on a host: its process group in the guest receives SIGINT, and the command runs
+its own teardown. A lab run through `le` in the guest is under `le`'s signal
+root there, so it removes its containers, networks and image tags and exits 1,
+exactly as on a Linux host.
+
+Three things make that possible:
+
+1. QEMU and every ssh client a run starts, the SSH readiness probe included,
+   lead a process group of their own (`Setpgid`). The terminal's Ctrl-C signals
+   its foreground group, so it reaches `le` alone, and `le` decides the order:
+   the guest first, the VM last. Without this, QEMU took the same SIGINT and
+   exited at once, under the guest command.
+2. The guest command's shell first traps SIGINT with `trap 'exit $?' INT`, then
+   writes its process group, field 5 of `/proc/$$/stat`, to
+   `/tmp/ze-guest-command.pgid`. A shell that catches the signal waits for its
+   command, then runs the trap, which exits with that command's status: the
+   host reads the guest le's exit 1, not the signal, and no later step of the
+   line runs after the interrupted one. An EXIT trap the command set still runs.
+   Busybox ash 1.36 was checked by hand for all three on 2026-10-21. The setup
+   and the command are joined as `setup && { command }`, so an interrupted
+   setup runs no step of the command.
+3. On the first SIGINT, SIGTERM or SIGHUP, or when the command's `timeout`
+   passes, `le` opens a second ssh session that runs `kill -INT -$(cat
+   <pgid file>)` (busybox's `kill` refuses `--`). A command that ended in the
+   same instant gets no interrupt: its exit status is the answer. The command's
+   own ssh session is left open: a guest `le` whose session ends dies of
+   SIGPIPE on its next write and never tears down.
+
+`le` then waits for the guest command to end, streaming its output, for at most
+two minutes, and stops the VM after. It always answers an error naming what
+happened, and an interrupted run always exits non-zero. The report's verdict is
+FAIL with the guest's exit code only when the guest command ended; otherwise it
+stays INVALID, because no exit code was heard:
+
+| Outcome | What `le` says |
+|---------|----------------|
+| The guest command ended | it finished its own teardown and exited `<code>`, and the VM was then stopped |
+| The command's ssh answered 255 | the guest command's ssh failed (exit 255) after the forwarded SIGINT, so le never heard whether its teardown finished |
+| Two minutes passed | it did not finish its teardown, so the VM was stopped under it |
+| A second Ctrl-C or SIGTERM | the second interrupt stopped the wait, so the VM was stopped under it |
+| The interrupt could not be sent (no group file yet, ssh failed) | le could not forward SIGINT, so the VM was stopped and the teardown never ran |
+
+The second Ctrl-C is the operator's way out of a teardown that hangs. A second
+signal that lands in the instant between the root's cancel and the wait's
+subscription is taken by the root and changes nothing; the two-minute bound
+still ends the wait. When the root ends the run, `le test qemu run` prints
+that error before it exits with the signal's code.
+
+### A VM never outlives its le
+
+Leading its own group takes QEMU out of the terminal's Ctrl-C, so a `le`
+killed outright (SIGKILL, a crash) would leave its VM running, holding its
+cores and its SSH port. Two mechanisms close that:
+
+| Host | Mechanism |
+|------|-----------|
+| Linux | QEMU and every ssh client start with `Pdeathsig` SIGKILL (`childProcAttr`), so the kernel kills them when `le` dies |
+| Every host, and the only one on macOS | After QEMU starts, the run writes `tmp/qemu/vm-record-<qemu pid>.json`, staged under another name and renamed into place so no reap reads half of it, with the QEMU pid and start time and le's pid and start time, and removes it once the VM is stopped. Before it boots, every run reads the records and stops a QEMU only when the recorded `le` is gone (no process at its pid, or one that started at another time) AND the QEMU pid still names the process that started at the recorded time. A record whose `le` still runs is another session's live VM, and is left alone |
+
+The reap prints `stopped QEMU pid <pid>: le pid <pid>, which started it, is
+gone`. A record it cannot judge is kept and named. An unreadable record is
+kept and named while it is younger than ten minutes, and dropped after. A
+closed terminal (SIGHUP) is handled like SIGTERM by every qemu root. After the
+hangup the guest's output can no longer reach the terminal, so `le` stops
+writing it there and keeps reading it from the guest (`terminalWriter`): the
+guest ssh session survives, and the guest's teardown runs. Once the command ends, `le` says once, on stderr,
+that its output stream stopped accepting writes, when, and why, and that the
+run's captured output is intact: the same holds for an ENOSPC on a job log. A
+staged record a killed `le` left before its rename is removed by the reap once
+it is older than ten minutes. The VMs that `install-test`, the hugepages proof and crash capture start
+outside `Run` carry neither mechanism.
+<!-- source: internal/le/test/qemu/vmrecord.go -- recordVM, reapOrphanVMs, reapOne, reapUnreadable, removeStaleStaged -->
+<!-- source: internal/le/test/qemu/run.go -- terminalWriter, runHostCommand -->
+<!-- source: internal/le/test/qemu/run_procattr_linux.go -- childProcAttr -->
+<!-- test: internal/le/test/qemu/vmrecord_test.go TestReapStopsOnlyAQEMUWhoseLeIsGone, TestReapKeepsARecordItCannotJudge, TestReapKeepsAYoungUnreadableRecord, TestReapRemovesAnOldStagedRecord, TestRecordVMLeavesOnlyTheRecord, TestExecutePlanRecordsTheVMWhileItRuns -->
+<!-- source: internal/le/test/qemu/run_guestcommand.go -- guestCommandBody, guestInterruptRemote, runGuestCommand, stopGuestCommand, interruptGuest -->
+<!-- source: internal/le/test/qemu/run.go -- commandSpec.OwnGroup, notifyInterrupts, runHostCommand -->
+<!-- source: internal/le/test/qemu/run_exec.go -- executePlan, sshSession -->
+<!-- test: internal/le/test/qemu/run_guestcommand_test.go TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops, TestGuestCommandTeardownPastTheGraceStopsTheVM, TestGuestCommandSecondInterruptStopsTheVM, TestGuestCommandUndeliveredInterruptSaysSo, TestGuestCommandLineKeepsTheCommandsStatus, TestGuestCommandTimeoutForwardsTheInterrupt, TestGuestCommandSSHFailureAfterTheForwardSaysSSH, TestHostCommandOutlivesADeadTerminal, TestHostCommandOwnGroupLeadsItsOwnProcessGroup -->
+<!-- test: internal/le/test/qemu/run_guestcommand_linux_test.go TestGuestInterruptLineSignalsTheRecordedGroup, TestChildProcAttrDiesWithLe -->
 
 ## Appliance first-boot storage import
 

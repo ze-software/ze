@@ -55,8 +55,9 @@ const (
 //
 // The verb's signal root is taken first, so a SIGINT or SIGTERM ends every
 // phase: the host driver's compile and the runtime-kernel query, the two
-// admitted cross-compiles, and the guest run, whose cancel stops QEMU and the
-// ssh session as the other guest verbs do.
+// admitted cross-compiles, and the guest run, where the cancel is forwarded as
+// SIGINT to the guest le so the lab's own removals run before the VM stops
+// (stopGuestCommand), as for every guest command.
 func runDockerLabHere(args leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -221,6 +222,26 @@ func environmentName(name string) bool {
 	return true
 }
 
+// dockerLabLeftoverTrap defines ze_lab_left and arms it as the EXIT trap of
+// the lab line: once the lab ends, normally, failed or interrupted
+// (guestCommandBody exits through its INT trap, which runs this one), it
+// prints what the guest dockerd still holds of the lab before the VM stops.
+// It lists containers and networks carrying the ze.lab label, and the run-owned
+// ze-interop-retained image tags. The DUT image kept under its cache tag is
+// allowed to stay (AC-6), so it is not listed. A listing dockerd does not
+// answer is reported as unknown, never as none. `set +e` keeps the line's
+// `set -e` from cutting the report short, and the lab's exit status survives.
+func dockerLabLeftoverTrap() string {
+	return "ze_lab_left() { set +e; " +
+		"left=$(docker ps -a --filter label=ze.lab --format 'container {{.Names}}' && " +
+		"docker network ls --filter label=ze.lab --format 'network {{.Name}}' && " +
+		"docker images --filter reference=ze-interop-retained --format 'image {{.Repository}}:{{.Tag}}') || " +
+		"{ echo 'interop guest: left behind: unknown, because the guest dockerd did not answer the listing; " +
+		"whatever the lab left goes when the VM stops'; return; }; " +
+		`left=$(printf '%s\n' "$left" | awk 'NF { printf "%s%s", sep, $0; sep = ", " }'); ` +
+		`echo "interop guest: left behind: ${left:-none}"; }; trap ze_lab_left EXIT; `
+}
+
 // dockerLabCommand is the shell line the guest runs from GuestWorkspace: start
 // dockerd, wait a bounded time for it to answer, run the Docker kernel check
 // probing with the guest ze, then run the lab as `le <lab>`, under `env` with
@@ -228,7 +249,8 @@ func environmentName(name string) bool {
 // interoplab.DockerLabGuestVariable first, so a refusal names the appliance
 // kernel's fix rather than an install into this throwaway guest.
 // `set -e` stops the line at the first step that fails, so no lab runs on a
-// daemon that never answered or a kernel that failed the check.
+// daemon that never answered or a kernel that failed the check. Right before
+// the lab, dockerLabLeftoverTrap arms the report of what the lab left behind.
 func dockerLabCommand(goarch string, lab, environment []string) string {
 	guestLe := shellQuote(filepath.ToSlash(filepath.Join(GuestWorkspace, GuestLeRel(goarch))))
 	guestZe := shellQuote(filepath.ToSlash(filepath.Join(GuestWorkspace, GuestZeRel(goarch))))
@@ -241,7 +263,7 @@ func dockerLabCommand(goarch string, lab, environment []string) string {
 	if len(lab) == 0 {
 		return b.String()
 	}
-	b.Str("; ")
+	b.Str("; ").Str(dockerLabLeftoverTrap())
 	if len(environment) > 0 {
 		b.Str("env")
 		for _, assignment := range environment {

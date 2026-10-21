@@ -174,7 +174,9 @@ func parseClosedCSV(raw, label string, allowed, defaults []string) ([]string, er
 }
 
 func guestContext() (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// SIGHUP too: a closed terminal must reach the guest command's teardown
+	// and stop the VM, rather than kill le and leave QEMU running.
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 }
 
 func runVRRPHere(args leaction.Arguments) (any, int) {

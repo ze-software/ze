@@ -301,7 +301,8 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 	defer cancel()
 	signals := make(chan os.Signal, 1)
 	received := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	// SIGHUP too: a closed terminal stops the run the same way (guestContext).
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(signals)
 	go func() {
 		select {
@@ -315,6 +316,11 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 	report, runErr := NewRun(root, options).Execute(ctx)
 	select {
 	case caught := <-received:
+		// The error says how the guest command ended, which the exit code
+		// alone does not (stopGuestCommand).
+		if runErr != nil {
+			leaction.ReportError(runErr)
+		}
 		return nil, signalExitCode(caught)
 	default:
 	}
@@ -341,7 +347,7 @@ func runInstallerHere(kind InstallKind) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 	report, err := NewInstaller(root, options).Execute(ctx)
 	if err != nil {

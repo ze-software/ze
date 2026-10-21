@@ -18,11 +18,13 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -211,11 +213,14 @@ type Run struct {
 	Tree    string
 	Options RunOptions
 	ops     runOps
+	// teardownGrace bounds the wait for the guest command's own teardown
+	// after the run forwards it SIGINT (stopGuestCommand).
+	teardownGrace time.Duration
 }
 
 // NewRun answers a run over tree with production host operations.
 func NewRun(tree string, options RunOptions) *Run {
-	return &Run{Tree: tree, Options: options, ops: productionRunOps()}
+	return &Run{Tree: tree, Options: options, ops: productionRunOps(), teardownGrace: guestTeardownGrace}
 }
 
 type commandSpec struct {
@@ -226,12 +231,22 @@ type commandSpec struct {
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
+	// OwnGroup starts the child as the leader of its own process group. A
+	// Ctrl-C at the terminal signals the whole foreground group, and a guest
+	// ssh session or QEMU that took that signal would end under the guest
+	// command before le could forward the interrupt to it, so the run's signal
+	// root alone decides how such a child stops. On Linux the child also
+	// dies with le (childProcAttr).
+	OwnGroup bool
 }
 
 type commandResult struct {
 	Code   int
 	Stdout string
 	Stderr string
+	// StreamNote says when the operator's output stream stopped accepting
+	// writes during the command (terminalWriter), and is empty otherwise.
+	StreamNote string
 }
 
 type runFileSystem interface {
@@ -285,6 +300,16 @@ type runOps struct {
 	Environ func() []string
 	// Accelerator probes the hypervisor this host can open (accelerator).
 	Accelerator func() string
+	// Interrupts subscribes to SIGINT, SIGTERM and SIGHUP once the run's signal root
+	// has already taken the first one, so a second one can end the wait for
+	// the guest command's teardown. The caller MUST call the release it
+	// answers.
+	Interrupts func() (<-chan os.Signal, func())
+	// StartTime answers when pid started, or errProcessGone when no process
+	// holds it, so a VM record is never matched to a reused pid (vmrecord.go).
+	StartTime func(pid int) (int64, error)
+	// Kill stops the QEMU of a record whose le is gone (reapOrphanVMs).
+	Kill func(pid int) error
 }
 
 func productionRunOps() runOps {
@@ -294,7 +319,66 @@ func productionRunOps() runOps {
 		Port:  freeRunSSHPort, Now: time.Now, Sleep: sleepContext,
 		GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Home: os.UserHomeDir,
 		Environ: os.Environ, Getenv: os.Getenv, Accelerator: accelerator,
+		Interrupts: notifyInterrupts, StartTime: processStartTime, Kill: killProcess,
 	}
+}
+
+// notifyInterrupts is the production Interrupts: a channel SIGINT, SIGTERM and
+// SIGHUP reach from now on, and its release. The root's signal.NotifyContext
+// still holds all three, so none ends le by its default action while this
+// subscription waits.
+func notifyInterrupts() (<-chan os.Signal, func()) {
+	again := make(chan os.Signal, 1)
+	signal.Notify(again, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	return again, func() { signal.Stop(again) }
+}
+
+// terminalWriter streams a child's output to the operator's terminal and
+// never fails the copy: once a write to the terminal fails (EIO after a
+// hangup, ENOSPC on a job log), it stops writing there, keeps that first
+// error and its time for note, and reports every write as done. The copy
+// then keeps draining the child, so a guest ssh session survives a closed
+// terminal and its guest command's teardown runs (stopGuestCommand), rather
+// than ssh dying of EPIPE and the guest le of SIGPIPE. The captured copy in
+// runHostCommand still holds every byte. Not safe for concurrent use; each
+// stream has its own.
+type terminalWriter struct {
+	target io.Writer
+	err    error
+	at     time.Time
+}
+
+func (w *terminalWriter) Write(data []byte) (int, error) {
+	if w.err == nil {
+		if _, err := w.target.Write(data); err != nil {
+			w.err = err
+			w.at = time.Now()
+		}
+	}
+	return len(data), nil
+}
+
+// note answers the line that says the stream was lost, or "" when it never
+// was. The caller MUST read it only after the command has ended.
+func (w *terminalWriter) note(stream string) string {
+	if w == nil || w.err == nil {
+		return ""
+	}
+	var b textbuf.Buffer
+	return b.Str("le's ").Str(stream).Str(" stopped accepting writes at ").Str(w.at.Format(time.TimeOnly)).
+		Str(" (").Str(w.err.Error()).Str("), so the command's later output is missing there; ").
+		Str("the run's captured output is intact").String()
+}
+
+// joinStreamNotes joins the notes of the two streams that are not empty.
+func joinStreamNotes(output, errorOutput string) string {
+	if output == "" {
+		return errorOutput
+	}
+	if errorOutput == "" {
+		return output
+	}
+	return output + "; " + errorOutput
 }
 
 func runHostCommand(ctx context.Context, spec commandSpec) (commandResult, error) {
@@ -306,17 +390,28 @@ func runHostCommand(ctx context.Context, spec commandSpec) (commandResult, error
 	command.Dir = spec.Dir
 	command.Env = spec.Env
 	command.Stdin = spec.Stdin
+	if spec.OwnGroup {
+		command.SysProcAttr = childProcAttr()
+	}
 	command.Stdout = &stdout
 	command.Stderr = &stderr
+	var streamOut, streamErr *terminalWriter
 	if spec.Stdout != nil {
-		command.Stdout = io.MultiWriter(spec.Stdout, &stdout)
+		streamOut = &terminalWriter{target: spec.Stdout}
+		command.Stdout = io.MultiWriter(streamOut, &stdout)
 	}
 	if spec.Stderr != nil {
-		command.Stderr = io.MultiWriter(spec.Stderr, &stderr)
+		streamErr = &terminalWriter{target: spec.Stderr}
+		command.Stderr = io.MultiWriter(streamErr, &stderr)
 	}
 	err := command.Run()
 	result.Stdout = stdout.String()
 	result.Stderr = stderr.String()
+	result.StreamNote = joinStreamNotes(streamOut.note("output"), streamErr.note("error output"))
+	if result.StreamNote != "" {
+		var b textbuf.Buffer
+		b.Str("  ").Str(result.StreamNote).Byte('\n').StdErr() //nolint:errcheck // said once, where it may still reach somebody
+	}
 	if err == nil {
 		return result, nil
 	}
