@@ -162,19 +162,72 @@ func TestConvertFlowRouteGrammar(t *testing.T) {
 			want: "send bgp 10.0.0.1 update text extended-community [redirect:30740:12345] " +
 				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
 		},
+		// ExaBGP 6.0 (configuration/grammar/types/flow.py): `redirect <ip>` and
+		// `copy <ip>` are the IETF redirect-to-IP community holding the address,
+		// and leave the next hop alone; the Simpson 0x0800 form moved to
+		// `redirect-simpson` and `copy-simpson`, which set the next hop.
 		{
-			name:   "a redirect naming an address sets the next-hop instead",
+			name:   "a redirect naming an address is the IETF redirect-to-IP",
 			family: "ipv4/flow",
 			body:   "flow route { match { source 10.0.0.1/32; } then { redirect 1.2.3.4; } }",
+			want: "send bgp 10.0.0.1 update text extended-community [redirect-to-nexthop 1.2.3.4] " +
+				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
+		},
+		{
+			name:   "a redirect naming a bracketed IPv6 address is the IETF redirect-to-IP",
+			family: "ipv6/flow",
+			body:   "flow route { match { source 2001:db8::/32; } then { redirect [2001:db8::1]; } }",
+			want: "send bgp 10.0.0.1 update text extended-community [redirect-to-nexthop 2001:db8::1] " +
+				"mp ipv6/flow add source-ipv6 2001:db8::/32",
+		},
+		{
+			name:   "copy is the IETF redirect-to-IP with the copy bit",
+			family: "ipv4/flow",
+			body:   "flow route { match { source 10.0.0.1/32; } then { copy 1.2.3.4; } }",
+			want: "send bgp 10.0.0.1 update text extended-community [copy-to-nexthop 1.2.3.4] " +
+				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
+		},
+		{
+			name:   "redirect-simpson sets the next-hop and the 0x0800 redirect",
+			family: "ipv4/flow",
+			body:   "flow route { match { source 10.0.0.1/32; } then { redirect-simpson 1.2.3.4; } }",
 			want: "send bgp 10.0.0.1 update text nhop 1.2.3.4 extended-community [redirect-to-nexthop-draft] " +
 				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
 		},
 		{
-			name:   "copy sets the next-hop and the copy action",
+			name:   "copy-simpson sets the next-hop and the 0x0800 copy",
 			family: "ipv4/flow",
-			body:   "flow route { match { source 10.0.0.1/32; } then { copy 1.2.3.4; } }",
+			body:   "flow route { match { source 10.0.0.1/32; } then { copy-simpson 1.2.3.4; } }",
 			want: "send bgp 10.0.0.1 update text nhop 1.2.3.4 extended-community [copy-to-nexthop] " +
 				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
+		},
+		{
+			name:   "a bare redirect-to-nexthop is the 0x0800 redirect",
+			family: "ipv4/flow",
+			body:   "flow route { next-hop 1.2.3.4; match { source 10.0.0.1/32; } then { redirect-to-nexthop; } }",
+			want: "send bgp 10.0.0.1 update text nhop 1.2.3.4 extended-community [redirect-to-nexthop-draft] " +
+				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
+		},
+		{
+			name:   "redirect-to-nexthop-simpson is the 0x0800 redirect",
+			family: "ipv4/flow",
+			body:   "flow route { next-hop 1.2.3.4; match { source 10.0.0.1/32; } then { redirect-to-nexthop-simpson; } }",
+			want: "send bgp 10.0.0.1 update text nhop 1.2.3.4 extended-community [redirect-to-nexthop-draft] " +
+				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
+		},
+		{
+			name:   "redirect-to-nexthop with an address is the IETF redirect-to-IP",
+			family: "ipv4/flow",
+			body:   "flow route { match { source 10.0.0.1/32; } then { redirect-to-nexthop 1.2.3.4; } }",
+			want: "send bgp 10.0.0.1 update text extended-community [redirect-to-nexthop 1.2.3.4] " +
+				"mp ipv4/flow add source-ipv4 10.0.0.1/32",
+		},
+		{
+			name:   "redirect-to-nexthop-ietf is the IETF redirect-to-IP",
+			family: "ipv6/flow",
+			body:   "flow route { match { source 2001:db8::/32; } then { redirect-to-nexthop-ietf 2001:db8::1; } }",
+			want: "send bgp 10.0.0.1 update text extended-community [redirect-to-nexthop 2001:db8::1] " +
+				"mp ipv6/flow add source-ipv6 2001:db8::/32",
 		},
 		{
 			name:   "the communities and the ExaBGP packet-rate alias",
@@ -238,9 +291,24 @@ func TestConvertFlowRouteRefusesAndNames(t *testing.T) {
 			names: "action",
 		},
 		{
-			name:  "the IETF redirect ze has no update-text spelling for",
+			name:  "the IETF redirect with no address",
 			body:  "flow route { match { source 1.2.3.4/32; } then { redirect-to-nexthop-ietf; } }",
 			names: "redirect-to-nexthop-ietf",
+		},
+		{
+			name:  "copy naming something that is not an address",
+			body:  "flow route { match { source 1.2.3.4/32; } then { copy 65000:1; } }",
+			names: "65000:1",
+		},
+		{
+			name:  "redirect-simpson naming a route target",
+			body:  "flow route { match { source 1.2.3.4/32; } then { redirect-simpson 65000:1; } }",
+			names: "redirect-simpson",
+		},
+		{
+			name:  "the IPv6 route-target redirect ze has no update-text spelling for",
+			body:  "flow route { match { source 2001:db8::/32; } then { redirect [2001:db8::1]:100; } }",
+			names: "[2001:db8::1]:100",
 		},
 		{
 			name:  "a keyword whose value is missing at the end of its block",

@@ -634,6 +634,20 @@ and a selector matching no peer; Ze gives the reason there too
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode.WriteError -->
 <!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, ScriptLines.answer -->
 
+## FlowSpec redirect and copy
+
+A `flow route` line's redirect and copy actions follow the ExaBGP 6.0 grammar
+(configuration/grammar/types/flow.py), the same table the migration follows
+(`docs/architecture/config/exabgp-syntax.md`): `redirect <ip>`,
+`redirect-to-nexthop <ip>` and `redirect-to-nexthop-ietf <ip>` send
+`redirect-to-nexthop <ip>`, `copy <ip>` sends `copy-to-nexthop <ip>`, and the next
+hop is left alone; `redirect-simpson <ip>` and `copy-simpson <ip>` set the next hop
+and send the 0x0800 `redirect-to-nexthop-draft` or `copy-to-nexthop`; a bare
+`redirect-to-nexthop` and `redirect-to-nexthop-simpson` send
+`redirect-to-nexthop-draft`. An IPv6 address goes in IPV6_EXTENDED_COMMUNITIES
+(`docs/architecture/api/update-syntax.md`).
+<!-- source: internal/exabgp/bridge/bridge_flow.go -- readRedirect, readIETFRedirect, readSimpson -->
+
 ## What the bridge refuses, and what it keeps
 
 ExaBGP 6.0 refuses some lines 5.0 took, and keeps 5.0's leniency on the API
@@ -644,6 +658,8 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | A route no selected peer has the family of | refused with ze's reason |
 | A selector that names no peer this process feeds | refused, nothing dispatched |
 | `flow route` with no `match` | refused |
+| `flow route` with `mark` or `action`, or `redirect [<ipv6>]:<nn>` (the IPv6 route-target redirect) | refused, naming the word: `update text` has no spelling for it |
+| `copy`, `redirect-simpson`, `copy-simpson` or `redirect-to-nexthop-ietf` given something that is not an address | refused, naming the value |
 | An attribute written with no value (`path-information`) | refused, naming the value to write |
 | A prefix whose mask is no number (`10.0.0.0/x`) | refused, naming the mask |
 | `announce operational` with an unknown kind, or none | refused, naming the command and the kinds |

@@ -9,6 +9,7 @@ package bridge
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
@@ -32,17 +33,28 @@ const (
 	// sees one word for one wire value.
 	flowRouteDiscard = "rate-limit:0"
 
-	// flowRouteRedirectNextHop is ze's spelling of the pre-IETF
-	// redirect-to-next-hop action, type 0x08 subtype 0x00 value 0. ExaBGP
-	// writes the same eight octets from `redirect-to-nexthop` and from a
-	// `redirect` whose value is a bare address
-	// (src/exabgp/configuration/flow/parser.py, redirect_next_hop and redirect).
+	// flowRouteRedirectNextHop is ze's spelling of the Simpson
+	// redirect-to-next-hop action of draft-simpson-idr-flowspec-redirect-02,
+	// type 0x08 subtype 0x00 value 0, which points at the route's next hop.
+	// ExaBGP 6.0 writes it from a bare `redirect-to-nexthop`, from
+	// `redirect-to-nexthop-simpson`, and from `redirect-simpson <ip>`, which
+	// also sets the next hop (configuration/grammar/types/flow.py, _simpson).
 	flowRouteRedirectNextHop = "redirect-to-nexthop-draft"
 
-	// flowRouteCopyNextHop is ze's spelling of ExaBGP's `copy <address>`
+	// flowRouteCopyNextHop is ze's spelling of ExaBGP's `copy-simpson <ip>`
 	// action: the same type and subtype as the line above with the low value
-	// bit set, which is the copy semantic.
+	// bit set, which is the copy semantic. Written alone, ze reads the word as
+	// this one-word action.
 	flowRouteCopyNextHop = "copy-to-nexthop"
+
+	// flowRouteIETFRedirect and flowRouteIETFCopy are ze's words for the
+	// redirect-to-IP community of draft-ietf-idr-flowspec-redirect-ip-16, which
+	// holds the address itself, written `<word> <ip>`. ExaBGP 6.0 writes it
+	// from `redirect <ip>`, `redirect-to-nexthop <ip>`,
+	// `redirect-to-nexthop-ietf <ip>` and, with the C bit, `copy <ip>`
+	// (configuration/grammar/types/flow.py, _nexthop_ietf).
+	flowRouteIETFRedirect = "redirect-to-nexthop"
+	flowRouteIETFCopy     = "copy-to-nexthop"
 )
 
 var (
@@ -260,17 +272,32 @@ func (r *flowRoute) readWord(tokens []string, i int) (int, error) {
 		return r.readRedirect(tokens, i)
 
 	case "redirect-to-nexthop":
+		// With an address the IETF form, with none the Simpson one
+		// (configuration/grammar/types/flow.py, _redirect_to_nexthop).
+		if i+1 < len(tokens) {
+			if addr, ok := flowRouteAddress(tokens[i+1]); ok {
+				r.actions = append(r.actions, flowRouteRedirectToIP(flowRouteIETFRedirect, addr))
+				return i + 2, nil
+			}
+		}
 		r.actions = append(r.actions, flowRouteRedirectNextHop)
 		return i + 1, nil
 
+	case "redirect-to-nexthop-simpson":
+		r.actions = append(r.actions, flowRouteRedirectNextHop)
+		return i + 1, nil
+
+	case "redirect-to-nexthop-ietf":
+		return r.readIETFRedirect(flowRouteIETFRedirect, tokens, i)
+
 	case "copy":
-		value, next, ok := flowRouteScalar(tokens, i)
-		if !ok {
-			return 0, flowRouteMissingValue(tokens[i])
-		}
-		r.nhop = value
-		r.actions = append(r.actions, flowRouteCopyNextHop)
-		return next, nil
+		return r.readIETFRedirect(flowRouteIETFCopy, tokens, i)
+
+	case "redirect-simpson":
+		return r.readSimpson(flowRouteRedirectNextHop, tokens, i)
+
+	case "copy-simpson":
+		return r.readSimpson(flowRouteCopyNextHop, tokens, i)
 
 	case "interface-set":
 		items, next, err := flowRouteList(tokens, i)
@@ -289,10 +316,10 @@ func (r *flowRoute) readWord(tokens []string, i int) (int, error) {
 	case "community", "large-community", "extended-community":
 		return r.readCommunity(word, tokens, i)
 
-	case "mark", "action", "redirect-to-nexthop-ietf":
-		// Each of these three has an encoder in ze
-		// (attribute.FlowSpecTrafficMarking, attribute.FlowSpecTrafficAction,
-		// attribute.FlowSpecRedirectToIPv4) and no name in the extended
+	case "mark", "action":
+		// Each of these two has an encoder in ze
+		// (attribute.FlowSpecTrafficMarking, attribute.FlowSpecTrafficAction)
+		// and no name in the extended
 		// community vocabulary `update text` reads
 		// (route/route_community.go parseExtendedCommunity), so there is no
 		// command to write. Naming the word is what tells the operator which
@@ -335,26 +362,88 @@ func (r *flowRoute) readRateLimit(tokens []string, i int) (int, error) {
 
 // readRedirect reads `redirect <target>`.
 //
-// ExaBGP reads one value two ways. A value carrying no colon is an address, and
-// it sets the next-hop and adds the redirect-to-next-hop action. Any other value
-// is a route target, and ze spells that `redirect:<administrator>:<value>`
-// (src/exabgp/configuration/flow/parser.py, redirect;
-// route/route_community.go parseRedirectExtCommunity).
+// ExaBGP 6.0 reads one value three ways (configuration/grammar/types/flow.py,
+// _redirect). An address, bare or in brackets, is the IETF redirect-to-IP
+// community holding that address, and the next hop is left alone. A bracketed
+// IPv6 address followed by `:<nn>` is the RFC 5701 IPv6 route-target redirect,
+// which `update text` has no word for, so it is refused by name. Any other
+// value is a route target, and ze spells that `redirect:<administrator>:<value>`
+// (route/route_community.go parseRedirectExtCommunity).
 func (r *flowRoute) readRedirect(tokens []string, i int) (int, error) {
 	target, next, ok := flowRouteScalar(tokens, i)
 	if !ok {
 		return 0, flowRouteMissingValue(tokens[i])
 	}
 
-	if !strings.Contains(target, ":") {
-		r.nhop = target
-		r.actions = append(r.actions, flowRouteRedirectNextHop)
+	if addr, isAddr := flowRouteAddress(target); isAddr {
+		r.actions = append(r.actions, flowRouteRedirectToIP(flowRouteIETFRedirect, addr))
 		return next, nil
+	}
+	if strings.HasPrefix(target, "[") {
+		return 0, fmt.Errorf("exabgp flow route: redirect %s, the IPv6 route-target redirect, has no ze update-text spelling", target)
 	}
 
 	var tb textbuf.Buffer
 	r.actions = append(r.actions, tb.Str("redirect:").Str(target).String())
 	return next, nil
+}
+
+// readIETFRedirect reads `redirect-to-nexthop-ietf <ip>` or `copy <ip>`: the
+// redirect-to-IP community of draft-ietf-idr-flowspec-redirect-ip-16 holding
+// the address, written by ze's `word <ip>`. ExaBGP 6.0 leaves the next hop
+// alone for both (configuration/grammar/types/flow.py, _copy and
+// REDIRECT_TO_NEXTHOP_IETF).
+func (r *flowRoute) readIETFRedirect(word string, tokens []string, i int) (int, error) {
+	value, next, ok := flowRouteScalar(tokens, i)
+	if !ok {
+		return 0, flowRouteMissingValue(tokens[i])
+	}
+	addr, isAddr := flowRouteAddress(value)
+	if !isAddr {
+		return 0, fmt.Errorf("exabgp flow route: %s takes an address and %q is not one", tokens[i], value)
+	}
+	r.actions = append(r.actions, flowRouteRedirectToIP(word, addr))
+	return next, nil
+}
+
+// readSimpson reads `redirect-simpson <ip>` or `copy-simpson <ip>`: the
+// address becomes the next hop and action is the 0x0800 community of
+// draft-simpson-idr-flowspec-redirect-02, which points at it
+// (configuration/grammar/types/flow.py, _redirect_simpson and COPY_SIMPSON).
+func (r *flowRoute) readSimpson(action string, tokens []string, i int) (int, error) {
+	value, next, ok := flowRouteScalar(tokens, i)
+	if !ok {
+		return 0, flowRouteMissingValue(tokens[i])
+	}
+	addr, isAddr := flowRouteAddress(value)
+	if !isAddr {
+		return 0, fmt.Errorf("exabgp flow route: %s takes an address and %q is not one", tokens[i], value)
+	}
+	r.nhop = addr
+	r.actions = append(r.actions, action)
+	return next, nil
+}
+
+// flowRouteAddress answers the address a redirect value names, bare or in the
+// brackets ExaBGP allows around one, and false for anything else.
+func flowRouteAddress(value string) (string, bool) {
+	if inner, ok := strings.CutPrefix(value, "["); ok {
+		value, ok = strings.CutSuffix(inner, "]")
+		if !ok {
+			return "", false
+		}
+	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return "", false
+	}
+	return addr.String(), true
+}
+
+// flowRouteRedirectToIP renders the two-word update-text action `<word> <addr>`.
+func flowRouteRedirectToIP(word, addr string) string {
+	var tb textbuf.Buffer
+	return tb.Str(word).Str(" ").Str(addr).String()
 }
 
 // readCommunity reads one of the three community keywords and its value list.
