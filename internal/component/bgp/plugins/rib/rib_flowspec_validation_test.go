@@ -771,6 +771,60 @@ func TestFlowSpecRedirectToIPEBGPCheck(t *testing.T) {
 	}
 }
 
+// A switched off check flips the verdict of a rule already retained, with no
+// new UPDATE: installConfig recomputes the FlowSpec state, so the refusal the
+// forward rails read and the installed communities follow the config both
+// ways. The validation replay then resends the stored route under the new
+// verdict (reactor TestFlowSpecRedirectRefusedReplay).
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "It MUST be possible to
+// disable this additional validation check on a per-EBGP session basis."
+func TestFlowSpecRedirectConfigSwitchRejudges(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	other := netip.MustParseAddr("192.0.2.2")
+	redirect := []byte{0x08, 0, 0, 0, 0, 0, 0, 0}
+	r, bus := flowValidationFixture(t)
+	ribevents.RegisterFlowSpecRedirectLookup(r.flowSpecRedirectRefusedFor)
+	t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
+	path := flowValidationPath(2, 65001)
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(path, netip.Addr{}, 0, nil), false)
+	flowValidationReceive(t, r, other, 65002, 2, family.IPv4Unicast, []byte{24, 198, 51, 100}, flowValidationAttrs(flowValidationPath(2, 65001, 65009), netip.Addr{}, 0, nil), false)
+	raw := flowspecNLRI(16, 10, 1)
+	flowValidationReceiveNextHop(t, r, peer, 65001, 3, flowspecFamily, raw, flowValidationAttrs(path, netip.Addr{}, 100, redirect), false, []byte{198, 51, 100, 1})
+	for _, step := range []struct {
+		enabled string
+		refused bool
+	}{
+		{"", true},
+		{"false", false},
+		{"true", true},
+	} {
+		if step.enabled != "" {
+			cfg := unconfiguredRIB()
+			var err error
+			cfg.redirect, err = parseFlowSpecRedirectConfig(map[string]any{"flowspec-redirect-check": map[string]any{"enabled": step.enabled}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			r.installConfig(cfg, false)
+		}
+		if got := ribevents.FlowSpecRedirectRefused(peer, 3); got != step.refused {
+			t.Fatalf("enabled %q: redirect refused = %v, want %v", step.enabled, got, step.refused)
+		}
+		events := flowValidationEvents(bus)
+		if len(events) == 0 {
+			t.Fatal("no install event")
+		}
+		want := redirect
+		if step.refused {
+			want = nil
+		}
+		if got := events[len(events)-1].ExtendedCommunities; !bytes.Equal(got, want) {
+			t.Fatalf("enabled %q: installed communities = % x, want % x", step.enabled, got, want)
+		}
+	}
+}
+
 // The off switch resolves peer over group over the bgp level, and an absent
 // leaf everywhere runs the check; a value that is not a boolean is refused.
 func TestFlowSpecRedirectConfigInheritance(t *testing.T) {

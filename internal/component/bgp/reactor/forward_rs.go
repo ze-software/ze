@@ -391,7 +391,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	// peer gets told to send traffic to itself (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
 	srcNextHop := payloadNextHop(wire.Payload())
-	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, updateID)
+	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, update.sourceMessageID())
 
 	// RFC 1997 needs one scan per UPDATE, not one per client; see the identical
 	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay

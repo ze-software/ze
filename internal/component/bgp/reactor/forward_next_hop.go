@@ -81,13 +81,16 @@ type nextHopValue struct {
 }
 
 // flowSpecRedirectRefusal asks the selecting RIB, once per UPDATE, whether the
-// redirect-to-IP EBGP check refused the action of the FlowSpec UPDATE updateID
-// received from source. A route with no redirect action never asks.
+// redirect-to-IP EBGP check refused the action of the FlowSpec UPDATE msgID
+// received from source. A route with no redirect action never asks. msgID is
+// the received generation the RIB judged (ReceivedUpdate.sourceMessageID),
+// never the forward cache id: a validation replay forwards the stored route
+// under a fresh cache id, and asking by that id finds no refusal.
 //
 // draft-simpson-idr-flowspec-redirect-02 Section 3
-func flowSpecRedirectRefusal(n *nextHopValue, source netip.Addr, updateID uint64) {
+func flowSpecRedirectRefusal(n *nextHopValue, source netip.Addr, msgID uint64) {
 	if n.mpRedirect {
-		n.mpRedirectRefused = ribevents.FlowSpecRedirectRefused(source, updateID)
+		n.mpRedirectRefused = ribevents.FlowSpecRedirectRefused(source, msgID)
 	}
 }
 

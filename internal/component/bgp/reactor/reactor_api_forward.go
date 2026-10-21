@@ -663,7 +663,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// something rewrites it for that destination (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
 	srcNextHop := payloadNextHop(sourceWire.Payload())
-	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, updateID)
+	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, update.sourceMessageID())
 	srcAIGP := payloadAIGP(sourceWire.Payload())
 	srcAIGPNextHop := srcNextHop
 	metricRevision := aigpRevision()
