@@ -306,6 +306,8 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 				LocalAS:   s.LocalAS,
 				Name:      s.Name,
 				GroupName: s.GroupName,
+				// The one IBGP rule, as the forward-path fills carry it.
+				IsIBGP: info.isIBGP,
 			}
 		}
 	}

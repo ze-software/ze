@@ -283,8 +283,9 @@ func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta ma
 	// iBGP carries no customer/peer/provider relation: the source is inside
 	// the local AS, so RFC 8195 Section 3.2 has nothing to state about it. A
 	// tag written here would be a claim about a relationship that does not
-	// exist.
-	if src.PeerAS == src.LocalAS {
+	// exist. IsIBGP is the one rule (PeerSettings.IsIBGP): comparing PeerAS
+	// with LocalAS reads an RFC 7705 migration session as EBGP and tags it.
+	if src.IsIBGP {
 		return true, nil
 	}
 

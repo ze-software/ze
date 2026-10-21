@@ -159,18 +159,25 @@ func TestRelationTagIsIdempotent(t *testing.T) {
 // It is driven with a role present in meta, so the assertion is about the
 // iBGP gate and not about an unresolved role.
 //
-// VALIDATES: AC-8
+// The session type is PeerFilterInfo.IsIBGP, the one rule (PeerSettings.IsIBGP).
+// An RFC 7705 migration session is internal although its PeerAS differs from
+// the LocalAS the filter is handed, so a PeerAS == LocalAS comparison tagged it.
+//
+// VALIDATES: AC-8, for an ordinary iBGP session and an RFC 7705 migration one.
 // PREVENTS: an internal route being stamped with a relation it does not have,
 // which downstream policy would then act on.
 func TestRelationTagIBGPWritesNothing(t *testing.T) {
 	withPeerConfig(t, relationOn(nil))
 
-	_, modified := relationIngressFilter(
-		relPeerInfo(relLocalAS), // PeerAS == LocalAS: iBGP
-		buildPayload(buildOriginAttr()),
-		map[string]any{"src-peer-role": roleProvider})
-
-	assert.Nil(t, modified)
+	internal := relPeerInfo(relLocalAS)
+	internal.IsIBGP = true
+	migration := relPeerInfo(relPeerAS)
+	migration.IsIBGP = true
+	for name, src := range map[string]filterapi.PeerFilterInfo{"iBGP": internal, "RFC 7705 migration": migration} {
+		_, modified := relationIngressFilter(src, buildPayload(buildOriginAttr()),
+			map[string]any{"src-peer-role": roleProvider})
+		assert.Nil(t, modified, name)
+	}
 }
 
 // TestRelationTagDisabledWritesNothing pins the default. The leaf ships

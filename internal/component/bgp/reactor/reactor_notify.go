@@ -489,6 +489,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			src.AllowOwnAS = peer.settings.LoopAllowOwnAS
 			src.ClusterID = peer.settings.LoopClusterID
 			src.LoopDisabled = peer.settings.LoopDisabled
+			// The one IBGP rule (PeerSettings.IsIBGP), which an RFC 7705
+			// migration session needs; PeerAS == LocalAS gets it wrong. The
+			// guarded accessor, as for PeerAS above.
+			src.IsIBGP = peer.IsIBGP()
 		}
 		// ASN4 describes the PAYLOAD the filters are about to parse, so it is
 		// read from that payload's own encoding context and not from the

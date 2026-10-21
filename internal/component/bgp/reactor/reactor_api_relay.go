@@ -141,6 +141,8 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 				LocalAS:   s.LocalAS,
 				Name:      s.Name,
 				GroupName: s.GroupName,
+				// The one IBGP rule, as the forward path's src fill carries it.
+				IsIBGP: out.info.isIBGP,
 				// RFC 9494 Section 4.3: a rebuilt route carries no stale level,
 				// so LLGREgressFilter recovers it from this flag and the stored
 				// bytes (filterapi.MetaKeyRebuilt).

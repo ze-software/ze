@@ -287,8 +287,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// Guarded PeerAS: the source peer may be dynamic and still resolving its ASN
 			// on another goroutine; Name/GroupName are immutable after construction.
 			srcFilter.PeerAS = srcPeer.PeerAS()
+			srcFilter.LocalAS = srcPeer.Settings().LocalAS
 			srcFilter.Name = srcPeer.Settings().Name
 			srcFilter.GroupName = srcPeer.Settings().GroupName
+			// The one IBGP rule (PeerSettings.IsIBGP), so no filter reads a
+			// silent false here or compares PeerAS with LocalAS instead.
+			srcFilter.IsIBGP = srcPeer.IsIBGP()
 		}
 		r.mu.RUnlock()
 	}

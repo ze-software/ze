@@ -472,6 +472,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 					LocalAS:   s.LocalAS,
 					Name:      s.Name,
 					GroupName: s.GroupName,
+					// The one IBGP rule, so a filter never compares PeerAS with
+					// LocalAS (which reads an RFC 7705 migration session as EBGP).
+					IsIBGP: srcInfo.isIBGP,
 				}
 			}
 			continue
