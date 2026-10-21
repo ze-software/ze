@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -48,6 +49,13 @@ func flowValidationAttrs(path []byte, originator netip.Addr, med uint32, communi
 // flowValidationReceive drives the structured UPDATE entrypoint with the same
 // generation and peer metadata the reactor supplies. No helper writes RIB state.
 func flowValidationReceive(t *testing.T, r *RIBManager, peer netip.Addr, peerAS uint32, id uint64, fam family.Family, raw, attrs []byte, withdraw bool) *rpc.StructuredEvent {
+	t.Helper()
+	return flowValidationReceiveNextHop(t, r, peer, peerAS, id, fam, raw, attrs, withdraw, nil)
+}
+
+// flowValidationReceiveNextHop is flowValidationReceive with flowNextHop as a
+// FlowSpec UPDATE's MP_REACH next hop, the redirect-to-IP target.
+func flowValidationReceiveNextHop(t *testing.T, r *RIBManager, peer netip.Addr, peerAS uint32, id uint64, fam family.Family, raw, attrs []byte, withdraw bool, flowNextHop []byte) *rpc.StructuredEvent {
 	const localAS uint32 = 65000
 	t.Helper()
 	attrs = bytes.Clone(attrs)
@@ -55,7 +63,7 @@ func flowValidationReceive(t *testing.T, r *RIBManager, peer netip.Addr, peerAS 
 	code := byte(15)
 	if !withdraw {
 		code = 14
-		var nextHop []byte
+		nextHop := flowNextHop
 		if !ribevents.IsFlowSpec(fam) {
 			nextHop = []byte{192, 0, 2, 254}
 			if fam.AFI == family.AFIIPv6 {
@@ -671,3 +679,133 @@ func TestFlowSpecUnmatchableReceivedRuleIsNotPropagated(t *testing.T) {
 		})
 	}
 }
+
+// The redirect-to-IP EBGP check over the received-UPDATE entrypoint. The rule
+// arrives from EBGP peer AS 65001 with redirect-to-IP to X = 198.51.100.1; it
+// is authorized in every case, so only its redirect action is judged. The
+// refused cases keep the rule installed and eligible, take 0x0800 off the
+// installed communities while the traffic-rate action stays, and publish the
+// refusal the forward rails read (ribevents.FlowSpecRedirectRefused).
+//
+// "Last AS" is the origin: the case whose path to X is 65001 65009 (the
+// neighbour is the peer, the origin is not) is refused.
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "the BGP speaker SHOULD
+// discard the redirect-to-ip extended community (and not propagate it further
+// with the flow-spec route) if the last AS in the AS_PATH or AS4_PATH
+// attribute of the longest prefix match for X does not match the AS of the
+// EBGP peer." and "It MUST be possible to disable this additional validation
+// check on a per-EBGP session basis."
+func TestFlowSpecRedirectToIPEBGPCheck(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.1")
+	other := netip.MustParseAddr("192.0.2.2")
+	rate := []byte{0x80, 6, 0, 0, 0, 0, 0, 0}
+	redirect := []byte{0x08, 0, 0, 0, 0, 0, 0, 0}
+	target := []byte{198, 51, 100, 1}
+	type route struct {
+		nlri []byte
+		path []byte
+	}
+	disabled := map[string]any{"flowspec-redirect-check": map[string]any{"enabled": "false"}}
+	for _, tc := range []struct {
+		name    string
+		peerAS  uint32
+		path    []byte
+		routes  []route
+		config  map[string]any
+		refused bool
+	}{
+		{name: "origin of the match is the peer", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, flowValidationPath(2, 65001)}}},
+		{name: "neighbour is the peer but the origin is not", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, flowValidationPath(2, 65001, 65009)}}, refused: true},
+		{name: "no route to the target", peerAS: 65001, refused: true},
+		{name: "longest match decides", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, flowValidationPath(2, 65001)}, {[]byte{32, 198, 51, 100, 1}, flowValidationPath(2, 65009)}}, refused: true},
+		{name: "AS_SET origin has no last AS", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, append(flowValidationPath(2, 65001), flowValidationPath(1, 65001)...)}}, refused: true},
+		{name: "check disabled at the bgp level", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, flowValidationPath(2, 65001, 65009)}}, config: disabled},
+		{name: "check disabled on the session", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, flowValidationPath(2, 65001, 65009)}},
+			config: map[string]any{"peer": map[string]any{"edge": map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": peer.String()}}, "flowspec-redirect-check": disabled["flowspec-redirect-check"]}}}},
+		{name: "another session disabled leaves this one checked", peerAS: 65001, routes: []route{{[]byte{24, 198, 51, 100}, flowValidationPath(2, 65001, 65009)}},
+			config: map[string]any{"peer": map[string]any{"edge": map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": other.String()}}, "flowspec-redirect-check": disabled["flowspec-redirect-check"]}}}, refused: true},
+		{name: "IBGP is not checked", peerAS: 65000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r, bus := flowValidationFixture(t)
+			ribevents.RegisterFlowSpecRedirectLookup(r.flowSpecRedirectRefusedFor)
+			t.Cleanup(func() { ribevents.RegisterFlowSpecRedirectLookup(nil) })
+			if tc.config != nil {
+				cfg, err := parseFlowSpecRedirectConfig(tc.config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				r.flowSpecRedirectCfg.Store(&cfg)
+			}
+			path := flowValidationPath(2, 65001)
+			if tc.peerAS == 65000 {
+				path = nil
+			}
+			flowValidationReceive(t, r, peer, tc.peerAS, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(path, netip.Addr{}, 0, nil), false)
+			for i, u := range tc.routes {
+				flowValidationReceive(t, r, other, 65002, uint64(10+i), family.IPv4Unicast, u.nlri, flowValidationAttrs(u.path, netip.Addr{}, 0, nil), false)
+			}
+			raw := flowspecNLRI(16, 10, 1)
+			communities := append(bytes.Clone(rate), redirect...)
+			flowValidationReceiveNextHop(t, r, peer, tc.peerAS, 3, flowspecFamily, raw, flowValidationAttrs(path, netip.Addr{}, 100, communities), false, target)
+			key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
+			if !ribevents.RouteEligible(key, 3) {
+				t.Fatal("the redirect check refused the rule instead of its action")
+			}
+			if got := ribevents.FlowSpecRedirectRefused(peer, 3); got != tc.refused {
+				t.Fatalf("redirect refused = %v, want %v", got, tc.refused)
+			}
+			events := flowValidationEvents(bus)
+			if len(events) == 0 {
+				t.Fatal("no install event")
+			}
+			want := communities
+			if tc.refused {
+				want = rate
+			}
+			if got := events[len(events)-1].ExtendedCommunities; !bytes.Equal(got, want) {
+				t.Fatalf("installed communities = % x, want % x", got, want)
+			}
+		})
+	}
+}
+
+// The off switch resolves peer over group over the bgp level, and an absent
+// leaf everywhere runs the check; a value that is not a boolean is refused.
+func TestFlowSpecRedirectConfigInheritance(t *testing.T) {
+	leaf := func(v string) map[string]any { return map[string]any{"enabled": v} }
+	remote := func(ip string) map[string]any {
+		return map[string]any{"remote": map[string]any{"ip": ip}}
+	}
+	cfg, err := parseFlowSpecRedirectConfig(map[string]any{
+		"flowspec-redirect-check": leaf("false"),
+		"group": map[string]any{"ix": map[string]any{
+			"flowspec-redirect-check": leaf("true"),
+			"peer": map[string]any{
+				"a": map[string]any{"connection": remote("192.0.2.1")},
+				"b": map[string]any{"connection": remote("192.0.2.2"), "flowspec-redirect-check": leaf("false")},
+			},
+		}},
+		"peer": map[string]any{"c": map[string]any{"connection": remote("192.0.2.3")}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for ip, want := range map[string]bool{"192.0.2.1": true, "192.0.2.2": false, "192.0.2.3": false} {
+		if got := cfg.peers[configjsonKey(ip)]; got != want {
+			t.Errorf("peer %s check = %v, want %v", ip, got, want)
+		}
+	}
+	if cfg.base {
+		t.Error("bgp level false read as true")
+	}
+	if empty, err := parseFlowSpecRedirectConfig(map[string]any{}); err != nil || !empty.base {
+		t.Errorf("no leaf anywhere: base = %v, err = %v; want the check on", empty.base, err)
+	}
+	if _, err := parseFlowSpecRedirectConfig(map[string]any{"flowspec-redirect-check": leaf("maybe")}); err == nil {
+		t.Error("a non-boolean value was accepted")
+	}
+}
+
+func configjsonKey(ip string) configjson.PeerConfigKey { return configjson.PeerConfigKey{ID: ip} }

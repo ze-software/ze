@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -71,6 +72,23 @@ type nextHopValue struct {
 	// forwarding-address gates never read it; egressNextHopWithheld asks the
 	// peer-own question of it alone (redirectNextHopIsPeerOwn).
 	mpRedirectAddr netip.Addr
+
+	// mpRedirectRefused records that the selecting RIB refused this UPDATE's
+	// redirect action under draft-simpson-idr-flowspec-redirect-02 Section 3's
+	// EBGP check (ribevents.FlowSpecRedirectRefused, flowSpecRedirectRefusal).
+	// Valid only beside mpRedirect.
+	mpRedirectRefused bool
+}
+
+// flowSpecRedirectRefusal asks the selecting RIB, once per UPDATE, whether the
+// redirect-to-IP EBGP check refused the action of the FlowSpec UPDATE updateID
+// received from source. A route with no redirect action never asks.
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3
+func flowSpecRedirectRefusal(n *nextHopValue, source netip.Addr, updateID uint64) {
+	if n.mpRedirect {
+		n.mpRedirectRefused = ribevents.FlowSpecRedirectRefused(source, updateID)
+	}
 }
 
 // has reports whether any address this UPDATE offers is addr.
@@ -201,6 +219,10 @@ func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, bas
 	if base.mpFamily.NeedsNextHop() {
 		return
 	}
+	if base.mpRedirect && base.mpRedirectRefused {
+		discardRedirectAction(mods, payload)
+		return
+	}
 	if base.mpRedirect {
 		applyRedirectNextHop(f, mods, base.mpFamily.AFI, payload)
 		return
@@ -237,6 +259,25 @@ func applyRedirectNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, a
 		// address this destination was not meant to receive.
 	}
 	setMPNextHop(mods, hop, true)
+}
+
+// discardRedirectAction takes every received redirect-to-IP community off a
+// route whose action the EBGP check refused, and sends the RFC 8955 Section 4
+// zero next-hop length the route now owes, since no action names its address.
+// The Remove operations reference the received bytes in place: no allocation.
+//
+// draft-simpson-idr-flowspec-redirect-02 Section 3: "the BGP speaker SHOULD
+// discard the redirect-to-ip extended community (and not propagate it further
+// with the flow-spec route)".
+func discardRedirectAction(mods *filterapi.ModAccumulator, payload []byte) {
+	value := payloadExtCommunities(payload)
+	for off := 0; off+8 <= len(value); off += 8 {
+		ec := value[off : off+8 : off+8]
+		if attribute.FlowSpecRedirectsToNextHop(ec) {
+			mods.Op(uint8(attribute.AttrExtCommunity), filterapi.AttrModRemove, ec)
+		}
+	}
+	setMPNextHop(mods, nil, true)
 }
 
 // redirectActionLeaves reports whether the destination's UPDATE still carries a

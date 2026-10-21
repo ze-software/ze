@@ -37,6 +37,18 @@ type flowSpecRule struct {
 type flowSpecVerdict struct {
 	msgID    uint64
 	eligible bool
+	// redirectRefused records the redirect-to-IP EBGP check's refusal
+	// (flowSpecRedirectRefused). A change of it alone is a validation change,
+	// so the path is sent again with or without its 0x0800 action.
+	redirectRefused bool
+}
+
+// flowSpecMessage names one received FlowSpec UPDATE, the unit the redirect
+// verdict is asked about: X, the communities and the peer's AS are all
+// UPDATE-wide, so every rule of the UPDATE shares the answer.
+type flowSpecMessage struct {
+	peer  netip.Addr
+	msgID uint64
 }
 
 type flowSpecWinner struct {
@@ -51,6 +63,9 @@ type flowSpecWinner struct {
 type flowSpecState struct {
 	paths map[ribevents.ValidationRoute]flowSpecVerdict
 	best  map[flowSpecRule]*flowSpecWinner
+	// redirectRefused holds the UPDATEs whose redirect-to-IP action the EBGP
+	// check refused; nil while there is none.
+	redirectRefused map[flowSpecMessage]struct{}
 }
 
 type flowSpecRoute struct {
@@ -62,8 +77,12 @@ type flowSpecRoute struct {
 	localDomain bool
 	validPath   bool
 	matchable   bool
-	candidate   *Candidate
-	entry       storage.RouteEntry
+	// redirectTarget is X when the redirect-to-IP EBGP check is owed
+	// (flowSpecRedirectTarget, an EBGP session with the check enabled), and
+	// invalid otherwise.
+	redirectTarget netip.Addr
+	candidate      *Candidate
+	entry          storage.RouteEntry
 }
 
 type flowSpecUnicast struct {
@@ -71,6 +90,7 @@ type flowSpecUnicast struct {
 	prefix     netip.Prefix
 	originator netip.Addr
 	firstAS    uint32
+	lastAS     uint32
 	candidate  *Candidate
 }
 
@@ -178,28 +198,34 @@ func flowSpecOriginator(peer netip.Addr, entry storage.RouteEntry) netip.Addr {
 // flowSpecASPath reads the canonical four-octet AS_PATH. Empty/confederation-only
 // paths originate in the Local Domain (RFC 9117 Sections 2 and 4.1). AS_SET has
 // no leftmost AS_SEQUENCE ASN and cannot satisfy the external-path comparison.
-func flowSpecASPath(entry storage.RouteEntry) (first uint32, local, valid bool) {
+// last is the rightmost AS_SEQUENCE ASN, the origin, and zero when the path
+// ends in an AS_SET or holds no AS_SEQUENCE.
+func flowSpecASPath(entry storage.RouteEntry) (first, last uint32, local, valid bool) {
 	if !entry.HasASPath() {
-		return 0, false, false
+		return 0, 0, false, false
 	}
 	raw, err := pool.ASPath.Get(entry.ASPath)
 	if err != nil {
-		return 0, false, false
+		return 0, 0, false, false
 	}
 	local = true
 	firstSegment := true
 	for off := 0; off < len(raw); {
 		if len(raw)-off < 2 {
-			return 0, false, false
+			return 0, 0, false, false
 		}
 		kind, count := raw[off], int(raw[off+1])
 		off += 2
 		if count == 0 || count > (len(raw)-off)/4 {
-			return 0, false, false
+			return 0, 0, false, false
 		}
 		switch kind {
 		case 1, 2:
 			local = false
+			last = 0
+			if kind == 2 {
+				last = binary.BigEndian.Uint32(raw[off+(count-1)*4 : off+count*4])
+			}
 			if firstSegment {
 				if kind == 2 {
 					first = binary.BigEndian.Uint32(raw[off : off+4])
@@ -210,11 +236,11 @@ func flowSpecASPath(entry storage.RouteEntry) (first uint32, local, valid bool) 
 			// RFC 9117 Section 1 extends the local-domain treatment of
 			// AS_CONFED_SEQUENCE to AS_CONFED_SET as well.
 		default:
-			return 0, false, false
+			return 0, 0, false, false
 		}
 		off += count * 4
 	}
-	return first, local, true
+	return first, last, local, true
 }
 
 // flowSpecAuthorized applies rules a-c and RFC 9117's external AS check to the
@@ -271,6 +297,16 @@ func (r *RIBManager) flowSpecEligible(key ribevents.ValidationRoute, msgID uint6
 	}
 	verdict, ok := state.paths[key]
 	return ok && verdict.eligible && (msgID == 0 || verdict.msgID == msgID)
+}
+
+// flowSpecRedirectRefusedFor answers ribevents.FlowSpecRedirectRefused.
+func (r *RIBManager) flowSpecRedirectRefusedFor(peer netip.Addr, msgID uint64) bool {
+	state := r.flowSpec.Load()
+	if state == nil || state.redirectRefused == nil {
+		return false
+	}
+	_, refused := state.redirectRefused[flowSpecMessage{peer: peer, msgID: msgID}]
+	return refused
 }
 
 func (r *RIBManager) flowSpecPresent(key ribevents.ValidationRoute) bool {
@@ -378,10 +414,18 @@ func (r *RIBManager) reconcileFlowSpecs() {
 					return true
 				}
 				domain, destination, matchable := flowSpecDestination(fam, []byte(key.NLRI))
-				first, local, valid := flowSpecASPath(entry)
+				first, _, local, valid := flowSpecASPath(entry)
+				candidate := r.extractCandidate(fam, peer, routes.PeerAddr(), entry)
+				var target netip.Addr
+				// draft-simpson-idr-flowspec-redirect-02 Section 3 binds the
+				// check to a route "from an EBGP peer", on by default and off
+				// per session (flowSpecRedirectChecked).
+				if candidate.LocalASN != 0 && candidate.PeerASN != candidate.LocalASN && r.flowSpecRedirectChecked(peer) {
+					target = flowSpecRedirectTarget(entry)
+				}
 				flows = append(flows, flowSpecRoute{key: key, domain: domain, destination: destination, matchable: matchable,
 					originator: flowSpecOriginator(peer, entry), firstAS: first, localDomain: local, validPath: valid,
-					candidate: r.extractCandidate(fam, peer, routes.PeerAddr(), entry), entry: entry})
+					redirectTarget: target, candidate: candidate, entry: entry})
 				return true
 			})
 		}
@@ -406,6 +450,12 @@ func (r *RIBManager) reconcileFlowSpecs() {
 							relevant = true
 							break
 						}
+						// The redirect-to-IP EBGP check reads the longest match
+						// for X, which need not cover the rule's destination.
+						if flow.redirectTarget.IsValid() && flow.domain.rd == domain.rd && prefix.Contains(flow.redirectTarget) {
+							relevant = true
+							break
+						}
 					}
 					if !relevant {
 						return true
@@ -416,13 +466,13 @@ func (r *RIBManager) reconcileFlowSpecs() {
 							return true
 						}
 					}
-					first, _, valid := flowSpecASPath(entry)
+					first, last, _, valid := flowSpecASPath(entry)
 					if !valid {
 						return true
 					}
 					candidate := r.extractCandidate(fam, peer, routes.PeerAddr(), entry)
 					unicast = append(unicast, flowSpecUnicast{domain: domain, prefix: prefix,
-						originator: flowSpecOriginator(peer, entry), firstAS: first, candidate: candidate})
+						originator: flowSpecOriginator(peer, entry), firstAS: first, lastAS: last, candidate: candidate})
 					return true
 				})
 			}
@@ -439,7 +489,14 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		// retained, as an unauthorized one does, but is never eligible: no
 		// forward rail, replay or local install reads an ineligible path.
 		eligible := flow.matchable && flowSpecAuthorized(flow, unicast)
-		next.paths[flow.key] = flowSpecVerdict{msgID: flow.entry.MsgID, eligible: eligible}
+		refused := eligible && flow.redirectTarget.IsValid() && flowSpecRedirectRefused(flow, unicast)
+		next.paths[flow.key] = flowSpecVerdict{msgID: flow.entry.MsgID, eligible: eligible, redirectRefused: refused}
+		if refused {
+			if next.redirectRefused == nil {
+				next.redirectRefused = make(map[flowSpecMessage]struct{})
+			}
+			next.redirectRefused[flowSpecMessage{peer: flow.key.Peer, msgID: flow.entry.MsgID}] = struct{}{}
+		}
 		if !eligible {
 			continue
 		}
@@ -458,6 +515,9 @@ func (r *RIBManager) reconcileFlowSpecs() {
 				continue
 			}
 			communities = bytes.Clone(data)
+			if next.paths[flow.key].redirectRefused {
+				communities = stripFlowSpecRedirect(communities)
+			}
 		}
 		ipv6Communities, ok := flowSpecIPv6Communities(flow.entry)
 		if !ok {

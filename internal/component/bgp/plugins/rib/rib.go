@@ -426,6 +426,12 @@ type RIBManager struct {
 	// after the winner's own address misses.
 	blackholeCfg atomic.Pointer[map[configjson.PeerConfigKey]blackholeConfig]
 
+	// flowSpecRedirectCfg is the per-session switch of the
+	// draft-simpson-idr-flowspec-redirect-02 Section 3 EBGP check, resolved
+	// across the bgp, group and peer levels. nil, before any config, runs the
+	// check everywhere, the draft's default.
+	flowSpecRedirectCfg atomic.Pointer[flowSpecRedirectConfig]
+
 	// peerMu protects the peer-keyed maps ONLY: ribInPool (and bgpPeers), ribOut, peerUp,
 	// peerMeta, retainedPeers, grState. bestPrev is sharded (see
 	// bestprev_shard.go) and has its own per-shard locks. bestPathInterner
@@ -666,6 +672,8 @@ func runRIBPlugin(conn net.Conn) int {
 	defer activeManager.Store(nil)
 	ribevents.RegisterFlowSpecLookup(r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes)
 	defer ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil)
+	ribevents.RegisterFlowSpecRedirectLookup(r.flowSpecRedirectRefusedFor)
+	defer ribevents.RegisterFlowSpecRedirectLookup(nil)
 	recovery := ribevents.PublishRecovery(r.recoveryRoutes)
 	defer recovery.Close() // SDK Run MUST drain event delivery before unpublishing.
 

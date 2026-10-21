@@ -10,6 +10,18 @@ module ze-rib {
          Tracks Adj-RIB-In (routes from peers) and Adj-RIB-Out (routes to peers).
          Supports ADD-PATH (RFC 7911) with per-path-id storage.";
 
+    revision 2026-10-21 {
+        description
+          "flowspec-redirect-check, per BGP session: the switch of the
+           draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec
+           route received from an EBGP peer with a redirect-to-IP action. The
+           draft runs the check by default and requires that it can be disabled
+           per EBGP session, so the grouping is augmented at the bgp, group and
+           peer levels. The leaf carries no YANG default because a default would
+           stop a peer inheriting its group's value; an absent leaf at every
+           level runs the check.";
+    }
+
     revision 2026-08-14 {
         description
           "Both leaf-lists take their plural name. community becomes communities
@@ -153,20 +165,47 @@ module ze-rib {
         }
     }
 
+    // draft-simpson-idr-flowspec-redirect-02 Section 3 redirect-to-IP check,
+    // augmented at bgp, group and peer levels like blackhole-honor-fields.
+    grouping flowspec-redirect-check-fields {
+        container flowspec-redirect-check {
+            description "The check Ze applies to a FlowSpec route received from an EBGP peer whose
+                             redirect-to-IP extended community (0x0800) names next hop X. Ze finds the
+                             longest unicast match for X. When the last AS of its AS_PATH, the origin AS,
+                             is not the peer's AS, Ze discards the redirect action: the route is still
+                             installed and forwarded, without the 0x0800 community and with a zero
+                             next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires
+                             the check by default. It also requires that the check can be turned off for
+                             one EBGP session, which is what this container is for. A route from an IBGP
+                             peer is never checked.";
+            leaf enabled {
+                type boolean;
+                description "true runs the check on this session and false turns it off. The leaf has no
+                                 YANG default so that a peer inherits its group's value and a group the bgp
+                                 level's. When no level states the leaf, the check runs.";
+                ze:help "Check a FlowSpec redirect-to-IP next hop against the peer's AS.";
+            }
+        }
+    }
+
     augment "/bgp:bgp/bgp:peer" {
         uses blackhole-honor-fields;
+        uses flowspec-redirect-check-fields;
     }
 
     augment "/bgp:bgp/bgp:group/bgp:peer" {
         uses blackhole-honor-fields;
+        uses flowspec-redirect-check-fields;
     }
 
     augment "/bgp:bgp/bgp:group" {
         uses blackhole-honor-fields;
+        uses flowspec-redirect-check-fields;
     }
 
     augment "/bgp:bgp" {
         uses blackhole-honor-fields;
+        uses flowspec-redirect-check-fields;
     }
 
     augment "/bgp:bgp" {

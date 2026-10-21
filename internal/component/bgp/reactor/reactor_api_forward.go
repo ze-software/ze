@@ -663,6 +663,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// something rewrites it for that destination (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
 	srcNextHop := payloadNextHop(sourceWire.Payload())
+	flowSpecRedirectRefusal(&srcNextHop, update.SourcePeerIP, updateID)
 	srcAIGP := payloadAIGP(sourceWire.Payload())
 	srcAIGPNextHop := srcNextHop
 	metricRevision := aigpRevision()
@@ -826,6 +827,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		baseNextHop := srcNextHop
 		if peerBaseWire != sourceWire {
 			baseNextHop = payloadNextHop(peerBaseWire.Payload())
+			// A policy override rewrites the same received route, so the
+			// RIB's verdict on that route still holds for it.
+			baseNextHop.mpRedirectRefused = baseNextHop.mpRedirect && srcNextHop.mpRedirectRefused
 		}
 		applyFactsNextHop(facts, &mods, baseNextHop.mpFamily)
 		applyFactsSendCommunity(facts, &mods)

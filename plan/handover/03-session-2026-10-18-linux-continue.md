@@ -2277,3 +2277,41 @@ next commit. Owed:
   which halts the unit in its negative loop before the positive loop runs; a
   mutant on `CheckMatchable` (always refuse) would prove the positive half
   directly.
+
+## 2026-10-21 fsrecv agent: FlowSpec receive side (RFC 8955 4.2, simpson-02 Section 3)
+
+Item 2, committed (rib: a received FlowSpec rule no packet can match is not
+propagated): `reconcileFlowSpecs` makes an unmatchable received rule
+ineligible (kept in the peer's RIB). FRR only ignores it at PBR install
+(`bgp_pbr.c` `bgp_pbr_validate_policy_route`: "match multiple port/imcp
+operations: too complex. ignoring."); BIRD has no such check. The RFC 8955
+row's {partial} receive gap can now be closed and re-judged.
+
+Item 1, committed in the same session (FlowSpec redirect-to-IP EBGP check):
+FRR (`bgp_ecommunity.c`, `bgp_pbr.c`, `bgp_flowspec*.c`, `bgp_route.c`) and
+BIRD (`nest/rt-table.c` `rt_flowspec_check`) have no such check. "Last AS"
+is the origin (rightmost): the draft's authors restate it in
+draft-ietf-idr-flowspec-redirect-ip-02 Section 3 as "the best matching route
+to X is not a BGP route with origin AS matching the peer AS". The RIB
+computes the verdict (`rib_flowspec_redirect.go`), strips 0x0800 from the
+installed communities, and publishes the refused (peer, msgID) set through
+`ribevents.FlowSpecRedirectRefused`; both forward rails (`forwardUpdateSection`,
+`reactorForwardRSSection`) remove 0x0800 and send length 0
+(`discardRedirectAction`). Off switch: `flowspec-redirect-check { enabled }`
+in `ze-rib.yang` at bgp, group and peer levels. Tests: RIB
+`TestFlowSpecRedirectToIPEBGPCheck` and `TestFlowSpecRedirectConfigInheritance`,
+reactor `TestFlowSpecRedirectRefusedForward` and
+`TestFlowSpecRedirectRefusedRouteServer` (live daemon RIB plus RS rail). Each
+was red under its named mutation (leftmost-AS, no off switch, no strip, IBGP
+checked, no rail branch, no RS ask); scratch `fsr-mut-*.log`.
+
+Left open (budget):
+- A `.ci` functional test of the leaf through the real config path (both
+  polarities). The parse and the inheritance are unit-tested only.
+- Gates owed: `./le verify worktree`; `./le rfc check` (records whose producer
+  is `forwardUpdateSection`, `reactorForwardRSSection`, `applyNextHopFamily` or
+  `reconcileFlowSpecs` may go stale and need a re-take).
+- Journal row `plan/journal/implemented-draft-not-enrolled.md`: the draft has
+  no `rfc/short` summary, so these tests carry no requirement tags.
+- FRR and BIRD clones are under `tmp/ext-frr-fs`, `tmp/ext-bird-fs`, and the
+  successor drafts under `tmp/ext-drafts-fs` (untracked data).

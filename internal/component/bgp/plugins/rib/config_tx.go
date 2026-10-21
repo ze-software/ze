@@ -23,12 +23,13 @@ type ribConfig struct {
 	relaxASPath  bool
 	blackhole    map[configjson.PeerConfigKey]blackholeConfig
 	notation     asn.Notation
+	redirect     flowSpecRedirectConfig
 }
 
 // unconfiguredRIB is what the rib runs before any config: one best path, no
 // relaxed AS_PATH, no blackhole honoring, asplain.
 func unconfiguredRIB() ribConfig {
-	return ribConfig{maximumPaths: defaultMultipathPaths, notation: asn.NotationPlain}
+	return ribConfig{maximumPaths: defaultMultipathPaths, notation: asn.NotationPlain, redirect: flowSpecRedirectConfig{base: true}}
 }
 
 // newConfigTx returns the rib's config transaction: Stage 2 installs at once,
@@ -78,6 +79,10 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 		if err != nil {
 			return ribConfig{}, false, err
 		}
+		cfg.redirect, err = parseFlowSpecRedirectConfig(bgpCfg)
+		if err != nil {
+			return ribConfig{}, false, err
+		}
 		return cfg, true, nil
 	}
 	return ribConfig{}, false, nil
@@ -97,6 +102,9 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) {
 	r.relaxASPath.Store(cfg.relaxASPath)
 	blackhole := cfg.blackhole
 	r.blackholeCfg.Store(&blackhole)
+	previousRedirect := r.flowSpecRedirectCfg.Load()
+	redirect := cfg.redirect
+	r.flowSpecRedirectCfg.Store(&redirect)
 	if recordsNotation {
 		asn.Record(cfg.notation)
 	}
@@ -109,6 +117,11 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) {
 	)
 	if rulesChanged {
 		r.reselectAIGPRoutes()
+	}
+	// A switched redirect-to-IP check changes retained FlowSpec verdicts
+	// without any UPDATE, so they are recomputed here.
+	if previousRedirect == nil || !reflect.DeepEqual(*previousRedirect, redirect) {
+		r.reconcileFlowSpecs()
 	}
 }
 
