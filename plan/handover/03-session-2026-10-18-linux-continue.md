@@ -2535,3 +2535,122 @@ session's uncommitted `plugin_test.go`: same. Still owed: `/ze-rfc-audit` re-rea
 of RFC8955-4-3 and RFC5575-4-8 (stale-unit, reseal refuses).
 Green: rs, rr, rib packages; reactor `-run FlowSpec|Validation|Forward`;
 `./le test bgp plugin --pattern flowspec` 13/13 (5 skipped).
+
+## 2026-10-21 fshang agent: redirect-check hang narrowed, runner hint fixed (budget)
+
+Landed with this section: the runner's timeout hint. `likelyCauseTimeout`
+(`internal/test/runner/report.go`) no longer says "All expected messages
+received" on a count alone: it quotes the check peer's own "expectations unmet"
+line when present, else says the count cannot name the unmet expectation. The
+timeout report now prints RAW PEER OUTPUT like the mismatch report
+(`printRawPeerOutput`). Red then green:
+`TestLikelyCauseTimeoutNeverClaimsEveryExpectationMet`.
+
+Hang, NOT fixed, NOT root-caused. Reproduced at HEAD 3ddee31ae3: `-c 25` gave
+2/50 timeouts (both on the -refused id). `-c N` is quiet stress mode and drops
+the failure report, so reproduce with a loop of single runs breaking on rc!=0,
+over a gitignored copy `test/draft/plugin/fsdbg-refused.ci` (the .ci plus
+`option=env:var=ze.log.bgp.rs:value=debug`, same for `bgp.adj.rib.in`,
+`bgp.reactor.forward`, `bgp.routes`; timeouts cut to 8s) run with
+`./le test bgp plugin -draft --pattern fsdbg`. Those per-subsystem debug keys do
+NOT mask the race: failures at runs 7 and 13. The copy is still in place (untracked,
+gitignored), so the next agent can reuse it.
+
+What the two captured failures show (ze stderr):
+- rs applied BOTH peers up with `cut=0` before any UPDATE, and both rs replays
+  finished (EOR sent, `plugin session ready` credited 3/3, fence lowered) before
+  the forwards. So the replay owned nothing: the unicast's ONLY path to the
+  receiver is the live forward. The replay-fence and below-cut suspects of the
+  previous section are ruled out for these runs.
+- rs logged no `forward matched no target`, so rs did not drop it.
+- One forward logged `ForwardUpdatesDirect: dispatch returned id=20 err="all
+  destinations suppressed by egress policy"`. That is most likely the FlowSpec
+  UPDATE (forwardUpdateValidated returns that error when the live forward carries
+  no rule, by design), not the unicast. Unproven: map msg ids first.
+- At shutdown: `forward batch flush failed peer=127.0.0.2 ... broken pipe`, so
+  bytes for the receiver were still unwritten when the daemon stopped.
+
+Leading hypothesis (unverified): the unicast is written into the receiver's
+bufWriter by the rs fast path (`tryDirectWriteNoFlush`, forward_rs.go) on the
+source's read goroutine, and the flush is deferred to `flushFwdDirty`
+(session_write.go), which runs only when the SOURCE's reader drains. When
+`dst.writeMu.TryLock()` fails there (another writer holds the receiver, e.g. the
+RIB's ValidationChange export of the rule or the replay EOR), the receiver is
+kept for "the next flush cycle", and that cycle never comes because the source
+sends nothing more after its two UPDATEs. If the holder does not flush the
+bufWriter itself, the unicast stays unflushed until shutdown. Check first:
+whether every writer that takes writeMu flushes the bufWriter on release, and
+the `state != Established || conn == nil` arm, which drops a dirty dest
+without flushing. A deterministic test would hold dst.writeMu across
+flushFwdDirty and assert the parked bytes still reach the conn without
+another source read.
+
+The next capture prints RAW PEER OUTPUT (the runner fix), which settles whether
+the unicast reached the wire at all, and in which order relative to the rule.
+
+Not done from the brief: the .ci fix with its red-first Go test, the 100/100
+under `-c 25`, the journal row for the hang (no row exists yet; grep found
+none), and the `rfc/discrimination/rfc8955.json` re-take plus `./le rfc check`
+(not started). Disk was full (453M) during this work: `./le scratch
+cache-clean` freed 72G.
+
+### Forward flush hand-off and redirect-check hang (2026-10-21, Mac)
+
+Landed: b228f3f8ae `reactor: hand a contended fast-path flush to the forward
+worker` (flushFwdDirty hands a contended destination to its forward worker,
+`Peer.handOffForwardFlush`; test `TestFlushFwdDirtyContendedReachesWire`, red
+before). Committed with `rfc-change-ok`: three RFC9687-4.3-8 tests changed
+signature only (`appendFwdDirty(nil, s)`), so they wait in the owner's approval
+batch (`plan/verification-debt/8a08314c.md`). It is a real defect fix and NOT the
+hang's cause.
+
+Gate results with the fix in the binary:
+- `.ci -c 500` over ids 374/375 (redirect-check refused/disabled): 6 timeouts in
+  1000 (1 and 5).
+- `--pattern flowspec`: 13/13 pass, 5 skipped.
+- `--pattern rs` matches 844 tests (substring): 801 pass, 42 fail, 1 timeout
+  (374, the hang). The 42 are commit/session-editor/pki tests failing on "store is
+  owned by another process" (concurrent runs), not the reactor.
+- reactor `-race -count=10`: see the agent report (ran in background).
+
+Hang root cause, evidenced but not yet fixed. Captured with the fresh runner
+(`./le --name fshang test bgp plugin -draft --pattern fsdbgx`, 40 gitignored
+copies of `test/draft/plugin/fsdbg-refused.ci` run in parallel: 3/40 fail under
+that load, so a capture takes one run). RAW PEER OUTPUT of a failure: the
+receiver gets the RULE (`0032 02 ... 800E0B0001850000050118C00002`) while the
+fixture still waits for the unicast (`contains=02020000FDEA0000FDF1`, seq 3);
+the check peer prints "failed: message mismatch" and exits, and ze runs on to
+the timeout. So the unicast is not lost: it is ordered after the rule.
+
+Why: the rule reaches the receiver only through rs `processValidation`
+(`plugins/rs/server_validation.go`), on the RIB's ValidationChange; the unicast
+through the rs worker's live batch (`batchForwardUpdate`, flushed together with
+the rule's own suppressed id). `processValidation` flushes the worker's batch
+first, which orders it only against UPDATEs the worker already holds. The RIB
+and rs receive the source's UPDATEs on independent deliveries, so the RIB can
+judge the rule and its ValidationChange can reach the rs worker BEFORE the
+unicast's update-received does: the relay of the rule goes out, the unicast
+follows. `TestFlowSpecValidation...` in `server_validation_test.go` (around
+line 240, "seenMsgID 42: this route server has not yet seen the UPDATE (43) the
+RIB has already judged") already exercises that window for the peer-up case.
+The ze log of each failure shows one `ForwardUpdatesDirect ... suppressed` (the
+rule's live id) and no rs drop. Not yet proven by a log line: add a debug in
+`processValidation` naming `path.MsgID` and the highest msg id the worker has
+processed for the source.
+
+Fix to build (red first): on the source worker, park a FlowSpec validation
+whose `path.MsgID` is above the highest msg id that worker has processed, and
+run it right after the worker batches that msg id (flush, then relay). Open
+design point before coding: a parked replay must still be released if that
+UPDATE never reaches rs (source down: drop it, handleStateDown withdraws;
+another reason: name it). Red test: a unit test in `server_validation_test.go`
+that calls `processValidation` for a rule with MsgID 43 before `processForward`
+of the unicast (42) and asserts the recorded order is unicast forward, then rule
+relay. Proof: 0 failures over 1000 parallel-copy runs against the 3/40 baseline.
+
+Still owed: `./le rfc check` after b228f3f8ae named RFC9687-4.3-8 STALE audit
+verdict (re-judge with `ze-rfc-audit`, mode rejudge; signature-only change) and
+five discrimination records (RFC9687-4.3-8 x3, RFC9494-4.3-3 x2), re-taken by
+this agent's `retake.sh`; see its report for the outcome. The runner still
+reports a check-peer mismatch as TYPE timeout when ze keeps running: a second
+journal-worthy defect in `internal/test/runner`.
