@@ -8,10 +8,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/route"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -97,11 +97,11 @@ func parseMembership(args []string) (*RTC, error) {
 		value := args[i+1]
 		switch key {
 		case keyOriginAS:
-			asn, err := strconv.ParseUint(value, 10, 32)
+			number, err := asn.Parse(value)
 			if err != nil {
-				return nil, fmt.Errorf("%w: %q", errRTCOriginAS, value)
+				return nil, fmt.Errorf("%w: %w", errRTCOriginAS, err)
 			}
-			originAS = uint32(asn)
+			originAS = number
 			hasOriginAS = true
 		case keyRouteTarget:
 			parsed, err := parseRouteTarget(value)

@@ -100,7 +100,6 @@
 1 internal/core/parse/pathid.go
 2 internal/exabgp/bridge/bridge_attribute.go
 1 internal/exabgp/bridge/bridge_event.go
-1 internal/exabgp/migration/migrate_flow_scope.go
 1 internal/le/interoplab/bgp/check_rfc_predicate.go
 1 internal/le/interoplab/bgp/helper_aigp_source_cost.go
 1 internal/plugins/as112/config.go

@@ -30,6 +30,7 @@ func TestInterfaceSetEncode(t *testing.T) {
 		{"group id zero", "interface-set:transitive:output:0:0", "0702 00000000 8000", "interface-set:transitive:output:0:0"},
 		{"group id maximum", "interface-set:transitive:input:1:16383", "0702 00000001 7fff", "interface-set:transitive:input:1:16383"},
 		{"keyword case", "Interface-Set:transitive:input:1234:10", "0702 000004d2 400a", "interface-set:transitive:input:1234:10"},
+		{"asdot as number", "interface-set:transitive:input:1.234:10", "0702 000100ea 400a", "interface-set:transitive:input:65770:10"},
 	}
 
 	for _, tc := range cases {
@@ -80,7 +81,6 @@ func TestInterfaceSetRefusals(t *testing.T) {
 		{"unknown direction", "interface-set:transitive:sideways:1234:10"},
 		{"no direction flag", "interface-set:transitive:none:1234:10"},
 		{"no direction", "interface-set:1234:10"},
-		{"dotted as number", "interface-set:transitive:input:1.234:10"},
 		{"as number too large", "interface-set:transitive:input:4294967296:10"},
 		{"group id above 14 bits", "interface-set:transitive:input:1234:16384"},
 		{"group id not a number", "interface-set:transitive:input:1234:ten"},

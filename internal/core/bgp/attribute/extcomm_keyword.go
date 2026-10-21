@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // extCommKeywords holds the named extended communities whose text form is
@@ -99,10 +101,11 @@ func parseInterfaceSet(value string) (ExtendedCommunity, error) {
 		return ExtendedCommunity{}, fmt.Errorf("interface-set %q: %w", value, err)
 	}
 
-	// ExaBGP refuses a dotted AS number here, and so does ParseUint.
-	asn, err := strconv.ParseUint(fields[1], 10, 32)
+	// The AS number takes every RFC 5396 spelling, as it does everywhere else
+	// in Ze; ExaBGP accepts only the plain form, which is a subset of these.
+	asNumber, err := asn.Parse(fields[1])
 	if err != nil {
-		return ExtendedCommunity{}, fmt.Errorf("interface-set %q: %q is not a 32-bit AS number", value, fields[1])
+		return ExtendedCommunity{}, fmt.Errorf("interface-set %q: %w", value, err)
 	}
 
 	// draft-ietf-idr-flowspec-interfaceset Section 5: "The Group Identifier is
@@ -114,7 +117,7 @@ func parseInterfaceSet(value string) (ExtendedCommunity, error) {
 
 	var ec ExtendedCommunity
 	binary.BigEndian.PutUint16(ec[0:2], typeSubtype)
-	binary.BigEndian.PutUint32(ec[2:6], uint32(asn))                                        //nolint:gosec // G115: bounded by ParseUint 32-bit
+	binary.BigEndian.PutUint32(ec[2:6], asNumber)
 	binary.BigEndian.PutUint16(ec[6:8], direction<<interfaceSetGroupIDBits|uint16(groupID)) //nolint:gosec // G115: bounded by ParseUint 14-bit
 	return ec, nil
 }

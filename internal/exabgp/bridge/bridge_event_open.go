@@ -16,6 +16,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -192,8 +193,8 @@ func capabilityBody(code int, values []string) map[string]any {
 		// message size is 65535 octets".
 		return map[string]any{"name": "extended-message", "size": 65535}
 	case capASN4:
-		if asn, err := strconv.ParseUint(values[0], 10, 32); err == nil {
-			return map[string]any{"name": "asn4", "asn4": asn}
+		if number, err := asn.Parse(values[0]); err == nil {
+			return map[string]any{"name": "asn4", "asn4": number}
 		}
 	case capNextHop:
 		return map[string]any{"name": "nexthop", "conversion": nextHopConversions(values)}
