@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/rand/v2"
 	"net/netip"
 	"runtime"
 	"slices"
@@ -1341,8 +1342,9 @@ const (
 // worst first, so S1 is the RIB's best and the newest: it owns client C's
 // route. Then K of them stop offering it, by withdrawal or by session down,
 // in every order of every K-subset, mixed both ways, issued back-to-back
-// (each loss decided at C before the next) and concurrently (issued
-// together):
+// (the next loss waits until C holds the best survivor and owes nothing,
+// which a loss of a non-owner already satisfies before it is processed) and
+// concurrently (issued together):
 //
 //   - K = 2: C ends on the best remaining source's route, and is sent no
 //     withdrawal of the prefix;
@@ -1428,7 +1430,7 @@ func convergeOnSurvivor(t *testing.T, sources int, losers []int, kind func(int) 
 	for i := range sources {
 		settings = append(settings, lowLiveSettings("192.0.2."+strconv.Itoa(10+i), 65000, uint32(65001+i)))
 	}
-	settings = append(settings, lowLiveSettings("192.0.2.3", 65000, 65010), lowLiveSettings("192.0.2.6", 65000, 65011))
+	settings = append(settings, lowLiveSettings("192.0.2.3", 65000, 65100), lowLiveSettings("192.0.2.6", 65000, 65101))
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
@@ -1472,7 +1474,7 @@ func convergeOnSurvivor(t *testing.T, sources int, losers []int, kind func(int) 
 	}
 	// Let any late write for the prefix land before the history is judged.
 	later := netip.MustParsePrefix("10.9.254.0/24")
-	attrsM := firstASAttrs(4, 65011)
+	attrsM := firstASAttrs(4, 65101)
 	ownershipLiveSend(t, marker, nil, attrsM, later) // RFC 4271 Section 4.3.
 	view := ownershipLiveThrough(t, c, later, attrsM)
 	if best < 0 {
@@ -1505,4 +1507,34 @@ func convergenceSettled(t *testing.T, c *lowLivePeer, prefix netip.Prefix, attrs
 		return !held
 	}
 	return bytes.Equal(route, attrs[best])
+}
+
+// TestOwedKeyRealRIBConvergenceProperty is AC-12's property form over the
+// real bgp-rib: twelve seeded cases, each with N sources in [3, 12], K losers
+// in [1, N] in a random order, each loss a withdrawal or a session down at
+// random, issued back-to-back or concurrently at random. C ends on the best
+// survivor's route with no withdrawal, or, when K = N, holds nothing after
+// exactly one. The seed is logged, so a failing case replays.
+// Re-announcements by a lost source are Phase 3a's (Q-3): before it, the
+// newest write owns C's entry, not the RIB's best.
+//
+// VALIDATES: AC-12 with no fixed N, K or order.
+// PREVENTS: a convergence that holds only for the hand-picked cases.
+func TestOwedKeyRealRIBConvergenceProperty(t *testing.T) {
+	seed := time.Now().UnixNano()
+	t.Logf("seed %d", seed)
+	random := rand.New(rand.NewPCG(uint64(seed), 0)) //nolint:gosec // A test schedule, not a secret.
+	for run := range 12 {
+		sources := 3 + random.IntN(10)
+		losers := random.Perm(sources)[:1+random.IntN(sources)]
+		kinds := make([]convergenceLoss, len(losers))
+		for i := range kinds {
+			kinds[i] = convergenceLossWithdraw + convergenceLoss(random.IntN(2))
+		}
+		concurrent := random.IntN(2) == 1
+		name := "run" + strconv.Itoa(run) + "/N" + strconv.Itoa(sources) + "/" + convergenceCaseName(losers, kinds, concurrent)
+		t.Run(name, func(t *testing.T) {
+			convergeOnSurvivor(t, sources, losers, func(i int) convergenceLoss { return kinds[i] }, concurrent)
+		})
+	}
 }

@@ -626,8 +626,8 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 // withdrawal of A's route at C (a synthesized withdrawal):
 //
 //   - "policy": the new AS_PATH carries 65099, which C's export policy denies;
-//   - "next-hop": the new NEXT_HOP is C's own address, which RFC 4271 Section
-//     5.1.3 forbids sending to C.
+//   - "next-hop": the new NEXT_HOP is C's own address, which Ze refuses to
+//     send to C (egressNextHopIsPeerOwn, after RFC 4271 Section 5.1.3).
 //
 // A's new path is in the RIB and may be elected first; the egress check
 // steps past it, so C receives B's route with B's received attributes and no
@@ -667,11 +667,15 @@ func synthesizedWithdrawalRecovers(t *testing.T, fastPath, nextHop bool) {
 	}
 	prefix := netip.MustParsePrefix("10.9.0.0/24")
 	attrsA := firstASAttrs(4, 65002)
-	attrsB := firstASAttrs(4, 65003, 65003)
+	// B's AS_PATH is longer than A's refused one, so the election puts A's
+	// refused path first and the step-past is what the test exercises.
+	attrsB := firstASAttrs(4, 65003, 65003, 65003)
 	refused := firstASAttrs(4, 65002, 65099)
 	if nextHop {
-		// RFC 4271 Section 5.1.3: "A BGP speaker SHALL NOT send to a peer
-		// a route with a NEXT_HOP that is the IP address of that peer."
+		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL
+		// NOT be advertised to a peer using an address of that peer as
+		// NEXT_HOP." Ze applies the same refusal to a relayed route
+		// (egressNextHopIsPeerOwn, forward_next_hop.go).
 		refused = synthesizedNextHopAttrs(c.peer.Settings().Address, 65002)
 	}
 

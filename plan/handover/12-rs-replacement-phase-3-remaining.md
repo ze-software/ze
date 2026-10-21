@@ -49,8 +49,22 @@ spec is still `design`, no `rpc.ReasonNotification` in the tree), so the Phase
   363 passes. Details: spec Design Insights, 2026-10-21 entries.
 - Item 2 closed in `6f18c55e24`: `TestOwedKeyPartialRoundSkipsBackoff`, red
   656 to 675 ms with the conversion broken, green 13 to 35 ms.
-- Item 3 (review round 4) scope is written in the spec; check the spec's last
-  Design Insights entries for its result.
+- Item 3: review round 4 ran (0 BLOCKER, 3 ISSUE, 2 NOTE), all fixed in
+  `2affaf0809`. Round 5 runs over `2affaf0809` and `a740edfa20`; its result
+  is the spec's last Design Insights entry. If no entry records it, run it
+  again (fresh `ze-review` subagent) before anything else.
+- Phase 3 rows landed since: AC-14 `TestRSOwnerSynthesizedWithdrawalRecovers`
+  (`a740edfa20`), AC-12 `TestOwedKeyRealRIBConvergence` (`2affaf0809`). Still
+  owed in Phase 3: `TestOwedKeyRealRIBConvergenceProperty`, AC-19
+  `TestOwedKeyGRPurgeRecoversSurvivor`, AC-9 (needs an ADD-PATH live fixture),
+  AC-18 and AC-6 (their expectation depends on Phase 3a, Q-3), the AC-10
+  re-record of `TestRFC8654FatalLengthReelectsAlternateBest`, then 3b, 3a, 4,
+  5, 6 as below. Phase 2b second half still waits on D1.
+- Test recipe that works with the broken working tree: `git archive HEAD`
+  into a fresh dir under the session scratch, copy your edited files in, run
+  `./le job run label unit-pkg quiet command go -C <dir> test -race -tags
+  "<tags>" ...`. `rm -rf` of an export trips the test-deletion hook: make a
+  new directory instead.
 
 ### OPEN at hand-off (do these first)
 
