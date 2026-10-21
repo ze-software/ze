@@ -3190,3 +3190,32 @@ B state (uncommitted, NOT reviewed):
 - 12 done: format test raw is 40FDAB / 180A0B.
 - 10 NOT done: bridge test TestSplitErrorFamilyIsNotRendered (addpath_vpn_render_test.go) is GREEN WITHOUT the fix, so it proves nothing yet: WireUpdateToExabgpJSON renders no family at all for a split-error MP_REACH/UNREACH (ipv4 mpls-vpn and ipv6 unicast both tried; output carries only attribute origin). Find where the bridge path loses the error op before convertUpdateIPC2 (bridge_wire_json.go WireUpdateToExabgpJSON, which format path it calls), then make the test red against HEAD's convertUpdateIPC2, then fix convertUpdateIPC2 (create announce[fam] only once a route exists, skip an error op with a slog.Warn naming peer and family; thread e.Peer through updateMessageJSON) and the text path appendUpdateOperation (it already writes nothing for an op with no nlri; add the same warn).
 - Still owed: json-format.md (name both producers, appendFilterResultJSON source anchor already present), exabgp-bridge.md (error op skipped and logged), the zero-value journal B row text (format full now fixed; text form skip), PREVENTS line in addpath_vpn_render_test.go re-check once 10 lands, then ./le commit create for B (text_update.go, mp_split_error_json_test.go, filter.go, text_json.go, text_human.go, bridge_event.go + test, json-format.md, exabgp-bridge.md, addpath_vpn_render_test.go, zero-value-as-valid-answer.md) and STOP for independent review.
+
+## 2026-10-21 evening, main session: state after the disk filled
+
+Landed since: 15bd174272 (set B, MP NLRI split errors rendered; bridge skips and warns).
+
+Uncommitted, reviewed, owes ONE daemon test before commit: one key per family
+(script tmp/commit-165f9181-a-1c41ef.sh, now stale once the test is added).
+appendUpdateNLRIJSONDirect merges body/MP_REACH/MP_UNREACH per family key;
+appendIPv4PrefixesFromWire returns an error member; bridge warning reworded.
+Review: code correct, 0 allocs on the hot path. BLOCKER: a test/plugin .ci where
+ze test peer sends MP_REACH ipv6 + MP_UNREACH ipv6 (hex mergeReachV6 /
+mergeUnreachV6 in family_key_merge_json_test.go) and an observer plugin asserts
+both operations under one `ipv6/unicast` key. Notes: RFC comment above the new
+`prefixBits > 32` check (as nlri/inet.go ParseINET); tests for the two ADD-PATH
+short-read branches; json-format.md may tell consumers to apply dels first
+(RFC 4271 Section 4.3).
+
+Uncommitted, NOT yet re-reviewed: bgp-rr departure as recovery (stale script
+tmp/commit-fddec904-a-9ad5bc.sh). Done since the first review: rr.go
+handleStateDown synchronous retention filter (rrFamilyRetained, RFC 4724
+Section 4.2); gr/register.go StartAfter bgp-rr (declared order, no red proves
+it: reviewer to judge); TestPeerDownSkipsRetainedFamilies (red without the
+filter); test/plugin/addpath-departure-rr-gr-retained.ci (green 1/1, red with
+the filter disabled; one green rerun owed, the last failed on the full disk).
+Still owed: interop scenario bgp-addpath-departure-reflector-frr (QEMU lab,
+ZE_QEMU_SSH_PORT=2290), a .ci for a non-ADD-PATH destination (surviving path
+replaces the departed best; RFC 4456 Section 6 non-client to non-client
+skipped), docs rib-storage-design.md and graceful-restart.md, journal row,
+then re-review.
