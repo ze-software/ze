@@ -312,14 +312,16 @@ func TestAPieceKeepsAnEarlierStructuralRedCharged(t *testing.T) {
 // and at `verify deps/evidence-vet` (full population only), then a piece that
 // holds neither, and require each refusal line to name the diagnosing rerun
 // and the verify runs that clear it, with `le verify current fast` named for
-// lint only.
+// lint only. The diagnosing rerun is pinned to the group's own rerun string,
+// so a refusal that fell back to the full run would go red.
 func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 	for _, tc := range []struct {
 		stage string
+		rerun string
 		fast  bool
 	}{
-		{stage: "go lint/run", fast: true},
-		{stage: "verify deps/evidence-vet", fast: false},
+		{stage: "go lint/run", rerun: "le go lint run", fast: true},
+		{stage: "verify deps/evidence-vet", rerun: "le verify deps evidence-vet", fast: false},
 	} {
 		t.Run(tc.stage, func(t *testing.T) {
 			root := newCommitRepository(t)
@@ -338,7 +340,7 @@ func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 				t.Fatalf("structuralGateReds = %#v, want %s charged", reds, tc.stage)
 			}
 			for _, want := range []string{
-				"diagnose with: le ",
+				"; diagnose with: " + tc.rerun + "; ",
 				"clears when a verify run reaches it: le verify worktree, or the le verify worktree part <i> of <n> piece that holds it",
 			} {
 				if !strings.Contains(cause, want) {

@@ -345,6 +345,44 @@ func TestAFailedIndexWriteSaysWhatItLeftAndTheFix(t *testing.T) {
 	}
 }
 
+// TestAFailedCopyAfterTheIndexSaysTheGateReadsThisRun proves the JSON index is
+// written before the reader's copies: when a copy cannot be written, the JSON
+// index already holds this run, and the error says the gate reads this run's
+// verdicts while the copy still shows the earlier one. Written the other way
+// round, a failed copy would leave the gate on the earlier run while the error
+// claimed otherwise.
+//
+// Method: put a directory where the text index belongs (and, separately, where
+// the full-mode copy belongs), write the index, and require the JSON index to
+// name this run's commit and the error to carry the copyBehind wording.
+func TestAFailedCopyAfterTheIndexSaysTheGateReadsThisRun(t *testing.T) {
+	for _, path := range []string{FailuresLogPath, FullJSONPath} {
+		t.Run(path, func(t *testing.T) {
+			root := t.TempDir()
+			occupied := filepath.Join(root, filepath.FromSlash(path), "occupied")
+			if err := os.MkdirAll(occupied, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			err := writeFailureIndex(root, artifactIndex{Mode: Mode, Commit: "ccc"})
+			if err == nil {
+				t.Fatalf("writeFailureIndex succeeded with a directory at %s", path)
+			}
+			if index := readCarried(t, root); index.Commit != "ccc" {
+				t.Fatalf("the JSON index names commit %q after a failed copy, want this run's ccc", index.Commit)
+			}
+			for _, want := range []string{
+				"the failure index at " + FailuresJSONPath + " holds this run's verdicts",
+				"but " + path + " still shows the earlier run",
+				"then rerun the verify",
+			} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error = %q, want it to contain %q", err, want)
+				}
+			}
+		})
+	}
+}
+
 // TestAnEarlierIndexWithNoCommitIsNamedAsSuch proves an earlier index that
 // recorded no commit is rendered as "an earlier run (commit not recorded)"
 // rather than the empty "commit , run" and "red at  in ".
