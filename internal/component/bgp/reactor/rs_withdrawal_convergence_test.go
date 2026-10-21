@@ -1117,3 +1117,202 @@ func (g *lookupGate) after(request *ribevents.RecoveryRequest, outcomes []ribeve
 	}
 	return outcomes, err
 }
+
+// TestOwedKeyPartialRoundSkipsBackoff proves the conversion at the end of
+// recoveryWorker.round: a round whose later chunk finds the read pool dry
+// after an earlier chunk was decided is partial, not a stall, so the stall
+// count resets and the next round starts at once. A owns 1000 prefixes at C,
+// two lookup chunks of 500; B's export policy denies A's routes, so C alone
+// owes. The test steps every lookup of C's worker and holds every free read
+// buffer, so the first six rounds stall on their first chunk and the backoff
+// reaches 640 ms. The seventh round's first chunk gets the buffers back and
+// is decided; before its second chunk the test holds the pool dry again. The
+// next lookup MUST follow within 300 ms: a round counted as the seventh stall
+// would wait 640 ms first.
+//
+// VALIDATES: a round that decided a chunk resets the stall count.
+// PREVENTS: a destination making progress backing off, and reset at
+// recoveryStallMax, as if it had decided nothing.
+func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
+	const keys = 2 * recoveryLookupKeysMax
+	settings := []*PeerSettings{
+		lowLiveSettings("192.0.2.1", 65000, 65002),
+		lowLiveSettings("192.0.2.2", 65000, 65003),
+		lowLiveSettings("192.0.2.3", 65000, 65004),
+	}
+	for _, setting := range settings {
+		setting.RSClient = true
+	}
+	// B's export policy denies A's routes, so A's withdrawal owes keys at C
+	// alone (bufferShortageDefersKeys).
+	settings[1].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	peers := rsLiveRouter(t, settings...)
+	a, b, c := peers[0], peers[1], peers[2]
+	policyDenyASNs(a.peer.reactor, b.peer.Settings().Address, "65002")
+	attrsA := firstASAttrs(4, 65002)
+	attrsB := firstASAttrs(4, 65003, 65003)
+	prefixes := churnPrefixes(90, keys)
+	// RFC 4271 Section 4.3: 900 four-octet NLRI tuples keep each UPDATE
+	// under the 4096-octet maximum of Section 4.
+	const perUpdate = 900
+	for _, source := range []struct {
+		peer  *lowLivePeer
+		attrs []byte
+	}{{b, attrsB}, {a, attrsA}} {
+		for start := 0; start < keys; start += perUpdate {
+			end := min(start+perUpdate, keys)
+			ownershipLiveSend(t, source.peer, nil, source.attrs, prefixes[start:end]...) // RFC 4271 Section 4.3.
+			ownershipLiveThrough(t, c, prefixes[end-1], source.attrs)
+		}
+	}
+	waitOwnedBy(t, c.peer, a.peer, keys)
+
+	// The pool is grown first, so the buffers returned to the seventh round
+	// decide its whole first chunk.
+	growReadPool(t, 4*recoveryLookupKeysMax)
+	step := &lookupStepper{destination: c.peer.Settings().Address,
+		arrived: make(chan int), proceed: make(chan struct{}), free: make(chan struct{})}
+	publishLookupTap(t, step.after)
+	t.Cleanup(step.release)
+
+	for start := 0; start < keys; start += perUpdate {
+		end := min(start+perUpdate, keys)
+		ownershipLiveSend(t, a, prefixes[start:end], nil) // RFC 4271 Section 4.3.
+	}
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == keys }, "C owes every withdrawn key")
+
+	// Six rounds stall on their first chunk; their waits are 10 to 320 ms.
+	// The pool is held dry only once the first is parked at its lookup:
+	// every session's reads share it, and A's withdrawal must be read first.
+	var held []BufHandle
+	for round := range 6 {
+		if got := step.next(t); got != recoveryLookupKeysMax {
+			t.Fatalf("stalled round %d asked for %d keys, want %d", round+1, got, recoveryLookupKeysMax)
+		}
+		if round == 0 {
+			held = drainReadPool(t)
+		}
+		step.proceed <- struct{}{}
+	}
+	// The seventh round's first chunk is decided with the buffers back.
+	step.next(t)
+	if got := adjOutOwedCount(c.peer); got != keys {
+		t.Fatalf("C decided %d keys while the pool was dry, want 0", keys-got)
+	}
+	for _, h := range held {
+		returnReadBuffer(h)
+	}
+	held = nil
+	step.proceed <- struct{}{}
+	// Its second chunk finds the pool dry again.
+	step.next(t)
+	if got := adjOutOwedCount(c.peer); got != keys-recoveryLookupKeysMax {
+		t.Fatalf("C owes %d keys after the seventh round's first chunk, want %d", got, keys-recoveryLookupKeysMax)
+	}
+	held = holdReadPoolDry(t)
+	asked := time.Now()
+	step.proceed <- struct{}{}
+	step.next(t)
+	gap := time.Since(asked)
+	t.Logf("C's next round started %s after the partial round", gap)
+	if gap > 300*time.Millisecond {
+		t.Errorf("C's next round started %s after the partial round, want under 300ms (the stall count did not reset)", gap)
+	}
+	for _, h := range held {
+		returnReadBuffer(h)
+	}
+	step.release()
+	waitOwnedBy(t, c.peer, b.peer, keys)
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")
+	ownershipLiveEstablished(t, peers)
+}
+
+// growReadPool takes count 4K read buffers and returns them, so the pool
+// holds at least that many before a test pins its budget (drainReadPool).
+func growReadPool(t *testing.T, count int) {
+	t.Helper()
+	taken := make([]BufHandle, 0, count)
+	for range count {
+		h := getReadBuf(false)
+		if h.Buf == nil {
+			break
+		}
+		taken = append(taken, h)
+	}
+	for _, h := range taken {
+		returnReadBuffer(h)
+	}
+	if len(taken) < count {
+		t.Fatalf("the read pool gave %d of %d buffers", len(taken), count)
+	}
+}
+
+// holdReadPoolDry takes every free 4K read buffer under the budget
+// drainReadPool pinned, and keeps taking until 50 ms pass with none
+// returned: a write the last admission staged returns its buffer when it
+// completes. The caller returns what it holds.
+func holdReadPoolDry(t *testing.T) []BufHandle {
+	t.Helper()
+	var held []BufHandle
+	for {
+		taken := 0
+		for {
+			h := getReadBuf(false)
+			if h.Buf == nil {
+				break
+			}
+			held = append(held, h)
+			taken++
+		}
+		if taken == 0 && len(held) > 0 {
+			return held
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// lookupStepper parks every recovery lookup for one destination until the
+// test lets it proceed, and reports each lookup's key count on arrived. Once
+// released it parks nothing. It is a publishLookupTap hook; a parked lookup
+// waits at most 10 seconds.
+type lookupStepper struct {
+	destination netip.Addr
+	arrived     chan int
+	proceed     chan struct{}
+	free        chan struct{}
+	once        sync.Once
+}
+
+// next waits up to 10 seconds for the next lookup and returns its key count.
+func (s *lookupStepper) next(t *testing.T) int {
+	t.Helper()
+	select {
+	case n := <-s.arrived:
+		return n
+	case <-time.After(10 * time.Second):
+		t.Fatal("C's next recovery lookup never ran")
+		return 0
+	}
+}
+
+// release lets every parked and later lookup through. Safe to call twice.
+func (s *lookupStepper) release() {
+	s.once.Do(func() { close(s.free) })
+}
+
+func (s *lookupStepper) after(request *ribevents.RecoveryRequest, outcomes []ribevents.RecoveryOutcome, err error) ([]ribevents.RecoveryOutcome, error) {
+	if request.Destination != s.destination {
+		return outcomes, err
+	}
+	select {
+	case s.arrived <- len(request.Keys):
+	case <-s.free:
+		return outcomes, err
+	}
+	select {
+	case <-s.proceed:
+	case <-s.free:
+	case <-time.After(10 * time.Second):
+	}
+	return outcomes, err
+}
