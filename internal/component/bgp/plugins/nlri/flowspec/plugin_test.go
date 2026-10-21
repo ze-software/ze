@@ -640,7 +640,10 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "multiple_ports",
 			family: "ipv4/flow",
-			text:   "destination-port =80 =443 =8080",
+			// 80 OR 443 OR 8080: the repeated keyword opens an OR term, while
+			// successive values under one keyword are ANDed, and =80 AND =443
+			// matches no packet, which CheckMatchable refuses (RFC 8955 4.2).
+			text: "destination-port =80 destination-port =443 destination-port =8080",
 		},
 		{
 			name:   "ipv6_destination",

@@ -105,10 +105,37 @@ So Ze refuses a flow route when no packet can satisfy its components together:
   read as the operator expression it is, so `protocol >=6&<=17` beside a port
   matches (6 and 17 are in range) while `protocol >6&<17` does not;
 - a fragment (12) match that admits only fragments other than the first, such as
-  `is-fragment` or `last-fragment`, beside any of them.
+  `is-fragment` or `last-fragment`, beside any of them;
+- a port (4) match that admits no port the destination-port (5) and source-port
+  (6) matches beside it admit. A packet matches the port component through its
+  destination OR its source port (Section 4.2.2.4), so `port =80` beside
+  `destination-port =443` and `source-port =443` matches nothing, while
+  `destination-port =80` instead matches.
+
+Ze also refuses a route when one component's own operator list admits no value
+a packet can carry, because a packet matches only the intersection of all the
+components (Section 4.2):
+
+| Component | Refused when its list admits nothing in |
+|-----------|-----------------------------------------|
+| Any numeric component | Its own terms: an AND group such as `>100&<50`, or `=80&!=80` |
+| Ports (4, 5, 6), packet length (10) on IPv4 | 0 to 65535 |
+| Protocol (3), ICMP type and code (7, 8) | 0 to 255 |
+| DSCP (11) | 0 to 63, the six-bit field (Section 4.2.2.11) |
+| Flow label (13) | 0 to 1048575, the 20-bit field (RFC 8956 Section 3.7) |
+| Next header (3) on IPv6 | The values that are not extension headers: RFC 8956 Section 3.3 matches the first Next Header that is not one, so 0, 43, 44, 50, 51 and 60 (RFC 8200 Section 4) never match |
+| TCP flags (9) | Every combination of the 16 bits: `=syn&!=syn` admits none |
+| Fragment (12) | The four packet states: unfragmented, first fragment (FF), middle fragment (IsF), last fragment (IsF and LF), with or without DF on IPv4. FF beside IsF or LF is no packet |
+
+The fragment bits the RFC marks 0 "MUST be ignored during decoding" (Section
+4.2.2.12), and DF is one of them on IPv6 (RFC 8956 Section 3.6), so Ze ignores
+those bits rather than read them as a packet that never sets them. Packet length
+on IPv6 has no bound, since a jumbogram (RFC 2675) is longer than 65535.
+Each list is judged as ranges of values, so the cost grows with the number of
+terms rather than the field width.
 
 The refusal comes from config and from `update text`, with an error naming the
-two matches and the change that makes the route match. The ExaBGP migration and
+matches and the change that makes the route match. The ExaBGP migration and
 the bridge hold the component types but not their values, so they refuse the
 combinations of types themselves and leave a value contradiction to the
 encoder, which judges the route again with its values. The migration drops a
@@ -119,6 +146,7 @@ it (`docs/architecture/plugin/rib-storage-design.md`, "Mandatory FlowSpec
 authorization"). ExaBGP 6.0 refuses only the ICMP and port case
 (`docs/exabgp/exabgp-differences.md`).
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
+<!-- source: internal/core/bgp/nlri/flowspec/unmatchable_values.go -- checkComponentValues, checkPortValues -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- reconcileFlowSpecs -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/config.go -- parseConfigRoute -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- EncodeFlowSpecComponents -->

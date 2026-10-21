@@ -81,11 +81,15 @@ keeps"). Three differences remain.
 - **More flow routes match no packet.** ExaBGP 6.0 drops a flow route that
   matches an ICMP type or code and a port (`Flow.unmatchable`,
   `src/exabgp/bgp/message/update/nlri/flow.py`) and sends every other one. Ze
-  applies the whole rule RFC 8955 Sections 4.2.2.4 to 4.2.2.9 state, so it also
-  refuses ICMP beside TCP flags, a protocol match no port, ICMP or TCP-flags
-  match beside it can meet (`protocol udp; tcp-flags syn;`), and a non-first
-  fragment match beside any of them (`fragment is-fragment; destination-port
-  =80;`). The RFC outranks ExaBGP's behavior. The bridge refuses ICMP beside TCP
+  applies the whole rule RFC 8955 Sections 4.2.2.3 to 4.2.2.12 and RFC 8956
+  Sections 3.3 to 3.7 state, so it also refuses ICMP beside TCP flags, a
+  protocol match no port, ICMP or TCP-flags match beside it can meet (`protocol
+  udp; tcp-flags syn;`), a non-first fragment match beside any of them
+  (`fragment is-fragment; destination-port =80;`), a port match no destination
+  or source port beside it can meet (`port =80; destination-port =443;
+  source-port =443;`), and a match whose own values admit nothing (`dscp >63`,
+  `destination-port >100&<50`, an IPv6 `next-header` naming only extension
+  headers, a TCP flags or fragment bitmask that contradicts itself). The RFC outranks ExaBGP's behavior. The bridge refuses ICMP beside TCP
   flags itself, answering `error` as for ICMP beside a port; a contradiction in
   the values reaches Ze as `update text`, which Ze refuses
   (`docs/architecture/wire/nlri-flowspec.md`, "Combinations that match no
@@ -104,6 +108,7 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/ann
 <!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational, errOperationalNotSent -->
 <!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine -->
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
+<!-- source: internal/core/bgp/nlri/flowspec/unmatchable_values.go -- checkComponentValues, checkPortValues -->
 
 ---
 

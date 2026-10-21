@@ -43,8 +43,10 @@ var transportTypes = [...]FlowComponentType{
 // has reports whether the route carries a component of a type. matches answers
 // the operator list of a component has reports present. A caller that holds the
 // component types but not their operator lists passes nil for matches: the
-// checks that read the protocol and fragment values are then not made, so nil
-// is the guard that limits such a caller to the combinations of types. Ze judges
+// checks that read the values (each component's own list, the three port
+// components together, the protocol and fragment lists beside a transport
+// component) are then not made, so nil is the guard that limits such a caller
+// to the combinations of types. Ze judges
 // the route again, values included, when it builds the FlowSpec.
 //
 // RFC 8955 Section 4.2: "some combinations cannot match any packets (e.g.,
@@ -79,14 +81,20 @@ func CheckMatchable(afi AFI, has func(FlowComponentType) bool, matches func(Flow
 		}
 		required = narrowed
 	}
-	if first == 0 {
-		return nil
-	}
 	if matches == nil {
 		return nil
 	}
+	if err := checkComponentValues(afi, has, matches); err != nil {
+		return err
+	}
+	if err := checkPortValues(has, matches); err != nil {
+		return err
+	}
+	if first == 0 {
+		return nil
+	}
 
-	if has(FlowIPProtocol) && !required.admittedBy(matches(FlowIPProtocol)) {
+	if has(FlowIPProtocol) && required.and(upperLayerProtocols(afi, matches(FlowIPProtocol))).empty() {
 		// RFC 8955 Section 4.2.2.3: "Defines a list of {numeric_op, value}
 		// pairs that are used to match the IP protocol value octet in IP
 		// packets." RFC 8956 Section 3.3 makes it the first upper-layer Next
@@ -95,7 +103,10 @@ func CheckMatchable(afi AFI, has func(FlowComponentType) bool, matches func(Flow
 			"them; widen the %s match or remove the %s match",
 			ErrFlowSpecUnmatchable, first, required.names(), FlowIPProtocol, FlowIPProtocol, first)
 	}
-	if has(FlowFragment) && !transportFragmentAdmitted(afi, matches(FlowFragment)) {
+	// Every transport component quotes the same clause, "never matches ... if
+	// the packet is fragmented and this is not the first fragment" (RFC 8955
+	// Sections 4.2.2.4, 4.2.2.7, 4.2.2.8, 4.2.2.9; RFC 8956 Sections 3.4, 3.5).
+	if has(FlowFragment) && !fragmentAdmitted(afi, matches(FlowFragment), transportFragmentStates[:]) {
 		return fmt.Errorf("%w: the %s match reads the transport header, which only an "+
 			"unfragmented packet or a first fragment carries, and the %s match admits "+
 			"neither; remove the %s match or the %s match",
@@ -150,45 +161,22 @@ func transportField(t FlowComponentType) string {
 	return "ports"
 }
 
-// transportFragmentAdmitted reports whether the fragment operator list admits a
-// packet that carries its transport header: an unfragmented packet or a first
-// fragment, with or without DF on IPv4.
-//
-// Every transport component quotes the same clause, "never matches ... if the
-// packet is fragmented and this is not the first fragment" (RFC 8955 Sections
-// 4.2.2.4, 4.2.2.7, 4.2.2.8, 4.2.2.9; RFC 8956 Sections 3.4, 3.5).
-func transportFragmentAdmitted(afi AFI, list []FlowMatch) bool {
-	// RFC 8955 Section 4.2.2.12: "FF (First Fragment): match if the [RFC0791]
-	// IP Header Fragment Offset is 0 and the Flags field bit-2 (MF) is 1." An
-	// unfragmented packet sets none of IsF, FF and LF.
-	states := [...]uint64{0, uint64(FlowFragFirstFragment)}
-	for _, state := range states {
-		if expressionAdmits(list, state, true) {
-			return true
-		}
-		// RFC 8956 Section 3.6 reserves the DF bit for IPv6, so an IPv6
-		// packet never sets it.
-		if afi != AFIIPv6 && expressionAdmits(list, state|uint64(FlowFragDontFragment), true) {
-			return true
-		}
-	}
-	return false
-}
-
 // expressionAdmits reports whether data satisfies the operator list. bitmask
 // selects the bitmask_op reading of Section 4.2.1.2 over the numeric_op one of
-// Section 4.2.1.1. An empty list admits nothing, as an OR of no terms.
+// Section 4.2.1.1. valueMask keeps the value bits the component defines, the
+// rest being ignored on decoding; a numeric list passes every bit. An empty
+// list admits nothing, as an OR of no terms.
 //
 // RFC 8955 Section 4.2.1.1: "If unset, the result of the previous {op, value}
 // pair is logically ORed with the current one. If set, the operation is a
 // logical AND. In the first operator octet of a sequence, it MUST be encoded as
 // unset and MUST be treated as always unset on decoding. The AND operator has
 // higher priority than OR for the purposes of evaluating logical expressions."
-func expressionAdmits(list []FlowMatch, data uint64, bitmask bool) bool {
+func expressionAdmits(list []FlowMatch, data uint64, bitmask bool, valueMask uint64) bool {
 	admitted := false
 	group := false
 	for i, m := range list {
-		term := termAdmits(m, data, bitmask)
+		term := termAdmits(m.Op, m.Value&valueMask, data, bitmask)
 		if i == 0 {
 			group = term
 			continue
@@ -204,28 +192,28 @@ func expressionAdmits(list []FlowMatch, data uint64, bitmask bool) bool {
 }
 
 // termAdmits reports whether data satisfies one {op, value} pair.
-func termAdmits(m FlowMatch, data uint64, bitmask bool) bool {
+func termAdmits(op FlowOperator, value, data uint64, bitmask bool) bool {
 	if bitmask {
 		// RFC 8955 Section 4.2.1.2: "If set, this is a bitwise match
 		// operation defined as "(data AND value) == value"; if unset, (data
 		// AND value) evaluates to TRUE if any of the bits in the value mask
 		// are set in the data." and "not (NOT bit): If set, logical negation
 		// of operation."
-		hit := data&m.Value != 0
-		if m.Op&FlowOpMatch != 0 {
-			hit = data&m.Value == m.Value
+		hit := data&value != 0
+		if op&FlowOpMatch != 0 {
+			hit = data&value == value
 		}
-		return hit != (m.Op&FlowOpNot != 0)
+		return hit != (op&FlowOpNot != 0)
 	}
 	// RFC 8955 Section 4.2.1.1, Table 1: the lt, gt and eq bits each admit
 	// their comparison, and the term is the OR of the bits set.
-	if m.Op&FlowOpLess != 0 && data < m.Value {
+	if op&FlowOpLess != 0 && data < value {
 		return true
 	}
-	if m.Op&FlowOpGreater != 0 && data > m.Value {
+	if op&FlowOpGreater != 0 && data > value {
 		return true
 	}
-	return m.Op&FlowOpEqual != 0 && data == m.Value
+	return op&FlowOpEqual != 0 && data == value
 }
 
 // protocolSet is a set of IP protocol numbers, one bit for each of the 256
@@ -248,18 +236,6 @@ func (s protocolSet) and(o protocolSet) protocolSet {
 func (s protocolSet) empty() bool { return s == protocolSet{} }
 
 func (s protocolSet) has(p int) bool { return s[p/64]&(1<<(p%64)) != 0 }
-
-// admittedBy reports whether the protocol operator list admits one protocol of
-// the set: the route is unmatchable only when no value the list can match is a
-// protocol the transport components need.
-func (s protocolSet) admittedBy(list []FlowMatch) bool {
-	for p := range 256 {
-		if s.has(p) && expressionAdmits(list, uint64(p), false) {
-			return true
-		}
-	}
-	return false
-}
 
 // names answers the set as the operator reads it, "TCP or UDP".
 func (s protocolSet) names() string {

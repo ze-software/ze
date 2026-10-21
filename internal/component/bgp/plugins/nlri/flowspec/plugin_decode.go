@@ -296,58 +296,28 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 			continue
 		}
 
-		// Check if this is simple OR (each inner array has exactly one value)
-		// or complex OR-of-AND (some inner arrays have multiple values)
-		isSimpleOR := true
+		// Emit each OR group with its own keyword, "port >80 <100 port >443
+		// <500": the text grammar ANDs the values that follow one keyword, and
+		// AddComponent joins a repeated keyword's groups back into one component
+		// as OR terms. Flattening one-value groups under one keyword would turn
+		// [["=80"], ["=443"]], 80 OR 443, into 80 AND 443.
 		for _, orGroup := range arr {
-			if innerArr, ok := orGroup.([]any); ok && len(innerArr) > 1 {
-				isSimpleOR = false
-				break
+			innerArr, ok := orGroup.([]any)
+			if !ok {
+				if s, ok := orGroup.(string); ok {
+					args = append(args, key, normalizeJSONValue(key, s))
+				}
+				continue
 			}
-		}
-
-		if isSimpleOR {
-			// Simple OR: collect all values, emit once with keyword
-			// "protocol tcp udp" -> one component with OR values
 			var values []string
-			for _, orGroup := range arr {
-				switch g := orGroup.(type) {
-				case []any:
-					for _, v := range g {
-						if s, ok := v.(string); ok {
-							values = append(values, normalizeJSONValue(key, s))
-						}
-					}
-				case string:
-					values = append(values, normalizeJSONValue(key, g))
+			for _, v := range innerArr {
+				if s, ok := v.(string); ok {
+					values = append(values, normalizeJSONValue(key, s))
 				}
 			}
 			if len(values) > 0 {
 				args = append(args, key)
 				args = append(args, values...)
-			}
-		} else {
-			// Complex OR-of-AND: emit each OR group with its own keyword,
-			// "port >80 <100 port >443 <500". AddComponent joins the repeated
-			// keyword's groups back into one component.
-			for _, orGroup := range arr {
-				innerArr, ok := orGroup.([]any)
-				if !ok {
-					if s, ok := orGroup.(string); ok {
-						args = append(args, key, normalizeJSONValue(key, s))
-					}
-					continue
-				}
-				var values []string
-				for _, v := range innerArr {
-					if s, ok := v.(string); ok {
-						values = append(values, normalizeJSONValue(key, s))
-					}
-				}
-				if len(values) > 0 {
-					args = append(args, key)
-					args = append(args, values...)
-				}
 			}
 		}
 	}
