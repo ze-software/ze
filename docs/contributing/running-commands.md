@@ -922,7 +922,12 @@ hold (a piece of a cut run, a fast run, a run that broke) carries the verdict
 the checkout's earlier index recorded for it, marked `outside-run` with
 `carried-from` naming the commit and run that judged it. A red therefore stays
 red until a run reaches that stage, and the commit refusal says
-`<stage>: red at <sha> in <run>` with the command that reruns it. A stage no
+`<stage>: red at <sha> in <run>` with two commands. `diagnose with:` names the
+stage's own rerun, which shows the red but publishes no index, so a stage fixed
+and rerun green that way stays charged. `clears when a verify run reaches it:`
+names the runs whose index rewrites the entry: `le verify worktree`, the
+`le verify worktree part <i> of <n>` piece that holds the stage, and
+`le verify current fast` when the fast population holds it. A stage no
 run has judged is listed as never judged and is not charged: not running a
 stage is the unverified-debt row's business, not a red. So a green
 `verify current fast` charges nothing for the stages it drops, and a green

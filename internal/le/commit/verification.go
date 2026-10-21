@@ -42,8 +42,8 @@ type structuralReds struct {
 	// carries an earlier verdict for it, or marks it unjudged, and an unjudged
 	// stage is not red (the unverified-debt row already owes "not run").
 	Unreached []string
-	// Causes says, for each charged stage in Charged order, why it is charged
-	// and the command that clears it.
+	// Causes says, for each charged stage in Charged order, why it is charged,
+	// the command that diagnoses it, and the verify runs that clear it.
 	Causes []string
 }
 
@@ -79,8 +79,9 @@ type failureGroup struct {
 	Rerun   any `json:"rerun"`
 }
 
-// rerunAllStages is the fixing command for a stage no recorded group names a
-// narrower rerun for.
+// rerunAllStages is the full verify run: it reaches every stage, so its index
+// clears any charge, and it is the diagnosing command for a stage no recorded
+// group names a narrower rerun for.
 const rerunAllStages = "le verify worktree"
 
 func structuralGateReds(root string, paths []string) structuralReds {
@@ -116,7 +117,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			result.Unreached = append(result.Unreached, stage.Stage)
 			result.Causes = append(result.Causes, stage.Stage+
 				": not reached, because the run stopped at its first red ("+index.StoppedAt+
-				"); run it with: "+rerunAllStages)
+				"); "+clearingRuns(stage.Stage))
 			continue
 		}
 		if stage.ExitCode == 0 {
@@ -162,21 +163,44 @@ func structuralGateReds(root string, paths []string) structuralReds {
 	return result
 }
 
-// redCause answers why a red structural stage is charged and the command that
-// reruns it: the first rerun its groups name, or the whole run.
+// redCause answers why a red structural stage is charged, the command that
+// diagnoses it, and the runs that clear the charge.
+//
+// The two commands differ, and the refusal names both. A group's rerun (the
+// first one its groups name) runs the stage directly and publishes no failure
+// index, so a stage fixed and rerun green that way is still charged: only a
+// verify run that reaches the stage rewrites its entry (clearingRuns).
 func redCause(stage failureStage, groups []failureGroup) string {
-	rerun := rerunAllStages
+	diagnose := rerunAllStages
 	for _, group := range groups {
 		if named, ok := group.Rerun.(string); ok && named != "" {
-			rerun = named
+			diagnose = named
 			break
 		}
 	}
+	tail := "; diagnose with: " + diagnose + "; " + clearingRuns(stage.Stage)
 	if stage.CarriedFrom == nil {
-		return stage.Stage + ": red in the latest verify run; rerun it with: " + rerun
+		return stage.Stage + ": red in the latest verify run" + tail
 	}
 	return stage.Stage + ": red at " + stage.CarriedFrom.Commit + " in " + stage.CarriedFrom.RunDir +
-		", carried because the latest run did not run it; rerun it with: " + rerun
+		", carried because the latest run did not run it" + tail
+}
+
+// clearingRuns names the verify runs whose index rewrites the named stage's
+// entry: the full run, the piece of a cut run that holds it, and the fast run
+// when the fast population holds the stage. The fast membership is read from
+// the population, so a stage moved in or out of it needs no edit here. No
+// default piece count exists (the caller picks `part <i> of <n>`), so the
+// piece is named by what it holds rather than by its number.
+func clearingRuns(name string) string {
+	runs := "clears when a verify run reaches it: " + rerunAllStages +
+		", or the le verify worktree part <i> of <n> piece that holds it"
+	for _, fast := range verifyengine.StagesForMode(verifyengine.FastMode) {
+		if fast.Identity.Name == name {
+			return runs + ", or le verify current fast"
+		}
+	}
+	return runs
 }
 
 // groupRelatedPaths answers the checkout paths one recorded group named. Which

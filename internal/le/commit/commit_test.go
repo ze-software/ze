@@ -302,6 +302,59 @@ func TestAPieceKeepsAnEarlierStructuralRedCharged(t *testing.T) {
 	}
 }
 
+// TestACarriedRedNamesTheRunThatClearsIt proves the refusal for a carried
+// structural red names a command that clears the charge, not only one that
+// diagnoses it. The group's rerun runs the stage directly and publishes no
+// failure index, so a fixed stage rerun green that way left the carried red
+// refusing every commit.
+//
+// Method: publish a full run red at `go lint/run` (in the fast population)
+// and at `verify deps/evidence-vet` (full population only), then a piece that
+// holds neither, and require each refusal line to name the diagnosing rerun
+// and the verify runs that clear it, with `le verify current fast` named for
+// lint only.
+func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
+	for _, tc := range []struct {
+		stage string
+		fast  bool
+	}{
+		{stage: "go lint/run", fast: true},
+		{stage: "verify deps/evidence-vet", fast: false},
+	} {
+		t.Run(tc.stage, func(t *testing.T) {
+			root := newCommitRepository(t)
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "carried-clear-fixture")
+			writeCommitFixture(t, root, "mine.txt", "mine\n")
+			publishRun(t, root, "aaa", verifyengine.Uncut(), tc.stage)
+			publishRun(t, root, "bbb", verifyengine.Part{Index: 3, Of: 3}, "")
+			reds := structuralGateReds(root, []string{"mine.txt"})
+			cause := ""
+			for index, charged := range reds.Charged {
+				if charged == tc.stage {
+					cause = reds.Causes[index]
+				}
+			}
+			if cause == "" {
+				t.Fatalf("structuralGateReds = %#v, want %s charged", reds, tc.stage)
+			}
+			for _, want := range []string{
+				"diagnose with: le ",
+				"clears when a verify run reaches it: le verify worktree, or the le verify worktree part <i> of <n> piece that holds it",
+			} {
+				if !strings.Contains(cause, want) {
+					t.Fatalf("cause = %q, want it to contain %q", cause, want)
+				}
+			}
+			if strings.Contains(cause, "rerun it with") {
+				t.Fatalf("cause = %q still offers a rerun as the clearing command", cause)
+			}
+			if got := strings.Contains(cause, "or le verify current fast"); got != tc.fast {
+				t.Fatalf("cause = %q, names le verify current fast = %v, want %v", cause, got, tc.fast)
+			}
+		})
+	}
+}
+
 // TestAGreenFastRunChargesNoStructuralStage proves a green `verify current
 // fast` leaves no structural charge for the stages the fast population drops
 // (verify deps/evidence-vet): a stage no run judged is not red, and the
