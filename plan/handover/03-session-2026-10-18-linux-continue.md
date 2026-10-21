@@ -2035,6 +2035,16 @@ Owed:
 6. Watchdog: `internal/component/bgp/plugins/watchdog/config.go` ignores a parse error on
    extended-community (silent fall-through); fix with a refusal (M4) or journal it.
 
+Later the same day: `048e8f33c7` refuses an `interface-set:` item inside extended-community
+(bridge flow, route/attributes and family flow forms; migration flow then, announce, static,
+vpls, flex), renames `CheckInterfaceSetAS` to `CheckInterfaceSet` and judges transitivity first
+as ExaBGP does, and lists every refusal in exabgp-syntax.md Scope. `c1fdc079f5` adds
+`test/exabgp-compat/api/api-flow-redirect.ci`: PASS on the pin and on ze (the reactor's foreign
+dirty files overlaid to HEAD), FAIL on ze with the bridge mapping overlaid back to Simpson.
+`edac2f8d05` is the watchdog fix (items 1 and 6 above are done). Still owed: items 2 to 5 (lint
+over the touched packages, now including bridge, migration and watchdog; `./le rfc check`;
+functional flowspec plugin cases; the config ospf build-tag failure).
+
 ## rfc-verdict-fix-bgp round-2 findings 1 and 2, 2026-10-21 (agent handoff, budget reached)
 
 Finding 1 (dangling citers, stale claims) is done: `3444b9d8f2`. `./le spec citation` OK.
