@@ -2123,7 +2123,7 @@ Still owed:
 
 ### bgp-open-session D2/D1 proofs (2026-10-21, Mac)
 
-Spec: `plan/immediate/spec-bgp-open-session-rfc-defects.md`. Claim taken over by a
+Spec: spec-bgp-open-session-rfc-defects (closed 2026-10-21). Claim taken over by a
 continuation agent from the finished agent `a2c395bd09a52530c`.
 
 - D2 red is recorded in the spec (commit `1ee515439a`). Two Go `-overlay` copies of

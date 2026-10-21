@@ -624,7 +624,7 @@ spec.
 |------|--------------|
 | `spec-bgp-prefix-sid-rfc-defects` (closed 2026-10-20) | RFC8669-6-1, RFC9252-3.4-1, RFC9252-3.2.1-3, RFC9252-5-1, RFC9252-7-1 |
 | `plan/immediate/spec-bgp-graceful-restart-rfc-defects.md` | RFC4724-4-2, RFC9494-4.2-8, RFC9494-4.3-1, RFC9494-4.3-3, RFC9494-4.2-6 with 4.3-2 |
-| `plan/immediate/spec-bgp-open-session-rfc-defects.md` | RFC9072-2-1, RFC6286-2.1-1, and two Ze behaviour defects with journal rows |
+| spec-bgp-open-session-rfc-defects (closed 2026-10-21) | RFC9072-2-1, RFC6286-2.1-1, and two Ze behaviour defects with journal rows |
 | `plan/immediate/spec-bgp-update-propagation-rfc-defects.md` | RFC4271-4.3-3 and 4.3-4, RFC8092-3-1, MUP 3.1.3.1-6/-7/-10, RFC9234-3.1-1, RFC7999-3.1-2, RFC 2545 Section 3 with LINKLOCAL-CAPABILITY-4-2 |
 | `spec-bgp-sr-policy-rfc-defects` (closed 2026-10-21) | RFC 9830 Section 2.4.2 flags and BSID label, RFC9830-4.2.1-2 |
 | `plan/immediate/spec-bmp-sflow-export-rfc-defects.md` | RFC 7854 Section 4.9 reason 4, SFLOW-V5-x-11 |
@@ -650,7 +650,7 @@ Dropped after reading, with the reason:
 |------|-----------------------------|
 | NodeDescriptor sub-TLV 518 repeated (RA12) | RFC 9552 Section 5.2.1.4 does forbid it: "At most, there MUST be one instance of each sub-TLV type present in any Node Descriptor." But no path emits it. The parser (`parseNodeDescriptorTLVsAt`, `nlri/ls/types.go`) is the only non-test writer of `NodeDescriptor.SRv6SIDs`, every received NLRI with a repeated sub-TLV is discarded first by `bgplsNodeDescriptorWellFormed` (`message/rfc7606_bgpls_nlri.go`), and `ls_export` never sets the field. What remains is test-side and stays in this spec: the RFC9552-5.1-2 units assert the forbidden encoding (verdict `wrong`), and the comment at `nlri/ls/types_descriptor.go` claiming 518 is "the only sub-TLV a descriptor can repeat" is false. RFC 9514 Section 6 puts 518 in the SRv6 SID Descriptors ("This field MUST contain a single SRv6 SID Information TLV") |
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 | not dropped: confirmed, and owned by `spec-bgp-update-propagation-rfc-defects.md` D6 |
-| RFC6286-2.1-1 per-peer router-id | not dropped: confirmed at `parsePeerSettings`, and owned by `spec-bgp-open-session-rfc-defects.md` D4 as an owner decision |
+| RFC6286-2.1-1 per-peer router-id | not dropped: confirmed at `parsePeerSettings`, and owned by spec-bgp-open-session-rfc-defects (closed 2026-10-21) D4 as an owner decision |
 
 ## Required Reading
 

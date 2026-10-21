@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | plugin |
-| Depends | `plan/immediate/spec-bgp-open-session-rfc-defects.md` (D2, Q1 = b) for Phase 4 only: the capability-only plugins' explicit declaration lands after its capability extractor |
+| Depends | spec-bgp-open-session-rfc-defects (closed 2026-10-21; D2, Q1 = b) for Phase 4 only: the capability-only plugins' explicit declaration lands after its capability extractor |
 | Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-10-15 |
@@ -48,7 +48,7 @@ Current Behavior.
 
 ### Boundary with the BGP OPEN spec
 
-`plan/immediate/spec-bgp-open-session-rfc-defects.md`, D2, owner Q1 = b
+spec-bgp-open-session-rfc-defects (closed 2026-10-21), D2, owner Q1 = b
 (2026-10-13): a reload that changes, adds or removes a plugin-declared
 CAPABILITY is refused at config-verify by the SDK, through the capability
 extractor each capability plugin registers (`Plugin.DeclareCapabilitiesFrom`,
@@ -122,7 +122,7 @@ reload"), and `test/reload/bgp-dynamic-filter-swap-live.ci` asserts it.
   → Constraint: says nothing about reload today; gains the rule that a plugin with `WantsConfig` registers an apply handler or the SDK refuses its reloads
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: every refusal states the problem in operator terms (plugin, leaf path), why it matters (the running plugin cannot take the change), and the next step on its own lines (AC-8's restart routes, one per line, from `sdk.RestartSteps()`, never `ze signal restart`)
-- [ ] `plan/immediate/spec-bgp-open-session-rfc-defects.md` D2 refusal design
+- [ ] spec-bgp-open-session-rfc-defects D2 refusal design (closed 2026-10-21; as built: `pkg/plugin/sdk/capability_declaration.go` and `docs/architecture/api/process-protocol.md`)
   → Constraint: the capability extractor runs at config-verify composed AFTER the plugin's own verify handler (OPEN spec step 3: "The plugin's own handler answers first"); this spec's verify handlers must not re-check capability leaves
 - [ ] `docs/architecture/traffic/cos-plugin.md` "Consequences" - cos verifier before iface verifier by `registry.All()` order
   → Constraint: the ordering exists at verify only; at reload apply `placeSectionNodes` (`transaction/solver.go`) puts coarse plugin nodes after the interface operations, so nothing orders cos apply before iface apply

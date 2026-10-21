@@ -835,7 +835,7 @@ because the default level is WARN.
 | `TestDeclareCapabilitiesFrom` (table over the six rows of the D2 verdict table) | `pkg/plugin/sdk/` | AC-2 to AC-2g at the comparison: changed payload, removed code on a live peer, new code, new peer refused; unchanged and peer-removed accepted; an all-peer declaration changed is refused naming `every peer`, unchanged with a peer added is accepted; the stage-2 declaration is the extractor's output; a runtime `configure` redelivery through `handleConfigure` leaves the stored declaration unchanged (AC-2h); the plugin's own verify handler answers first whether `OnConfigVerify` was called before or after the extractor was registered (AC-2i); a constant extractor (the `main_sdk.go` shape) always accepts; the text names plugin, peer, leaf, `systemctl restart ze`, `ze start` and `request reboot`, and never `ze signal restart` or a bare `reboot` | |
 | `TestCapabilitySelectors` | `internal/component/bgp/configjson/` | standalone, grouped and dynamic-group-template selectors, the same strings the extractors emit | |
 | `TestSoftverCapabilityExtractorRegistered` and the same for `hostname`, `role`, `llnh`, `gr` and the exabgp bridge | each plugin's `_test.go` | each plugin registers its extractor, the SDK refuses a change of its own capability and accepts an unchanged one (AC-2, AC-2d, AC-2e, AC-2f, AC-2g); for `llnh` and `gr` the existing refusal still answers first; for the bridge a family edit with `add-path` set is refused naming `add-path` | |
-| `TestHandleNotificationLogsWarn` | `internal/component/bgp/reactor/session_handlers_test.go` | AC-3, AC-3n: a captured logger at WARN sees exactly one line with peer, state, code, subcode; with an RFC 8203 message the message is in that line and no second line exists | |
+| `TestHandleNotificationLogsWarn` | `internal/component/bgp/reactor/session_notification_warn_test.go` | AC-3, AC-3n: a captured logger at WARN sees exactly one line with peer, state, code, subcode; with an RFC 8203 message the message is in that line and no second line exists | |
 | `TestBuildOpenRefusesCapabilitiesBeyondTheExtendedLength` (added in review round 1) | `internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go` | AC-1x at the reactor: capTotal 65532 builds an OPEN carrying every capability; capTotal 65533 makes `buildOpen` return no OPEN and an error wrapping `capability.ErrOptionalParamsTooLarge` naming 65536 octets and the limit 65535. Red first under an overlay of `session_negotiate.go` whose `buildOpen` drops the packer's error ("Expected error ... but got nil", scratch `r1-ac1x-red.log`) | |
 | `TestOpenRefusedWarnLine` (added in review round 1) | `internal/le/interoplab/bgp/check_softver_test.go` | AC-3's state at the interop checker: the WARN for FRR's 2/0 is accepted in OPENSENT or OPENCONFIRM and refused in ESTABLISHED, with no state, at INFO, for another peer or another code. Red under an overlay removing the state condition (Established and no-state cases fail, scratch `r1-softver-red.log`) | |
 
@@ -1212,3 +1212,167 @@ Add `// RFC 9072 Section 2: "However, if the length of the Optional Parameters i
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec + journal rows
 - [ ] **Commit B:** `remove plan/immediate/spec-bgp-open-session-rfc-defects.md`
+
+Checklist boxes stay unticked by rule (`.claude/rules/post-compaction.md`); the closure sections below carry the evidence.
+
+## Implementation Summary
+
+### What Was Implemented
+- D1, one packer: `capability.PackOptionalParams` (`internal/core/bgp/capability/optional_params.go`) over typed parameters, base form while 2 + capTotal is at most 255, RFC 9072 extended form above, error above 65535 octets of parameters. Its seven callers: reactor `Session.buildOpen` (`session_negotiate.go`), chaos `BuildOpen` (`internal/chaos/peer/session.go`), perf `BuildOpen` (`internal/perf/session.go`), BMP `fabricateLocRIBOpen` (`bmp_locrib.go`), `ze analyze` `bgpBuildOpen` (`internal/analyze/bgpconn.go`), test peer `buildActiveOpen` (`internal/test/peer/inject.go`) and `encodeOpen` (`internal/test/peer/open.go`). Commits `5d271b4091`, `a659c76398`, `540fdc0f89`.
+- D1, one reader: rr `handleStructuredOpen` (`rr.go`), rs `parseStructuredOpen` (`server.go`) and the exabgp mock `exabgpNegotiatedEncoding` (`exabgp_server.go`) read a received OPEN through `capability.ParseFromOptionalParams` with its own `ExtendedParams`; gr, validate-open and mrt likewise. Commits `b231ab611b`, `d6755f7c39`. `show rr peers` and `show bgp rs peers` rows carry `families` (`recordedFamilyNames` in rr `peerStatus` and rs `server_handlers.go`, owner Q6 = a).
+- D2: `SetCapabilities` deleted from the SDK; `Plugin.DeclareCapabilitiesFrom` (`pkg/plugin/sdk/capability_declaration.go`) runs the plugin's extractor at stage 2 and, composed after the plugin's own verify handler (`composeCapabilityVerify`), at config-verify, where `capabilityChanges` refuses a reload that changes a declared capability and names the restart (`RestartSteps`, `restart_text.go`). Registered by softver, hostname, role, llnh, gr, the exabgp bridge and `internal/plugins/exabgp/main_sdk.go` (constant extractor). Selectors from `configjson.CapabilitySelectors` and `PeerSelectors` (`traverse.go`). Commits `e6e1ee5a6c`, `343d23709b`, `4fac8b060f`.
+- D3: `Session.logNotificationReceived` (`session_handlers.go`), one WARN per received NOTIFICATION with peer, state, code and subcode, the RFC 9003 message folded in. Commit `ce52e6664c`.
+- D4: per-peer `router-id` kept as an owner deviation (Q2): `rfc/short/rfc6286.md` RFC6286-2.1-1 `{partial}`, the YANG description and `docs/guide/configuration.md` name the departure. Commits `f2921fb3de`, `ce52e6664c`.
+- AC-4 verdicts: RFC9072-2-1 `enforced`, RFC6286-2.1-1 `partial`, both re-judged by an agent that did not write the tests (`3192ffd94e`, `b09e087d6e`).
+
+### Bugs Found/Fixed
+- OPEN of 254-255 octets of capabilities misframed (off-by-two threshold): `TestRFC9072OptionalParamsBoundary`, interop `bgp-open-extended-params-boundary-frr`.
+- A reload changing a plugin capability bounced the session and kept the startup capability on the wire (`plan/journal/unwired-feature.md`): the seven reload `.ci`.
+- A refused OPEN left no line at the default level (`plan/journal/silent-fall-through.md`): `TestHandleNotificationLogsWarn`, `open-refused-notification-warn.ci`, interop `frr-software-version`.
+- rr, rs and the exabgp mock read a received OPEN with one-octet lengths (`plan/journal/helper-bypassed-by-an-open-coded-copy.md`): `TestRouteReflectorReadsExtendedOpen`, `TestRouteServerReadsExtendedOpen`, `TestExabgpMockReadsExtendedOpen`, `rr-extended-open-families.ci`, `rs-extended-open-families.ci`.
+
+### Documentation Updates
+- `docs/architecture/wire/capabilities.md` (one packer, the 254-octet boundary; anchor `optional_params.go -- PackOptionalParams`), `docs/architecture/api/process-protocol.md` (the refusal; anchor `capability_declaration.go -- DeclareCapabilitiesFrom, ... capabilityChanges, CheckCapabilityReload`), `docs/plugin-development/handlers.md` (`DeclareCapabilitiesFrom`), `docs/guide/plugins.md` (restart routes, GR marker routes), `docs/architecture/exabgp-bridge.md` (bridge refusal), `docs/guide/operations.md` (the `notification received` WARN, anchor `session_handlers.go -- logNotificationReceived`), `docs/guide/flowspec-route-reflector.md` (the `families` key), `docs/guide/configuration.md` and `ze-bgp-conf.yang` (router-id deviation), `rfc/short/rfc6286.md`, `rfc/short/rfc9072.md`.
+- At closure: `docs/architecture/behavior/fsm-open-sent.md` gains the WARN `handleNotification` writes before Event 24/25 (Documentation row 12, missing until now; anchor `session_handlers.go -- handleNotification, logNotificationReceived`).
+- `./le doc check verify` (2026-10-21, closure): FAILED only on `../gh-pages/reference/command-equivalents/clear-bgp-rib-advertised/` ("the published per-command surface is missing or unreadable"), a published-site checkout outside this repository and this spec.
+
+### Deviations from Plan
+- Documentation rows 3 and 6 landed on other pages than named: the `families` key is documented in `docs/guide/flowspec-route-reflector.md`, not `docs/architecture/api/commands.md` or `route-reflection.md`; the WARN line in `docs/guide/operations.md`, not `monitoring.md`.
+- A-4 broken: ze-peer cannot refuse an OPEN, so `open-refused-notification-warn.ci` proves the WARN in ESTABLISHED (AC-3n); AC-3's OpenSent/OpenConfirm state is proved by `TestHandleNotificationLogsWarn`, `TestOpenRefusedWarnLine` and interop `frr-software-version`. That `.ci` has no recorded red of its own (no RFC tag, so `discriminate-record` cannot take it); D3's discrimination is the unit red (`d3red`) and the interop `d3rev` red.
+- D2's red took two routes (pre-D2 binary, then owner-authorised `-overlay` mutants) after the harness refused the first route twice (decision blocks under "Functional Tests").
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: le test peer could answer Ze's OPEN with a NOTIFICATION | ze-peer sends only after its OPEN/KEEPALIVE handshake and `option=open` has no refusal value (`peerValueArms`, `internal/test/peer/expect_keys.go`) | first run of `open-refused-notification-warn.ci` read the 2/0 in ESTABLISHED | `.ci` asserts the ESTABLISHED line; state proved by unit and FRR interop |
+| assumption | R-2: every plugin declares under the peer name | role keys by remote IP | `TestRoleCapabilityExtractorRegistered` red | `configjson.PeerSelectors` is the one selector set (also in the Risks Mistake Log) |
+| approach | D2 red by editing or overlaying the SDK comparison was refused by the harness classifier twice | a pre-D2 binary reddens only the refused polarity | 2026-10-14 constraint blocks | owner authorised the overlay route on 2026-10-21; both polarities recorded |
+| approach | Documentation row 12 (`fsm-open-sent.md`) was left undone by the implementation | the page did not mention the WARN | closure documentation review | written at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1 RFC 9072 framing from 254 octets | Done | `optional_params.go` `PackOptionalParams` | one packer, seven callers |
+| D2 plugin capability change on reload | Done | `capability_declaration.go` `DeclareCapabilitiesFrom`, `capabilityChanges` | refused (Q1 = b) |
+| D3 refused OPEN visible at default level | Done | `session_handlers.go` `logNotificationReceived` | WARN per NOTIFICATION |
+| D4 RFC 6286 claim | Done | `rfc/short/rfc6286.md` | deviation (Q2), `{partial}` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1q | Done | grep: `PackOptionalParams(` in the seven caller files; no `buildOptionalParams`, `packOptionalParams`, `maxExtendedParamLen` left | `TestAnalyzeOpenUsesOnePacker`, `TestActiveOpenUsesOnePacker`, `TestPerfOpenUsesOnePacker` |
+| AC-1p | Done | `TestPassiveOpenUsesOnePacker` | goldens captured before the edit |
+| AC-1r | Done | `TestRouteReflectorReadsExtendedOpen`, `TestRouteServerReadsExtendedOpen`, `TestExabgpMockReadsExtendedOpen` | |
+| AC-1s | Done | `TestRouteReflectorPeerStatusFamilies`, `TestRouteServerPeerStatusFamilies`, `rr-extended-open-families.ci`, `rs-extended-open-families.ci` | |
+| AC-1x | Done | `TestPackOptionalParams`, `TestBuildOpenRefusesCapabilitiesBeyondTheExtendedLength` | |
+| AC-1, AC-1n | Done | `TestRFC9072OptionalParamsBoundary`, `open-optional-params-254.ci` | |
+| AC-1b | Done | `TestChaosPeerOpenRoundTripsAbove255` | |
+| AC-2, AC-2b, AC-2c | Done | `reload-softver-encoding-refused`, `reload-add-peer-softver-refused`, `reload-softver-removed-refused` | |
+| AC-2d | Done | `reload-gr-family-change-refused`; hostname, role, llnh units | |
+| AC-2g | Done | `reload-gr-explicit-family-list-accepted` | |
+| AC-2f | Done | `reload-exabgp-bridge-capability-refused`, `TestBridgeCapabilityExtractorRegistered` | |
+| AC-2e | Done | `reload-capability-unchanged-accepted`, `TestDeclareCapabilitiesFrom` | |
+| AC-2h | Done | `TestDeclareCapabilitiesFromStageTwoOnly` | |
+| AC-2i | Done | `TestDeclareCapabilitiesFromConstantExtractor`; `main_sdk.go` registers a constant extractor | |
+| AC-3, AC-3n | Done | `TestHandleNotificationLogsWarn`, `open-refused-notification-warn.ci`, `frr-software-version` | |
+| AC-4 | Done | `rfc/audit/rfc9072.json` RFC9072-2-1 `enforced`; `rfc/audit/rfc6286.json` RFC6286-2.1-1 `partial` | independent judge |
+| AC-5 | Done | `f2921fb3de` | first commit of the work |
+| AC-6 | Done | `ze-bgp-conf.yang` router-id description, `docs/guide/configuration.md` | |
+| AC-7 | Done | the three journal rows marked fixed in commit A | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| unit tests of the TDD table | Done | files named there | `TestHandleNotificationLogsWarn` lives in `session_notification_warn_test.go` (record note N1, fixed) |
+| `test/encode/` and `test/reload/` `.ci` plus three `test/plugin/` `.ci` | Done | as named in Functional Tests | |
+| interop `bgp-open-extended-params-boundary-frr`, `frr-software-version` | Done | `test/interop/scenarios/` | green and red |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify (reactor, chaos, perf, bmp, analyze, test peer, rr, rs, mock, SDK, five plugins, bridge, YANG, docs, rfc, journal) | Done | the review artifact hashes 103 files |
+| Files to Create (`optional_params.go`, `restart_text.go`, tests, scenarios, `register_peer_families.go`) | Done | ls below |
+
+### Audit Summary
+- **Total items:** 4 requirements, 23 AC rows, 3 test groups, 2 file groups
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** documentation rows 3 and 6 on other pages; A-4 fallback (Deviations)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done; the 4096-octet OPEN limit (R-4) was out of scope from design and sits as an open row in `plan/journal/silent-fall-through.md` | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-open-session-rfc-defects-8385ff13-31c1-470c-822b-d731474836f1.md` (103 files, verdict clean, 2026-10-21T03:40:08Z) |
+| `./le spec review check` | OK: "101 code files, clean, hashes match" (2026-10-21) |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring, RFC 9072 and RFC 6286 text, test discrimination, style |
+
+### Findings fixed
+Round 1 (fixed in `375ccbf4f6`; the per-finding severities were not preserved in a tracked file, so none is claimed here):
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | not preserved | RFC9072-2-1 negative fed already two-octet-framed input and round-tripped it, so it never drove the packer | `message/rfc9072_extended_open_test.go` `TestTheExtendedEnvelopeAndItsParametersAgree` | packs through `PackOptionalParams` and walks the written parameters; fresh discrimination record; re-judged `enforced` (`b09e087d6e`) |
+| 2 | not preserved | AC-1x had no proof at `buildOpen` | `reactor/rfc9072_optional_params_boundary_test.go` | `TestBuildOpenRefusesCapabilitiesBeyondTheExtendedLength` |
+| 3 | not preserved | AC-3's state was not asserted at interop | `interoplab/bgp/check_softver.go` `requireZeWarnsOpenRefused` | `openRefusedWarnLine` plus `TestOpenRefusedWarnLine`; FRR green (`fefa9436fe`) |
+| 4 | not preserved | `rfc/short/rfc6286.md` Support remaining omitted the live global router-id reload | `rfc/short/rfc6286.md` | names `applyGlobalsJournaled` |
+
+Round 2: CLEAN, 0 BLOCKER, 0 ISSUE. One record note, N1 (the TDD row put `TestHandleNotificationLogsWarn` in `session_handlers_test.go`), fixed in one edit at closure.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/bgp/capability/optional_params.go`, `pkg/plugin/sdk/restart_text.go`, `pkg/plugin/sdk/capability_declaration.go`, `reactor/session_notification_warn_test.go` | yes | ls 2026-10-21 |
+| `test/encode/open-optional-params-254.ci`; the seven `test/reload/` capability `.ci`; `test/plugin/open-refused-notification-warn.ci`, `rr-extended-open-families.ci`, `rs-extended-open-families.ci` | yes | ls 2026-10-21, all eleven listed |
+| `test/interop/scenarios/bgp-open-extended-params-boundary-frr/` (`ze.conf`, `frr.conf`); fixture `internal/test/fixture/register_peer_families.go` | yes | ls; it registers `plugin/peer-families-show` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-1n, AC-1x, AC-1r, AC-1s, AC-2e, AC-2h, AC-2i, AC-3 | the unit proofs pass | `./le job run ... go test -count=1 -run '<the named tests>'` over capability, sdk, configjson, reactor, rr, rs, interoplab/bgp, message (2026-10-21): every package `ok` |
+| AC-2, AC-2d, AC-2f | each plugin's extractor refuses its own change | `go test -run CapabilityExtractorRegistered` over softver, hostname, role, llnh, gr, bridgeplugin: six `--- PASS` |
+| AC-1q | one packer, no other writer | `git grep 'capability.PackOptionalParams('` lists the seven callers; a grep for `buildOptionalParams`, `packOptionalParams` functions and `maxExtendedParamLen` finds only the packer's private `packOptionalParamsWith` |
+| AC-2i | `SetCapabilities` gone from the SDK | `git grep -c SetCapabilities -- pkg/ cmd/`: no hit (the remaining hits are the engine's `process.Process.SetCapabilities`) |
+| AC-4 | verdicts | `rfc/audit/rfc9072.json` RFC9072-2-1 `"verdict": "enforced"`; `rfc/audit/rfc6286.json` RFC6286-2.1-1 `"verdict": "partial"` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| SIGHUP reload | the seven `test/reload/` capability `.ci` | 7/7 PASS at `539a98a861`; red against the pre-D2 binary and the overlay mutants (decision blocks) |
+| OPEN sent at 254 octets | `test/encode/open-optional-params-254.ci`; interop `bgp-open-extended-params-boundary-frr` | FRR Established; red under `d1rev` |
+| received NOTIFICATION | `test/plugin/open-refused-notification-warn.ci`; interop `frr-software-version` | PASS; interop red under `d3rev` |
+| received extended OPEN, `show rr peers` and `show bgp rs peers` | `test/plugin/rr-extended-open-families.ci`, `rs-extended-open-families.ci` | row lists exactly `ipv6/unicast`; red with the one-octet walk restored |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed (by reading, with its condition) | `reload.go` dispatch by `WantsConfigRoots`; reload `.ci` |
+| A-2 | confirmed | `reload-softver-encoding-refused.ci` asserts the refusal on stderr |
+| A-3 | confirmed | `TestDeclareCapabilitiesFromStageTwoOnly` |
+| A-4 | broken | Mistake Log row 1, Deviations |
+| A-5 | confirmed | interop PASS at `be35caa194` |
+| A-6 | confirmed | grep of the six extractors for host-state reads, none |
+| A-7 | confirmed (by reading) | `session_read.go` delivers the OPEN before `handleOpen` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| wire format (row 7) | `docs/architecture/wire/capabilities.md` packer paragraph and size table against `PackOptionalParams` | yes |
+| plugin protocol and SDK (rows 5, 8) | `process-protocol.md` anchors `capability_declaration.go`; `handlers.md` shows `DeclareCapabilitiesFrom`; `docs/guide/plugins.md` restart and `stopForRestart` routes | yes |
+| log line (rows 6, 12) | `docs/guide/operations.md` sample line matches `logNotificationReceived` attrs; `fsm-open-sent.md` paragraph written at closure against `handleNotification` | yes |
+| CLI output (row 3) | `docs/guide/flowspec-route-reflector.md` `families` paragraph against `recordedFamilyNames` in rr and rs `peerStatus` | yes |
+| config and RFC (rows 2, 9) | `docs/guide/configuration.md` router-id text, `ze-bgp-conf.yang` router-id description, `rfc/short/rfc6286.md` Support remaining | yes |
+| rows 4, 10, 11, 13 to 15 | No: no RPC, test-infrastructure, comparison, metadata, counter or inventory change | yes |

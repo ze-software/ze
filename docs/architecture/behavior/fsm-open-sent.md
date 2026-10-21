@@ -71,6 +71,15 @@ OPEN from parsed capabilities.
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification fires notificationEvent: EventNotifMsgVerErr for 2/1, EventNotifMsg otherwise -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires callback fires EventHoldTimerExpires -->
 
+For a NOTIFICATION it decodes, `handleNotification` logs one WARN line before it fires Event 24 or 25,
+`notification received`, at the default log level. The line names the peer, the
+FSM state the NOTIFICATION arrived in, and the code and subcode as names and
+numbers, and it carries the RFC 9003 Shutdown Communication when there is one.
+A peer that refuses Ze's OPEN answers with a NOTIFICATION in this state, so this
+line is where the log says why the session never came up. The same line is
+written in every state, Established included.
+<!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification, logNotificationReceived -->
+
 ### What `handleOpen` actually validates before firing `EventBGPOpen`
 
 In order:
