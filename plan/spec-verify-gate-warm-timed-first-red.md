@@ -221,7 +221,7 @@ behaviour and no shortened run can ever read as a pass.
 | AC-13 | A `first-red` worktree run and a plain one of the same commit | They are separate work in the job registry; neither attaches to the other |
 | AC-14 | `first-red` with `part` | Refused before any work with exit 2, naming why (a piece is dealt for debt clearing, which needs every stage of the piece) and the two spellings that work |
 | AC-15 | `verify reds file <path>` over a stopped run | Verdict undetermined, and the answer says the run stopped at `<stage>` and the pending stages will never report |
-| AC-16 | Two consecutive `./le verify worktree` runs, each in its own fresh worktree path (the second may be at a later commit; only packages unchanged between the two commits are expected to hit) | The second run's `unit-cached` and race logs hold `(cached)` packages (the run saved under `tmp/verify-worktree-logs/20261018T015239.996486000Z-p66715-r1-0b037fd2fdcd/` held 0 of 657 `ok` lines); the `(cached)` and `ok` counts of both runs are recorded in Goal Validation. Wall-clock seconds are recorded but are not the proof: other sessions build and test on the same host while the runs go, so a time comparison measures their load as much as the cache (owner, 2026-10-21) |
+| AC-16 | One module tested from two different checkout paths that share one Go cache, each under `Toolchain.Environment` for its own root (the unit stages' `EnvOptions{Test: true, Procs: true}`) | The second path's `go test` answers `(cached)` (the run saved under `tmp/verify-worktree-logs/20261018T015239.996486000Z-p66715-r1-0b037fd2fdcd/` held 0 of 657 `ok` lines cached); with `-trimpath` removed from `TrimpathGoFlags` it does not. Proof: `TestASecondCheckoutPathReusesTheFirstOnesTestResult` (`internal/le/go/toolchain/gotoolchain_cachereuse_test.go`). Two full verify runs are not the proof: "other sessions load the host, so timing is noise, and the owner has to clean the build caches regularly for disk space, so a second warm run cannot be relied on" (owner, 2026-10-21). Full-run `(cached)` counts are recorded when available, not required |
 
 ## 🧪 TDD Test Plan
 
@@ -229,6 +229,7 @@ behaviour and no shortened run can ever read as a pass.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEnvironmentComposesTrimpathWithTheEffectiveGOFLAGS` | `internal/le/go/toolchain/gotoolchain_test.go` | AC-1, AC-2 (env value, GOENV file value, already present) | |
+| `TestASecondCheckoutPathReusesTheFirstOnesTestResult` | `internal/le/go/toolchain/gotoolchain_cachereuse_test.go` | AC-16 (a second checkout path sharing the cache answers `(cached)`; red with `-trimpath` removed) | |
 | `TestJudgeRunsWithPathIndependentCompiles` (existing, extended; a rename was refused as a test weakening) | `internal/le/go/staticcheck/judge_test.go` | AC-3 | |
 | the existing GOENV cases of `internal/le/job/process_test.go`, now through `gotoolchain.EffectiveGoFlags` (no new test) | `internal/le/job/process_test.go` | one GOFLAGS resolver | |
 | existing four tests, repaired | the four files above | AC-4 | |
@@ -343,7 +344,7 @@ N-A: tooling, no protocol peer.
    - Tests: `TestAnUncutRunRunsCheapestRecordedStageFirst`, `TestACutRunKeepsTheDealtOrder`, `TestVerifyListKeepsTheDeclaredOrder`, `TestFirstRedStopsAndRecordsEveryUnreachedStage`, `TestAStoppedRunIsStaleForEveryPathList`, `TestAnUnreachedStructuralStageIsCharged`, `TestRedsNamesAStoppedRun`, `verify-first-red-stops.ci`
    - Files: `engine/run.go`, `engine/artifacts.go`, `reds.go`, `commit/verification.go`
 6. **Phase: docs** - each page is edited in the phase that changes it (`ai/rules/documentation.md`); this step only checks that none was skipped
-7. **Phase: goal measurement** - two consecutive `./le verify worktree` runs in fresh worktree paths, judged by cache-hit counts (AC-16), one cost-ordered against one declared-order comparison (A-1, judged by whether every stage's verdict matches, not by time), one `first-red` run with a seeded cheap red in place (`./le verify current fast first-red`), judged by which stages it reached
+7. **Phase: goal measurement** - AC-16 by `TestASecondCheckoutPathReusesTheFirstOnesTestResult` (`internal/le/go/toolchain/gotoolchain_cachereuse_test.go`), green, and red with `-trimpath` removed from `TrimpathGoFlags`; no two-full-run measurement, because other sessions load the host and the owner cleans the build caches for disk space (owner, 2026-10-21), and full-run `(cached)` counts are recorded when available, not required; one cost-ordered against one declared-order comparison (A-1, judged by whether every stage's verdict matches, not by time), one `first-red` run with a seeded cheap red in place (`./le verify current fast first-red`), judged by which stages it reached
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -363,7 +364,7 @@ N-A: tooling, no protocol peer.
 | Shared lint cache | `ls -l` of the kept worktree's `tmp/golangci-lint-cache` during a `keep` run |
 | Timing | the count of `### Stage timing:` lines over a saved run equals its stage count; `tmp/ze-verify-stage-times.tsv` grows by the reached-stage count |
 | Published index | `tmp/ze-verify-failures.json` mode and generated-at after a worktree run |
-| Cold-to-warm drop | AC-16 `(cached)` counts of both runs pasted in Goal Validation |
+| Cold-to-warm drop | AC-16: `TestASecondCheckoutPathReusesTheFirstOnesTestResult` passes (the second checkout path answers `ok example.com/warm/warm (cached)`), and with `-trimpath` removed from `TrimpathGoFlags` it fails (the second path answered `ok example.com/warm/warm 0.182s`, recorded 2026-10-21). Not two full verify runs: "other sessions load the host, so timing is noise, and the owner has to clean the build caches regularly for disk space, so a second warm run cannot be relied on" (owner, 2026-10-21). Full-run `(cached)` counts are recorded when available, not required |
 | First-red stop through the real entry point | `./le test functional runner`: `verify-first-red-stops` and `verify-first-red-refuses-a-cut` PASS; with the stop in `RunMode` disabled, `verify-first-red-stops` FAILs (the run went on to stage 02 `go lint/run`) |
 
 ### Security Review Checklist
@@ -408,7 +409,7 @@ N-A: tooling, no protocol peer.
 
 - **Resumable per-stage green** (owner-approved separate later design spec, not written here): reuse a stage's green across runs keyed on a content hash of that stage's inputs, assembling a certificate from parts, generalising `internal/le/commit/debtpart.go`. This spec's timing history is the input that work will want for its cost model.
 - **Local stage parallelism**: running independent stages at once, and using more than `NumCPU/procDivisor` (`procDivisor`, `gotoolchain.go`) when verify is the only heavy job on the machine. Needs its own spec; not started.
-- Tests that open or stat files inside the module still miss the Go test cache in every fresh worktree (Key Design Decisions, mtime row). AC-16 measures how many packages that leaves uncached.
+- Tests that open or stat files inside the module still miss the Go test cache in every fresh worktree (Key Design Decisions, mtime row). How many packages that leaves uncached is read from a full run's `(cached)` count when one is available; AC-16 proves the mechanism, not that count.
 
 ## RFC Documentation (Scope: protocol)
 

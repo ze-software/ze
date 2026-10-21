@@ -428,7 +428,10 @@ Every le-driven Go command (`go test`, `go vet`, `go list`, the functional
 binary builds, golangci-lint and Staticcheck) runs with `-trimpath` in
 `GOFLAGS`. Go hashes the package directory into every compile action ID
 unless the flag is set, so without it each fresh verify worktree compiled the
-module cold. The entry is composed from the value Go would use anyway (your
+module cold. `TestASecondCheckoutPathReusesTheFirstOnesTestResult`
+(`internal/le/go/toolchain`) proves the reuse: one module tested from two
+paths that share a cache answers `(cached)` the second time, and does not
+without the flag. The entry is composed from the value Go would use anyway (your
 exported `GOFLAGS`, else `go env GOFLAGS`, which reads a `go env -w` setting),
 so your own flags are kept and `-trimpath` is never doubled. If Go cannot say
 what that value is, le writes one line to stderr and runs the command without
