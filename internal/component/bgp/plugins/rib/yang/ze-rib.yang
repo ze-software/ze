@@ -169,15 +169,18 @@ module ze-rib {
     // augmented at bgp, group and peer levels like blackhole-honor-fields.
     grouping flowspec-redirect-check-fields {
         container flowspec-redirect-check {
-            description "The check Ze applies to a FlowSpec route received from an EBGP peer whose
+            description "The check Ze applies to each FlowSpec rule received from an EBGP peer whose
                              redirect-to-IP extended community (0x0800) names next hop X. Ze finds the
-                             longest unicast match for X. When the last AS of its AS_PATH, the origin AS,
-                             is not the peer's AS, Ze discards the redirect action: the route is still
+                             longest unicast match for X in the rule's own domain, the Route
+                             Distinguisher of a flow-vpn rule, and in X's address family. When the last
+                             AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches,
+                             Ze discards the redirect action of that rule alone: the rule is still
                              installed and forwarded, without the 0x0800 community and with a zero
                              next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires
                              the check by default. It also requires that the check can be turned off for
                              one EBGP session, which is what this container is for. A route from an IBGP
-                             peer is never checked.";
+                             peer, whose AS is the local AS, is never checked; a session whose local AS
+                             is unknown is checked.";
             leaf enabled {
                 type boolean;
                 description "true runs the check on this session and false turns it off. The leaf has no

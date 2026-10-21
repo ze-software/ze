@@ -1,0 +1,100 @@
+# flowspec-redirect-check { enabled true|false } at the bgp, group and peer
+# levels (ze-rib.yang, grouping flowspec-redirect-check-fields): the per-EBGP
+# session switch of the draft-simpson-idr-flowspec-redirect-02 Section 3 check,
+# which says "It MUST be possible to disable this additional validation check
+# on a per-EBGP session basis."
+#
+# The accepted config states the leaf at all three levels, both values. The
+# refused config writes a value that is not a boolean, and the refusal names
+# the leaf, the value and what may be written instead.
+stdin=levels:terminator=EOF_LEVELS
+bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
+	flowspec-redirect-check {
+		enabled false
+	}
+	group ix {
+		flowspec-redirect-check {
+			enabled true
+		}
+		peer member {
+			connection {
+				remote {
+					ip 192.0.2.2
+				}
+				local {
+					ip auto
+				}
+			}
+			session {
+				asn {
+					remote 65002
+				}
+			}
+			flowspec-redirect-check {
+				enabled false
+			}
+		}
+	}
+	peer edge {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+		flowspec-redirect-check {
+			enabled true
+		}
+	}
+}
+EOF_LEVELS
+
+stdin=refused:terminator=EOF_REFUSED
+bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer edge {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+		flowspec-redirect-check {
+			enabled maybe
+		}
+	}
+}
+EOF_REFUSED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=levels
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze config validate -:stdin=refused
+expect=exit:code=1
+expect=stdout:contains=enabled
+expect=stdout:contains=invalid bool
+expect=stdout:contains="maybe" (expected true/false/enable/disable)

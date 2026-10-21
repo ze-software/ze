@@ -498,7 +498,9 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
 | `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer that carries an ACTIVE export filter is excluded from this path, and the `bgp-rs` plugin relays to it instead, so both peers must name that plugin in an `attach process` block or the peer receives nothing | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
+| `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
 
 ## Startup Convergence Hold (`update-delay`)
 
