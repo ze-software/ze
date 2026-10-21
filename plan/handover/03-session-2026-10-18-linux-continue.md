@@ -2065,3 +2065,22 @@ Still owed before commit B:
    and remove the first Work Not Done row.
 3. The owner answers strict versus change-scoped; the spec now states both with numbers.
 4. Fresh review round 3 over `3444b9d8f2` and the Goal Validation edit, then commit B.
+
+### ExaBGP 6 FlowSpec part A (2026-10-21, Mac)
+
+Landed:
+
+- `3beea91222`: the six SHIFTED verdicts resealed.
+- `8916c505b1`: the RFC8955-4-3 summary row is `{partial}`, and the deviation is named in
+  Support remaining. An independent re-judge to partial is still owed.
+- `fc2b3c83ef`: the Flow Label is written as 4 octets, per RFC 8956 Section 3.7 "SHOULD be
+  encoded as 4-octet quantities". The `conf-flow.ci` frames come from the pin, `flow-encode.ci`
+  carries seq 6, and conf-flow passes on ze and on the pin.
+
+Open:
+
+1. Forwarding drops the 0x0800 redirect-to-IP next hop (`payloadNextHop` sets only
+   mpIgnored for FlowSpec, then `applyNextHopFamily` clears it). Being fixed in the next package.
+2. conf-flow-redirect fails on the pin: the expected 00A0 UPDATE carrying community 30740 is
+   never sent. Not investigated yet.
+3. Lint and the exabgp-test stage are owed.
