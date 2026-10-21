@@ -20,7 +20,7 @@
       "claim-sha": "64a0686e4ee0c311",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/srpolicy/encode.go::EncodeRoute",
-      "producer-sha": "41f0359d049f0f71",
+      "producer-sha": "311e7089adf30f70",
       "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "766c69cc16524225",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/srpolicy/encode.go::EncodeRoute",
-      "producer-sha": "41f0359d049f0f71",
+      "producer-sha": "311e7089adf30f70",
       "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -495,7 +495,7 @@
       "claim-sha": "587a23eb7d14b1a1",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/srpolicy/encode.go::EncodeRoute",
-      "producer-sha": "41f0359d049f0f71",
+      "producer-sha": "311e7089adf30f70",
       "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
