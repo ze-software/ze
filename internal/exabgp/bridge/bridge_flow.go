@@ -98,7 +98,7 @@ func convertFlowRoute(selector, family, verb, body string) (Command, bool, error
 		return Command{}, true, err
 	}
 	// RFC 8955 Section 4.2
-	if err := flowRouteMatchable(body, route.types); err != nil {
+	if err := flowRouteMatchable(body, route.family, route.types); err != nil {
 		return Command{}, true, err
 	}
 	return route.command(selector, verb), true, nil
@@ -106,13 +106,25 @@ func convertFlowRoute(selector, family, verb, body string) (Command, bool, error
 
 // flowRouteMatchable answers flowspec.ErrFlowSpecUnmatchable, naming the route
 // as the script wrote it, when types holds a combination no packet can match,
-// and nil when a packet can. The verb does not matter: ExaBGP 6.0 drops such a
-// route as it parses the line, before announce_flow or withdraw_flow sees it
-// (configuration/grammar/tree/flow.py, propagated), so api_flow returns no
-// route and both answer the script answer_error. The refusal is the bridge's
-// rather than ze's, so the log line names the ExaBGP route and nothing is sent.
-func flowRouteMatchable(route string, types []flowspec.FlowComponentType) error {
-	err := flowspec.CheckMatchable(func(t flowspec.FlowComponentType) bool { return slices.Contains(types, t) })
+// and nil when a packet can. The verb does not matter: ExaBGP 6.0 drops an ICMP
+// and port route as it parses the line, before announce_flow or withdraw_flow
+// sees it (configuration/grammar/tree/flow.py, propagated), so api_flow returns
+// no route and both answer the script answer_error. The refusal is the
+// bridge's rather than ze's, so the log line names the ExaBGP route and nothing
+// is sent.
+//
+// The bridge holds the component types, not their operator lists, so it judges
+// the combinations of types (ICMP beside a port or TCP flags). A route whose
+// protocol or fragment values contradict a transport component reaches ze,
+// whose update text encoder judges it again with the values and refuses it
+// (docs/exabgp/exabgp-differences.md).
+func flowRouteMatchable(route, family string, types []flowspec.FlowComponentType) error {
+	afi := flowspec.AFIIPv4
+	if strings.HasPrefix(family, "ipv6/") {
+		afi = flowspec.AFIIPv6
+	}
+	// The nil operator lookup: the bridge holds types only.
+	err := flowspec.CheckMatchable(afi, func(t flowspec.FlowComponentType) bool { return slices.Contains(types, t) }, nil)
 	if err != nil {
 		return fmt.Errorf("exabgp flow route %q is not sent: %w", route, err)
 	}

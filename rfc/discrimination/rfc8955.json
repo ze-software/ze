@@ -162,10 +162,10 @@
       "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused",
       "unit-sha": "72c52f1f250eb519",
       "claim-sha": "2f147a88d661740c",
-      "route": "revert",
-      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
-      "producer-sha": "e6b49f7a3a15379e",
-      "break": "body of anyPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 67: \"narrowed.empty()\" -\u003e \"false\""
     },
     {
       "rid": "RFC8955-4.2-3",
@@ -174,20 +174,53 @@
       "unit-sha": "72c52f1f250eb519",
       "claim-sha": "8a92446d656d457c",
       "route": "mutant",
-      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
-      "producer-sha": "e6b49f7a3a15379e",
-      "break": "line 50: \"false\" -\u003e \"true\""
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused",
+      "unit-sha": "90f7ba0892a55251",
+      "claim-sha": "8395a9a32166f61a",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"false\""
     },
     {
       "rid": "RFC8955-4.2-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated",
-      "unit-sha": "dd3886d17f7f85f0",
-      "claim-sha": "7b363e53c43de197",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused",
+      "unit-sha": "90f7ba0892a55251",
+      "claim-sha": "27b02d0137ef95ed",
       "route": "mutant",
-      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
-      "producer-sha": "e6b49f7a3a15379e",
-      "break": "line 50: \"false\" -\u003e \"true\""
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated",
+      "unit-sha": "c798a31e6404f8a4",
+      "claim-sha": "48343dd33f6fdf3b",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated",
+      "unit-sha": "c798a31e6404f8a4",
+      "claim-sha": "172efa8b6005cc14",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"true\""
     },
     {
       "rid": "RFC8955-4.2-3",
@@ -199,6 +232,17 @@
       "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecDestination",
       "producer-sha": "198e5cc3a9cc36a6",
       "break": "body of flowSpecDestination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated",
+      "unit-sha": "dd3886d17f7f85f0",
+      "claim-sha": "7b363e53c43de197",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"true\""
     },
     {
       "rid": "RFC8955-4.2-3",
@@ -214,13 +258,35 @@
     {
       "rid": "RFC8955-4.2-3",
       "polarity": "negative",
+      "unit": "internal/core/bgp/nlri/flowspec/unmatchable_test.go::TestCheckMatchable",
+      "unit-sha": "466afaf1fa23ba1c",
+      "claim-sha": "d1dccfbfe25f88d9",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 67: \"narrowed.empty()\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/nlri/flowspec/unmatchable_test.go::TestCheckMatchable",
+      "unit-sha": "466afaf1fa23ba1c",
+      "claim-sha": "c311e363bf95ca99",
+      "route": "mutant",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "line 89: \"has(FlowIPProtocol) \u0026\u0026 !required.admittedBy(matches(FlowIPProtocol))\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8955-4.2-3",
+      "polarity": "negative",
       "unit": "test/parse/flowspec-unmatchable-refused.ci",
       "unit-sha": "4985b9f2368dfffd",
       "claim-sha": "017dd8a93cc08dfb",
       "route": "revert",
-      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::anyPresent",
-      "producer-sha": "e6b49f7a3a15379e",
-      "break": "body of anyPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+      "producer-sha": "169033962b02409b",
+      "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stdout:contains=ICMP has no ports"
     },
     {

@@ -167,12 +167,6 @@ func convertFlowToUpdate(flow, dst *config.Tree, result *MigrateResult) error {
 	for _, entry := range flow.GetListOrdered("route") {
 		route := entry.Value
 
-		// RFC 8955 Section 4.2
-		if err := flowRouteMatchable(route.GetContainer("match")); err != nil {
-			result.Warnings = append(result.Warnings, "flow route "+entry.Key+" is not migrated: "+err.Error())
-			continue
-		}
-
 		rd, _ := route.Get("rd")
 		nextHop, _ := route.Get(routeAttributeNextHop)
 
@@ -193,6 +187,12 @@ func convertFlowToUpdate(flow, dst *config.Tree, result *MigrateResult) error {
 				// Add AFI suffix to source/destination.
 				nlriCriteria = append(nlriCriteria, flowCriterionWithValues(criterion, value, isIPv6))
 			}
+		}
+
+		// RFC 8955 Section 4.2
+		if err := flowRouteMatchable(route.GetContainer("match"), isIPv6); err != nil {
+			result.Warnings = append(result.Warnings, "flow route "+entry.Key+" is not migrated: "+err.Error())
+			continue
 		}
 
 		// Parse scope block → interface-set extended communities. They are
@@ -561,7 +561,12 @@ func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
 // block of an ExaBGP flow route names a combination no packet can match, and nil
 // otherwise. ExaBGP's match keywords for the components involved are ze's own
 // (configuration/grammar/tree/flow.py), so the core vocabulary resolves them.
-func flowRouteMatchable(match *config.Tree) error {
+//
+// The migration holds the component types, not their operator lists, so it
+// judges the combinations of types (ICMP beside a port or TCP flags). A route
+// whose protocol or fragment values contradict a transport component is
+// migrated, and ze refuses it when it loads the config.
+func flowRouteMatchable(match *config.Tree, isIPv6 bool) error {
 	if match == nil {
 		return nil
 	}
@@ -573,7 +578,12 @@ func flowRouteMatchable(match *config.Tree) error {
 			present[t] = true
 		}
 	}
-	return flowspec.CheckMatchable(func(t flowspec.FlowComponentType) bool { return present[t] })
+	afi := flowspec.AFIIPv4
+	if isIPv6 {
+		afi = flowspec.AFIIPv6
+	}
+	// The nil operator lookup: the migration holds types only.
+	return flowspec.CheckMatchable(afi, func(t flowspec.FlowComponentType) bool { return present[t] }, nil)
 }
 
 // parseFlowMatchEntry splits a freeform entry into criterion and value.

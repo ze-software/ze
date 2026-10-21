@@ -1036,7 +1036,7 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 	}
 
 	// RFC 8955 Section 4.2
-	if err := flowRouteMatchable(routeStr, types); err != nil {
+	if err := flowRouteMatchable(routeStr, fam, types); err != nil {
 		return "", nil, "", "", err
 	}
 	return fam, attrs, rd, textbuf.Join(nlri, " "), nil

@@ -72,12 +72,24 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/__init__.py
 
 The bridge answers ExaBGP 6.0's refusals and keep-first rules as ExaBGP does
 (`docs/architecture/exabgp-bridge.md`, "What the bridge refuses, and what it
-keeps"). Two differences remain.
+keeps"). Three differences remain.
 
 - **OPERATIONAL is not sent.** ExaBGP sends `announce operational <kind> ...`
   for a known kind (draft-ietf-idr-operational-message). Ze does not originate
   OPERATIONAL, so the bridge refuses the line and says so (Open Owner Decision
   OD-1). An unknown kind is refused as ExaBGP refuses it.
+- **More flow routes match no packet.** ExaBGP 6.0 drops a flow route that
+  matches an ICMP type or code and a port (`Flow.unmatchable`,
+  `src/exabgp/bgp/message/update/nlri/flow.py`) and sends every other one. Ze
+  applies the whole rule RFC 8955 Sections 4.2.2.4 to 4.2.2.9 state, so it also
+  refuses ICMP beside TCP flags, a protocol match no port, ICMP or TCP-flags
+  match beside it can meet (`protocol udp; tcp-flags syn;`), and a non-first
+  fragment match beside any of them (`fragment is-fragment; destination-port
+  =80;`). The RFC outranks ExaBGP's behavior. The bridge refuses ICMP beside TCP
+  flags itself, answering `error` as for ICMP beside a port; a contradiction in
+  the values reaches Ze as `update text`, which Ze refuses
+  (`docs/architecture/wire/nlri-flowspec.md`, "Combinations that match no
+  packet").
 - **The warning goes to Ze's log.** A repeated attribute keeps its first value
   and a `split` shorter than the prefix sends the prefix whole. ExaBGP logs
   each; Ze logs `exabgp-bridge route line` with the dropped value.
@@ -91,6 +103,7 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/ann
 <!-- source: internal/component/bgp/reactor/reactor_api_carry.go -- SelectedPeersCarry -->
 <!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational, errOperationalNotSent -->
 <!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine -->
+<!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
 
 ---
 

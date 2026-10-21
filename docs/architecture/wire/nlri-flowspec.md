@@ -85,20 +85,45 @@ else:
 
 RFC 8955 Section 4.2 allows every combination of components, then names one
 that matches nothing: "ICMP Type AND Port" will never match any packets and thus
-SHOULD NOT be propagated by BGP. An ICMP type or code (7, 8) only matches
-protocol 1, and a port (4, 5, 6) only TCP or UDP. Ze refuses a flow route that
-holds one of each, from config and from `update text`, with an error naming
-both matches and telling the operator to remove one. The ExaBGP migration
-drops such a route with a warning instead, as ExaBGP 6.0 does at load, so the
-rest of the migrated config still loads. A received route that holds one of
-each is kept in the peer's RIB but never becomes feasible, so Ze neither
-installs nor forwards it (`docs/architecture/plugin/rib-storage-design.md`,
-"Mandatory FlowSpec authorization").
+SHOULD NOT be propagated by BGP. The example is one case of a rule the
+component definitions state in full: each component that reads the transport
+header "never matches" a packet of another protocol, or a fragment other than
+the first (RFC 8955 Sections 4.2.2.4 to 4.2.2.9, RFC 8956 Sections 3.4 and 3.5).
+
+| Component | Matches only |
+|-----------|--------------|
+| Port, destination port, source port (4, 5, 6) | TCP or UDP |
+| ICMP type, ICMP code (7, 8) | ICMP (protocol 1) on IPv4, ICMPv6 (58) on IPv6 |
+| TCP flags (9) | TCP |
+| Every one of the above | An unfragmented packet or a first fragment |
+
+So Ze refuses a flow route when no packet can satisfy its components together:
+
+- two of those components whose protocols do not meet, such as an ICMP type
+  beside a port or beside TCP flags;
+- a protocol (3) match that admits none of the protocols they need. The match is
+  read as the operator expression it is, so `protocol >=6&<=17` beside a port
+  matches (6 and 17 are in range) while `protocol >6&<17` does not;
+- a fragment (12) match that admits only fragments other than the first, such as
+  `is-fragment` or `last-fragment`, beside any of them.
+
+The refusal comes from config and from `update text`, with an error naming the
+two matches and the change that makes the route match. The ExaBGP migration and
+the bridge hold the component types but not their values, so they refuse the
+combinations of types themselves and leave a value contradiction to the
+encoder, which judges the route again with its values. The migration drops a
+refused route with a warning, as ExaBGP 6.0 does at load, so the rest of the
+migrated config still loads. A received route no packet can match is kept in
+the peer's RIB but never becomes feasible, so Ze neither installs nor forwards
+it (`docs/architecture/plugin/rib-storage-design.md`, "Mandatory FlowSpec
+authorization"). ExaBGP 6.0 refuses only the ICMP and port case
+(`docs/exabgp/exabgp-differences.md`).
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- reconcileFlowSpecs -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/config.go -- parseConfigRoute -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go -- EncodeFlowSpecComponents -->
 <!-- source: internal/exabgp/migration/migrate_routes.go -- flowRouteMatchable -->
+<!-- source: internal/exabgp/bridge/bridge_flow.go -- flowRouteMatchable -->
 
 ---
 
