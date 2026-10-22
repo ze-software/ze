@@ -115,6 +115,15 @@ A pass that cannot build a check sets a `rule` capture naming the point it
 added or tightened, and states in the commit body why no check can be built.
 Per-row patches without steps 2 and 3 set no capture.
 
+## Resolving rows
+
+`plan/spec-journal-resolution.md` owns how rows and classes get resolved (owner
+decision M28): which DUE class a pass takes next, how a session claims it, what
+evidence a `fixed:` row carries, how a row whose code is gone is closed, and when
+a row that cannot express its defect and ensure its resolution is promoted to a
+spec of its own, which the row then names. Each pass appends one row to that
+spec's Pass Log; the spec never closes.
+
 ## Repairing a check after a recurrence
 
 A class DUE after a check capture has a check with a gap, and the pass repairs
