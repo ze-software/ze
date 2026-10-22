@@ -288,16 +288,6 @@ sent.
 <!-- source: internal/core/bgp/nlri/nlrisplit/flowspec.go -- SplitFlowSpec -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go -- judgeFlowSpecSection, flowSpecMalformed -->
 
-## A MUP Type 1 ST route in the -02 encoding is relayed as received
-
-A Type 1 Session Transformed route that ends right after its Endpoint Address,
-the -02 encoding without the Source Address Length octet, is read by both as
-Source Address Length 0 (owner decision M25; `src/exabgp/bgp/message/update/nlri/mup/t1st.py`). ExaBGP re-sends
-it in the current form, with the octet. Ze re-encodes it with the octet where it
-builds the route from its decoded value, but its raw ingress relay forwards a
-received -02 route with the octets it arrived with. This gap is owed work.
-<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP.parseBodyT1ST -->
-
 ---
 
 ## A route aimed wider than a `clear adj-rib out`

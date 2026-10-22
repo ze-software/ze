@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -32,6 +33,15 @@ func init() {
 		// Prefix-SID attribute is treated as withdrawn (CheckDSDPrefixSID).
 		if err := nlritype.RegisterUpdateCheck(fam, CheckDSDPrefixSID); err != nil {
 			fmt.Fprintf(os.Stderr, "mup: draft-ietf-bess-mup-safi Section 3.3.6 check registration failed: %v\n", err)
+			os.Exit(1)
+		}
+		// draft-ietf-bess-mup-safi Section 3.1.3.1: a -02 Type 1 ST route, read
+		// without its Source Address Length, is held and relayed with the octet.
+		canonical := nlritype.Canonical{Grow: canonicalT1STGrow, WriteTo: writeCanonicalT1ST}
+		if err := nlritype.RegisterCanonical(fam, canonical); err != nil {
+			var tb textbuf.Buffer
+			tb.Str("mup: draft-ietf-bess-mup-safi Section 3.1.3.1 canonical form registration failed: ").Str(err.Error()).Byte('\n')
+			_ = tb.StdErr() //nolint:errcheck // the process exits on the next line either way
 			os.Exit(1)
 		}
 	}
