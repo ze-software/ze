@@ -77,6 +77,43 @@ func TestLabeledRouteNamesZeFamily(t *testing.T) {
 	}
 }
 
+// TestWatchdogOnAPIRouteIsSentNow verifies that an API route naming a
+// watchdog is sent at once, with no watchdog in the update text, and that a
+// warning tells the operator so.
+//
+// VALIDATES: ExaBGP holds a route under a watchdog only from the
+// configuration (add_to_rib_watchdog); an API route goes through add_to_rib,
+// which never reads the watchdog (inject_change, configuration/configuration.py
+// in 5.0.1; announce_route at the 6.0 pin), so 4.2, 5.0 and 6.0 send it, and
+// qa/old/commands-5.0.json records its UPDATE. The `withdraw` flag beside it
+// is read by add_to_rib_watchdog alone, so it holds nothing either.
+// PREVENTS: the bridge writing `watchdog <name>` into update text, which the
+// daemon refuses (update.ParseSendableUpdateText), so the script's route is
+// never sent while ExaBGP would have sent it.
+func TestWatchdogOnAPIRouteIsSentNow(t *testing.T) {
+	logged := captureWarnings(t)
+	for _, line := range []string{
+		"announce route 10.0.0.0/24 next-hop 1.2.3.4 watchdog dnsr",
+		"announce route 10.0.0.0/24 next-hop 1.2.3.4 watchdog dnsr withdraw",
+		"announce attribute next-hop 1.2.3.4 watchdog dnsr nlri 10.0.0.0/24",
+		"withdraw route 10.0.0.0/24 watchdog dnsr",
+	} {
+		translation, err := TranslateLine(line)
+		if err != nil {
+			t.Errorf("%q: %v", line, err)
+			continue
+		}
+		texts := commandTexts(translation)
+		if len(texts) != 1 || strings.Contains(texts[0], "watchdog") || strings.Contains(texts[0], "dnsr") ||
+			!strings.Contains(texts[0], "10.0.0.0/24") {
+			t.Errorf("%q became %q, want one command for 10.0.0.0/24 with no watchdog", line, texts)
+		}
+	}
+	if !strings.Contains(logged.String(), "a watchdog on an API route holds nothing, so the route is sent now") {
+		t.Errorf("no warning that the watchdog holds nothing: %q", logged.String())
+	}
+}
+
 // TestWatchdogAndNameWithNoValue verifies that a route line ending in
 // `watchdog` or `name` with no value is translated, not refused.
 //
@@ -106,12 +143,14 @@ func TestWatchdogAndNameWithNoValue(t *testing.T) {
 		}
 	}
 	// The warning for a watchdog with no name names the fix, as every message
-	// an operator reads must.
+	// an operator reads must: a named watchdog holds an API route no more than
+	// the empty one does (TestWatchdogOnAPIRouteIsSentNow), so the fix is the
+	// configuration.
 	logged := captureWarnings(t)
 	if _, err := TranslateLine("announce route 10.0.0.0/24 next-hop 1.2.3.4 watchdog"); err != nil {
 		t.Fatalf("watchdog at end of line: %v", err)
 	}
-	if !strings.Contains(logged.String(), "write watchdog <name> to tie it to a watchdog") {
+	if !strings.Contains(logged.String(), "configure it in the neighbor with watchdog <name>") {
 		t.Errorf("warning %q does not name the fix", logged.String())
 	}
 	// A value-less attribute that is not at the end still takes the next

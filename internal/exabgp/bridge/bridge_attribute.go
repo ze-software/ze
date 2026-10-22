@@ -64,8 +64,9 @@ type bridgeRouteAttr struct {
 	// Arity is how many tokens follow the keyword.
 	Arity bridgeAttrArity
 	// WireSilent marks an attribute that changes nothing a peer receives, so
-	// consuming it and writing nothing is the whole translation. `name` is the
-	// only one: ExaBGP labels the route for its own `show` output.
+	// consuming it and writing nothing is the whole translation. `name` labels
+	// the route for ExaBGP's own `show` output, and `watchdog` on an API route
+	// is held by no group (bridgeWatchdogWarning).
 	WireSilent bool
 	// EmptyAtEnd marks an attribute ExaBGP reads with the empty word when the
 	// line ends at its keyword: the pin's Words.take answers the empty token at
@@ -99,7 +100,7 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	"rd":                      {Ze: "rd", Arity: arityValue},
 	bridgeAttrRouteDist:       {Ze: "rd", Arity: arityValue},
 	bridgeAttrPathInformation: {Ze: bridgeAttrPathInformation, Arity: arityValue},
-	bridgeAttrWatchdog:        {Ze: bridgeAttrWatchdog, Arity: arityValue, EmptyAtEnd: true},
+	bridgeAttrWatchdog:        {Arity: arityValue, WireSilent: true, EmptyAtEnd: true},
 	bridgeAttrRouteName:       {Arity: arityValue, WireSilent: true, EmptyAtEnd: true},
 
 	// `split` is not an attribute: it re-cuts the prefix into smaller ones, so
@@ -222,6 +223,22 @@ func (a routeAttributes) nextHopKeyword() string { return bridgeRouteAttrs[bridg
 // rather than the ExaBGP one, so `rd` answers for `route-distinguisher` too.
 func (a routeAttributes) Has(zeKeyword string) bool { return a.written[zeKeyword] }
 
+// bridgeWatchdogWarning is logged for an API route line that names a watchdog.
+//
+// ExaBGP holds a route under a watchdog only when the route comes from the
+// configuration: the neighbor's routes go through add_to_rib_watchdog
+// (configuration/neighbor/__init__.py in 5.0.1, configuration/grammar/install.py
+// at the 6.0 pin), while an API route goes through add_to_rib (inject_change,
+// configuration/configuration.py in 5.0.1; announce_route at the pin), which
+// never reads the watchdog. So 4.2, 5.0 and 6.0 send such a route at once, and
+// `announce watchdog <name>` and `withdraw watchdog <name>` never move it
+// (qa/old/commands-5.0.json records the UPDATE for each such line). The bridge
+// does the same, and says so, because the operator who wrote the name may
+// expect the route to wait for its group.
+const bridgeWatchdogWarning = "a watchdog on an API route holds nothing, so the route is sent now, as ExaBGP sends it. " +
+	"Only a route from the configuration waits for announce watchdog <name>: " +
+	"to hold this route, configure it in the neighbor with watchdog <name>"
+
 // parseRouteAttributes reads the attribute tail of one ExaBGP route line: every
 // token after the NLRI that the line begins with.
 //
@@ -260,12 +277,10 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 				ErrLineNotTranslated, parts[i], textbuf.Join(bridgeAttrNames(), ", "))
 		}
 
+		if key == bridgeAttrWatchdog {
+			out.Warnings = append(out.Warnings, bridgeWatchdogWarning)
+		}
 		if attr.EmptyAtEnd && i+1 == len(parts) {
-			if !attr.WireSilent {
-				out.Warnings = append(out.Warnings, "the line ends at "+key+
-					" with no name, so the route is sent without one; write "+key+
-					" <name> to tie it to a watchdog")
-			}
 			break
 		}
 		value, next, err := takeAttrValue(attr.Arity, parts, i+1)

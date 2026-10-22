@@ -874,14 +874,10 @@ request bgp watchdog announce <name> [med <N>] [peer]  # Send all routes in pool
 request bgp watchdog withdraw <name> [peer]            # Withdraw all routes in pool from peers
 ```
 
-Routes are tagged with a pool when announced:
-```bash
-update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 watchdog set mypool
-```
-
-> **Note:** `watchdog set` in wire-mode updates is parsed but not yet
-> implemented. The `request bgp watchdog announce`/`request bgp watchdog withdraw`
-> pool commands work independently of this tagging.
+A pool holds the routes the config places under a watchdog
+(`watchdog { name <name>; }` in a peer's update block). `update text` and the
+wire mode read `watchdog <name>` and refuse the command, because no pool holds
+an API route (`docs/architecture/api/update-syntax.md`, "Watchdog Commands").
 
 ### RIB Commands
 

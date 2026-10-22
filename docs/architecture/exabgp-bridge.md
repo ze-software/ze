@@ -768,7 +768,8 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | `label`, `rd` or `path-information` written twice | the last is sent, the line is done, no warning |
 | A route line holding a `\u` escape without four hexadecimal digits | refused, naming the escape and the two ways to write it |
 | `split /<n>` shorter than the prefix | the prefix is sent whole, the line is done, a warning says so |
-| `watchdog` or `name` as the last word of a route line | the route is sent with neither, as ExaBGP reads the empty word there; for `watchdog` a warning says so and names the fix, `watchdog <name>` |
+| `watchdog` or `name` as the last word of a route line | the route is sent with neither, as ExaBGP reads the empty word there; for `watchdog` the warning of the next row is logged |
+| `watchdog <name>` on an API route, with or without the `withdraw` flag | the route is sent at once with no watchdog, and a warning says so and names the fix: configure the route with `watchdog <name>`. ExaBGP holds only a configured route under a watchdog (`add_to_rib_watchdog`); an API route goes through `add_to_rib` (`inject_change` in 5.0.1, `announce_route` at the 6.0 pin), which reads neither word, so `announce watchdog <name>` and `withdraw watchdog <name>` never move it |
 
 The route with no carrying peer is refused by Ze itself, as ExaBGP refuses it:
 `update text` asks the reactor whether any selected peer is configured for each

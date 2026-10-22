@@ -936,8 +936,8 @@ send bgp upstream1 update text origin set igp nhop set 10.0.0.1 \
     nlri path-information 7 add prefix 1.0.0.0/24,2.0.0.0/24
 ```
 
-After `add`, a section also takes `watchdog set <name>`, which places its routes
-under that watchdog. A section takes no path attribute and no `nhop`: those are
+After `add`, a section also takes `watchdog set <name>`, which the parser reads
+and the handler refuses (see "Watchdog Commands"). A section takes no path attribute and no `nhop`: those are
 written before the section, and a section that follows a new `nhop set` or
 attribute keyword uses the new value (see "Chained Sections").
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseINETSection -->
@@ -1271,12 +1271,11 @@ operation cannot retire a replacement connection.
 | `request bgp watchdog announce <name>` | Send all routes in pool to peers |
 | `request bgp watchdog withdraw <name>` | Withdraw all routes in pool from peers |
 
-Routes are tagged with a pool when announced:
-```bash
-update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 watchdog set mypool
-```
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- watchdog parsing -->
-
-> **Note:** `watchdog set <name>` in `update text` commands is not yet implemented.
-> The parser recognizes the syntax but the handler returns an error.
-> Standalone `request bgp watchdog announce/withdraw` commands work as expected.
+A watchdog group holds only routes from the config (`watchdog { name <name>; }`
+in a peer's update block, read by the `bgp-watchdog` plugin). `update text` reads
+`watchdog <name>` and `watchdog set <name>` and refuses the command, naming that
+fix, because no group would hold an API route and sending it at once would
+ignore the word. This is ExaBGP's rule too: its API routes never join a
+watchdog, and the ExaBGP bridge sends such a route at once with a warning
+(`docs/architecture/exabgp-bridge.md`).
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseSendableUpdateText, errUpdateTextWatchdog -->

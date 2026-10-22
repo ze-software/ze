@@ -1043,6 +1043,29 @@ func TestParseUpdateText_WatchdogLegacy(t *testing.T) {
 	assert.Empty(t, result.Groups)
 }
 
+// TestParseSendableUpdateText_RefusesWatchdog verifies that the parse the
+// handler sends from refuses both watchdog forms, and passes a plain route.
+//
+// VALIDATES: ParseSendableUpdateText is ParseUpdateText plus the handler's
+// refusals, so `watchdog <name>` and `watchdog set <name>` are refused with a
+// message that names the fix, and a route with no watchdog parses as before.
+// PREVENTS: a judge or caller that parses with ParseUpdateText alone counting
+// a watchdog route as sent while the daemon refuses it.
+func TestParseSendableUpdateText_RefusesWatchdog(t *testing.T) {
+	for _, args := range [][]string{
+		{"nhop", "1.2.3.4", "watchdog", "my-watchdog", "nlri", "add", "10.0.0.0/24"},
+		{"nhop", "1.2.3.4", "nlri", "add", "10.0.0.0/24", "watchdog", "set", "my-watchdog"},
+	} {
+		_, err := ParseSendableUpdateText(args)
+		require.ErrorIs(t, err, errUpdateTextWatchdog, "%v", args)
+		assert.Contains(t, err.Error(), "request bgp watchdog announce <name>")
+	}
+	result, err := ParseSendableUpdateText([]string{"nhop", "1.2.3.4", "nlri", "add", "10.0.0.0/24"})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.Len(t, result.Groups[0].Announce, 1)
+}
+
 // TestParseUpdateText_SpecExample verifies comprehensive flat grammar example.
 //
 // VALIDATES: Multi-family command with shared attributes parses correctly.

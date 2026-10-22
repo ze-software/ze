@@ -8,7 +8,9 @@
 // pin, carried here as testdata/exabgp-old/commands-<release>.json.gz). Each
 // command is given to the bridge as the script wrote it (Translator.Line), and
 // each ze command the bridge writes is parsed by the `update text` handler's
-// own parser (update.ParseUpdateText). Both sides are then decoded by ONE
+// own parser, with the refusals the handler makes after the parse
+// (update.ParseSendableUpdateText), so a command the daemon refuses is judged
+// refused. Both sides are then decoded by ONE
 // decoder, the bridge's WireUpdateToExabgpJSON, and compared route by route:
 // the routes announced with their attributes, and the routes withdrawn.
 //
@@ -454,7 +456,7 @@ func (j *oldJudge) zeRoutes(command string) ([]string, string) {
 			rows = append(rows, sent...)
 			continue
 		}
-		result, err := update.ParseUpdateText(strings.Fields(args))
+		result, err := update.ParseSendableUpdateText(strings.Fields(args))
 		if err != nil {
 			return nil, "update text: " + err.Error()
 		}

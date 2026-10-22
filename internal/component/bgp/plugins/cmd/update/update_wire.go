@@ -400,8 +400,7 @@ func handleUpdateWire(ctx *pluginserver.CommandContext, args []string, encoding 
 	}
 
 	if result.WatchdogName != "" {
-		errMsg := "watchdog not yet implemented for wire mode"
-		return &plugin.Response{Status: plugin.StatusError, Error: errMsg}, errors.New(errMsg)
+		return &plugin.Response{Status: plugin.StatusError, Error: errUpdateTextWatchdog.Error()}, errUpdateTextWatchdog
 	}
 
 	return DispatchNLRIGroups(ctx, result.Groups)

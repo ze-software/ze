@@ -1175,19 +1175,40 @@ var updateEncodings = map[string]func(*pluginserver.CommandContext, []string) (*
 	"cursor": handleUpdateCursor,
 }
 
+// errUpdateTextWatchdog refuses `watchdog <name>` and `watchdog set <name>` in
+// update text, and `watchdog <name>` in the hex and b64 wire modes
+// (handleUpdateWire). The grammar reads the word, but nothing holds an API route under
+// a watchdog: the bgp-watchdog plugin builds its groups from the config only
+// (parseConfig, internal/component/bgp/plugins/watchdog/config.go). Sending the
+// route at once would ignore what the operator asked for, so it is refused.
+var errUpdateTextWatchdog = errors.New("an update command cannot place a route under a watchdog: " +
+	"a watchdog group holds only routes from the config, so this route would not wait for its group.\n" +
+	"Send the route without watchdog, or configure it in the peer's update block with watchdog { name <name>; }, then run:\n" +
+	"request bgp watchdog announce <name>")
+
+// ParseSendableUpdateText parses update text the way the `update text` handler
+// does: ParseUpdateText, then every refusal the handler makes before it sends
+// a route. A caller that judges what the daemon would send MUST use it rather
+// than ParseUpdateText, which accepts words the handler refuses.
+func ParseSendableUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
+	result, err := ParseUpdateText(args)
+	if err != nil {
+		return nil, err
+	}
+	if result.WatchdogName != "" {
+		return nil, errUpdateTextWatchdog
+	}
+	return result, nil
+}
+
 // handleUpdateText handles: send bgp <selector> update text ...
 // Parses the update text format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4724 Section 2: End-of-RIB marker.
 func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	result, err := ParseUpdateText(args)
+	result, err := ParseSendableUpdateText(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
-	}
-
-	if result.WatchdogName != "" {
-		errMsg := "watchdog not yet implemented for update text"
-		return &plugin.Response{Status: plugin.StatusError, Error: errMsg}, errors.New(errMsg)
 	}
 
 	// BGP-specific operations: EOR, announce, withdraw
