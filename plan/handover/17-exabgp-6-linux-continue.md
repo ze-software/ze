@@ -994,6 +994,16 @@ owner says to carry them.
 
 ## M25 alignment state (2026-10-22, main session ed4b8d60)
 
+UPDATE, end of session: everything below that was "uncommitted" has landed:
+bgp-watchdog give/forget and the migration send grant af1bc41c96; the bridge
+batch (watchdog hand-off, negotiated grant gate, next-hop rules, MALFORMED
+judges) 9c3f7c3330; pin references eda7420752. M25 items left: AS_SET only
+(blocked on the explicit-final-policy session's files, see the AS_SET section
+above), and the MUP raw-relay gap. Gates owed off this host as in START HERE,
+plus `./le cli dispatch check` and `./le arch enumeration check`, which were
+red on findings outside this work (`adj_rib_in/rib.go`, `validate_sections.go`,
+and a stale enumeration marker in `bridge_command.go`).
+
 Landed: UTF-8 helper output 0bc54bdc21; MUP -02 read 98c1ca04a5 (gap: the
 raw ingress relay still forwards a -02 route without the octet); migration
 IPv4-mapped next hop on IPv6 VPN 4bc9070cbc; journal row 8a5c45b223 (the
