@@ -1101,6 +1101,7 @@ host kernel check does not apply.
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, sweepAfterSignal, requireDockerEnvironment, liveRPKIArgv -->
 <!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
 <!-- source: internal/le/gaterun/group.go -- ProcessGroup.AwaitExit -->
+<!-- test: internal/le/test/integration/dockerpeers_signal_test.go TestSignalSweepWaitsForTheGroup, TestSignalSweepNamesMembersLeft -->
 <!-- source: internal/le/test/buildtag/buildtag.go -- TestFile.Needs, TestFile.Names, Packages -->
 <!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestDockerTagNeverJoinsIntegration, dockerIntegrationOverlap -->
 <!-- source: internal/le/test/integration/gates.go -- Table, the docker-peers and live-rpki rows -->

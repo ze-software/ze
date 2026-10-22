@@ -103,15 +103,22 @@ func TestSignalSweepReports(t *testing.T) {
 }
 
 // groupOutlivingLeader runs, through the verb's own runner, a child that
-// leaves a member sleeping for sleep and exits at once, answering its group
+// leaves a member running command and exits at once, answering its group
 // and the member's pid: the shape a SIGKILLed `go test` group has while its
 // test binaries are still exiting after le reaped `go test`.
-func groupOutlivingLeader(t *testing.T, sleep string) (gaterun.ProcessGroup, int) {
+func groupOutlivingLeader(t *testing.T, command string) (gaterun.ProcessGroup, int) {
 	t.Helper()
 	dir := t.TempDir()
 	pidFile := filepath.Join(dir, "member")
 	_, code, group := gaterun.RunContext(t.Context(), dockerPeersVerb,
-		[]string{"sh", "-c", "sleep " + sleep + " & echo $! > " + pidFile}, dir, os.Environ())
+		[]string{"sh", "-c", command + " & echo $! > " + pidFile}, dir, os.Environ())
+	if leader, started := group.LeaderForTest(); started {
+		t.Cleanup(func() {
+			if err := syscall.Kill(-leader, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+				t.Errorf("kill process group %d: %v", leader, err)
+			}
+		})
+	}
 	if code != 0 {
 		t.Fatalf("leader answered %d, want 0", code)
 	}
@@ -133,7 +140,7 @@ func groupOutlivingLeader(t *testing.T, sleep string) (gaterun.ProcessGroup, int
 // PREVENTS: the sweep judging a still-exiting test binary a live owner and
 // leaving its containers.
 func TestSignalSweepWaitsForTheGroup(t *testing.T) {
-	group, member := groupOutlivingLeader(t, "0.5")
+	group, member := groupOutlivingLeader(t, "sleep 0.5")
 	leader, started := group.LeaderForTest()
 	if !started {
 		t.Fatal("RunContext answered no group for a child that ran")
@@ -151,7 +158,11 @@ func TestSignalSweepWaitsForTheGroup(t *testing.T) {
 // VALIDATES: a group still holding members at its bound is swept anyway, and
 // the summary names the pid left and the fix.
 func TestSignalSweepNamesMembersLeft(t *testing.T) {
-	group, member := groupOutlivingLeader(t, "5")
+	// Keep the member alive through the ps listing, which may itself take five
+	// seconds. Cleanup ends its lifetime; the loop also exits if this test
+	// process is killed. The sleep only keeps that otherwise idle child idle.
+	group, member := groupOutlivingLeader(t,
+		"while kill -0 "+strconv.Itoa(os.Getpid())+" 2>/dev/null; do sleep 1; done")
 	t.Cleanup(func() {
 		if err := syscall.Kill(member, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
 			t.Errorf("kill member %d: %v", member, err)
