@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -357,6 +357,10 @@ N-A: tooling, no protocol peer.
 - The `./ze` root launcher's `bin/ze` is not touched; M22 names le builds only
 
 ## Owner Questions
+
+Answered 2026-10-22 (Thomas): spec approved; Q-1 "yes require hardlink"; Q-2
+and Q-3 taken at the readings below, stated to him and not overruled.
+
 | ID | Question | Reading this spec proceeds under |
 |----|----------|----------------------------------|
 | Q-1 | On a filesystem without hard links, refuse `--name` (this spec, per no-layering) or keep a private per-name copy? | Refuse |
