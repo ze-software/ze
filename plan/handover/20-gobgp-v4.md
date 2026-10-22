@@ -227,3 +227,23 @@ Owed:
 - Done since: the Alpine 3.24.3 image built (`ze-rsvpte-freertr:m14-alpine324`, patch applied, REVISION 96368b02da10), and the RSVP-TE alpine set landed in 843f3bafa9.
 - `le lab pin check` after these commits: 132 pins, 19 behind. Owned by sibling agents: `Dockerfile.gobgp` (golang 1.25, alpine 3.21), `frr_image_test.go` (FRR 10.4.1), and the `Dockerfile.rustbgpd` trixie-slim tag. Left alone because they are parser fixtures, not lab pins: `internal/le/go/versionpin/goversion_test.go`. freeRtr RSVP-TE is one upstream commit behind, which the one-month rule allows. `pinnedImage` in `labtest_test.go` (stayrtr 0.6 by digest) is unresolved, because upstream has no tag in that shape.
 - `le doc check verify` is red on the published wiki and gh-pages command catalogs (`clear bgp rib advertised`, `request peer *`). That is ze's command surface, not these commits.
+- Done since: the perf freeRtr DUT bases landed unbuilt in 4f48c7f190; build it where a `../rtr` checkout exists (the Mac).
+
+## Progress (GoBGP v4.10.0 scenarios)
+
+Runs go one at a time under the session flock, from a `git clone --shared` of
+committed main, because other sessions' uncommitted work broke the lab
+cross-compile in the shared tree. Run `./le --update` first: a stale launcher
+still read v3's `neighbor-ip` field and failed bgp-flowspec-gobgp spuriously.
+
+| Scenario | Result on v4.10.0 | Fix |
+|----------|-------------------|-----|
+| bgp-flowspec-gobgp | pass | none |
+| bgp-flowspec-sctp-gobgp | pass | 62bd6f2a09: nft prints SCTP as protocol 132 (`meta l4proto 132`), so the old check on the word `sctp` could never fail; the same on nftables 1.1.1 and 1.1.6 |
+| bgp-vpn-gobgp | pass on unmodified main | a stronger proof sits in the working tree, uncommitted: an ipv4/unicast route beside the two mpls-vpn routes (`vpnSameAFIUnicastPrefix`, the `scenarioVPNGoBGP` case of `announcementPlan`, an ipv4 RIB wait in `check_extras.go`, the plan digest in `TestAnnouncementPlanOrderAndTimingFixture`). Owed: package unit test, rerun, then remove the "GoBGP 3.31 (not seen in 4.10.0 source)" limitation row and its source comment from interop.md, and commit them together |
+
+Owed next, in order:
+
+1. Revert-red for bgp-sr-policy-malformed-receive-gobgp. Red a: an empty slice to the `nlrisyntax.Register` loop of the srpolicy registration. Red b: disable the `srPolicyAnnounced` branch of `applyTunnelEncap`. On v4 a session reset can restore the route without the malformed one, so if red a stays green, make the scenario discriminate again (for example by asserting that GoBGP's `Flops` stays 0 in `gobgp neighbor`).
+2. Revert-red for bgp-large-community-no-repeat-gobgp: disable `largeCommunityRedundant` in the egress normalizer.
+3. bgp-exabgp-bridge-rtc-gobgp, then the rest of the scenario list above.
