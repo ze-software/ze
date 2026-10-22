@@ -357,9 +357,19 @@ func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
 	}
 
 	neighbor = map[string]any{
-		"address":   map[string]any{"local": e.Local, "peer": e.Peer},
-		"asn":       map[string]any{"local": e.LocalASN, "peer": e.PeerASN},
-		"direction": e.Direction,
+		"address": map[string]any{"local": e.Local, "peer": e.Peer},
+		"asn":     map[string]any{"local": e.LocalASN, "peer": e.PeerASN},
+	}
+	// Only a BGP message travels, so only a message states its direction.
+	// ExaBGP 6.0 hands `_neighbor` a direction for each message it encodes and
+	// None for up, connected, down, negotiated, fsm and signal
+	// (src/exabgp/reactor/api/response/json.py, e.g. `self._neighbor(neighbor,
+	// None, self._kv({'state': fsm.name()}))`), and `_neighbor` writes the member
+	// only then: `dir_field = f'"direction": "{direction}"' if direction else ''`.
+	// The API 4 encoder delegates to the same code, so both formats agree. A
+	// message is a kind that has a type code (packetCodes).
+	if _, isMessage := packetCodes[e.Kind]; isMessage {
+		neighbor["direction"] = e.Direction
 	}
 	if e.RouterID != "" {
 		neighbor["router-id"] = e.RouterID

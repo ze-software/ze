@@ -251,6 +251,51 @@ func TestZebgpToExabgpJSON_StateUp(t *testing.T) {
 	assert.Equal(t, "up", neighbor["state"])
 }
 
+// TestExabgpJSONDirectionOnMessagesOnly checks which lines state a direction,
+// for both JSON formats, by rendering one event of each kind.
+//
+// VALIDATES: a BGP message (open, update, notification, keepalive, refresh)
+// carries `neighbor.direction`, and a session state, an FSM change, a signal
+// and the negotiated block carry none, as ExaBGP 6.0 writes them
+// (Response.JSON._neighbor is handed None for up, connected, down,
+// negotiated, fsm and signal, src/exabgp/reactor/api/response/json.py).
+// PREVENTS: a `direction` member no ExaBGP release wrote on those lines, which
+// TestOldResponses50 and TestOldResponses42 counted on 2052 helper lines.
+func TestExabgpJSONDirectionOnMessagesOnly(t *testing.T) {
+	kinds := []struct {
+		kind    string
+		travels bool
+	}{
+		{msgTypeOpen, true},
+		{msgTypeUpdate, true},
+		{msgTypeNotification, true},
+		{msgTypeKeepalive, true},
+		{msgTypeRefresh, true},
+		{msgTypeState, false},
+		{msgTypeFSM, false},
+		{msgTypeSignal, false},
+		{msgTypeNegotiated, false},
+	}
+	for _, format := range []Format{FormatV4JSON, FormatV6JSON} {
+		for _, tt := range kinds {
+			t.Run(tt.kind, func(t *testing.T) {
+				event := Event{
+					Kind: tt.kind, Direction: modeReceive, Peer: "10.0.0.1", Local: "10.0.0.2",
+					Payload: map[string]any{"state": "up"}, Data: map[string]any{},
+				}
+				neighbor, ok := event.ExabgpJSON(format)["neighbor"].(map[string]any)
+				require.True(t, ok)
+				direction, has := neighbor["direction"]
+				if !tt.travels {
+					assert.False(t, has, "a %s line states no direction, got %v", tt.kind, direction)
+					return
+				}
+				assert.Equal(t, modeReceive, direction)
+			})
+		}
+	}
+}
+
 // TestZebgpToExabgpJSON_DirectionMapping verifies direction mapping.
 //
 // VALIDATES: "received" → "receive", "sent" → "send".

@@ -30,6 +30,16 @@ renders that. `ExabgpJSON` writes one JSON object per event, in envelope version
 6.0.0. `AppendText` writes ExaBGP's one-event-per-line text. A script's own
 `encoder` leaf decides which one it gets.
 
+Every JSON line's `neighbor` states `address` and `asn`, both halves, and
+`router-id` when the session has one. Only a BGP message (open, update,
+notification, keepalive, route-refresh) states its `direction`: a state, an FSM
+change, a signal and the negotiated block do not travel, and ExaBGP 6.0 writes
+no `direction` on them (`Response.JSON._neighbor` is handed `None` for each).
+API 4 lines follow 6.0 here, so a 4.2 helper meets the `router-id` that 5.0
+and 6.0 write and 4.2 did not.
+
+<!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpEnvelope -->
+
 `MarshalExabgpJSON` serializes the JSON object in ExaBGP's own spacing,
 `{ "key": value, "key": value }` and `[ a, b ]`, on both the fleet and the
 single-event path. ExaBGP builds its JSON by hand that way, and scripts match on
