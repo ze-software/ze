@@ -513,7 +513,7 @@ N-A: tooling.
 |-------|-------|
 | Artifact | |
 | `./le spec review check` | not run |
-| Rounds | 2 (fixed); round 3 owed |
+| Rounds | 3 (round 3: 0 BLOCKER, 1 ISSUE, fixed); round 4 owed |
 | Reviewer lenses used | |
 
 ### Findings fixed
@@ -541,6 +541,17 @@ N-A: tooling.
 | R2-8 | NOTE | `/home` bind spelled beside `homeRoot`; restart hint named one recovery | `dockerhost/boot.go` `mountWritableTrees`; `restart.go` | 2ed28efa6e (bind on `homeRoot`; hint names `colima restart ze` and a docker-lab rerun) |
 | port | NOTE | docker-lab boot failure lost `qemu-errors.log` (journal 2026-10-11) | `qemu/dockerlab.go` `dockerLabBootFailure` | 135308541f (`TestDockerLabBootFailureCarriesQEMUErrors`, red then green) |
 
+| R3-1 | ISSUE | race text claimed the second QEMU always refuses; a wildcard forward beside a docker-lab 127.0.0.1 one binds on macOS and ssh reaches the other VM | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port" | the commit adding this row (both texts name the cross-address case; journal 2026-10-10 row names it; race fix stays that row's open step) |
+| R3-5 | NOTE | install-test web and crash-capture http forwards have no probe of their own (walked into) | `qemu/install_boot.go` `bootTargetSSH`; `qemu/crashcapture.go` `qemuArgs` | journal row 2026-10-22 in `parallel-copies-collide-on-a-deterministic-port.md`; no code change |
+| R3-6 | NOTE | port-probe release error named no fix | `qemu/run.go` `sshPortFree` | the commit adding this row (names `ze.qemu.ssh.port` / `ZE_QEMU_SSH_PORT`) |
+| R3-7 | NOTE | probe section's test anchor omitted a test | `qemu-integration.md` | the commit adding this row (`TestFreeSSHPortRefusesABoundLoopbackForward` anchored) |
+| R3-2 | NOTE | boot-marker read | `dockerhost/restart.go` | no change: a failed marker read fails closed and cannot wedge first boot |
+| R3-3 | NOTE | new tests' discrimination | round-2 tests | no change: every new test is red on revert |
+| R3-4 | NOTE | probe addresses | `qemu/run.go` `sshForwardHosts` | no change: the probe binds exactly the addresses QEMU's forwards bind |
+| R3-8 | NOTE | lint warnings | `qemu` package | no change: the warnings predate these commits |
+
 Round 2 reviewed only the round-1 fixes: a02b362081, 2b98d538dc, 02fa09c15f, c0b69d7a53, b5079f335a, fa2b697807 and the sibling call sites they touched.
 
 Round 3 reviews only the round-2 fixes: 2ed28efa6e, 135308541f.
+
+Round 4 reviews only the round-3 fixes: the commit that adds this line (`qemu: name the cross-address SSH forward race`).

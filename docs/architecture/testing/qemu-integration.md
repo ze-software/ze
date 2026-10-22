@@ -574,9 +574,13 @@ holds. QEMU's hostfwd binds `0.0.0.0` for `run` and `install-test`, and
 wildcard bind sit beside another VM's loopback forward, and the second run
 died at boot with only an sshd timeout. The port is still released before
 QEMU binds it, so two runs that probe in the same instant can still pick the
-same port; the second QEMU then refuses the forward at start.
+same port. When both forwards bind the same address, the second QEMU refuses
+the forward at start. When they differ, a `run` or `install-test` wildcard
+forward racing a `docker-lab` loopback forward, macOS lets both bind, because
+slirp sets `SO_REUSEADDR`, and the second run's ssh to localhost then reaches
+the other VM.
 <!-- source: internal/le/test/qemu/run.go -- freeRunSSHPort, freeSSHPortIn, sshPortFree -->
-<!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortAnswersAFreePort -->
+<!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortRefusesABoundLoopbackForward, TestFreeSSHPortAnswersAFreePort -->
 
 ### A VM never outlives its le
 
