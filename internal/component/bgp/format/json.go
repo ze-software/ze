@@ -257,6 +257,15 @@ func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) s
 	inner["timer"] = map[string]any{"hold-time": neg.HoldTime}
 	inner["asn4"] = neg.ASN4
 	inner["families"] = neg.Families
+	// The send limit, the route refresh kind and the extended next hops were
+	// decoded and never written until 2026-10-22, so the ExaBGP bridge could
+	// not state them in the `negotiated` block ExaBGP writes on every UPDATE
+	// line (src/exabgp/reactor/api/response/json.py, _negotiated).
+	inner["message-size"] = neg.MessageSize
+	inner["route-refresh"] = neg.RouteRefresh
+	if len(neg.ExtendedNextHop) > 0 {
+		inner["extended-next-hop"] = neg.ExtendedNextHop
+	}
 
 	// ADD-PATH: separate send/receive lists
 	if len(neg.AddPathSend) > 0 || len(neg.AddPathReceive) > 0 {

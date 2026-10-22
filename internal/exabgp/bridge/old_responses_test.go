@@ -108,6 +108,23 @@ var oldResponsesAllowed = []oldResponseRow{
 	oldResponseAllow("4.2", "text", `^update \S+ \S*800E[0-9A-F]{2}000285`, `announced flow `,
 		"the IPv6 flow route of 4.2, as in JSON"),
 	// End of the rows copied from the pin. Ze's own rows follow.
+	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b`, `/negotiated/multisession$`,
+		"a session the release negotiated multi-session on: ze does not support BGP multi-session, every ze session is the one ExaBGP names `family-allowed in-open`, so its block says false (META-DECISIONS M16, \"we do not support multisession in ze\")"),
+	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b`, `/negotiated/operational$`,
+		"a session the release negotiated OPERATIONAL on: ze neither originates nor implements the OPERATIONAL message, so its block says false (META-DECISIONS M15, \"we do not support operational on ze\")"),
+	oldResponseAllow("4.2 5.0", "json", `^down$`, `^/neighbor/reason$`,
+		`the recorder hands the encoder the reason "peer reset" (qa/bin/test_old_responses, render: `+
+			`"safe(encoder.down, neighbor, 'peer reset')"), which no reactor writes: Peer._close passes its own message `+
+			`to Processes.down (src/exabgp/reactor/peer/peer.py, "self.reactor.processes.down(self.neighbor, message)"), `+
+			`and a lost transport is "self._reset('closing connection', network)"; ze writes that word for its tcp-failure`),
+	oldResponseAllow("4.2 5.0", "text", `^down$`, `^neighbor \S+ down - peer reset$`,
+		"the reason of a down, as in JSON"),
+	oldResponseAllow("4.2 5.0", "json", `^update \S+ \S*40050400000064(6099|7099)`, `.`,
+		`a well-known attribute ze does not recognize (type 153, Optional bit clear) resets the session: RFC 4271 `+
+			`Section 6.3, "If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST `+
+			`be set to Unrecognized Well-known Attribute." The release delivered it as attribute-0x99-0x60`),
+	oldResponseAllow("4.2 5.0", "text", `^update \S+ \S*40050400000064(6099|7099)`, `.`,
+		"the unrecognized well-known attribute, as in JSON"),
 }
 
 func (r *oldResponseRow) allows(release, encoder, event, where string) bool {
@@ -376,6 +393,9 @@ type oldSession struct {
 	facts      SessionFacts
 	negotiated format.DecodedNegotiated
 	encoder    *format.JSONEncoder
+	// sessions is the runner's state for this session: it has read the
+	// session's negotiated event, as a runner does before any UPDATE.
+	sessions Sessions
 }
 
 // loadOldSessions reads configs-<release>.json.gz: each configuration's
@@ -476,6 +496,9 @@ func newOldSession(name, openHex string) (*oldSession, error) {
 		PeerRouterID:  open.BGPIdentifier,
 	}
 	negotiated := capability.Negotiate(caps, caps, identity)
+	// The session sets the hold time after Negotiate, to the smaller of the
+	// two OPENs' (reactor session_negotiate.go); both OPENs are this one.
+	negotiated.HoldTime = open.HoldTime
 	session := &oldSession{
 		peer: plugin.PeerInfo{
 			Address: peer, LocalAddress: local,
@@ -489,6 +512,12 @@ func newOldSession(name, openHex string) (*oldSession, error) {
 		negotiated: format.NegotiatedToDecoded(negotiated),
 		encoder:    format.NewJSONEncoder(""),
 	}
+	var document map[string]any
+	if err := json.Unmarshal([]byte(session.encoder.Negotiated(&session.peer, session.negotiated)), &document); err != nil {
+		return nil, err
+	}
+	established := ReadEvent(document)
+	session.sessions.Note(&established)
 	return session, nil
 }
 
@@ -512,6 +541,11 @@ func (s *oldSession) render(encoder, event string) (line any) {
 		return "the ze document does not parse: " + err.Error()
 	}
 	read := ReadEvent(zebgp)
+	if read.Kind == msgTypeUpdate {
+		// Each recorded event is judged alone, on the established session,
+		// so a recorded `down` must not end the session the next one is on.
+		s.sessions.Note(&read)
+	}
 	if encoder == "text" {
 		written := read.Line(FormatV4Text, oldDiscard)
 		if written == nil {

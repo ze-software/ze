@@ -1677,6 +1677,11 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	require.True(t, ok, "timer must be a map")
 	assert.Equal(t, float64(90), timer["hold-time"])
 	assert.Equal(t, true, payload["asn4"])
+	// The send limit, the route refresh kind and the extended next hops,
+	// which the ExaBGP bridge states in its negotiated block.
+	assert.Equal(t, float64(4096), payload["message-size"])
+	assert.Equal(t, "enhanced", payload["route-refresh"])
+	assert.Equal(t, map[string]any{"ipv4/unicast": "ipv6"}, payload["extended-next-hop"])
 
 	// Check families in payload
 	families, ok := payload["families"].([]any)

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -753,4 +754,80 @@ func TestFleetAnswersStatusFromZesPeerList(t *testing.T) {
 
 	cancel()
 	fleet.Stop()
+}
+
+// TestFleetPutsTheNegotiatedBlockOnlyWhereGranted checks that an UPDATE line
+// carries the session's negotiated block for a script the peer grants
+// `negotiated`, and none for a script it does not: ExaBGP hands such a process
+// None (src/exabgp/reactor/protocol.py, read_message).
+//
+// VALIDATES: bridge.Sessions through the internal runner, per script grant.
+// PREVENTS: the block missing from a 5.0 helper's UPDATE, or reaching a
+// process whose api block never asked for it.
+func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
+	dir := t.TempDir()
+	grantedOut := filepath.Join(dir, "granted.events")
+	plainOut := filepath.Join(dir, "plain.events")
+	grantedScript := writeScript(t, dir, "granted.sh", "cat > "+grantedOut+"\n")
+	plainScript := writeScript(t, dir, "plain.sh", "cat > "+plainOut+"\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "granted", Argv: []string{grantedScript}, Encoder: bridge.EncoderJSON,
+			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update", "negotiated"}}}},
+		{Name: "plain", Argv: []string{plainScript}, Encoder: bridge.EncoderJSON,
+			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update"}}}},
+	})
+	if err := fleet.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	peer := `"peer":{"remote":{"address":"127.0.0.1","as":65001}}`
+	fleet.Broadcast(`{"type":"bgp","bgp":{"message":{"type":"negotiated"},` + peer +
+		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv6/unicast","ipv4/unicast"]}}}`)
+	fleet.Broadcast(`{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},` + peer +
+		`,"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`)
+
+	waitFor(t, "both scripts to receive the UPDATE", func() bool {
+		return strings.Contains(readFile(t, grantedOut), "10.0.0.0/24") &&
+			strings.Contains(readFile(t, plainOut), "10.0.0.0/24")
+	})
+
+	cancel()
+	fleet.Stop()
+
+	block := negotiatedOfUpdate(t, readFile(t, grantedOut))
+	want := map[string]any{
+		"add_path": map[string]any{"receive": []any{}, "send": []any{}},
+		"asn4":     true, "families": []any{"ipv4 unicast", "ipv6 unicast"},
+		"hold_time": float64(90), "message_size": float64(4096), "multisession": false,
+		"nexthop": []any{}, "operational": false, "refresh": "normal",
+	}
+	if !reflect.DeepEqual(block, want) {
+		t.Errorf("the granted script's negotiated block:\n got %v\nwant %v", block, want)
+	}
+	if got := readFile(t, plainOut); strings.Contains(got, `"negotiated"`) {
+		t.Errorf("a script not granted negotiated received the block: %q", got)
+	}
+}
+
+// negotiatedOfUpdate answers the neighbor.negotiated member of the UPDATE line
+// among a script's lines.
+func negotiatedOfUpdate(t *testing.T, lines string) any {
+	t.Helper()
+	for line := range strings.SplitSeq(lines, "\n") {
+		if !strings.Contains(line, "10.0.0.0/24") {
+			continue
+		}
+		var document map[string]any
+		if err := json.Unmarshal([]byte(line), &document); err != nil {
+			t.Fatalf("the UPDATE line does not parse: %v: %s", err, line)
+		}
+		neighbor, _ := document["neighbor"].(map[string]any)
+		return neighbor["negotiated"]
+	}
+	t.Fatalf("no UPDATE line in %q", lines)
+	return nil
 }

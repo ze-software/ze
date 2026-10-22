@@ -101,6 +101,9 @@ type Fleet struct {
 	// script because a route one script announces another can take over or
 	// withdraw (bridge.OwnerLedger).
 	owners *bridge.OwnerLedger
+
+	// sessions holds each peer's negotiated block for its UPDATE lines.
+	sessions bridge.Sessions
 }
 
 // New builds a Fleet for the given scripts. It forks nothing: Start does.
@@ -187,14 +190,23 @@ func (f *Fleet) Broadcast(event string) {
 		f.log.Debug("exabgp-bridge: event carries no BGP message", "event", event)
 		return
 	}
+	f.sessions.Note(&read)
 	apiKey := read.APIKey()
 
-	var rendered [bridge.FormatCount][]byte
+	// rendered[0] holds the lines with the session's negotiated block and
+	// rendered[1] those without, for a script the peer does not grant
+	// `negotiated` (bridge.Sessions).
+	var rendered [2][bridge.FormatCount][]byte
+	bare := read.WithoutNegotiated()
 	for _, s := range f.scripts {
 		if !s.receives(read.Peer, apiKey) {
 			continue
 		}
-		line, ok := f.render(&rendered, s.api.Format(), read)
+		variant, cache := read, &rendered[0]
+		if read.Negotiated != nil && !s.receives(read.Peer, bridge.APIKeyNegotiated) {
+			variant, cache = bare, &rendered[1]
+		}
+		line, ok := f.render(cache, s.api.Format(), variant)
 		if !ok {
 			continue
 		}

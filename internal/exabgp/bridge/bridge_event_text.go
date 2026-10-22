@@ -106,7 +106,7 @@ func (e Event) appendStateText(buf []byte) ([]byte, TextForm) {
 		reason, _ := e.Payload["reason"].(string)
 		buf = e.appendPrefix(buf, false)
 		buf = append(buf, " down - "...)
-		buf = appendOneline(buf, reason)
+		buf = appendOneline(buf, exabgpDownReason(reason))
 		return append(buf, '\n'), TextWritten
 	default:
 		// json-format.md declares three state values. A fourth is a ze change
@@ -508,15 +508,16 @@ func appendAttributeMemberText(buf []byte, member any) []byte {
 //
 // ExaBGP writes `capabilities [...]` as the lowercased text of its own
 // Capabilities object. The ze event carries a code, a name and a value for each
-// capability instead, so the bridge writes `<name> <value>` for each of them,
-// separated by a space. The set is the same; the spelling inside the brackets is
-// ze's, and nothing in the compatibility corpus parses it.
+// capability, and appendCapabilitiesText writes from them the words each of
+// ExaBGP's capability classes writes.
 func (e Event) appendOpenText(buf []byte) []byte {
 	buf = e.appendPrefix(buf, true)
 	buf = append(buf, " open version "...)
 	buf = append(buf, textOpenVersion...)
+	// Text.open writes sent_open.asn, the My Autonomous System field, as the
+	// JSON encoder does (openMyAS).
 	buf = append(buf, " asn "...)
-	buf = appendJSONNumber(buf, e.Data["asn"])
+	buf = appendJSONNumber(buf, openMyAS(e.Data["asn"]))
 	// ze nests the hold time under `timer` (internal/component/bgp/format/
 	// json.go, Open). It was read flat until 2026-10-20, so every OPEN line
 	// said hold_time 0.
@@ -527,21 +528,7 @@ func (e Event) appendOpenText(buf []byte) []byte {
 	routerID, _ := e.Data["router-id"].(string)
 	buf = appendOneline(buf, routerID)
 	buf = append(buf, " capabilities ["...)
-
-	capabilities, _ := e.Data["capabilities"].([]any)
-	for _, entry := range capabilities {
-		capability, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		name, _ := capability["name"].(string)
-		buf = append(buf, ' ')
-		buf = appendLowerOneline(buf, name)
-		if value, ok := capability["value"].(string); ok && value != "" {
-			buf = append(buf, ' ')
-			buf = appendLowerOneline(buf, value)
-		}
-	}
+	buf = appendCapabilitiesText(buf, e.Data["capabilities"])
 	return append(buf, "]\n"...)
 }
 
@@ -580,6 +567,8 @@ func appendJSONNumber(buf []byte, value any) []byte {
 	switch typed := value.(type) {
 	case float64:
 		return strconv.AppendFloat(buf, typed, 'f', -1, 64)
+	case int: // openMyAS answers AS_TRANS as a constant
+		return strconv.AppendInt(buf, int64(typed), 10)
 	case string:
 		return appendOneline(buf, typed)
 	default:

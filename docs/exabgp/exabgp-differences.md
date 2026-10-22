@@ -344,6 +344,18 @@ flushing the adj-rib-out").
 
 <!-- source: internal/exabgp/bridge/bridge_batch.go -- adjRIBOutClearCovers -->
 
+## The reason of a down
+
+ExaBGP writes why a session ended as the text its reactor logs for it. A
+NOTIFICATION reads `notification sent (6,2)` or `notification received (6,2)`
+(`src/exabgp/reactor/peer/peer.py`, `Peer._run`). Ze's down event states that
+a NOTIFICATION ended the session and not which way it went or its codes, so the
+bridge writes `notification`. The codes and the direction are on the
+NOTIFICATION event a script receives just before the down. A lost transport is
+`closing connection` and a removed peer `stop, message [removed]` in both.
+
+<!-- source: internal/exabgp/bridge/bridge_event_state.go -- exabgpDownReasons -->
+
 ## Template for Future Differences
 
 ### Feature Name

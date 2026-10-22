@@ -103,6 +103,11 @@ type Event struct {
 	// RefreshSubtype is ExaBGP's word for a ROUTE-REFRESH's Message Subtype,
 	// `query`, `begin` or `end`, and empty for every other kind.
 	RefreshSubtype string
+	// Negotiated is the session's `negotiated` block in ExaBGP's JSON form,
+	// which ExaBGP writes inside every UPDATE line of a session whose process
+	// is granted `negotiated`. ReadEvent leaves it nil: only the runner holds
+	// the session, so Sessions.Note sets it (bridge_negotiated.go).
+	Negotiated map[string]any
 }
 
 // exabgpRefreshSubtypes maps the kind ze names a ROUTE-REFRESH event by, its
@@ -292,9 +297,18 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 		// State is a simple string at bgp level (not a container).
 		state, _ := e.Payload["state"].(string)
 		neighbor["state"] = state
+		// Only a down carries a reason (Response.JSON.down,
+		// src/exabgp/reactor/api/response/json.py), in ExaBGP's words.
+		if state == "down" {
+			reason, _ := e.Payload["reason"].(string)
+			neighbor["reason"] = exabgpDownReason(reason)
+		}
 
 	case msgTypeUpdate:
 		neighbor["message"] = updateMessageJSON(e.Data, format, e.Peer)
+		if e.Negotiated != nil {
+			neighbor[msgTypeNegotiated] = e.Negotiated
+		}
 
 	case msgTypeOpen:
 		neighbor[msgTypeOpen] = e.openJSON(format)
@@ -303,7 +317,10 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 		neighbor[msgTypeNotification] = e.notificationJSON(format)
 
 	case msgTypeNegotiated:
-		result[msgTypeNegotiated] = convertNegotiated(e.Data)
+		// Inside `neighbor`, as ExaBGP writes it (Response.JSON.negotiated,
+		// `self._neighbor(neighbor, None, ...)`): it sat beside `neighbor`
+		// until 2026-10-22, where no helper looks for it.
+		neighbor[msgTypeNegotiated] = convertNegotiated(e.negotiatedData())
 
 	case msgTypeRefresh:
 		// The member is `route-refresh`, not the kind (Response.V4.JSON.refresh,
@@ -314,92 +331,6 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 	}
 
 	result["neighbor"] = neighbor
-	return result
-}
-
-// convertNegotiated converts ZeBGP negotiated caps to ExaBGP format.
-//
-// Key conversions:
-//   - Family format: "ipv4/unicast" -> "ipv4 unicast".
-//   - Timer: ZeBGP nests hold-time under "timer", ExaBGP expects flat "hold_time".
-//     The protocol-level JSON uses "hold-time" (BGP OPEN field), not "receive-hold-time" (config key).
-func convertNegotiated(zebgp map[string]any) map[string]any {
-	if zebgp == nil {
-		return map[string]any{}
-	}
-
-	result := make(map[string]any)
-
-	// Extract hold-time from timer container (Ze protocol JSON uses "hold-time")
-	if timer, ok := zebgp["timer"].(map[string]any); ok {
-		if v, ok := timer["hold-time"]; ok {
-			result["hold_time"] = v
-		}
-	}
-
-	// Map ZeBGP keys to ExaBGP underscored keys
-	if v, ok := zebgp["asn4"]; ok {
-		result["asn4"] = v
-	}
-
-	// Convert families: "ipv4/unicast" -> "ipv4 unicast"
-	if families, ok := zebgp["families"].([]any); ok {
-		result["families"] = convertFamilyList(families)
-	}
-
-	// Convert add-path (ZeBGP uses hyphen, ExaBGP uses underscore)
-	if addPath, ok := zebgp["add-path"].(map[string]any); ok {
-		converted := make(map[string]any)
-		if send, ok := addPath["send"].([]any); ok {
-			converted["send"] = convertFamilyList(send)
-		}
-		if recv, ok := addPath["receive"].([]any); ok {
-			converted["receive"] = convertFamilyList(recv)
-		}
-		result["add_path"] = converted
-	}
-
-	// Convert paths-limit (ZeBGP uses hyphen, ExaBGP uses underscore; families use space separator)
-	if pathsLimit, ok := zebgp["paths-limit"].(map[string]any); ok {
-		converted := make(map[string]any)
-		if send, ok := pathsLimit["send"].(map[string]any); ok {
-			converted["send"] = convertFamilyKeyMap(send)
-		}
-		if recv, ok := pathsLimit["receive"].(map[string]any); ok {
-			converted["receive"] = convertFamilyKeyMap(recv)
-		}
-		result["paths_limit"] = converted
-	}
-
-	return result
-}
-
-// convertFamilyList converts a list of families from ZeBGP to ExaBGP format:
-// "ipv4/unicast" becomes "ipv4 unicast".
-//
-// Through exabgpFamilyName, not a slash swap. Two SAFIs are spelled differently
-// by the two projects -- ze's mpls-label is ExaBGP's nlri-mpls, and ze's mvpn is
-// its mcast-vpn -- and every other name is identical, which is exactly why a
-// bare ReplaceAll looked right for years.
-func convertFamilyList(families []any) []string {
-	result := make([]string, 0, len(families))
-	for _, f := range families {
-		if s, ok := f.(string); ok {
-			result = append(result, exabgpFamilyName(s))
-		}
-	}
-	return result
-}
-
-// convertFamilyKeyMap converts a map with family keys from ZeBGP to ExaBGP
-// format. Keys: "ipv4/unicast" -> "ipv4 unicast". Values are preserved as-is.
-//
-// Through exabgpFamilyName, for the reason convertFamilyList states.
-func convertFamilyKeyMap(m map[string]any) map[string]any {
-	result := make(map[string]any, len(m))
-	for k, v := range m {
-		result[exabgpFamilyName(k)] = v
-	}
 	return result
 }
 

@@ -348,6 +348,9 @@ func (sp *startupProtocol) waitForLine(expected string) error {
 
 // Bridge wraps an ExaBGP plugin process and translates between ZeBGP and ExaBGP formats.
 type Bridge struct {
+	// sessions holds each peer's negotiated block for its UPDATE lines.
+	sessions Sessions
+
 	pluginCmd []string
 	cmd       *exec.Cmd
 	stdin     io.WriteCloser
@@ -677,6 +680,9 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 		slog.Debug("zebgp->plugin: event carries no BGP message", "event", truncate(eventStr, 100))
 		return
 	}
+	// This runner has no per-peer feed, so every script is granted
+	// `negotiated` and every UPDATE line carries the block.
+	b.sessions.Note(&read)
 	line := read.Line(b.api.Format(), slog.Default())
 	if len(line) == 0 {
 		return

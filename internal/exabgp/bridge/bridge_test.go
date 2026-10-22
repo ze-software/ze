@@ -1113,9 +1113,9 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 	require.True(t, ok, "address should be map[string]any")
 	assert.Equal(t, "10.0.0.1", addrMap["peer"])
 
-	// Check negotiated section
-	neg, ok := result["negotiated"].(map[string]any)
-	require.True(t, ok, "negotiated should be map[string]any")
+	// Check negotiated section: inside neighbor, as ExaBGP writes it.
+	neg, ok := neighbor["negotiated"].(map[string]any)
+	require.True(t, ok, "neighbor.negotiated should be map[string]any")
 
 	assert.Equal(t, float64(90), neg["hold_time"])
 	assert.Equal(t, true, neg["asn4"])
@@ -1166,7 +1166,9 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 
 	assert.Equal(t, "negotiated", result["type"])
 
-	neg, ok := result["negotiated"].(map[string]any)
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok)
+	neg, ok := neighbor["negotiated"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, float64(180), neg["hold_time"])
 	assert.Equal(t, false, neg["asn4"])
@@ -1196,7 +1198,9 @@ func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
 
 	assert.Equal(t, "negotiated", result["type"])
 
-	neg, ok := result["negotiated"].(map[string]any)
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok)
+	neg, ok := neighbor["negotiated"].(map[string]any)
 	require.True(t, ok)
 	assert.Empty(t, neg, "negotiated should be empty map when missing")
 }

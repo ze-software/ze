@@ -512,17 +512,26 @@ Sent after OPEN exchange:
     "message": {"type": "negotiated"},
     "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "negotiated": {
-      "hold-time": 90,
+      "timer": {"hold-time": 90},
       "asn4": true,
+      "message-size": 4096,
+      "route-refresh": "enhanced",
       "families": ["ipv4/unicast", "ipv6/unicast"],
       "add-path": {
         "send": ["ipv4/unicast"],
         "receive": ["ipv4/unicast"]
-      }
+      },
+      "extended-next-hop": {"ipv4/unicast": "ipv6"}
     }
   }
 }
 ```
+
+`message-size` is the largest message this speaker may send (65535 once the
+peer advertised RFC 8654 Extended Message, 4096 otherwise). `route-refresh` is
+`absent`, `normal` or `enhanced` (RFC 7313). `add-path`, `extended-next-hop`
+and `paths-limit` appear only when they hold a family.
+<!-- source: internal/component/bgp/format/json.go -- JSONEncoder.Negotiated -->
 
 ---
 

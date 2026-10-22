@@ -130,14 +130,14 @@ rather than two.
 
 ```
 neighbor 127.0.0.1 up
-neighbor 127.0.0.1 down - hold timer expired
+neighbor 127.0.0.1 down - closing connection
 neighbor 127.0.0.1 receive update start
 neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100
 neighbor 127.0.0.1 receive update withdrawn 10.0.0.0/24
 neighbor 127.0.0.1 receive update end
 neighbor 127.0.0.1 send keepalive
 neighbor 127.0.0.1 send notification code 6 subcode 2 data 0x53687574646F776E20436F6D6D756E69636174696F6E3A202262796522
-neighbor 127.0.0.1 send open version 4 asn 65001 hold_time 90 router_id 1.1.1.1 capabilities [ ... ]
+neighbor 127.0.0.1 send open version 4 asn 65001 hold_time 90 router_id 1.1.1.1 capabilities [multiprotocol(ipv4 unicast), route refresh, extended message(65535), asn4(65001)]
 neighbor 127.0.0.1 receive route-refresh afi 1 safi 1 0
 ```
 
@@ -145,6 +145,18 @@ One event is one line. So every value a PEER chose is escaped before it is
 written. A shutdown reason carrying a newline would otherwise forge a whole
 event on the script's stdin. That is the CWE-116 ExaBGP's own `oneline()` exists
 to close.
+
+A `down` states why the session ended in the words ExaBGP's reactor hands its
+encoders, on the text line and as the JSON `reason` member: ze's `tcp-failure`
+and `local-close` are `closing connection`, a peer removed from the
+configuration is `stop, message [removed]`, and a session a NOTIFICATION ended
+is `notification`. One table keyed by the reactor's reason maps them, and a
+reason it does not name is written as ze stated it. ExaBGP names the
+NOTIFICATION's direction and codes in the reason; ze's down event carries
+neither, so a script reads them from the NOTIFICATION event before it
+(`docs/exabgp/exabgp-differences.md`, "The reason of a down").
+
+<!-- source: internal/exabgp/bridge/bridge_event_state.go -- exabgpDownReasons -->
 
 `negotiated`, `fsm` and `signal` get NO line, which is what ExaBGP's own text
 encoder answers for them. The encoder names that answer apart from "this kind is
@@ -158,13 +170,24 @@ this speaker originated has an empty AS_PATH and ze reports it as
 ` as-path [ ]` ExaBGP never writes. `api-check` compares the whole line, so that
 one token failed the case.
 
-Three places diverge from ExaBGP. Each one does because the ze event carries
+The capability list of an `open` line is ExaBGP's `str(Capabilities)`,
+lowercased: one entry per code, in code order, joined by `, `, each in the words
+its capability class writes (`multiprotocol(ipv4 unicast,ipv6 unicast)`,
+`graceful restart flags 0x0 time 120 ipv4/unicast=0x80`, `asn4(65001)`). The
+words are built from the same per-code body the JSON encoder writes, so a
+payload ExaBGP would refuse is `unknown <name>` on both. A payload whose order
+matters (the families of Graceful Restart, Add-Path, Multiple Labels) is read in
+wire order. The `asn` is the OPEN's My Autonomous System field, AS_TRANS when the
+speaker's AS needs four octets, as on the JSON line.
+
+<!-- source: internal/exabgp/bridge/bridge_event_open_text.go -- appendCapabilitiesText, appendCapabilityText -->
+
+Two places diverge from ExaBGP. Each one does because the ze event carries
 less than ExaBGP's own objects do.
 
 | What | ze writes | Why |
 |---|---|---|
 | An attribute with no registered JSON key | ` attribute [ 0xCC <value> ]` | the event carries no attribute flags on this path |
-| The capability list of an `open` line | ze's name and value for each capability | the event carries a code, a name and a value, not ExaBGP's `Capabilities` object |
 | A structured NLRI | its `nlri` field, or compact JSON | `extensive()` is per family and is not reachable from the object ze sends |
 
 <!-- source: internal/exabgp/bridge/bridge_event_text.go -- appendUpdateText, appendOneline, textAttributes -->
@@ -638,6 +661,27 @@ child, so a config declaring two processes ran one of them and said nothing.
 That is the silently-wrong answer `ai/rules/principles.md` exists to prevent,
 and the three ported compatibility tests that name two processes
 (`api-no-respawn`, `api-multiple-api`, `api-api`) are what measured it.
+
+## The negotiated block rides on every UPDATE line
+
+ExaBGP writes the session's `negotiated` block inside the `neighbor` object of
+every UPDATE JSON line, for a process the neighbor grants `negotiated`
+(`src/exabgp/reactor/protocol.py`, `read_message`; `Response.JSON.update`). Ze
+states it once, in its own `negotiated` event, so each runner keeps it per peer
+in a `bridge.Sessions`, from that event to the peer's `down`, and hands it to
+every UPDATE of the peer. The internal runner leaves it off the line of a script
+whose feed does not grant `negotiated`; the external runner has no per-peer feed,
+so every line carries it. The `negotiated` event writes the same block inside
+`neighbor` too.
+
+The block is ExaBGP's: `message_size`, `hold_time`, `asn4`, `refresh`,
+`families` in AFI then SAFI order, `nexthop` (one `<afi> <safi> <next-hop afi>`
+per RFC 8950 tuple) and `add_path` with both lists always written.
+`multisession` and `operational` are false on every ze session (M16, M15), so a
+4.2 or 5.0 line that said true is an ALLOWED difference in `TestOldResponses50`.
+
+<!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated -->
+<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
 
 ## `feed` is the relation ExaBGP models on the neighbor
 
