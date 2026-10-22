@@ -16,6 +16,9 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -74,8 +77,8 @@
       "note": "Re-judged 2026-10-16 after the codec moved to internal/core/bgp/nlri/flowspec; units changed only by package qualification. RFC 8955 Section 4.2: \"If present, it MUST precede any component of higher numeric type value.\" Positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12 (core writeComponentsSorted); negative feeds 5-then-3 and requires ErrFlowSpecTypeOrder from core parseComponents, with the same components ascending accepted, so the refusal is isolated to order.",
       "requirement_sha": "6ead3d1f0aeb1502",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "8420255902324376",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "edf3d98f88af0674",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "ced2b5aa0d12f25a",
@@ -120,7 +123,7 @@
       "note": "independent re-read: TestRFC8955FirstOperatorAndBitEncodedUnset drives config destination-port >8080&<8088 through buildFlowSpecComponents and the encoder, walks the emitted operator octets, and asserts the first carries 0x40 clear and the second 0x40 set; an encoder setting AND on the first octet fails it. The doc-comment edit in 6fac9359ff renamed the config parser only; the body is unchanged.",
       "requirement_sha": "e315a964ba4762ce",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "046bfcfca112316b"
@@ -160,8 +163,8 @@
       "note": "Re-judged again 2026-10-16 after a comment-only edit. The new VALIDATES claim that parseNumericComponent masks 0x0C is TRUE: core types_numeric.go computes compOp = op & 0x03 for FlowTCPFlags and FlowFragment. RFC 8955 Section 4.2.1.2: \"0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during\" decoding. Encode: assert.Zero(op&0x0C) over every emitted TCP-flags operator (MATCH, NOT, AND+END) goes red if the length, AND, END, NOT or MATCH bits move into 0x0C. The inputs carry no reserved bits, so deleting the 0x03 mask in core writeToAFI alone stays green. That mask is defence in depth: no reachable producer sets 0x0C, because parseBitmaskValue (text) and parseFlowTCPFlagMatches (config) build only NOT/MATCH, and parseNumericComponent masks received ops to 0x03. Decode: op 0x8D must render exactly like 0x81 (=syn) through the plugin JSON path, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.",
       "requirement_sha": "4928db2bb028e706",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "8420255902324376",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "edf3d98f88af0674",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "a6f575d24d6bd491",
@@ -186,7 +189,7 @@
       "note": "Re-judged 2026-10-16: the unit changed only in a comment path. RFC 8955 Section 4.2.2.11: \"Type 11 component values MUST be encoded as single octet (numeric_op len=00).\" Single-polarity positive: DSCP 46, 0 and 63 through the config producer each encode as exactly one octet. Core parseNumericComponent also refuses a DSCP valueLen other than 1 on receipt.",
       "requirement_sha": "9de9fa5f99284bba",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "f00b3bbb1bd18d03"
@@ -197,7 +200,7 @@
       "note": "independent re-read: TestRFC8955FragmentBitmaskSingleOctet drives config fragment with all four flags through buildFlowSpecComponents (now parseFlowBitmaskMatches/parseBitmaskTermsText), walks the Type 12 operator list and asserts each of the four values is exactly one octet; a len=01 encoding fails it. Doc comment renamed to the shared bitmask parser on 2026-10-21; the body is unchanged.",
       "requirement_sha": "75f8108d190d68be",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "125b7e777e1a9749"
@@ -210,8 +213,8 @@
       "requirement_sha": "0986ccf7d3e364fa",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared": "43cb7c7c29398e0c",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "8420255902324376",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "edf3d98f88af0674",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared": "e406fce6b74d3e3c",
@@ -264,7 +267,7 @@
       "note": "Independent rejudge 2026-10-21 after 74626ae4b4 (unit change is the VALIDATES comment only; the producer grammar changed). RFC 8955 Section 4.2.2.9: \"Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01).\" TestRFC8955TCPFlagsBitmaskSingleOctet drives the config producer buildFlowSpecComponents with tcp-flags \"syn&!=ack\" and \"cwr\"; under the new grammar that is three terms (syn, AND !=ack, cwr), required exactly, and every emitted bitmask must be non-empty and at most 2 octets. Each operand comes from parseBitmaskOperand as a uint8 (names or parseUint8, 0..255), and writeToAFI takes its width from operandWidth, so a mutation widening tcp-flags to len=10 or len=11 reddens the <=2 assertion. The single-polarity argument still holds: no encode path builds a Type-9 operand above 0xFFFF (text and config are uint8; the decoder refuses valueLen > 2 for FlowTCPFlags, so re-encoding a received value yields at most 2 octets). Finding: the row's {single-polarity} annotation cites parseFlowTCPFlagMatches and config_builder.go:415-447, which 74626ae4b4 deleted; the producer is now parseFlowBitmaskMatches -> parseBitmaskTermsText -> parseBitmaskOperand (plugin_encode_text.go). The argument is true, its citation is stale. Recorded break (writeToAFI panics) proves reach only; the width-specific red is established by reading.",
       "requirement_sha": "f382e60cf70ce69c",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "8420255902324376"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "edf3d98f88af0674"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "9017378aeafc641f"
