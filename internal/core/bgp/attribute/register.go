@@ -13,5 +13,8 @@ func init() {
 	RegisterJSONFormatter(AttrASPath, "as-path", appendASPathJSON)
 	RegisterJSONFormatter(AttrMED, "med", appendMEDJSON)
 	RegisterJSONFormatter(AttrLocalPref, "local-preference", appendLocalPrefJSON)
+	RegisterJSONFormatter(AttrAtomicAggregate, "atomic-aggregate", appendAtomicAggregateJSON)
+	RegisterJSONFormatter(AttrAggregator, "aggregator", appendAggregatorJSON)
+	RegisterJSONFormatter(AttrAS4Aggregator, "as4-aggregator", appendAS4AggregatorJSON)
 	RegisterJSONFormatter(AttrPrefixSID, "bgp-prefix-sid", appendPrefixSIDJSON)
 }
