@@ -166,14 +166,21 @@ func (m *MUP) appendRawRD(buf []byte) []byte {
 // appendRaw writes the whole NLRI as uppercase hex, the architecture type,
 // route type and length octets included. That is what ExaBGP's `raw` member
 // holds, and it is the text an operator compares against a packet capture.
+// A -02 Type 1 ST route is written with the Source Address Length octet it
+// lacked, as WriteTo sends it and as ExaBGP holds it (with_source_length,
+// bgp/message/update/nlri/mup/t1st.py at f9bfb853b).
 func (m *MUP) appendRaw(buf []byte) []byte {
 	var header [mupHeaderLen]byte
 	header[0] = byte(m.archType)
 	header[1] = byte(m.routeType >> 8)
 	header[2] = byte(m.routeType)
-	header[3] = byte(len(m.body)) //nolint:gosec // body came from a 1-octet Length
+	header[3] = byte(m.bodyLen()) //nolint:gosec // body came from a 1-octet Length
 	buf = textbuf.HexUpper(buf, header[:])
-	return textbuf.HexUpper(buf, m.body)
+	buf = textbuf.HexUpper(buf, m.body)
+	if m.sourceOctetAbsent {
+		buf = append(buf, '0', '0')
+	}
+	return buf
 }
 
 // sourceIP answers the source_ip member of a Type 1 ST route.

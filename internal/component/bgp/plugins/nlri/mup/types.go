@@ -141,6 +141,9 @@ type MUP struct {
 	qfi          uint8 // T1ST
 	teidOctets   uint8 // T2ST: octets the TEID occupies, 0 to 4
 	parsed       bool
+	// sourceOctetAbsent marks a T1ST route read in the -02 encoding, with no
+	// Source Address Length octet: Len and WriteTo add it, 0, after body.
+	sourceOctetAbsent bool
 }
 
 // ParseMUP parses one MUP NLRI from wire format and returns the octets that
@@ -292,13 +295,20 @@ func (m *MUP) parseBodyDSD(rest []byte) error {
 //	Endpoint Address Length (1) | Endpoint Address (variable) |
 //	Source Address Length (1) | Source Address (variable) | TLVs (variable)
 //
-// The Source Address Length octet is mandatory, and 0 says no source address
-// follows (Section 3.1.3.1, "Source Address Length is 0 bytes then the Source
-// address is not carried within the NLRI"). A route that stops after the
-// endpoint address is short of a mandatory field: the TLV rule measures from
-// "the offset of the end of the Source Address", and a negative remainder
-// means "the mandatory fields exceed the declared Length; the NLRI is
-// malformed; MUST be treated as Treat-as-withdraw."
+// Section 3.1.3.1: "The Source Address Length has a fixed length of 1 octet.
+// Source Address Length is 0 bytes then the Source address is not carried
+// within the NLRI." Ze always sends the octet. A route that stops exactly at
+// the end of the endpoint address is read as Source Address Length 0, as
+// ExaBGP reads it (owner decision M25, 2026-10-22): that is the encoding of
+// draft-mpmz-bess-mup-safi-02, which carried no Source Address Length when no
+// source was given, and ExaBGP 5.0 still sends it (architecture_error and
+// with_source_length, bgp/message/update/nlri/mup/t1st.py at f9bfb853b: "the
+// offset is that of the Source Address Length, which is `len(data)` for a
+// route of -02, written without one"). Such a route is held as the current
+// draft writes it, the octet added (Len, WriteTo). A route that stops anywhere
+// else short of a mandatory field still means "the mandatory fields exceed the
+// declared Length; the NLRI is malformed; MUST be treated as
+// Treat-as-withdraw."
 func (m *MUP) parseBodyT1ST(rest []byte) error {
 	addr, bits, used, err := m.parsePrefixField(rest)
 	if err != nil {
@@ -340,10 +350,13 @@ func (m *MUP) parseBodyT1ST(rest []byte) error {
 	m.endpoint = addrFromOctets(bitsAFI(m.endpointBits), rest[:endpointOctets])
 	rest = rest[endpointOctets:]
 
-	// Section 3.1.3.1: "- < 0:   the mandatory fields exceed the declared
-	// Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw."
+	// draft-mpmz-bess-mup-safi-02 compatibility: a route ending at its
+	// endpoint address carries no Source Address Length, read as 0 and no
+	// TLVs, as ExaBGP reads it (owner decision M25).
 	if len(rest) == 0 {
-		return ErrMUPTruncated
+		m.sourceBits = 0
+		m.sourceOctetAbsent = true
+		return nil
 	}
 
 	// Section 3.1.3.1 gives the source address the same two lengths as the
@@ -550,7 +563,17 @@ func (m *MUP) Bytes() []byte {
 // Len returns the wire-format length in bytes: the 4-octet header plus the
 // Route Type specific field.
 func (m *MUP) Len() int {
-	return mupHeaderLen + len(m.body)
+	return mupHeaderLen + m.bodyLen()
+}
+
+// bodyLen is the octet count of the Route Type specific field as ze writes
+// it: the octets received, and the Source Address Length octet a -02 Type 1
+// ST route left out (parseBodyT1ST).
+func (m *MUP) bodyLen() int {
+	if m.sourceOctetAbsent {
+		return len(m.body) + 1
+	}
+	return len(m.body)
 }
 
 // PathID returns 0.
@@ -573,11 +596,20 @@ func (m *MUP) String() string {
 // WriteTo writes the MUP NLRI directly to buf at offset. Zero-alloc.
 //
 // The Route Type specific field is copied as it arrived, so a route ze relays
-// leaves as the octets that reached it, TLVs and all.
+// leaves as the octets that reached it, TLVs and all. The one exception is a
+// -02 Type 1 ST route, which leaves with the Source Address Length octet it
+// lacked, 0, as the current draft writes it (Section 3.1.3.1) and as ExaBGP
+// sends it again (with_source_length, t1st.py at f9bfb853b).
 func (m *MUP) WriteTo(buf []byte, off int) int {
+	size := m.bodyLen()
 	buf[off] = byte(m.archType)
 	binary.BigEndian.PutUint16(buf[off+1:], uint16(m.routeType))
-	buf[off+3] = byte(len(m.body)) //nolint:gosec // body came from a 1-octet Length
+	// A -02 T1ST body is at most 47 octets (RD, prefix, TEID, QFI and two IPv6
+	// addresses), so the added octet never passes the 1-octet Length.
+	buf[off+3] = byte(size) //nolint:gosec // body came from a 1-octet Length
 	copy(buf[off+mupHeaderLen:], m.body)
-	return mupHeaderLen + len(m.body)
+	if m.sourceOctetAbsent {
+		buf[off+mupHeaderLen+len(m.body)] = 0
+	}
+	return mupHeaderLen + size
 }
