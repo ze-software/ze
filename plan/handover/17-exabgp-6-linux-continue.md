@@ -7,6 +7,46 @@ Linux host. The long running log is `03-session-2026-10-18-linux-continue.md`
 Claimed spec: `plan/immediate/spec-exabgp-6-api-compatibility.md` (Phase 7 in
 progress). Claim it again on Linux with `./le spec claim spec <file>`.
 
+## START HERE: state at the end of Linux session ed4b8d60 (2026-10-22)
+
+Supersedes the "Owner decisions still open" and "Remaining work" sections
+below, which describe the start of that session.
+
+Done: AC-37 (`TestOldCommands50/42` 4250/4250, 2541/2541) and AC-38
+(`TestOldResponses50/42` 23392/23392, 20930/20930), scoped runs. Owner
+decisions taken: M15 no OPERATIONAL, M16 no multi-session, M20 byte-exact RFC
+quotes, M21 build-cache cap, M22 shared launcher; the strict AC-38 judge is in
+the spec's Key Design Decisions. Handover items 1, 2, 6 done; item 3 finished by
+another session (handover 19).
+
+Held in the working tree, uncommitted, because each file also carries the
+explicit-final-policy session's uncommitted rename (spec
+`plan/immediate/spec-bgp-explicit-final-policy.md`), which does not build
+against HEAD. Land each with or after that session's commit:
+- negotiated before the OpenConfirm KEEPALIVE: `reactor/{peer_derived_bindings,peer_derived_bindings_test,peer_run,peer_settings_apply,reactor_notify}.go` and its `docs/architecture/api/json-format.md` hunk; restore the page paragraph kept in `plan/handover/17-negotiated-before-keepalive-page.md` in the same commit and delete that file. Proven: api-packets-receive/consolidate/send 3/3 against ze and the pin.
+- lint: `plugins/cmd/peer/peer.go` (goconst, misspell), `reactor/peer_forward_facts.go` (exhaustive), `reactor/rs_withdrawal_convergence_test.go` (ineffassign).
+- M20: `reactor/session_ownership.go` lines 147, 176 (full stop inside the RFC 7911 quotes).
+
+Owed, off this host (owner: "do not run full testing on this host"):
+`./le verify worktree`; `./le test functional exabgp-test`, `plugin`, `decode`,
+`encode`; reactor `-race` over committed HEAD; flowspec interop (malformed
+NLRI now resets, 61bc0cfa63); `./le repo generate` for new source files; an
+independent review of the session's commits. Push stays refused until the
+verification debt clears.
+
+Waiting on the owner: approval of the M20 comment edits in four RFC-tagged
+tests (rib.TestFlowSpecRedirectToIPEBGPCheck, ...VPNVerdictPerRule,
+...ConfigSwitchRejudges, rs.TestWithdrawOnePathKeepsTheOther; row in
+`plan/verification-debt/42ff67c4.md`); the open questions and approval of
+`plan/spec-le-build-cache-cap.md` and `plan/spec-le-shared-build-launcher.md`
+(both `design`).
+
+Next for this spec: ExaBGP Phase 8, review, close. Still open from the list
+below: items 4 (config route request drops parsed attributes), 5 (RPKI-held
+route repeated withdrawals), 8 (rfc-verdict-fix-bgp, needs Linux interop).
+Journal rows written: `unwired-feature.md` (auto-flush), `zero-value-as-valid-answer.md`
+(made-up `wire[...]` prefix for a family with no NLRI syntax rule).
+
 ## Owner decisions still open (ask, do not act)
 
 | # | Decision | Context |
