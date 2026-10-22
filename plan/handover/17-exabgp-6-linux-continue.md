@@ -555,3 +555,58 @@ OWED: a `.ci` through a migrated `receive { packets; consolidate; }` config
 (not written); `./le go lint run`, `./le arch tier check`, `./le verify
 worktree`, `./le test functional exabgp-test`, `./le test functional plugin`
 (the bridge subscribes `full` now), independent review.
+
+## Agent aggregator/flow forms (2026-10-22 Linux)
+
+Class 5 items aggregator, flow, destination-ipv6, bgp-prefix-sid and
+community/N. Judge counts after the commit, with the other agents' tree:
+5.0 22666/23392, 4.2 20384/20930 helper lines.
+
+Landed: de0e48e5a2. JSON formatters for ATOMIC_AGGREGATE (`true`), AGGREGATOR
+and AS4_AGGREGATOR (`"<asn>:<address>"`, keys `aggregator` and
+`as4-aggregator`) in `internal/core/bgp/attribute/{json,register}.go`. The
+json `aggregator` and `atomic-aggregate` classes are 0 in both releases.
+Tests: `TestAggregatorJSONFormatter`, `TestReceivedAggregatorRendersDecoded`
+(red seen with the registration removed).
+
+NOT committed: the three attribute rows in `docs/architecture/api/json-format.md`
+(table under "### Attributes"). The page holds the event agents' hunks naming
+`format/session_events.go` and `format/json_message.go`, which are not in
+HEAD, so the rows ride with that page's next commit.
+
+Owed hunks, all in files another agent holds:
+- `bridge_event_text.go` `appendTextAttributes`: ExaBGP writes
+  `aggregator ( 18144:219.118.225.189 )` (collection.py representation,
+  text `'( %s )'`); ze writes it bare. Wrap the value for `bridgeAttrAggregator`.
+  Add `"as4-aggregator": {Code: 18, Name: bridgeAttrAggregator}` to
+  `textAttributes` and `"as4-aggregator": bridgeAttrAggregator` to
+  `exabgpAttributeNames` (ExaBGP names both codes `aggregator`).
+- `bridge_event.go` `flowComponentString`: ExaBGP `Flow._rules` brackets a
+  component holding more than one RULE, and an AND group is several rules
+  (`destination-port [ >=80&<=90 ]`). Bracket when `len(values) > 1` or the
+  one value holds `&`. Classes `flow/no-nexthop/N/string` (5.0 2+1, 4.2 2+1).
+- `bridge_event.go` `appendFlowStringNextHop`: `Flow.v4_json` also writes a
+  `"next-hop": "<ip>"` member in the flow object when the route has one. Set
+  `object["next-hop"] = nextHop` beside the string. Classes
+  `flow/N/N/next-hop` 8+4 and `flow-vpn/N/N/next-hop` 4+2, both releases.
+- `bridge_event.go` `splitColonCommunities`: a well-known name (`blackhole`)
+  is not `a:b`, so the whole list stays strings. ExaBGP `Community.json` is
+  always `[ high, low ]`. Resolve a name with `attribute.ParseCommunity` and
+  split the 32 bits (`[65535, 666]`). Class community/N 4+2, both releases.
+- `old_responses_test.go`, two ALLOWED rows for 4.2 only:
+  - `destination-ipv6` / `source-ipv6 ::1/128/120`: 4.2 sent 16 pattern
+    octets for 128/120. RFC 8956 Section 3.1: "The encoded pattern contains
+    enough octets for the bits used in matching (length minus offset bits)",
+    which is one octet, so ze refuses the NLRI (`wire[ipv6/flow](49 bytes)`).
+  - bgp-prefix-sid (the `/announce` class, 4): 4.2 encoded the SRv6 L3
+    Service TLV without the SID Information Sub-TLV header (pre-RFC 9252
+    draft shape). The bytes after the reserved octet read as a Sub-TLV of
+    length 256 in a 20-octet TLV, malformed, and RFC 9252 Section 7 says "The
+    treat-as-withdraw action [RFC7606] MUST be performed". 5.0's corpus does
+    not carry the case. Open question for review: ze's event for it is
+    `"update":{}`, no withdraw stated; check that a treat-as-withdraw reaches
+    the plugin as a withdraw (`attribute/prefixsid_classify.go`).
+
+OWED gates (host rule): `./le go lint run`, `./le verify worktree`,
+`./le test functional exabgp-test`, `./le test functional decode` (any `.ci`
+expecting `attr-6`/`attr-7`; none found by grep), independent review.
