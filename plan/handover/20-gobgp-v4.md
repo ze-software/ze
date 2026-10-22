@@ -91,8 +91,38 @@ Agent of 2026-10-22, BGP-peer slice of M14. Landed:
 | StayRTR image | golang:1.26-alpine, alpine:3.21 | golang:1.27-alpine3.24, alpine:3.24.3, still v0.6.4 | `stayrtr -version` 0.6.4 | 23beacca0f |
 | BGP lab Ze image | alpine:3.21 | alpine:3.24.3 | `bgp-ebgp-ipv4-bird` passes (1m2s) | 643e104f5e |
 
-Scenario runs (continuation agent, one at a time under the session flock):
-`bgp-ebgp-ipv4-bird` pass. Results of the rest are in the table below as they land.
+Scenario runs (continuation agent, one at a time under the session flock, Ze
+built from the shared working tree, which carries other sessions' uncommitted
+reactor, fsm, config and bridge work):
+
+| Scenario | Verdict | Cause read so far |
+|----------|---------|-------------------|
+| bgp-ebgp-ipv4-bird | pass, twice (1m2s, 36s) | |
+| bfd-simple-password-bird, bfd-simple-password-hex-bird | pass | first run died on another session's half-written `internal/test/fixture/policy_final_reload.go` and `bridge_event_text_nlri.go` (le cross-compile) |
+| bgp-reload-global-router-id | pass | |
+| bgp-aggregator-as4-downgrade-bird, bgp-multihop-ebgp-bird, bgp-ipv6-ebgp-bird, bgp-wire-edit-api-origin-bird, bgp-as-migration-local-as | FAIL, twice | BIRD 3.4.0's `ze_peer` stays `start / Active` with no `Last error` for the whole wait; Ze logs nothing for the peer. Not birdc parser drift: the checker never got past session readiness |
+| bgp-cluster-list-length-bird, rtr-stayrtr, local-as-replace-as-partition | FAIL | the BIRD container exited during the run (`container ... is not running`); its log section is empty |
+| bgp-triangle | FAIL | FRR never became ready |
+| bgp-routes-from-bird | FAIL | `docker exec birdc show status` exceeded 30s, both runs |
+
+Probe outside the lab: the BIRD 3.4.0 image with `bgp-multihop-ebgp-bird`'s
+bird.conf on a private network connects out and sends its OPEN every ~5s to a
+plain TCP listener, so BIRD's multihop connect works on its own. The open
+question is why, inside the lab, neither side opens the TCP session. The next
+step is to run one failing scenario against Ze built from HEAD only (no foreign
+uncommitted Go), which tells a BIRD 3 cause apart from a working-tree Ze cause.
+The first batch ran under a load average near 10 (`docker info` over 15s), so
+its verdicts are void; the table holds the second run.
+
+Not run yet: every `*-frr` BGP scenario, the pmacct BMP scenarios
+(bgp-addpath-best-path-pmacct, bmp-locrib-pmacct, bmp-statistics-pmacct),
+`./le test exabgp` for both pins, the perf DUT smoke (frr, bird, openbgpd,
+rustbgpd, rustybgp). The interop.md FRR 10.3.1 prose and the BIRD next-hop
+row are not rewritten yet: no FRR run has happened at 10.7.1.
+
+Check images still present for the continuation: ze-m14-bird-check,
+ze-m14-openbgpd-check, ze-m14-rustbgpd-check, ze-m14-rustybgp-check,
+ze-m14-stayrtr-check (remove by name once the perf smoke is recorded).
 
 Owed on a free host (scenario runs; only one at a time, under the session
 flock): every `*-frr` and `*-bird` scenario, rtr-stayrtr, vpn-frr, evpn-frr,
