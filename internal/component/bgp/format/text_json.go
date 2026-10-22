@@ -360,6 +360,14 @@ func appendAttributesJSON(buf []byte, result bgpfilter.FilterResult, includeFlag
 
 	first := true
 	for code, attr := range result.Attributes {
+		// MP_REACH and MP_UNREACH are stated once, decoded, in the NLRI
+		// section (result.MPReach, result.MPUnreach), as the direct writer does
+		// (appendParsedUpdateJSONDirect). A filter that parses every attribute also
+		// hands them here, and an `attr-14` hex member beside the decoded
+		// announce states the same route twice.
+		if code == attribute.AttrMPReachNLRI || code == attribute.AttrMPUnreachNLRI {
+			continue
+		}
 		if !first {
 			buf = append(buf, ',')
 		}

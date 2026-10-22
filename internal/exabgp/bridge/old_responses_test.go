@@ -143,6 +143,10 @@ var oldResponsesAllowed = []oldResponseRow{
 			`the octets after its reserved octet read as a Sub-TLV of 256 octets in a TLV of 21: malformed, and RFC 9252 `+
 			`Section 7 says "The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 `+
 			`Service TLV is present in the BGP Prefix-SID attribute", so ze announces no route from it and states no attribute`),
+	oldResponseAllow("4.2", "text", `^update \S+ \S*C02818050015`, `.`,
+		`the pre-RFC 9252 SRv6 L3 Service TLV of 4.2, as in JSON: RFC 9252 Section 7, "The treat-as-withdraw action `+
+			`[RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID `+
+			`attribute", so ze writes no announced line for it`),
 }
 
 func (r *oldResponseRow) allows(release, encoder, event, where string) bool {
@@ -316,10 +320,12 @@ func oldResponseBroken(theirs any) bool {
 }
 
 // oldResponseDifferences answers where a helper reading what the release
-// wrote finds something else in ze's line. A key ze adds is not read by a
-// helper written before it, so only what the release wrote is held to. A JSON
-// difference is named by its path, a text one by the release's first line ze
-// changed (test_old_responses, differences).
+// wrote finds something else in ze's line. A key ze writes and the release
+// does not is a difference too: a helper that iterates a member's keys (every
+// attribute, every family) meets it, and such a key hid ze's `attr-14` copy of
+// MP_REACH as `attribute-0x0E-0x80` on every live MP line. A JSON difference
+// is named by its path, a text one by the release's first line ze changed
+// (test_old_responses, differences).
 //
 // The recursion follows the recorded document, a bounded structure the
 // release wrote.
@@ -335,6 +341,11 @@ func oldResponseDifferences(ours, theirs any, path string) []string {
 					continue
 				}
 				found = append(found, oldResponseDifferences(value, recorded[key], path+"/"+key)...)
+			}
+			for _, key := range sortedKeys(mine) {
+				if _, has := recorded[key]; !has {
+					found = append(found, path+"/"+key)
+				}
 			}
 			return found
 		}

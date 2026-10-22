@@ -775,3 +775,48 @@ Both drafts red before the fix; external now PASSES; internal still FAILS:
 queues the line, closes each started script's queue, waits for its writer
 (writer-done channel closed at the end of `writeLoop`), bounded ~1s; promote
 both drafts; rerun; optionally an exabgp-compat case vs the pin.
+
+## Agent negotiated order and JSON defects (2026-10-22 Linux)
+
+Defect 1 (api-packets 48/49), FIXED at the engine. Cause: the reactor emitted
+`negotiated` from the Established FSM callback (`announceEstablished`), after
+both OpenConfirm KEEPALIVEs (sent one in `Session.advanceAfterOpen`, received
+one delivered in `processValidatedMessage` before `handleKeepalive`). Fix:
+`Peer.announceNegotiated` (peer_derived_bindings.go) runs from the FSM callback
+on entry to OpenConfirm (peer_run.go), before the answering KEEPALIVE;
+`announceEstablished` now sends only the up. New phase `sessionUpNegotiated`:
+a reload attaching a process in that window restarts the session (same rule
+as `sessionUpDelivering`, peer_settings_apply.go `inFlight`), test
+`TestAttachWhileNegotiatedRestarts`. Pages: json-format.md "Negotiated
+Capabilities", exabgp-bridge.md "The negotiated block rides on every UPDATE
+line". Evidence: before, 48/49 red (keepalive line had the UNSET block);
+after, `./le --name ngo test exabgp api api-packets-*` 3/3 against ze and 3/3
+`--dut exabgp` (pin). Mismatches other than the KEEPALIVE block: none.
+Not done (journal-class find): a session that dies in OpenConfirm now leaves
+its block in `bridge.Sessions` (no `down` follows a never-up session), so the
+next session's OPEN packet lines carry that block, not UNSET. Clearing on OPEN
+in `Sessions.Note` was tried and reverted: `TestOldResponses` judges each
+recorded event on the established session, so that harness needs the same
+treatment as its `state` skip first.
+
+Defect 2 (attr-14), FIXED at the producer: `format/text_json.go`
+`appendAttributesJSON` skips MP_REACH/MP_UNREACH (the NLRI section states
+them). Test `format/mp_reach_full_json_test.go`
+`TestFullJSONStatesMPReachOnce`: red with the skip removed (full subtest
+carried `"attr-14":"0002..."`), green restored. Judge tightened
+(`old_responses_test.go` `oldResponseDifferences`: a key ze writes and the
+release does not is a difference). Exposed, NOT yet fixed (owed, next agent):
+5.0 21649/23392 (was 22984): `direction` on connected/down/fsm/negotiated/
+signal/up lines (144-864 each); `extended-community/N/transitive` (15).
+4.2 12720/20930 (was 20606): `router-id` on every 4.2 line (4.2 writes none),
+`direction` on the same six kinds, `extended-community-ipvN`, `transitive`.
+Read 4.2.25 / 5.0.1 `Response.JSON._header`/`_neighbor` before deciding each.
+`WireUpdateToExabgpJSON` may now move to FormatFull (handover note above).
+
+Defect 3 (`wire[ipv6/flow](49 bytes)` announce): NOT started (budget).
+
+OWED gates: reactor `-race` package run result (started by this agent, see
+commit body), `./le arch tier check`, `./le go lint run`, `./le verify
+worktree`, `./le test functional exabgp-test` and `plugin` (negotiated now
+precedes `state` up: any .ci asserting the old order goes red), interop,
+independent review. Delete `bin/le-ngo`.
