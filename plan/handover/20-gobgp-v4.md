@@ -141,6 +141,26 @@ agent's first verdicts:
 |----------|------|---------|
 | `radius-admin-pap-freeradius` | FreeRADIUS 3.2.10 | first run FAIL on infrastructure only ("docker run -d did not finish within 1m0s", 13 sibling builds on the daemon); rerun PASS |
 | `radius-acct-restart-freeradius` | FreeRADIUS 3.2.10, LAC on pppd 2.5.4 / xl2tpd 1.3.20 | PASS (39s) |
+| `psk-site-to-site` | strongSwan 6.1.0 | PASS |
+| `dhcpv4-renew-nak-dnsmasq` | dnsmasq 2.93 | PASS |
+| `vrrp-mastership-keepalived` | keepalived 2.4.3 | PASS |
+| `01-pppoe-chap-ipv4` (`docker-pppoe-accel-test`) | accel-ppp 1.14.0 | PASS |
+| `01-ppp-ipv4` (`docker-l2tp-ppp-test`) | xl2tpd 1.3.20 / pppd 2.5.4 | FAIL on infrastructure only ("docker run -d did not finish within 1m0s"); rerun queued |
+| `dhcpv6-client-renew-kea` | Kea 3.2.1 | FAIL, lab drift: "Kea extended the lease in 6 of 13 RENEW exchanges, want every one". Kea 3.0 turned lease caching on by default (Kea ChangeLog 2360, `cache-threshold` default 0.25 in `simple_parser6.cc` of 3.2.1), so every other RENEW got DHCP6_LEASE_REUSE instead of DHCP6_LEASE_RENEW. Fix: `"cache-threshold": 0.0` in the scenario's `kea-dhcp6.conf`, the checker unchanged; rerun queued |
+
+Runner for the rest (continuation of the queue below, one scenario per lock
+hold): `run3.sh` over `batch3.txt` in the session scratchpad `scripts/`
+directory, one log per entry at
+`tmp/session/2026-10-22-fb7d3e9b-9f4c-4139-a921-e861e0268991/scratch/scn3-<name>.log`
+ending `EXIT=`. Order: `docker/Dockerfile.lab` build, the two reruns, then
+eap-tls13, eap-mschapv2 (certificate-authenticated responder), the QEMU MOBIKE
+guest (`./le test qemu ipsec-mobike-test kernel /boot/vmlinuz-7.2.9-ze`),
+natt-tunnel-inner-checksum, the rest of radius, radius-subscriber, l2tp, pppoe,
+the other dhcp and vrrp scenarios, then the rest of interop-ipsec.
+
+`docs/guide/ipsec.md` TLS claim re-read in the strongSwan 6.1.0 source: the
+default is still TLS 1.2 (`src/libtls/tls.c`) and libtls still implements no
+extended master secret. Corrected to name 6.1.0 in 679bbfa69a.
 
 Still OWED, queued by the continuation agent when its budget ended and not read
 by it: `psk-site-to-site` (strongSwan 6.1.0), `dhcpv4-renew-nak-dnsmasq`,
