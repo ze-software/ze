@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
@@ -1109,11 +1110,76 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	entry.RouteType = blackholeType
 	// The owned AS_PATH snapshot was made before releasing the peer admission;
 	// DOWN may already have released the original pool handle.
-	entry.ASPath = asPath
-	if len(asPath) > 0 {
-		entry.OriginAS = asPath[len(asPath)-1]
-	}
+	setEntryASPath(&entry, asPath)
 	return entry, true
+}
+
+// setEntryASPath records the winner's AS_PATH and the origin AS it ends with. The
+// live election and both replay walks set the pair through here, so a replayed
+// entry cannot carry one without the other.
+func setEntryASPath(e *bestChangeEntry, asPath []uint32) {
+	e.ASPath = asPath
+	if len(asPath) > 0 {
+		e.OriginAS = asPath[len(asPath)-1]
+	}
+}
+
+// storedASPath formats the AS_PATH a pool handle names. An invalid handle is a
+// route with no AS_PATH attribute, which is an answer; a valid handle the pool
+// cannot resolve is not, and ok is false.
+func storedASPath(handle attrpool.Handle) (asPath []uint32, ok bool) {
+	if !handle.IsValid() {
+		return nil, true
+	}
+	data, err := pool.ASPath.Get(handle)
+	if err != nil {
+		return nil, false
+	}
+	return formatASPath(data), true
+}
+
+// replayASPath reads the AS_PATH of the stored path a best-path record names,
+// for a replay. The packed record keeps no AS_PATH, so a replay built from the
+// record alone published an empty path for every route, and BMP's Loc-RIB dump
+// to a collector that connected after the routes arrived showed each one as
+// locally originated (RFC 9069 Section 5).
+//
+// A CIDR family names the route by pfx with routeKey nil; any other family by
+// routeKey. held is false when the winning peer no longer holds that path, or
+// its AS_PATH handle no longer resolves: the
+// record is then about to be withdrawn by the election its removal triggered,
+// and the caller skips it rather than replay a route with an invented path. An
+// empty asPath with held true is a real empty AS_PATH.
+//
+// Caller MUST hold the shard's lock and MUST NOT hold r.peerMu: this takes
+// peerMu for reading, in the shard-then-peer order the election uses.
+func (r *RIBManager) replayASPath(fam family.Family, pfx netip.Prefix, routeKey []byte, peer string, pathID uint32) (asPath []uint32, held bool) {
+	addr, err := netip.ParseAddr(peer)
+	if err != nil {
+		return nil, false
+	}
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	peerRIB := r.bgpPeers[addr]
+	if peerRIB == nil {
+		return nil, false
+	}
+	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
+	var pathsArray [4]storage.PrefixPath
+	var paths []storage.PrefixPath
+	if routeKey == nil {
+		paths, _ = peerRIB.AppendPrefixPathsRetained(fam, pfx, pathsArray[:0])
+	} else {
+		paths, _ = peerRIB.AppendKeyPathsRetained(fam, routeKey, pathsArray[:0])
+	}
+	for i := range paths {
+		path := &paths[i]
+		if !held && path.PathID == pathID {
+			asPath, held = storedASPath(path.Entry.ASPath)
+		}
+		path.Release()
+	}
+	return asPath, held
 }
 
 // bgpLocRIBInstance is the Loc-RIB Instance every BGP best path is mirrored
@@ -1635,7 +1701,13 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 					return
 				}
 			}
-			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, pfx, pathID, prev.addPath))
+			asPath, held := r.replayASPath(fam, pfx, nil, r.bestPathInterner.peerAt(rec.peerIdx()), pathID)
+			if !held {
+				return
+			}
+			e := rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, pfx, pathID, prev.addPath)
+			setEntryASPath(&e, asPath)
+			changes = append(changes, e)
 		}
 		for i := range fs.shards {
 			sh := &fs.shards[i]
@@ -1646,8 +1718,13 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 				// zero prefix, so replay builds these entries directly.
 				for _, best := range sh.store.opaque {
 					rec := best.prev
+					asPath, held := r.replayASPath(fam, netip.Prefix{}, []byte(best.route), r.bestPathInterner.peerAt(rec.rec.peerIdx()), rec.pathID)
+					if !held {
+						continue
+					}
 					e := rec.rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, netip.Prefix{}, rec.pathID, rec.addPath)
 					e.NLRI = framedRouteNLRI(nil, best.route, rec.pathID, rec.addPath)
+					setEntryASPath(&e, asPath)
 					changes = append(changes, e)
 				}
 				sh.mu.RUnlock()

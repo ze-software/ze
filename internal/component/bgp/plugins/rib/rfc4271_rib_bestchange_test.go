@@ -970,6 +970,44 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), batch.Changes[0].NextHop)
 }
 
+// TestRIBReplayCarriesASPath proves a replayed best path carries the AS_PATH the
+// live election published for it.
+//
+// Method: one route with AS_PATH [65010] is elected, the live event is checked
+// for the path, then a replay is requested and its entry must carry the same
+// path and origin AS. The packed best-path record stores no AS_PATH, so a replay
+// built from the record alone answered an empty path, and BMP's Loc-RIB dump to
+// a collector that connected after the route arrived (RFC 9069 Section 5) showed
+// every route as locally originated.
+func TestRIBReplayCarriesASPath(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	peerAddr := netip.MustParseAddr("192.0.2.1")
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := append(makeAttrBytes([4]byte{192, 168, 1, 1}), wireASPath(65010)...)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	live, elected := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, elected, "the election must produce a change")
+	require.Equal(t, []uint32{65010}, live.ASPath, "the live change is the baseline the replay must match")
+
+	bus.mu.Lock()
+	bus.events = nil
+	bus.mu.Unlock()
+	r.replayBestPaths(&replay.Request{ReplayID: replay.Broadcast})
+
+	evt := bus.lastEvent()
+	require.NotNil(t, evt, "should publish replay batch")
+	batch, ok := evt.Payload.(*bestChangeBatch)
+	require.True(t, ok, "expected *bestChangeBatch payload, got %T", evt.Payload)
+	require.Len(t, batch.Changes, 1)
+	assert.Equal(t, []uint32{65010}, batch.Changes[0].ASPath, "replay must carry the winner's AS_PATH")
+	assert.Equal(t, uint32(65010), batch.Changes[0].OriginAS, "replay must carry the winner's origin AS")
+}
+
 // TestRIBBroadcastReplayCharacterization pins AC-3/A-4 at the bgp-rib hop: a
 // broadcast replay request makes the RIB emit its full best-path table as a
 // batch that reports IsReplay() and whose marshaled wire still carries
