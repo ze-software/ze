@@ -63,4 +63,17 @@ Red walk, once per relay, each relay call replaced by `continue`, then restored 
 | `rr/validation.go` `replayValidation`, the `ribevents.RelayReplayPath` call | FAIL 140: `ZE-OBSERVER-FAIL: the destination never received the revalidated path 10.0.0.0/24: 0 UPDATEs sent before the release, 0 after`; the destination's conn=2 second message was the shutdown Cease 6/2, the expected UPDATE (ORIGINATOR_ID, CLUSTER_LIST, NLRI 10.0.0.0/24) missing |
 | `rs/server_validation.go` `replayValidation`, the `ribevents.RelayReplayPath` call | FAIL 159: same observer line; the expected UPDATE (AS_PATH [65000 65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24) missing, Cease 6/2 in its place |
 
-Steps 1 and 3 (staticcheck part 2 of 6, `./le verify worktree`) were not run by this agent.
+Committed as `926c6f9fa6`. Rerun on a fresh build after the commit: PASS 140, PASS 159.
+
+## Steps 1 and 3: selective proof only (owner, 2026-10-22)
+
+Thomas stopped the full run: "no full run the machine is too busy you can do
+selective testing to allow us to finish". So neither gate ran in full:
+
+| Gate | What ran instead | Result |
+|------|------------------|--------|
+| 1. `./le go staticcheck check part 2 of 6` | One attempt hit the 10m30s deadline at load average ~130, no verdict. Staticcheck has no package scope | still owed |
+| 1, substitute | `./le go lint run scope ./internal/test/fixture/` (host and Linux integration builds) | no finding in `plugin_fixture_15_rpki.go`. Four findings in files other sessions committed: `plugin_fixture_14.go` errorlint, `plugin_fixture_02_events.go` / `register_config_apply_ordering.go` goconst `del`, `plugin_fixture_16.go` unparam `plugin16UpdateAndQuiesce` |
+| 3. `./le verify worktree` | `./le arch tier check` and `./le arch iface-resolution`: both OK | full verify and `./le commit debt-clear` still owed; debt rows in `plan/verification-debt/1840d698.md` stay open |
+
+The next quiet-machine `./le verify worktree` clears the rows; nothing else is owed by this handover.
