@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -141,7 +141,7 @@ N-A: tooling, no protocol.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | M21 supersedes D-6, so the ambient cache joins the cap | M21's background names "checkout, shared and ambient" as the caches that regrew; D-6 predates it (2026-10-05 versus 2026-10-22) | The ambient budget is dropped and the ambient row stays a skip; AC-10 and AC-11 go | The owner, Q-1 in the handback; until answered the spec proceeds under this reading | unvalidated |
+| A-1 | M21 supersedes D-6, so the ambient cache joins the cap | M21's background names "checkout, shared and ambient" as the caches that regrew; D-6 predates it (2026-10-05 versus 2026-10-22) | The ambient budget is dropped and the ambient row stays a skip; AC-10 and AC-11 go | The owner, Q-1 | validated 2026-10-22: Thomas, "The trim should limit both cache." and "40 gig is right" (M26) |
 | A-2 | Every live process that can read a Go cache entry is visible in this user's process table as a cache reader, a job holder, a le personality or a `qemu-system-*` process | `cacheuse.go` header; QEMU guest builds run under the le that drives `guestRun` (`guest_linux.go`); Colima container builds read the host-mounted `XDG_CACHE_HOME` only when le starts them | A container or guest build not started by le could lose an entry it looked up and fail with `cache entry not found` once | Grep every `docker run` and VM mount of a cache path in `internal/le` and `internal/test` during Phase 3; record each launcher | unvalidated |
 | A-3 | A le or ze-le process's start bounds every build it drives, inside a guest or a container | Each driver is a long-lived parent of the build it waits on (`guestRun`, interoplab builds) | A driver that exits while its build continues detaches the build from the bound | Same grep as A-2, plus reading each driver's wait | unvalidated |
 | A-4 | Go never reads a cache output whose lookup was made before the go process started; a go command's lookups all happen inside its own lifetime | `cmd/go/internal/cache`: lookups and `markUsed` happen in the process that reads the file | A tool caching a path across processes (none known) could read a removed file | Grep `GOCACHE` consumers in gopls and golangci-lint docs; gopls keeps its own cache (`cacheuse.go`) | unvalidated |
