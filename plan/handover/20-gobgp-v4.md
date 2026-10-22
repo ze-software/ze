@@ -269,10 +269,10 @@ still read v3's `neighbor-ip` field and failed bgp-flowspec-gobgp spuriously.
 |----------|-------------------|-----|
 | bgp-flowspec-gobgp | pass | none |
 | bgp-flowspec-sctp-gobgp | pass | 62bd6f2a09: nft prints SCTP as protocol 132 (`meta l4proto 132`), so the old check on the word `sctp` could never fail; the same on nftables 1.1.1 and 1.1.6 |
-| bgp-vpn-gobgp | pass on unmodified main | a stronger proof sits in the working tree, uncommitted: an ipv4/unicast route beside the two mpls-vpn routes (`vpnSameAFIUnicastPrefix`, the `scenarioVPNGoBGP` case of `announcementPlan`, an ipv4 RIB wait in `check_extras.go`, the plan digest in `TestAnnouncementPlanOrderAndTimingFixture`). Owed: package unit test, rerun, then remove the "GoBGP 3.31 (not seen in 4.10.0 source)" limitation row and its source comment from interop.md, and commit them together |
+| bgp-vpn-gobgp | pass, stronger proof | 2f5c10c737: an ipv4/unicast route beside the two mpls-vpn routes, so both AFI 1 families must negotiate. Red with the unicast announcement removed (new ipv4 RIB wait) and with ipv4/unicast removed from ze.conf. The GoBGP 3.31 limitation row left interop.md (carried by 74154ab819) |
+| bgp-sr-policy-malformed-receive-gobgp | pass, revert-red re-proven | 2f5c10c737: v4 resets the session on the malformed NLRI; the scenario now also requires Ze's peer detail to show connections-established 1 and connections-dropped 0. Red a (srpolicy NLRI registration emptied) red at A's absence, and on its own at the counter step; red b (`srPolicyAnnounced` branch of `applyTunnelEncap` disabled) red at B's absence |
 
 Owed next, in order:
 
-1. Revert-red for bgp-sr-policy-malformed-receive-gobgp. Red a: an empty slice to the `nlrisyntax.Register` loop of the srpolicy registration. Red b: disable the `srPolicyAnnounced` branch of `applyTunnelEncap`. On v4 a session reset can restore the route without the malformed one, so if red a stays green, make the scenario discriminate again (for example by asserting that GoBGP's `Flops` stays 0 in `gobgp neighbor`).
-2. Revert-red for bgp-large-community-no-repeat-gobgp: disable `largeCommunityRedundant` in the egress normalizer.
-3. bgp-exabgp-bridge-rtc-gobgp, then the rest of the scenario list above.
+1. Revert-red for bgp-large-community-no-repeat-gobgp: put `false &&` before the `largeCommunityRedundant` condition in the egress normalizer, in a clone. Then correct interop.md row 41 and the scenario comment in `checkers.go`, which say GoBGP removes repeats on receipt: v4.10.0's `PathAttributeLargeCommunities.DecodeFromBytes` keeps every value.
+2. bgp-exabgp-bridge-rtc-gobgp, then the rest of the scenario list above (addpath pmacct and rail-agreement, plus the plain regressions).
