@@ -178,18 +178,25 @@
 
 ### 4.1 Coverage
 
+Checked on 2026-10-22 against Ze's NLRI plugins (`internal/component/bgp/plugins/nlri/`)
+and ExaBGP commit f9bfb853b (`src/exabgp/bgp/message/update/nlri/`). Where the two
+projects still differ in behavior, [ExaBGP differences](exabgp-differences.md)
+lists it; how Ze accepts ExaBGP commands and emits ExaBGP JSON is in
+[the ExaBGP bridge](../architecture/exabgp-bridge.md).
+
 | Type | ZeBGP | ExaBGP |
 |------|-------|--------|
 | IPv4/IPv6 Unicast | Full | Full |
 | IPv4/IPv6 Multicast | Full | Full |
 | IPVPN | Full | Full |
-| EVPN (5 types) | Partial (3 explicit) | Full |
+| EVPN (5 types) | Full (route types 1 to 5) | Full |
 | FlowSpec | Partial | Full |
 | BGP-LS | Full | Full |
-| VPLS | No | Yes |
+| VPLS (`l2vpn/vpls`) | Yes | Yes |
 | RTC | Yes (update text, ExaBGP bridge) | Yes |
-| MVPN | Yes | No |
-| MUP | Yes | No |
+| MVPN (`ipv4/mvpn`, `ipv6/mvpn`) | Yes | Yes |
+| MUP (`ipv4/mup`, `ipv6/mup`) | Yes | Yes |
+| SR Policy (`ipv4/sr-policy`, `ipv6/sr-policy`) | Yes | Yes |
 
 ### 4.2 ADD-PATH Support
 

@@ -159,8 +159,10 @@ what the command's withdrawals do on each peer whose static config holds the
 same route: the configured route is announced again in its place, instead of
 the prefix being withdrawn. A withdrawn route the config does not hold is
 withdrawn as usual, and the keyword does nothing to an announcement. It is
-ExaBGP's `withdraw_owner`: the ExaBGP bridge sends it when a script that
-replaced a configured route exits (`docs/architecture/exabgp-bridge.md`).
+ExaBGP's `withdraw_owner`: when a script exits, the ExaBGP bridge writes it into
+each withdrawal it sends for that script's routes, so a route that replaced a
+configured one gives the configured route back
+(`docs/architecture/exabgp-bridge.md`).
 
 ```
 send bgp 10.0.0.1 update text restore-configured nlri ipv4/unicast del 1.1.1.1/32
@@ -176,6 +178,7 @@ section, the keyword is refused.
 
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- kwRestoreConfigured, ParseUpdateText -->
 <!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured, staticRouteNamesNLRI, staticRouteKey -->
+<!-- source: internal/exabgp/bridge/bridge_owner.go -- restoringWithdrawal -->
 
 #### Withdrawing everything a peer was sent
 

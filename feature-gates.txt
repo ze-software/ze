@@ -144,10 +144,11 @@ ze_tacacs  internal/component/tacacs/cli
 
 # ze_exabgp -- the ExaBGP compatibility bridge plugin and the `ze exabgp` root
 # command. Gates internal/plugins/exabgp (dispatch root, via gated
-# cmd/ze/dispatch_exabgp.go) and the in-process bridge plugin. The migration
-# tooling stays always-on: `ze config migrate` lives in component/config and
-# imports only the internal/exabgp/{topics,migration} library leaves, never
-# this plugin.
+# cmd/ze/dispatch_exabgp.go) and the in-process bridge plugin. ExaBGP config
+# migration is `ze exabgp migrate`, so it is gated with them. `ze config
+# migrate` converts Ze's own older config forms, stays always-on in
+# component/config, and imports only the internal/exabgp/topics library leaf,
+# never this plugin.
 ze_exabgp  internal/plugins/exabgp
 ze_exabgp  internal/plugins/exabgp/bridgeplugin
 

@@ -60,8 +60,14 @@ func SplitFlowSpec(data []byte, addPath bool, fn func(nlri []byte) bool) (int, e
 			length = int(data[start+head]&0x0F)<<8 | int(data[start+head+1])
 		}
 
-		// A zero-length flow specification matches nothing and would leave the
-		// walk on the same octet forever, so it is malformed rather than empty.
+		// The length octets alone advance the walk, so a zero length cannot
+		// stall it. It is refused because the value it announces holds no
+		// component, and RFC 8955 requires at least one.
+		// RFC 8955 Section 4.2: "Encoding: <[component]+>"
+		// RFC 8955 Section 4.2: "An NLRI value not encoded as specified here,
+		// including an NLRI that contains an unknown component type, is
+		// considered malformed and error handling according to Section 10 is
+		// performed."
 		if length == 0 {
 			return count, fmt.Errorf("nlrisplit: zero-length flowspec NLRI at offset %d", start)
 		}
