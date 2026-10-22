@@ -2,7 +2,7 @@
 # Built from immutable upstream commits. The test builds this image through
 # labtest (Spec.Dockerfile), starts one container per collector with its own
 # `sh -c` command, and sends to the container's published UDP port.
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS build
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     autoconf automake bison build-essential ca-certificates curl flex \
@@ -29,7 +29,7 @@ RUN curl --fail --location --output /tmp/sflowtool.tar.gz \
     && make -j2 \
     && make install
 
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libatomic1 libbz2-1.0 liblz4-1 libzstd1 \
     && rm -rf /var/lib/apt/lists/*
