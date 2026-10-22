@@ -403,7 +403,7 @@ The unmet line, as a text sample (the implementer may reword within AC-12):
 - `GOMODCACHE` is not capped: it is not a build cache, it grows per module version rather than per build, and O-1 names the build cache.
 - A cache reader outside this user's process table (another user, a container not started by le) is not seen (A-2); the doc names this residual.
 - The race R-2 remains, as it does for Go's own trim.
-- A louder surface for an unmet cap than the store-trim report and `last.log` (for example a `./le setup check` row) is not in this spec; see Q-3 in the handback.
+- Owner decision 2026-10-22 (Q-3, Thomas: "ok" to the recommendation): an unmet cap ALSO surfaces in the session-start banner (one line, printed only while the cap is unmet, naming the size, the budget key, the holding process and the fix) and as a `./le setup check` row, both read from the one ledger record the trim writes, so they cannot disagree; no cache walk at session start. The implementer adds the AC, test and wiring for both.
 
 ## Checklist
 
