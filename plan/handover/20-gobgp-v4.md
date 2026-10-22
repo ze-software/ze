@@ -168,7 +168,24 @@ Second round (runner `run3.sh`, logs `scn3-<name>.log`):
 | `eap-mschapv2` (strongSwan certificate-authenticated responder) | PASS |
 | `eap-tls13` | FAIL, lab drift: strongSwan 6.0.2+ "Setting `remote.eap_id` now always initiates an EAP-Identity exchange" (NEWS), and `apply_eap_identity` refused the anonymous NAI ze sends under RFC 9190 Section 2.1.8 ("EAP identity 'ze-test-client' required, not matched by 'anonymous'"). Fix: drop `eap_id` in `eap-tls13` and `eap-tls` swanctl.conf, so charon keys the TLS client-certificate check on ze's IKE IDi `ze-test-client` (same certificate identity asserted). Committed unproven; rerun `eap-tls13-r2` queued at the end; `eap-tls` runs in the ipsec rest |
 | QEMU MOBIKE guest | not run: `tmp/qemu` is a dangling symlink into `~/.cache/ze-tmp/main/qemu`, whose tree was gone ("mkdir .../tmp/qemu: file exists"). Target recreated with `mkdir -p`; journal row in `plan/journal/error-names-no-fix-command.md`; rerun `qemu-mobike-r2` queued at the end |
-| `natt-tunnel-inner-checksum` | FAIL, cause OPEN: the IKE SA comes up over UDP 4500 ("faking NAT situation"), but the strongSwan log ends at "IKE_SA ze[1] established" with no CHILD_SA line and no IKE_AUTH response, and ze's Udp.NoPorts never moves for the good-checksum nping probe (`checkInnerChecksums`). psk-site-to-site (no forced encap) passes, so suspect the 6.1.0 CHILD_SA install with UDP encapsulation. Next: read the full charon log of `natt-tunnel-inner-checksum-r2` (queued) and `natt-transport-inner-checksum` from the ipsec rest |
+| `natt-tunnel-inner-checksum` | FAIL, lab drift, FIXED. Not strongSwan: the SAs were up (`establishNATT` and both markers passed), and the charon log only looked stalled because charon's stderr is not line-flushed without `flush_line`. The cause is nping 0.7.99 (Alpine 3.24 nmap-nping 7.99): it ignores `--send-ip` and writes the frame at the Ethernet layer ("Raw packets sent: 1 (42B)" for a 28-byte datagram; an iptables OUTPUT rule counted 0 packets where nc counted 1), so the probe left strongSwan in the clear and Ze's inbound policy dropped it as Udp.InErrors (`Udp: 9 0 1 ...`). Fix: `test/interop-ipsec/rawprobe.c`, one datagram through a raw IP socket, used by `craftedProbe` and `injectOutOfSA`; nmap-nping removed from the image. After it: `natt-tunnel-inner-checksum` PASS, `natt-transport-inner-checksum` PASS, `out-of-sa-request-notified-over-sa` PASS. Commit prepared, NOT landed: gpg signing timed out (pinentry); unlock the agent as `docs/contributing/committing.md` says for "gpg failed to sign", then `bash tmp/commit-84bc8835-a-c7c970.sh` |
+| `radius-admin-chap-freeradius`, `radius-admin-chap-hashed-freeradius`, `radius-admin-eap-freeradius` | PASS (FreeRADIUS 3.2.10) |
+| `radius-coa-duplicate-freeradius` | PASS |
+| `02-ppp-bgp-redistribute-frr` | PASS |
+| `01-ppp-ipv4` rerun | FAIL on infrastructure again ("docker info did not finish within 15s"); `01-ppp-ipv4-r3` still queued |
+| `03-ze-lac-xl2tpd-lns` | PASS (xl2tpd 1.3.20 / pppd 2.5.4) |
+| QEMU MOBIKE guest, `qemu-mobike-r2` (run by hand, log `scn3-qemu-mobike-r2.log`) | FAIL, cause OPEN. The scratch link is fixed (the ISO downloaded, the guest booted), but no `login:` reached the serial console. The error quotes only QEMU's harmless "invalid accelerator hvf, falling back to KVM" and the serial output is kept nowhere (journal row in `error-names-no-fix-command.md`), so the guest's stall is unseen. Lead to check first: with `kernel` given, `Run` (`internal/le/test/qemu/run.go`) appends `console=ttyAMA0`, the ARM serial name, on x86 too; whether Alpine 3.24.3's inittab still spawns a getty on ttyS0 regardless is unverified, as is whether this test passed on the 3.21.3 guest. The runner retries it at the end of the queue because the log ends EXIT=1 |
+
+State when the third agent stopped (2026-10-22, about 17:15): `run3.sh` is
+STILL RUNNING (pid 3130045), at `04-radius-acct-attrs` and then the pppoe,
+dhcp, vrrp and ipsec rest; it touches `scn3-DONE` when the queue ends. Its
+later ipsec entries use `rawprobe` once the image rebuilds (bin/le was
+refreshed with the fix). Every verdict after `03-ze-lac-xl2tpd-lns` is unread.
+Commits: d5d9eb05f0 (journal row). The rawprobe fix and this handover update
+sit in `tmp/commit-84bc8835-a-c7c970.sh`, unpublished because gpg signing
+timed out; unlock the agent and run that script. `rfc/audit/rfc3948.json`
+still names `nping --badsum` in its RFC3948-3.1.2-1 note (an audit record,
+not edited).
 
 `docs/guide/ipsec.md` TLS claim re-read in the strongSwan 6.1.0 source: the
 default is still TLS 1.2 (`src/libtls/tls.c`) and libtls still implements no
