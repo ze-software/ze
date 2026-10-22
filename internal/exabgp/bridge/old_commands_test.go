@@ -51,6 +51,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -348,9 +349,17 @@ func oldSessionReset(body []byte, facts SessionFacts) bool {
 	if len(body) < start+attrs {
 		return false
 	}
+	// The reactor asks the session's receive context whether ADD-PATH holds for
+	// the family of each MP attribute (reactor/session_validation_receive.go,
+	// validateRFC7606Attrs). Answering yes for every family read the first four
+	// octets of each IPv6 prefix as a Path Identifier, and the judge reset 40
+	// sessions the reactor delivers.
 	var addPath func(uint16, uint8) bool
 	if facts.Encoding != nil {
-		addPath = func(uint16, uint8) bool { return true }
+		received := bgpctx.NewEncodingContext(nil, facts.Encoding, bgpctx.DirectionRecv)
+		addPath = func(afi uint16, safi uint8) bool {
+			return received.AddPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
+		}
 	}
 	verdict := message.ValidateUpdateRFC7606AddPath(body[start:start+attrs], len(body) > start+attrs, true, true, addPath, false)
 	return verdict != nil && verdict.Action == message.RFC7606ActionSessionReset
