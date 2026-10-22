@@ -182,21 +182,33 @@ func isUsableSuggestedIdentifier(id [8]byte) bool {
 	return id != zero && id != allOnes
 }
 
-// rebuildWithoutInterfaceIDOption returns a session-stage frame byte-for-byte
+// interfaceIDOption is the one IPv6CP option RFC 5072 Section 4.1 defines,
+// Interface-Identifier, encoded as Type 1, Length 10, then the 8-byte value.
+func interfaceIDOption(id [8]byte) []byte {
+	option := make([]byte, 2+len(id))
+	option[0] = ppp.IPv6CPOptInterfaceID
+	option[1] = byte(len(option))
+	copy(option[2:], id[:])
+	return option
+}
+
+// rebuildIPv6CPConfigureRequest returns a session-stage frame byte-for-byte
 // identical to template's Ethernet header and the first four bytes of its
 // PPPoE header (destination/source MAC, PPPoE Ver/Type, Code, Session-ID --
 // none of that changes when only the LCP-layer payload does), but carrying
-// an IPv6CP Configure-Request with NO Interface-Identifier option: RFC 5072
-// Section 4.1 requires exactly one, and this is the frame that tests what
-// Ze does when a peer sends none. The PPPoE header's own Length field (RFC
-// 2516 Section 4: "the length of the PPPoE payload, not including the
-// Ethernet or PPPoE headers") is recomputed for the shorter payload.
-func rebuildWithoutInterfaceIDOption(template []byte, identifier uint8) ([]byte, error) {
+// an IPv6CP Configure-Request whose option list is options. A nil options
+// is the request with NO Interface-Identifier option, which RFC 5072
+// Section 4.1 requires exactly one of; interfaceIDOption of the zero value
+// is the request a pppd client cannot be made to send. The PPPoE header's
+// own Length field (RFC 2516 Section 4: "the length of the PPPoE payload,
+// not including the Ethernet or PPPoE headers") is recomputed for the new
+// payload.
+func rebuildIPv6CPConfigureRequest(template []byte, identifier uint8, options []byte) ([]byte, error) {
 	if len(template) < pppSessionOverhead {
 		return nil, fmt.Errorf("template frame too short: %d bytes", len(template))
 	}
-	pppPayload := make([]byte, 2+4) // protocol field + empty-data LCP header
-	n := ppp.WriteLCPPacket(pppPayload, 2, ppp.LCPConfigureRequest, identifier, nil)
+	pppPayload := make([]byte, 2+4+len(options)) // protocol field + LCP header + options
+	n := ppp.WriteLCPPacket(pppPayload, 2, ppp.LCPConfigureRequest, identifier, options)
 	ppp.WriteFrame(pppPayload, 0, ppp.ProtoIPv6CP, pppPayload[2:2+n])
 
 	out := make([]byte, pppSessionOverhead+len(pppPayload))
@@ -206,18 +218,16 @@ func rebuildWithoutInterfaceIDOption(template []byte, identifier uint8) ([]byte,
 	return out, nil
 }
 
-// pppdDialIPv6 is pppdDial (check_ac.go) with IPv6CP requested. When
-// ipv6Value is non-empty it is passed verbatim as pppd's `ipv6
-// <local>,<remote>` option value (standard ASCII IPv6-address notation per
-// pppd(8), e.g. "::,'" offers the all-zero local identifier); when empty,
-// pppd draws its own via its ordinary EUI-64 generation.
+// pppdDialIPv6 is pppdDial (check_ac.go) with IPv6CP requested. pppd draws
+// its own non-zero Interface-Identifier; a checker that needs another value
+// replays a rebuilt request (rebuildIPv6CPConfigureRequest), because pppd's
+// `ipv6` option refuses the zero identifier.
 func pppdDialIPv6(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
 	username string,
 	password string,
 	service string,
-	ipv6Value string,
 ) error {
 	if _, err := exec(ctx, lab, clientImageName, []string{"sh", "-c", "rm -f " + pppdLogPath}); err != nil {
 		return fmt.Errorf("clear pppd log: %w", err)
@@ -236,9 +246,6 @@ func pppdDialIPv6(
 	}
 	if service != "" {
 		arguments = append(arguments, "rp_pppoe_service", service)
-	}
-	if ipv6Value != "" {
-		arguments = append(arguments, "ipv6", ipv6Value)
 	}
 	shell := "exec " + strings.Join(arguments, " ") + " >" + pppdLogPath + " 2>&1"
 	if err := lab.ExecDetached(ctx, clientImageName, []string{"sh", "-c", shell}, nil); err != nil {
@@ -270,15 +277,34 @@ var errIPv6CPNeverEngaged = errors.New(
 		"(plan/spec-l2tp-ipv6-subscriber.md; see this file's header comment)")
 
 // checkZeAccessConcentratorIPv6CPZeroIdentifier proves RFC 5072 Section
-// 4.1's zero-identifier rule against a real pppd 2.5.1 client: a
+// 4.1's zero-identifier rule on a real pppd 2.5.4 session: a
 // Configure-Request whose Interface-Identifier is all-zero is answered
 // with a Configure-Nak carrying a non-zero, non-all-ones suggestion, and
-// the exchange converges once the client incorporates it (RFC 1661
+// the exchange converges once the request incorporates it (RFC 1661
 // Section 5.3: a Configure-Nak's suggested value is what the peer's next
 // Configure-Request offers).
+//
+// pppd cannot be made to offer the zero identifier: setifaceid (pppd/ipv6cp.c,
+// the same in 2.5.1 and 2.5.4) refuses `ipv6 ::,` as "Illegal interface
+// identifier (local)" through its VALIDID check, and with no `ipv6` option it
+// draws a non-zero random one. So the two requests are built here, the
+// missing-option checker's way: pppd's own Configure-Request is the template
+// (same MACs, same session), replayed first with the zero identifier, then
+// with the identifier ze's Configure-Nak suggested.
 func checkZeAccessConcentratorIPv6CPZeroIdentifier(
 	ctx context.Context,
 	check *interoplab.CheckContext,
+) error {
+	return checkZeAccessConcentratorIPv6CPZeroIdentifierWith(ctx, check, interoplab.SendFrameInContainer)
+}
+
+// checkZeAccessConcentratorIPv6CPZeroIdentifierWith is
+// checkZeAccessConcentratorIPv6CPZeroIdentifier with the frame-replay
+// mechanics injected, as checkZeAccessConcentratorIPv6CPMissingOptionWith.
+func checkZeAccessConcentratorIPv6CPZeroIdentifierWith(
+	ctx context.Context,
+	check *interoplab.CheckContext,
+	send interoplab.FrameSender,
 ) (err error) {
 	if check == nil || check.Lab == nil {
 		return errors.New("PPPoE IPv6CP zero-identifier checker has no lab")
@@ -297,9 +323,7 @@ func checkZeAccessConcentratorIPv6CPZeroIdentifier(
 	if err := startSessionCapture(ctx, check.Lab); err != nil {
 		return err
 	}
-	// pppd(8): "ipv6 <local>,<remote>" -- "::," offers the all-zero local
-	// identifier and leaves the remote preference unset.
-	if err := pppdDialIPv6(ctx, check.Lab, pppdUsername, pppdPassword, pppoeService, "::,"); err != nil {
+	if err := pppdDialIPv6(ctx, check.Lab, pppdUsername, pppdPassword, pppoeService); err != nil {
 		return err
 	}
 
@@ -307,47 +331,135 @@ func checkZeAccessConcentratorIPv6CPZeroIdentifier(
 	if err != nil {
 		return err
 	}
-
-	var sawZeroRequest, sawNak, sawAck bool
-	var nakIdentifier [8]byte
-	for _, frame := range frames {
-		switch frame.code {
-		case ppp.LCPConfigureRequest:
-			if frame.hasOption && frame.interfaceID == ([8]byte{}) {
-				sawZeroRequest = true
-			}
-		case ppp.LCPConfigureNak:
-			sawNak = true
-			nakIdentifier = frame.interfaceID
-		case ppp.LCPConfigureAck:
-			sawAck = true
-		}
+	template, ok := firstClientRequest(frames)
+	if !ok {
+		return errors.New("the client's own IPv6CP Configure-Request never appeared in the capture")
 	}
-	if !sawZeroRequest {
-		return errors.New("the client's own IPv6CP Configure-Request carrying a zero identifier never appeared in the capture")
-	}
-	if !sawNak && !sawAck {
+	if !sawAnyResponse(frames) {
 		return errIPv6CPNeverEngaged
 	}
-	if sawAck && !sawNak {
+
+	// RFC 5072 Section 4.1: "If the two interface identifiers are different
+	// but the received interface identifier is zero, a Configure-Nak is sent
+	// with a non-zero interface-identifier value suggested for use by the
+	// remote peer". A fresh LCP Identifier per replay (RFC 1661 Section 4.6)
+	// keeps each one a new Configure-Request.
+	zeroID := template.lcpID + 1
+	answer, err := replayIPv6CPRequest(ctx, check.Lab, send, template.raw, zeroID, interfaceIDOption([8]byte{}))
+	if err != nil {
+		return fmt.Errorf("zero-identifier Configure-Request: %w", err)
+	}
+	if _, acked := zeAnswer(answer, template.raw, zeroID, ppp.LCPConfigureAck); acked {
 		return errors.New("ze Configure-Acked a Configure-Request carrying a zero interface identifier " +
 			"(RFC 5072 Section 4.1 requires a Configure-Nak with a non-zero suggestion)")
 	}
-	if nakIdentifier == ([8]byte{}) {
+	nak, naked := zeAnswer(answer, template.raw, zeroID, ppp.LCPConfigureNak)
+	if !naked {
+		return fmt.Errorf("zero-identifier Configure-Request: ze's response codes were %v, want a Configure-Nak", codes(answer))
+	}
+	if !nak.hasOption {
+		return errors.New("ze's Configure-Nak to the zero identifier carried no Interface-Identifier suggestion")
+	}
+	if nak.interfaceID == ([8]byte{}) {
 		return errors.New("ze's Configure-Nak suggested the zero identifier it just refused on receive")
 	}
-	if !isUsableSuggestedIdentifier(nakIdentifier) {
+	if !isUsableSuggestedIdentifier(nak.interfaceID) {
 		return fmt.Errorf("ze's Configure-Nak suggestion %x fails isValidIPv6CPInterfaceID: "+
-			"RFC 5072 Section 4.1 requires a non-zero suggestion, and ze additionally refuses all-ones (AC-9)", nakIdentifier)
+			"RFC 5072 Section 4.1 requires a non-zero suggestion, and ze additionally refuses all-ones (AC-9)", nak.interfaceID)
 	}
-	if !sawAck {
-		return errors.New("ze's Configure-Nak was observed, but the exchange never converged to a Configure-Ack")
+
+	// RFC 1661 Section 5.3: the next Configure-Request carries the suggested
+	// value, and ze must Ack it, or the exchange never converges.
+	suggestedID := template.lcpID + 2
+	answer, err = replayIPv6CPRequest(ctx, check.Lab, send, template.raw, suggestedID, interfaceIDOption(nak.interfaceID))
+	if err != nil {
+		return fmt.Errorf("suggested-identifier Configure-Request: %w", err)
+	}
+	if _, acked := zeAnswer(answer, template.raw, suggestedID, ppp.LCPConfigureAck); !acked {
+		return fmt.Errorf("ze's Configure-Nak was observed, but the request carrying its own suggestion %x "+
+			"drew response codes %v, not a Configure-Ack", nak.interfaceID, codes(answer))
 	}
 	return nil
 }
 
+// replayIPv6CPRequest puts one rebuilt IPv6CP Configure-Request on the
+// client's wire and returns the IPv6CP frames a fresh capture saw after it.
+func replayIPv6CPRequest(
+	ctx context.Context,
+	lab interoplab.CheckerLab,
+	send interoplab.FrameSender,
+	template []byte,
+	identifier uint8,
+	options []byte,
+) ([]ipv6cpFrame, error) {
+	frame, err := rebuildIPv6CPConfigureRequest(template, identifier, options)
+	if err != nil {
+		return nil, fmt.Errorf("build: %w", err)
+	}
+	if err := startSessionCapture(ctx, lab); err != nil {
+		return nil, err
+	}
+	if err := send(ctx, lab, clientImageName, replayInterface, frame); err != nil {
+		return nil, fmt.Errorf("replay: %w", err)
+	}
+	return captureIPv6CPFrames(ctx, lab)
+}
+
+// firstClientRequest returns the first Configure-Request in frames that
+// carries an Interface-Identifier option. The capture starts before pppd
+// dials and ze sends no Configure-Request of its own before pppd's, so the
+// first such request is pppd's.
+func firstClientRequest(frames []ipv6cpFrame) (ipv6cpFrame, bool) {
+	for _, frame := range frames {
+		if frame.code != ppp.LCPConfigureRequest {
+			continue
+		}
+		if frame.hasOption {
+			return frame, true
+		}
+	}
+	return ipv6cpFrame{}, false
+}
+
+// sawAnyResponse reports whether frames hold any Configure-Nak, -Ack or
+// -Reject, the evidence that ze's IPv6CP FSM started at all.
+func sawAnyResponse(frames []ipv6cpFrame) bool {
+	if hasCode(frames, ppp.LCPConfigureNak) {
+		return true
+	}
+	if hasCode(frames, ppp.LCPConfigureAck) {
+		return true
+	}
+	return hasCode(frames, ppp.LCPConfigureReject)
+}
+
+// zeAnswer returns ze's frame of the given code answering the request
+// with LCP Identifier identifier. RFC 1661 Section 5.3 has the answer copy
+// the request's Identifier, but pppd's own answers to ze's renegotiation
+// share the capture and the one-byte Identifier space, so the answer must
+// also come from ze: its source MAC is the template request's destination
+// MAC.
+func zeAnswer(frames []ipv6cpFrame, template []byte, identifier, code uint8) (ipv6cpFrame, bool) {
+	if len(template) < discovery.EthHdrLen {
+		return ipv6cpFrame{}, false
+	}
+	zeMAC := template[0:6]
+	for _, frame := range frames {
+		if frame.code != code {
+			continue
+		}
+		if frame.lcpID != identifier {
+			continue
+		}
+		if bytes.Equal(frame.raw[6:12], zeMAC) {
+			return frame, true
+		}
+	}
+	return ipv6cpFrame{}, false
+}
+
 // checkZeAccessConcentratorIPv6CPMissingOption proves RFC 5072 Section
-// 4.1's missing-option rule against a real pppd 2.5.1 client: a
+// 4.1's missing-option rule against a real pppd 2.5.4 client: a
 // Configure-Request carrying no Interface-Identifier option is Naked
 // once, and the peer's next tagless request is Acked rather than Naked
 // again (AC-10's one-shot rule; pppd(8)'s own ipv6cp_reqci applies the
@@ -357,7 +469,7 @@ func checkZeAccessConcentratorIPv6CPZeroIdentifier(
 // requests this checker needs are built here rather than dialed: a
 // genuine client Configure-Request is captured first and used as the
 // template (same MACs, same session, same PPPoE header), then replayed
-// twice with the option stripped (rebuildWithoutInterfaceIDOption).
+// twice with the option stripped (rebuildIPv6CPConfigureRequest, nil options).
 func checkZeAccessConcentratorIPv6CPMissingOption(
 	ctx context.Context,
 	check *interoplab.CheckContext,
@@ -392,7 +504,7 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 	if err := startSessionCapture(ctx, check.Lab); err != nil {
 		return err
 	}
-	if err := pppdDialIPv6(ctx, check.Lab, pppdUsername, pppdPassword, pppoeService, ""); err != nil {
+	if err := pppdDialIPv6(ctx, check.Lab, pppdUsername, pppdPassword, pppoeService); err != nil {
 		return err
 	}
 
@@ -423,7 +535,7 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 	// A fresh LCP Identifier byte per replay (RFC 1661 Section 4.6) keeps
 	// each one a new Configure-Request rather than a retransmission of the
 	// template's own.
-	firstMissing, err := rebuildWithoutInterfaceIDOption(template.raw, template.lcpID+1)
+	firstMissing, err := rebuildIPv6CPConfigureRequest(template.raw, template.lcpID+1, nil)
 	if err != nil {
 		return fmt.Errorf("build the missing-option Configure-Request (first): %w", err)
 	}
@@ -443,7 +555,7 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 
 	// Second tagless request, same session: AC-10's one-shot rule -- ze
 	// must Ack rather than Nak again, or the negotiation never terminates.
-	secondMissing, err := rebuildWithoutInterfaceIDOption(template.raw, template.lcpID+2)
+	secondMissing, err := rebuildIPv6CPConfigureRequest(template.raw, template.lcpID+2, nil)
 	if err != nil {
 		return fmt.Errorf("build the missing-option Configure-Request (second): %w", err)
 	}
