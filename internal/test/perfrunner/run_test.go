@@ -228,7 +228,7 @@ func TestPerfContainersCarryTheirFlagsAndLabels(t *testing.T) {
 		"docker run -d --name " + runner.senderName() + " --label ze.lab",
 		"--network " + runner.network + " --ip 172.31.0.10 --cap-add NET_ADMIN",
 		"-v " + runner.resultsDir + ":/results ",
-		"alpine:3.21 sleep 3600",
+		"alpine:3.24.3 sleep 3600",
 	} {
 		if !strings.Contains(lines[1], want) {
 			t.Errorf("sender argv %q lacks %q", lines[1], want)

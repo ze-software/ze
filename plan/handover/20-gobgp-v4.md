@@ -85,8 +85,21 @@ Agent of 2026-10-22, BGP-peer slice of M14. Landed:
 | ExaBGP | 5.0.13 | 5.0.15 (`exaBGPPins`) | installs under uv, healthcheck keeps `--no-ack`, `--fast-interval` | dcd3cb5a35 |
 | pmacct pmbmpd | `:latest` | v1.8.0 (`defaultPMACCTImage`) | `pmbmpd -V` 1.8.0 | dcd3cb5a35 |
 | StayRTR live test | `:latest` | v0.6.4 (`stayrtrImage`) | `stayrtr -version` 0.6.4 | dcd3cb5a35 |
-| OpenBGPD | 8.6 (Alpine 3.21) | 9.3 from the checksummed portable tarball; perf build context is the interop dir, no sibling checkout | `bgpd -V` 9.3; `bgpd -n` on test/perf/configs/openbgpd.conf: OK | perf DUT commit (see below) |
-| rustbgpd, rustybgp, StayRTR builder, Dockerfile.ze, perf sender | rust 1.88/bookworm, rustybgp master, golang 1.26, alpine 3.21 | rustbgpd v0.79.0 on rust 1.99.1-trixie; rustybgp v0.2.0 on rust 1.99.1-alpine3.24; golang:1.27-alpine3.24; alpine:3.24.3 | see the perf DUT commit body | perf DUT commit (see below) |
+| OpenBGPD, perf sender | 8.6 (Alpine 3.21); sender alpine:3.21 | 9.3 from the checksummed portable tarball (perf build context is the interop dir, `OPENBGPD_DIR` retired); sender alpine:3.24.3 | `bgpd -V` 9.3; `bgpd -n` on test/perf/configs/openbgpd.conf: OK; perfrunner tests pass | the commit that carries this section |
+
+NOT landed, left in the working tree for the continuation (edited, unproven):
+test/interop/Dockerfile.rustbgpd (v0.79.0, rust:1.99.1-trixie, debian
+trixie-slim; build was compiling at handoff), test/interop/Dockerfile.rustybgp
+(v0.2.0, rust:1.99.1-alpine3.24, alpine:3.24.3; first build failed because the
+jemalloc build script needs `make`, now added, not rebuilt),
+test/interop/Dockerfile.stayrtr (golang:1.27-alpine3.24, alpine:3.24.3) and
+test/interop/Dockerfile.ze (alpine:3.24.3), neither built yet, and
+docs/architecture/testing/interop.md (pmacct row 1.8.0, already true; StayRTR
+builder row; the Dockerfile.ze Alpine sentence, which also holds another
+session's hunk, rewritten so it is true at HEAD). The continuation builds each
+image one at a time, reads the version inside (`rustbgpd --version`,
+`rustybgpd --version`, `stayrtr -version`, `/etc/alpine-release`), commits
+them with interop.md, and only then runs scenarios.
 
 Owed on a free host (scenario runs; only one at a time, under the session
 flock): every `*-frr` and `*-bird` scenario, rtr-stayrtr, vpn-frr, evpn-frr,

@@ -1,12 +1,34 @@
-# OpenBGPd (portable) for interoperability testing.
-# Alpine ships openbgpd in its community repository.
+# OpenBGPD (portable) for interoperability and performance testing.
+#
+# Owner decision M14: the lab runs OpenBGPD's latest stable release. Alpine 3.24
+# packages openbgpd 9.1, behind upstream, so this image builds the portable
+# release tarball, verified against the SHA256 OpenBSD publishes beside it
+# (https://cdn.openbsd.org/pub/OpenBSD/OpenBGPD/SHA256). The build needs no
+# context: the tarball is the whole source.
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS builder
 
-RUN apk add --no-cache openbgpd tini && \
+ARG OPENBGPD_VERSION=9.3
+ARG OPENBGPD_SHA256=b43c172edc380f87171ef1cd137b4fce1cb8eec650b54b64f189a1ae52d21c72
+
+RUN apk add --no-cache build-base bison libevent-dev libmnl-dev linux-headers curl
+
+WORKDIR /src
+RUN curl -fsSLo openbgpd.tar.gz "https://cdn.openbsd.org/pub/OpenBSD/OpenBGPD/openbgpd-${OPENBGPD_VERSION}.tar.gz" && \
+    echo "${OPENBGPD_SHA256}  openbgpd.tar.gz" | sha256sum -c - && \
+    tar -xzf openbgpd.tar.gz --strip-components=1 && \
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var && \
+    make -j"$(nproc)" && \
+    make install DESTDIR=/out
+
+FROM alpine:3.24.3
+
+RUN apk add --no-cache libevent libmnl tini && \
     addgroup -S _bgpd && \
     adduser -S -G _bgpd -H -D _bgpd && \
     mkdir -p /home/_bgpd /var/run
+
+COPY --from=builder /out/usr/sbin/ /usr/sbin/
 
 ENTRYPOINT ["tini", "--", "bgpd"]
 CMD ["-f", "/etc/bgpd.conf", "-d"]

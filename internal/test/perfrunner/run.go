@@ -57,7 +57,7 @@ const containerLe = "/usr/local/bin/le"
 
 // senderImage is the image the sender container runs: le is mounted into it,
 // so it needs nothing but ip, arping and a shell.
-const senderImage = "alpine:3.21"
+const senderImage = "alpine:3.24.3"
 
 // linuxBuildTimeout bounds the cross-build of le. It links every feature the
 // launcher's le links, which is more than the perf personality it replaced.
@@ -360,14 +360,14 @@ func (runner *Runner) imageBuild(dut DUT) (interoplab.ImageBuild, error) {
 	switch dut.Name {
 	case dutZE:
 		build.Context = runner.Root
-	case dutBIRD, dutGoBGP, dutRustBGPd, dutRustyBGP:
+	case dutBIRD, dutGoBGP, dutOpenBGPd, dutRustBGPd, dutRustyBGP:
+		// Dockerfile.openbgpd fetches and checksums the release tarball
+		// itself, so it reads nothing from a local openbgpd-portable checkout.
 		build.Context = runner.interopDir
 	case dutFreeRtr:
 		build.Context = runner.Root
 		source := envOr("FREERTR_DIR", filepath.Join(filepath.Dir(runner.Root), "rtr"))
 		build.NamedContexts = []interoplab.NamedBuildContext{{Name: "freertr", Path: source}}
-	case dutOpenBGPd:
-		build.Context = envOr("OPENBGPD_DIR", filepath.Join(filepath.Dir(runner.Root), "openbgpd-portable"))
 	default:
 		return build, errors.New("no image build is declared for DUT " + dut.Name)
 	}
