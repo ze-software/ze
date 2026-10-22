@@ -1846,7 +1846,7 @@ as evidence.
 
 ### The FreeRADIUS subscriber suite
 
-`./le test integration interop-radius-subscriber` puts FreeRADIUS 3.2.7, the
+`./le test integration interop-radius-subscriber` puts FreeRADIUS 3.2.10, the
 release the admin-login suite pins, in front of ze's subscriber RADIUS surface:
 the accountant and the CoA and Disconnect listener of
 `internal/component/l2tp/plugins/authradius`. Both act only on a kernel L2TP
@@ -2553,7 +2553,7 @@ Interop tests require Docker and are not part of the offline precommit gate.
 They are a separate protocol-validation action.
 
 The first run cross-compiles the lab binaries on the host, then builds the Docker
-images. No `Dockerfile.ze` carries a Go compiler: each one is an Alpine (`alpine:3.24.3` in the BGP and IPsec labs; the access, RSVP-TE and RADIUS labs move from `alpine:3.21` as their peers do)
+images. No `Dockerfile.ze` carries a Go compiler: each one is an Alpine (`alpine:3.24.3` in the BGP, IPsec, L2TP, PPPoE and RADIUS labs; the RSVP-TE lab stays on `alpine:3.21` until its peer moves)
 base, one `apk add`, and a `COPY` of a binary the suite's preflight has already
 written into the build context (`internal/le/interoplab/zebuild.go`,
 `StageBinaries`). Each lab declares the binaries it needs beside the images it
@@ -2614,6 +2614,71 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 
+
+### Source-built peers
+
+Owner decision M14: every third-party lab peer runs its latest stable upstream
+release. A peer that publishes no stable release is built from source, and only
+from source less than one month old. Two do today: tac_plus-ng
+(`test/interop-tacacs/Dockerfile.tacplusng`, used by
+`internal/component/tacacs/tacplusng_docker_test.go`) and freeRouter
+(`test/interop-rsvpte/Dockerfile.freertr` for the RSVP-TE suite, and
+`test/interop/Dockerfile.freertr` for the perf DUT).
+
+The Dockerfile is the declaration, and no list of peers exists beside it. A
+source-built peer's Dockerfile carries Docker build arguments that its own build
+also reads:
+
+| Build argument | Meaning |
+|----------------|---------|
+| `ZE_SOURCE_REPOSITORY` | The upstream GitHub repository, `owner/name` |
+| `ZE_SOURCE_COMMIT` | The pinned upstream commit, the full hex id the codeload URL fetches |
+| `ZE_SOURCE_DATE` | That commit's committer date, RFC 3339 |
+| `ZE_SOURCE_CHECKOUT` | Instead of a pin: the named build context that holds a local checkout the build follows |
+
+`Docker.Build` is where every lab image is built (a suite, a labtest
+`Spec.Dockerfile`, the perf DUTs), and it calls `RequireFreshSource` before
+`docker build` runs:
+
+- A pinned commit more than one calendar month old refuses the build. The
+  refusal names the Dockerfile, the commit, its date and age, and the command
+  that moves it: `./le lab pin bump dockerfile <Dockerfile>`. Bump asks the
+  GitHub API for the newest commit of the default branch and rewrites
+  `ZE_SOURCE_COMMIT` and `ZE_SOURCE_DATE`. The next image build is the proof
+  that the new source still builds and that a Ze patch, such as
+  `freertr/ze-interop-resv.patch`, still applies.
+- A followed checkout (the perf DUT's `freertr` context, `FREERTR_DIR`,
+  default `../rtr`) whose HEAD commit is more than one month old is updated
+  first: `git fetch`, then `git merge --ff-only @{upstream}`. A checkout holding
+  uncommitted changes is never touched: the build is refused, naming the
+  changes and `git -C <checkout> pull --ff-only` as the fix. A fetch or a
+  fast-forward that fails refuses the build the same way.
+- A Dockerfile that declares `ZE_SOURCE_REPOSITORY` with neither a complete
+  pin nor a checkout is refused, so a half-declared pin never builds unjudged.
+<!-- source: internal/le/interoplab/sourcepin.go -- ParseSourcePin, RequireFreshSource, freshenCheckout -->
+<!-- source: internal/le/interoplab/docker.go -- Build -->
+
+### Lab pins against upstream
+
+`./le lab pin check` lists every lab peer pin the tree holds and compares each
+with upstream's latest stable release. It is a report over the network, never a
+commit gate. The pins are derived from the files that carry them, under `test/`
+and `internal/` (vendor and testdata trees skipped):
+
+| Pin | Read from | Upstream asked |
+|-----|-----------|----------------|
+| Image tag | `FROM` in a Dockerfile (not a stage name, not `scratch`), an image string literal in Go, a scenario's `*-image` file | The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io) |
+| Go module | `go install <path>@<version>` in a Dockerfile | `proxy.golang.org`, including the next major version paths, since `@latest` of a `/v3` path never names v4 |
+| Git tag | `git clone --branch <tag> https://github.com/...`, a codeload or archive tag URL | The GitHub repository's latest release |
+| Source commit | `ZE_SOURCE_COMMIT` | The newest commit of the default branch |
+
+An image tag is compared only with tags of its own shape (the same prefix,
+number count and suffix), so `golang:1.25-alpine` is judged against
+`1.27-alpine`, never `1.27.1-trixie`, and a pre-release never wins. A moving tag
+such as `latest` is reported `floating` with the newest plain release beside it.
+An upstream that does not answer leaves its row `unresolved` with the cause.
+<!-- source: internal/le/lab/pin/scan.go -- Scan -->
+<!-- source: internal/le/lab/pin/upstream.go -- registryTags, goLatest, latestTag -->
 
 ### A package test's own server container (labtest)
 
