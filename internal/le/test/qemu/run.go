@@ -576,8 +576,16 @@ func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]str
 		if err != nil {
 			return nil, err
 		}
-		argv = append(argv, "-kernel", kernel, "-initrd", initrd, "-append",
-			"console=ttyAMA0 alpine_dev=cdrom modules=loop,squashfs quiet")
+		// The serial console differs by machine: ttyS0 on the PC, ttyAMA0 on
+		// the arm64 virt board. Alpine's init spawns the login getty on the
+		// console= device, so the wrong name leaves no login prompt to wait for.
+		console := installConsoleAMD64
+		if r.ops.GOARCH == ArchARM64 {
+			console = installConsoleARM64
+		}
+		b.Reset()
+		cmdline := b.Str("console=").Str(console).Str(" alpine_dev=cdrom modules=loop,squashfs quiet").String()
+		argv = append(argv, "-kernel", kernel, "-initrd", initrd, "-append", cmdline)
 	}
 	return argv, nil
 }

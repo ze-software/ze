@@ -223,7 +223,7 @@ func TestRunPlanAddsTheCustomKernelAndCachedInitramfs(t *testing.T) {
 	}
 	for key, value := range map[string]string{
 		"-kernel": kernel, "-initrd": initrd,
-		"-append": "console=ttyAMA0 alpine_dev=cdrom modules=loop,squashfs quiet",
+		"-append": "console=ttyS0 alpine_dev=cdrom modules=loop,squashfs quiet",
 	} {
 		if !containsPair(plan.QEMUArgv, key, value) {
 			t.Errorf("QEMU argv misses %s %q: %#v", key, value, plan.QEMUArgv)
@@ -694,7 +694,8 @@ func TestBootTimeoutCleansUpTheQEMUProcess(t *testing.T) {
 		QEMUArgv:   []string{"qemu-system-x86_64"},
 		SSHPort:    2222,
 	}}
-	if _, err := run.executePlan(context.Background(), &report); err == nil {
+	_, bootErr := run.executePlan(context.Background(), &report)
+	if bootErr == nil {
 		t.Fatal("boot timeout returned no error")
 	}
 	if data, err := os.ReadFile(marker); err != nil || string(data) != "stopped" {
@@ -704,8 +705,19 @@ func TestBootTimeoutCleansUpTheQEMUProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 0 {
-		t.Fatalf("QEMU diagnostics survived cleanup: %v", entries)
+	// The guest's serial log is the one file a failed boot keeps, on purpose,
+	// and the error names it; the per-run QEMU stderr file must be gone.
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "serial-") && strings.HasSuffix(entry.Name(), ".log") {
+			if !strings.Contains(bootErr.Error(), filepath.Join(cache, entry.Name())) {
+				t.Fatalf("boot error %q does not name the kept serial log %s", bootErr, entry.Name())
+			}
+			continue
+		}
+		t.Fatalf("QEMU diagnostics survived cleanup: %s", entry.Name())
+	}
+	if !strings.Contains(bootErr.Error(), "no login prompt within 2s") {
+		t.Fatalf("boot error %q does not name the boot timeout as the cause", bootErr)
 	}
 }
 

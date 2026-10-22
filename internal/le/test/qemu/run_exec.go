@@ -39,6 +39,21 @@ func (r *Run) executePlan(ctx context.Context, report *RunReport) (RunReport, er
 		errorFile.Close()          //nolint:errcheck // the diagnostics have already been read
 		r.ops.FS.Remove(errorName) //nolint:errcheck // this per-run resource must not persist
 	}()
+	// The guest's serial output is the only witness of a boot that stalls, so
+	// it is kept in the work directory until the run succeeds, and a failing
+	// run names the file.
+	serialLog, err := r.ops.FS.CreateTemp(filepath.Join(r.Tree, "tmp", "qemu"), "serial-*.log")
+	if err != nil {
+		return *report, fmt.Errorf("create the guest serial log: %w", err)
+	}
+	serialLogName := serialLog.Name()
+	keepSerialLog := true
+	defer func() {
+		serialLog.Close() //nolint:errcheck // the log is only read by a person after the run
+		if !keepSerialLog {
+			r.ops.FS.Remove(serialLogName) //nolint:errcheck // a passing run owes no boot evidence
+		}
+	}()
 	// A VM whose le was killed outright still holds its cores and its port.
 	r.reapOrphanVMs(os.Stderr)
 	fmt.Fprintf(os.Stderr, "Booting Alpine VM (ssh forwarded on host port %d)...\n", report.Plan.SSHPort) //nolint:errcheck // progress output
@@ -81,17 +96,13 @@ func (r *Run) executePlan(ctx context.Context, report *RunReport) (RunReport, er
 		}
 	}()
 
-	serial := newSerialStream(ctx, stdout)
+	serial := newSerialStream(ctx, stdout, serialLog)
 	login, err := serial.expect(ctx, "login:", r.Options.Boot)
 	if err != nil {
 		return *report, err
 	}
 	if !login {
-		detail := readQEMUErrors(errorFile)
-		if detail != "" {
-			return *report, fmt.Errorf("VM did not reach a login prompt; QEMU said: %s", detail)
-		}
-		return *report, fmt.Errorf("VM did not reach a login prompt after %s", r.Options.Boot)
+		return *report, bootFailure(serial.exited, r.Options.Boot, readQEMUErrors(errorFile), serialLogName)
 	}
 	if err := r.ops.Sleep(ctx, time.Second); err != nil {
 		return *report, err
@@ -122,7 +133,11 @@ func (r *Run) executePlan(ctx context.Context, report *RunReport) (RunReport, er
 		vmWaitOwned = true
 		return r.keepAlive(ctx, report, command)
 	}
-	return r.runGuestCommand(ctx, report)
+	result, err := r.runGuestCommand(ctx, report)
+	if err == nil && result.Verdict == RunVerdictPass {
+		keepSerialLog = false
+	}
+	return result, err
 }
 
 func readQEMUErrors(file *os.File) string {
@@ -152,9 +167,35 @@ type serialStream struct {
 	// detaches the heap slice above 128 bytes, which would drop the text read
 	// before the current chunk and hide a pattern spanning two chunks.
 	seen strings.Builder
+	// exited is set once QEMU's serial output reached end of file, which
+	// means QEMU itself ended: expect then reports no match without a timeout.
+	exited bool
 }
 
-func newSerialStream(ctx context.Context, stdout io.Reader) *serialStream {
+// bootFailure explains a boot that never showed a login prompt. When QEMU
+// exited, its own stderr is the cause. When it is still running, the boot
+// timed out, and QEMU's stderr (an accelerator fallback warning, say) is not
+// the cause; the guest's serial output is, so the message names that file.
+func bootFailure(exited bool, boot time.Duration, qemuSaid, serialLogName string) error {
+	var b textbuf.Buffer
+	if exited {
+		b.Str("QEMU exited before the guest showed a login prompt")
+		if qemuSaid != "" {
+			b.Str("; QEMU said: ").Str(qemuSaid)
+		}
+	} else {
+		b.Str("the guest showed no login prompt within ").Str(boot.String()).
+			Str(", so the run cannot log in to set it up")
+	}
+	b.Str(".\nThe guest's serial output is in ").Str(serialLogName).
+		Str("; its last lines show where the boot stopped:\n  tail -50 ").Str(serialLogName)
+	return errors.New(b.String())
+}
+
+// newSerialStream reads QEMU's serial output on one goroutine, which ends
+// when stdout does. Every chunk is also written to log, so a stalled boot
+// leaves its evidence behind.
+func newSerialStream(ctx context.Context, stdout io.Reader, log io.Writer) *serialStream {
 	chunks := make(chan []byte, 1)
 	failures := make(chan error, 1)
 	go func() {
@@ -162,6 +203,7 @@ func newSerialStream(ctx context.Context, stdout io.Reader) *serialStream {
 		for {
 			count, err := stdout.Read(buffer)
 			if count != 0 {
+				log.Write(buffer[:count]) //nolint:errcheck // the log is evidence; a short write must not stop the boot
 				copied := append([]byte(nil), buffer[:count]...)
 				select {
 				case chunks <- copied:
@@ -194,6 +236,7 @@ func (s *serialStream) expect(ctx context.Context, pattern string, timeout time.
 			return false, deadline.Err()
 		case err := <-s.failures:
 			if errors.Is(err, io.EOF) {
+				s.exited = true
 				return false, nil
 			}
 			return false, fmt.Errorf("read QEMU serial output: %w", err)

@@ -330,6 +330,15 @@ disagrees with `internal/appliance/kernel.version`: it accepts that version, a
 longer version of it, and either with the runtime kernel's `-ze` suffix
 (`docs/architecture/appliance/kernel-profiles.md`).
 
+With a `kernel`, the command line `Run.qemuArgs` appends names the serial
+console of the machine, `ttyS0` on amd64 and `ttyAMA0` on arm64. Alpine's
+init spawns the login getty on that device, so a wrong name boots a guest
+that never shows `login:`. The run keeps the guest's serial output in
+`tmp/qemu/serial-*.log` until the run passes. A boot that shows no login
+prompt names that file, and names the boot timeout as the cause unless QEMU
+itself exited, when it quotes QEMU's stderr instead (`bootFailure`,
+`internal/le/test/qemu/run_exec.go`).
+
 The native host action cross-compiles a Linux `cmd/ze` personality with the
 `ze_le` tag before boot. That guest binary runs the selected action. The full
 Linux suite is:
