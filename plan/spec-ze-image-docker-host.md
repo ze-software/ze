@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-10-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -150,13 +150,13 @@ M10 makes every lab Docker daemon run on Ze's kernel and Ze's system. Today the 
 | A-1 | Apple's vz EFI boots a gokrazy image: GPT with a hybrid MBR, FAT partition 1 holding `\EFI\BOOT\BOOTAA64.EFI` (systemd-boot) | gokrazy `packer.go` writePartitionTable, `write.go` 389-402; lima vz bootLoader is EFI from disk | the image never reaches the kernel under Colima; the builder writes a protective-MBR-only GPT (gokrazy `mbrOnlyWithoutGpt` is the inverse knob; a GPT-only option needs a packer change) | AC-1 first step: `limactl start` with a throwaway `LIMA_HOME` under the session scratch, console log read for systemd-boot and the kernel banner | confirmed 2026-10-21: `limactl start` (vz, Lima 2.2.1) booted the gokrazy image from its own EFI partition; `serialv.log` shows kernel `7.2.9-ze`, `VFS: Mounted root (squashfs filesystem) readonly`, `Run /gokrazy/init`, and the image's `cmdline.txt` (`root=PARTUUID=60c24cc1-.../PARTNROFF=1`). systemd-boot prints to the EFI console, not hvc0, so its lines cannot appear in the serial log. Lima growing the raw disk to 4 GiB leaves the backup GPT header mid-disk (kernel warns, boots) |
 | A-2 | The console is `hvc0` under vz and `ttyS0` under QEMU amd64; the instance's `SerialConsole`/`KernelExtraArgs` list both consoles so either boot logs | arm64 cache config has `VIRTIO_CONSOLE=y`; gokrazy `SerialConsole` field | no boot log under vz, failures are blind; `VIRTIO_CONSOLE` added to `runtime.config` for amd64 | AC-1 (vz serial log in the Lima instance dir), AC-9 (QEMU) | confirmed for vz 2026-10-21: with `console=hvc0` last on the cmdline, the kernel log, gokrazy init's lines and ze-docker-host's console lines all reach `serialv.log`; `ttyS0` under QEMU is AC-9 |
 | A-3 | gokrazy init's 1 MB tmpfs `/etc` can be remounted larger by the docker-host program and stays writable for passwd, group, shadow, sudoers, ssh, docker, containerd, systemd unit files | gokrazy `mount.go` line 65 mounts it with `size=1M` and nothing else holds it | Colima's writes fail on ENOSPC; the program mounts a fresh tmpfs over `/etc` after copying gokrazy's entries | AC-11 unit test over a temp root; AC-2 | broken 2026-10-21: the remount answered `invalid argument` on the first vz boot. On a squashfs root `/etc` is part of the read-only root; gokrazy mounts its 1 MB tmpfs `/etc` only in `mountCompat`, for old FAT roots. Fallback taken: `mountWritableEtc` (`etc.go`) snapshots the squashfs `/etc`, mounts a 64 MB tmpfs over it and writes the entries back; `TestDockerHostBootSequenceOverATempRoot` covers it (red before the code) |
-| A-4 | overlay2 works with its upper dir on `/perm` (ext4), and `/var/lib/docker` resolves through `/var` → `/perm/var` | gokrazy `mount.go` 158-170; `OVERLAY_FS=y` | dockerd falls back to vfs or fails; the program bind-mounts a dedicated ext4 directory | AC-2 (`docker info` Storage Driver `overlay2`) | unvalidated |
+| A-4 | overlay2 works with its upper dir on `/perm` (ext4), and `/var/lib/docker` resolves through `/var` → `/perm/var` | gokrazy `mount.go` 158-170; `OVERLAY_FS=y` | dockerd falls back to vfs or fails; the program bind-mounts a dedicated ext4 directory | AC-2 (`docker info` Storage Driver `overlay2`) | confirmed 2026-10-21 (Phase 3, K4), with the driver name corrected: Docker 29's containerd image store reports `overlayfs`, not `overlay2`; `docker info` → `driver=overlayfs root=/perm/var/lib/docker`, and `/perm/var/lib/docker` is `/dev/vda4` ext4, so the overlay snapshots sit on ext4 and not vfs |
 | A-5 | The pinned Docker static release (29.x) runs with `--firewall-backend=nftables` on Ze's kernel without an `iptables` binary, given `ip_forward` is set by the program | Docker docs (29.0.0, experimental, no forwarding by itself); kernel has `NF_TABLES` set; whether moby's nftables backend shells out to `nft` is unverified | ship static `iptables` (legacy, `IP_NF_IPTABLES_LEGACY=y` is present) or `nft` from pinned source and use that backend; decided in Phase 2 by reading moby's `libnetwork` nftables code at the pinned tag | Phase 2 read of moby source at the pin, then AC-3 and AC-13 (published ports and container NAT work) | broken 2026-10-21: at tag `docker-v29.9.2` the static build compiles `daemon/libnetwork/internal/nftables/nft_exec_linux.go` (constraint `!cgo \|\| static_build \|\| !libnftables`), whose `preflight` runs `exec.LookPath("nft")`. Fallback taken: dockerd's default iptables backend with static legacy iptables 1.8.13 (`xtables-legacy-multi`, `--disable-nftables --disable-shared`, `make LDFLAGS=-all-static`, pinned builder); kernel has `IP_NF_IPTABLES_LEGACY`, `IP6_NF_IPTABLES_LEGACY`, `IP_NF_NAT`, `IP_NF_FILTER`, `IP_NF_TARGET_MASQUERADE` `=y`. A container reached the internet through it (Phase 2 evidence); D-5 updated |
 | A-6 | Rosetta amd64 emulation in the `ze` profile works with `BINFMT_MISC` and `VIRTIO_FS` in Ze's kernel and Lima's own rosetta registration in `05-lima-mounts.sh` under busybox | colima `yaml.go` 36-43 sets `Rosetta.Enabled` and `BinFmt`; `05-lima-mounts.sh` handles a `rosetta` tag | AC-15 cannot run the VPP image on arm64; the run records the refusal per the waiting spec's R-6 and the owner is told | AC-15 | confirmed 2026-10-21 (Phase 6): on the `ze` profile (`--vz-rosetta`, binfmt_misc mounted at boot, 54fb7e9a1f) the `linux/amd64`-only `ligato/vpp-base:latest` ran under Rosetta: `vpp-test` printed `vpp v26.06-release built by root on 117e5a4dfe19`, and the container started with `/dev/vhost-net` (kernel `CONFIG_VHOST_NET=y`, `CONFIG_MACVTAP=y`) |
 | A-7 | Static OpenSSH built `--without-openssl` covers Lima's needs: ed25519 user and host keys, ControlMaster, `-L` to a unix socket (direct-streamlocal), exec | Lima generates ed25519 keys; OpenSSH's internal crypto has ed25519, chacha20-poly1305, aes-ctr | Lima cannot connect; build with a pinned static OpenSSL | AC-1 (`limactl shell` and the socket forward) | confirmed 2026-10-21 (vz, Lima 2.2.1): guest `sshd -V` is `OpenSSH_9.9p2, without OpenSSL`; serial log shows `Accepted publickey for thomas ... ssh2: ED25519`; every `limactl shell` (ControlMaster through `ssh.sock`) ran; `ssh -F <inst>/ssh.config -L <host sock>:/run/ze-docker-host/systemctl.sock` forwarded a unix socket and the guest supervisor answered `{"code":0,"stdout":"active\n"}` through it. Needed `/perm/home` at 0755 (gokrazy creates it 0700; sshd refused `authorized_keys`), fixed in `mountWritableTrees` |
 | A-8 | Busybox v1.34.1 from ze-serial-shell runs every command `boot.sh`, the `boot.Linux` scripts that do not exit early, Colima's provisioning and `disk.sh` need, as `/bin/sh` and `/bin/bash` | applet names in the binary (Key insights); `boot.sh` uses `sed -E`, `od`, `paste`, `date -Iseconds`, `[[ ]]` in `05-lima-mounts.sh` | a script fails; the fix is a newer busybox built from pinned source (Phase 2 decides by running the scripts under the image), never a script edit | AC-1 boot log has no `WARNING: Failed to execute` for a script the contract needs | confirmed for Lima's `boot.sh` 2026-10-21: every `boot.essential.Linux` and `boot.Linux` script ran under busybox; the one `WARNING: Failed to execute` is `20-rootless-base.sh` (R-2: no `/etc/sysctl.d`, busybox `sysctl` has no `--system`, `systemd-logind.service` and `loginctl` absent); `11-colorterm-environment.sh` passes since the shim answers `reload`. `boot.sh` ends `Exiting with code 1` from that one script. Found: busybox `modprobe` parses `modules.dep` and `modules.alias` on every call (7.8 s, 6 s user CPU, for `modprobe tun`), and `00-modprobe.sh` calls it 21 times for modules that are all in `modules.builtin`: 48 to 86 s of boot before the guest agent starts. Phase 2 owes the fix (R-1 gives Colima one minute). Colima's provisioning and `disk.sh` are Phase 3 |
 | A-9 | gokrazy extra files can place executables at `/bin`, `/usr/bin`, `/usr/sbin` in the squashfs root with mode and setuid preserved (sudo needs setuid root) | ze-serial-shell precedent places `usr/local/bin/ze-recovery-shell`; setuid not yet seen | sudo cannot elevate; the program copies sudo to a tmpfs with setuid at boot | AC-11, AC-2 (`sudo docker info` as the Lima user) | confirmed 2026-10-21: in the guest `ls -l /usr/lib/ze-docker-host/sudo` prints `-rwsr-xr-x 1 root root 938240`, and `sudo -n true` as the Lima user exits 0 (`sudo -n id` prints `uid=0(root)`); the 04755 tar header mode survives into the squashfs. sudo 1.9.16p2 had to be linked with `make LDFLAGS=-all-static` (libtool drops `-static`). `sudo docker info` is AC-2 |
-| A-10 | Lima keeps a raw `--disk-image` sparse when it copies it into `~/.colima/_lima/colima-ze/`, and the image's `/perm` is sized for lab images | `lima` disk conversion (not read) | the copy takes the full size on the Mac; the image size is lowered and `/perm` grown at first boot instead | AC-2 (`du` of the Lima disk against its apparent size) | unvalidated |
+| A-10 | Lima keeps a raw `--disk-image` sparse when it copies it into `~/.colima/_lima/colima-ze/`, and the image's `/perm` is sized for lab images | `lima` disk conversion (not read) | the copy takes the full size on the Mac; the image size is lowered and `/perm` grown at first boot instead | AC-2 (`du` of the Lima disk against its apparent size) | confirmed 2026-10-22 from source, not measured by `du`: Lima 2.2.1 `convertTo` (`pkg/imgutil/nativeimgutil/nativeimgutil.go`) sends a raw image to `convertRawToRaw`, which copies with `containerd/continuity` v0.5.0 `fs.CopyFile`; on darwin that is `unix.Clonefile` (`fs/copy_darwin.go`), an APFS clone that shares the source's blocks and keeps its holes, falling back to a byte copy only on `ENOTSUP`/`EXDEV`. The source image is sparse (16 GiB apparent, 351408 KiB on disk, AC-5). `/perm` held every lab image of AC-13 to AC-15 (the VPP image included) on the 16 GiB image |
 | A-11 | Colima's runtime data disk (`disk.sh`) can be left failing: `30-install-packages.sh` exits with the dependency scripts' code, and boot still reaches `boot-done`; docker data then lives on `/perm` | `boot.sh` writes boot-done unconditionally; colima `disk.go` `useRuntimeDisk` only adds the disk when `limautil.HasDisk()` | if Colima mounts the data disk over `/var/lib/docker` later, data moves; the program then implements the data disk (format by label, mount) in Go | AC-2 and a second `colima start` after `colima stop` keeps pulled images | confirmed 2026-10-21 (Phase 3, image 6039173623982fd0): `hello-world` survives `./le setup docker-host stop` + `start`; holds only with `/mnt` sealed read-only (39a2c5caeb), because a writable `/mnt` lets Colima bind tmpfs trees over `/var/lib/docker` |
 | A-12 | A `docker-host` builder container for OpenSSH and sudo is a build tool, not a VM or test guest, so M1 and M10 do not govern its base image | M1 names "VMs and test guests", M10 the lab Docker host | the owner rules otherwise | owner ruling at the design gate | confirmed 2026-10-21: owner chose Alpine for this role (D-13) |
 | A-13 | Lima's DNS for the guest works without `iptables` in the guest (`09-host-dns-setup.sh` skips when `iptables` is absent) because the DHCP lease names a usable resolver | `09-host-dns-setup.sh` `command -v iptables`; Colima `HostResolver.Enabled` when no DNS is configured | image pulls fail on name resolution; the program writes `/etc/resolv.conf` from `lima.env`'s DNS address | AC-13 (the lab pulls its images) | confirmed 2026-10-21 (Phase 6), on a changed premise: the image now ships static legacy iptables (A-5's fallback), so `09-host-dns-setup.sh` no longer skips. The guest resolver is Lima's `192.168.5.2` (a host-network container's `/etc/resolv.conf`, "Based on host file"), `nslookup registry-1.docker.io` through it answered, and the guest's dockerd pulled `ligato/vpp-base:latest` (AC-15) and `alpine:3.21` by name. No fallback needed |
@@ -394,7 +394,7 @@ N-A: tooling. The labs these daemons serve are the interop suites themselves; AC
    - AC-13 PASS: `./le perf run dut ze` listed `le-perf-runner-61798` and `le-perf-ze-61798` 33 s after start. Labels of both: `ze.lab.machine-id` `ee5d8926-a73f-56c1-9a6c-19344ed99e78` = lowercase IOPlatformUUID; `ze.lab.boot-id` `bb515efb-74c7-4bb1-8c88-c362d6ac4cb0` = lowercase `kern.bootsessionuuid`; `ze.lab.os` `darwin`; `ze.lab.pid` `61798`, whose `ps -o command=` is `.../bin/le perf run dut ze`; no `ze.lab.pid-ns` key.
    - AC-14 PASS: one SIGINT to process group 61798 at `iteration 1/4 (warmup)`; le printed `error: measure ze: docker exec le-perf-runner-61798 was canceled ... context canceled`, `FAIL  1 failed: ze`, `error: the Docker benchmark failed`, exit 1. For run `K5V3OHRGDNBLG332H5J5E36PPG`: `docker ps -a` and `docker network ls` print headers only; `docker image ls` prints `ze-interop:latest` only (the kept DUT image under its cache tag, no `ze-interop-retained:`); `cleanup dry`: `cleanup: no Ze lab resource on this Docker daemon`.
    - AC-15 `vpp-test` PASS: Rosetta pulled and ran `ligato/vpp-base:latest` (`vpp v26.06-release`), container `ze-vpp-evidence-64465` listed, one SIGINT; the run printed `error: vppctl "create loopback interface" failed: docker exec ... canceled ... context canceled` and no verdict, exit 1; run `UEJLRCZ27DKRXXMZYNQJIHOPG4`: no container, no network, no image line; `cleanup dry` names nothing.
-   - AC-15 `vpp-iface-test` FAILED in run 1, two defects, fixed in 7a98e14ab6 (M4): ze refused the uRPF fixture (`parse config: line 13: unknown field in unit: address`, the schema has `address` under `ipv4`), and after the SIGINT `awaitFeature` polled on for its bound and printed `FAIL: ip4-rx-urpf-strict not observed` 24 s later. Nothing was left behind (no container, network or image; `cleanup dry` clean). After the fix, `./le --name dh-e1f0 test deployment vpp-iface-test` on the `ze` profile exits 0: `OK` for uRPF strict, GRE, SPAN mirror and wireguard, LCP `SKIP` (the image ships no linux_cp plugin). The Ctrl-C rerun of all three ACs on that le (run 2, scratch `p6-all.sh`, `r2-*` files) is pasted below when it ends.
+   - AC-15 `vpp-iface-test` FAILED in run 1, two defects, fixed in 7a98e14ab6 (M4): ze refused the uRPF fixture (`parse config: line 13: unknown field in unit: address`, the schema has `address` under `ipv4`), and after the SIGINT `awaitFeature` polled on for its bound and printed `FAIL: ip4-rx-urpf-strict not observed` 24 s later. Nothing was left behind (no container, network or image; `cleanup dry` clean). After the fix, `./le --name dh-e1f0 test deployment vpp-iface-test` on the `ze` profile exits 0: `OK` for uRPF strict, GRE, SPAN mirror and wireguard, LCP `SKIP` (the image ships no linux_cp plugin). The Ctrl-C rerun of all three ACs on that le (run 2, scratch `p6-all.sh`, `r2-*` files) sent its `vpp-iface-test` SIGINT while only a `ze-oneshot` helper ran, before the VPP container, so it did not prove AC-15 for that proof. The closure rerun on 2026-10-21 23:06 (f5ea135dd3 tree) did: `ze-vpp-iface-94426` (`ligato/vpp-base:latest`) carried the `ze.lab` labels and run id `ZSV3YXHS5QGNDI4ZQE3YWGTUCO`; one SIGINT after `Ze running`; le exited 1 with `error: stage explicit ze configuration: docker exec ze-vpp-iface-94426 was canceled ... context canceled` and printed no `OK`, `FAIL` or `SKIP` line; for that run id `docker ps -a` and `docker network ls` printed headers only, `docker image ls` nothing; `cleanup dry`: `cleanup: no Ze lab resource on this Docker daemon`. Recorded in `plan/spec-lab-docker-cleanup-on-macos.md`, Evidence row "AC-8 `vpp-iface-test` (closure rerun)" (ec2095fcb4).
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -509,14 +509,137 @@ N-A: tooling.
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-ze-image-docker-host.md` only, in the same `./le commit create` script
 
+## Implementation Summary
+
+### What Was Implemented
+- A second gokrazy instance, `gokrazy/docker-host` (config.json, builddir pins, `binaries.json`), built on Ze's runtime kernel through `instance.Prepare` (now taking the instance name) and gok, with no `cmd/ze` and no baked machine id.
+- `cmd/ze-docker-host` and `internal/appliance/dockerhost`: cidata parsing and validation, accounts, sudoers, writable `/etc` and overlays, user-data share mounts with the `/mnt` and `/Users` seal, binfmt_misc, machine id on `/perm`, sshd, a supervisor for containerd, dockerd (fixed argv, `--host-gateway-ip` from Colima's drop-in) and the Lima guest agent, the `systemctl` shim, the restart refusal, then Lima's own `boot.sh`.
+- Kernel: `VSOCKETS`, `VIRTIO_VSOCKETS`, `INET_UDP_DIAG`, `VIRTIO_FS`, `MACVTAP`, `VHOST_NET`, `BINFMT_MISC`, `VIRTIO_CONSOLE` in `runtime.config` and `runtime.require`.
+- `./le setup docker-host build|start|stop|check` (`internal/le/setup/dockerhost`): pinned fetch with sha256 refusal, static OpenSSH, sudo and iptables built in the digest-pinned Alpine builder as an interoplab one-shot, extra-files tar, image key, `/perm` formatted at the offset read from the GPT, Colima `ze` profile with recreate-on-new-key and a lock.
+- macOS lab endpoint: `dockerhost.Environment` names only `~/.colima/ze/docker.sock` (no `default` fallback); every interoplab docker call goes through `Docker.run`, which answers the endpoint refusal first; the kernel-check route text names `./le setup docker-host start`.
+- `./le test qemu docker-lab` boots the docker-host image (own ISO 9660 cidata writer, 9p shares at host paths, `ssh -L` to dockerd's socket) and runs the lab from the host le; the Alpine docker-lab path, the guest le and `ZE_DOCKER_LAB_GUEST` are deleted.
+- The QEMU SSH free-port probe binds the address QEMU's forward binds, and a failed boot keeps `qemu-errors.log` (2039ca1e77, 135308541f).
+
+### Bugs Found/Fixed
+- busybox `modprobe` rescanned every module on a read-only squashfs (48 to 86 s of boot): tmpfs overlay on `/lib/modules`, `TestModprobeIndexDirIsWritable`.
+- gokrazy web server listened on TCP 80: `Update.NoPassword` (78c7ebcca3).
+- runc refused a rootfs under the `/var` symlink: dockerd and containerd on real `/perm` paths.
+- Colima bound tmpfs trees over `/var/lib/docker` through a writable `/mnt`: the seal, `TestShareRootsSealedReadOnlyAfterTheShares`.
+- gok left the process in a removed cwd: `TestKeepWorkingDirRestoresAfterAChdir` (d77624fe86).
+- `vpp-iface-test` fixtures put `address` under `unit`, and a Ctrl-C printed a FAIL: `TestAnInterruptedScenarioEndsWithTheInterruption` (7a98e14ab6).
+- `Hugepages.applianceEnv` and two kernel-check calls ignored the Docker endpoint selection: `TestApplianceEnvRefusesWithoutTheZeProfile`, `TestDockerAnswersTheEndpointRefusalBeforeAnyCommand`.
+- Review rounds 1 to 5 findings: the Review Gate table below.
+
+### Documentation Updates
+- `docs/architecture/appliance/docker-host.md` (new), `build-artifacts.md`, `gokrazy-build-pins.md`, `appliance/README.md`, `docs/guide/appliance.md`, `docs/guide/developer-setup.md`, `docs/architecture/testing/qemu-integration.md`, `interop.md`, `ci-workflows.md`, `runner-architecture.md`, `ai/INDEX.md`, the platform-linux QEMU-path rule point; each in the phase that changed the behavior (commit list in Files from Plan).
+- Closure: `docker-host.md` no longer cites this spec and now states why the builder uses musl and not glibc (D-13).
+- `./le doc check verify` on 2026-10-22: exit 1, every refusal (50) in the published-site command catalog under `../gh-pages/` and `../wiki/` (`request peer enable|disable|notify`, `clear bgp rib advertised`), none naming a file of this spec; source anchors, rules and discovery stages pass.
+
+### Deviations from Plan
+- AC-1: `LIMA_HOME` under `~/.cache/ze/`, not the session scratch (Lima's socket paths exceed `UNIX_PATH_MAX` there); systemd-boot cannot reach the serial log, so the kernel banner proves the EFI boot.
+- AC-2: Storage Driver `overlayfs` (containerd snapshotter), not `overlay2`.
+- D-5: dockerd's iptables backend with static legacy iptables, not nftables (A-5 broken).
+- D-10: Ze's own ISO 9660 cidata writer, not go-diskfs or vfat.
+- Package `internal/le/setup/dockerhost`, not `dockerhostimage`; no `limacheck.go`: AC-1 ran `limactl` by hand once and the boot contract is held by the Colima and QEMU routes since.
+- AC-6: the AC-1 Lima instance was deleted in Phase 1; each recreated `ze` instance (K1 to K4) stands in, each with its own machine id.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3: gokrazy's 1 MB tmpfs `/etc` could be remounted larger | on a squashfs root `/etc` is the read-only root; the tmpfs exists only in `mountCompat` | first vz boot: remount `invalid argument` | `mountWritableEtc` snapshots and remounts |
+| assumption | A-5: static dockerd's nftables backend needs no binary | the static build execs `nft` (`nft_exec_linux.go` `preflight`) | Phase 2 read of moby at `docker-v29.9.2` | D-5 changed to legacy iptables |
+| assumption | A-14: `CONFIG_VHOST_NET=y` resolves alone | Kconfig caps it at `TAP`, `m` on arm64 through `MACVTAP=m` | Phase 1 kernel build refusal | `CONFIG_MACVTAP=y` added |
+| approach | `LIMA_HOME` in the session scratch | socket paths overflow 104 bytes | `limactl start` refused | short directory under `~/.cache/ze/` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One image from Ze's kernel and system with dockerd | Done | `gokrazy/docker-host/`, `cmd/ze-docker-host/main.go`, `internal/appliance/dockerhost/` | G-1 |
+| Boots as Colima profile `ze`, `default` untouched | Done | `internal/le/setup/dockerhost/colima.go` | G-2, AC-2, AC-7 |
+| Replaces Alpine in the QEMU docker-lab guest | Done | `internal/le/test/qemu/dockerlab.go`, `cidata.go` | G-4, AC-9, AC-10 |
+| `./le setup` builds the image and wires the profile | Done | `internal/le/setup/dockerhost/register.go`, `build.go` | AC-5, AC-7 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Phase 1 evidence (2026-10-21 15:42, `limactl` vz) | `LIMA_HOME` location corrected (Deviations) |
+| AC-2 | Done | Phase 3 AC-2 re-check on K4 | `overlayfs` (Deviations) |
+| AC-3 | Done | Phase 3: `verdict pass`, 20 rows present | |
+| AC-4 | Done | runtime.config/require; arm64 build; amd64 config (7ed46cac0d) and build 2026-10-22 | `TestHostDependencyOptionsAreInTheRuntimeProfile` |
+| AC-5 | Done | Phase 3 three runs | |
+| AC-6 | Changed | Phase 3: same id across stop/start, new boot id | AC-1 instance replaced by K1 to K4 (Deviations) |
+| AC-7 | Done | Phase 3 K1 to K4 argvs; `TestDockerHostStartRecreatesProfileOnNewImage` | |
+| AC-8 | Done | Phase 4 (a) real run; (b) `TestEnvironmentRefusesWithoutTheZeSocket` | |
+| AC-9 | Done | arm64 HVF 2026-10-21 18:06; amd64 KVM 2026-10-22 10:43 | |
+| AC-10 | Done | Phase 5, 2026-10-21 19:33 | |
+| AC-11 | Done | Phase 2 evidence; `TestSystemctlShimLimaAndColimaVerbs` | |
+| AC-12 | Done | Phase 2 (seed, `TestContainerdConfigSeeded`); Phase 3 AC-2 start exit 0 | the backup file was not listed in the guest. Shown from source instead: Colima 0.10.3 `provisionContainerd` (`environment/container/docker/containerd.go`) runs `sudo cp /etc/containerd/config.toml /etc/containerd/config.colima.bak.toml`, writes its own config, restarts containerd, and `Provision` returns that step's error unlike the warn-only daemon.json steps, so `colima start` exits 0 only after the backup succeeded |
+| AC-13 | Done | Phase 6 run 1 | |
+| AC-14 | Done | Phase 6 run 1 | |
+| AC-15 | Done | `vpp-test` Phase 6 run 1; `vpp-iface-test` closure rerun 2026-10-21 23:06 | sibling spec evidence row |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPrepareTakesTheInstanceName` | Done | `internal/appliance/instance/prepare_test.go` | |
+| `TestDockerHostBuildActionBuildsTheInstance` | Done | `internal/le/setup/dockerhost/build_action_test.go` | |
+| `TestDockerHostBuildRefusesAChecksumMismatch`, `TestDockerHostBuildKeyIsStable` | Done | `internal/le/setup/dockerhost/build_test.go` | |
+| `TestDockerHostStartRecreatesProfileOnNewImage`, `TestDockerHostNeverNamesTheDefaultProfile`, `TestDockerHostStartTakesTheLock` | Done | `internal/le/setup/dockerhost/colima_test.go` | |
+| `TestEnvironmentSelectsTheZeProfileSocket` | Done | `internal/le/dockerhost/dockerhost_test.go` | |
+| `TestKernelCheckRouteNamesDockerHostSetup` | Done | `internal/le/interoplab/kernelcheck_test.go` | |
+| `TestCidataParsesLimaFiles`, `TestDockerHostBootSequenceOverATempRoot`, `TestSystemctlShimLimaAndColimaVerbs`, `TestSupervisorDockerdArgv` | Done | `internal/appliance/dockerhost/` | |
+| `TestDockerLabBootsTheDockerHostImage`, `TestDockerLabWritesCidata` | Done | `internal/le/test/qemu/dockerlab_test.go`, `cidata_test.go` | |
+| `TestHostDependencyOptionsAreInTheRuntimeProfile` | Done | `internal/le/setup/dockerkernel/hostdeps_test.go` | |
+| `TestDockerHostAreaIsRegistered` | Done | `internal/le/setup/dockerhost/register_test.go` | |
+| Boundary rows (uid, vsock port, image size) | Done | `cidata_test.go` (65534/65535, 4294967295/4294967296), `build_action_test.go` `TestDockerHostBuildSizeBounds` (1, 2, 1024, 1025) | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `gokrazy/kernel/runtime.config`, `runtime.require` | Done | 81fab69967 and later |
+| `internal/appliance/instance/prepare.go` and its callers | Done | callers are `internal/appliance/kernelargs.go` and `internal/le/build/gokrazy/gokrazy.go` (not `cmd_build.go`) |
+| `internal/le/build/gosum/gokrazygosum.go` | Done | every `gokrazy/*/builddir/` |
+| `internal/le/dockerhost/dockerhost.go`, `internal/le/interoplab/kernelcheck.go` | Done | af4c0708ed, f5ea135dd3 |
+| `internal/le/test/qemu/dockerlab.go`, `guestle.go`, `cidata.go` | Done | 08f66e5450, ca386b6ae3 |
+| `internal/le/setup/dockerkernel/dockerkernel_apparmor_colima.go` | Done | af4c0708ed |
+| `gokrazy/docker-host/`, `cmd/ze-docker-host/main.go`, `internal/appliance/dockerhost/`, `internal/le/setup/dockerhost/` | Done | `limacheck.go` not written (Deviations) |
+| Documentation rows | Done | `docs/labs/l2tp-interop.md` and `pppoe-interop.md` needed no edit: their only docker-lab lines say Ze's kernel builds the modules in, still true |
+| Append-only pointers in four sibling specs | Done | efe381cedc; the closure repoints them at the bare stem |
+
+### Audit Summary
+- **Total items:** 4 requirements, 15 ACs, 16 planned tests, 9 file groups
+- **Done:** all but AC-6 (Changed)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-6 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 image runs dockerd and meets the Colima/Lima contract | real boot | AC-1 (`limactl` Running, `boot-done` = instance id, `7.2.9-ze`); AC-2 (`colima list` Running, `docker info` `7.2.9-ze overlayfs cgroup=2`, user and sudo `docker info`); AC-11 shim exit codes in the guest |
+| G-2 `./le setup` builds per arch and runs profile `ze`, never `default` | real run + recorder test | AC-5 three runs; AC-7 K1 to K4 argvs all `--profile ze`; `default`'s `colima list --json` line identical before and after; arm64 and amd64 images built (`~/.cache/ze/docker-host/amd64/222b74c3de6cf465/docker-host.img`, 17179869184 bytes apparent, 207148 KiB on disk) |
+| G-3 darwin labs target `ze` and refuse without it | real run + unit test | AC-8 (a) `env -u DOCKER_HOST ./le setup docker-kernel check` `verdict pass` against `7.2.9-ze` with the context on Ubuntu; (b) `TestEnvironmentRefusesWithoutTheZeSocket` over a live `default` socket |
+| G-4 docker-lab boots the same image, host-driven, no Alpine | real run both arches | AC-9 arm64 HVF and amd64 KVM `check-exit 0`, alpine-iso mtime unchanged, image sha256 unchanged; AC-10 one Ctrl-C, `left behind: none`; `grep alpine\|apk\|rc-service dockerlab.go` empty |
+| G-5 the waiting spec's AC-2, AC-6, AC-8 pass on `ze` | real run | AC-13, AC-14, AC-15 (Phase 6 and the `vpp-iface-test` closure rerun); recorded PASS in `plan/spec-lab-docker-cleanup-on-macos.md` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is demonstrated; the remaining Alpine `Run` guests are out of scope (Known Limitations) and journaled in `plan/journal/gate-verdict-depends-on-the-machine.md` | - |
+
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
-| `./le spec review check` | not run |
-| Rounds | 5 (round 5: 0 BLOCKER, 1 ISSUE, fixed; the round-5 fix is unreviewed: the session's five rounds are spent) |
-| Reviewer lenses used | |
+| Artifact | `tmp/review/ze-image-docker-host-784ca18b-e72a-4540-a80e-0799d9ad4aaf.md` (98 code files, verdict clean, rounds 6 with `rounds-reason` and `owner-authorised`) |
+| `./le spec review check` | `review_gate: OK (4 code files, clean, hashes match ...)` over commit A's files |
+| Rounds | 6. Rounds 1 to 5 each found ISSUEs (round 1: 7 ISSUE and the tier BLOCKER; round 2: the product defects R2-1 missing docker CLI preflight, R2-2 untestable restart refusal, R2-3 share refusal unproven at the entry point; rounds 3 to 5: one ISSUE each, all in the SSH forward text). Round 6 is the closing review of the round-5 fix, ordered by the owner on 2026-10-22: 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | logic and wiring, security and edge cases (cidata validation, sudoers, supply chain), test discrimination (red on revert), user-facing errors, style pass over the changed Go, documentation against source |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -561,8 +684,93 @@ Round 2 reviewed only the round-1 fixes: a02b362081, 2b98d538dc, 02fa09c15f, c0b
 
 Round 3 reviews only the round-2 fixes: 2ed28efa6e, 135308541f.
 
-A closing review owes only the round-5 fix: `qemu: state how each ssh client reaches the loopback SSH forward`.
-
 Round 4 reviews only the round-3 fixes: bd9432b616.
 
 Round 5 reviews only the round-4 fixes: `qemu: correct the cross-address SSH forward direction`.
+
+A closing review owes only the round-5 fix: `qemu: state how each ssh client reaches the loopback SSH forward`.
+
+### Run 6 (closing review, owner-ordered 2026-10-22, the final clean run)
+
+Scope: 130c250c91 (`qemu: state how each ssh client reaches the loopback SSH forward`), the round-5 fix, by a reviewer that wrote none of it. Result: **0 BLOCKER, 0 ISSUE, verdict pass.**
+
+| # | Severity | Finding | Location | Outcome |
+|---|----------|---------|----------|---------|
+| C-1 | NOTE | the probe-release error says a fixed SSH port skips the probe, and it also covers install-test's web-port probe, which `ze.install.ssh.port` does not skip | `qemu/run.go` `sshPortFree` | no change: the case needs a held web port beside a fixed SSH port, and the message still names the problem and a fix that frees the SSH half |
+| C-2 | NOTE | the "A closing review owes only the round-5 fix" line sat before the round 4 and round 5 scope lines | this spec | fixed in the closure commit: moved after them |
+
+## Pre-Commit Verification
+
+Owner directive 2026-10-22: this host is too busy for full testing, so `./le verify worktree`, `./le verify current`, `./le test unit all` and `./le test functional gating` were NOT run for this closure. They are owed, carried by the commit tool's verification debt (`structural-red-ok`). The evidence below is what was run instead, on 2026-10-22 over the closure tree.
+
+| Gate | Result |
+|------|--------|
+| `./le job run label unit-pkg command go test ./internal/appliance/dockerhost/... ./internal/appliance/instance/... ./internal/le/setup/dockerhost/... ./internal/le/dockerhost/... ./internal/le/test/qemu/... ./internal/le/setup/dockerkernel/... ./cmd/ze-docker-host/... -count=1` | all `ok` (`cmd/ze-docker-host` has no test files) |
+| `go test ./internal/le/interoplab/ -run 'TestKernelCheckRouteNamesDockerHostSetup\|TestDockerAnswersTheEndpointRefusalBeforeAnyCommand\|TestBuildToolDocker'` under `./le job run` | 3 PASS (the package carries another session's uncommitted `docker.go` and `sourcepin.go`, so only this spec's tests were judged) |
+| `./le arch tier check` | exit 0, `OK: no code outside internal/le/interoplab execs docker.` (red only in the 2026-10-19 verify run) |
+| `./le arch iface-resolution` | `iface-resolution: OK` (red only in the 2026-10-19 verify run) |
+| `./le doc check verify` | exit 1 on 50 published-site command-catalog refusals under `../gh-pages/` and `../wiki/`, none naming a file of this spec |
+| `gofmt -l` over the four Go files the closure edited (comment lines only) | empty |
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `gokrazy/docker-host/config.json`, `binaries.json`, `builddir/` | yes | `ls gokrazy/docker-host/` → `binaries.json builddir config.json` (plus `extrafiles_amd64.tar`, ignored by `.gitignore`) |
+| `cmd/ze-docker-host/main.go` | yes | `ls cmd/ze-docker-host/` → `main.go` |
+| `internal/appliance/dockerhost/` | yes | `ls` lists `boot.go cidata.go supervise.go systemctl.go` and 19 more with tests |
+| `internal/le/setup/dockerhost/` | yes | `ls` lists `register.go build.go fetch.go colima.go lock.go perm.go static.go` and tests |
+| `internal/le/test/qemu/cidata.go`, `docs/architecture/appliance/docker-host.md` | yes | `ls` prints both |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4 | each option in both files | `grep -c '^CONFIG_<X>=y' runtime.config` = 1 for `VSOCKETS VIRTIO_VSOCKETS INET_UDP_DIAG VIRTIO_FS VHOST_NET BINFMT_MISC VIRTIO_CONSOLE`; `runtime.require` lists each, with `MACVTAP` |
+| AC-5 | amd64 image cached and sparse | `ls -ls ~/.cache/ze/docker-host/amd64/222b74c3de6cf465/docker-host.img` → 207148 KiB, 17179869184 bytes |
+| AC-7, AC-8, AC-11 | recorder and unit tests | package run above: `internal/le/setup/dockerhost`, `internal/le/dockerhost`, `internal/appliance/dockerhost` ok |
+| AC-9, AC-10 | no Alpine path | `grep -n "alpine\|apk\|rc-service" internal/le/test/qemu/dockerlab.go` empty; `git grep ZE_DOCKER_LAB_GUEST\|inDockerLabGuest -- '*.go'` empty |
+| AC-8 | no `default` candidate | `grep -n 'colima", "default"' internal/le/dockerhost/dockerhost.go` empty |
+| AC-1 to AC-3, AC-6, AC-12 to AC-15 | real runs on the Mac | pasted under Implementation Steps (Phases 1 to 6) and the sibling spec's evidence row; Mac-only, not re-runnable on this host |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le setup docker-host build/start` | none (le has no `.ci` harness) | `TestDockerHostAreaIsRegistered` runs the area through `leroot`'s dispatcher; `TestDockerHostBuildActionBuildsTheInstance`, `TestDockerHostStartRecreatesProfileOnNewImage` ok; real runs AC-5, AC-7 |
+| darwin Docker lab | none | `TestEnvironmentSelectsTheZeProfileSocket`, `TestKernelCheckRouteNamesDockerHostSetup` ok; real run AC-8 (a) |
+| `./le test qemu docker-lab` | none | `TestDockerLabBootsTheDockerHostImage` ok; real runs AC-9 both arches, AC-10 |
+| guest boot and shim | none | `TestDockerHostBootSequenceOverATempRoot`, `TestSystemctlShimLimaAndColimaVerbs` ok; real boots AC-1, AC-2, AC-11 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | vz booted the image from its EFI partition (Phase 1) |
+| A-2 | confirmed | hvc0 under vz (Phase 1); ttyS0 under QEMU amd64: AC-9 amd64 guest console holds the kernel banner |
+| A-3 | broken | `mountWritableEtc`; Mistake Log |
+| A-4 | confirmed | `overlayfs` snapshots on ext4 `/perm` (driver name corrected, Deviations) |
+| A-5 | broken | legacy iptables backend; Mistake Log, D-5 |
+| A-6 | confirmed | Rosetta ran `ligato/vpp-base` (Phase 6) |
+| A-7 | confirmed | `OpenSSH_9.9p2, without OpenSSL`, ED25519 login, unix-socket forward |
+| A-8 | confirmed | every Lima script ran but the R-2 `20-rootless-base.sh`; modprobe delay fixed |
+| A-9 | confirmed | setuid sudo `-rwsr-xr-x`, `sudo -n id` uid 0 |
+| A-10 | confirmed | from Lima 2.2.1 and continuity v0.5.0 source (clonefile), not measured by `du`; assumption row |
+| A-11 | confirmed | `hello-world` survives stop and start with `/mnt` sealed |
+| A-12 | confirmed | owner ruling D-13 |
+| A-13 | confirmed | Lima resolver `192.168.5.2` resolved and pulled by name |
+| A-14 | broken | `CONFIG_MACVTAP=y`; Mistake Log |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docker-host.md` builder paragraph (musl over glibc) | `internal/le/setup/dockerhost/static.go` `staticRecipe` builds in the pinned Alpine image | yes |
+| `docker-host.md` no longer cites this spec | `git grep -n "plan/spec-ze-image-docker-host" -- docs` empty after the edit | yes |
+| `docs/labs/l2tp-interop.md`, `docs/labs/pppoe-interop.md` docker-lab lines | both say Ze's kernel builds the modules in, so docker-lab needs none: the guest kernel is still Ze's runtime kernel | yes, no edit |
+| Source anchors | `./le doc check verify` source-anchor stage passes | yes |
+
+### Security Review (closure, against the Security Review Checklist)
+| Check | Producer | Result |
+|-------|----------|--------|
+| Input validation | `internal/appliance/dockerhost/cidata.go` `validate`, `reservedAccounts` | user, hostname, home, shell and comment checked against strict patterns, `:` and line breaks refused, uid 1 to 65534 and not reserved, vsock port bounded (`TestCidataRefusesUnsafeValues`, boundary rows); review R1-2, R1-11 |
+| Privilege | `accounts.go` (sudoers line for the cidata user only); `guest_linux.go` sshd config `PermitRootLogin no`, `PasswordAuthentication no`, `KbdInteractiveAuthentication no`; the shim's control socket checks the peer uid (`peeruid_linux.go`) | holds |
+| Supply chain | `internal/le/setup/dockerhost/fetch.go` `Fetcher.Fetch` refuses a sha256 mismatch before use; builder image pinned by digest in `binaries.json` | holds; the builder's `apk add` from Alpine's live repository is unpinned, journaled (`plan/journal/gate-verdict-depends-on-the-machine.md`, review R1-8) |
+| Exposure | dockerd argv `--host=unix:///var/run/docker.sock` only (no `tcp://` in the package); QEMU forward `StreamLocalBindMask=0177` (`dockerlab.go`), mode checked after creation | holds; the forward lives under `<checkout>/tmp/qemu/docker-lab-<n>/`, not the session scratch (Phase 5 decision: socket path length) |
+| Resource | `supervise.go` backoff 1 s doubling to 30 s, reset after a stable run | holds; stop during backoff fixed in R1-1 |
+| Injection, path traversal | cidata names never reach a shell; account files are written from validated values; share targets refused outside writable roots (`refuseUnmountableShare`, R1-4) | holds |

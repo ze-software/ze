@@ -554,7 +554,7 @@ func TestPrepareBindsCanonicalVendorSources(t *testing.T) {
 // TestPrepareTakesTheInstanceName verifies Prepare copies the instance the
 // caller names, and refuses a name that is empty or is not one directory.
 //
-// VALIDATES: plan/spec-ze-image-docker-host.md Phase 1, a second instance
+// VALIDATES: spec-ze-image-docker-host Phase 1, a second instance
 // (gokrazy/docker-host) prepared through the same function as gokrazy/ze.
 // PREVENTS: a build of one instance silently preparing the other, and a name
 // that escapes the parent dir.

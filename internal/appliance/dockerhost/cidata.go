@@ -5,7 +5,7 @@
 // gokrazy starts as /user/ze-docker-host does cloud-init's part of the Lima
 // guest contract (users, keys, hostname, mounts), supervises the guest's
 // services, answers `systemctl` for Lima's and Colima's scripts, and then runs
-// Lima's own boot.sh under busybox (plan/spec-ze-image-docker-host.md, D-3).
+// Lima's own boot.sh under busybox (docs/architecture/appliance/docker-host.md).
 package dockerhost
 
 import (

@@ -11,7 +11,7 @@ import (
 // TestCidataParsesLimaFiles verifies the cidata reader takes what the boot
 // needs from the files Lima writes: lima.env, meta-data and user-data.
 //
-// VALIDATES: plan/spec-ze-image-docker-host.md Phase 1, D-3 (cloud-init's
+// VALIDATES: spec-ze-image-docker-host Phase 1, D-3 (cloud-init's
 // part done in Go). Method: parse the fixture copied from a Lima 2.2.1 render.
 // PREVENTS: a user, key or mount Lima sends being dropped before the boot
 // writes passwd, authorized_keys or mounts.

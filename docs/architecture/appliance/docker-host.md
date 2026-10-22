@@ -4,8 +4,8 @@ Ze's lab Docker host is a gokrazy image built from Ze's runtime kernel and a
 second instance, `gokrazy/docker-host`. It boots as a Lima/Colima guest on
 macOS (the `ze` Colima profile) and as the QEMU `docker-lab` guest, so every lab
 Docker daemon runs on Ze's kernel and Ze's system (owner decisions M1 and M10 in
-`ai/META-DECISIONS.md`). The design and its acceptance criteria are in
-`plan/spec-ze-image-docker-host.md`; this page describes what is built.
+`ai/META-DECISIONS.md`). This page describes what is built; the design was
+spec-ze-image-docker-host, closed on 2026-10-22, whose record is in git history.
 
 ## The instance
 
@@ -218,7 +218,11 @@ cache and leave this one refused. Otherwise, in this order:
    mismatch refuses before anything is written;
 2. OpenSSH, sudo and legacy iptables are built as static musl binaries in the
    pinned Alpine builder container (`staticRecipe`), cached under
-   `<arch>/static-<key>/`. The container is an interoplab one-shot
+   `<arch>/static-<key>/`. musl, not glibc: a static musl binary reads
+   `/etc/passwd` and `/etc/group` itself, while a static glibc binary still
+   loads NSS libraries for `getpwnam` and `initgroups`, which the image does
+   not carry, so sshd and sudo would fail at the Lima user's login. Nothing
+   from that container runs in the guest except the binaries it outputs. The container is an interoplab one-shot
    (`interoplab.NewBuildToolDocker`, `RunOneShot`), the one route to the
    `docker` binary, and runs on the daemon the CLI reaches by this process's
    own environment (`DOCKER_HOST` or the current context): it is a build tool,

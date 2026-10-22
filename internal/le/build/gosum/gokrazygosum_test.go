@@ -293,7 +293,7 @@ func TestAnswerReportsTheTreeItJudges(t *testing.T) {
 // instance's builddir is read, the docker-host instance's as well as the
 // appliance's, and that paths outside a builddir are not.
 //
-// VALIDATES: plan/spec-ze-image-docker-host.md Phase 1, the second instance
+// VALIDATES: spec-ze-image-docker-host Phase 1, the second instance
 // carries pins the gate checks.
 // PREVENTS: a docker-host pin drifting from the root module unnoticed.
 func TestEveryInstanceBuilddirIsJudged(t *testing.T) {
