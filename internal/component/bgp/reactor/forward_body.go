@@ -238,7 +238,8 @@ func buildFwdBody(
 		// across this loop's destinations, so the common single-field UPDATE costs one
 		// bool read and keeps the raw append below. The copy has the source's shape
 		// byte for byte, so the source's cached verdict is the copy's verdict.
-		if updateSize > maxMsgSize || peerWire.MixesNLRIFields() {
+		switch {
+		case updateSize > maxMsgSize || peerWire.MixesNLRIFields():
 			srcCtx := bgpctx.Registry.Get(srcCtxID)
 			maxBodySize := maxMsgSize - message.HeaderLen
 			// The splitter reads a WireUpdate, so the rewritten payload gets one
@@ -257,7 +258,7 @@ func buildFwdBody(
 			for _, split := range splits {
 				result.rawBodies = append(result.rawBodies, split.Payload())
 			}
-		} else if peerWire.MPAttributesTrail() {
+		case peerWire.MPAttributesTrail():
 			// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
 			// present) SHALL be encoded as the very first path attribute in an UPDATE
 			// message." Ze is the sender of what it relays, so a sender that put the MP
@@ -274,7 +275,7 @@ func buildFwdBody(
 			returnReadBuffer(ownedBuf)
 			ownedBuf = reorderBuf
 			result.rawBodies = append(result.rawBodies, reordered)
-		} else {
+		default:
 			result.rawBodies = append(result.rawBodies, bodyOut)
 		}
 	} else {
@@ -308,19 +309,20 @@ func buildFwdBody(
 		// ze's own composition -- fwdUpdateForDestination rebuilt its sections for the
 		// destination context -- so emitting a mixed shape here is the plainer violation
 		// of the two.
-		if destUpdate.Len(nil) > maxMsgSize || destUpdate.MixesNLRIFields() {
+		switch {
+		case destUpdate.Len(nil) > maxMsgSize || destUpdate.MixesNLRIFields():
 			splitErr := fwdSplitParsedUpdate(destUpdate, maxMsgSize, peer.sendContext(), &result)
 			if splitErr != nil {
 				fwdLogger().Warn("forward split failed", "peer", peerAddr, "err", splitErr)
 				return result, false
 			}
-		} else if peerWire.MPAttributesTrail() {
+		case peerWire.MPAttributesTrail():
 			// RFC 7606 Section 5.1, as in the raw branch above. The re-encode keeps the
 			// source's attribute order (fwdReencodeMPAttributes re-frames in place and
 			// wireu.TranscodeASPath appends AS4_PATH last), so the source's cached verdict
 			// is this UPDATE's verdict and a compliant one pays one bool read.
 			result.updates = append(result.updates, fwdMPFirstUpdate(destUpdate))
-		} else {
+		default:
 			result.updates = append(result.updates, destUpdate)
 		}
 	}

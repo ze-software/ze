@@ -281,7 +281,7 @@ func TestPeerSelectorNamePriority(t *testing.T) {
 //
 // VALIDATES: a KindAddrs selector matches a peer by its address whatever port
 // keys it, as the single-address selector already does.
-// PREVENTS: an ExaBGP script with two neighbours on a test port (the bridge sends
+// PREVENTS: an ExaBGP script with two neighbors on a test port (the bridge sends
 // `send bgp <a>,<b> ...`) answered "no peers match selector" for peers that exist.
 func TestPeerSelectorAddrListOnNonDefaultPort(t *testing.T) {
 	r := New(&Config{})

@@ -82,7 +82,7 @@ func departureMPUnreach(t *testing.T, attrs []byte) []byte {
 }
 
 // TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility departs a
-// source whose labelled route (VPN, SAFI 128, and labelled unicast, SAFI 4)
+// source whose labeled route (VPN, SAFI 128, and labeled unicast, SAFI 4)
 // carries three labels, through bgp-rr's own peer-down command form
 // (sendPeerDown): native announcement hex, with and without the source's
 // ADD-PATH framing, parsed by the real hex parser. The destination negotiated
@@ -136,7 +136,7 @@ func TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility(t *testing.T
 				updates := recoveryWrittenUpdates(t, conn.written()[setup:])
 				require.Len(t, updates, 1, "the departure withdraws the route once")
 				value := departureMPUnreach(t, updates[0].PathAttributes)
-				require.NotNil(t, value, "a labelled withdrawal travels in MP_UNREACH_NLRI")
+				require.NotNil(t, value, "a labeled withdrawal travels in MP_UNREACH_NLRI")
 				// RFC 4760 Section 4: [AFI:2][SAFI:1][Withdrawn Routes].
 				require.Equal(t, []byte{byte(fam.AFI >> 8), byte(fam.AFI), byte(fam.SAFI)}, value[:3])
 				require.Equal(t, departureWithdrawalNLRI(fam), value[3:],

@@ -4,7 +4,6 @@
 package reactor
 
 import (
-	"context"
 	"io"
 	"net"
 	"net/netip"
@@ -23,7 +22,7 @@ import (
 // countingListener accepts and closes every connection, counting them.
 func countingListener(t *testing.T) (uint16, *atomic.Int32) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
 	var conns atomic.Int32
@@ -76,8 +75,8 @@ func TestPeerShutdownContainerHoldsUntilEnable(t *testing.T) {
 	assert.True(t, peer.AdminDown())
 	require.Eventually(t, func() bool { return peer.State() == PeerStateIdleHold },
 		2*time.Second, 10*time.Millisecond, "a disabled peer parks again")
-	dialled := conns.Load()
-	assert.Never(t, func() bool { return conns.Load() > dialled },
+	dialed := conns.Load()
+	assert.Never(t, func() bool { return conns.Load() > dialed },
 		300*time.Millisecond, 20*time.Millisecond, "a disabled peer must not dial")
 }
 
@@ -88,9 +87,7 @@ func TestHoldAdminDownRejectsInboundWithCease(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.7"), 65000, 65001, 0x01010101)
 	settings.AdminShutdown.Held = true
 	peer := NewPeer(settings)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	peer.ctx = ctx
+	peer.ctx = t.Context()
 
 	done := make(chan struct{})
 	go func() {
@@ -108,7 +105,7 @@ func TestHoldAdminDownRejectsInboundWithCease(t *testing.T) {
 	require.Len(t, got, message.HeaderLen+2, "one NOTIFICATION with no data")
 	assert.Equal(t, byte(msgtype.TypeNOTIFICATION), got[18])
 	assert.Equal(t, byte(message.NotifyCease), got[19])
-	assert.Equal(t, byte(message.NotifyCeaseConnectionRejected), got[20])
+	assert.Equal(t, message.NotifyCeaseConnectionRejected, got[20])
 
 	peer.Enable()
 	select {

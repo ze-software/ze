@@ -434,7 +434,7 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 // departureOweFraming rewrites, in place, one departure NLRI into the framing
 // every owed record holds: the native announcement with a one-label stack
 // (oweAnnouncementFraming). A departure names its routes as the source
-// announced them, and a labelled route can carry a stack of several labels.
+// announced them, and a labeled route can carry a stack of several labels.
 // The withdrawal written from the record reads its label field as the one
 // Compatibility field, so a deeper stack left in the record put its lower
 // labels where the receiver reads the RD and prefix: the write keyed a route
@@ -644,7 +644,7 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
 			NLRIFraming: rpc.NLRIFramingSourceWire}
 		first := len(admission.items)
-		err := a.queueRecovery(admission.peer, &stored, fam, admission, admission.sources, sender)
+		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources, sender)
 		if errors.Is(err, errAllDestinationsSuppressed) {
 			// The forward rail refused the candidate outright (AC-25), as
 			// reflection refuses a non-client route to a non-client. RFC 4456
@@ -711,7 +711,7 @@ func recoveryStagedAnnouncement(items []fwdItem) bool {
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message."
 // Queue order retains earlier forwards before this replacement or withdrawal.
-func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) error {
+func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) error {
 	sourceAddr, err := netip.ParseAddr(route.SourcePeer)
 	if err != nil {
 		return err

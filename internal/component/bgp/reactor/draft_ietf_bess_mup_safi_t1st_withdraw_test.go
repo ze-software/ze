@@ -64,11 +64,13 @@ func holdT1STGeneration(t *testing.T, s *Session, fam family.Family, k0 []byte) 
 }
 
 // requireDecodable fails unless every NLRI of section is one the family's registered
-// recognizer keeps: the bytes a receiver decodes when Ze relays the section.
-func requireDecodable(t *testing.T, fam family.Family, section []byte, addPath bool) {
+// recognizer keeps: the bytes a receiver decodes when Ze relays the section. Every
+// caller relays a section with no ADD-PATH path identifiers.
+func requireDecodable(t *testing.T, fam family.Family, section []byte) {
 	t.Helper()
 	recognize := nlritype.Get(fam)
 	require.NotNil(t, recognize, "the mup plugin registers the recognizer")
+	const addPath = false
 	nlris, err := nlrisplit.Split(fam, section, addPath)
 	require.NoError(t, err)
 	for _, one := range nlris {
@@ -128,7 +130,7 @@ func TestMUPMalformedT1STTreatAsWithdraw(t *testing.T) {
 			withdrawn, found := mpUnreachNLRIOf(t, wu.Payload())
 			require.True(t, found, "the malformed route is withdrawn, not dropped")
 			assert.Equal(t, k0, withdrawn, "the route is withdrawn by the generation held for its key")
-			requireDecodable(t, mupFam, withdrawn, false)
+			requireDecodable(t, mupFam, withdrawn)
 		})
 	}
 
@@ -297,7 +299,7 @@ func TestMUPMalformedT1STWithdrawnByHeldGeneration(t *testing.T) {
 		withdrawn, found := mpUnreachNLRIOf(t, wu.Payload())
 		require.True(t, found)
 		assert.Equal(t, k0, withdrawn)
-		requireDecodable(t, mupFam, withdrawn, false)
+		requireDecodable(t, mupFam, withdrawn)
 	})
 
 	t.Run("received malformed withdrawal with no generation held", func(t *testing.T) {
@@ -358,7 +360,7 @@ func TestMUPMalformedT1STWithdrawnByHeldGeneration(t *testing.T) {
 		withdrawn, found := mpUnreachNLRIOf(t, wu.Payload())
 		require.True(t, found)
 		assert.Equal(t, append(append([]byte{}, long2...), long4...), withdrawn)
-		requireDecodable(t, mupFam, withdrawn, false)
+		requireDecodable(t, mupFam, withdrawn)
 	})
 }
 
@@ -400,7 +402,7 @@ func TestMUPHeldGenerationWithdrawalsFitTheMessageLimit(t *testing.T) {
 		relayed = append(relayed, nlri...)
 	}
 	assert.Equal(t, held, relayed, "every held generation once, in order")
-	requireDecodable(t, mupFam, relayed, false)
+	requireDecodable(t, mupFam, relayed)
 }
 
 // TestMUPHeldGenerationRefreshAllocatesNothing pins the steady path: a peer

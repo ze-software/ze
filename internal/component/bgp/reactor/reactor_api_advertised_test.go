@@ -45,7 +45,7 @@ func TestAdjOutWithdrawalNLRIUnicast(t *testing.T) {
 	require.Equal(t, raw, wire)
 }
 
-// TestAdjOutWithdrawalBatches proves the snapshot is per family, honours the
+// TestAdjOutWithdrawalBatches proves the snapshot is per family, honors the
 // family filter, and holds nothing for a session the table is not bound to.
 func TestAdjOutWithdrawalBatches(t *testing.T) {
 	session := &Session{}

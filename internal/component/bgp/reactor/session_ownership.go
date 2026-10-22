@@ -417,7 +417,7 @@ func adjOutContests(entry *adjRIBOutRoute, owner adjOutPath, owed, tombstoned bo
 
 // stageAnnouncementOwe stages the key's WITHDRAWAL NLRI, which a record
 // needs when the round answers WITHDRAW, written once from the native key.
-// For a labelled family the announcement carries its label stack where the
+// For a labeled family the announcement carries its label stack where the
 // withdrawal carries the Compatibility field; every other family's two
 // framings are the same bytes and raw is copied as it is. A key the writer
 // cannot convert keeps raw: the RIB still elects over it, and only the

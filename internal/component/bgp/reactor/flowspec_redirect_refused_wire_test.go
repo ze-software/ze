@@ -74,7 +74,7 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 // TestFlowSpecRedirectRefusedRouteServer runs the check end to end on the
 // route-server rail: the daemon's RIB judges the rule from EBGP client AS
 // 65002, whose redirect target 192.0.2.77 resolves to 192.0.2.0/24 with
-// AS_PATH 65002 65009. The neighbour is the client but the origin, the last
+// AS_PATH 65002 65009. The neighbor is the client but the origin, the last
 // AS, is not, so the client receives the rule without the action and with
 // the zero next-hop length. TestFlowSpecRedirectRouteServerKeepsNextHop is
 // the same path with origin 65002, where the action stands.
