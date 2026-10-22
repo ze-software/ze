@@ -125,27 +125,65 @@ took over two minutes), which is why several proofs are still open.
 | strongSwan (lab) | 5.9.14 apk | 6.1.0 source, `test/interop-ipsec/Dockerfile.strongswan` | built; charon and swanctl 6.1.0; the 40 non-certificate `swanctl.conf` load clean; CCM from aesni, from openssl without aesni | `interop-ipsec: strongSwan 6.1.0 from source` |
 | NAT box, Ze IPsec image | alpine 3.21 | alpine 3.24.3 | built; iptables 1.8.13 keeps nf_tables, as before | same |
 | FreeRADIUS | 3.2.7 | 3.2.10 by digest, `interoplab.FreeRADIUSImage` (declared once) | `-XC` OK on the 4 admin scenarios and the subscriber config; radius unit tests ok | `interop access labs: FreeRADIUS 3.2.10, ppp 2.5.4` |
-| pppd + rp-pppoe client | 2.5.1 apk | ppp 2.5.4 source, `test/interop-pppoe/Dockerfile.client` | OWED: build, `pppd --version`, `/usr/lib/pppd/2.5.4/pppoe.so` present | same |
-| xl2tpd + pppd LACs | 1.3.18 / 2.5.1 | 1.3.20 / 2.5.4 source, both LAC Dockerfiles with the same pins | OWED: build, `xl2tpd -v`, `pppd --version`, pppol2tp.so present | same |
-| accel-ppp | 1.13.0 | 1.14.0, the Alpine 3.24 package | OWED: build, `accel-pppd -V` | same |
+| pppd + rp-pppoe client | 2.5.1 apk | ppp 2.5.4 source, `test/interop-pppoe/Dockerfile.client` | first build failed: scanelf prints an empty NEEDED line for a file that links nothing, which became a bare `so:` apk refused; fixed in 8c82bd749b. Now `pppd version 2.5.4`, pppoe.so and pppol2tp.so in `/usr/lib/pppd/2.5.4` | same, plus 8c82bd749b |
+| xl2tpd + pppd LACs | 1.3.18 / 2.5.1 | 1.3.20 / 2.5.4 source, both LAC Dockerfiles with the same pins | same build defect, fixed in 8c82bd749b; both LACs: `xl2tpd-1.3.20`, `pppd version 2.5.4`, pppol2tp.so present | same, plus 8c82bd749b |
+| accel-ppp | 1.13.0 | 1.14.0, the Alpine 3.24 package | built; `accel-ppp 1.14.0` | same |
 | PPP preflight image | `alpine:3.21` three times | `interoplab.PPPProbeImage`, alpine:3.24.3 | l2tp and radiussubscriber unit ok; pppoe red `TestPPPoELabPeersRunWithoutPrivilege` ("scenario ipv6cp-missing-option has no Go checker"), red at HEAD and not this change | same |
 | Kea | 2.6.2 | 3.2.1 source (meson), `test/interop/Dockerfile.kea` | built; `-V` 3.2.1; `-t` exit 0 on both confirm configs; the renew config started and logged DHCP6_STARTED | `interop: Kea 3.2.1, keepalived 2.4.3, dnsmasq 2.93` |
-| keepalived | 2.3.1 | 2.4.3 source | built; OWED `keepalived -v` and `-t` on the two vrrp configs | same |
-| dnsmasq | 2.90 | 2.93 source | OWED: build, `dnsmasq --version`, `--test` on the 3 configs | same |
+| keepalived | 2.3.1 | 2.4.3 source | built; `Keepalived v2.4.3`; `-t` exit 0 on both vrrp configs | same |
+| dnsmasq | 2.90 | 2.93 source | built; the first image reported an empty version (busybox `sort` lacks `-V`, which `bld/get-version` needs), coreutils added in 8c82bd749b; now `Dnsmasq version 2.93`, `--test` OK on the 3 configs | same, plus 8c82bd749b |
 | QEMU guest Alpine | 3.21.3 | 3.24.3 (`AlpineVersion`, `AlpineMinor`, `internal/le/test/qemu/run.go`) | qemu unit tests ok; the ISO URL answers 200; no guest booted | `qemu: Alpine guest 3.24.3` |
 | `docker/Dockerfile.lab` | alpine:3.21 | alpine:3.24.3, docker pages follow | OWED: build | same |
-| flowexport collectors base | debian bookworm | OWED: trixie by digest | not started | none |
+| flowexport collectors base | debian bookworm | debian:trixie-slim by index digest | built (Debian 13.7); nfdump and nfcapd `1.7.10-release options: LZ4 ZSTD BZIP2`; sflowtool starts | 64280b0c3d |
 
 QEMU guest peers still behind upstream after the bump, from Alpine 3.24
 packages: strongSwan 6.0.7 (6.1.0 upstream, the mobike guest) and keepalived
 2.3.4 (2.4.3). accel-ppp 1.14.0 is current. M1 moves the guests to Ze's own
 system, which closes that gap; not done here.
 
-Scenarios, one at a time under the session's shared lock:
-`radius-admin-pap-freeradius` was started and its verdict was not read before
-the budget ran out. Owed: every scenario of interop-ipsec, interop-radius,
-interop-radius-subscriber, interop-l2tp and interop-pppoe, and the dhcp and
-vrrp scenarios of `./le test integration interop`.
+Scenarios, one at a time under the session's shared lock. The continuation
+agent's first verdicts:
+
+| Scenario | Peer | Verdict |
+|----------|------|---------|
+| `radius-admin-pap-freeradius` | FreeRADIUS 3.2.10 | first run FAIL on infrastructure only ("docker run -d did not finish within 1m0s", 13 sibling builds on the daemon); rerun PASS |
+| `radius-acct-restart-freeradius` | FreeRADIUS 3.2.10, LAC on pppd 2.5.4 / xl2tpd 1.3.20 | PASS (39s) |
+
+Still OWED, queued by the continuation agent when its budget ended and not read
+by it: `psk-site-to-site` (strongSwan 6.1.0), `dhcpv4-renew-nak-dnsmasq`,
+`dhcpv6-client-renew-kea`, `vrrp-mastership-keepalived`,
+`01-pppoe-chap-ipv4` (`docker-pppoe-accel-test`) and `01-ppp-ipv4`
+(`docker-l2tp-ppp-test`). Then the rest of each suite: interop-ipsec (50),
+interop-radius (3 more), interop-radius-subscriber (1 more), interop-l2tp (3
+more), interop-pppoe (7 more), and the other dhcp and vrrp scenarios. Selector
+variables: `IPSEC_INTEROP_SCENARIO`, `RADIUS_INTEROP_SCENARIO`,
+`RADIUS_SUBSCRIBER_INTEROP_SCENARIO`, `ZE_PPPOE_INTEROP_SCENARIO`,
+`ZE_L2TP_INTEROP_SCENARIO`, `INTEROP_SCENARIO`. No Ze defect and no lab drift
+was found in the two scenarios that ran.
+
+Other owed items, closed by the continuation agent:
+
+- The pre-existing pppoe red (`TestPPPoELabPeersRunWithoutPrivilege`,
+  "scenario ipv6cp-missing-option has no Go checker") already has its row in
+  `plan/journal/feature-test-missing-build-tag.md` (2026-10-14): it is the
+  untagged build, green with `-tags ze_l2tp`. No new row.
+- Structural red attribution: `le arch tier check` and `le arch
+  iface-resolution` both run green over the current tree, so 180dfc8b8a and
+  46f61a5937 caused no red there. The commit gate still charges them from an
+  older verify run, so 8c82bd749b and 64280b0c3d carry `structural-red-ok`
+  with that reason.
+- `docs/features.md`: rendered by `internal/le/feature` (`rebuildPage`), a
+  derived artifact `derived.EnsureAll` rebuilds when absent. Moved aside and
+  re-rendered: identical to the copy in place, so nothing was hand-edited.
+- Lab pages now name the new peers: `docs/guide/pppoe.md`,
+  `docs/labs/pppoe-interop.md` (pppd 2.5.4), `docs/guide/vrrp.md` (keepalived
+  2.4.3), `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` (QEMU guest
+  keepalived 2.3.4). Left as dated measurements, not lab descriptions: the
+  strongSwan 5.9.14 sentences in the ike pages and `docs/guide/ipsec.md` (the
+  TLS 1.3 default claim there is worth re-checking against 6.1.0), keepalived
+  2.3.1 in `docs/functional-tests.md`, xl2tpd 1.3.18 in the l2tp pages.
+- Every `ze-m14-*:test` image is removed. `ze-m14-bird-check`,
+  `ze-m14-openbgpd-check` and the rust `-check` images belong to the BGP agents.
 
 `alpine:3.21` literals left for their owners: `kernelProbeImage`
 (`internal/le/interoplab/kernelcheck.go`), the rsvpte preflight, the docker
