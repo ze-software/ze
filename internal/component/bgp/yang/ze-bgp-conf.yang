@@ -423,7 +423,7 @@ module ze-bgp-conf {
                 leaf-list cluster-list { type zt:ipv4-address; description "Each reflector prepends its cluster ID. The list detects a loop between reflectors.";
  ze:help "CLUSTER_LIST for route reflection (RFC 4456)."; }
                 leaf-list attribute { type string; description "The list carries an attribute that no named field covers.";
- ze:help "Raw BGP attributes in hex encoding, as flags:type:hex-value."; }
+ ze:help "Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ]."; }
                 container bgp-prefix-sid { presence "Prefix-SID enabled"; description "The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its
      SID without a per-prefix label allocation.";
  ze:help "Prefix-SID attribute (RFC 8669)."; }

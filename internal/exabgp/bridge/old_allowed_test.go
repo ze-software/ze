@@ -74,6 +74,8 @@ var oldAllowed = []oldAllowedRow{
 	oldAllow("4.2 5.0", `\b(origin|target):(\d+L|\d{6,}|[7-9]\d{4}|6[6-9]\d{3}|65[6-9]\d\d|655[4-9]\d|6553[6-9]):`, "",
 		"a four octet AS in a route target or origin: 5.0 sent type 0x01, an IPv4 address, this tree type 0x02 (RFC 5668); CHANGELOG"),
 	// End of the rows copied from the pin. Ze's own rows follow.
+	oldAllow("4.2 5.0", `\battribute \[ ?0x99 0x[67]0 `, "",
+		"a generic attribute of the unknown code 0x99 sent with the Optional bit clear, as a well-known attribute, and flags 0x60 or 0x70 setting the Partial bit too: RFC 4271 Section 4.3, \"For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.\" 4.2 and 5.0 sent it, this tree refuses it (textparse.CheckRawAttributeFlags)"),
 }
 
 // oldCommandAllowed reports whether a row exempts the command for the release.

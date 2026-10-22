@@ -270,3 +270,13 @@ func (c AttributeCode) FlagsConflict(flags AttributeFlags) (FlagsConflict, strin
 	}
 	return verdict, mandate
 }
+
+// WellKnown reports whether this attribute code's specification makes it a well-known
+// attribute, one whose Optional bit is fixed at 0. A code with no specification is not
+// well-known: ze holds no meaning for it, so it can only be an optional attribute.
+//
+// RFC 4271 Section 4.3: "It defines whether the attribute is optional (if set to 1) or
+// well-known (if set to 0)."
+func (c AttributeCode) WellKnown() bool {
+	return flagsSpecs[c].optional.rule == flagRuleClear
+}

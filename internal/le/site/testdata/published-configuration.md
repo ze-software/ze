@@ -784,7 +784,7 @@ A peer inherits from its group defaults. A group inherits from this global level
           The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
         - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
           The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-        - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+        - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
           The list carries an attribute that no named field covers.
         - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
           The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -1079,7 +1079,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
       - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
         The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-      - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+      - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
         The list carries an attribute that no named field covers.
       - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
         The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -1577,7 +1577,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
       - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
         The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-      - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+      - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
         The list carries an attribute that no named field covers.
       - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
         The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -1850,7 +1850,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
     - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
       The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-    - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+    - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
       The list carries an attribute that no named field covers.
     - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
       The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.

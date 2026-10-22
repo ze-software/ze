@@ -565,8 +565,8 @@ keyword and answers with the flat form to use.
 <attr-name>    := origin | med | local-preference | as-path | origin-as |
                   community | large-community | extended-community |
                   aggregator | originator-id | cluster-list | aigp |
-                  bgp-prefix-sid | bgp-prefix-sid-srv6 | next-hop |
-                  path-information | rd | label
+                  bgp-prefix-sid | bgp-prefix-sid-srv6 | attribute |
+                  next-hop | path-information | rd | label
 
 <nlri-section> := nlri [<modifier>]* <nlri-op>+ | nlri eor
                | mp <family> [<modifier>]* <nlri-op>+ | mp <family> eor
@@ -598,6 +598,7 @@ keyword and answers with the flat form to use.
 | `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
 | `bgp-prefix-sid` | `[ <index> ]` or `[ <index>, [ ( <base>,<range> ) ... ] ]` | BGP Prefix-SID (40) | RFC 8669 Sections 3.1 and 3.2 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
+| `attribute` | `[ 0x<code> 0x<flags> 0x<value> ]` | any type code, given as its wire octets | RFC 4271 Section 4.3 |
 
 An `<ec>` in `extended-community` takes one of six forms.
 
@@ -621,6 +622,64 @@ file accepts the same forms, from the same tables.
 
 Ze emits the attributes in ascending type-code order, whatever order the command
 wrote them in (RFC 4271 Section 5).
+
+`attribute` writes one path attribute from its octets. The config file's
+`attribute` is read by the same function and follows the same rules below, and
+it is the spelling of ExaBGP's generic attribute. The words come in this order: the
+type code, then the flags octet, then the value. The code and the flags are one
+octet each, written `0x` and two hex digits; the value is `0x` and an even
+number of hex digits (`0x` alone is an empty attribute). The command may carry
+several, of different codes:
+
+```
+attribute [ 0x99 0xc0 0x01020304 ] attribute [ 0x98 0xd0 0x00000064 ]
+```
+
+The flags go to the wire as written only when RFC 4271 Section 4.3 lets a
+sender write them, and every other octet is refused with the octet to write
+instead:
+
+| Refused flags | Why |
+|---------------|-----|
+| A low-order bit set (`0x01` to `0x0f`) | "They MUST be zero when sent" |
+| The Optional bit clear on a code that is not a well-known attribute | A clear Optional bit marks a well-known attribute; an unknown code can only be optional |
+| The Partial bit on a well-known or an optional non-transitive attribute | "the Partial bit MUST be set to 0" |
+| The Partial bit on a code a keyword writes (AGGREGATOR, COMMUNITIES, the extended communities, the large communities, the Prefix-SID) | Ze sends that code from its decoded value, as it sends the keyword, with the attribute's own flags, so the bit would be dropped. RFC 4271 Section 5 sets Partial on an optional transitive attribute "not attached by the originator", or one an AS passed along unrecognised; Ze originates the route and recognises the attribute |
+| Optional or Transitive bits a known attribute's specification fixes otherwise | A receiver treats the attribute as malformed (RFC 7606 Section 3(c)) |
+
+The Partial bit of an optional transitive attribute and the Extended Length bit
+are the sender's choice for a code no keyword writes. Ze sets Extended Length
+itself for a value above 255 octets. A value is at most 65535 octets, the most
+the two-octet Attribute Length holds; a longer one is refused.
+
+Three more refusals. A code Ze builds from another part of the command is
+refused by name: NEXT_HOP (3, from `next-hop`), MP_REACH_NLRI and
+MP_UNREACH_NLRI (14 and 15, from the `mp` section), AS4_PATH and AS4_AGGREGATOR
+(17 and 18, from `as-path` and `aggregator` for a peer without four-octet AS).
+A code a keyword writes (ORIGIN, AS_PATH, MED, LOCAL_PREF, ATOMIC_AGGREGATE,
+AGGREGATOR, COMMUNITIES, ORIGINATOR_ID, CLUSTER_LIST, the extended communities,
+AIGP, the large communities and the Prefix-SID) is decoded by that attribute's
+own wire decoder, the one an UPDATE from a peer meets, and then stands for the
+keyword: `attribute [ 0x04 0x80 0x00000064 ]` is `med 100`, and a generic
+ORIGIN replaces the IGP default rather than adding a second ORIGIN. AS_PATH and
+AGGREGATOR are read with four-octet AS numbers. A value the decoder refuses, or
+one with octets it leaves unread, is refused as malformed with the octets to
+write: a two-octet MED, a five-octet LOCAL_PREF, a large community value that is
+not a multiple of 12 octets. A large community value holding one large community
+twice is refused as that repeat, with the value carrying it once, because
+RFC 8092 Section 3 says "Duplicate BGP Large Community values MUST NOT be
+transmitted." An empty COMMUNITIES, CLUSTER_LIST, extended
+community or large community list is refused too, because RFC 7606 and RFC 8092
+hold a zero-length one malformed. The config file stores the decoded value in
+the field the keyword fills; an AS_PATH holding an AS_SET or AS_CONFED_SET has
+no such field there, so it is kept and the route is withdrawn rather than
+advertised (RFC 9774 Section 3). A generic AIGP in the config file must hold the
+one metric TLV `aigp` writes. A code given twice, by two `attribute`
+statements or by `attribute` and the keyword, is refused as an attribute given
+twice: RFC 4271 Section 6.3 makes such an UPDATE a Malformed Attribute List.
+<!-- source: internal/component/bgp/textparse/rawattr.go -- ParseRawAttribute, CheckRawAttributeFlags, rawAttributeBuilt, attributeKeywordCodes, decodeTypedRawAttribute, rawAttributeNonEmpty, largeCommunityRepeat -->
+<!-- source: internal/component/bgp/config/routeattr.go -- parseRawAttributeInto, rawASPathInto, rawAIGPInto -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_attribute.go -- parseRawAttributeText, withRawAttrs -->
 
 `atomic-aggregate` is the only keyword that takes no value: RFC 4271 Section 4.3 f)
 makes it "a well-known discretionary attribute of length 0", so its presence in the
@@ -710,7 +769,7 @@ request bgp watchdog withdraw <name>   # withdraw all routes in pool from peers
 | Type | Attributes |
 |------|------------|
 | **Scalar** | `origin`, `med`, `local-preference`, `origin-as`, `aggregator`, `originator-id`, `aigp`, `bgp-prefix-sid`, `bgp-prefix-sid-srv6`, `next-hop`, `path-information`, `rd`, `label` |
-| **List** | `as-path`, `community`, `large-community`, `extended-community`, `cluster-list` |
+| **List** | `as-path`, `community`, `large-community`, `extended-community`, `cluster-list`, `attribute` (one per type code) |
 | **Flag** | `atomic-aggregate` |
 
 ### Accumulator → Family Support

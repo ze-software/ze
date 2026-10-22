@@ -146,8 +146,10 @@ module ze-types {
         }
         leaf-list attribute {
             type string;
-            description "A raw attribute, written as hex bytes in brackets: the flags, the type code
-                         and the value. Use it for an attribute Ze has no keyword for.";
+            description "A raw attribute, [ 0x<code> 0x<flags> 0x<value> ]: the type code, the flags
+                         octet and the value, each written 0x and hex digits. Flags RFC 4271
+                         Section 4.3 forbids a sender are refused. Use it for an attribute Ze has
+                         no keyword for.";
             ze:help "Generic attributes";
         }
         container bgp-prefix-sid {

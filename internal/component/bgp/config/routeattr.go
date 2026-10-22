@@ -6,20 +6,20 @@
 package bgpconfig
 
 import (
+	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/parse"
 )
-
-var errRawAttributeNeedsAtLeastCode = errors.New("raw attribute needs at least code and flags")
 
 // Origin represents the ORIGIN path attribute.
 // RFC 4271: 0=IGP, 1=EGP, 2=INCOMPLETE.
@@ -290,64 +290,6 @@ func (agg Aggregator) IsZero() bool {
 	return !agg.Valid
 }
 
-// RawAttribute represents a raw BGP path attribute from config.
-// Format: [ code flags value_hex ].
-type RawAttribute struct {
-	Code  uint8
-	Flags uint8
-	Value []byte
-}
-
-// ParseRawAttribute parses attribute syntax: "0xNN 0xNN 0xHEXVALUE".
-func ParseRawAttribute(s string) (RawAttribute, error) {
-	parts := strings.Fields(s)
-	if len(parts) < 2 {
-		return RawAttribute{}, errRawAttributeNeedsAtLeastCode
-	}
-
-	// Parse attribute type code
-	code, err := parseHexByte(parts[0])
-	if err != nil {
-		return RawAttribute{}, fmt.Errorf("invalid attribute code %q: %w", parts[0], err)
-	}
-
-	// Parse flags
-	flags, err := parseHexByte(parts[1])
-	if err != nil {
-		return RawAttribute{}, fmt.Errorf("invalid attribute flags %q: %w", parts[1], err)
-	}
-
-	// Parse value (optional, may be empty)
-	var value []byte
-	if len(parts) > 2 {
-		value, err = parseHexBytes(parts[2])
-		if err != nil {
-			return RawAttribute{}, fmt.Errorf("invalid attribute value %q: %w", parts[2], err)
-		}
-	}
-
-	return RawAttribute{
-		Code:  code,
-		Flags: flags,
-		Value: value,
-	}, nil
-}
-
-// parseHexByte parses "0xNN" format to a byte.
-func parseHexByte(s string) (uint8, error) {
-	s = strings.TrimPrefix(s, "0x")
-	s = strings.TrimPrefix(s, "0X")
-	v, err := strconv.ParseUint(s, 16, 8)
-	return uint8(v), err
-}
-
-// parseHexBytes parses "0xHEXHEXHEX..." format to bytes.
-func parseHexBytes(s string) ([]byte, error) {
-	s = strings.TrimPrefix(s, "0x")
-	s = strings.TrimPrefix(s, "0X")
-	return hex.DecodeString(s)
-}
-
 // ParsedRouteAttributes holds all parsed route attributes.
 type ParsedRouteAttributes struct {
 	Prefix          netip.Prefix
@@ -372,7 +314,7 @@ type ParsedRouteAttributes struct {
 	ClusterList        []uint32 // RFC 4456
 	AIGPMetric         *uint64  // RFC 7311
 	PrefixSID          []byte   // BGP Prefix-SID TLV bytes (attribute 40), from attribute.EncodePrefixSID*
-	RawAttributes      []RawAttribute
+	RawAttributes      []textparse.RawAttribute
 }
 
 // ParseRouteAttributes parses all attributes from a StaticRouteConfig.
@@ -540,50 +482,159 @@ func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error
 		}
 	}
 
-	// Raw Attributes (hex format: "0xNN 0xNN 0xVALUE")
+	// The generic attribute, `[ 0x<code> 0x<flags> 0x<value> ]`, read by the
+	// update text's reader so the two accept and refuse the same statements.
 	// Known attribute codes are converted to typed fields.
 	if src.Attribute != "" {
-		raw, err := ParseRawAttribute(src.Attribute)
+		raw, err := textparse.ParseRawAttribute(src.Attribute)
 		if err != nil {
 			return nil, fmt.Errorf("invalid raw attribute: %w", err)
 		}
 
-		parseRawAttributeInto(attrs, raw)
+		if err := parseRawAttributeInto(attrs, src, raw); err != nil {
+			return nil, fmt.Errorf("invalid raw attribute: %w", err)
+		}
 	}
 
 	return attrs, nil
 }
 
-// parseRawAttributeInto converts known raw attribute codes into typed fields.
-// Unrecognized codes are preserved in RawAttributes for wire encoding.
-func parseRawAttributeInto(attrs *ParsedRouteAttributes, raw RawAttribute) {
-	// Known BGP attribute codes: convert to typed fields
-	if raw.Code == 4 && len(raw.Value) >= 4 { // MED
-		attrs.MED = uint32(raw.Value[0])<<24 | uint32(raw.Value[1])<<16 |
-			uint32(raw.Value[2])<<8 | uint32(raw.Value[3])
-		attrs.HasMED = true
-		return
+// parseRawAttributeInto stores a generic attribute. One of a code a keyword
+// writes arrives decoded (textparse.RawAttribute.Typed) and goes into the field
+// that keyword fills, replacing the field's default, so the UPDATE carries it
+// once: the generic ORIGIN replaces the IGP default, the generic MED sets MED.
+// The update text puts the same attribute into its block as the same octets
+// (update.parseRawAttributeText). A code the route's own keyword already wrote
+// is refused, as the update text refuses it: RFC 4271 Section 6.3 makes an
+// attribute given twice a Malformed Attribute List. Any other code is kept as
+// written for the wire.
+func parseRawAttributeInto(attrs *ParsedRouteAttributes, src *StaticRouteConfig, raw textparse.RawAttribute) error {
+	if raw.Typed == nil {
+		attrs.RawAttributes = append(attrs.RawAttributes, raw)
+		return nil
 	}
-	if raw.Code == 5 && len(raw.Value) >= 4 { // LOCAL_PREF
-		attrs.LocalPreference = uint32(raw.Value[0])<<24 | uint32(raw.Value[1])<<16 |
-			uint32(raw.Value[2])<<8 | uint32(raw.Value[3])
-		attrs.HasLocalPreference = true
-		return
-	}
-	if raw.Code == 32 { // LARGE_COMMUNITY — parse 12-byte tuples
-		for i := 0; i+12 <= len(raw.Value); i += 12 {
-			lc := [3]uint32{
-				uint32(raw.Value[i])<<24 | uint32(raw.Value[i+1])<<16 |
-					uint32(raw.Value[i+2])<<8 | uint32(raw.Value[i+3]),
-				uint32(raw.Value[i+4])<<24 | uint32(raw.Value[i+5])<<16 |
-					uint32(raw.Value[i+6])<<8 | uint32(raw.Value[i+7]),
-				uint32(raw.Value[i+8])<<24 | uint32(raw.Value[i+9])<<16 |
-					uint32(raw.Value[i+10])<<8 | uint32(raw.Value[i+11]),
-			}
-			attrs.LargeCommunity.Values = append(attrs.LargeCommunity.Values, lc)
+	code := attribute.AttributeCode(raw.Code)
+	keyword, _ := textparse.AttributeKeyword(code)
+	twice := fmt.Errorf("attribute 0x%02x (%s) is given twice, by the generic attribute and by %s, and RFC 4271 Section 6.3 makes an attribute given twice a Malformed Attribute List: keep one of the two",
+		raw.Code, code, keyword)
+	switch typed := raw.Typed.(type) {
+	case attribute.Origin:
+		if src.Origin != "" {
+			return twice
 		}
-		return
+		attrs.Origin = Origin(typed)
+	case *attribute.ASPath:
+		if src.ASPath != "" {
+			return twice
+		}
+		return rawASPathInto(attrs, raw, typed)
+	case attribute.MED:
+		if attrs.HasMED {
+			return twice
+		}
+		attrs.MED, attrs.HasMED = uint32(typed), true
+	case attribute.LocalPref:
+		if attrs.HasLocalPreference {
+			return twice
+		}
+		attrs.LocalPreference, attrs.HasLocalPreference = uint32(typed), true
+	case attribute.AtomicAggregate:
+		if attrs.AtomicAggregate {
+			return twice
+		}
+		attrs.AtomicAggregate = true
+	case *attribute.Aggregator:
+		if attrs.Aggregator.Valid {
+			return twice
+		}
+		attrs.Aggregator = Aggregator{ASN: typed.ASN, IP: typed.Address.As4(), Valid: true}
+	case attribute.Communities:
+		if len(attrs.Community.Values) > 0 {
+			return twice
+		}
+		for _, c := range typed {
+			attrs.Community.Values = append(attrs.Community.Values, uint32(c))
+		}
+	case attribute.OriginatorID:
+		if attrs.OriginatorID != 0 {
+			return twice
+		}
+		attrs.OriginatorID = binary.BigEndian.Uint32(raw.Value)
+	case attribute.ClusterList:
+		if len(attrs.ClusterList) > 0 {
+			return twice
+		}
+		attrs.ClusterList = slices.Clone([]uint32(typed))
+	case attribute.ExtendedCommunities:
+		if len(attrs.ExtendedCommunity.Bytes) > 0 {
+			return twice
+		}
+		attrs.ExtendedCommunity.Bytes = slices.Clone(raw.Value)
+	case attribute.IPv6ExtendedCommunities:
+		if len(attrs.ExtendedCommunity.IPv6Bytes) > 0 {
+			return twice
+		}
+		attrs.ExtendedCommunity.IPv6Bytes = slices.Clone(raw.Value)
+	case *attribute.AIGP:
+		if attrs.AIGPMetric != nil {
+			return twice
+		}
+		return rawAIGPInto(attrs, typed)
+	case attribute.LargeCommunities:
+		if len(attrs.LargeCommunity.Values) > 0 {
+			return twice
+		}
+		for _, lc := range typed {
+			attrs.LargeCommunity.Values = append(attrs.LargeCommunity.Values, [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2})
+		}
+	case *attribute.PrefixSID:
+		if len(attrs.PrefixSID) > 0 {
+			return twice
+		}
+		attrs.PrefixSID = slices.Clone(raw.Value)
+	default:
+		// A keyword code whose typed form this reader has no field for: refused
+		// by name rather than sent raw beside the field's own encoding.
+		return fmt.Errorf("attribute 0x%02x (%s) has no generic form in the config file: write the %s keyword instead", raw.Code, code, keyword)
 	}
-	// Unrecognized attribute code: preserve as raw for wire encoding
-	attrs.RawAttributes = append(attrs.RawAttributes, raw)
+	return nil
+}
+
+// rawASPathInto stores a generic AS_PATH. A path of AS_SEQUENCE segments
+// becomes the route's as-path, which Ze prepends to for an external peer as it
+// does the keyword's. A path holding an AS_SET or AS_CONFED_SET has no typed
+// form, because a static route's as-path is one sequence, so it stays raw: the
+// send guard then writes the route as a withdrawal, and nothing of it reaches
+// the wire. RFC 9774 Section 3: "BGP speakers: MUST NOT advertise BGP UPDATE
+// messages containing AS_SETs or AS_CONFED_SETs".
+func rawASPathInto(attrs *ParsedRouteAttributes, raw textparse.RawAttribute, path *attribute.ASPath) error {
+	var values []uint32
+	for _, segment := range path.Segments {
+		if segment.Type != attribute.ASSequence {
+			attrs.RawAttributes = append(attrs.RawAttributes, raw)
+			return nil
+		}
+		values = append(values, segment.ASNs...)
+	}
+	attrs.ASPath = ASPath{Raw: hexAttrValue(raw.Value), Values: values}
+	return nil
+}
+
+// rawAIGPInto stores a generic AIGP, which the aigp field carries as the one
+// metric TLV RFC 7311 Section 3.1 defines.
+func rawAIGPInto(attrs *ParsedRouteAttributes, aigp *attribute.AIGP) error {
+	if len(aigp.TLVs) != 1 {
+		return fmt.Errorf("attribute 0x1a (AIGP) holds %d TLVs and the aigp keyword carries one AIGP metric TLV: write aigp <metric>", len(aigp.TLVs))
+	}
+	metric, found := aigp.Metric()
+	if !found {
+		return fmt.Errorf("attribute 0x1a (AIGP) holds a TLV of type %d and the aigp keyword carries the AIGP metric TLV, type 1: write aigp <metric>", aigp.TLVs[0].Type)
+	}
+	attrs.AIGPMetric = &metric
+	return nil
+}
+
+// hexAttrValue spells an attribute value as the generic attribute writes it.
+func hexAttrValue(value []byte) string {
+	return "0x" + hex.EncodeToString(value)
 }

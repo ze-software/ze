@@ -155,15 +155,19 @@ const (
 // own case: the NLRI sub-parsers ask isBoundaryKeyword where a section ends, and
 // a value-less attribute ends one exactly as a valued attribute does.
 func isAttributeKeyword(token string) bool {
-	switch token {
-	case kwOrigin, kwMED, kwLocalPref, kwASPath, kwOriginAS,
-		kwCommunity, kwLargeCommunity, kwExtendedCommunity,
-		textparse.KWAtomicAggregate, textparse.KWAggregator,
-		textparse.KWOriginatorID, textparse.KWClusterList, textparse.KWAIGP,
-		textparse.KWPrefixSID, textparse.KWPrefixSIDSRv6:
-		return true
-	}
-	return false
+	return slices.Contains(attributeKeywords, token)
+}
+
+// attributeKeywords are the per-attribute keywords. Each one that writes a path
+// attribute must be paired with that attribute's type code in textparse's
+// attributeKeywordCodes, which TestAttributeKeywordsPaired walks this list to
+// prove.
+var attributeKeywords = []string{
+	kwOrigin, kwMED, kwLocalPref, kwASPath, kwOriginAS,
+	kwCommunity, kwLargeCommunity, kwExtendedCommunity,
+	textparse.KWAtomicAggregate, textparse.KWAggregator,
+	textparse.KWOriginatorID, textparse.KWClusterList, textparse.KWAIGP,
+	textparse.KWPrefixSID, textparse.KWPrefixSIDSRv6, textparse.KWAttribute,
 }
 
 // isBoundaryKeyword returns true if token starts a new top-level section.
@@ -203,6 +207,10 @@ type parsedAttrs struct {
 	ClusterList             []uint32
 	AIGP                    *uint64
 	PrefixSID               []byte // BGP Prefix-SID TLVs (attribute 40), already encoded
+	// Raw are the generic attributes, `attribute [ 0x<code> 0x<flags>
+	// 0x<value> ]`, in the order written. withRawAttrs merges them into the
+	// block snapshot builds, refusing a code given twice.
+	Raw []registry.PluginRouteAttr
 
 	// VPN/labeled NLRI modifiers.
 	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families.
@@ -605,6 +613,14 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		}
 		attrs.PrefixSID = tlvs
 		return consumed, nil
+
+	case textparse.KWAttribute:
+		raw, consumed, err := parseRawAttributeText(args[idx+1:])
+		if err != nil {
+			return 0, err
+		}
+		attrs.Raw = append(attrs.Raw, raw)
+		return consumed, nil
 	}
 
 	return 0, nil
@@ -840,6 +856,10 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 		case kwNLRI, kwMP:
 			seenNLRI = true
 			wire, nh, nlriAcc := attrs.snapshot()
+			wire, err := withRawAttrs(wire, attrs.Raw)
+			if err != nil {
+				return nil, err
+			}
 			result, err := parseNLRISection(args[i:], nlriAcc, nh)
 			if err != nil {
 				return nil, err
@@ -980,7 +1000,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 				i += 1 + extra
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid, bgp-prefix-sid-srv6, next-hop (next), path-information (info), rd, label, nlri, mp, watchdog", token)
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid, bgp-prefix-sid-srv6, attribute, next-hop (next), path-information (info), rd, label, nlri, mp, watchdog", token)
 		}
 	}
 

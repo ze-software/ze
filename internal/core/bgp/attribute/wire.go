@@ -337,6 +337,22 @@ func init() {
 	// nothing about what the RIB stores.
 }
 
+// ParseKnownAttribute decodes the value of an attribute of this type code with
+// that attribute's own wire decoder, the one an UPDATE received from a peer
+// meets. It answers false, with no error, for a code Ze holds no decoder for.
+// fourByteAS selects the AS number width of AS_PATH and AGGREGATOR.
+func ParseKnownAttribute(code AttributeCode, data []byte, fourByteAS bool) (Attribute, bool, error) {
+	fn := knownAttrParsers[code]
+	if fn == nil {
+		return nil, false, nil
+	}
+	attr, err := fn(data, fourByteAS)
+	if err != nil {
+		return nil, true, err
+	}
+	return attr, true, nil
+}
+
 // parseKnownAttribute parses a known attribute value by code.
 // Returns (nil, nil) for unknown attribute codes - caller handles as OpaqueAttribute.
 // Known attributes derive their flags from type; only OpaqueAttribute needs stored flags.

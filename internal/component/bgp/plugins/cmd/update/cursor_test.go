@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // cursorTestCtx creates a CommandContext with a mock reactor for peer 192.0.2.1.
@@ -366,4 +367,40 @@ func TestHandleUpdateCursorViaSwitch(t *testing.T) {
 // TestHandleUpdateUsageIncludesCursor verifies the error message lists cursor.
 func TestHandleUpdateUsageIncludesCursor(t *testing.T) {
 	assert.Contains(t, errUsageSendUpdateEncoding.Error(), "cursor")
+}
+
+// TestCursorGenericAttribute checks that a generic attribute rides the cursor
+// like any keyword: written into the UPDATE, inherited by the next command, and
+// removed by `del attribute`.
+//
+// Method: three handleUpdateCursor calls on one peer, reading the attribute
+// block the mock reactor received each time for type code 0x99. The second
+// command proves deepCopyAttrs carries Raw, the third that clearAttr drops it.
+func TestCursorGenericAttribute(t *testing.T) {
+	ctx := cursorTestCtx(t)
+
+	args := strings.Fields("origin igp next-hop 10.0.0.1 attribute [ 0x99 0xc0 0x01 ] nlri add 10.0.0.0/24")
+	_, err := handleUpdateCursor(ctx, args)
+	require.NoError(t, err)
+
+	args = strings.Fields("med 5 nlri add 10.1.0.0/24")
+	_, err = handleUpdateCursor(ctx, args)
+	require.NoError(t, err)
+
+	args = strings.Fields("del attribute nlri add 10.2.0.0/24")
+	_, err = handleUpdateCursor(ctx, args)
+	require.NoError(t, err)
+
+	reactor := cursorTestReactor(t, ctx)
+	require.Len(t, reactor.announceCalls, 3)
+	for i, want := range []bool{true, true, false} {
+		require.NotNil(t, reactor.announceCalls[i].Wire)
+		_, flags, value, found := attribute.AttrFind(reactor.announceCalls[i].Wire.Packed(), 0x99)
+		require.Equal(t, want, found, "command %d", i+1)
+		if found {
+			assert.Equal(t, attribute.AttributeFlags(0xc0), flags, "command %d", i+1)
+			assert.Equal(t, []byte{0x01}, value, "command %d", i+1)
+		}
+	}
+	assert.Nil(t, loadCursorAttrs(t, ctx.PeerSelector()).Raw, "del attribute clears the generic attributes")
 }

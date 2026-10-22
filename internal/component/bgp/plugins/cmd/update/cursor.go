@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 
@@ -145,6 +146,10 @@ func handleUpdateCursor(ctx *pluginserver.CommandContext, args []string) (*plugi
 	}
 
 	wire, nh, nlriAcc := attrs.snapshot()
+	wire, err = withRawAttrs(wire, attrs.Raw)
+	if err != nil {
+		return nil, err
+	}
 
 	var groups []bgptypes.NLRIGroup
 	for i < len(args) && isNLRISectionKeyword(args[i]) {
@@ -196,6 +201,9 @@ func deepCopyAttrs(src *parsedAttrs) *parsedAttrs {
 		dst.IPv6ExtendedCommunities = make([]attribute.IPv6ExtendedCommunity, len(src.IPv6ExtendedCommunities))
 		copy(dst.IPv6ExtendedCommunities, src.IPv6ExtendedCommunities)
 	}
+	if src.Raw != nil {
+		dst.Raw = slices.Clone(src.Raw)
+	}
 	if src.Labels != nil {
 		dst.Labels = make([]uint32, len(src.Labels))
 		copy(dst.Labels, src.Labels)
@@ -221,6 +229,8 @@ func clearAttr(attrs *parsedAttrs, keyword string) {
 	case kwExtendedCommunity:
 		attrs.ExtendedCommunities = nil
 		attrs.IPv6ExtendedCommunities = nil
+	case textparse.KWAttribute:
+		attrs.Raw = nil
 	case textparse.KWNextHop:
 		attrs.NextHop = netip.Addr{}
 		attrs.NextHopSelf = false

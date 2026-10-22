@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -112,11 +113,48 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 	// which ze's update text reads under the same name and spelling.
 	"bgp-prefix-sid": {Ze: "bgp-prefix-sid", Arity: arityList},
 
-	// ze has no update-text spelling for this one, so a line carrying it is
-	// REFUSED rather than announced without it. `attribute` is ExaBGP's generic
-	// `attribute [ 0xFF 0x01 0x00 ]` escape hatch, which ze offers only through
-	// `update hex`.
-	"attribute": {Arity: arityList},
+	// ExaBGP's generic `attribute [ 0x<code> 0x<flag> 0x<data> ]`, one
+	// attribute given as its wire octets (HexAttribute,
+	// configuration/grammar/types/bgp.py at 685f772e), which ze's update text
+	// reads under the same name and spelling. Its code is in the value, so it
+	// is keyed by that code rather than by keyword (genericAsKeyword).
+	bridgeAttrGeneric: {Ze: bridgeAttrGeneric, Arity: arityList},
+}
+
+// bridgeAttrGeneric is ExaBGP's generic attribute keyword.
+const bridgeAttrGeneric = "attribute"
+
+// genericRepeat reports whether an attribute writing a type code the line
+// already wrote is a repeat the generic attribute rule owns: one of the two is
+// ExaBGP's generic `attribute`. A typed keyword given twice is left to the
+// per-keyword rules. ExaBGP's API keeps the first of two attributes of one code
+// when either is generic (add_attribute, "attribute.GENERIC or
+// existing.GENERIC", configuration/grammar/tree/static.py at 685f772e).
+func genericRepeat(generic bool, holder string) bool {
+	if generic {
+		return true
+	}
+	return holder == bridgeAttrGeneric
+}
+
+// genericCode answers the type code a generic attribute value writes, zero
+// for a value ze's update text will refuse with its own reason. ze reads a
+// generic attribute of a code one of its keywords writes into that keyword's
+// typed form, so the bridge passes every generic attribute on as written and
+// needs its code only to keep the first of two attributes of one code.
+func genericCode(value string) attribute.AttributeCode {
+	raw, err := textparse.ParseRawAttribute(value)
+	if err != nil {
+		return 0
+	}
+	return attribute.AttributeCode(raw.Code)
+}
+
+// hexOctet spells a type code as the generic attribute writes it, `0x` and two
+// hexadecimal digits.
+func hexOctet(code attribute.AttributeCode) string {
+	var tb textbuf.Buffer
+	return tb.Str("0x").Hex([]byte{byte(code)}).String()
 }
 
 // bridgeAttrNames lists the table's keywords, longest first, so a refusal can
@@ -158,6 +196,10 @@ type routeAttributes struct {
 	// field of the NLRI sits, so a repeat of a list is merged into it
 	// (mergedListValue) and a repeat of a field replaces it.
 	valueAt map[string]int
+	// codes records the ze keyword that wrote each path attribute type code,
+	// so a generic attribute and a keyword of the same code keep the first.
+	// A keyword repeated without a generic one is left to the rules below.
+	codes map[attribute.AttributeCode]string
 }
 
 // Command renders the attributes as the ze text that precedes the nlri section.
@@ -191,7 +233,7 @@ func (a routeAttributes) Has(zeKeyword string) bool { return a.written[zeKeyword
 // without an attribute the operator wrote is a different route, and the script
 // that wrote it is acknowledged either way.
 func parseRouteAttributes(parts []string) (routeAttributes, error) {
-	out := routeAttributes{written: make(map[string]bool, len(parts)/2), valueAt: map[string]int{}}
+	out := routeAttributes{written: make(map[string]bool, len(parts)/2), valueAt: map[string]int{}, codes: map[attribute.AttributeCode]string{}}
 	for i := 0; i < len(parts); {
 		key := strings.ToLower(parts[i])
 
@@ -239,6 +281,35 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 		}
 		if attr.Ze == "" {
 			return routeAttributes{}, fmt.Errorf("%w: %q", errAttributeNotEncodable, key)
+		}
+
+		code, _ := textparse.KeywordAttributeCode(attr.Ze)
+		generic := attr.Ze == bridgeAttrGeneric
+		written := strings.TrimSpace(key + " " + value)
+		if generic {
+			code = genericCode(value)
+		}
+		// An attribute whose type code the line already wrote, through its
+		// keyword or as a generic attribute, keeps the first, and a warning
+		// names the one dropped. This comes before the list merge: a generic
+		// community after the community keyword is a second attribute, which
+		// ExaBGP drops, not more communities. Two generic attributes of
+		// different codes are two attributes.
+		holder, held := out.codes[code]
+		if held && genericRepeat(generic, holder) {
+			out.Warnings = append(out.Warnings, "the line gives attribute "+hexOctet(code)+" twice, through "+holder+
+				" and through "+written+"; the first is kept and the second dropped: remove one of the two")
+			continue
+		}
+		if code != 0 && !held {
+			out.codes[code] = attr.Ze
+			if generic {
+				out.codes[code] = bridgeAttrGeneric
+			}
+		}
+		if attr.Ze == bridgeAttrGeneric {
+			out.Tokens = append(out.Tokens, attr.Ze, value)
+			continue
 		}
 
 		if attr.Ze == bridgeAttrAggregator {

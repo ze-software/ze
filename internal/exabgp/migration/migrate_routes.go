@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -260,7 +261,11 @@ func convertFlowToUpdate(flow, dst *config.Tree, result *MigrateResult) error {
 					inner := strings.Trim(value, "[] ")
 					extComms = append(extComms, strings.Fields(inner)...)
 				case "attribute":
-					rawAttr = value
+					migrated, err := migrateRawAttribute(value)
+					if err != nil {
+						return fmt.Errorf("flow route %s: %w", entry.Key, err)
+					}
+					rawAttr = migrated
 				}
 			}
 		}
@@ -434,12 +439,13 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) error {
 		attrBlock.Set("atomic-aggregate", configTrue)
 	}
 
-	// Handle raw attribute bytes: "[0x20 0xc0 0x...]" → "0x20 0xc0 0x..."
+	// The generic attribute, "[0x20 0xc0 0x...]" → "0x20 0xc0 0x...".
 	if v, ok := attrTree.Get("attribute"); ok {
-		// Strip brackets from array syntax
-		v = strings.TrimPrefix(v, "[")
-		v = strings.TrimSuffix(v, "]")
-		attrBlock.Set("attribute", v)
+		migrated, err := migrateRawAttribute(v)
+		if err != nil {
+			return fmt.Errorf("route %s: %w", prefix, err)
+		}
+		attrBlock.Set("attribute", migrated)
 	}
 
 	update.SetContainer("attribute", attrBlock)
@@ -784,4 +790,21 @@ func tokenizeFlexValue(s string) []string {
 		}
 	}
 	return tokens
+}
+
+// migrateRawAttribute answers ExaBGP's generic attribute, `[ 0x<code> 0x<flag>
+// 0x<data> ]`, in the spelling of Ze's config file, the three words without
+// the brackets. It reads the value with textparse.ParseRawAttribute, the
+// reader Ze's config file loads it with, so a value Ze would refuse at load
+// (flags RFC 4271 Section 4.3 forbids a sender, a malformed value of a typed
+// code) is refused here, naming the ExaBGP statement, rather than written into
+// a config that will not load.
+func migrateRawAttribute(value string) (string, error) {
+	raw, err := textparse.ParseRawAttribute(value)
+	if err != nil {
+		return "", fmt.Errorf("ExaBGP attribute %s cannot be migrated: %w; correct it in the ExaBGP configuration and migrate again", value, err)
+	}
+	var tb textbuf.Buffer
+	tb.Str("0x").Hex([]byte{raw.Code}).Str(" 0x").Hex([]byte{raw.Flags}).Str(" 0x").Hex(raw.Value)
+	return tb.String(), nil
 }

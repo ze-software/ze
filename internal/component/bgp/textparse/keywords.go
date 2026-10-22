@@ -28,6 +28,9 @@ const (
 	// `[ <index>, [ ( <base>,<range> ) ... ] ]`, the label-index form the config
 	// file and ExaBGP write (RFC 8669 Label-Index and Originator SRGB TLVs).
 	KWPrefixSID = "bgp-prefix-sid"
+	// KWAttribute takes `[ 0x<code> 0x<flags> 0x<value> ]`, one path attribute
+	// given as its wire octets, read by ParseRawAttribute for the config file too.
+	KWAttribute = "attribute"
 
 	// Structure keywords.
 	KWNLRI            = "nlri"

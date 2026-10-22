@@ -1,5 +1,7 @@
 # ExaBGP qa/old/5.0/qa/encoding/conf-generic-attribute (ExaBGP 685f772e4e): .ci and .msg joined, options spelt option=
 option=file:conf-generic-attribute.conf
+option=allowed:the file gives the unknown attribute code 0x99 flags 0x60 and 0x70, Optional clear, which marks a well-known attribute, with the Partial bit set, and ze refuses the file when it migrates it: RFC 4271 Section 4.3 says "For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.", and RFC 4271 Section 5 says "BGP implementations MUST recognize all well-known attributes.", which no receiver can for code 0x99 (textparse.CheckRawAttributeFlags)
+option=allowed-error:ExaBGP attribute 0x99 0x60 0x00000064 cannot be migrated: attribute 0x99 flags 0x60 clear the Optional bit, which marks a well-known attribute, and 0x99 is not one: write 0xe0 for an optional transitive attribute or 0x80 for an optional non-transitive one
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0038:02:0000001C40010100400200400304C0A8016480040400000064400504000000642064646464
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0038:02:0000001C40010100400200400304C0A8016440050400000064609904000000642065656565
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0039:02:0000001D40010100400200400304C0A80164400504000000647099000400000064206F6F6F6F

@@ -791,12 +791,26 @@ The label-index Prefix-SID, `bgp-prefix-sid [ <index> ]` or
 unchanged: update text reads the same keyword in the same spelling and writes
 the Label-Index and Originator SRGB TLVs (RFC 8669 Sections 3.1 and 3.2).
 
-`api-refusals-v4`, `api-repeated-attributes-v4` and `api-route-forms-v4` are
-the cases.
+The generic attribute, `attribute [ 0x<code> 0x<flag> 0x<data> ]`, is passed
+through as written: update text reads the same keyword in the same spelling
+(`docs/architecture/api/update-syntax.md`, "Path Attributes"). It decodes a code
+one of its keywords writes into that keyword's typed form (`attribute [ 0x04
+0x80 0x00000064 ]` is `med 100`), refuses a malformed value of such a code, and
+refuses flags RFC 4271 Section 4.3 forbids a sender, such as `0x60` or `0x70` on
+an unknown code, which ExaBGP sends. A generic NEXT_HOP is passed on for update
+text to refuse, and never drops the line's `next-hop`. The line keeps one attribute of each type code, as ExaBGP's
+`add_attribute` does: a generic attribute after the keyword of the same code,
+that keyword after a generic attribute, and a second generic attribute of one
+code are each dropped with a warning naming the code in hex and telling the
+operator to remove one, the first kept. Two generic attributes of different
+codes are both sent.
+
+`api-refusals-v4`, `api-repeated-attributes-v4`, `api-route-forms-v4` and
+`api-generic-attribute-v4` are the cases.
 
 <!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- terminatorResult -->
 <!-- source: internal/component/bgp/reactor/reactor_api_carry.go -- SelectedPeersCarry -->
-<!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine, attrValueName, mergedListValue, srv6WithBehavior -->
+<!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine, attrValueName, mergedListValue, srv6WithBehavior, genericCode -->
 <!-- source: internal/exabgp/bridge/bridge_escape.go -- resolveLineEscapes, errBadEscape -->
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- splitPrefix, refuseMaskNotNumber -->
 <!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational -->

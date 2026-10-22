@@ -195,3 +195,107 @@ func TestOperationalRefusedByKind(t *testing.T) {
 		})
 	}
 }
+
+// TestGenericAttributeTranslated checks ExaBGP's generic attribute,
+// `attribute [ 0x<code> 0x<flag> 0x<data> ]`, reaches ze's update text under
+// the same spelling, a code ze writes from a keyword included, and that a type
+// code given twice keeps the first.
+//
+// VALIDATES: an unknown code is forwarded as written, flags ze refuses
+// included (ze's update text refuses them by name); two of different codes
+// are both forwarded; a code ze writes from a keyword is forwarded as written,
+// for ze's update text to decode into that keyword's typed form; a generic
+// attribute after the keyword of the same code, the keyword after a generic
+// one, and a second generic one of the same code are each dropped with one
+// warning naming the code in hex, as the pin's add_attribute keeps the first
+// ("attribute.GENERIC or existing.GENERIC",
+// configuration/grammar/tree/static.py at 685f772e); a generic NEXT_HOP never
+// drops the next-hop keyword.
+// PREVENTS: refusing a line ExaBGP 4.2, 5.0 and 6.0 announce, and forwarding a
+// repeat that ze's update text would refuse as an attribute given twice.
+func TestGenericAttributeTranslated(t *testing.T) {
+	cases := []struct {
+		name    string
+		line    string
+		want    string
+		dropped string
+	}{
+		{
+			name: "forwarded as written",
+			line: "announce attributes next-hop 1.2.3.4 attribute [ 0x99 0xd0 0x00000064 ] nlri 10.0.0.0/24",
+			want: "send bgp * update text nhop 1.2.3.4 attribute [ 0x99 0xd0 0x00000064 ] nlri add 10.0.0.0/24",
+		},
+		{
+			name: "flags ze refuses forwarded for ze to name",
+			line: "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x99 0x70 0x00000064 ]",
+			want: "send bgp * update text nhop 1.2.3.4 attribute [ 0x99 0x70 0x00000064 ] nlri add 10.0.0.0/24",
+		},
+		{
+			name: "two codes",
+			line: "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x99 0xc0 0x01 ] attribute [0x98 0xc0 0x02]",
+			want: "send bgp * update text nhop 1.2.3.4 attribute [ 0x99 0xc0 0x01 ] attribute [0x98 0xc0 0x02] nlri add 10.0.0.0/24",
+		},
+		{
+			name: "med forwarded as written",
+			line: "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x04 0x80 0x00000064 ]",
+			want: "send bgp * update text nhop 1.2.3.4 attribute [ 0x04 0x80 0x00000064 ] nlri add 10.0.0.0/24",
+		},
+		{
+			name: "origin and communities forwarded as written",
+			line: "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x01 0x40 0x02 ] attribute [ 0x08 0xc0 0xfde80001fde80002 ]",
+			want: "send bgp * update text nhop 1.2.3.4 attribute [ 0x01 0x40 0x02 ] attribute [ 0x08 0xc0 0xfde80001fde80002 ] nlri add 10.0.0.0/24",
+		},
+		{
+			name: "generic next-hop keeps the keyword",
+			line: "announce route 10.0.0.0/24 attribute [ 0x03 0x40 0x05060708 ] next-hop 1.2.3.4",
+			want: "send bgp * update text attribute [ 0x03 0x40 0x05060708 ] nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		},
+		{
+			name:    "after its keyword",
+			line:    "announce route 10.0.0.0/24 next-hop 1.2.3.4 med 7 attribute [ 0x04 0x80 0x00000064 ]",
+			want:    "send bgp * update text nhop 1.2.3.4 med 7 nlri add 10.0.0.0/24",
+			dropped: "attribute 0x04 twice, through med and through attribute [ 0x04 0x80 0x00000064 ]",
+		},
+		{
+			name:    "before its keyword",
+			line:    "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x04 0x80 0x00000064 ] med 7",
+			want:    "send bgp * update text nhop 1.2.3.4 attribute [ 0x04 0x80 0x00000064 ] nlri add 10.0.0.0/24",
+			dropped: "attribute 0x04 twice, through attribute and through med 7",
+		},
+		{
+			name:    "the same code twice",
+			line:    "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x99 0xc0 0x01 ] attribute [ 0x99 0xc0 0x02 ]",
+			want:    "send bgp * update text nhop 1.2.3.4 attribute [ 0x99 0xc0 0x01 ] nlri add 10.0.0.0/24",
+			dropped: "attribute 0x99 twice, through attribute and through attribute [ 0x99 0xc0 0x02 ]; the first is kept and the second dropped: remove one of the two",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			logged := captureWarnings(t)
+			translation, err := TranslateLine(tc.line)
+			require.NoError(t, err)
+			assert.Equal(t, []string{tc.want}, commandTexts(translation))
+			if tc.dropped == "" {
+				assert.NotContains(t, logged.String(), "exabgp-bridge route line")
+				return
+			}
+			assert.Equal(t, 1, strings.Count(logged.String(), "exabgp-bridge route line"), logged.String())
+			assert.Contains(t, logged.String(), tc.dropped)
+		})
+	}
+}
+
+// TestGenericAttributeTypedForwarded checks that a generic attribute of a code
+// ze writes from its own keyword is forwarded as written whatever its value,
+// so ze's update text, which decodes it, is the one place that refuses a
+// malformed one and names why.
+//
+// Method: TranslateLine on an AS_PATH and on a MED two octets short, asserting
+// the generic attribute reaches the update text unchanged.
+func TestGenericAttributeTypedForwarded(t *testing.T) {
+	for _, generic := range []string{"attribute [ 0x02 0x40 0x02010000fde8 ]", "attribute [ 0x04 0x80 0x0064 ]"} {
+		translation, err := TranslateLine("announce route 10.0.0.0/24 next-hop 1.2.3.4 " + generic)
+		require.NoError(t, err, generic)
+		assert.Equal(t, []string{"send bgp * update text nhop 1.2.3.4 " + generic + " nlri add 10.0.0.0/24"}, commandTexts(translation))
+	}
+}

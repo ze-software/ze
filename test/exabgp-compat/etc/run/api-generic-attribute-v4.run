@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""The generic attribute, sent on the API as the pin sends it.
+
+ExaBGP writes a path attribute as its wire octets with
+`attribute [ 0x<code> 0x<flag> 0x<data> ]` (HexAttribute,
+configuration/grammar/types/bgp.py at 685f772e). Flags RFC 4271 Section 4.3
+lets a sender write reach the wire as written, the Extended Length bit
+included, and a second attribute of the same code is dropped, the first kept
+(add_attribute, configuration/grammar/tree/static.py). The bytes expected for
+the first statement are the ones ExaBGP 5.0 sent (the old-command corpus); ze
+sends MED written as attribute 0x04 from its med keyword, the same octets.
+Flags RFC 4271 Section 4.3 forbids a sender, such as 0x70 on an unknown code,
+are refused by ze and sent by the pin, so they are not in this scenario.
+"""
+
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def read() -> str:
+    line = sys.stdin.readline()
+    if not line:
+        sys.stderr.write('ERROR: stdin closed\n')
+        sys.exit(1)
+    return line.strip()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        lines.append(read())
+        if lines[-1] in ('done', 'error'):
+            return lines
+
+
+def expect_done(command: str) -> None:
+    send(command)
+    got = answer()
+    if got != ['done']:
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want done\n')
+        sys.exit(1)
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    # The wire carries MED 100 written as attribute 0x04 with flags 0x80.
+    expect_done('announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x04 0x80 0x00000064 ]')
+    # The wire carries optional transitive attribute 0x99 with a two-octet length; the second 0x99 is dropped.
+    expect_done('announce route 20.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x99 0xd0 0x00000064 ] attribute [ 0x99 0xc0 0x01 ]')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()

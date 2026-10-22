@@ -1,0 +1,352 @@
+# The generic attribute of a static route, `attribute "0x<code> 0x<flags> 0x<value>"`,
+# is read through the daemon's own config load by textparse.ParseRawAttribute,
+# the reader the update text uses. Each refused statement must fail validation
+# and name what is wrong: flags RFC 4271 Section 4.3 forbids a sender, a
+# statement that is not three hexadecimal words, a code Ze builds from another
+# statement (NEXT_HOP, MP_REACH_NLRI, MP_UNREACH_NLRI, AS4_PATH, AS4_AGGREGATOR),
+# and a MED
+# whose value its wire decoder refuses. The last config carries a well-formed
+# generic MED and must validate, so the refusals cannot widen into "attribute
+# rejected". Needles carry no ':' because the directive splits on it. A value
+# above 65535 octets is refused by the same reader; its 131072 hex digits do not
+# fit one line of this file, so TestRouteAttributeGeneric proves that refusal
+# through ParseRouteAttributes.
+stdin=flags:terminator=EOF_FLAGS
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x99 0x60 0x00000064"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_FLAGS
+stdin=twowords:terminator=EOF_TWOWORDS
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x99 0xc0"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_TWOWORDS
+stdin=noprefix:terminator=EOF_NOPREFIX
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "99 c0 01"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_NOPREFIX
+stdin=nexthop:terminator=EOF_NEXTHOP
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x03 0x40 0x01020304"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_NEXTHOP
+stdin=mpreach:terminator=EOF_MPREACH
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x0e 0x80 0x00"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_MPREACH
+stdin=mpunreach:terminator=EOF_MPUNREACH
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x0f 0x80 0x00"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_MPUNREACH
+stdin=as4path:terminator=EOF_AS4PATH
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x11 0xc0 0x00"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_AS4PATH
+stdin=as4aggregator:terminator=EOF_AS4AGGREGATOR
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x12 0xc0 0x00"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_AS4AGGREGATOR
+stdin=medshort:terminator=EOF_MEDSHORT
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x04 0x80 0x0064"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_MEDSHORT
+stdin=medgood:terminator=EOF_MEDGOOD
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.254
+				attribute "0x04 0x80 0x00000064"
+			}
+			nlri {
+				ipv4/unicast add 10.0.1.0/24
+			}
+		}
+	}
+}
+EOF_MEDGOOD
+cmd=foreground:seq=1:exec=ze config validate -:stdin=flags
+expect=exit:code=1
+expect=stdout:contains=clear the Optional bit
+cmd=foreground:seq=2:exec=ze config validate -:stdin=twowords
+expect=exit:code=1
+expect=stdout:contains=it needs three
+cmd=foreground:seq=3:exec=ze config validate -:stdin=noprefix
+expect=exit:code=1
+expect=stdout:contains=is not hexadecimal
+cmd=foreground:seq=4:exec=ze config validate -:stdin=nexthop
+expect=exit:code=1
+expect=stdout:contains=NEXT_HOP, which Ze writes from next-hop
+cmd=foreground:seq=5:exec=ze config validate -:stdin=mpreach
+expect=exit:code=1
+expect=stdout:contains=MP_REACH_NLRI, which Ze builds
+cmd=foreground:seq=6:exec=ze config validate -:stdin=mpunreach
+expect=exit:code=1
+expect=stdout:contains=MP_UNREACH_NLRI, which Ze builds
+cmd=foreground:seq=7:exec=ze config validate -:stdin=as4path
+expect=exit:code=1
+expect=stdout:contains=AS4_PATH, which Ze builds
+cmd=foreground:seq=8:exec=ze config validate -:stdin=as4aggregator
+expect=exit:code=1
+expect=stdout:contains=AS4_AGGREGATOR, which Ze builds
+cmd=foreground:seq=9:exec=ze config validate -:stdin=medshort
+expect=exit:code=1
+expect=stdout:contains=is malformed
+cmd=foreground:seq=10:exec=ze config validate -:stdin=medgood
+expect=exit:code=0

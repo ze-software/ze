@@ -3167,7 +3167,7 @@
                         "description": "The list carries an attribute that no named field covers.",
                         "kind": "leaf-list",
                         "name": "attribute",
-                        "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                        "short-help": "Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].",
                         "source": "config",
                         "type": "string"
                       },
@@ -4419,7 +4419,7 @@
                     "description": "The list carries an attribute that no named field covers.",
                     "kind": "leaf-list",
                     "name": "attribute",
-                    "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                    "short-help": "Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].",
                     "source": "config",
                     "type": "string"
                   },
@@ -6507,7 +6507,7 @@
                     "description": "The list carries an attribute that no named field covers.",
                     "kind": "leaf-list",
                     "name": "attribute",
-                    "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                    "short-help": "Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].",
                     "source": "config",
                     "type": "string"
                   },
@@ -7667,7 +7667,7 @@
                 "description": "The list carries an attribute that no named field covers.",
                 "kind": "leaf-list",
                 "name": "attribute",
-                "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                "short-help": "Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].",
                 "source": "config",
                 "type": "string"
               },
