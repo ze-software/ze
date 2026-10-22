@@ -147,6 +147,25 @@ var oldResponsesAllowed = []oldResponseRow{
 		`the pre-RFC 9252 SRv6 L3 Service TLV of 4.2, as in JSON: RFC 9252 Section 7, "The treat-as-withdraw action `+
 			`[RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID `+
 			`attribute", so ze writes no announced line for it`),
+	// A member ExaBGP 6.0 writes and the release did not. The pin's own judge
+	// has no row for these because it never looks at a key the release did not
+	// write (qa/bin/test_old_responses, differences: "A key this tree adds is
+	// not read by a helper written before it: only what the release wrote is
+	// held to"); this judge does, so each 6.0 addition is a row quoting the
+	// pin's encoder.
+	oldResponseAllow("4.2", "json", `.`, `^/neighbor/router-id$`,
+		`6.0 states the session's router id on every line, API 4 included (src/exabgp/reactor/api/response/json.py, `+
+			`_neighbor: "rid_field = f', \"router-id\": \"{router_id}\"' if router_id else ''"; the API 4 encoder `+
+			`delegates to it), as 5.0 did; 4.2 wrote none`),
+	oldResponseAllow("4.2 5.0", "json", `^update `, `/attribute/extended-community/\d+/transitive$`,
+		`6.0 states the transitivity of an interface set (src/exabgp/bgp/message/update/attribute/community/extended/`+
+			`flowspec_scope.py, InterfaceSet.json: "return '{{ \"value\": {}, \"string\": \"{}\", \"transitive\": {} }}'"), `+
+			`the one community defined both transitive and non-transitive; the release wrote value and string only`),
+	oldResponseAllow("4.2", "json", `^update `, `/attribute/extended-community-ipv6$`,
+		`the IPv6 address specific extended community 4.2 did not know (the pin's row "4.2 did not know the IPv6 `+
+			`address specific extended community (RFC 5701), 5.0 does"): 6.0 files it under its name `+
+			`(src/exabgp/bgp/message/update/attribute/collection.py: "Attribute.CODE.IPV6_EXTENDED_COMMUNITY: `+
+			`('list', '', 'extended-community-ipv6', '%s', '%s')"), where 4.2 wrote attribute-0x19-0xC0`),
 }
 
 func (r *oldResponseRow) allows(release, encoder, event, where string) bool {
