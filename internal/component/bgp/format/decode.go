@@ -37,8 +37,9 @@ func DecodeOpen(body []byte) DecodedOpen {
 		return DecodedOpen{}
 	}
 
-	// Parse capabilities from OptionalParams
-	caps, asn4 := parseCapabilitiesFromOptParams(open.OptionalParams)
+	// RFC 9072 Section 2: the parameters carry two-octet lengths when the
+	// OPEN used the extended envelope, and only UnpackOpen knows it did.
+	caps, asn4 := parseCapabilitiesFromOptParams(open.OptionalParams, open.ExtendedParams)
 
 	// Determine ASN: prefer ASN4 from capability, then Open.ASN4, then MyAS
 	asn := uint32(open.MyAS)
@@ -58,49 +59,42 @@ func DecodeOpen(body []byte) DecodedOpen {
 }
 
 // parseCapabilitiesFromOptParams extracts capabilities from OPEN optional parameters.
-// RFC 3392: Optional Parameter Type 2 contains capabilities.
+// RFC 5492 Section 4: Optional Parameter Type 2 contains capabilities.
 // Returns structured capabilities and ASN4 value (0 if not present).
-func parseCapabilitiesFromOptParams(optParams []byte) ([]DecodedCapability, uint32) {
-	if len(optParams) == 0 {
-		return nil, 0
-	}
-
+//
+// extended is the OPEN's RFC 9072 framing (message.Open.ExtendedParams). The
+// framing is read by capability.WalkOptionalParams, the one reader of it: a
+// one-octet loop of its own here read every parameter of an extended OPEN as
+// length 0 or garbage, so such an OPEN's event listed no capability at all.
+//
+// The reader is lenient, as an event formatter is: the reactor refused a
+// malformed received OPEN with a NOTIFICATION before any event was built, so a
+// parameter of another type or a capability TLV that does not parse is skipped,
+// and a parameter that runs past the end stops the walk with the capabilities
+// read before it kept.
+func parseCapabilitiesFromOptParams(optParams []byte, extended bool) ([]DecodedCapability, uint32) {
 	var caps []DecodedCapability
 	var asn4 uint32
-	offset := 0
-
-	// Parse optional parameters TLV structure
-	for offset < len(optParams) {
-		if offset+2 > len(optParams) {
-			break
-		}
-
-		paramType := optParams[offset]
-		paramLen := int(optParams[offset+1])
-		offset += 2
-
-		if offset+paramLen > len(optParams) {
-			break
-		}
-
-		paramData := optParams[offset : offset+paramLen]
-		offset += paramLen
-
+	// RFC 9072 Section 2
+	//nolint:errcheck // a short read keeps what was read before it, as documented above.
+	capability.WalkOptionalParams(optParams, extended, func(paramType uint8, value []byte) error {
 		// Type 2 = Capabilities Optional Parameter (RFC 3392/5492)
-		if paramType == 2 {
-			parsed, err := capability.Parse(paramData)
-			if err != nil {
-				continue
-			}
-			for _, cap := range parsed {
-				caps = append(caps, formatCapability(cap)...)
-				// Extract ASN4 if present
-				if asn4Cap, ok := cap.(*capability.ASN4); ok {
-					asn4 = asn4Cap.ASN
-				}
+		if paramType != 2 {
+			return nil
+		}
+		parsed, err := capability.Parse(value)
+		if err != nil {
+			return nil //nolint:nilerr // a capability TLV that does not parse is skipped, as documented above.
+		}
+		for _, cap := range parsed {
+			caps = append(caps, formatCapability(cap)...)
+			// Extract ASN4 if present
+			if asn4Cap, ok := cap.(*capability.ASN4); ok {
+				asn4 = asn4Cap.ASN
 			}
 		}
-	}
+		return nil
+	})
 
 	return caps, asn4
 }
@@ -140,6 +134,11 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 		}
 		return results
 	case *capability.ExtendedNextHop:
+		// A capability that lists no family is still one the peer sent, so it
+		// is one entry with no value, as PathsLimit's is.
+		if len(c.Families) == 0 {
+			return []DecodedCapability{{Code: code, Name: "extended-nexthop"}}
+		}
 		// Return one entry per family
 		var results []DecodedCapability
 		for _, f := range c.Families {

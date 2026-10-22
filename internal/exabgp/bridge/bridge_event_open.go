@@ -137,6 +137,24 @@ func openMyAS(asn any) any {
 // "1", with the body as it is; an API 6 helper under the name, with "code"
 // inside (JSON._json_kv and JSON._with_code).
 func openCapabilitiesJSON(list any, format Format) map[string]any {
+	byCode := capabilityValuesByCode(list)
+	result := make(map[string]any, len(byCode))
+	for code, values := range byCode {
+		body := capabilityBody(code, values)
+		if format == FormatV4JSON {
+			result[strconv.Itoa(code)] = body
+			continue
+		}
+		body["code"] = code
+		result[exabgpCapabilityName(code)] = body
+	}
+	return result
+}
+
+// capabilityValuesByCode groups ze's capability list by code, each code's
+// values in wire order: ExaBGP's Capabilities is a dict keyed by code, so two
+// TLVs of one code are one entry. Both encoders read the OPEN through it.
+func capabilityValuesByCode(list any) map[int][]string {
 	entries, _ := list.([]any)
 	byCode := make(map[int][]string, len(entries))
 	for _, entry := range entries {
@@ -151,18 +169,7 @@ func openCapabilitiesJSON(list any, format Format) map[string]any {
 		value, _ := capability["value"].(string)
 		byCode[int(code)] = append(byCode[int(code)], value)
 	}
-
-	result := make(map[string]any, len(byCode))
-	for code, values := range byCode {
-		body := capabilityBody(code, values)
-		if format == FormatV4JSON {
-			result[strconv.Itoa(code)] = body
-			continue
-		}
-		body["code"] = code
-		result[exabgpCapabilityName(code)] = body
-	}
-	return result
+	return byCode
 }
 
 // capabilityBody answers what ExaBGP's capability class writes from json() for
@@ -266,10 +273,14 @@ func wireCapabilityFamily(afi uint16, safi uint8) string {
 }
 
 // nextHopConversions is NextHop.json: `<afi>/<safi>/<next-hop afi>`. ze writes
-// each entry as `<family> <next-hop afi>`.
+// each entry as `<family> <next-hop afi>`, and a capability that lists none
+// as one entry with no value, which is `NextHop()`.
 func nextHopConversions(values []string) []string {
 	conversions := make([]string, 0, len(values))
 	for _, value := range values {
+		if value == "" {
+			continue
+		}
 		zeFamily, nextHopAFI, _ := strings.Cut(value, " ")
 		var tb textbuf.Buffer
 		conversions = append(conversions, tb.Str(exabgpCapabilityFamily(zeFamily)).Byte('/').Str(nextHopAFI).String())

@@ -46,3 +46,46 @@ func TestDecodeOpenOpaqueCapabilityValues(t *testing.T) {
 		})
 	}
 }
+
+// TestDecodeOpenExtendedParams checks that an OPEN in the RFC 9072 extended
+// envelope lists its capabilities. Each parameter there has a two-octet length,
+// so a reader of one-octet lengths finds none of them: the OPEN ExaBGP 5.0
+// sends with twenty families came out with an empty capability list. The two
+// capabilities sit in two parameters, so a reader that stops after the first
+// is caught too.
+//
+// RFC 9072 Section 2: "the Parameter Length field is extended to be a
+// two-octet unsigned integer".
+func TestDecodeOpenExtendedParams(t *testing.T) {
+	body, err := hex.DecodeString("04" + "0001" + "005a" + "c0000201" + "ff" + "ff" + "0012" +
+		"020006" + "010400010001" + // Multiprotocol ipv4/unicast
+		"020006" + "41040000fde9") // Four-octet AS 65001
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded := DecodeOpen(body)
+	if len(decoded.Capabilities) != 2 {
+		t.Fatalf("decoded capabilities = %v, want multiprotocol and asn4", decoded.Capabilities)
+	}
+	if got := decoded.Capabilities[0]; got.Name != "multiprotocol" || got.Value != "ipv4/unicast" {
+		t.Errorf("first capability = %+v, want multiprotocol ipv4/unicast", got)
+	}
+	if decoded.ASN != 65001 {
+		t.Errorf("ASN = %d, want 65001 from the Four-octet AS capability", decoded.ASN)
+	}
+}
+
+// TestDecodeOpenEmptyExtendedNextHop checks that an Extended Next Hop
+// capability listing no family is still listed, with no value, as an empty
+// Paths-Limit is. ExaBGP 4.2 and 5.0 send one, and a script reading the OPEN
+// sees `nexthop()` there; dropping it hid a capability the peer sent.
+func TestDecodeOpenEmptyExtendedNextHop(t *testing.T) {
+	body := []byte{4, 0, 1, 0, 90, 192, 0, 2, 1, 4, 2, 2, 5, 0}
+	decoded := DecodeOpen(body)
+	if len(decoded.Capabilities) != 1 {
+		t.Fatalf("decoded capabilities = %v, want the empty extended next hop", decoded.Capabilities)
+	}
+	if got := decoded.Capabilities[0]; got.Code != 5 || got.Value != "" {
+		t.Errorf("capability = %+v, want code 5 with no value", got)
+	}
+}

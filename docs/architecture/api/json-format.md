@@ -452,7 +452,14 @@ Other capabilities use lowercase hexadecimal for the value bytes only, without
 the capability code and length octets. For example, GR wire TLV
 `4006000300010180` has code `64` and value `000300010180`. An empty capability
 has no value bytes. This contract applies to both received and sent OPEN events.
-<!-- source: internal/component/bgp/format/decode.go -- DecodedCapability, formatCapability -->
+
+A capability that lists one entry per family (Add-Path, Extended Next Hop,
+Paths-Limit) gives one list member per family. An Extended Next Hop or a
+Paths-Limit capability that lists no family is still one member, with no value,
+because the peer sent it. An OPEN in the RFC 9072 extended envelope, whose
+parameters carry two-octet lengths, lists its capabilities the same way as one
+in the RFC 4271 envelope.
+<!-- source: internal/component/bgp/format/decode.go -- DecodedCapability, formatCapability, parseCapabilitiesFromOptParams -->
 
 ---
 
