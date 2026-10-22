@@ -820,3 +820,43 @@ commit body), `./le arch tier check`, `./le go lint run`, `./le verify
 worktree`, `./le test functional exabgp-test` and `plugin` (negotiated now
 precedes `state` up: any .ci asserting the old order goes red), interop,
 independent review. Delete `bin/le-ngo`.
+
+## Agent text UPDATE lines (2026-10-22 Linux)
+
+Item 3 (text UPDATE class) DONE in code, LANDED 8a0abfaa5c. TestOldResponses
+text classes: 5.0 408 -> 0, 4.2 324 -> 6 in HEAD, -> 0 with the ALLOWED row
+below. Measured with the in-tree judge before the negotiated agent's stricter
+extra-key judge landed in the same file.
+
+- The text encoder renders each route from the ExaBGP JSON document
+  (`updateMessageJSON` + `overlayWire`), cursor per (family, next hop)
+  (`bridge_event_text_nlri.go` `textRoutes`, `appendExtensive`): prefix SAFIs
+  `cidr[ path-information][ label][ next-hop][ rd]` (no label on withdrawn),
+  flow/flow-vpn the `string` member, vpls, every other SAFI
+  `afi X safi Y` (Family.extensive), an undecoded `wire[...]` mup included.
+  `labeledText` and `appendNLRIText` deleted.
+- Communities, large, extended and IPv6 extended communities: sorted by octets
+  off `Event.Packet`, one member bare (`bridge_event_text_community.go`);
+  attr-14/15 never written; `bgp-prefix-sid [ N ]` / `[ N, [ ( b,r ), ... ] ]`
+  (`bridge_event_text_prefixsid.go`); 0x0800 -> `redirect-to-nexthop` /
+  `copy-to-nexthop` in `exabgpCommunityText` (JSON string too).
+- Test fixed (was wrong): `TestTextEncoderOrdersAttributesByCode` wanted
+  `community [ 2:1 ]`. New `bridge_event_text_nlri_test.go`.
+
+NOT committed, in the working tree (each file also holds another agent's
+uncommitted hunks that describe code not in HEAD, so they were not carried):
+- (landed since, in 551fd480d1) `old_responses_test.go`: 4.2 text ALLOWED row
+  `^update \S+ \S*C02818050015` (RFC 9252 Section 7 treat-as-withdraw, quoted;
+  same reason as the JSON row).
+- `docs/architecture/exabgp-bridge.md`: the per-SAFI text table and the
+  community paragraph replacing "Two places diverge" (now one place).
+Whoever commits those files next carries both.
+
+Not mine, seen red during my runs: JSON `/neighbor/negotiated`,
+`/neighbor/direction`, `/attribute/as-path` classes and
+`TestSessionsKeepTheBlockFromNegotiatedToDown`, all from the in-flight
+negotiated work and the extra-key judge.
+
+OWED gates: `./le go lint run`, `./le verify worktree`,
+`./le test functional exabgp-test`, `./le repo generate` / CODE-TO-DOCS
+(three new files), independent review.
