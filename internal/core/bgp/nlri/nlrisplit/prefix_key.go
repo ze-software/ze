@@ -254,9 +254,10 @@ func GetWithdrawalWriter(fam family.Family) WithdrawalWriter {
 // WithdrawalNLRIFromKey writes the withdrawal NLRI of one route of fam into
 // dst from its native key, [bits][RD?][prefix] as GetPrefixKey returns it, and
 // returns the octets written. The path identifier is the caller's: the key
-// excludes it. A family GetWithdrawalWriter answers nil for answers
-// ErrUnsupported, which tells the caller its stored NLRI is already the
-// withdrawal framing. A key of more than 231 bits answers errWithdrawalLength:
+// excludes it. For a family GetWithdrawalWriter answers nil for, one whose
+// announcement and withdrawal framings are the same bytes, it writes nothing
+// and answers ErrUnsupported, which tells the caller its stored NLRI is
+// already the withdrawal framing. A key of more than 231 bits answers errWithdrawalLength:
 // its length octet cannot also count the 24-bit Compatibility field. It needs
 // 3 octets more than len(key) in dst.
 func WithdrawalNLRIFromKey(fam family.Family, key, dst []byte) (int, error) {
