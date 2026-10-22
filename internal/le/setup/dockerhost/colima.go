@@ -14,12 +14,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-)
 
-// colimaProfile is the only Colima profile setup names. Colima's `default`
-// profile runs Ubuntu, which M10 rules out as a lab host, and it belongs to
-// the owner: setup never starts, stops, edits or deletes it.
-const colimaProfile = "ze"
+	labhost "github.com/ze-software/ze/internal/le/dockerhost"
+)
 
 // archARM64 is the Go name of the arch Rosetta and aarch64 belong to.
 const archARM64 = "arm64"
@@ -32,7 +29,7 @@ const colimaRecordFileName = "colima-ze.started"
 // answers names the ze profile right after the verb, so no path in setup can
 // reach Colima's default profile by omitting the flag (spec R-6).
 func colimaArgv(verb string, options ...string) []string {
-	return append([]string{"colima", verb, "--profile", colimaProfile}, options...)
+	return append([]string{"colima", verb, "--profile", labhost.ZeProfile}, options...)
 }
 
 // colimaStartArgv is the argv that boots the image as the ze profile.
@@ -116,7 +113,7 @@ func (h colimaHost) start(ctx context.Context, image builtImage, arch string) (s
 	if err != nil {
 		return startOutcome{}, err
 	}
-	outcome := startOutcome{Profile: colimaProfile, Image: image.Path, Key: image.Key, Recorded: recorded}
+	outcome := startOutcome{Profile: labhost.ZeProfile, Image: image.Path, Key: image.Key, Recorded: recorded}
 	if recorded == image.Key && state.running {
 		outcome.Action = startActionNone
 		return outcome, nil
@@ -149,12 +146,12 @@ func (h colimaHost) stop(ctx context.Context) (map[string]string, error) {
 		return nil, err
 	}
 	if !state.running {
-		return map[string]string{"profile": colimaProfile, "action": "none: the profile is not running"}, nil
+		return map[string]string{"profile": labhost.ZeProfile, "action": "none: the profile is not running"}, nil
 	}
 	if err := h.runShown(ctx, colimaArgv("stop")); err != nil {
 		return nil, err
 	}
-	return map[string]string{"profile": colimaProfile, "action": "stopped"}, nil
+	return map[string]string{"profile": labhost.ZeProfile, "action": "stopped"}, nil
 }
 
 // runShown prints the argv, then runs it.
@@ -190,23 +187,13 @@ func writeColimaRecord(path string, image builtImage) error {
 	return nil
 }
 
-// colimaHome is Colima's configuration root, where it keeps one directory per
-// profile and Lima's instances under _lima.
-func colimaHome() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("find the home directory: %w", err)
-	}
-	return filepath.Join(home, ".colima"), nil
-}
-
 // zeSocketPath is the Docker socket Colima forwards for the ze profile.
 func zeSocketPath() (string, error) {
-	root, err := colimaHome()
+	root, err := labhost.SystemColimaHome()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, colimaProfile, "docker.sock"), nil
+	return labhost.ZeSocket(root), nil
 }
 
 // systemColimaHost is the colimaHost that runs the real colima binary.
@@ -235,11 +222,11 @@ func runColima(ctx context.Context, argv []string) error {
 // colimaProfileState asks Lima's instance directory whether the profile
 // exists and `colima status` whether it runs.
 func colimaProfileState(ctx context.Context) (profileState, error) {
-	root, err := colimaHome()
+	root, err := labhost.SystemColimaHome()
 	if err != nil {
 		return profileState{}, err
 	}
-	instance := filepath.Join(root, "_lima", "colima-"+colimaProfile)
+	instance := filepath.Join(root, "_lima", "colima-"+labhost.ZeProfile)
 	if _, err := os.Stat(instance); errors.Is(err, fs.ErrNotExist) {
 		return profileState{}, nil
 	} else if err != nil {

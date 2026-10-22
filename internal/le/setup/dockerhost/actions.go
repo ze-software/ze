@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // dockerHostArea is the name this area is typed as.
@@ -305,7 +306,7 @@ func socketRow() checkRow {
 // parseBuildRequest checks the build's keywords and reads the pins. Empty
 // values take the host arch, the default size and the repository pin file.
 func parseBuildRequest(arch, size, pinPath string) (buildRequest, error) {
-	repo, err := os.Getwd()
+	repo, err := lepath.Root()
 	if err != nil {
 		return buildRequest{}, fmt.Errorf("find the repository root: %w", err)
 	}

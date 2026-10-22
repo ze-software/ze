@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	labhost "github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 // recordingColima is a colimaHost whose colima records every argv and
@@ -139,7 +141,7 @@ func TestDockerHostNeverNamesTheDefaultProfile(t *testing.T) {
 		t.Fatalf("only %d argvs recorded", len(recorder.argvs))
 	}
 	for _, argv := range recorder.argvs {
-		if argv[0] != "colima" || len(argv) < 4 || argv[2] != "--profile" || argv[3] != colimaProfile {
+		if argv[0] != "colima" || len(argv) < 4 || argv[2] != "--profile" || argv[3] != labhost.ZeProfile {
 			t.Errorf("argv %v does not carry --profile ze after its verb", argv)
 		}
 		if slices.Contains(argv, "default") {

@@ -44,10 +44,66 @@ const ZeProfile = "ze"
 // when the image changed. A refusal names it on a line of its own.
 const DockerHostStart = "./le setup docker-host start"
 
-// ZeSocket answers where Colima serves the `ze` profile's Docker daemon for
-// the account whose home directory is home.
-func ZeSocket(home string) string {
-	return filepath.Join(home, ".colima", ZeProfile, colimaSocket)
+// ZeSocket answers where Colima serves the `ze` profile's Docker daemon under
+// colimaHome, the root ColimaHome answers.
+func ZeSocket(colimaHome string) string {
+	return filepath.Join(colimaHome, ZeProfile, colimaSocket)
+}
+
+// ColimaHome answers Colima's configuration root, where it keeps one
+// directory per profile and Lima's instances under _lima, resolved the way
+// Colima 0.10.3 resolves it (config/files.go, configBaseDir): COLIMA_HOME when
+// that directory exists; else <home>/.colima when it exists; else
+// $XDG_CONFIG_HOME/colima when XDG_CONFIG_HOME is set; else <home>/.colima on
+// macOS; else the user config directory's colima. environ is the environment
+// the colima child would read (the last occurrence of a name wins, as in
+// os/exec), home the account's home directory, and exists reports whether a
+// directory exists, which DirExists answers for a real filesystem.
+func ColimaHome(goos string, environ []string, home string, exists func(string) bool) string {
+	if dir, _ := lastValue(environ, "COLIMA_HOME"); dir != "" && exists(dir) {
+		return dir
+	}
+	dotColima := filepath.Join(home, ".colima")
+	if exists(dotColima) {
+		return dotColima
+	}
+	if xdg, set := lastValue(environ, "XDG_CONFIG_HOME"); set {
+		return filepath.Join(xdg, "colima")
+	}
+	if goos == goosDarwin {
+		return dotColima
+	}
+	return filepath.Join(home, ".config", "colima")
+}
+
+// SystemColimaHome answers ColimaHome for this process: its platform, its
+// environment, its home directory and the real filesystem.
+func SystemColimaHome() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		var b textbuf.Buffer
+		return "", errors.New(b.Str("le cannot find Colima's configuration directory, because the home directory is unknown: ").
+			Err(err).Str(". Set HOME to your home directory, then rerun.").String())
+	}
+	return ColimaHome(runtime.GOOS, os.Environ(), home, DirExists), nil
+}
+
+// DirExists reports whether path names a directory.
+func DirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// lastValue answers the value of the last name= entry in environ, and whether
+// one exists: os/exec hands a child the last occurrence of a duplicated name.
+func lastValue(environ []string, name string) (string, bool) {
+	value, found := "", false
+	for _, entry := range environ {
+		if v, ok := strings.CutPrefix(entry, name+"="); ok {
+			value, found = v, true
+		}
+	}
+	return value, found
 }
 
 // Environment returns environ with the `ze` profile's socket selected as
@@ -64,13 +120,7 @@ func Environment(goos string, home func() (string, error), environ []string, soc
 	}
 	// os/exec resolves a duplicated variable to its LAST occurrence, so that is
 	// the value the child would read and the only one worth asking about.
-	named := ""
-	for _, entry := range environ {
-		if value, ok := strings.CutPrefix(entry, variable+"="); ok {
-			named = value
-		}
-	}
-	if named != "" {
+	if named, _ := lastValue(environ, variable); named != "" {
 		return environ, nil
 	}
 	homeDir, err := home()
@@ -79,7 +129,7 @@ func Environment(goos string, home func() (string, error), environ []string, soc
 		return nil, errors.New(b.Str("le cannot name the `ze` Colima profile's Docker socket, because the home directory is unknown: ").
 			Err(err).Str(". Set HOME to your home directory, then rerun.").String())
 	}
-	candidate := ZeSocket(homeDir)
+	candidate := ZeSocket(ColimaHome(goos, environ, homeDir, DirExists))
 	if !socket(candidate) {
 		return nil, zeSocketAbsent(candidate)
 	}

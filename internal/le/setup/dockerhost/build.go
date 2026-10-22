@@ -201,17 +201,24 @@ func runGok(arch string, args []string) error {
 	return nil
 }
 
-// digestRoots are the repository paths whose content the image carries
-// besides the pins and the kernel: the guest program and the instance.
+// digestRoots are the repository paths whose content shapes the image
+// besides the pins and the kernel: the guest program and the instance, this
+// package (which assembles the extra files, their modes and the static
+// recipe), the instance preparation it calls (internal/appliance/instance)
+// and the gok run that writes the image (internal/le/build/gokrazy).
 var digestRoots = []string{
 	"cmd/ze-docker-host",
 	"internal/appliance/dockerhost",
 	"gokrazy/docker-host",
+	"internal/le/setup/dockerhost",
+	"internal/appliance/instance",
+	"internal/le/build/gokrazy",
 }
 
 // sourceDigest digests every file under digestRoots (the extra files tar
-// excepted, being an output), the arch's busybox tar, the builder recipe and
-// the image size, so a change to any of them gives a new image key.
+// excepted, being an output, and test files and testdata, which no image
+// carries), the arch's busybox tar, the builder recipe and the image size, so
+// a change to any of them gives a new image key.
 func sourceDigest(repo, arch string, sizeGiB int) (string, error) {
 	var files []string
 	for _, root := range digestRoots {
@@ -219,7 +226,13 @@ func sourceDigest(repo, arch string, sizeGiB int) (string, error) {
 			if err != nil {
 				return err
 			}
+			if entry.IsDir() && entry.Name() == "testdata" {
+				return filepath.SkipDir
+			}
 			if entry.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(entry.Name(), "_test.go") {
 				return nil
 			}
 			if strings.HasPrefix(entry.Name(), "extrafiles_") {

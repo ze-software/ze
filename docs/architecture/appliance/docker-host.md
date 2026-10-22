@@ -196,7 +196,9 @@ writes the raw image to
 `~/.cache/ze/docker-host/<arch>/<key>/docker-host.img` and prints its path.
 The key is `ImageKey` over the pins, the runtime kernel cache entry's name and
 a source digest of `cmd/ze-docker-host`, `internal/appliance/dockerhost`,
-`gokrazy/docker-host` (the extra files tar excepted), the arch's busybox tar,
+`gokrazy/docker-host` (the extra files tar excepted), `internal/le/setup/dockerhost`,
+`internal/appliance/instance` and `internal/le/build/gokrazy` (test files and
+`testdata` excepted, `digestRoots`), the arch's busybox tar,
 the builder recipe and the size. When the entry holds the image, the build
 answers it and runs nothing. Before anything else it resolves the arch's
 runtime kernel (`dockerHostRuntimeKernel`, through
@@ -248,7 +250,11 @@ needed and boots it as the Colima profile `ze`:
 --disk-image <image> --force-disk-image --mount-type virtiofs --cpus 4
 --memory 8 --activate=false`, plus `--vz-rosetta` on arm64. `--activate=false`
 leaves the operator's current Docker context alone. The Docker socket is
-`~/.colima/ze/docker.sock`. The image key and path the profile was started
+`ze/docker.sock` under Colima's home, which `dockerhost.ColimaHome` resolves
+as Colima 0.10.3 does: `COLIMA_HOME` when that directory exists, else
+`~/.colima` when it exists, else `$XDG_CONFIG_HOME/colima` when that variable
+is set, else `~/.colima` on macOS. Setup and the labs' `dockerhost.Environment`
+share that one resolution and the one `dockerhost.ZeProfile` name. The image key and path the profile was started
 with are recorded in `~/.cache/ze/docker-host/colima-ze.started`. With the
 same key and the profile running, `start` does nothing; with a new key it runs
 `colima stop --profile ze`, `colima delete --profile ze --force`, then the
@@ -260,6 +266,7 @@ image. Every colima argv is built by `colimaArgv`, which always passes
 and `mkfs.ext4`, the recorded image, whether the profile runs and whether its
 socket exists, and exits 1 naming the fix for each failure.
 
+<!-- source: internal/le/dockerhost/dockerhost.go -- ColimaHome, ZeSocket, ZeProfile -->
 <!-- source: internal/le/setup/dockerhost/colima.go -- colimaArgv, colimaStartArgv, colimaHost.start -->
 <!-- source: internal/le/setup/dockerhost/actions.go -- checkRows -->
 

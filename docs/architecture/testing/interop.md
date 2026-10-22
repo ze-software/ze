@@ -810,7 +810,9 @@ removed: they are what keeps a second run minutes long.
 On macOS the daemon in hand is the `ze` Colima profile's, which boots Ze's
 docker-host image (owner decision M10). With DOCKER_HOST unset or empty, every
 docker command le runs for a lab, the kernel check included, carries
-`DOCKER_HOST=unix://$HOME/.colima/ze/docker.sock` (`dockerhost.Environment`,
+`DOCKER_HOST=unix://<colima home>/ze/docker.sock`, where the Colima home is
+resolved as Colima resolves it (`$HOME/.colima` by default, `COLIMA_HOME` or
+`$XDG_CONFIG_HOME/colima` when set; `dockerhost.ColimaHome`) (`dockerhost.Environment`,
 through `Docker.run`, the one route to the process runner), whatever
 `/var/run/docker.sock` or the current Docker context names. When that socket is
 absent the first docker command refuses, before any image build or container,
@@ -1259,6 +1261,16 @@ naming no image, or two, is an error.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
 <!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
 
+A scenario may carry a `ze-sysctls` file: whitespace-separated `key=value`
+assignments, each passed as `--sysctl` to Ze's container, so the runtime writes it
+into the container's own network namespace before ze starts. Docker mounts
+`/proc/sys` read-only, so a value ze would otherwise write itself is refused
+there. `ospf-sr-anycast-nexthop-frr` uses it for `net.mpls.platform_labels`,
+which fib-kernel needs non-zero before it can install a label route. Only `net.*`
+keys are accepted; any other key, a token without `=` or an empty value refuses
+the scenario before a container starts.
+<!-- source: internal/le/interoplab/bgp/prepare_ze_sysctls.go -- zeSysctlArguments -->
+
 `bgp-linklocal-only-multihop-withdraw-frr` exercises the off-connected-subnet
 gate on one lab network: FRR's session address is on its loopback (10.255.0.3),
 outside every subnet Ze is attached to, and the checker gives Ze a host route
@@ -1648,11 +1660,13 @@ these fixes was recorded until 2026-10-21, when all four ran green in the
 Docker lab. The tunnel and transport rebind scenarios went red under their
 reverted fixes. `responder-eap-tls12` went red when crypto/tls was patched to
 export keying material without RFC 7627: charon then established the IKE SA,
-and assertion 3 (EAP-Failure) timed out. The EAP port scenario stays green with
-the D1b adoption line in `handleResponderEAP` removed, because the earlier EAP
-rounds adopt the endpoint before the Child SA is built, so a unit test carries
-D1b. Its ports still go through `childEncapPorts`, which the tunnel scenario's
-red covers.
+and assertion 3 (EAP-Failure) timed out. The EAP port scenario sets
+`mobike = no`: with MOBIKE negotiated, Ze records the observed endpoint at the
+first IKE_AUTH (RFC 4555 Section 3.3, `handleAuthRequest`), so the EAP
+responder's own adoption never set the ports and removing it stayed green. With
+MOBIKE off, removing the adoption line in `handleResponderEAP` goes red: Ze
+refuses the IKE_AUTH Child SA because the peer has no authenticated IKE
+endpoint yet.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
 <!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap, checkResponderEAPTLS12 -->
@@ -2306,6 +2320,40 @@ its normal zebra forwarding and BIRD exports OSPF routes through its kernel prot
 <!-- source: internal/le/interoplab/bgp/check_virtual_link.go -- checkOSPFVirtualLink -->
 <!-- source: test/interop/scenarios/ospf-virtual-link-frr/ -- OSPFv2 configurations -->
 <!-- source: test/interop/scenarios/ospfv3-vlink-frr/ -- OSPFv3 configurations -->
+
+`ospf-self-lsa-flush-frr` proves RFC 2328 Section 13.4 for an LSA Ze no
+longer wishes to originate. Two reloads leave FRR holding Ze's default
+AS-external-LSA at sequence 0x80000003 or later. FRR's `eth0` then goes down,
+Ze is stopped and started (`opStop`, then `opStart`), so it originates the
+default again at 0x80000001, and `ze-reload-withdraw.conf` withdraws it. With
+no neighbour to acknowledge the flush, Ze keeps its own copy at MaxAge,
+0x80000002, and the checker reads that copy out of `show ospf database
+external` before FRR comes back. In the database exchange that follows, FRR
+hands Ze its newer instance. Ze must flush it at MaxAge with FRR's own
+sequence number, so the LSA must leave FRR's database and the default must
+leave `show ip route ospf`. A Ze that re-originates the withdrawn body at age 0
+leaves both in place, and the absences time out. `opStop` returns only once
+Docker reports the container stopped, so the start that follows cannot race a
+container that is still shutting down.
+<!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations -->
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- opStop -->
+
+`ospf-sr-anycast-nexthop-frr` proves RFC 8665 Section 5's rule that a router
+"MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
+router if that router advertised the SID for the prefix", for a next hop that is
+not the binding's Originator. Ze and two FRRs share one broadcast LAN with SR on.
+Both FRRs bind index 100 to the anycast `10.255.255.100/32` on `lo` with PHP
+requested: `frr` (router-id 192.0.2.3) at stub cost 1, so it is Ze's only next
+hop, and `frr-sink` (192.0.2.1) at cost 50. Ze reads Extended Prefix LSAs in
+LSDB key order, and both FRRs use the same Opaque ID, so 192.0.2.1 becomes the
+Originator and the next hop is the second advertiser. The checker first requires
+that order from Ze's `show ospf database opaque-area` (a lab where the next hop
+became the Originator passes either way, so it fails instead), then reads
+`ip -f mpls route show` in Ze's container: in-label 16100 MUST be popped toward
+the next hop. A Ze applying the flags only when the next hop is the Originator
+swaps 16100 to 17100, the next hop's SRGB base plus the index.
+<!-- source: internal/le/interoplab/bgp/check_ospf_sr_anycast.go -- checkOSPFSRAnycastNextHop, ospfSRAnycastOriginatorVerdict, ospfSRAnycastPopVerdict -->
+<!-- source: test/interop/scenarios/ospf-sr-anycast-nexthop-frr/ -- configurations -->
 
 `bgp-graceful-restart-frr` retains its original session, route, GR and EOR
 checks and adds two strict input speakers with FRR as the independent receiver.

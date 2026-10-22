@@ -608,7 +608,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | IPsec, IKE, IKEv2, SA, child SA | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
 | EAP, NAT-T, MOBIKE | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
 | XFRM, xfrm interface, VTI, netlink, go mod vendor | `ai/digests/ipsec-ike.md`, `internal/component/ike/`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (vendored netlink patch, recovery command, and owning gate), `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` |
-| standard library patch, crypto/tls patch, go build -overlay, GOROOT, TLS session_id | `docs/contributing/patching-the-standard-library.md` (not built yet; `plan/immediate/spec-ike-eap-rfc-defects.md` builds it) |
+| standard library patch, crypto/tls patch, go build -overlay, GOROOT, TLS session_id | `docs/contributing/patching-the-standard-library.md` |
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
 | diagnostic, doctor, health, readiness, plugin setup, setup outcome, show plugin list, why is this feature absent | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
@@ -620,6 +620,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | self-update, manifest, auto-update | `docs/architecture/appliance/self-update.md`, `docs/guide/self-update.md` |
 | ASPA, path verification, RTR | `docs/guide/rpki.md` (ASPA Path Verification), `internal/component/bgp/plugins/rpki/`, `docs/features/rfc-status.md` (draft-ietf-sidrops-aspa-verification) |
 | BMP, monitoring protocol | `docs/guide/bmp.md`, `internal/component/bgp/plugins/bmp/`, `docs/architecture/api/commands.md` (bmp-sessions, bmp-peers) |
+| docker-host, setup docker-host, docker-host image, ze Colima profile, ze-docker-host | `docs/architecture/appliance/docker-host.md`, `internal/appliance/dockerhost/`, `cmd/ze-docker-host/`, `internal/le/setup/dockerhost/`, `gokrazy/docker-host/binaries.json`, `./le setup docker-host build`, `./le setup docker-host start` |
 | docker, container, scratch, lab image | `docs/guide/docker.md` (both images), `docker/Dockerfile`, `docker/Dockerfile.lab` |
 | labtest, package test server container, real server in a unit test, stayrtr container, docker build tag, docker-peers, ZE_REQUIRE_DOCKER | `docs/architecture/testing/interop.md` (A package test's own server container (labtest)), `internal/le/interoplab/labtest/labtest.go`, `docs/architecture/testing/qemu-integration.md` (The docker population), `./le test integration docker-peers` |
 | lab cleanup, leftover containers, orphan lab resources, killed lab run, lab owner labels, ze.lab.run, ze.lab.pid | `docs/architecture/testing/interop.md`, `./le test integration cleanup dry`, `./le test integration cleanup`, `internal/le/interoplab/orphans.go` |
