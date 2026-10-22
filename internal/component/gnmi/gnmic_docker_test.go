@@ -45,10 +45,11 @@ import (
 )
 
 const (
-	// gnmicImage is gnmic 0.42.1 from the OpenConfig project, pinned by
-	// digest, so the client under the test cannot change between two runs.
-	gnmicImage = "ghcr.io/openconfig/gnmic:0.42.1" +
-		"@sha256:3e135878f555772653a278742d2c7460b47c20e2907e07f611ecf4cc5a2261cf"
+	// gnmicImage is gnmic 0.49.1 from the OpenConfig project, its latest
+	// stable release (M14), pinned by digest, so the client under the test
+	// cannot change between two runs.
+	gnmicImage = "ghcr.io/openconfig/gnmic:0.49.1" +
+		"@sha256:d148508c7ab3e5fd446759648d529409c1e37c2cc99c8b681078d120ca1a302b"
 	// gnmicCertDirectory is where the client reads the test's CA certificate.
 	gnmicCertDirectory = "/certs"
 	// gnmicToken is the bearer token Ze's server requires.

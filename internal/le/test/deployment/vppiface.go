@@ -51,11 +51,11 @@ const (
 
 // What the run uses when the operator names nothing.
 //
-// The tag floats because ligato publishes no pinned VPP release tag. This is
-// the image's own publishing choice, not this proof's choice. The plugin probes
-// exist because the contents of this image are not fixed.
+// The tag names ligato's 26.06 release build, the latest stable VPP (M14), so
+// the VPP under the proof changes only when this line does. The plugin probes
+// stay because a ligato build ships only some of VPP's plugins.
 const (
-	VPPImage    = "ligato/vpp-base:latest"
+	VPPImage    = "ligato/vpp-base:26.06-release"
 	VPPPlatform = "linux/amd64"
 	VPPGoarch   = "amd64"
 )

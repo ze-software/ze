@@ -134,7 +134,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			"ZE_RECORD_DOCKER":       record,
 			"ZE_VPP_WORK":            filepath.Join(work, "vpp-work"),
 			"ZE_VPP_STATE":           filepath.Join(work, "vpp-state-"+filepath.Base(record)),
-			"ZE_VPP_DOCKER_IMAGE":    "ligato/vpp-base:latest",
+			"ZE_VPP_DOCKER_IMAGE":    "ligato/vpp-base:26.06-release",
 			"ZE_VPP_DOCKER_PLATFORM": "linux/amd64",
 			"ZE_VPP_DOCKER_GOARCH":   archAMD64,
 			"ZE_PLUGINS_EXIT":        pluginsExit,
