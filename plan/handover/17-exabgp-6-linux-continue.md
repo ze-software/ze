@@ -760,21 +760,30 @@ a withdraw (`validatePrefixSIDValue` -> `applyRFC7606` ->
 `reactor/prefixsid_service_tlv_withdraw_test.go` (red with the verdict mapped
 to attribute-discard). Committed with this section.
 
-Shutdown: DEFECT, half fixed, uncommitted. The engine sends no `bye` on daemon
-stop (`ProcessManager.Stop`: "No bye round-trip"), so the `OnBye` handlers in
-both runners never ran. Uncommitted: `OnBye` removed from
-`internal/plugins/exabgp/main_sdk.go` and `bridgeplugin/internal.go`;
-`fleet.Shutdown()` runs after `p.Run` returns (before `fleet.Stop()` external,
-before `cancel()` internal); `Fleet.Shutdown` comment ("MUST be called before
-Stop"); `exabgp-bridge.md` paragraph; drafts
-`test/draft/plugin/exabgp-bridge-shutdown-{internal,external}.ci` with fixture
-`plugin_fixture_exabgp_shutdown.go` (Register in `plugin_fixture_06.go`).
-Both drafts red before the fix; external now PASSES; internal still FAILS:
-`Shutdown` only queues the line and `cancel()` kills the script
-(`exec.CommandContext`, script.go) before `writeLoop` writes it. Next: Shutdown
-queues the line, closes each started script's queue, waits for its writer
-(writer-done channel closed at the end of `writeLoop`), bounded ~1s; promote
-both drafts; rerun; optionally an exabgp-compat case vs the pin.
+Shutdown: FIXED, committed with this paragraph. Cause: the engine stops every
+plugin by closing its connection with no `bye` (`ProcessManager.Stop`; documented
+in `process-protocol.md` "Shutdown": "Whole-daemon shutdown instead closes plugin
+connections without `bye`"), so the runners' `OnBye` never ran; and the internal
+runner's `cancel()` SIGKILLs each script (`exec.CommandContext`) before a queued
+line is written or read. Fix: both runners call `fleet.Shutdown()` after `p.Run`
+returns; `Fleet.Shutdown` marks the fleet stopping (no respawn into the EOF),
+queues the line, closes each started script's queue, then waits for the
+writer's `drained` and the supervisor's `reaped` channels, one 1 s bound for the
+whole fleet (`shutdownWait`), logging each script still running. ExaBGP gives
+the same chance (writes, sleeps 0.1 s, SIGTERM, waits 2 s). Engine verdict: not
+an engine defect, the no-`bye` stop is documented and deliberate (firewall rule
+retention); the outside-author pages and SDK comments that said `bye` comes on
+shutdown were corrected (`docs/plugin-development/{README,protocol,handlers}.md`,
+`pkg/plugin/sdk` `Run`, `OnBye`). Proof: `test/plugin/exabgp-bridge-shutdown-
+{internal,external}.ci` green; red walk with the wait disabled: internal red
+("output does not contain OK: exabgp shutdown line in text"), external stays
+green (its stop never raced); unit `bridgerun/shutdown_test.go` (3 tests) red
+on the same cut, green restored. No exabgp-compat case: that suite judges the
+wire, and the shutdown line reaches only the script's stdin. HELD BACK:
+`docs/architecture/exabgp-bridge.md`, whose shutdown paragraph (the wait) is in
+the tree but the file also carries a hunk naming the uncommitted
+`Peer.announceNegotiated`; it lands with that reactor work. OWED: `./le verify`,
+`./le go lint run` (main thread).
 
 ## Agent negotiated order and JSON defects (2026-10-22 Linux)
 

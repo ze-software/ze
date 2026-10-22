@@ -1,0 +1,64 @@
+# Test: the external ExaBGP bridge runner (`ze exabgp plugin`) writes a script ExaBGP's shutdown line before the daemon stops
+# VALIDATES: a script under `ze exabgp plugin`, which writes JSON, that sends
+#            ExaBGP's `shutdown` reads `{"notification": "shutdown", "type":
+#            "notification"}` on stdin before stdin closes (main_sdk.go
+#            runSDKMode, after p.Run returns -> bridgerun Fleet.Shutdown ->
+#            bridge.ShutdownLine). The engine stops a plugin with no `bye`
+#            (ProcessManager.Stop).
+# PREVENTS: a script stopped with no shutdown line, which ExaBGP always writes
+#           (Processes.terminate, src/exabgp/reactor/api/processes.py)
+# The helper waits for the neighbor's `up` state, sends `shutdown` (the bridge
+# translates it to `request shutdown`), and fails unless the shutdown line follows.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external exabgp-bridge {
+		run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/exabgp-shutdown-helper json"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		attach process exabgp-bridge {
+			receive [ * ]
+			send [ * ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: exabgp shutdown line in json:

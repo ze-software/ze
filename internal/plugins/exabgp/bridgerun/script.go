@@ -94,6 +94,15 @@ type script struct {
 	// so no two writes into the pipe interleave.
 	queue chan []byte
 
+	// drained is closed by the writer goroutine once it has written its last
+	// queued line and closed the child's stdin (writeLoop), and reaped by the
+	// supervisor once it has reaped its last child and will start no other
+	// (supervise). Fleet.Start makes both when it starts the two goroutines,
+	// under mu; nil means Start never reached this script, so Fleet.Shutdown
+	// has nothing to wait for.
+	drained chan struct{}
+	reaped  chan struct{}
+
 	limiter respawnLimiter
 	dropped atomic.Uint64
 
@@ -233,8 +242,11 @@ func (s *script) start(ctx context.Context) error {
 
 // supervise is the script's own goroutine. It reads the child's stdout until
 // the pipe closes, reaps the child, and starts it again when the config asks
-// for a respawn and the rate limit allows one.
-func (s *script) supervise(ctx context.Context, f *Fleet, d Dispatcher) {
+// for a respawn and the rate limit allows one. It closes reaped when it
+// returns, which is after its last child is reaped.
+func (s *script) supervise(ctx context.Context, f *Fleet, d Dispatcher, reaped chan<- struct{}) {
+	defer close(reaped)
+
 	for {
 		s.read(ctx, d)
 		s.reap()
@@ -425,8 +437,12 @@ func (s *script) reap() {
 }
 
 // writeLoop drains the queue into the child's stdin. It is the one writer the
-// pipe has, so an event and an ack never interleave inside one line.
-func (s *script) writeLoop() {
+// pipe has, so an event and an ack never interleave inside one line. It ends
+// when closeQueue closes the queue, and closes drained on its way out, after
+// the child's stdin is closed, which is what Fleet.Shutdown waits on.
+func (s *script) writeLoop(drained chan<- struct{}) {
+	defer close(drained)
+
 	for line := range s.queue {
 		s.mu.Lock()
 		w := s.stdin
@@ -471,6 +487,14 @@ func (s *script) send(line []byte) {
 				"script", s.name, "depth", queueDepth)
 		}
 	}
+}
+
+// ended answers the channels the writer and the supervisor close when each
+// ends, both nil when Fleet.Start never started this script.
+func (s *script) ended() (drained, reaped <-chan struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.drained, s.reaped
 }
 
 // closeQueue ends the writer goroutine, which closes the child's stdin.

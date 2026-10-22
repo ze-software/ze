@@ -149,16 +149,6 @@ func runInternalBridge(conn net.Conn) int {
 	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
 	p.OnEvent(r.onEvent)
 
-	// The engine's `bye` comes before it stops this plugin: every script is
-	// told as ExaBGP tells it (bridgerun.Fleet.Shutdown). No fleet before
-	// OnConfigure means no script to tell.
-	p.OnBye(func(string) error {
-		if fleet := r.scripts(); fleet != nil {
-			fleet.Shutdown()
-		}
-		return nil
-	})
-
 	p.DeclareCapabilitiesFrom(bridgeCapabilities, bridgeCapabilityLeaves)
 	r.registerReloadHandlers(p)
 
@@ -188,6 +178,15 @@ func runInternalBridge(conn net.Conn) int {
 	p.OnAllPluginsReady(func() error { return r.startWhenReady(ctx, p) })
 
 	runErr := p.Run(ctx, bridgeRegistration())
+
+	// The engine stops a plugin by closing its connection, with no `bye`
+	// (process.ProcessManager.Stop), so the end of Run is the daemon stopping.
+	// Every script is told as ExaBGP tells it (bridgerun.Fleet.Shutdown) while
+	// it still runs: the cancel below ends the scripts. No fleet before
+	// OnConfigure means no script to tell.
+	if fleet := r.scripts(); fleet != nil {
+		fleet.Shutdown()
+	}
 
 	// Shutdown: cancel the subprocess context, close each stdin (EOF), wait.
 	cancel()

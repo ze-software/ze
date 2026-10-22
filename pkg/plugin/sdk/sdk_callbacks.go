@@ -220,7 +220,10 @@ func (p *Plugin) OnStructuredEvent(fn StructuredEventHandler) {
 	p.onStructuredEvent = fn
 }
 
-// OnBye sets the handler for shutdown notification.
+// OnBye sets the handler for the engine's `bye`. The engine sends it when it
+// removes this plugin while the daemon keeps running (reason `removed`) and
+// when it stops a subsystem process. It never sends it on daemon stop, which
+// closes the connection instead, so cleanup owed then runs after Run returns.
 func (p *Plugin) OnBye(fn ByeHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

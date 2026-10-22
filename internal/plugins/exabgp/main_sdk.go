@@ -110,13 +110,6 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		return nil
 	})
 
-	// The engine's `bye` comes before it stops this process: the script is told
-	// as ExaBGP tells it (bridgerun.Fleet.Shutdown).
-	p.OnBye(func(string) error {
-		fleet.Shutdown()
-		return nil
-	})
-
 	// The script starts once the engine has loaded every plugin in every
 	// startup phase and frozen the dispatcher registry.
 	//
@@ -142,6 +135,11 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		}
 	}
 
+	// The engine stops a plugin by closing its connection, with no `bye`
+	// (process.ProcessManager.Stop), so the end of Run is the daemon stopping.
+	// The script is told as ExaBGP tells it, before its stdin closes
+	// (bridgerun.Fleet.Shutdown).
+	fleet.Shutdown()
 	fleet.Stop()
 
 	return exitOK

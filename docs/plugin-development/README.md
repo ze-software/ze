@@ -47,7 +47,8 @@ func main() {
 	p.SetStartupSubscriptions([]string{"update"}, nil, "")
 
 	// Run the 5-stage startup protocol and enter the event loop.
-	// Returns nil on clean shutdown (bye received).
+	// Returns nil on clean shutdown: a bye, or the engine closing the
+	// connection, which is how a daemon stop ends every plugin.
 	if err := p.Run(context.Background(), &sdk.Registration{
 		Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
 	}); err != nil {
@@ -166,9 +167,12 @@ Ze Engine                          Plugin
     |<-- update-route ------------------|  Runtime: plugin sends routes
     |--- ok {"peers-affected":2} ----->|
     |                                |
-    |--- bye -------------------------->|  Shutdown
+    |--- bye -------------------------->|  Live removal
     |<-- ok ----------------------------|
 ```
+
+A daemon stop sends no `bye`: the engine closes the connection and `Run`
+returns nil.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run (stages 1-5) -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, ConfigureInput, DeclareCapabilitiesInput, ShareRegistryInput, ReadyInput, ExecuteCommandInput, UpdateRouteInput, ByeInput -->
 
@@ -237,7 +241,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | `OnConfigVerify` | `ConfigVerifyHandler` | Reload: validate candidate config |
 | `OnConfigApply` | `ConfigApplyHandler` | Reload: apply config diff. A plugin with `WantsConfig` registers it or calls `DeclareAppliesNothing(reason)`; with neither, every reload that reaches it is refused |
 | `OnValidateOpen` | `ValidateOpenHandler` | Runtime: validate OPEN messages |
-| `OnBye` | `ByeHandler` | Shutdown: reason string |
+| `OnBye` | `ByeHandler` | Live removal (reason `removed`) or a subsystem stop. A daemon stop sends no `bye`: it closes the connection and `Run` returns |
 | `OnStarted` | `StartedHandler` | Post-startup: safe to make engine calls |
 
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- all On* methods -->

@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
@@ -78,8 +79,10 @@ type ScriptFeed struct {
 
 // Fleet runs every script an ExaBGP config declares.
 //
-// The sequence is New, Start, then Broadcast for each event, then Stop. The
-// caller MUST cancel the context it passed to Start before it calls Stop:
+// The sequence is New, Start, then Broadcast for each event, then Shutdown
+// when the daemon stops, then Stop. Shutdown MUST come before the caller
+// cancels the context it passed to Start, and the caller MUST cancel that
+// context before it calls Stop:
 // Stop closes each script's stdin and waits, and a child that has stopped
 // reading its stdin is ended by that cancellation rather than by the EOF.
 type Fleet struct {
@@ -89,6 +92,8 @@ type Fleet struct {
 
 	// stopping tells each script's supervisor that the EOF it is about to read
 	// is the shutdown rather than a crash, so it does not respawn into it.
+	// Shutdown sets it before it closes the scripts' stdin, and Stop sets it
+	// for a fleet that was never told to shut down.
 	stopping bool
 	mu       sync.Mutex
 
@@ -150,14 +155,21 @@ func (f *Fleet) Start(ctx context.Context, d Dispatcher) error {
 		if err := s.start(ctx); err != nil {
 			return fmt.Errorf("exabgp-bridge: script %s: %w", s.name, err)
 		}
+		drained := make(chan struct{})
+		reaped := make(chan struct{})
+		s.mu.Lock()
+		s.drained = drained
+		s.reaped = reaped
+		s.mu.Unlock()
+
 		f.wg.Add(2)
 		go func() {
 			defer f.wg.Done()
-			s.supervise(ctx, f, d)
+			s.supervise(ctx, f, d, reaped)
 		}()
 		go func() {
 			defer f.wg.Done()
-			s.writeLoop()
+			s.writeLoop(drained)
 		}()
 	}
 	return nil
@@ -250,16 +262,92 @@ func (f *Fleet) render(cache *[bridge.FormatCount][]byte, format bridge.Format, 
 // Shutdown writes every script ExaBGP's shutdown line (bridge.ShutdownLine),
 // in its own format, whatever its api block grants: ExaBGP writes it to every
 // process before it terminates them (Processes.terminate). Each runner calls it
-// from the engine's `bye` (sdk.Plugin.OnBye), before Stop closes the scripts'
-// stdin, so the line is queued ahead of the EOF.
+// once its SDK Run returns, which is how the engine stops a plugin (it closes
+// the connection and sends no `bye`, process.ProcessManager.Stop), while the
+// scripts still run. It MUST be called before Stop, and before the caller
+// cancels the context it passed to Start: that cancellation kills each child
+// (exec.CommandContext), and a line still queued then is never read.
+//
+// So it does not only queue the line. It marks the fleet stopping, so no
+// supervisor respawns a child into the EOF, queues the line behind whatever is
+// already queued, and closes each started script's queue. It then waits for
+// each writer to write the line and close the child's stdin, and for each
+// child to read up to that EOF and exit: a written line a child has not yet
+// read is lost to the kill as surely as a queued one. ExaBGP gives a child the
+// same chance: it writes the line, pauses, then sends SIGTERM and waits up to
+// two seconds (Processes.terminate, _terminate_run).
+//
+// The wait is bounded by shutdownWait for the whole fleet, not per script, so
+// a child that stopped reading or ignores its EOF cannot hold the daemon's
+// stop, and each script still running when the bound is hit is logged. Stop
+// then finds every queue already closed.
 func (f *Fleet) Shutdown() {
+	f.mu.Lock()
+	f.stopping = true
+	f.mu.Unlock()
+
+	var started []*script
 	for _, s := range f.scripts {
+		if drained, _ := s.ended(); drained == nil {
+			// Start never reached this script: no child runs to be told.
+			continue
+		}
 		line, err := bridge.ShutdownLine(s.api.Format())
 		if err != nil {
 			f.log.Warn("exabgp-bridge: the shutdown line could not be written", "script", s.name, "error", err)
-			continue
+		} else {
+			s.send(line)
 		}
-		s.send(line)
+		s.closeQueue()
+		started = append(started, s)
+	}
+
+	bound := time.NewTimer(shutdownWait)
+	defer bound.Stop()
+
+	for i, s := range started {
+		drained, reaped := s.ended()
+		if !untilEnded(bound.C, drained) {
+			f.lateAtShutdown(started[i:])
+			return
+		}
+		if !untilEnded(bound.C, reaped) {
+			f.lateAtShutdown(started[i:])
+			return
+		}
+	}
+}
+
+// shutdownWait bounds how long Fleet.Shutdown waits, for the whole fleet, for
+// the scripts to receive the shutdown line and exit on their EOF. A script
+// that reads its stdin does both in milliseconds; the bound is what a script
+// that does neither costs the daemon's stop.
+const shutdownWait = time.Second
+
+// untilEnded answers true once ended is closed, and false if the bound fires
+// first. A channel already closed wins over a bound that fired at the same
+// moment, so a script that did end is never logged as late.
+func untilEnded(bound <-chan time.Time, ended <-chan struct{}) bool {
+	select {
+	case <-ended:
+		return true
+	default:
+	}
+	select {
+	case <-ended:
+		return true
+	case <-bound:
+		return false
+	}
+}
+
+// lateAtShutdown logs each script Shutdown stopped waiting for. The context
+// cancellation that follows kills it, so it may not have read the shutdown
+// line.
+func (f *Fleet) lateAtShutdown(late []*script) {
+	for _, s := range late {
+		f.log.Warn("exabgp-bridge: script still running when the shutdown wait ended; it is killed and may not have read the shutdown line",
+			"script", s.name, "bound", shutdownWait)
 	}
 }
 

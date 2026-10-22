@@ -504,7 +504,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
 | No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |
-| `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of shutdown |
+| `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection |
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 
@@ -601,11 +601,15 @@ Plugin                                             Engine
    |-- #43 end 1 0 0: ------------------------------->|  1 produced, 0 rejected,
    |                                                  |  no message
    |                                                  |
-   |  SHUTDOWN: bye                                   |
+   |  REMOVAL: bye                                    |
    |<- #99 ze-plugin-callback:bye {"reason":"..."} ---|
    |-- #99 ok ---------------------------------------->|
    |  (plugin exits)                                  |
 ```
+
+A daemon stop sends no `bye`: the engine closes the connection, and the
+plugin's `Run` returns nil (`docs/architecture/api/process-protocol.md`,
+"Shutdown").
 
 ## Error Handling
 

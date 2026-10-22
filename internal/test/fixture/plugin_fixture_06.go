@@ -63,6 +63,7 @@ func init() {
 	Register("plugin/enricher-external-show-provider", fixture06EnricherExternalProvider)
 	Register("plugin/exabgp-bridge-helper", fixture06ExaBGPHelper)
 	Register("plugin/exabgp-bridge-bare-helper", fixture06ExaBGPBareHelper)
+	Register("plugin/exabgp-shutdown-helper", exabgpShutdownHelper)
 	Register("plugin/exec-answer-unconditional-frame-check", fixture06FrameCheck)
 }
 

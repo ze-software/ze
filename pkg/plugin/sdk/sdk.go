@@ -430,7 +430,11 @@ func (p *Plugin) Close() error {
 var errNilRegistration = errors.New("plugin declaration is nil: the engine needs the plugin's registration at stage 1; pass &sdk.Registration{...}")
 
 // Run executes the 5-stage startup protocol and enters the event loop.
-// Returns nil on clean shutdown (bye received), or error on failure. Before
+// Returns nil on clean shutdown, or error on failure. A clean shutdown is
+// either a successful `bye` (the plugin's live removal) or the engine closing
+// the connection, which is how a daemon stop ends every plugin: no `bye` comes
+// then (docs/architecture/api/process-protocol.md, "Shutdown"), so cleanup a
+// plugin owes on daemon stop runs after Run returns. Before
 // returning it fences and drains direct event handlers, so the owner MUST wait
 // for Run to return before releasing state those handlers use.
 //
