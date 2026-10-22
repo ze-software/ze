@@ -217,7 +217,7 @@ func (m *MPLSBoot) bootAndAssert(report MPLSBootReport, image string) (MPLSBootR
 
 	port := m.run.SSHPort
 	if port == 0 {
-		picked, err := freePort()
+		picked, err := reserveForwardPort()
 		if err != nil {
 			return report, err
 		}

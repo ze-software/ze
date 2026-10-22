@@ -184,7 +184,7 @@ func TestRunPlanBuildsTheCompleteX86QEMUArgv(t *testing.T) {
 		"qemu-system-x86_64", "-machine", "accel=hvf:kvm:tcg",
 		"-smp", "8", "-m", "16384", "-cdrom", plan.ISO, "-boot", "d",
 		"-nographic", "-serial", "mon:stdio", "-netdev",
-		"user,id=net0,hostfwd=tcp::2222-:22", "-device", "virtio-net-pci,netdev=net0",
+		"user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22", "-device", "virtio-net-pci,netdev=net0",
 		"-virtfs", "local,path=" + run.Tree + ",mount_tag=workspace,security_model=none,id=ws0,readonly=off",
 	}
 	if !reflect.DeepEqual(plan.QEMUArgv, want) {

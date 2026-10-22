@@ -246,7 +246,7 @@ func (r *Run) sshOptions(port int) []string {
 func (r *Run) waitForSSH(ctx context.Context, port int, timeout time.Duration) error {
 	deadline := r.ops.Now().Add(timeout)
 	for r.ops.Now().Before(deadline) {
-		args := append(r.sshOptions(port), "-o", "ConnectTimeout=2", "root@localhost", "true")
+		args := append(r.sshOptions(port), "-o", "ConnectTimeout=2", "root@"+forwardHost, "true")
 		// The probe leads its own group, as every ssh client of a run does
 		// (commandSpec.OwnGroup), so a Ctrl-C reaches le alone.
 		result, err := r.runCommand(ctx, commandSpec{
@@ -277,7 +277,7 @@ func (r *Run) sshRun(ctx context.Context, plan *RunPlan, remote string, timeout 
 // client leads its own process group (commandSpec.OwnGroup), so a Ctrl-C at
 // the terminal reaches le alone and ctx decides when the session ends.
 func (r *Run) sshSession(ctx context.Context, plan *RunPlan, remote string, stream bool) (int, error) {
-	args := append(r.sshOptions(plan.SSHPort), "-o", "ServerAliveInterval=30", "root@localhost", remote)
+	args := append(r.sshOptions(plan.SSHPort), "-o", "ServerAliveInterval=30", "root@"+forwardHost, remote)
 	spec := commandSpec{Name: sshProgram, Args: args, Env: r.ops.Environ(), OwnGroup: true}
 	if stream {
 		spec.Stdout = os.Stdout
@@ -351,7 +351,7 @@ func (r *Run) keepAlive(ctx context.Context, report *RunReport, vm *exec.Cmd) (R
 	fmt.Fprintln(os.Stderr, "ZE_QEMU_READY")                                            //nolint:errcheck // progress output
 	fmt.Fprintln(os.Stderr, "VM remains available until the timeout or a stop signal.") //nolint:errcheck // progress output
 	var hint textbuf.Buffer
-	ssh := hint.Str("ssh ").Join(r.sshOptions(report.Plan.SSHPort), " ").Str(" root@localhost").String()
+	ssh := hint.Str("ssh ").Join(r.sshOptions(report.Plan.SSHPort), " ").Str(" root@").Str(forwardHost).String()
 	hint.Reset()
 	fmt.Fprintln(os.Stderr, hint.Str("Run a guest test: ").Str(ssh).Str(" 'cd /workspace && ").Str(runner.EnvNoBuild).Str("=1 ZE_BIN=").
 		Str(settingOr(runBinaryEntry.Key, runBinaryEntry.Default)).Byte(' ').

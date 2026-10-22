@@ -65,7 +65,7 @@ func TestCrashQEMUArgsAddMonitorAndForward(t *testing.T) {
 	lab := &CrashCapture{run: &Hugepages{Arch: ArchAMD64}, lab: CrashLabOTAUnaffected}
 	argv := lab.qemuArgs("image.img", crashPorts{ssh: 2201, monitor: 2202, http: 2203}, HugepagesReport{Accelerator: "kvm", MemoryMiB: 1024})
 	joined := strings.Join(argv, " ")
-	for _, want := range []string{"hostfwd=tcp::2201-:22,hostfwd=tcp::2203-:80", "-monitor tcp:127.0.0.1:2202,server=on,wait=off"} {
+	for _, want := range []string{"hostfwd=tcp:127.0.0.1:2201-:22,hostfwd=tcp:127.0.0.1:2203-:80", "-monitor tcp:127.0.0.1:2202,server=on,wait=off"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("argv %q lacks %q", joined, want)
 		}

@@ -289,7 +289,7 @@ func (installer *Installer) sshLoginOK(ctx context.Context, port int) (bool, err
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         5 * time.Second,
 	}
-	address := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+	address := net.JoinHostPort(forwardHost, strconv.Itoa(port))
 	connection, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return false, err
@@ -329,7 +329,7 @@ func (installer *Installer) bootTargetSSH(
 	var b textbuf.Buffer
 	drive := b.Str("file=").Str(disk).Str(",format=raw,if=virtio").String()
 	b.Reset()
-	forward := b.Str("user,id=net0,hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
+	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(port)).Str("-:22").String()
 	webPort := 0
 	if certificate != nil {
 		var err error
@@ -337,7 +337,15 @@ func (installer *Installer) bootTargetSSH(
 		if err != nil {
 			return false, "", err
 		}
-		forward = b.Reset().Str(forward).Str(",hostfwd=tcp::").Int(int64(webPort)).Str("-:8080").String()
+		// A fixed ssh-port holds no reservation, so the web port can land on
+		// it. The answer just taken stays reserved, so asking again moves on.
+		if webPort == port {
+			webPort, err = installer.ops.Port()
+			if err != nil {
+				return false, "", err
+			}
+		}
+		forward = b.Reset().Str(forward).Str(",hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(webPort)).Str("-:8080").String()
 	}
 	argv = append(argv,
 		"-drive", drive,

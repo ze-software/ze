@@ -32,7 +32,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -289,28 +288,6 @@ func accelerator() string {
 	}
 	node.Close() //nolint:errcheck // the probe is the open; nothing was written
 	return acceleratorKVM
-}
-
-// freePort answers a TCP port that has no listener on this machine. It binds a
-// port and then releases it.
-//
-// A race exists between that release and QEMU's bind. The Python original had
-// the same race. This implementation accepts the race. The alternative would
-// keep the listener open and give QEMU a descriptor. QEMU's user-mode
-// networking has no way to take that descriptor.
-func freePort() (int, error) {
-	var config net.ListenConfig
-	listener, err := config.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-	defer listener.Close() //nolint:errcheck // the port is released deliberately
-
-	addr, ok := listener.Addr().(*net.TCPAddr)
-	if !ok {
-		return 0, errors.New("the port probe did not answer a TCP address")
-	}
-	return addr.Port, nil
 }
 
 // Hardware reports whether an accelerator is a hypervisor rather than software

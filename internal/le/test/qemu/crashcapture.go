@@ -267,13 +267,13 @@ type crashPorts struct {
 func (c *CrashCapture) pickCrashPorts() (crashPorts, error) {
 	var ports crashPorts
 	var err error
-	if ports.ssh, err = freePort(); err != nil {
+	if ports.ssh, err = reserveForwardPort(); err != nil {
 		return ports, err
 	}
-	if ports.monitor, err = freePort(); err != nil {
+	if ports.monitor, err = reserveForwardPort(); err != nil {
 		return ports, err
 	}
-	ports.http, err = freePort()
+	ports.http, err = reserveForwardPort()
 	return ports, err
 }
 
@@ -547,7 +547,7 @@ func (c *CrashCapture) qemuArgs(image string, ports crashPorts, plan HugepagesRe
 		}
 		if i+1 < len(argv) {
 			var tb textbuf.Buffer
-			argv[i+1] = tb.Str(argv[i+1]).Str(",hostfwd=tcp::").Int(int64(ports.http)).
+			argv[i+1] = tb.Str(argv[i+1]).Str(",hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(ports.http)).
 				Str("-:").Int(gokrazyHTTPPort).String()
 		}
 	}

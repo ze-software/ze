@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -320,7 +319,7 @@ func productionRunOps() runOps {
 	return runOps{
 		FS: osRunFS{}, Look: exec.LookPath, Run: runHostCommand,
 		Start: func(command *exec.Cmd) error { return command.Start() },
-		Port:  freeRunSSHPort, Now: time.Now, Sleep: sleepContext,
+		Port:  reserveForwardPort, Now: time.Now, Sleep: sleepContext,
 		GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Home: os.UserHomeDir,
 		Environ: os.Environ, Getenv: os.Getenv, Accelerator: accelerator,
 		Interrupts: notifyInterrupts, StartTime: processStartTime, Kill: killProcess,
@@ -446,76 +445,6 @@ func sleepContext(ctx context.Context, duration time.Duration) error {
 	}
 }
 
-// freeRunSSHPort answers a host port for the QEMU SSH forward. The port is
-// released before QEMU binds it, so two runs probing in the same instant can
-// still pick the same one. When both forwards bind the same address, the
-// second QEMU refuses the forward at start. When they differ, a run or
-// install-test wildcard forward beside a docker-lab 127.0.0.1 forward, macOS
-// lets both bind (slirp sets SO_REUSEADDR). Every ssh client reaches the
-// forward over IPv4 loopback: docker-lab, hugepages and install-test dial
-// 127.0.0.1, and run dials localhost, which falls back to 127.0.0.1 because
-// slirp binds IPv4 only. By BSD's most-specific-bind lookup the docker-lab
-// 127.0.0.1 forward then takes every loopback connection: the wildcard run's
-// ssh reaches the docker-lab VM, whichever QEMU started first. This is
-// reasoned from the lookup, not measured.
-func freeRunSSHPort() (int, error) {
-	return freeSSHPortIn(2222, 2321)
-}
-
-// freeSSHPortIn answers the first port in first..last that sshPortFree finds
-// free on every address a forward binds.
-func freeSSHPortIn(first, last int) (int, error) {
-	for port := first; port <= last; port++ {
-		free, err := sshPortFree(port)
-		if err != nil {
-			return 0, err
-		}
-		if free {
-			return port, nil
-		}
-	}
-	var b textbuf.Buffer
-	return 0, errors.New(b.Str("no free host port in ").Int(int64(first)).Str("..").Int(int64(last)).
-		Str(" for the QEMU SSH forward: every one is held, most likely by other QEMU runs. ").
-		Str("Fix: stop a VM you no longer need, or set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) to a free port.").String())
-}
-
-// sshForwardHosts are the addresses this package's hostfwd strings bind:
-// docker-lab forwards on 127.0.0.1, run and install-test on the wildcard.
-var sshForwardHosts = [...]string{"127.0.0.1", "0.0.0.0"}
-
-// sshPortFree binds port on every forward address, IPv4 as slirp binds, with
-// SO_REUSEADDR cleared. With it set, as Go sets it on every listener, macOS
-// lets the wildcard bind sit beside another VM's 127.0.0.1 forward, and Linux
-// lets it sit beside a forward bound and not yet listening; without it, any
-// overlapping holder refuses the bind on both. An error answers a probe that
-// could not be released, never a held port.
-func sshPortFree(port int) (bool, error) {
-	config := net.ListenConfig{Control: clearReuseAddress}
-	for _, host := range sshForwardHosts {
-		listener, err := config.Listen(context.Background(), "tcp4", net.JoinHostPort(host, strconv.Itoa(port)))
-		if err != nil {
-			return false, nil //nolint:nilerr // a refused bind is the answer "held", not a failure
-		}
-		if err := listener.Close(); err != nil {
-			return false, fmt.Errorf("release SSH port probe %s:%d: %w. A fixed SSH port skips this probe. Fix: set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run and docker-lab, or ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for install-test, to a free port", host, port, err)
-		}
-	}
-	return true, nil
-}
-
-// clearReuseAddress runs after Go has set SO_REUSEADDR and before the bind.
-func clearReuseAddress(_, _ string, raw syscall.RawConn) error {
-	var optionErr error
-	err := raw.Control(func(fd uintptr) {
-		optionErr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 0)
-	})
-	if err != nil {
-		return err
-	}
-	return optionErr
-}
-
 // Plan resolves the cache, kernel, port, firmware, and complete QEMU argv.
 func (r *Run) Plan(ctx context.Context) (RunPlan, error) {
 	var plan RunPlan
@@ -631,7 +560,7 @@ func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]str
 		argv = append(argv, "-machine", b.Str("accel=").Str(acceleration).String())
 	}
 	b.Reset()
-	forward := b.Str("user,id=net0,hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
+	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(port)).Str("-:22").String()
 	argv = append(argv,
 		"-smp", r.Options.CPUs, "-m", r.Options.Memory,
 		"-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio",

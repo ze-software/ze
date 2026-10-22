@@ -36,7 +36,7 @@ func TestTheAmd64MachineCarriesEveryArgumentTheProofNeeds(t *testing.T) {
 		"-drive file=/work/ze.img,format=raw",
 		"-nographic",
 		"-serial mon:stdio",
-		"-nic user,model=e1000,hostfwd=tcp::34122-:22",
+		"-nic user,model=e1000,hostfwd=tcp:127.0.0.1:34122-:22",
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the VM argv does not carry %q:\n%s", want, line)
@@ -83,7 +83,7 @@ func TestTheArm64MachineGetsTheNICItsKernelBuildsIn(t *testing.T) {
 	}
 
 	line := strings.Join(run.qemuArgs("/work/ze.img", 34122, report), " ")
-	if want := "-nic user,model=virtio-net-pci,hostfwd=tcp::34122-:22"; !strings.Contains(line, want) {
+	if want := "-nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:34122-:22"; !strings.Contains(line, want) {
 		t.Errorf("the arm64 VM argv does not carry %q:\n%s", want, line)
 	}
 	if strings.Contains(line, "e1000") {

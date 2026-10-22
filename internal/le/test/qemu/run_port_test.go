@@ -4,6 +4,8 @@ import (
 	"net"
 	"syscall"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // VALIDATES: the SSH port probe refuses a port another process holds on the
@@ -28,7 +30,7 @@ func TestFreeSSHPortRefusesAHeldForward(t *testing.T) {
 			if !ok {
 				t.Fatalf("listener address %v is not TCP", held.Addr())
 			}
-			if port, err := freeSSHPortIn(tcp.Port, tcp.Port); err == nil {
+			if port, err := reserveForwardPortIn(tcp.Port, tcp.Port); err == nil {
 				t.Fatalf("probe answered port %d while %s holds it", port, held.Addr())
 			}
 		})
@@ -63,7 +65,7 @@ func TestFreeSSHPortRefusesABoundLoopbackForward(t *testing.T) {
 	if !ok {
 		t.Fatalf("bound address %v is not IPv4", bound)
 	}
-	if port, err := freeSSHPortIn(inet.Port, inet.Port); err == nil {
+	if port, err := reserveForwardPortIn(inet.Port, inet.Port); err == nil {
 		t.Fatalf("probe answered port %d while 127.0.0.1:%d is bound", port, inet.Port)
 	}
 }
@@ -84,11 +86,72 @@ func TestFreeSSHPortAnswersAFreePort(t *testing.T) {
 	if err := listener.Close(); err != nil {
 		t.Fatalf("release the port: %v", err)
 	}
-	port, err := freeSSHPortIn(tcp.Port, tcp.Port)
+	port, err := reserveForwardPortIn(tcp.Port, tcp.Port)
 	if err != nil {
 		t.Fatalf("probe refused free port %d: %v", tcp.Port, err)
 	}
 	if port != tcp.Port {
 		t.Fatalf("probe answered %d, want %d", port, tcp.Port)
 	}
+}
+
+// VALIDATES: two forward ports asked for in one run are distinct, so the
+// install-test SSH and web forwards of one VM never name the same port.
+// METHOD: take a free loopback port from the kernel, release it, then ask for
+// two ports from a range that starts there, with nothing bound in between.
+// PREVENTS: the 2026-10-22 install-test collision, where bootTargetSSH asked
+// the probe twice and both forwards took its first free port.
+func TestForwardPortsInOneRunAreDistinct(t *testing.T) {
+	first := releasedLoopbackPort(t)
+	ssh, err := reserveForwardPortIn(first, first+20)
+	if err != nil {
+		t.Fatalf("first port: %v", err)
+	}
+	web, err := reserveForwardPortIn(first, first+20)
+	if err != nil {
+		t.Fatalf("second port: %v", err)
+	}
+	if ssh == web {
+		t.Fatalf("both requests answered port %d", ssh)
+	}
+}
+
+// VALIDATES: a port another le run holds a reservation on is skipped, though
+// nothing is bound to it yet.
+// METHOD: lock a free port through the runner's cross-process lock, as a
+// concurrent le run holds the port it chose until its QEMU binds it, then ask
+// for exactly that port.
+// PREVENTS: two le runs probing in the same instant and handing two QEMUs one
+// port (the 2026-10-10 row of parallel-copies-collide-on-a-deterministic-port).
+func TestForwardPortSkipsAReservedPort(t *testing.T) {
+	port := releasedLoopbackPort(t)
+	held, ok, err := runner.LockPort(port)
+	if err != nil {
+		t.Fatalf("reserve port %d: %v", port, err)
+	}
+	if !ok {
+		t.Fatalf("port %d is already reserved by another run; rerun the test", port)
+	}
+	defer held.Release()
+	if got, err := reserveForwardPortIn(port, port); err == nil {
+		t.Fatalf("probe answered port %d while another run holds its reservation", got)
+	}
+}
+
+// releasedLoopbackPort answers a port the kernel just handed out and released.
+func releasedLoopbackPort(t *testing.T) int {
+	t.Helper()
+	var config net.ListenConfig
+	listener, err := config.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("take a port: %v", err)
+	}
+	tcp, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address %v is not TCP", listener.Addr())
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatalf("release the port: %v", err)
+	}
+	return tcp.Port
 }

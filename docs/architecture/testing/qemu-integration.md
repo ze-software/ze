@@ -567,25 +567,31 @@ that error before it exits with the signal's code.
 
 ### The SSH forward's host port
 
-A run with no `ssh-port` takes the first port in 2222..2321 that no socket
-holds. QEMU's hostfwd binds `0.0.0.0` for `run` and `install-test`, and
-`127.0.0.1` for `docker-lab`, so the probe binds both addresses, IPv4, with
-`SO_REUSEADDR` cleared: with it set, as Go sets it by default, macOS lets a
-wildcard bind sit beside another VM's loopback forward, and the second run
-died at boot with only an sshd timeout. The port is still released before
-QEMU binds it, so two runs that probe in the same instant can still pick the
-same port. When both forwards bind the same address, the second QEMU refuses
-the forward at start. When they differ, a `run` or `install-test` wildcard
-forward racing a `docker-lab` loopback forward, macOS lets both bind, because
-slirp sets `SO_REUSEADDR`. Every ssh client reaches the forward over IPv4
-loopback: `docker-lab`, hugepages and `install-test` dial `127.0.0.1`, and
-`run` dials `localhost`, which falls back to `127.0.0.1` because slirp binds
-IPv4 only. By BSD's most-specific-bind lookup the `docker-lab` `127.0.0.1`
-forward then takes every loopback connection, so the wildcard run's ssh reaches
-the `docker-lab` VM, whichever QEMU started first. This is reasoned from the
-lookup, not measured.
-<!-- source: internal/le/test/qemu/run.go -- freeRunSSHPort, freeSSHPortIn, sshPortFree -->
-<!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortRefusesABoundLoopbackForward, TestFreeSSHPortAnswersAFreePort -->
+Every QEMU forward this package starts binds `127.0.0.1`: the SSH forward of
+`run`, `docker-lab`, `install-test`, hugepages, MPLS boot and crash capture,
+the `install-test` web forward, and the crash-capture HTTP forward and monitor.
+Every client dials `127.0.0.1` too, and nothing reaches a forward from off the
+host. One address is what keeps two VMs off one port. Two forwards on one
+address collide at QEMU's bind, which is loud. A wildcard forward beside a
+loopback one binds on macOS, because slirp sets `SO_REUSEADDR`, and BSD's
+most-specific-bind lookup then sends every loopback ssh to the loopback VM,
+so a wildcard `run` would reach a `docker-lab` VM.
+
+A forward with no fixed port (`ssh-port`, `ze.qemu.ssh.port`,
+`ze.install.ssh.port`) takes the first port in 2222..2321 that two checks pass.
+The first is the per-port lock the functional runner leases test ports through
+(`le-port-locks-<uid>` under the system temporary directory). le takes the lock
+and holds it until the process exits, so a concurrent le run skips the port in
+the window before this run's QEMU binds it, and so does a second forward of the
+same run: the `install-test` SSH and web forwards once got the same port. A VM
+never outlives its le (below), so the lock lasts at least as long as the VM.
+The second check binds the port on `127.0.0.1` and on the wildcard, IPv4, with
+`SO_REUSEADDR` cleared. It finds a port another program holds on any address,
+or a VM whose le died and took its lock with it. With the option set, as Go
+sets it by default, macOS lets the probe bind beside a listening holder.
+<!-- source: internal/le/test/qemu/hostport.go -- forwardHost, reserveForwardPort, reserveForwardPortIn, forwardPortFree -->
+<!-- source: internal/test/runner/ports.go -- LockPort -->
+<!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortRefusesABoundLoopbackForward, TestFreeSSHPortAnswersAFreePort, TestForwardPortsInOneRunAreDistinct, TestForwardPortSkipsAReservedPort -->
 
 ### A VM never outlives its le
 

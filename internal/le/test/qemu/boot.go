@@ -61,7 +61,7 @@ type answers struct {
 func (h *Hugepages) bootAndAssert(report HugepagesReport, image string) (HugepagesReport, error) {
 	port := h.SSHPort
 	if port == 0 {
-		picked, err := freePort()
+		picked, err := reserveForwardPort()
 		if err != nil {
 			return report, err
 		}
@@ -174,7 +174,7 @@ func (h *Hugepages) qemuArgs(image string, port int, report HugepagesReport) []s
 	tb.Reset()
 	drive := tb.Str("file=").Str(image).Str(",format=raw").String()
 	tb.Reset()
-	nic := tb.Str("user,model=").Str(model).Str(",hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
+	nic := tb.Str("user,model=").Str(model).Str(",hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(port)).Str("-:22").String()
 
 	return append(argv,
 		"-machine", machine,
@@ -253,7 +253,7 @@ func (h *Hugepages) ssh(port int, query string) (string, string, error) {
 	defer cancel()
 
 	var tb textbuf.Buffer
-	target := tb.Str(SSHUser).Str("@127.0.0.1").String()
+	target := tb.Str(SSHUser).Byte('@').Str(forwardHost).String()
 	tb.Reset()
 	portArg := tb.Int(int64(port)).String()
 

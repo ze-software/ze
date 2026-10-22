@@ -172,7 +172,7 @@ func (vm dockerLabVM) argv() []string {
 	b.Reset()
 	cidata := b.Str("file=").Str(vm.cidata).Str(",format=raw,if=virtio,readonly=on").String()
 	b.Reset()
-	forward := b.Str("user,id=net0,hostfwd=tcp:127.0.0.1:").Int(int64(vm.sshPort)).Str("-:22").String()
+	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(vm.sshPort)).Str("-:22").String()
 	b.Reset()
 	console := b.Str("file,id=console0,path=").Str(vm.console).String()
 	argv = append(argv,
@@ -594,7 +594,7 @@ func (s dockerLabSession) args(extra ...string) []string {
 		"-o", "LogLevel=ERROR", "-o", "ConnectTimeout=5", "-p", strconv.Itoa(s.port),
 	}
 	args = append(args, extra...)
-	return append(args, dockerLabUser+"@127.0.0.1")
+	return append(args, dockerLabUser+"@"+forwardHost)
 }
 
 // remote runs command in the guest under ctx and answers its result.

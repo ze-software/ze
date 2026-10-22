@@ -238,6 +238,16 @@ func tryReservePortRange(start, count int) (*PortReservation, bool, error) {
 	return reservation, true, nil
 }
 
+// LockPort takes the advisory lock on one port and binds nothing, for a caller
+// whose own probe judges whether the port is free on the address it will bind.
+// It answers false when another reservation, in this process or another, holds
+// the port. The owner MUST call Release after its use of the port ends; a
+// process that exits releases it too, because the kernel drops the lock with
+// the last descriptor.
+func LockPort(port int) (*PortReservation, bool, error) {
+	return reservePortLocks(port, 1)
+}
+
 func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 	// A flat per-user directory cannot be blocked by another user's private
 	// legacy directory, and stays shared across TMPDIR overrides.
