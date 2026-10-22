@@ -11,7 +11,7 @@
 # namespace, creates the scenario's VLANs and adds its routes from
 # <role>-net.txt, then execs the daemon. tcpdump records the RSVP Ze exchanges.
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache tini iproute2 tcpdump
 

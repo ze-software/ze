@@ -293,7 +293,7 @@ func mplsPreflight() interoplab.PreflightCheck {
 // second one would win, and the remove-by-name after a cancel would then miss.
 func mplsPreflightContainer() interoplab.OneShotContainer {
 	return interoplab.OneShotContainer{
-		Image: "alpine:3.21",
+		Image: "alpine:3.24.3",
 		Command: []string{"sh", "-c",
 			"echo MPLS=$(test -f /proc/sys/net/mpls/platform_labels && echo ok || echo missing)"},
 		Timeout: 120 * time.Second,

@@ -14,7 +14,7 @@
 # freeRouter, patched by freertr/ze-interop-resv.patch, and its unchanged
 # interface helpers are CC BY-SA 4.0; retain /peer/NOTICE, /peer/source.tar.gz
 # and /peer/ze-interop-resv.patch when redistributing these artifacts.
-FROM alpine:3.21.3 AS build
+FROM alpine:3.24.3 AS build
 ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
 ARG ZE_SOURCE_COMMIT=96368b02da1030148d44fc1821e844deeba0a2f0
 ARG ZE_SOURCE_DATE=2026-10-22T08:41:13Z
@@ -52,7 +52,7 @@ WORKDIR /peer
 RUN sha256sum rtr.jar tapInt.bin rawInt.bin > SHA256SUMS
 FROM scratch AS export
 COPY --from=build /peer /peer
-FROM alpine:3.21.3
+FROM alpine:3.24.3
 RUN apk add --no-cache openjdk21-jre-headless iproute2 tcpdump tini
 COPY --from=build /peer /peer
 # The suite passes the start command (freeRtrScript in

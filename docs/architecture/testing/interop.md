@@ -2553,7 +2553,7 @@ Interop tests require Docker and are not part of the offline precommit gate.
 They are a separate protocol-validation action.
 
 The first run cross-compiles the lab binaries on the host, then builds the Docker
-images. No `Dockerfile.ze` carries a Go compiler: each one is an Alpine (`alpine:3.24.3` in the BGP, IPsec, L2TP, PPPoE and RADIUS labs; the RSVP-TE lab stays on `alpine:3.21` until its peer moves)
+images. No `Dockerfile.ze` carries a Go compiler: each one is an Alpine (`alpine:3.24.3` in the BGP, IPsec, L2TP, PPPoE, RADIUS and RSVP-TE labs)
 base, one `apk add`, and a `COPY` of a binary the suite's preflight has already
 written into the build context (`internal/le/interoplab/zebuild.go`,
 `StageBinaries`). Each lab declares the binaries it needs beside the images it
