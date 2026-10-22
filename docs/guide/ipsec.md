@@ -713,11 +713,13 @@ master secret. Ze cannot authenticate such a peer. It says so rather than failin
 silently: the log line names the peer, the negotiated version, RFC 7627 and the answers
 below.
 
-strongSwan 5.9.14 is such a peer, by default rather than by limitation. charon ships
-`version_max = 1.2` in `/etc/strongswan.d/charon.conf`, with the comment "default to TLS
-1.2 until 1.3 is stable for use in EAP", and it implements no extended master secret. Set
-`charon.tls.version_max = 1.3` and the same 5.9.14 build reaches an established SA, which
-is what `test/interop-ipsec/scenarios/eap-tls13` runs.
+strongSwan 6.1.0, the lab's peer, is such a peer, by default rather than by limitation.
+`src/libtls/tls.c` sets the maximum to TLS 1.2 when `charon.tls.version_max` is unset,
+with the comment "default to TLS 1.2 until 1.3 is stable for use in EAP", and the
+generated `strongswan.d/charon.conf` documents it as `# version_max = 1.2`. Its libtls
+implements no extended master secret: the extension appears only as a name in its
+extension table. Set `charon.tls.version_max = 1.3` and the same build reaches an
+established SA, which is what `test/interop-ipsec/scenarios/eap-tls13` runs.
 
 | Answer | What to change |
 |--------|----------------|
@@ -1443,8 +1445,9 @@ carries no encrypted traffic` when this happens.
 
 ## Interop testing
 
-The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
-image. The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
+The IKE implementation includes interop tests against strongSwan 6.1.0, built from the
+upstream release on Alpine 3.24.3 (`test/interop-ipsec/Dockerfile.strongswan`).
+The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
 IKE peers. The scenarios cover:
 
 | Area | Scenarios |
