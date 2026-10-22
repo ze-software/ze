@@ -11,7 +11,7 @@ import (
 // ExaBGP's spacing, while string contents and empty containers are untouched.
 //
 // VALIDATES: `{ "k": v, "k": v }` and `[ a, b ]`, as ExaBGP's hand-built JSON
-// writes them (src/exabgp/reactor/api/response/json.py at 685f772e4), and the
+// writes them (src/exabgp/reactor/api/response/json.py at f9bfb853b), and the
 // output still parses to the same document.
 // PREVENTS: a ported script's substring test, such as api-rr's
 // `'"nlri": "192.168.0.0/32"' in line`, failing on a line carrying the route.

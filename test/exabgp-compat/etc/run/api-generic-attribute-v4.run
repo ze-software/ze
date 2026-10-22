@@ -3,7 +3,7 @@
 
 ExaBGP writes a path attribute as its wire octets with
 `attribute [ 0x<code> 0x<flag> 0x<data> ]` (HexAttribute,
-configuration/grammar/types/bgp.py at 685f772e). Flags RFC 4271 Section 4.3
+configuration/grammar/types/bgp.py at f9bfb853b). Flags RFC 4271 Section 4.3
 lets a sender write reach the wire as written, the Extended Length bit
 included, and a second attribute of the same code is dropped, the first kept
 (add_attribute, configuration/grammar/tree/static.py). The bytes expected for

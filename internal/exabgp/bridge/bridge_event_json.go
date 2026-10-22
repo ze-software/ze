@@ -16,7 +16,7 @@ import (
 // (src/exabgp/reactor/api/response/json.py, `_header`, `_neighbor`; nlri/inet.py
 // writes `{ "nlri": "<prefix>" }`), and scripts match on substrings of it: the
 // upstream api-rr script tests `'"nlri": "192.168.0.0/32"' in line`
-// (etc/exabgp/run/api-rr.run at 685f772e4). Go's compact form has no spaces, so
+// (etc/exabgp/run/api-rr.run at f9bfb853b). Go's compact form has no spaces, so
 // that test failed on a line carrying the route.
 //
 // An empty object or array stays `{}` or `[]`.

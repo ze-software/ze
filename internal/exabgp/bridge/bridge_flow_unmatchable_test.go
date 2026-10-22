@@ -18,7 +18,7 @@ import (
 )
 
 // unmatchableFlowLines are API lines whose route matches an ICMP type or code
-// and a port. ExaBGP 6.0 (pin 685f772e4e) parses each through
+// and a port. ExaBGP 6.0 (pin f9bfb853b) parses each through
 // configuration/grammar/tree/flow.py FlowLine.parse, whose propagated() drops
 // the route with flow.unmatchable, so api_flow returns no route and
 // announce_flow and withdraw_flow answer answer_error.

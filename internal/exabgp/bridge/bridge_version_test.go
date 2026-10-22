@@ -11,7 +11,7 @@ import (
 // every branch of translate_v4_to_v6, and the words that decide nothing.
 //
 // VALIDATES: X-1 (src/exabgp/reactor/api/dispatch/version.py and dispatch/v4.py
-// at ExaBGP 685f772e4).
+// at ExaBGP f9bfb853b).
 // PREVENTS: a 5.x helper held to v6 by a word ExaBGP reads as v4, or a typing
 // mistake in a first line holding a helper to either version.
 // TestAPIVersionFromEnvReadsEitherExaBGPSpelling proves the fleet setting is

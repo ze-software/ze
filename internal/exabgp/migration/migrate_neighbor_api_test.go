@@ -345,7 +345,7 @@ neighbor 127.0.0.1 {
 // TestMigrateIPv6RouteIPv4NextHopIsMapped checks that an IPv6 route with an
 // IPv4 next hop migrates to the IPv4-mapped IPv6 next hop.
 //
-// VALIDATES: ExaBGP 6.0 (685f772e4, qa/encoding/extended-nexthop.ci) sends
+// VALIDATES: ExaBGP 6.0 (f9bfb853b, qa/encoding/extended-nexthop.ci) sends
 // `route DEAD:BEEF:... next-hop 170.170.170.170` with the 16-octet next hop
 // ::ffff:170.170.170.170, because RFC 2545 Section 3 sets an AFI 2 next-hop
 // length to 16 or 32; ze refuses a 4-octet next hop for IPv6 NLRI, so the

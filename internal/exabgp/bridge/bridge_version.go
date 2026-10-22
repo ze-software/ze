@@ -19,7 +19,7 @@ import (
 // ExaBGP 6.0 serves two APIs. A helper written for 5.x writes `announce route
 // ...`, one written for 6.0 writes `peer * announce route ...`, and each is
 // answered and fed in its own format (src/exabgp/reactor/api/dispatch/version.py
-// at ExaBGP 685f772e4). The zero value names no version: a script whose version
+// at ExaBGP f9bfb853b). The zero value names no version: a script whose version
 // nobody set would otherwise read as whichever version zero happened to name.
 type APIVersion uint8
 

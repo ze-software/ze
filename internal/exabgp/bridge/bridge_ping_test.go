@@ -18,7 +18,7 @@ var uuid4RE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0
 // ExaBGP's `ping` (v4 spelling, `session ping` in v6) answers the daemon's UUID
 // and whether the client is active, as JSON unless the line carries `text`,
 // then done (src/exabgp/reactor/api/command/reactor.py, ping, at the pinned
-// commit 685f772e4). The bridge refused the line, so api-health stopped at its
+// commit f9bfb853b). The bridge refused the line, so api-health stopped at its
 // first command.
 //
 // VALIDATES: every accepted spelling translates to the bridge's own answer,

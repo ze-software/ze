@@ -13,7 +13,7 @@ import (
 //
 // VALIDATES: the pin merges a repeated list attribute, for an API command as
 // for a file ("a list one given twice is merged, any other is refused",
-// add_attribute, configuration/grammar/tree/static.py at 685f772e, whose
+// add_attribute, configuration/grammar/tree/static.py at f9bfb853b, whose
 // LIST_ATTRIBUTES are COMMUNITY, LARGE_COMMUNITY and EXTENDED_COMMUNITY), and
 // 5.0 merged a repeated extended-community (Attributes.add, 5.0.1): it sent
 // both lists in 54 recorded commands (testdata/exabgp-old/commands-5.0.json.gz).
@@ -101,7 +101,7 @@ func TestSRv6BehaviorDefaultsOpaque(t *testing.T) {
 // VALIDATES: these are fields of the NLRI rather than attributes, and ExaBGP
 // sets each as it reads it (Collected.apply: `if spec.target == Target.NLRI:
 // self.settings.set(spec.field, value)`, configuration/grammar/tree/static.py
-// at 685f772e, where `label`, `rd`, `route-distinguisher` and
+// at f9bfb853b, where `label`, `rd`, `route-distinguisher` and
 // `path-information` are Target.NLRI), so the last one read is the route's.
 // 5.0 sent label 100 for `label [ 110 ] ... label 100` in the recorded
 // commands (testdata/exabgp-old/commands-5.0.json.gz).

@@ -24,11 +24,11 @@ var errBadEscape = errors.New("the route command has a \\u escape without four h
 // tokens (`line = unescape(letters)`, configuration/core/format.py), the pin
 // in its lexer ("Resolve the backslash escapes of a line, as the legacy
 // tokeniser does before splitting it", unescape, configuration/grammar/lexer.py
-// at 685f772e). `\b`, `\f`, `\n`, `\r` and `\t` are those control characters,
+// at f9bfb853b). `\b`, `\f`, `\n`, `\r` and `\t` are those control characters,
 // `\uXXXX` is the character the four hexadecimal digits name, and any other
 // escaped character is itself. A backslash ending the line escapes the space
 // ExaBGP adds before the terminator it gives an API command (`text + ' ;'`,
-// read_command, configuration/grammar/read.py at 685f772e), so it ends the
+// read_command, configuration/grammar/read.py at f9bfb853b), so it ends the
 // last word and is no word of its own: 5.0 sent `announce route 10.0.0.0/8
 // next-hop self \` as the route without it (qa/old/commands-5.0.json).
 // A `\u` without four hexadecimal digits refuses the line, as the pin does.

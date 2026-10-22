@@ -12,7 +12,7 @@ import (
 //
 // VALIDATES: ExaBGP reads `<asn>:<router-id>` "in brackets or not: `( 65000:10.0.0.1 )`,
 // `(65000:10.0.0.1)`" (AggregatorType, configuration/grammar/types/bgp.py at
-// 685f772e), and 4.2 and 5.0 accepted `aggregator ( 18144:219.118.225.189 )`
+// f9bfb853b), and 4.2 and 5.0 accepted `aggregator ( 18144:219.118.225.189 )`
 // and its siblings in 53 recorded commands in 5.0 and 19 in 4.2
 // (testdata/exabgp-old/commands-5.0.json.gz, commands-4.2.json.gz). Each form
 // becomes ze's `aggregator <asn>:<address>`.
@@ -65,7 +65,7 @@ func TestAggregatorUnclosedBracketRefused(t *testing.T) {
 
 // TestAggregatorMalformedGroupRefused verifies that only one bracketed word is read.
 //
-// VALIDATES: AggregatorType at 685f772e takes exactly one `<asn>:<router-id>`
+// VALIDATES: AggregatorType at f9bfb853b takes exactly one `<asn>:<router-id>`
 // word, bare or as `(w)`, `( w )`, `(w )` or `( w)`, and refuses anything else.
 // PREVENTS: a group holding more than one word becoming extra ze tokens (the
 // words after the first would skip the repeated-attribute check), a stray `)`

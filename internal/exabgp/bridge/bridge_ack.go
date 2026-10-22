@@ -117,7 +117,7 @@ func (m AckMode) WriteAck(pluginW io.Writer) {
 
 // WriteError answers a refused line: the reason, in the form the script's API
 // version reads, then the `error` marker. It is ExaBGP's answer_error_sync
-// (src/exabgp/reactor/api/processes.py at 685f772e4), whose _error_detail
+// (src/exabgp/reactor/api/processes.py at f9bfb853b), whose _error_detail
 // writes "{"error": "<why>"}" to an API 6 helper, "which is JSON only", and the
 // `error: <why>` 5.x wrote to an API 4 or undecided one. Both lines are acks,
 // so a disabled ack writes neither.

@@ -18,7 +18,7 @@ import (
 // unescape(letters)`, reached through Tokeniser.set_api), and the pin keeps it
 // for the lines its configuration lexer reads ("Resolve the backslash escapes
 // of a line, as the legacy tokeniser does before splitting it", unescape in
-// configuration/grammar/lexer.py at 685f772e). A neighbor control line is
+// configuration/grammar/lexer.py at f9bfb853b). A neighbor control line is
 // not one of them (TestLineNeighborControlEscapesRaw). `\n`, `\r` and `\t` become
 // characters in SPACES, so they end a word: 5.0 sent MED 100 for `med 100\n
 // nlri ...` in 44 recorded commands (testdata/exabgp-old/commands-5.0.json.gz).
@@ -94,7 +94,7 @@ func TestLineBadUnicodeEscapeRefused(t *testing.T) {
 //
 // VALIDATES: the pin resolves escapes only on the lines its configuration
 // lexer reads (route, flow, vpls and attribute commands, through lex_command
-// and read_command in configuration/grammar/lexer.py at 685f772e). Its
+// and read_command in configuration/grammar/lexer.py at f9bfb853b). Its
 // teardown and disable read the raw line with shlex.split, where a backslash
 // inside double quotes stays a backslash unless it escapes `"` or `\`. The
 // test compares what Line answers with what convertDisable and convertTeardown

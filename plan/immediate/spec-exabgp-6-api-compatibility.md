@@ -17,7 +17,7 @@ Owner order (Thomas, ExaBGP's author, 2026-10-17): "Do the ExaBGP 6.0 work inclu
 backward compatibility to 5.0 and 4.2 which was added to main recently."
 
 ExaBGP main (6.0.0, unreleased, checkout `/Users/thomas/Code/github.com/exa-networks/exabgp/main`
-at `685f772e4`, 2026-10-14) changed what a helper script may write and what it is told, and
+at `f9bfb853b`, 2026-10-22, owner decision M25; first read at `685f772e4`, 2026-10-14) changed what a helper script may write and what it is told, and
 in the same month added machinery that holds 6.0 to what 4.2 and 5.0 helpers relied on. Ze's
 bridge (`internal/exabgp/bridge/`, `internal/plugins/exabgp/`) was written against 5.0.13 and
 the v6 selector keyword only. This spec makes the bridge answer every helper the way ExaBGP
@@ -87,7 +87,12 @@ file is removed through `./le commit create ... remove` in the commit that lands
 
 ## ExaBGP Behaviour Mirrored (source of truth per item)
 
-Every row was read at the producer in ExaBGP main `685f772e4`. "Quote" is the docstring or
+Every row was read at the producer in ExaBGP main `685f772e4`, and holds at `f9bfb853b`
+(M25): between the two only `configuration.py`, `reactor/api/processes.py`,
+`reactor/protocol.py`, `rib/outgoing.py` and `qa/bin/test_old_*` changed. Of the quoted
+producers only `OutgoingRIB.withdraw_owner` (X-21) changed: it also takes off a watchdog
+the routes the exiting helper gave it, and counts those held withdrawn (c43f90f79). Its
+quote still holds. "Quote" is the docstring or
 CHANGELOG sentence of that producer.
 
 | ID | Behaviour | ExaBGP function (file) | Commit | Quote |
@@ -251,7 +256,7 @@ CHANGELOG sentence of that producer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The nightly zipapp of ExaBGP main runs as a daemon on the stage's Python (3.12) and exposes `exabgp.application.healthcheck` when placed on `PYTHONPATH` | `zipapp.yml` builds and tests it on 3.12 and 3.14; `doc/user/zipapp.md` | the main pin needs a wheel built from the pinned commit instead | Phase 1 `TestExaBGPMainPinCommands` plus one manual run of `api-healthcheck-module` under the main pin | broken (2026-10-18): the `nightly` release's asset is replaced and its tag moved each night main changes (`gh release view nightly -R Exa-Networks/exabgp`: built from b6bf80875, not the checkout's 685f772e4), so no zipapp digest stays fetchable. The main pin is `exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6`, built and cached by uv; it resolves `6.0.0-20261018+uncontrolled` and imports `exabgp.application.healthcheck` on 3.12, and `api-healthcheck-module` is green against ze under it |
+| A-1 | The nightly zipapp of ExaBGP main runs as a daemon on the stage's Python (3.12) and exposes `exabgp.application.healthcheck` when placed on `PYTHONPATH` | `zipapp.yml` builds and tests it on 3.12 and 3.14; `doc/user/zipapp.md` | the main pin needs a wheel built from the pinned commit instead | Phase 1 `TestExaBGPMainPinCommands` plus one manual run of `api-healthcheck-module` under the main pin | broken (2026-10-18): the `nightly` release's asset is replaced and its tag moved each night main changes (`gh release view nightly -R Exa-Networks/exabgp`: built from b6bf80875, not the checkout's 685f772e4), so no zipapp digest stays fetchable. The main pin is `exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6`, built and cached by uv; it resolves `6.0.0-20261018+uncontrolled` and imports `exabgp.application.healthcheck` on 3.12, and `api-healthcheck-module` is green against ze under it. Since M25 (2026-10-22) the pin is `exabgp @ git+https://github.com/Exa-Networks/exabgp@f9bfb853b924e97deba646b0bd50693ab07c4f3e` (`internal/le/test/functional/exabgp.go`) |
 | A-2 | ExaBGP main's `qa/sbin/bgp` and Ze's `test/exabgp-compat/bin/bgp` read the same `.ci` grammar, so a case can be run against the ExaBGP daemon to prove its expectation | both come from ExaBGP's `qa/` lineage (`docs/architecture/exabgp-bridge.md`) | the proof run needs ExaBGP's own peer for the main pin | Phase 1: run three existing cases against the zipapp daemon | confirmed (2026-10-18): `le test exabgp api --dut exabgp` passes api-fast, api-announce, api-check against ExaBGP main, and 37 of 42 existing cases against 5.0.13 |
 | A-3 | The suite's `.conf` files are ExaBGP format that ExaBGP 6.0's stricter configuration grammar accepts | `cmd_exabgp.go` migrates them; ExaBGP 6.0 CHANGELOG lists configuration refusals | a case's config needs editing to load in 6.0; each edit is named | Phase 1 proof run over the whole `api` population | broken in part (2026-10-18), proof mode over the 42 cases before the port: against 5.0.13, red api-health, api-sr-policy, api-vpnv4, api-peer-lifecycle (timeout), api-reload (refused: a reload); against main, red api-attributes-vpn, api-flow, api-flow-merge, api-ipv4-nexthop-ipv6, api-mvpn, api-peer-lifecycle, api-reload, api-sr-policy, api-teardown, api-vpnv4. Since proof mode runs reloads (2026-10-18, every config to `exabgp server`, SIGUSR1 to its pid): api-reload passes under main (PYTHONPATH cleared); under 5.0.13 the reload happens, then 5.0.13 respawns the helper five times ("Too many death for announce-routes (5)") and the mock never gets its sequence 3 withdrawal. Each is a case whose expectation is not that ExaBGP's; the phase owning its item rewrites it from that ExaBGP's output |
 | A-4 | Ze's reactor returns an error to the bridge when no selected peer carries the family, rather than dropping silently | `ErrFamilyNotNegotiated` in `session_validation.go` | the bridge must compute "carrying" itself from the peers' negotiated families | `TestFamilyNoSelectedPeerCarriesAnswersError` against the real engine | WRONG, fixed 2026-10-20: the engine answers status `warning`, which the record wire drops to `done`; the bridge reads the answer document (`RefuseUnsentRoute`); `api-refusals-v4` red on ze with that refusal overlaid away |

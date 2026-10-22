@@ -5,7 +5,7 @@
 // A withdrawal this connection may not name a route for puts NOTHING on the
 // wire, whatever its family. RFC 4271 Section 4.3 scopes a withdrawn route to
 // the connection it was previously advertised on, and with the routes removed
-// a withdrawal has nothing left to say. ExaBGP at the pinned 685f772e4 agrees:
+// a withdrawal has nothing left to say. ExaBGP at the pinned f9bfb853b agrees:
 // its qa/api/api-flow.ci records no attributes-only frame, and
 // UpdateCollection._mp_family_messages yields nothing for a withdrawal while
 // include_withdraw is False and nothing is announced.

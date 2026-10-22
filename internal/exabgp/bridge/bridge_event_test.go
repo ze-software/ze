@@ -31,7 +31,7 @@ const openEventZe = `{"type":"bgp","bgp":{
   {"code":70,"name":"unknown-70"}
  ]}}}`
 
-// openCapabilitiesV6 is what ExaBGP main (685f772e4) writes for that OPEN,
+// openCapabilitiesV6 is what ExaBGP main (f9bfb853b) writes for that OPEN,
 // copied from `exabgp decode -o` of
 // FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00640104FDE900B40A0000024702450104000100010104000200010200400680780001018041040000FDE94904016801644B027A65450400010103C801AB09010306004C05000101000A05060001000100024600
 // with nothing changed but the whitespace.

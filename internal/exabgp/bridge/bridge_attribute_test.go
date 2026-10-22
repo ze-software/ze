@@ -224,7 +224,7 @@ func TestOperationalRefusedByKind(t *testing.T) {
 // one, and a second generic one of the same code are each dropped with one
 // warning naming the code in hex, as the pin's add_attribute keeps the first
 // ("attribute.GENERIC or existing.GENERIC",
-// configuration/grammar/tree/static.py at 685f772e); a generic NEXT_HOP never
+// configuration/grammar/tree/static.py at f9bfb853b); a generic NEXT_HOP never
 // drops the next-hop keyword.
 // PREVENTS: refusing a line ExaBGP 4.2, 5.0 and 6.0 announce, and forwarding a
 // repeat that ze's update text would refuse as an attribute given twice.

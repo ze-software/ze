@@ -45,7 +45,7 @@ ExaBGP difference and the non-determinism.
   helper, `error: <why>` to an API 4 or undecided one, then `error`
   (`Processes._error_detail`, `answer_error_sync`). A route the parser cannot
   read is one of these (`announce_route`, "Could not parse route").
-Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/__init__.py`,
+Upstream (exa-networks/exabgp at f9bfb853b): `src/exabgp/reactor/api/__init__.py`,
 `src/exabgp/reactor/api/processes.py`.
 
 **ZeBGP behavior:**
@@ -123,7 +123,7 @@ ExaBGP 4.2, 5.0 and 6.0 and refused by Ze. RFC 9774 Section 3: BGP speakers
 "MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs".
 The RFC outranks ExaBGP's behavior, so `update text` has no spelling for a set.
 
-Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/announce.py`,
+Upstream (exa-networks/exabgp at f9bfb853b): `src/exabgp/reactor/api/command/announce.py`,
 `src/exabgp/configuration/grammar/tree/static.py`, CHANGELOG 6.0.0.
 
 <!-- source: internal/component/bgp/reactor/reactor_api_carry.go -- SelectedPeersCarry -->
