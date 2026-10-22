@@ -12,7 +12,7 @@
 ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
 ARG ZE_SOURCE_CHECKOUT=freertr
 
-FROM eclipse-temurin:21-jdk-alpine AS java-builder
+FROM eclipse-temurin:27-jdk-alpine AS java-builder
 WORKDIR /build
 COPY --from=freertr /src/compiler.txt /src/manifest.txt /src/module-info.java src/
 COPY --from=freertr /src/org/ src/org/
@@ -20,18 +20,18 @@ RUN cd src && javac @compiler.txt && \
     cd /build/binOut && \
     jar -cmf /build/src/manifest.txt /build/rtr.jar .
 
-FROM alpine:3.21 AS native-builder
+FROM alpine:3.24.3 AS native-builder
 RUN apk add --no-cache gcc musl-dev linux-headers
 WORKDIR /build
 COPY --from=freertr /misc/native/rawInt.c /misc/native/utils.h ./
 RUN gcc -O3 -Wall -o rawInt.bin rawInt.c -lpthread && strip rawInt.bin
 
-FROM golang:1.26-alpine AS fixture-builder
+FROM golang:1.27-alpine AS fixture-builder
 WORKDIR /src
 COPY tools/freertr-entrypoint/main.go .
 RUN CGO_ENABLED=0 go build -o /freertr-entrypoint main.go
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:27-jre-alpine
 
 RUN apk add --no-cache tini iproute2 iptables ethtool
 
