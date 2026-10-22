@@ -367,3 +367,76 @@ Next step: the main thread lands class 2 and class 6 in one commit, then class 1
 starts at `ze exabgp migrate` and `api { receive { packets; consolidate; } }`.
 Owed gates (host rule): `./le go lint run`, `./le arch tier check`,
 `./le test functional exabgp-test`, `./le verify worktree`, independent review.
+
+## Agent fsm/signal/connected/shutdown (2026-10-22 Linux)
+
+Class 3 (fsm, connected) and the NOTIFICATION half of class 6. Judge counts
+with every agent's work in the tree: 5.0 12083 of 23392, 4.2 12255 of 20930.
+The `fsm` (864 / 750) and `connected` (144+144 / 125+125) classes are at 0.
+`signal` (288 / 250) and `shutdown` (144+144 / 125+125) remain.
+
+Design, and why it departs from the brief's "e.g.": `connected` is NOT a third
+`rpc.SessionState`. 42 plugin files read `state`, and some read every value
+other than `up` as a down (watchdog `watchdog.go` text handler,
+redistribute_egress `register.go` text handler, both an `if state == "up"`
+with an `else`), so a third value would turn each TCP connect into a peer-down
+for them and for any external plugin written the same way. It is its own event
+type. Contract change (page `docs/architecture/api/json-format.md`, "Connected
+and FSM Events"):
+- `connected`: `{"message":{"type":"connected"},"peer":{...}}`.
+- `fsm`: `"fsm":{"from":"CONNECT","to":"OPENSENT"}`, the fsm.State names.
+- a `down` whose reason is `notification` carries
+  `"notification":{"direction":"sent"|"received","code":N,"subcode":N}` (text
+  ` notification sent 6 4`), from `plugin.PeerInfo.CloseNotification`, filled by
+  `Peer.closingNotification` through `sessionClose.notification`.
+
+Engine files, uncommitted, mine alone: `internal/core/bgp/events/events.go`,
+`bgp/plugin/register.go`, `plugin/types_bgp.go`,
+`bgp/reactor/{peer_close,peer_session_end,peer_stats,reactor_api,peer_run}.go`,
+new `bgp/reactor/peer_fsm_events.go` and `peer_closing_notification_test.go`,
+`bgp/format/{text_json,text_human,json,json_test}.go` (`JSONEncoder.stateConnected`
+deleted with its test), new `bgp/format/session_events.go` (+_test),
+`bgp/server/events.go` (`deliverPeerLine` serves congestion, connected, fsm),
+`bgp/server/event_dispatcher.go`, `internal/test/fixture/plugin_fixture_12.go`
+(one Register line), new `plugin_fixture_fsm_events.go`, new
+`test/plugin/fsm-connected-events.ci`, pages `json-format.md`,
+`docs/guide/bgp-peering.md` (the namespace sentence), `docs/config-reference.md`
+(receive table). Green: format, server, plugin, fixture packages whole (race);
+reactor `TestClosingNotification`, `TestSessionCloseFor`.
+
+OPEN DEFECT, blocks the goal, fix first: `fsm-connected-events.ci` is RED. The
+plugin gets OPENCONFIRM and ESTABLISHED, never `connected` nor OPENSENT.
+Cause: `Session.Connect` and `Session.Accept` fire Event 17 (the
+`fsm.EventTCPConnectionConfirmed` call in `session_connection.go`) and enter
+OpenSent BEFORE `Peer.runOnce` (or whichever function in `peer_run.go` holds
+it) installs `session.fsm.SetCallback`, which comes after the dial block. Fix:
+install the callback, and the `leave` record it closes over, before the
+accept/dial block; rerun `./le --name fsm test bgp plugin fsm-connected-events`,
+then `rm -rf bin/le-fsm`. Then commit the engine set above in one commit.
+
+Bridge, uncommitted, in the held files (main thread's batch): new
+`internal/exabgp/bridge/bridge_event_fsm.go` and `bridge_event_fsm_test.go`
+(3 tests green); `bridge_event.go` (the `readConnected` call at the end of
+ReadEvent, `case msgTypeFSM` in ExabgpJSON, the down reason call passes
+`e.Payload["notification"]`); `bridge_event_text.go` (the same call);
+`bridge_event_state.go` (`exabgpDownReason(reason, closing)`,
+`closingNotificationWords`, doc); `old_responses_test.go` (`connected` and `fsm`
+from the format producers, `oldFSMStates`); pages `exabgp-bridge.md` and
+`exabgp-differences.md` ("The reason of a down").
+
+Not done, facts for the next agent:
+- `signal`: in production the HUB owns signals (`cmd/ze/hub/main.go`, the
+  `signal.Notify` for stopCh and hupCh, and `waitLoop`); the reactor's
+  `SignalHandler` runs only standalone (`Reactor.externalServer`). ExaBGP fans a
+  signal out to every peer with `api signal` (5.0.1 `reactor/loop.py`, the
+  `processes.signal` loop), JSON `code` as a string and `name`. Route: the hub
+  publishes it on the EventBus, the reactor subscribes and delivers a per-peer
+  `signal` through `deliverPeerLine`; the bridge maps it.
+- `shutdown`: the SDK already delivers `bye` before stop (`sdk.OnBye`), and no
+  bridge runner registers it. JSON `{"notification":"shutdown","type":
+  "notification"}` with no neighbor, text `shutdown <pid> <ppid>`.
+
+Owed gates (host rule): the reactor package race run (started, unread),
+`./le go lint run`, `./le arch tier check` (format and server now import
+bgp/fsm), `./le verify worktree`, `./le test functional exabgp-test`,
+independent review.
