@@ -61,7 +61,7 @@ func TestEndSequenceHoldsUntilTheRemoteCloses(t *testing.T) {
 			answered <- err
 			return
 		}
-		header, _, err := ReadMessage(remote)
+		header, _, err := newMessageReader(remote).readMessage()
 		if err != nil {
 			answered <- err
 			return

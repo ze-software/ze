@@ -244,6 +244,7 @@ func (p *Peer) endSequence(ctx context.Context, conn net.Conn) Result {
 // teardown is the normal exit. For a peer still owed a later connection, it is
 // the failure endSequence names.
 func (p *Peer) holdSession(ctx context.Context, conn net.Conn) (Result, bool) {
+	reader := newMessageReader(conn)
 	for {
 		select {
 		case <-ctx.Done():
@@ -251,7 +252,7 @@ func (p *Peer) holdSession(ctx context.Context, conn net.Conn) (Result, bool) {
 		default:
 		}
 		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-		header, body, err := ReadMessage(conn)
+		header, body, err := reader.readMessage()
 		if err != nil {
 			if isTimeout(err) {
 				continue

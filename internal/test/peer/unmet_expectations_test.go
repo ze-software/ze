@@ -35,10 +35,11 @@ func serveOneConnection(conn net.Conn) error {
 	if _, err := conn.Write(minimalOpenMsg(65001)); err != nil {
 		return err
 	}
-	if _, _, err := ReadMessage(conn); err != nil { // the peer's OPEN
+	reader := newMessageReader(conn)
+	if _, _, err := reader.readMessage(); err != nil { // the peer's OPEN
 		return err
 	}
-	if _, _, err := ReadMessage(conn); err != nil { // the peer's KEEPALIVE
+	if _, _, err := reader.readMessage(); err != nil { // the peer's KEEPALIVE
 		return err
 	}
 	frame, err := hex.DecodeString(unmetEOR)
@@ -51,7 +52,7 @@ func serveOneConnection(conn net.Conn) error {
 	// Only an orderly close ends conn=1. A deadline or a reset is the peer
 	// failing to close, which the caller MUST see rather than read as success.
 	for {
-		_, _, err := ReadMessage(conn)
+		_, _, err := reader.readMessage()
 		if errors.Is(err, io.EOF) {
 			return nil // the peer closed its side: conn=1 is over
 		}

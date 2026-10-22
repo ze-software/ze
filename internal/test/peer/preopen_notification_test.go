@@ -99,7 +99,7 @@ func refuseConnection(conn net.Conn) error {
 	if _, err := conn.Write(notification); err != nil {
 		return err
 	}
-	header, _, err := ReadMessage(conn)
+	header, _, err := newMessageReader(conn).readMessage()
 	if errors.Is(err, io.EOF) {
 		return nil
 	}

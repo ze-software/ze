@@ -451,7 +451,8 @@ func (p *Peer) runActive(ctx context.Context) Result {
 		return Result{Error: fmt.Errorf("write OPEN: %w", werr)}
 	}
 
-	peerHeader, peerBody, rerr := ReadMessage(conn)
+	reader := newMessageReader(conn)
+	peerHeader, peerBody, rerr := reader.readMessage()
 	if rerr != nil {
 		return Result{Error: fmt.Errorf("read peer OPEN: %w", rerr)}
 	}
@@ -463,7 +464,7 @@ func (p *Peer) runActive(ctx context.Context) Result {
 	if _, werr := conn.Write(KeepaliveMsg()); werr != nil {
 		return Result{Error: fmt.Errorf("write KEEPALIVE: %w", werr)}
 	}
-	kaHeader, _, kerr := ReadMessage(conn)
+	kaHeader, _, kerr := reader.readMessage()
 	if kerr != nil {
 		return Result{Error: fmt.Errorf("read peer KEEPALIVE: %w", kerr)}
 	}
@@ -617,8 +618,9 @@ func (p *Peer) injectDwell(ctx context.Context, conn net.Conn, dwell time.Durati
 	// Drain peer-side messages so ze's socket buffer never blocks us.
 	errCh := make(chan error, 1)
 	go func() {
+		reader := newMessageReader(conn)
 		for {
-			if _, _, err := ReadMessage(conn); err != nil {
+			if _, _, err := reader.readMessage(); err != nil {
 				errCh <- err
 				return
 			}

@@ -123,7 +123,7 @@ func TestAcceptConnMapBatchUnblocksOnCancel(t *testing.T) {
 		res <- outcome{result: r, done: d}
 	}()
 
-	// Connect and stay silent: doOpenHandshake blocks in ReadMessage, which
+	// Connect and stay silent: doOpenHandshake blocks in messageReader, which
 	// sets no deadline of its own.
 	var dialer net.Dialer
 	conn, err := dialer.DialContext(context.Background(), "tcp", ln.Addr().String())

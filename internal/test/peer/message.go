@@ -138,26 +138,58 @@ func (m *Message) Stream() string {
 	return textbuf.StringHexUpper(append(m.Header, m.Body...))
 }
 
-// ReadMessage reads a BGP message from a connection.
-func ReadMessage(conn net.Conn) ([]byte, []byte, error) {
-	header := make([]byte, HeaderLen)
-	if _, err := io.ReadFull(conn, header); err != nil {
+// messageReader owns one connection's in-progress frame. It is not safe for
+// concurrent use. The zero value is uninitialized; callers MUST construct it
+// with newMessageReader and MUST reuse it after a recoverable timeout.
+// Complete frames transfer their buffers to the caller. Partial frames remain
+// private, so retrying never mistakes their remaining bytes for a new header.
+type messageReader struct {
+	conn       net.Conn
+	header     []byte
+	body       []byte
+	headerRead int
+	bodyRead   int
+}
+
+func newMessageReader(conn net.Conn) *messageReader {
+	return &messageReader{conn: conn}
+}
+
+// readMessage returns only complete frames. A timeout preserves consumed bytes
+// and returns control to the caller, which MUST check cancellation and renew
+// its read deadline before retrying this reader. Other errors end the stream.
+//
+// RFC 4271 Section 4.1: "This 2-octet unsigned integer indicates the total length of the message, including the header in octets."
+//
+// Envelope offsets: [0:16] Marker | [16:18] Length | [18] Type | [19:Length] Body.
+func (r *messageReader) readMessage() ([]byte, []byte, error) {
+	if r.header == nil {
+		r.header = make([]byte, HeaderLen)
+	}
+	n, err := io.ReadFull(r.conn, r.header[r.headerRead:])
+	r.headerRead += n
+	if err != nil {
 		return nil, nil, err
 	}
 
-	length := binary.BigEndian.Uint16(header[16:18])
-	if length < HeaderLen {
-		return nil, nil, fmt.Errorf("invalid message length: %d", length)
-	}
-
-	bodyLen := int(length) - HeaderLen
-	body := make([]byte, bodyLen)
-	if bodyLen > 0 {
-		if _, err := io.ReadFull(conn, body); err != nil {
-			return nil, nil, err
+	if r.body == nil {
+		length := binary.BigEndian.Uint16(r.header[16:18])
+		// RFC 4271 Section 4.1: "The value of the Length field MUST always be at least 19 and no greater than 4096, and MAY be further constrained, depending on the message type."
+		// Enforce the header floor here; retain extended frames for the checker.
+		if length < HeaderLen {
+			return nil, nil, fmt.Errorf("invalid message length: %d", length)
 		}
+		r.body = make([]byte, int(length)-HeaderLen)
+	}
+	n, err = io.ReadFull(r.conn, r.body[r.bodyRead:])
+	r.bodyRead += n
+	if err != nil {
+		return nil, nil, err
 	}
 
+	header, body := r.header, r.body
+	r.header, r.body = nil, nil
+	r.headerRead, r.bodyRead = 0, 0
 	return header, body, nil
 }
 

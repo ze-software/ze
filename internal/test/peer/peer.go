@@ -662,7 +662,7 @@ func (p *Peer) printf(format string, args ...any) {
 // inspect-open-message a NOTIFICATION in place of the OPEN is returned as is,
 // with no reply and a zero router-id.
 func (p *Peer) doOpenHandshake(conn net.Conn) (header, body []byte, routerID uint32, err error) {
-	header, body, err = ReadMessage(conn)
+	header, body, err = newMessageReader(conn).readMessage()
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("read OPEN: %w", err)
 	}
@@ -841,6 +841,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 
 	// Main message loop.
 	counter := 0
+	reader := newMessageReader(conn)
 	for {
 		select {
 		case <-ctx.Done():
@@ -849,7 +850,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 		}
 
 		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-		header, body, err := ReadMessage(conn)
+		header, body, err := reader.readMessage()
 		if err != nil {
 			if isTimeout(err) {
 				continue

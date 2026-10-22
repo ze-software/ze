@@ -345,10 +345,11 @@ func TestInjectEndToEnd(t *testing.T) {
 	if _, err := conn.Write(minimalOpenMsg(asn)); err != nil {
 		t.Fatalf("write OPEN: %v", err)
 	}
-	if _, _, err := ReadMessage(conn); err != nil {
+	reader := newMessageReader(conn)
+	if _, _, err := reader.readMessage(); err != nil {
 		t.Fatalf("read peer OPEN: %v", err)
 	}
-	if _, _, err := ReadMessage(conn); err != nil {
+	if _, _, err := reader.readMessage(); err != nil {
 		t.Fatalf("read peer KEEPALIVE: %v", err)
 	}
 	if _, err := conn.Write(KeepaliveMsg()); err != nil {
@@ -424,7 +425,8 @@ func TestInjectActiveMode(t *testing.T) {
 		defer func() { _ = conn.Close() }()
 
 		// Read peer's OPEN.
-		if _, _, rerr := ReadMessage(conn); rerr != nil {
+		reader := newMessageReader(conn)
+		if _, _, rerr := reader.readMessage(); rerr != nil {
 			errCh <- fmt.Errorf("read peer OPEN: %w", rerr)
 			return
 		}
@@ -439,7 +441,7 @@ func TestInjectActiveMode(t *testing.T) {
 			return
 		}
 		// Read peer's KEEPALIVE.
-		if _, _, rerr := ReadMessage(conn); rerr != nil {
+		if _, _, rerr := reader.readMessage(); rerr != nil {
 			errCh <- fmt.Errorf("read peer KEEPALIVE: %w", rerr)
 			return
 		}

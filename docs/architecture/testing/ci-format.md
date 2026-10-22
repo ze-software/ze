@@ -511,6 +511,16 @@ before requesting shutdown.
 <!-- source: internal/test/peer/checker.go -- Checker.consumeMatches -->
 <!-- source: internal/test/fixture/register_initial_sync_barrier.go -- initialSyncBarrierRaw -->
 
+The test peer's 100-millisecond read deadline is a cancellation poll, not a
+frame boundary. Check, sink, echo and post-success linger consumers MUST retain
+any partial BGP header or body across a recoverable idle timeout and resume the
+same frame. Only a complete frame reaches expectations, rejections or echo
+output; the following frame starts at its own header. Each retry returns through
+the context check, so an unfinished frame cannot prevent teardown.
+<!-- source: internal/test/peer/message.go -- messageReader.readMessage -->
+<!-- source: internal/test/peer/peer.go -- Peer.runMessageLoop -->
+<!-- source: internal/test/peer/reject.go -- Peer.holdSession -->
+
 #### Choosing between `needs-linux`, `caps=`, and `skip-os`
 
 | The `.ci` test ... | Use |

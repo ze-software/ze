@@ -104,8 +104,9 @@ func (p *Peer) runConnMap(ctx context.Context) Result {
 // match. A caller that trips this has opted a test into AwaitEOR that should not
 // be, and the error says which frame arrived.
 func awaitEOR(conn net.Conn) error {
+	reader := newMessageReader(conn)
 	for {
-		header, body, err := ReadMessage(conn)
+		header, body, err := reader.readMessage()
 		if err != nil {
 			return fmt.Errorf("read while awaiting end-of-rib: %w", err)
 		}
@@ -127,7 +128,7 @@ func awaitEOR(conn net.Conn) error {
 //
 // Accepted sockets are registered with a watcher that closes them when ctx is
 // canceled. Without it a connection that is accepted but never sends an OPEN
-// blocks doOpenHandshake forever: its ReadMessage (peer.go:348) sets no
+// blocks doOpenHandshake forever: its messageReader sets no
 // deadline, and the ln.Close() on cancel in runConnMap only stops NEW accepts.
 // The batch then hangs until the runner's outer timeout kills the test, which
 // reports a bare timeout and names neither the stuck connection nor the fact
@@ -222,7 +223,7 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 			// (inject.go, read peer KEEPALIVE). Safe to consume: the checker
 			// skips KEEPALIVE when matching (checker.go), and no conn_map test
 			// asserts the establishment KEEPALIVE.
-			kaHeader, _, kaErr := ReadMessage(c)
+			kaHeader, _, kaErr := newMessageReader(c).readMessage()
 			if kaErr != nil {
 				errOnce.Do(func() {
 					acceptErr = fmt.Errorf("read KEEPALIVE on batch slot %d (remote %s): %w", idx+1, remote, kaErr)

@@ -69,8 +69,9 @@ func playDaemon(conn net.Conn, marker string) error {
 	if _, err := conn.Write(minimalOpenMsg(65001)); err != nil {
 		return err
 	}
+	reader := newMessageReader(conn)
 	for range 2 { // the peer's OPEN and KEEPALIVE
-		if _, _, err := ReadMessage(conn); err != nil {
+		if _, _, err := reader.readMessage(); err != nil {
 			return err
 		}
 	}
@@ -97,7 +98,7 @@ func sendAndReadReply(conn net.Conn, frame []byte) error {
 	if _, err := conn.Write(frame); err != nil {
 		return err
 	}
-	header, _, err := ReadMessage(conn)
+	header, _, err := newMessageReader(conn).readMessage()
 	if err != nil {
 		return err
 	}

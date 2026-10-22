@@ -57,11 +57,12 @@ func TestDialCheckPeerRunsTheScriptOverTheDialedConnection(t *testing.T) {
 			errCh <- werr
 			return
 		}
-		if _, _, rerr := ReadMessage(conn); rerr != nil { // the peer's OPEN
+		reader := newMessageReader(conn)
+		if _, _, rerr := reader.readMessage(); rerr != nil { // the peer's OPEN
 			errCh <- rerr
 			return
 		}
-		if _, _, rerr := ReadMessage(conn); rerr != nil { // the peer's KEEPALIVE
+		if _, _, rerr := reader.readMessage(); rerr != nil { // the peer's KEEPALIVE
 			errCh <- rerr
 			return
 		}
