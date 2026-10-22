@@ -4,6 +4,76 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-22 night: Phase 3a writer and admission drafted, NOT committed, reactor red
+
+A Phase 3a agent ran out of budget mid-package. Its production draft sits
+UNCOMMITTED in the main working tree (machine-local; a copy of the diff is
+`tmp/session/2026-10-20-0b4a8e87-9c06-4f85-90a2-0445cb843906/scratch/phase-3a-wip.patch`,
+whose `relay_recovery.go` part also carries another agent's
+`departureOweFraming` hunk, which is not 3a). Only the `WithdrawalNLRIFromKey`
+doc fix was committed. While the draft stays in the tree,
+`go test ./internal/component/bgp/reactor/` is red for every session.
+
+Drafted (compiles, `go vet -tags ze_bgp` clean, no new test written yet):
+- `adj_rib_out.go`: `adjOutPath.message` (received message ID),
+  `adjRIBOutRoute.contested`, `adjRIBOut.tombstones` with `tombstone`,
+  `tombstoned`, `clearRoutes` (the three reset sites, `reset`,
+  `beginAdjOut`, `retireWrite`, now call it); `adjOutOwed.announced`
+  (ANNOUNCE mover mark) and `announcers` (current-announcer set) with
+  `noteAnnouncer`, `electableExcluded`, `announcerCurrent`; `movers` now
+  holds WITHDRAW movers only.
+- `session_ownership.go`: `allow` sets `owner.message`; forwarded and
+  `adjOutInitial` announcements go through `oweAnnouncement` (Data Flow 3a
+  bullets: first arrival and uncontested own owner written, else owed or
+  merged when `recoveryOwedFor(announcer)`, contested bit staged either
+  way); `adjOutRecovery` gains its announcement branch (nil source refused
+  with `errAdjOutProvenance`, bit set); `stageAnnouncementOwe` writes the
+  withdrawal framing through `nlrisplit.WithdrawalNLRIFromKey`, then the
+  existing `oweAnnouncementFraming` sets the S bit as for every record;
+  `applyStaged` applies bits, merges (ANNOUNCE mover, wake) and announcer
+  entries; `recordDeletion` leaves tombstones; install clears them.
+- `reactor_api_forward.go`: every recovery section is `adjOutRecovery`;
+  `relay_recovery.go`: `recoveryStagedAnnouncement` reads
+  `provenance.synthesizedWithdrawal`, new outcome `recoveryKeyHeld`
+  (`adjOutHolds`: decided with nothing to write), `settle` re-owes a decided
+  key whose record has `announced` (epoch moved, wake), candidate carries
+  `survivor.MessageID`, the `skipped` / `skipRecoveryCandidate` /
+  `recoverySkippedMoved` machinery deleted (an ANNOUNCE mover now re-owes);
+  `recovery_owed.go`: snapshot clears `announced`, asks with
+  `electableExcluded`.
+
+Reactor run over the draft (`-race`, `-run 'Owed|Recovery|RS|RFC7947|Ownership|Departure|Forward'`), 12 red:
+- Expectation encodes forward-all, so Q-3 changes it (rewrite per the TDD
+  plan, never relax): `TestRSWithdrawalKeepsCurrentDestinationOwner` (newest
+  arrival wins), `TestRSOwnerWithdrawalRecoversOnCachedRail` and
+  `...OnFastPath` (recovery-write flags now `[false true true]`: A's later
+  announcement over B is elected by a recovery write; check A really wins
+  the tie), fence `chosen-candidate-reannounced` (q) (the re-announcement is
+  now owed, not written; becomes the WRITTEN, RE-OWED case).
+- NOT explained, investigate first: every "timed out waiting for recipient
+  TCP causal marker" (`TestOwedKeyLookupChunked` both,
+  `TestOwedKeyBufferShortageDefersKeys` both,
+  `TestOwedKeyStormKeepsSourceAndForwardWorkerMoving/cached-rail`,
+  `TestRSOwnerWithdrawalAddPathSourceKeepsOtherPath` all four,
+  `TestRSDepartureWritesOnlyWhereSourceOwns/owner-stays-preferred-third`,
+  `TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor` both,
+  `TestRSOwnerWithdrawalDeniedCandidateReannounces`). In `lookupChunked` B
+  (worse) then A (better) announce 2000 keys and C never shows A at the
+  marker. Suspects: the election ran before bgp-rib applied A (then
+  `recoveryKeyHeld` keeps B and nothing re-owes, because the announcement
+  that CREATED the record is not a mover), the `ownershipLiveRead` 64-frame
+  projection, or a recovery write refused at the writer. The ADD-PATH-source
+  case is two paths of ONE source at a non-ADD-PATH C (`adjOutSameOwner`
+  differs on `received`), so it is owed too.
+
+Left of 3a: the diagnosis above; every test the spec's step 3a lists (none
+written); the `initial-source-message` chain (`rib_replay.go`, `types.go`,
+`update_text.go`, `reactor_api_batch.go`, `forward_provenance.go`;
+`adjOutInitial` items carry `sourceMessageID` 0 until it lands, so
+`adjOutHolds` never matches an initial-installed entry); reds in a HEAD
+export; the `.ci` regression scan; the docs of the step; the spec's Design
+Insights entry. Every round needs Thomas.
+
 ## STATE 2026-10-22 later: round 11 CLEAN, Phase 3b closed, 3a next
 
 - Round 11 (Thomas, 2026-10-22: "I approve round 11.") over `8f0e8eac70`:
