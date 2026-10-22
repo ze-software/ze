@@ -840,6 +840,10 @@ func TestRecoveryRetryOwnsReplacementSession(t *testing.T) {
 		"the failed attempt retires the session its record names")
 	cancel() // The fake session has no runOnce to reset its table.
 	require.ErrorIs(t, <-done, context.Canceled, "canceling stops only the waiter")
+	// The teardown seals the session on its way to the wire (Session.seal), so
+	// the flag can be seen before the Cease reaches the transport.
+	lowEventually(t, func() bool { return len(oldConn.written()) >= setup+message.HeaderLen+2 },
+		"the Cease reaches the original session's transport")
 	raw := oldConn.written()[setup:]
 	require.GreaterOrEqual(t, len(raw), message.HeaderLen+2)
 	require.Equal(t, byte(3), raw[18])

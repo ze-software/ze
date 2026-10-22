@@ -78,12 +78,17 @@ const (
 	// decision, a table reset); nothing is left owed.
 	recoveryKeyGone
 	// recoveryKeyLeftOwed: the epoch moved, or the chosen candidate withdrew
-	// or re-announced the key since the snapshot; the next round decides the
-	// record as it stands.
+	// the key since the snapshot; the next round decides the record as it
+	// stands.
 	recoveryKeyLeftOwed
 	// recoveryKeyReowed: the chosen survivor's session ended or restarted;
 	// the key is owed again with that source excluded.
 	recoveryKeyReowed
+	// recoveryKeyHeld: decided with nothing to write, because the elected
+	// candidate is the route the destination already holds (owner identity
+	// and received message ID equal). The record is removed as for
+	// recoveryKeyWrite.
+	recoveryKeyHeld
 )
 
 // recoveryAdmitKey is one owed key of an admission, with the record and the
@@ -92,17 +97,12 @@ type recoveryAdmitKey struct {
 	key    adjOutKey
 	record *adjOutOwed
 	epoch  uint64
-	// candidate is the survivor chosen for the key; a withdrawal decision
-	// has none (source nil).
+	// candidate is the survivor chosen for the key, with its received
+	// message ID; a withdrawal decision has none (source nil).
 	candidate adjOutPath
 	outcome   recoveryKeyOutcome
 	// gone is the source a re-owe excludes, for recoveryKeyReowed only.
 	gone netip.Addr
-	// skipped are the candidates ranked above the decision that the
-	// destination's export policy denied. A write of the key by one of them
-	// since the snapshot (a re-announcement it may now permit) makes the
-	// decision stale, as the chosen candidate's own write does.
-	skipped []adjOutPath
 }
 
 // mark assigns key k to every item staged since the previous mark.
@@ -124,8 +124,10 @@ func (admission *recoveryAdmission) settleGone() {
 // admit decides, under the destination's writeMu, which keys of the admission
 // are written. Per key the owed record must still be the one the round read,
 // belong to this session, and carry the round's epoch; the chosen candidate
-// must not have withdrawn or re-announced the key since the snapshot, and its
-// source must still be the live session the round captured. It reports false
+// must not have withdrawn the key since the snapshot, and its source must
+// still be the live session the round captured. A candidate the destination
+// already holds is decided with nothing to write. An announcement of the key
+// since the snapshot does not stop the decision: settle re-owes it. It reports false
 // when the admission belongs to another session, whose table reset dropped
 // every key, or when the session is tearing down.
 func (admission *recoveryAdmission) admit(session *Session) bool {
@@ -166,8 +168,12 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 			key.outcome = recoveryKeyLeftOwed
 			continue
 		}
-		if recoverySkippedMoved(record, key.skipped) {
-			key.outcome = recoveryKeyLeftOwed
+		if adjOutHolds(table.routes[key.key], key.candidate) {
+			// RFC 4271 Section 9.2: "All newly installed routes and all
+			// newly unfeasible routes for which there is no replacement route
+			// SHALL be advertised to its peers by means of an UPDATE
+			// message." The elected route is not newly installed.
+			key.outcome = recoveryKeyHeld
 			continue
 		}
 		key.outcome = recoveryKeyWrite
@@ -190,6 +196,22 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 		}
 	}
 	return true
+}
+
+// adjOutHolds reports whether entry is candidate's route: the same owner
+// identity and the same received revision. A withdrawal decision (no
+// candidate) holds nothing.
+func adjOutHolds(entry *adjRIBOutRoute, candidate adjOutPath) bool {
+	if candidate.source == nil {
+		return false
+	}
+	if entry == nil {
+		return false
+	}
+	if !adjOutSameOwner(entry.owner, candidate) {
+		return false
+	}
+	return entry.owner.message == candidate.message
 }
 
 // sourceState is the cut state of a section's source. A source whose session
@@ -228,7 +250,12 @@ func (admission *recoveryAdmission) reowe(j int) {
 // settle applies every key's outcome once the admission's writes are flushed,
 // under the destination's writeMu, so the record is removed in the same
 // section that wrote its decision. A record whose epoch moved after admit (a
-// departure merged) stays owed for the next round.
+// departure merged) stays owed for the next round. A decided record that an
+// announcement reached since the snapshot is RE-OWED BY A MOVER: the
+// decision stands, as the RIB's best as drained, and the record stays owed
+// with its epoch moved, so the next round elects with the newer route. The
+// admission's own write notes no announcement, so no round re-triggers
+// itself.
 func (admission *recoveryAdmission) settle() {
 	admission.settled = true
 	table := &admission.peer.adjOut
@@ -243,10 +270,16 @@ func (admission *recoveryAdmission) settle() {
 			continue
 		}
 		switch key.outcome {
-		case recoveryKeyWrite:
-			if record.epoch == key.epoch {
-				table.removeOwed(key.key, record)
+		case recoveryKeyWrite, recoveryKeyHeld:
+			if record.epoch != key.epoch {
+				continue
 			}
+			if record.announced {
+				record.epoch++
+				reowed = true
+				continue
+			}
+			table.removeOwed(key.key, record)
 		case recoveryKeyReowed:
 			record.exclude(key.gone)
 			reowed = true
@@ -387,11 +420,44 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 		if !addPath && !departedOwner(table.routes[key], batch.RecoverySource) {
 			continue
 		}
+		raw, err := departureOweFraming(batch.Family, raw)
+		if err != nil {
+			return nil, err
+		}
 		record := table.owe(key, session, batch.Family, raw)
 		record.exclude(batch.RecoverySource)
 		owed = append(owed, record)
 	}
 	return owed, nil
+}
+
+// departureOweFraming rewrites, in place, one departure NLRI into the framing
+// every owed record holds: the native announcement with a one-label stack
+// (oweAnnouncementFraming). A departure names its routes as the source
+// announced them, and a labelled route can carry a stack of several labels.
+// The withdrawal written from the record reads its label field as the one
+// Compatibility field, so a deeper stack left in the record put its lower
+// labels where the receiver reads the RD and prefix: the write keyed a route
+// the destination never held and withdrew nothing, and the destination kept
+// the departed route. raw is the caller's own copy. A family whose
+// announcement and withdrawal share their framing is returned unchanged.
+// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field SHOULD be
+// set to 0x800000."
+//
+//	announced: [Length:1][Label 1:3]...[Label n, S set:3][RD:8, SAFI 128 only][Prefix]
+//	owed:      [Length:1][Label, S set:3][RD:8, SAFI 128 only][Prefix]
+func departureOweFraming(fam family.Family, raw []byte) ([]byte, error) {
+	write := nlrisplit.GetWithdrawalWriter(fam)
+	if write == nil {
+		return raw, nil
+	}
+	n, err := write(raw, raw, false, false)
+	if err != nil {
+		return nil, err
+	}
+	raw = raw[:n]
+	oweAnnouncementFraming(fam, raw)
+	return raw, nil
 }
 
 // departedOwner reports whether entry is owned by source through a session
@@ -584,7 +650,6 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			// reflection refuses a non-client route to a non-client. RFC 4456
 			// Section 6: "A route from a Non-Client IBGP peer: Reflect to all
 			// the Clients." The next candidate in election order is tried.
-			a.skipRecoveryCandidate(key, survivor)
 			continue
 		}
 		if errors.Is(err, errRelayNoSource) {
@@ -607,12 +672,11 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			// clients as determined by local policy." The next candidate in
 			// election order is tried (AC-5).
 			a.releaseRecoveryTail(admission)
-			a.skipRecoveryCandidate(key, survivor)
 			continue
 		}
 		n := len(admission.items)
 		key.candidate = adjOutPath{source: admission.items[n-1].receivedPeer,
-			received: survivor.PathID, addPath: survivor.AddPath}
+			received: survivor.PathID, addPath: survivor.AddPath, message: survivor.MessageID}
 		return nil
 	}
 	// RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a
@@ -623,36 +687,16 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 	return a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission)
 }
 
-// skipRecoveryCandidate notes a candidate stepped past for key, so the
-// admission's fence sees a later write of the key by its source.
-func (a *reactorAPIAdapter) skipRecoveryCandidate(key *recoveryAdmitKey, survivor *ribevents.RecoveryRoute) {
-	a.r.mu.RLock()
-	source, found := a.r.findPeerByAddr(survivor.Source)
-	a.r.mu.RUnlock()
-	if !found {
-		return // A source no longer configured writes nothing more.
-	}
-	key.skipped = append(key.skipped, adjOutPath{source: source, received: survivor.PathID, addPath: survivor.AddPath})
-}
-
-// recoverySkippedMoved reports whether a stepped-past candidate wrote the key
-// since the snapshot. MUST be called with the table mutex held.
-func recoverySkippedMoved(record *adjOutOwed, skipped []adjOutPath) bool {
-	for i := range skipped {
-		if record.moved(skipped[i]) {
-			return true
-		}
-	}
-	return false
-}
-
 // recoveryStagedAnnouncement reports whether a candidate's staged sections
 // carry its announcement. The forward rail stages a policy-denied candidate as
-// a synthesized withdrawal under adjOutRecovery authority, and a permitted one
-// under adjOutForwarded.
+// a synthesized withdrawal, whose provenance says so, and a permitted one as
+// the candidate's own announcement; both carry adjOutRecovery authority.
 func recoveryStagedAnnouncement(items []fwdItem) bool {
 	for i := range items {
-		if items[i].authority != adjOutRecovery {
+		if items[i].provenance == nil {
+			return true
+		}
+		if !items[i].provenance.synthesizedWithdrawal {
 			return true
 		}
 	}

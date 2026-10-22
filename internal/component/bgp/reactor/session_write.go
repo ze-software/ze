@@ -867,9 +867,7 @@ func (s *Session) retireWrite(err error) {
 	if s.adjOut != nil {
 		s.adjOut.mu.Lock()
 		if s.adjOut.session == s {
-			s.adjOut.routes = nil
-			s.adjOut.dropOwed()
-			s.adjOut.pending = false
+			s.adjOut.clearRoutes()
 		}
 		s.adjOut.mu.Unlock()
 	}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -37,10 +38,15 @@ type adjOutWrite struct {
 	// runs twice for a filtered body, so it stages per key, never applies;
 	// applyStaged applies once after the last pass. An owe's bytes live in
 	// oweNLRI, never in the body: see stageOwe.
+	// announces and contested stage the announcement election (Data Flow
+	// 3a): the source-bound announcements owed or merged into a record, and
+	// the keys whose entry a candidate other than its owner reached.
 	owes        map[adjOutKey]adjOutOwe
 	oweNLRI     []byte
 	movers      map[adjOutKey]adjOutPath
 	refused     map[adjOutKey]struct{}
+	announces   map[adjOutKey]adjOutPath
+	contested   map[adjOutKey]struct{}
 	keyScratch  [nlrisplit.PrefixKeyScratchSize]byte
 	removed     int
 	suppressed  int
@@ -61,6 +67,8 @@ var adjOutWritePool = sync.Pool{New: func() any {
 		owes:      make(map[adjOutKey]adjOutOwe),
 		movers:    make(map[adjOutKey]adjOutPath),
 		refused:   make(map[adjOutKey]struct{}),
+		announces: make(map[adjOutKey]adjOutPath),
+		contested: make(map[adjOutKey]struct{}),
 		ordinals:  make(map[family.Family]uint32),
 	}
 }}
@@ -106,9 +114,7 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 	}
 	if s.adjOut.session != s {
 		s.adjOut.session = s
-		s.adjOut.routes = nil
-		s.adjOut.dropOwed()
-		s.adjOut.pending = false
+		s.adjOut.clearRoutes()
 	}
 	work, _ := adjOutWritePool.Get().(*adjOutWrite)
 	work.session, work.table = s, s.adjOut
@@ -194,18 +200,22 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			if owner.source == nil {
 				return false, errAdjOutProvenance
 			}
-			// RFC 4271 Section 9.2: a withdrawal of a key whose replacement
-			// is being elected may kill the chosen route, and a
-			// re-announcement may supersede the revision the RIB answered
-			// with, so either makes its source a mover of the record.
-			w.stageMover(key, owner)
-			if withdraw {
-				if entry == nil {
-					return owner.synthesized, nil
-				}
-				if !adjOutSameOwner(entry.owner, owner) {
+			owner.message = item.sourceMessageID
+			if !withdraw {
+				if w.oweAnnouncement(fam, key, entry, owner, raw) {
 					return false, nil
 				}
+				break
+			}
+			// RFC 4271 Section 9.2: a withdrawal of a key whose replacement
+			// is being elected may kill the chosen route, so it makes its
+			// source a mover of the record.
+			w.stageMover(key, owner)
+			if entry == nil {
+				return owner.synthesized, nil
+			}
+			if !adjOutSameOwner(entry.owner, owner) {
+				return false, nil
 			}
 		case adjOutExpected:
 			if entry == nil {
@@ -228,29 +238,48 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			if owner.source != item.receivedPeer {
 				return false, errAdjOutProvenance
 			}
-			if entry != nil {
+			if withdraw {
 				return false, nil
 			}
-			if withdraw {
+			owner.message = item.sourceMessageID
+			// A replay meeting a contested, foreign-owned, owed or
+			// tombstoned key is one candidate among several and is owed. From
+			// the entry's own uncontested owner it is refused: bgp-rib
+			// replays only a revision still current in its Adj-RIB-In, so the
+			// entry holds that revision or another of the same source.
+			if w.oweAnnouncement(fam, key, entry, owner, raw) {
+				return false, nil
+			}
+			if entry != nil {
 				return false, nil
 			}
 		case adjOutRecovery:
 			// The admission's per-key fence ran under writeMu before any
 			// section. A denied survivor withdraws this old owner, not a path
 			// attributed to the denied source.
-			if withdraw {
-				if entry == nil {
-					return false, nil
+			if !withdraw {
+				// The admission's own survivor write: never owed, no mover.
+				// writePath answers the bare receivedPeer when provenance is
+				// nil, so a section without one would otherwise install an
+				// originated-looking owner.
+				if owner.source == nil {
+					return false, errAdjOutProvenance
 				}
-				if key.addPath && adjOutOwnerCurrent(entry.owner) {
-					// A departure withdraws an ADD-PATH identifier only while
-					// the departed source's ended session or revoked binding
-					// owns it: the reconnected session's newer path, or an
-					// originated one, is never withdrawn for an old DOWN.
-					return false, nil
-				}
-				owner = entry.owner
+				owner.message = item.sourceMessageID
+				w.contested[key] = struct{}{}
+				break
 			}
+			if entry == nil {
+				return false, nil
+			}
+			if key.addPath && adjOutOwnerCurrent(entry.owner) {
+				// A departure withdraws an ADD-PATH identifier only while
+				// the departed source's ended session or revoked binding
+				// owns it: the reconnected session's newer path, or an
+				// originated one, is never withdrawn for an old DOWN.
+				return false, nil
+			}
+			owner = entry.owner
 		}
 	}
 	if withdraw {
@@ -337,10 +366,83 @@ func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool 
 	return w.session.recoveryOwedFor(entry.owner.source)
 }
 
-// stageMover notes a forwarded write (a withdrawal or an announcement) of a
-// key owed before this write. The owe this write itself stages is applied
-// after the last pass, so the withdrawal that creates a record is never its
-// own mover.
+// oweAnnouncement reports whether a source-bound announcement (forwarded or
+// initial replay) is left to the destination's recovery worker instead of
+// being emitted, and stages its effects. At a destination without ADD-PATH
+// send for the family, an announcement that meets a contested entry, an
+// entry another owner holds, an owed record or a tombstone is one candidate
+// among several: it sets the contested bit, and, while a recovery owner
+// receives its source's UPDATEs, it owes the key with an empty excluded set
+// or merges into the record. The first route of a key, and an uncontested
+// owner's own re-announcement, is the election and is written as today.
+// RFC 7947 Section 2.1: "the route server SHOULD perform one or more BGP
+// Decision Processes to select routes for subsequent advertisement to its
+// clients".
+func (w *adjOutWrite) oweAnnouncement(fam family.Family, key adjOutKey, entry *adjRIBOutRoute, owner adjOutPath, raw []byte) bool {
+	if key.addPath {
+		return false // Every path reaches an ADD-PATH destination.
+	}
+	record := w.table.owed[key]
+	if !adjOutContests(entry, owner, record != nil, w.table.tombstoned(key)) {
+		return false
+	}
+	w.contested[key] = struct{}{}
+	if !w.session.recoveryOwedFor(owner.source) {
+		return false
+	}
+	w.announces[key] = owner
+	if record == nil {
+		w.owes[key] = w.stageAnnouncementOwe(fam, key, raw)
+	}
+	return true
+}
+
+// adjOutContests reports whether owner's announcement is not the only
+// candidate this writer has seen for the key.
+func adjOutContests(entry *adjRIBOutRoute, owner adjOutPath, owed, tombstoned bool) bool {
+	if owed {
+		return true
+	}
+	if tombstoned {
+		return true
+	}
+	if entry == nil {
+		return false
+	}
+	if entry.contested {
+		return true
+	}
+	return !adjOutSameOwner(entry.owner, owner)
+}
+
+// stageAnnouncementOwe stages the key's WITHDRAWAL NLRI, which a record
+// needs when the round answers WITHDRAW, written once from the native key.
+// For a labelled family the announcement carries its label stack where the
+// withdrawal carries the Compatibility field; every other family's two
+// framings are the same bytes and raw is copied as it is. A key the writer
+// cannot convert keeps raw: the RIB still elects over it, and only the
+// WITHDRAW answer's bytes would carry the stack.
+// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field SHOULD be
+// set to 0x800000."
+func (w *adjOutWrite) stageAnnouncementOwe(fam family.Family, key adjOutKey, raw []byte) adjOutOwe {
+	native := key.path.nlri[:key.path.length]
+	if key.path.overflow != "" {
+		native = []byte(key.path.overflow) // Cold: a key longer than the inline array.
+	}
+	start := len(w.oweNLRI)
+	w.oweNLRI = slices.Grow(w.oweNLRI, len(native)+3)
+	n, err := nlrisplit.WithdrawalNLRIFromKey(fam, native, w.oweNLRI[start:start+len(native)+3])
+	if err != nil {
+		return w.stageOwe(fam, raw)
+	}
+	end := start + n
+	w.oweNLRI = w.oweNLRI[:end]
+	return adjOutOwe{family: fam, nlri: w.oweNLRI[start:end:end]}
+}
+
+// stageMover notes a forwarded withdrawal of a key owed before this write.
+// The owe this write itself stages is applied after the last pass, so the
+// withdrawal that creates a record is never its own mover.
 func (w *adjOutWrite) stageMover(key adjOutKey, owner adjOutPath) {
 	if w.table.owed[key] == nil {
 		return
@@ -354,6 +456,8 @@ func (w *adjOutWrite) clearStaged() {
 	w.oweNLRI = w.oweNLRI[:0]
 	clear(w.movers)
 	clear(w.refused)
+	clear(w.announces)
+	clear(w.contested)
 }
 
 // applyStaged MUST run once, under the table mutex, after the last filter
@@ -374,7 +478,24 @@ func (w *adjOutWrite) applyStaged() {
 			peer.owedRefused.Add(uint64(len(w.refused)))
 		}
 	}
+	for key := range w.contested {
+		if entry := w.table.routes[key]; entry != nil {
+			entry.contested = true
+		}
+	}
+	merged := false
+	for key, owner := range w.announces {
+		if record := w.table.owed[key]; record != nil {
+			// Owed before this write: an ANNOUNCE mover of the record.
+			record.noteAnnouncer(owner, true)
+			delete(w.announces, key)
+			merged = true
+		}
+	}
 	if len(w.owes) == 0 {
+		if merged {
+			w.session.wakeRecovery()
+		}
 		return
 	}
 	for key, owe := range w.owes {
@@ -385,6 +506,10 @@ func (w *adjOutWrite) applyStaged() {
 		record := w.table.owe(key, w.session, owe.family, owe.nlri)
 		if fresh {
 			oweAnnouncementFraming(record.family, record.nlri)
+		}
+		if owner, announced := w.announces[key]; announced {
+			// The announcement that created the record is no mover of it.
+			record.noteAnnouncer(owner, !fresh)
 		}
 	}
 	w.session.wakeRecovery()
@@ -655,7 +780,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 			return true
 		}
 		if withdraw {
-			delete(w.table.routes, key)
+			w.recordDeletion(key)
 			w.withdrawnRoutes++
 			return true
 		}
@@ -690,6 +815,10 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 			w.table.routes[key] = entry
 		}
 		entry.owner = owner
+		if _, contested := w.contested[key]; contested {
+			entry.contested = true
+		}
+		delete(w.table.tombstones, key) // An installed entry carries the bit itself.
 		if !w.sourceBound() {
 			// An originated route is not a candidate of the election and is
 			// not overridden by it: it decides an owed key itself.
@@ -726,6 +855,31 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 	}
 	w.table.pending = true
 	return cause
+}
+
+// recordDeletion deletes key's entry. A source-owned entry deleted outside a
+// recovery decision, at a destination without ADD-PATH send, leaves a
+// tombstone: a candidate in flight to this writer, or dropped on a
+// generation move, then meets it and is owed rather than written with no
+// election. A recovery decision's own withdrawal removes the tombstone,
+// because no candidate the destination may receive remained at its drain.
+func (w *adjOutWrite) recordDeletion(key adjOutKey) {
+	entry := w.table.routes[key]
+	delete(w.table.routes, key)
+	if item := w.session.sentForward; item != nil && item.authority == adjOutRecovery {
+		delete(w.table.tombstones, key)
+		return
+	}
+	if entry == nil {
+		return
+	}
+	if entry.owner.source == nil {
+		return
+	}
+	if key.addPath {
+		return
+	}
+	w.table.tombstone(key)
 }
 
 // checkInitialWrite runs under writeMu, including before originated policy can

@@ -280,10 +280,11 @@ func (w *recoveryWorker) retire(err error) {
 // round decides every key owed when it started, one family and one bounded
 // chunk at a time. It reports again when a key of its snapshot is still owed
 // after its admission: left owed on a moved epoch, or on a candidate that
-// withdrew or re-announced the key, or re-owed with a source excluded. Each
-// such retry needs a merge, an exclusion or a new write of that key by the
-// chosen candidate since the snapshot, so rounds are paced by those UPDATEs
-// and cannot hot-loop on their own.
+// withdrew the key, re-owed with a source excluded, or re-owed because an
+// announcement reached the key since the snapshot. Each such retry needs a
+// merge, an exclusion or a new write of that key by a source since the
+// snapshot, so rounds are paced by those UPDATEs and cannot hot-loop on
+// their own.
 func (w *recoveryWorker) round() (bool, error) {
 	owed := w.snapshot()
 	decided := false
@@ -308,7 +309,9 @@ func (w *recoveryWorker) round() (bool, error) {
 }
 
 // snapshot copies the owed set of this session under the table mutex, and
-// clears each record's movers: a withdrawal after this point is noted again.
+// clears each record's movers and its announced mark: a write after this
+// point is noted again. The excluded sources it asks with are the record's
+// minus its current announcers (adjOutOwed.electableExcluded).
 // It is taken before the source cuts are captured, so a withdrawal landing
 // between the two is either drained or recorded.
 func (w *recoveryWorker) snapshot() map[family.Family][]recoveryOwedKey {
@@ -328,8 +331,9 @@ func (w *recoveryWorker) snapshot() map[family.Family][]recoveryOwedKey {
 			continue
 		}
 		record.movers = record.movers[:0]
+		record.announced = false
 		owed[record.family] = append(owed[record.family], recoveryOwedKey{key: key, record: record,
-			epoch: record.epoch, excluded: slices.Clone(record.excluded)})
+			epoch: record.epoch, excluded: record.electableExcluded()})
 	}
 	return owed
 }

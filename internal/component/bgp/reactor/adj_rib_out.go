@@ -35,8 +35,15 @@ type adjRIBOut struct {
 	// emit, because the RIB elects what replaces the route
 	// (adjOutWrite.allow). Every reset of routes clears it: a record is framed
 	// for the session it was owed to.
-	owed    map[adjOutKey]*adjOutOwed
-	pending bool
+	owed map[adjOutKey]*adjOutOwed
+	// tombstones holds the keys of source-owned entries a write deleted
+	// outside a recovery decision, at a destination without ADD-PATH send:
+	// a candidate still in flight to this writer, or dropped on a generation
+	// move, would otherwise meet no entry and be written with no election.
+	// Every reset of routes clears it, and it holds at most one key per
+	// prefix so deleted in this session.
+	tombstones map[adjOutKey]struct{}
+	pending    bool
 	// suppressed counts the routes this peer was NOT sent because it already
 	// held them. A suppression and a drop are different outcomes and an operator
 	// must be able to tell them apart (ai/rules/principles.md), so the count is
@@ -79,6 +86,18 @@ type adjOutPath struct {
 	// written. Equality ignores it like the generation; adjOutOwnerCurrent reads
 	// both.
 	revocation uint64
+	// message is the owner's RECEIVED message ID, the revision of the source's
+	// route the destination holds. revision is the SENT receipt's ID and
+	// cannot say which received revision that was, so an elected candidate is
+	// compared with this field (recoveryAdmission.admit). Equality ignores it.
+	message uint64
+}
+
+// adjOutAnnouncer is one source session that announced an owed key: the
+// source and its session generation (Peer.forwardGeneration) at the write.
+type adjOutAnnouncer struct {
+	source     *Peer
+	generation uint64
 }
 
 // adjOutOwed is one key whose decision belongs to the destination's recovery
@@ -99,12 +118,23 @@ type adjOutOwed struct {
 	// is excluded), so an admission answering an older question leaves the
 	// key owed for the next round instead of writing a stale answer.
 	epoch uint64
-	// movers are the owner identities of forwarded writes of the key, a
-	// withdrawal or a re-announcement, since the last round's snapshot. Only
-	// the chosen candidate's own write makes a decision stale (its route is
-	// gone, or newer than the RIB's answer), so the admission compares the
+	// movers are the owner identities of forwarded WITHDRAWALS of the key
+	// since the last round's snapshot. Only the chosen candidate's own
+	// withdrawal makes a decision's route dead, so the admission compares the
 	// candidate with this set. Bounded by the distinct paths that wrote.
 	movers []adjOutPath
+	// announced reports a forwarded or initial-replay ANNOUNCEMENT of the key
+	// since the last round's snapshot: a route the round's drain may not
+	// have applied. The admission still decides, and leaves the key owed with
+	// its epoch moved, so the next round elects with the newer route.
+	announced bool
+	// announcers are the source sessions that announced the key while it was
+	// owed. Unlike movers it is not cleared at snapshot and dies with the
+	// record: a round subtracts every still-current announcer from excluded,
+	// so a reconnected source's new route stays electable whichever of its
+	// departure and its re-announcement reached the writer first. Bounded by
+	// the configured sources.
+	announcers []adjOutAnnouncer
 	// done is closed when the record leaves the owed set, whatever removed
 	// it: a decision, an originated announcement, or a table reset. A
 	// departure waits on it.
@@ -138,8 +168,59 @@ func (o *adjOutOwed) exclude(source netip.Addr) {
 	o.excluded = append(o.excluded, source)
 }
 
-// noteMover records a forwarded write (a withdrawal or an announcement) of
-// the key by owner.
+// noteAnnouncer records a source-bound announcement of the key by owner: an
+// ANNOUNCE mover, and owner's session as a current announcer. A source the
+// record excludes moves the epoch on entering the set, because the next
+// round subtracts it and so asks the RIB another question. MUST be called
+// with adjRIBOut.mu held.
+func (o *adjOutOwed) noteAnnouncer(owner adjOutPath, mover bool) {
+	if mover {
+		o.announced = true
+	}
+	for i := range o.announcers {
+		if o.announcers[i].source == owner.source {
+			o.announcers[i].generation = owner.generation
+			return
+		}
+	}
+	o.announcers = append(o.announcers, adjOutAnnouncer{source: owner.source, generation: owner.generation})
+	if slices.Contains(o.excluded, owner.source.Settings().Address) {
+		o.epoch++
+	}
+}
+
+// electableExcluded returns the excluded sources a round asks the RIB to
+// skip: excluded minus every source whose announcing session is still
+// current. A current session's route for the key is a valid candidate, and
+// the RIB already released or replaced the departed session's paths unless
+// GR retained them. RFC 4724 Section 4.2: "the Receiving Speaker MUST NOT
+// differentiate between stale and other routing information during
+// forwarding." The result is a fresh slice the caller may append to. MUST
+// be called with adjRIBOut.mu held.
+func (o *adjOutOwed) electableExcluded() []netip.Addr {
+	excluded := make([]netip.Addr, 0, len(o.excluded))
+	for _, addr := range o.excluded {
+		if o.announcerCurrent(addr) {
+			continue
+		}
+		excluded = append(excluded, addr)
+	}
+	return excluded
+}
+
+// announcerCurrent reports whether addr names a current announcer.
+func (o *adjOutOwed) announcerCurrent(addr netip.Addr) bool {
+	for i := range o.announcers {
+		announcer := &o.announcers[i]
+		if announcer.source.Settings().Address != addr {
+			continue
+		}
+		return forwardSourceCurrent(announcer.source, announcer.generation)
+	}
+	return false
+}
+
+// noteMover records a forwarded withdrawal of the key by owner.
 func (o *adjOutOwed) noteMover(owner adjOutPath) {
 	for i := range o.movers {
 		if adjOutSameOwner(o.movers[i], owner) {
@@ -149,8 +230,7 @@ func (o *adjOutOwed) noteMover(owner adjOutPath) {
 	o.movers = append(o.movers, owner)
 }
 
-// moved reports whether candidate withdrew or re-announced the key since the
-// snapshot.
+// moved reports whether candidate withdrew the key since the snapshot.
 func (o *adjOutOwed) moved(candidate adjOutPath) bool {
 	for i := range o.movers {
 		if adjOutSameOwner(o.movers[i], candidate) {
@@ -197,6 +277,39 @@ type adjRIBOutRoute struct {
 	revision  uint64
 	signature []byte
 	exactNLRI []byte
+	// contested is sticky: some candidate other than this owner reached the
+	// writer for the key since the entry was installed (another source's
+	// announcement, an announcement meeting a record or a tombstone, or a
+	// recovery write). The owner's own re-announcement is the election only
+	// while it is clear. It dies with the entry.
+	contested bool
+}
+
+// tombstone notes a deleted source-owned key. MUST be called with mu held.
+func (a *adjRIBOut) tombstone(key adjOutKey) {
+	if a.tombstones == nil {
+		a.tombstones = make(map[adjOutKey]struct{})
+	}
+	a.tombstones[key] = struct{}{}
+}
+
+// tombstoned reports whether key is tombstoned. The emptiness test keeps the
+// common write free of a lookup. MUST be called with mu held.
+func (a *adjRIBOut) tombstoned(key adjOutKey) bool {
+	if len(a.tombstones) == 0 {
+		return false
+	}
+	_, found := a.tombstones[key]
+	return found
+}
+
+// clearRoutes empties routes and everything framed for them: the owed set
+// and the tombstones. MUST be called with mu held.
+func (a *adjRIBOut) clearRoutes() {
+	a.routes = nil
+	a.tombstones = nil
+	a.dropOwed()
+	a.pending = false
 }
 
 // adjRIBOutSignature is one route's wire form as this peer would receive it,
@@ -265,10 +378,8 @@ func (a *adjRIBOut) reset() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.routes = nil
-	a.dropOwed()
+	a.clearRoutes()
 	a.session = nil
-	a.pending = false
 }
 
 // suppressedCount is how many routes this peer was not sent because it already

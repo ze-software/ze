@@ -1236,11 +1236,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				continue
 			}
 			if srcInfo.recovery != nil {
-				if mods.IsWithdraw() || (item.provenance != nil && item.provenance.synthesizedWithdrawal) {
-					// The admitted recovery owns the obsolete sent slot, not
-					// the policy-denied replacement candidate's source.
-					item.authority = adjOutRecovery
-				}
+				// Every section of a recovery operation carries its own
+				// authority: a withdrawal owns the obsolete sent slot, not the
+				// policy-denied candidate's source, and an announcement is the
+				// admission's decision, which a forwarded label would owe to
+				// the very election that chose it.
+				item.authority = adjOutRecovery
 				item.supersedeKey = 0 // The operation owns every staged section.
 				// R-12: bgp-rib checks a recovery write's projection against
 				// the candidate's received path. The key goes in a fresh copy,
