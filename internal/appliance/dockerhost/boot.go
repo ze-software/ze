@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -210,6 +211,18 @@ func mountWritableTrees(sys System, root string) error {
 // Linux host's home lands under /home, which /perm/home backs. The image
 // carries both directories (le's extra files).
 var shareRoots = []string{"/mnt", "/Users"}
+
+// homeRoot is where a Linux host's shares land, backed by /perm/home.
+const homeRoot = "/home"
+
+// ShareMountRoots answers every directory under which the guest can create a
+// share's mount point: the shareRoots tmpfs directories and homeRoot. The
+// rest of the root is the read-only squashfs, so a host that names a share
+// MUST place it strictly under one of these, and the guest MUST keep each
+// one writable until the shares are mounted.
+func ShareMountRoots() []string {
+	return append(slices.Clone(shareRoots), homeRoot)
+}
 
 // binfmtMiscDir is where the kernel's binfmt_misc file system is mounted.
 // systemd mounts it on a distribution; nothing does on gokrazy.

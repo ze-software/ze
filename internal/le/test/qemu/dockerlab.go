@@ -451,7 +451,31 @@ func (r *Run) dockerLabShares() ([]dockerLabShare, error) {
 	for i, share := range linked {
 		shares = append(shares, dockerLabShare{tag: "zelab" + strconv.Itoa(i+1), point: share.Host})
 	}
+	for _, share := range shares {
+		if err := refuseUnmountableShare(share.point, r.shareMountRoots); err != nil {
+			return nil, err
+		}
+	}
 	return shares, nil
+}
+
+// refuseUnmountableShare refuses a share the guest could not mount: Ze's
+// image boots a read-only root, so a 9p mount point can be created only
+// strictly under one of roots (dockerhost.ShareMountRoots). A refusal here, before
+// the VM boots, replaces a mount failure buried in the guest's console.
+// Covering each share's top directory with a tmpfs instead was rejected: a
+// top directory such as /opt or /var would hide what the image carries there.
+func refuseUnmountableShare(point string, roots []string) error {
+	for _, root := range roots {
+		if strings.HasPrefix(point, root+"/") {
+			return nil
+		}
+	}
+	var b textbuf.Buffer
+	return errors.New(b.Str("docker-lab cannot share ").Str(point).
+		Str(" with the guest: Ze's docker-host image boots a read-only root, and it can create a mount point only under ").
+		Str(strings.Join(roots, ", ")).
+		Str(". Fix: move the checkout, or the directory its tmp or cache link points to, under one of those directories, then rerun.").String())
 }
 
 // dockerLabBoot starts QEMU and records it for the reap a later run does if

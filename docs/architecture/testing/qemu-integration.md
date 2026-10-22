@@ -438,7 +438,13 @@ because a lab under TCG measures the emulator. It then:
    checkout over 9p at the checkout's own absolute path, and each directory the
    checkout's `tmp` and `cache` links lead out of it at its own path, so a bind
    mount the host le names (the kernel probe mounts the linux `ze` by its host
-   path) resolves in the guest (spec R-7). `boot.sh` starts `containerd.service`
+   path) resolves in the guest (spec R-7). The image boots a read-only root,
+   so the guest can create a mount point only strictly under `/mnt`, `/Users`
+   or `/home` (`dockerhost.ShareMountRoots`). A share outside them is refused
+   before the VM boots, with the directories named and the fix (move the
+   checkout or the link's target under one of them) (`refuseUnmountableShare`).
+   Covering the share's top directory with a tmpfs was rejected: over `/opt`
+   or `/var` it would hide what the image carries there. `boot.sh` starts `containerd.service`
    and `docker.service` through the systemctl shim, what Colima's provisioning
    does under Lima. le writes the ISO itself (`cidataISO`): Lima's writer,
    `go-diskfs`, is not vendored, and a host tool (`hdiutil`, `xorriso`) would be
@@ -479,7 +485,7 @@ interrupt a terminal would have sent; the lab runs its own teardown under its
 own signal root and exits. le waits for it up to five minutes, then kills its
 group. Only then does le list the leftovers, and only after that does the VM
 stop (spec AC-10).
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe, refuseUnmountableShare -->
 <!-- source: internal/le/test/qemu/cidata.go -- cidataISO -->
 <!-- source: internal/le/setup/dockerhost/actions.go -- EnsureImage -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->

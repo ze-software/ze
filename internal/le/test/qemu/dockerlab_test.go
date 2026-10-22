@@ -241,6 +241,8 @@ func fakeDockerLabRun(t *testing.T) (*Run, string, string) {
 	t.Setenv("LOG", logPath)
 
 	run := NewRun(tree, RunOptions{Memory: "512", CPUs: "1", Boot: 10 * time.Second, Timeout: time.Minute, SSHPort: 2222, HardwareOnly: true})
+	// The fake guest mounts nothing; the tree sits under /tmp for sun_path.
+	run.shareMountRoots = append(run.shareMountRoots, "/tmp")
 	run.ops.GOARCH = "amd64"
 	run.ops.Accelerator = func() string { return acceleratorKVM }
 	run.ops.Sleep = func(context.Context, time.Duration) error { return nil }
@@ -310,4 +312,31 @@ func readLog(t *testing.T, path string) string {
 		return ""
 	}
 	return string(data)
+}
+
+// TestDockerLabRefusesAShareTheGuestCannotMount checks share points under
+// each writable guest root, on a root itself and outside every root.
+//
+// VALIDATES: review R1-4: a share outside /Users, /home and /mnt is refused
+// before the VM boots, naming the share, why, and the fix.
+// PREVENTS: a checkout under /opt or /private/tmp failing to mount inside
+// the guest, reported only on the guest's console.
+func TestDockerLabRefusesAShareTheGuestCannotMount(t *testing.T) {
+	for _, point := range []string{"/Users/someone/Code/ze", "/home/runner/work/ze", "/mnt/cache"} {
+		if err := refuseUnmountableShare(point, dockerhost.ShareMountRoots()); err != nil {
+			t.Errorf("refused %s: %v", point, err)
+		}
+	}
+	for _, point := range []string{"/opt/ze", "/private/tmp/ze", "/Users", "/homework/ze"} {
+		err := refuseUnmountableShare(point, dockerhost.ShareMountRoots())
+		if err == nil {
+			t.Errorf("accepted %s, which the guest cannot mount", point)
+			continue
+		}
+		for _, want := range []string{point, "read-only root", "/Users, /home", "Fix:"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("refusal of %s lacks %q: %v", point, want, err)
+			}
+		}
+	}
 }

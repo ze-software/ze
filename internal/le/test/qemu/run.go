@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance/dockerhost"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/tmplink"
@@ -216,11 +217,14 @@ type Run struct {
 	// teardownGrace bounds the wait for the guest command's own teardown
 	// after the run forwards it SIGINT (stopGuestCommand).
 	teardownGrace time.Duration
+	// shareMountRoots are the guest directories a docker-lab share may sit
+	// under (dockerhost.ShareMountRoots); nil refuses every share.
+	shareMountRoots []string
 }
 
 // NewRun answers a run over tree with production host operations.
 func NewRun(tree string, options RunOptions) *Run {
-	return &Run{Tree: tree, Options: options, ops: productionRunOps(), teardownGrace: guestTeardownGrace}
+	return &Run{Tree: tree, Options: options, ops: productionRunOps(), teardownGrace: guestTeardownGrace, shareMountRoots: dockerhost.ShareMountRoots()}
 }
 
 type commandSpec struct {
