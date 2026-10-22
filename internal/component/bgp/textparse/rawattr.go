@@ -294,15 +294,15 @@ func CheckRawAttributeFlags(code attribute.AttributeCode, flags attribute.Attrib
 	}
 	// A code one of Ze's keywords writes is sent from its decoded form
 	// (decodeTypedRawAttribute), whose flags carry no Partial bit, so the bit
-	// would not reach the wire. Partial records how the path travelled, not
+	// would not reach the wire. Partial records how the path traveled, not
 	// the value. RFC 4271 Section 5: "If they are not attached by the
 	// originator, the Partial bit in the Attribute Flags octet is set to 1."
 	// and RFC 4271 Section 9: "If an optional transitive attribute is
 	// unrecognized, the Partial bit (the third high-order bit) in the
 	// attribute flags octet is set to 1". Ze originates this route and
-	// recognises this attribute, so neither applies.
+	// recognizes this attribute, so neither applies.
 	if keyword, typed := AttributeKeyword(code); typed {
-		return fmt.Errorf("attribute 0x%02x (%s) flags 0x%02x set the Partial bit, which Ze does not send for an attribute it decodes: Ze sends this code from its decoded value, as it sends the %s keyword, and RFC 4271 Section 5 sets Partial only on an optional transitive attribute an AS passed along unrecognised or attached to a path it did not originate: write 0x%02x",
+		return fmt.Errorf("attribute 0x%02x (%s) flags 0x%02x set the Partial bit, which Ze does not send for an attribute it decodes: Ze sends this code from its decoded value, as it sends the %s keyword, and RFC 4271 Section 5 sets Partial only on an optional transitive attribute an AS passed along unrecognized or attached to a path it did not originate: write 0x%02x",
 			uint8(code), code, uint8(flags), keyword, uint8(flags&^attribute.FlagPartial))
 	}
 	return nil

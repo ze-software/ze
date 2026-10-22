@@ -250,7 +250,7 @@ type nlriParseResult struct {
 // errSectionAttrTwice refuses a section attribute whose type code the
 // attributes written before the section already carry. RFC 4271 Section 6.3:
 // "If any attribute appears more than once in the UPDATE message, then the
-// Error Subcode MUST be set to Malformed Attribute List."
+// Error Subcode MUST be set to Malformed Attribute List".
 var errSectionAttrTwice = errors.New("attribute given twice")
 
 // withSectionAttrs answers the attribute block of a section's routes: the

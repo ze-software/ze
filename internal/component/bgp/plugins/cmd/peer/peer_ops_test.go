@@ -719,7 +719,7 @@ func TestHandlerFlushByName(t *testing.T) {
 }
 
 // TestHandlerFlushAddressList proves flush drains every peer a list selector
-// names, the selector the ExaBGP bridge sends after a route for two neighbours.
+// names, the selector the ExaBGP bridge sends after a route for two neighbors.
 //
 // VALIDATES: `request peer 192.0.2.1,192.0.2.2 flush` answers StatusDone and
 // reaches FlushForwardPoolPeer once for each listed peer.

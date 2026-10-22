@@ -44,7 +44,7 @@ func (r *RIBManager) flowSpecRedirectChecked(addr netip.Addr) bool {
 // default, the check on.
 //
 // draft-simpson-idr-flowspec-redirect-02 Section 3: "It MUST be possible to
-// disable this additional validation check on a per-EBGP session basis."
+// disable this additional validation check on a per-EBGP session basis".
 func parseFlowSpecRedirectConfig(bgpCfg map[string]any) (flowSpecRedirectConfig, error) {
 	cfg := flowSpecRedirectConfig{base: true, peers: map[configjson.PeerConfigKey]bool{}}
 	var err error
@@ -130,7 +130,7 @@ func flowSpecRedirectTarget(entry storage.RouteEntry) netip.Addr {
 // draft-simpson-idr-flowspec-redirect-02 Section 3: "If an MP_REACH_NLRI
 // containing one or more flow-spec NLRI does not have a valid IPv4 or IPv6
 // address in its next-hop field, or the length of the next-hop is 0, then the
-// redirect-to-IP extended community, if present, should be ignored."
+// redirect-to-IP extended community, if present, should be ignored".
 func flowSpecMPNextHop(bundle storage.Bundle) netip.Addr {
 	data, err := pool.OtherAttrs.Get(bundle.OtherAttrs)
 	if err != nil {
@@ -177,7 +177,7 @@ func flowSpecMPNextHop(bundle storage.Bundle) netip.Addr {
 // the BGP speaker SHOULD discard the redirect-to-ip extended community (and
 // not propagate it further with the flow-spec route) if the last AS in the
 // AS_PATH or AS4_PATH attribute of the longest prefix match for X does not
-// match the AS of the EBGP peer."
+// match the AS of the EBGP peer".
 func flowSpecRedirectRefused(flow *flowSpecRoute, unicast []flowSpecUnicast) bool {
 	domain := flow.domain
 	domain.family.AFI = family.AFIIPv4

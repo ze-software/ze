@@ -100,7 +100,7 @@ func rsAddPathUpdate(t *testing.T, withdrawn, attrs, nlri []byte) *bgptypes.RawM
 // the peer went down path 2 stayed announced to every other client.
 // RFC 7911 Section 5: "a new advertisement for a given address prefix and a
 // given Path Identifier replaces a previous advertisement for the same address
-// prefix and Path Identifier."
+// prefix and Path Identifier".
 func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 	rs := newTestRouteServer(t)
 	path1 := []byte{0, 0, 0, 1, 8, 10}
