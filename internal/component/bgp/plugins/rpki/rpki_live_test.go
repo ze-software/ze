@@ -20,7 +20,7 @@ import (
 const rpkiDataURL = "https://rpki.cloudflare.com/rpki.json"
 
 // stayrtrImage is the official stayrtr container image.
-const stayrtrImage = "docker.io/rpki/stayrtr:latest"
+const stayrtrImage = "docker.io/rpki/stayrtr:v0.6.4"
 
 // stayrtrLogLines is the stayrtr log tail a failed live test receives.
 const stayrtrLogLines = 100

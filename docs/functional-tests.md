@@ -3352,7 +3352,7 @@ summary format as the other functional suites. The public action is:
 <!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
 
 The stage runs the `encoding` and `api` populations, and only those, under two
-ExaBGP pins, `5.0.13` (the last 5.0 release) and `main` (a recorded commit of
+ExaBGP pins, `5.0.15` (the last 5.0 release) and `main` (a recorded commit of
 ExaBGP main, the unreleased 6.0),
 each through `uv run --no-project --python 3.12 --with paramiko --with <pin>`,
 so `uv` must be on PATH. `./le setup install` does not install it; the CI runner
@@ -3389,7 +3389,7 @@ case added for ExaBGP behaviour is proven under each pin before ze is held to
 it:
 
 ```bash
-uv run --no-project --python 3.12 --with paramiko --with exabgp==5.0.13 \
+uv run --no-project --python 3.12 --with paramiko --with exabgp==5.0.15 \
   ./le test exabgp api --dut exabgp api-fast
 ```
 

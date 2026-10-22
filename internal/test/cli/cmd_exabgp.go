@@ -362,7 +362,7 @@ Examples:
   le test exabgp 1 2 3
   le test exabgp --server 1 --port 17900
   le test exabgp --client 1 --port 17900
-  uv run --with exabgp==5.0.13 le test exabgp api --dut exabgp api-fast
+  uv run --with exabgp==5.0.15 le test exabgp api --dut exabgp api-fast
 `)
 }
 

@@ -18,7 +18,7 @@ import (
 // type, the Peer Up Information TLVs and the Peer Down reason itself, so what
 // it writes is another implementation's reading of ze's bytes rather than ze's
 // own.
-const defaultPMACCTImage = "pmacct/pmbmpd:latest"
+const defaultPMACCTImage = "pmacct/pmbmpd:v1.8.0"
 
 // LabBinaries declares the two personalities this lab stages into its Docker
 // build context, which is what test/interop/Dockerfile.ze copies in.

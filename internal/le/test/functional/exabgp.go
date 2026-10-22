@@ -58,15 +58,15 @@ type exaBGPPin struct {
 
 // exaBGPPython is the interpreter every pin runs on, passed to uv as
 // `--python`. Left to uv, the choice followed the machine: on the owner's
-// workstation it picked a managed CPython 3.8.20, which 5.0.13's healthcheck
+// workstation it picked a managed CPython 3.8.20, which 5.0.15's healthcheck
 // cannot run on (plan/journal/gate-verdict-depends-on-the-machine.md, row
 // 2026-10-17). ExaBGP main declares `requires-python = ">=3.12"` in its
-// pyproject.toml, and 5.0.13 runs on it too, so one interpreter serves both.
+// pyproject.toml, and 5.0.15 runs on it too, so one interpreter serves both.
 const exaBGPPython = "3.12"
 
 // exaBGPPins are the two ExaBGP versions ze answers.
 //
-// 5.0.13 is the last 5.0 release and supplies every option the healthcheck
+// 5.0.15 is the last 5.0 release and supplies every option the healthcheck
 // fixture passes, `--no-ack` and `--fast-interval` among them.
 //
 // main is ExaBGP 6.0 before its release, pinned to a commit of
@@ -78,7 +78,7 @@ const exaBGPPython = "3.12"
 // long as the repository exists. Bump it deliberately, with the cases that the
 // new commit changes.
 var exaBGPPins = [...]exaBGPPin{
-	{Name: "5.0.13", Requirement: "exabgp==5.0.13"},
+	{Name: "5.0.15", Requirement: "exabgp==5.0.15"},
 	{
 		Name:        "main",
 		Requirement: "exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6",

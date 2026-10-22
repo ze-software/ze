@@ -160,7 +160,7 @@ func TestRunExaBGPPreservesFirstFailureCodeAndCleanup(t *testing.T) {
 		// The encoding stage failing stops the run before the api stage, which is
 		// the point of the first-failure contract: the builds, the first pin's
 		// probe and its encoding subject, and nothing after.
-		{name: "compatibility subject", stage: "exabgp-5.0.13-encoding", code: 42, wantCalls: 4},
+		{name: "compatibility subject", stage: "exabgp-5.0.15-encoding", code: 42, wantCalls: 4},
 		{name: "pin install", stage: "version-main", code: 2, wantCalls: 6},
 	}
 	for _, one := range tests {
@@ -209,7 +209,7 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 	t.Run("suite output", func(t *testing.T) {
 		root := exaBGPFixture(t)
 		recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-			"exabgp-5.0.13-encoding": {},
+			"exabgp-5.0.15-encoding": {},
 		}}
 		report, code := runExaBGP(t.Context(), root, recorder)
 		if code != 1 || report.Code != 1 {
@@ -225,7 +225,7 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 				named = child.Stage
 			}
 		}
-		if named != "exabgp-5.0.13-encoding" {
+		if named != "exabgp-5.0.15-encoding" {
 			t.Fatalf("no child names the silent suite: %#v", report.Children)
 		}
 	})
@@ -235,7 +235,7 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 	t.Run("version output", func(t *testing.T) {
 		root := exaBGPFixture(t)
 		recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-			"version-5.0.13": {},
+			"version-5.0.15": {},
 		}}
 		report, code := runExaBGP(t.Context(), root, recorder)
 		if code != 1 || report.Code != 1 {
@@ -243,14 +243,14 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 		}
 		var probe *ExaBGPChildResult
 		for index := range report.Children {
-			if report.Children[index].Stage == "version-5.0.13" {
+			if report.Children[index].Stage == "version-5.0.15" {
 				probe = &report.Children[index]
 			}
 		}
 		if probe == nil {
-			t.Fatalf("no version-5.0.13 child: %#v", report.Children)
+			t.Fatalf("no version-5.0.15 child: %#v", report.Children)
 		}
-		for _, want := range []string{"version probe version-5.0.13 printed nothing", "Run the probe by hand", exaBGPVersionProbe} {
+		for _, want := range []string{"version probe version-5.0.15 printed nothing", "Run the probe by hand", exaBGPVersionProbe} {
 			if !strings.Contains(probe.Error, want) {
 				t.Errorf("probe error %q does not carry %q", probe.Error, want)
 			}
@@ -378,7 +378,7 @@ func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	root := exaBGPFixture(t)
 	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
 		// The first uv child is the first pin's version probe.
-		"version-5.0.13": {
+		"version-5.0.15": {
 			Error: `exec: "uv": executable file not found in $PATH`,
 			Code:  127,
 		},
@@ -390,7 +390,7 @@ func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	}
 	text := report.Text()
 	for _, want := range []string{
-		"functional/exabgp-test: stage version-5.0.13 exited 127",
+		"functional/exabgp-test: stage version-5.0.15 exited 127",
 		`exec: "uv": executable file not found in $PATH`,
 	} {
 		if !strings.Contains(text, want) {
@@ -413,7 +413,7 @@ func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
-	want := "functional/exabgp-test: pin 5.0.13 ran ExaBGP 5.0.13\n" +
+	want := "functional/exabgp-test: pin 5.0.15 ran ExaBGP 5.0.15\n" +
 		"functional/exabgp-test: pin main ran ExaBGP main\n" +
 		"functional/exabgp-test: 10 children passed\n"
 	if report.Text() != want {
@@ -422,15 +422,15 @@ func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 }
 
 // TestExaBGPMainPinCommands holds the stage to running every population under
-// both ExaBGP pins, 5.0.13 and a commit of ExaBGP main, each on the named
+// both ExaBGP pins, 5.0.15 and a commit of ExaBGP main, each on the named
 // interpreter, and to the report naming the version each pin resolved. The
 // method is runExaBGP over a recorder that answers the probe with a version.
-// It exists because the stage named one pin, 5.0.13, so ExaBGP 6.0's API was
+// It exists because the stage named one pin, 5.0.15, so ExaBGP 6.0's API was
 // driven by nothing here.
 func TestExaBGPMainPinCommands(t *testing.T) {
 	root := exaBGPFixture(t)
 	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-		"version-5.0.13": {Stdout: "5.0.13\n"},
+		"version-5.0.15": {Stdout: "5.0.15\n"},
 		"version-main":   {Stdout: "6.0.0-20261018+uncontrolled\n"},
 	}}
 
@@ -452,7 +452,7 @@ func TestExaBGPMainPinCommands(t *testing.T) {
 		ran[command.Stage] = true
 	}
 	for _, stage := range []string{
-		"version-5.0.13", "exabgp-5.0.13-encoding", "exabgp-5.0.13-api",
+		"version-5.0.15", "exabgp-5.0.15-encoding", "exabgp-5.0.15-api",
 		"version-main", "exabgp-main-encoding", "exabgp-main-api",
 	} {
 		if !ran[stage] {
@@ -467,7 +467,7 @@ func TestExaBGPMainPinCommands(t *testing.T) {
 	}
 	text := report.Text()
 	for _, want := range []string{
-		"pin 5.0.13 ran ExaBGP 5.0.13\n",
+		"pin 5.0.15 ran ExaBGP 5.0.15\n",
 		"pin main ran ExaBGP 6.0.0-20261018+uncontrolled\n",
 	} {
 		if !strings.Contains(text, want) {
@@ -479,7 +479,7 @@ func TestExaBGPMainPinCommands(t *testing.T) {
 // TestExaBGPStageRunsTheOldPopulationsOnce checks old-4.2 and old-5.0 run
 // once per stage, under the main pin's uv environment with the named Python,
 // rather than once per pin: their helpers import no ExaBGP, so a second run
-// under 5.0.13 would drive the same code twice.
+// under 5.0.15 would drive the same code twice.
 func TestExaBGPStageRunsTheOldPopulationsOnce(t *testing.T) {
 	root := exaBGPFixture(t)
 	recorder := &exaBGPRecorder{}
