@@ -3302,3 +3302,26 @@ class); mcast-vpn (28); ipv6 multicast (64 differ lines); ipv6 mup (19);
 unicast withdraw; extended community `target4`/`origin4`/type 0; route-refresh
 and operational judge branch; `eor l2vpn vpls`, `route-refresh l2vpn evpn`,
 `bgp-ls`; then AC-38 TestOldResponses50/42.
+
+## 2026-10-22 main session: e2e revalidation .ci (uncommitted, disk full)
+
+Owed by cb65125a65's journal row (silent-fall-through.md line 3). Written,
+uncommitted: observer `plugin15RPKIRevalidateRelay` (+ helpers) in
+internal/test/fixture/plugin_fixture_15_rpki.go, registered as
+`plugin/rpki-revalidate-relay` in plugin_fixture_15.go;
+test/plugin/bgp-rr-rpki-revalidate-relay.ci and
+bgp-rs-rpki-revalidate-relay.ci. Design: destination conn=1 gets EOR; the
+observer tears it down (`request peer 127.0.0.2 teardown 4`) then releases the
+source (await-file source.go); the route is held NotFound; conn=2 comes up with
+EOR only; the observer releases the RTR mock (VRP 10.0.0.0/8 maxlen 24 AS 65001)
+and the destination must get the revalidated path on conn=2 seq=2. rs hex known
+(from bgp-rs-replay-late-destination.ci); rr seq=2 hex is a PLACEHOLDER to pin
+from the first green run (ORIGINATOR_ID, CLUSTER_LIST). Unchecked: whether
+ze-peer needs an expectation for the teardown NOTIFICATION on conn=1, and the
+reconnect delay. Never run: the disk filled. Run with `./le --name <x> test bgp
+plugin --pattern rpki-revalidate-relay` (shared bin/le lacks the fixture).
+Red: disable ribevents.RelayReplayPath in rr/validation.go and
+rs/server_validation.go replayValidation. Then edit the journal row and commit.
+Find to journal if confirmed: while a route is held ineligible, the destination
+gets repeated withdrawals of a never-advertised prefix, one per gate event
+(forward_validation.go RouteEligible, rr/rs ValidationChange coalescing).
