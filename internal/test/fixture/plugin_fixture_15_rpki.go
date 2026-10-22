@@ -158,6 +158,106 @@ func plugin15RPKILateSync(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
+// plugin15RPKIRevalidateRelay proves that a relay plugin (bgp-rr or bgp-rs)
+// delivers a path whose RPKI verdict flips AFTER the path is held.
+//
+// Method: once the destination peer (127.0.0.2) has its first session and its
+// End-of-RIB, the observer tears that session down and only then lets the
+// source peer (127.0.0.1) announce 10.0.0.0/24 origin AS 65001. The VRP set is
+// still empty, so the route validates NotFound and `not-found reject` holds it
+// ineligible while ze waits out its connect-retry. The destination's second
+// session then carries only its End-of-RIB, because peer-up replay leaves an
+// ineligible path out. The observer releases the RTR cache (10.0.0.0/8 maxlen
+// 24 AS 65001), the route becomes Valid, and only the relay plugin's
+// revalidation relay can send it. The destination's ze-peer pins the bytes;
+// this observer waits for ze to count the UPDATE sent, so it does not shut ze
+// down first.
+func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
+	const prefix = "10.0.0.0/24"
+	if !Poll(ctx, 60, 500*time.Millisecond, func() bool {
+		return plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "connections-established") >= 1
+	}) {
+		return fmt.Errorf("the destination's first session never came up")
+	}
+	if !plugin15DestinationSettled(ctx, p) {
+		return fmt.Errorf("the UPDATEs sent on the destination's first session never stopped")
+	}
+	if r := plugin15Dispatch(ctx, p, "request peer 127.0.0.2 teardown 4"); !plugin15Done(r) {
+		return fmt.Errorf("tear down the destination session: status=%s data=%s", r.status, r.text())
+	}
+	// The source sends only now, while ze waits out its connect-retry toward
+	// the destination, so no gate event reaches a destination session.
+	if err := os.WriteFile("source.go", nil, 0o600); err != nil {
+		return fmt.Errorf("release the source UPDATE: %w", err)
+	}
+	if !Poll(ctx, 30, 200*time.Millisecond, func() bool { return plugin15PeerCount(ctx, p, "source", "127.0.0.1", "updates-received") >= 1 }) {
+		return fmt.Errorf("ze never received the source UPDATE")
+	}
+	if err := plugin14AssertRouteValidation(ctx, p, prefix, 2, true, "before cache synchronization"); err != nil {
+		return err
+	}
+	if count := plugin15RPKICount(ctx, p); count != 0 {
+		return fmt.Errorf("the VRP count before release is %v, not 0, so this run does not exercise re-validation", count)
+	}
+	if plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "connections-established") >= 2 {
+		return fmt.Errorf("the destination's second session came up before the route was judged ineligible")
+	}
+	if !Poll(ctx, 60, 500*time.Millisecond, func() bool {
+		return plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "connections-established") >= 2
+	}) {
+		return fmt.Errorf("the destination's second session never came up")
+	}
+	if !plugin15DestinationSettled(ctx, p) {
+		return fmt.Errorf("the UPDATEs sent on the destination's second session never stopped")
+	}
+	baseline := plugin15PeerSent(ctx, p)
+	if err := os.WriteFile("rpki-sync.release", nil, 0o600); err != nil {
+		return fmt.Errorf("release the initial RTR synchronization: %w", err)
+	}
+	if !Poll(ctx, 24, 500*time.Millisecond, func() bool { return plugin15RPKICount(ctx, p) >= 1 }) {
+		return fmt.Errorf("the RTR cache never synced a VRP")
+	}
+	if err := plugin14AssertRouteValidation(ctx, p, prefix, 1, false, "after cache synchronization"); err != nil {
+		return err
+	}
+	if !Poll(ctx, 30, 500*time.Millisecond, func() bool { return plugin15PeerSent(ctx, p) > baseline }) {
+		return fmt.Errorf("the destination never received the revalidated path %s: %v UPDATEs sent before the release, %v after", prefix, baseline, plugin15PeerSent(ctx, p))
+	}
+	fmt.Fprintln(os.Stderr, "OK the revalidated path reached the destination")
+	return nil
+}
+
+// plugin15DestinationSettled reports whether the destination's UPDATE and
+// End-of-RIB counters held still for one second, within 20 seconds.
+func plugin15DestinationSettled(ctx context.Context, p *sdk.Plugin) bool {
+	read := func() [2]float64 {
+		return [2]float64{
+			plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "updates-sent"),
+			plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "eor-sent"),
+		}
+	}
+	last := read()
+	return Poll(ctx, 20, time.Second, func() bool {
+		now := read()
+		settled := now == last
+		last = now
+		return settled
+	})
+}
+
+// plugin15PeerSent counts the UPDATEs ze sent the destination, End-of-RIB excluded.
+func plugin15PeerSent(ctx context.Context, p *sdk.Plugin) float64 {
+	updates := plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "updates-sent")
+	eor := plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "eor-sent")
+	return updates - eor
+}
+
+// plugin15PeerCount reads one counter of `show bgp peer <name> detail`.
+func plugin15PeerCount(ctx context.Context, p *sdk.Plugin, name, address, counter string) float64 {
+	m, _ := plugin15Map(plugin15Dispatch(ctx, p, "show bgp peer "+name+" detail")) //nolint:errcheck // an unreadable answer reads as a zero count, which every caller polls past or refuses
+	return plugin15Number(plugin15NestedMap(m, "peers", address)[counter])
+}
+
 func plugin15RPKITimeout(ctx context.Context, p *sdk.Plugin) error {
 	if err := plugin15RPKIReady(ctx, p, false); err != nil {
 		return err
