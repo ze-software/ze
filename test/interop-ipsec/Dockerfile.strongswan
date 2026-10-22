@@ -10,11 +10,14 @@
 # eap-nak-method-negotiation depends on its absence). stroke and starter are not
 # built: the lab drives charon through swanctl and vici only.
 #
-# nmap-nping crafts one IPv4 datagram at a time through a raw IP socket, so the
-# packet leaves this container through the kernel routing and XFRM path and is
-# protected by the negotiated Child SA. Its --badsum flag writes a deliberately
-# wrong TCP/UDP checksum, which is what a NAT produces on a transport-mode flow
-# and what RFC 3948 Section 3.1.2 tells the decapsulator to deal with.
+# rawprobe (rawprobe.c, built below) crafts one IPv4 datagram at a time through a
+# raw IP socket, so the packet leaves this container through the kernel routing
+# and XFRM path and is protected by the negotiated Child SA. Its -b flag writes a
+# deliberately wrong TCP/UDP checksum, which is what a NAT produces on a
+# transport-mode flow and what RFC 3948 Section 3.1.2 tells the decapsulator to
+# deal with. It replaced nmap-nping, whose 7.99 release ignores --send-ip and
+# writes every frame at the Ethernet layer, past XFRM (rawprobe.c says how that
+# was measured).
 #
 # AES CCM needs no ccm plugin here. This build carries no --enable-ccm, so
 # /usr/lib/ipsec/plugins holds no libstrongswan-ccm.so, and two other plugins
@@ -52,9 +55,12 @@ RUN curl -fsSL -o strongswan.tar.bz2 \
     && make -j"$(nproc)" \
     && make install DESTDIR=/out
 
+COPY rawprobe.c /src/rawprobe/rawprobe.c
+RUN gcc -O2 -Wall -Wextra -Werror -o /out/usr/bin/rawprobe /src/rawprobe/rawprobe.c
+
 FROM alpine:3.24.3
 
-RUN apk add --no-cache gmp iproute2 iptables libcurl nmap-nping openssl sqlite-libs tini
+RUN apk add --no-cache gmp iproute2 iptables libcurl openssl sqlite-libs tini
 
 COPY --from=build /out/ /
 

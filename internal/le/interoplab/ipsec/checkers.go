@@ -1605,7 +1605,7 @@ var innerChecksumProbes = [...]innerChecksumProbe{
 //     Child SA that differs in its MODE alone is REFUSED there.
 //
 // The lab has no address-translating middlebox, so strongSwan's encap = yes supplies the
-// NAT-T machinery (a faked NAT_DETECTION_SOURCE_IP hash) and nping --badsum supplies the
+// NAT-T machinery (a faked NAT_DETECTION_SOURCE_IP hash) and rawprobe -b supplies the
 // wrong checksum the translation would have caused.
 //
 // natt-tunnel-inner-checksum is the opposite half of the same measurement, and the two
@@ -1704,10 +1704,10 @@ func establishNATT(ctx context.Context, lab *scenarioLab, mode string) (string, 
 // where it MUST be refused.
 //
 // THE CONTROL IS THE OTHER SCENARIO, and it has to be, because "the corrupt datagram was
-// accepted" would also be the reading if nping had never corrupted anything. The tunnel
+// accepted" would also be the reading if rawprobe had never corrupted anything. The tunnel
 // scenario runs the same sender, the same tool and the same flag against the same receiver,
 // and differs from the transport scenario in the Child SA's MODE alone. Its REJECTION is
-// what proves the corruption is real, so a --badsum that silently did nothing turns that
+// what proves the corruption is real, so a -b that silently did nothing turns that
 // scenario red rather than turning this one falsely green.
 //
 // A control inside one scenario was tried first and removed: sending the same crafted

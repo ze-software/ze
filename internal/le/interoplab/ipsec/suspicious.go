@@ -115,13 +115,13 @@ func countProtectedInvalidIKESPI(logs string) int {
 }
 
 // injectOutOfSA sends one raw IKE datagram from strongSwan's address and port 4500 to
-// Ze's port 4500, the endpoint pair the SA uses. --send-ip keeps nping on the IP layer,
-// as craftedProbe explains, so charon's own 4500 socket does not stand in the way.
+// Ze's port 4500, the endpoint pair the SA uses. rawprobe writes it through a raw IP
+// socket, as craftedProbe explains, so charon's own 4500 socket does not stand in the way.
 func (l *scenarioLab) injectOutOfSA(ctx context.Context, payloadHex string) error {
-	output, err := l.exec(ctx, swanPeer, "nping", "--send-ip", "--no-capture", "--count", "1",
-		"--udp", "--source-port", outOfSAPort, "--dest-port", outOfSAPort, "--data", payloadHex, zeIP)
+	output, err := l.exec(ctx, swanPeer, rawProbe, "-p", "udp",
+		"-s", outOfSAPort, "-d", outOfSAPort, "-x", payloadHex, zeIP)
 	if err != nil {
-		return fmt.Errorf("nping out-of-SA IKE datagram to %s on strongSwan: %w: %s", zeIP, err, output)
+		return fmt.Errorf("rawprobe out-of-SA IKE datagram to %s on strongSwan: %w: %s", zeIP, err, output)
 	}
 	return nil
 }

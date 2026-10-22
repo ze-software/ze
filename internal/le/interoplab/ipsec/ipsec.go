@@ -37,7 +37,7 @@ const (
 	// capabilityNetAdmin is the one capability beyond Docker's default set every
 	// peer of this lab needs: XFRM state and policy, addresses, routes, rules and
 	// netfilter NAT are all netlink or iptables writes CAP_NET_ADMIN admits.
-	// Raw sockets (nping, ping -M do) are CAP_NET_RAW, which Docker grants.
+	// Raw sockets (rawprobe, ping -M do) are CAP_NET_RAW, which Docker grants.
 	capabilityNetAdmin = "NET_ADMIN"
 
 	zeCLIStore     = "/tmp/ze-cli-store"

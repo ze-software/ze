@@ -48,7 +48,7 @@ Goals.
 
 **Key insights:**
 - A sysctl written once at start becomes `--sysctl`; a sysctl written at run time needs `systempaths=unconfined` and a Ze profile narrowing `/proc/sys` writes.
-- PPP needs `--device /dev/ppp` and `NET_ADMIN` (`PPPIOCNEWUNIT` checks `CAP_NET_ADMIN` in the network namespace); XFRM, L2TP genl, MPLS routes, addresses, routes and iptables need `NET_ADMIN`; raw sockets (nping, tcpdump, PPPoE discovery, RSVP protocol 46) need `NET_RAW`, which Docker grants by default.
+- PPP needs `--device /dev/ppp` and `NET_ADMIN` (`PPPIOCNEWUNIT` checks `CAP_NET_ADMIN` in the network namespace); XFRM, L2TP genl, MPLS routes, addresses, routes and iptables need `NET_ADMIN`; raw sockets (rawprobe, tcpdump, PPPoE discovery, RSVP protocol 46) need `NET_RAW`, which Docker grants by default.
 
 ## Current Behavior (MANDATORY)
 
@@ -77,7 +77,7 @@ Goals.
 | # | Site | Container | Runs | What it does that docker-default refuses |
 |---|------|-----------|------|------------------------------------------|
 | 1 | `internal/le/interoplab/ipsec/ipsec.go` `dockerPrivileged` | NAT box (`nat.go` `natSetupScript`) | `sysctl -w` ip_forward, send_redirects, accept_redirects at start; `ip addr add`; iptables nat; later `ip route`, `ip rule`, iptables OUTPUT via `docker exec` (`helpers.go`) | the three sysctl writes (read-only `/proc/sys`), every netlink and iptables write (`NET_ADMIN`) |
-| 1 | same | strongSwan charon (`test/interop-ipsec/Dockerfile.strongswan`) | XFRM SAs and policies, routes; `nping` raw sockets; the lab's `dropFragmentsAtPeer` (`helpers.go`) writes `net.ipv4.ipfrag_low_thresh` and `ipfrag_high_thresh` at run time | XFRM and route writes (`NET_ADMIN`); the two run-time sysctl writes (read-only `/proc/sys`, docker-default's `deny @{PROC}/sys/[^k]** w`) |
+| 1 | same | strongSwan charon (`test/interop-ipsec/Dockerfile.strongswan`) | XFRM SAs and policies, routes; `rawprobe` raw sockets; the lab's `dropFragmentsAtPeer` (`helpers.go`) writes `net.ipv4.ipfrag_low_thresh` and `ipfrag_high_thresh` at run time | XFRM and route writes (`NET_ADMIN`); the two run-time sysctl writes (read-only `/proc/sys`, docker-default's `deny @{PROC}/sys/[^k]** w`) |
 | 1 | same | ze IKE (`Dockerfile.ze`) | XFRM SAs, policies, `XFRM_MSG_MIGRATE_STATE`, MOBIKE address changes via `docker exec ip addr` | XFRM and address writes (`NET_ADMIN`) |
 | 2 | `internal/le/interoplab/l2tp/l2tp.go` `privilegedArgument` | ze LNS, xl2tpd LAC, preflight alpine | L2TP genl tunnels and sessions, PPPoL2TP sockets, `/dev/ppp` units; preflight `modprobe` with `/lib/modules` mounted | `NET_ADMIN`, the `/dev/ppp` device; `modprobe` (`SYS_MODULE`) |
 | 3 | `internal/le/interoplab/pppoe/pppoe.go`, `scenarios.go` | ze, accel-ppp, pppd client, preflight | PPPoE discovery (AF_PACKET), PPPoX sockets, `/dev/ppp`; images' entrypoints `modprobe` | `NET_ADMIN`, `/dev/ppp`; `modprobe` |

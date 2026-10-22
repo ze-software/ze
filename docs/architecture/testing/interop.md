@@ -1539,7 +1539,8 @@ and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
 `out-of-sa-request-notified-over-sa` proves RFC 7296 Section 2.21.4 against
 strongSwan. Once the PSK tunnel is up, strongSwan sends Ze, from its own
 address and port 500, a header-only IKE datagram whose SPI pair names no IKE SA.
-`nping --send-ip --udp --data` builds it, as `craftedProbe` builds its probes.
+`rawprobe -p udp -x` (`test/interop-ipsec/rawprobe.c`) writes it through a raw IP
+socket, as `craftedProbe` writes its probes.
 charon logs a `parsed INFORMATIONAL request` line only for a message it
 decrypted under an IKE SA, so a line carrying `N(INVAL_IKE_SPI)` shows that Ze's
 notice arrived protected over the existing SA. A copy marked as a response goes
@@ -2926,10 +2927,8 @@ ExaBGP compat covers wire encoding for all supported address families.
 
 | Vendor | Limitation | Affected Scenario | Workaround |
 |--------|-----------|-------------------|------------|
-| GoBGP 3.31 (not seen in 4.10.0 source) | 3.31 was recorded deduplicating Multiprotocol capabilities by AFI: of two families sharing an AFI (ipv4-unicast and l3vpn-ipv4-unicast, both AFI 1) it kept one. GoBGP 4.10.0, the version `Dockerfile.gobgp` installs, keeps every received Multiprotocol capability (`capMap` holds a list per code) and negotiates by the full AFI/SAFI pair (`pkg/server/fsm.go`, the `remote` and `negotiated` family maps). Whether the limitation is gone is unconfirmed until `bgp-vpn-gobgp` runs on 4.10.0 | bgp-vpn-gobgp | None from Ze side. Ze's OPEN is correct per RFC 4760. |
 | BIRD (observed at 2.15; unverified at 3.4.0 until `bgp-ipv6-ebgp-bird` runs) | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | bgp-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
 
-<!-- source: test/interop/scenarios/bgp-vpn-gobgp -- GoBGP same-AFI dedup -->
 <!-- source: test/interop/scenarios/bgp-ipv6-ebgp-bird -- BIRD next-hop reachability -->
 
 ## Related Documents

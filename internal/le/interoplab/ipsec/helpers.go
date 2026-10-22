@@ -975,29 +975,29 @@ func counterDelta(before, after map[string]uint64, name string) (uint64, bool) {
 // protected by the Child SA; a target of swanIP is the unprotected control that never
 // meets an XFRM policy.
 //
-// --send-ip is written out at the call site because nping otherwise prefers the Ethernet
-// layer, and a packet sent there bypasses IPsec and makes every assertion vacuous.
+// The sender is rawprobe (test/interop-ipsec/rawprobe.c), never nping: nping 0.7.99
+// ignores --send-ip and writes the frame at the Ethernet layer, so the packet bypasses
+// IPsec, Ze's inbound policy drops it as Udp.InErrors, and no checksum verdict is read.
+// A TCP probe is a SYN.
 //
-// badChecksum asks nping for a deliberately wrong TCP/UDP checksum, which is what a NAT
+// badChecksum asks rawprobe for a deliberately wrong TCP/UDP checksum, which is what a NAT
 // leaves behind on a transport-mode flow and what RFC 3948 Section 3.1.2 governs.
 func (l *scenarioLab) craftedProbe(ctx context.Context, protocol string, port int, target string, badChecksum bool) (string, error) {
-	command := []string{
-		"nping", "--send-ip", "--no-capture", "--count", "1", "--rate", "1",
-		"--" + protocol, "--dest-port", strconv.Itoa(port),
-	}
-	if protocol == "tcp" {
-		command = append(command, "--flags", "syn")
-	}
+	command := []string{rawProbe, "-p", protocol, "-d", strconv.Itoa(port)}
 	if badChecksum {
-		command = append(command, "--badsum")
+		command = append(command, "-b")
 	}
 	command = append(command, target)
 	output, err := l.exec(ctx, swanPeer, command...)
 	if err != nil {
-		return output, fmt.Errorf("nping %s to %s badsum=%v on strongSwan: %w: %s", protocol, target, badChecksum, err, output)
+		return output, fmt.Errorf("rawprobe %s to %s badsum=%v on strongSwan: %w: %s", protocol, target, badChecksum, err, output)
 	}
 	return output, nil
 }
+
+// rawProbe is the strongSwan image's one-datagram raw IP sender, built from
+// test/interop-ipsec/rawprobe.c by Dockerfile.strongswan.
+const rawProbe = "rawprobe"
 
 // deliverMarker carries nattMarker from strongSwan to Ze over the Child SA and reports
 // whether Ze received it byte for byte.
