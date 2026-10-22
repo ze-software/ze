@@ -513,7 +513,7 @@ N-A: tooling.
 |-------|-------|
 | Artifact | |
 | `./le spec review check` | not run |
-| Rounds | 3 (round 3: 0 BLOCKER, 1 ISSUE, fixed); round 4 owed |
+| Rounds | 4 (round 4: 0 BLOCKER, 1 ISSUE, fixed); round 5 owed |
 | Reviewer lenses used | |
 
 ### Findings fixed
@@ -531,7 +531,6 @@ N-A: tooling.
 | R1-9, R1-10 | NOTE | Getwd as repo root; false comment | `actions.go` `parseBuildRequest`; `gotoolchain.go` `EnvironmentContext` | c0b69d7a53 (R1-9), fa2b697807 (R1-10) |
 | R1-5, R1-8, R1-13 | NOTE | stale pages, supply-chain row, paths | rule point, guides, journal, this spec | c0b69d7a53 (guides, docker-host.md, build-artifacts.md, interop.md, ai/INDEX.md; foreign hunks carried, their referents in HEAD), b5079f335a (qemu-integration.md), fa2b697807 (rule point, journal row), the spec commit (supply-chain row, R1-13 paths) |
 | lint | NOTE | gofmt (2) and misspell (3) in the a02b362081 files | `dockerhost/docker.go`, `guest_linux.go`, `supervise.go`, `supervise_test.go` | 02fa09c15f (scoped golangci-lint 0 issues, darwin and GOOS=linux) |
-
 | R2-1 | ISSUE | docker CLI preflight lost when the builder moved to interoplab | `setup/dockerhost/static.go` `runBuilderContainer` | 2ed28efa6e (`TestBuilderContainerRefusesWithoutTheDockerCLI`, empty PATH, red then green) |
 | R2-2 | ISSUE | restart refusal untested (R1-7) | `dockerhost/restart.go` `refuseRestart` | 2ed28efa6e (`TestRefuseRestartFollowsTheBootMarker`, both branches plus an unreadable marker, red then green) |
 | R2-3 | ISSUE | share refusal proven only at the helper | `qemu/dockerlab.go` `dockerLabShares` | 2ed28efa6e (`TestDockerLabRunRefusesAShareBeforeQEMUStarts`, no ssh-keygen or QEMU run, red then green) |
@@ -540,8 +539,7 @@ N-A: tooling.
 | R2-7 | NOTE | builder-container annotation predated interoplab | this spec, Phase 3 | the spec commit (annotation matches `RunOneShot`) |
 | R2-8 | NOTE | `/home` bind spelled beside `homeRoot`; restart hint named one recovery | `dockerhost/boot.go` `mountWritableTrees`; `restart.go` | 2ed28efa6e (bind on `homeRoot`; hint names `colima restart ze` and a docker-lab rerun) |
 | port | NOTE | docker-lab boot failure lost `qemu-errors.log` (journal 2026-10-11) | `qemu/dockerlab.go` `dockerLabBootFailure` | 135308541f (`TestDockerLabBootFailureCarriesQEMUErrors`, red then green) |
-
-| R3-1 | ISSUE | race text claimed the second QEMU always refuses; a wildcard forward beside a docker-lab 127.0.0.1 one binds on macOS and ssh reaches the other VM | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port" | the commit adding this row (both texts name the cross-address case; journal 2026-10-10 row names it; race fix stays that row's open step) |
+| R3-1 | ISSUE | race text claimed the second QEMU always refuses; a wildcard forward beside a docker-lab 127.0.0.1 one binds on macOS, and by BSD's most-specific-bind lookup the 127.0.0.1 forward takes every loopback ssh, so the wildcard run reaches the docker-lab VM | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port" | bd9432b616 (both texts name the cross-address case; journal 2026-10-10 row names it; race fix stays that row's open step); direction corrected by R4-1 |
 | R3-5 | NOTE | install-test web and crash-capture http forwards have no probe of their own (walked into) | `qemu/install_boot.go` `bootTargetSSH`; `qemu/crashcapture.go` `qemuArgs` | journal row 2026-10-22 in `parallel-copies-collide-on-a-deterministic-port.md`; no code change |
 | R3-6 | NOTE | port-probe release error named no fix | `qemu/run.go` `sshPortFree` | the commit adding this row (names `ze.qemu.ssh.port` / `ZE_QEMU_SSH_PORT`) |
 | R3-7 | NOTE | probe section's test anchor omitted a test | `qemu-integration.md` | the commit adding this row (`TestFreeSSHPortRefusesABoundLoopbackForward` anchored) |
@@ -549,9 +547,15 @@ N-A: tooling.
 | R3-3 | NOTE | new tests' discrimination | round-2 tests | no change: every new test is red on revert |
 | R3-4 | NOTE | probe addresses | `qemu/run.go` `sshForwardHosts` | no change: the probe binds exactly the addresses QEMU's forwards bind |
 | R3-8 | NOTE | lint warnings | `qemu` package | no change: the warnings predate these commits |
+| R4-1 | ISSUE | bd9432b616 said the second run's ssh reaches the other VM; every ssh client dials 127.0.0.1, so by BSD's most-specific-bind lookup the docker-lab 127.0.0.1 forward takes it, whichever started first | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port"; journal 2026-10-10 row; R3-1 row | `qemu: correct the cross-address SSH forward direction` (reasoned from the BSD lookup, not measured) |
+| R4-2 | NOTE | 2026-10-22 journal row missed the hugepages SSH forward (`hostfwd=tcp::` on a `freePort` port probed on 127.0.0.1 only) | `qemu/boot.go` `qemuArgs`; `qemu/hugepages.go` `freePort` | `qemu: correct the cross-address SSH forward direction` (added to the row's surface and symptom; no code change) |
+| R4-3 | NOTE | blank line before the R3-1 row broke the findings table | this spec | `qemu: correct the cross-address SSH forward direction` (blank line removed, and the same one before R2-1) |
+| R4-4 | NOTE | probe-release error named the fix but not why it works | `qemu/run.go` `sshPortFree` | `qemu: correct the cross-address SSH forward direction` (adds "A fixed port skips this probe.") |
 
 Round 2 reviewed only the round-1 fixes: a02b362081, 2b98d538dc, 02fa09c15f, c0b69d7a53, b5079f335a, fa2b697807 and the sibling call sites they touched.
 
 Round 3 reviews only the round-2 fixes: 2ed28efa6e, 135308541f.
 
-Round 4 reviews only the round-3 fixes: the commit that adds this line (`qemu: name the cross-address SSH forward race`).
+Round 4 reviews only the round-3 fixes: bd9432b616.
+
+Round 5 reviews only the round-4 fixes: `qemu: correct the cross-address SSH forward direction`.

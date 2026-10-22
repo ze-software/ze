@@ -577,8 +577,10 @@ QEMU binds it, so two runs that probe in the same instant can still pick the
 same port. When both forwards bind the same address, the second QEMU refuses
 the forward at start. When they differ, a `run` or `install-test` wildcard
 forward racing a `docker-lab` loopback forward, macOS lets both bind, because
-slirp sets `SO_REUSEADDR`, and the second run's ssh to localhost then reaches
-the other VM.
+slirp sets `SO_REUSEADDR`. Every ssh client dials `127.0.0.1`, and by BSD's
+most-specific-bind lookup the `docker-lab` `127.0.0.1` forward takes every
+loopback connection, so the wildcard run's ssh reaches the `docker-lab` VM,
+whichever QEMU started first.
 <!-- source: internal/le/test/qemu/run.go -- freeRunSSHPort, freeSSHPortIn, sshPortFree -->
 <!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortRefusesABoundLoopbackForward, TestFreeSSHPortAnswersAFreePort -->
 
