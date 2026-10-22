@@ -673,3 +673,65 @@ Files: `test/exabgp-compat/api/api-packets-{receive,consolidate,send}.ci`,
 `test/exabgp-compat/etc/api-packets-{receive,consolidate,send}.conf`,
 `test/exabgp-compat/etc/run/api-packets-{receive,consolidate,send}.run`,
 `test/exabgp-compat/etc/run/exabgp_packets.py`.
+
+## Agent class 5 (2026-10-22 Linux)
+
+Judge counts (`TestOldResponses`, class lines): 5.0 22666 -> 22984/23392, 4.2
+20384 -> 20606/20930. Every JSON class is 0 in both releases; what is left is
+the TEXT UPDATE class (5.0 408 lines, 4.2 324). `TestOldCommands50/42` are
+4250/4250 and 2541/2541.
+
+Landed 3c46d3b20d:
+- ONE UPDATE renderer: `Event.ExabgpJSON`. New ungated
+  `bridge/bridge_event_wire.go` `overlayWire` reads AS_PATH segments, extended
+  community values (8 and 20 octets) and the unknown attribute flag octet off
+  `Event.Packet` (the `full` event's raw bytes). `Sessions` keeps a per-peer
+  attribute context (`sessionAttrContext`, ASN4 from the negotiated block); the
+  zero ContextID is the named guard (no AS_PATH overlay before `negotiated`).
+  `WireUpdateToExabgpJSON` (interoplab's caller) no longer overlays: it
+  renders the PARSED ze document, sets `Packet` from its payload and calls the
+  same renderer. It keeps FormatParsed on purpose: FormatFull made
+  TestOldCommands drop ~100 lines each, because ze's `full` document also
+  writes an MP_REACH it decoded as `attr-14` (see journal note below).
+- Item 1 hunks: text `aggregator ( a:b )`, `as4-aggregator` in both name maps,
+  `flowComponentRules` (an AND group is several rules), flow v4 JSON
+  `next-hop` member, well-known communities split via `attribute.ParseCommunity`.
+- `format/text_update.go` `appendEmptyUpdate`: an UPDATE whose attributes did
+  not parse now keeps its direction and its `raw.update` under full/raw/hex.
+  This closed the 3+3 4.2 `update packets` (no line) and 2 `consolidate /body`
+  lines: they were NOT a reactor reset, they were the missing bytes. So item 4
+  needs no ALLOWED row.
+- Two 4.2 ALLOWED rows (old_responses_test.go): RFC 8956 Section 3.1 (16
+  pattern octets for ::1/128/120) and RFC 9252 Section 7 treat-as-withdraw
+  (pre-RFC 9252 SRv6 L3 Service TLV), the latter covering `/announce` and every
+  `/attribute/...` of that message.
+- Page: `docs/exabgp/exabgp-differences.md` "Three UPDATE members come from the
+  wire bytes" (replaced "The live bridge writes less than a fixture checks").
+
+NOT committed at the time of writing (coordinator's added item): API 6 scripts
+always get the negotiated block, with the UNSET block before the OPENs
+(`Event.ForAPI6`, `unsetNegotiated`, `carriesNegotiated` in
+`bridge_negotiated.go`; `bridgerun/fleet.go` cache index 2; `bridge.go`
+external runner); `TestFleetPutsTheNegotiatedBlockOnlyWhereGranted` now runs
+under `exabgp.api.version=4`, new `TestFleetGivesAnAPI6ScriptTheBlockAlways`;
+page `exabgp-bridge.md` "The negotiated block rides on every UPDATE line".
+Proof run: `./le --name pkfix test exabgp api api-packets-receive
+api-packets-consolidate api-packets-send` (delete `bin/le-pkfix` after).
+
+Left (item 3): the text UPDATE lines, ~250 per release: labeled (`label N`
+position), next-hop position, path-information, flow (`destination-ipv6 N`,
+`fragment`, `packet-length [ ...`), vpls `rd .. endpoint`, mvpn, mup. Read the
+pin's per-family `extensive()`/`str()` first. Also 5.0 text flow lines with
+`source-ipv6 ::1/128/120` (5.0 packed one octet; check first difference).
+
+Finds for the journal (not written by this agent): ze's `full` UPDATE JSON
+states an MP_REACH it decoded as `attr-14` beside the decoded announce, so the
+bridge's live line carries `attribute-0x0E-0x80` ExaBGP never writes (extra
+member, invisible to the judge, which ignores extra keys); and an undecodable
+flow NLRI reaches the bridge as an announce `{"prefix":"wire[ipv6/flow](49
+bytes)"}`.
+
+OWED gates (host rule): `./le go lint run`, `./le verify worktree`,
+`./le test functional exabgp-test`, `./le test functional plugin`,
+`./le repo generate` / CODE-TO-DOCS refresh (bridge_event_wire.go is new),
+independent review.
