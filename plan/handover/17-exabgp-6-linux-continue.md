@@ -951,3 +951,43 @@ functional exabgp-test`, `./le test functional decode` and `plugin` (a
 malformed flow NLRI now resets the session), interop (flowspec against a
 peer), `./le repo generate` / CODE-TO-DOCS (new `rfc8955_syntax.go`),
 independent review.
+
+## Agent f9bfb853b AS_SET (2026-10-22 Linux)
+
+M25 AS_SET item: NOT implemented, no code edited. Blocked by files the
+explicit-final-policy session (644a4e78, state file written 17:52 the same
+day) holds uncommitted, with hunks whose referents are not in HEAD.
+
+State of the RFC 9774 work: committed (96bf15e6c8 enrolment and tags,
+3875b5e049, rescue ca4eae70a0). Receive verdict: `validateASPath`
+(`message/rfc7606.go`) and `validateAS4PathAttr` (`message/rfc7607.go`) via
+`ASPathSetSegment` (`message/rfc9774.go`). Send guard:
+`Session.transmittedPathHoldsSet` / `writeUpdateAsWithdrawal`
+(`reactor/session_rfc9774.go`), called in `writeUpdateBody`
+(`reactor/session_write.go`) for every non-raw body. No operator exemption:
+`rfc/short/rfc9774.md` says "No operator override".
+
+ExaBGP f9bfb853b behavior (the set handling landed in 58cb3ddb0, unchanged at
+f9bfb853b): neighbor leaf `as-set withdraw|accept`, default `withdraw`
+(`configuration/grammar/tree/neighbor.py`, `bgp/neighbor/settings.py`).
+Receive: `UpdateCollection._withdrawn_in_context`
+(`bgp/message/update/collection.py`) treats as withdrawn a route with an
+AS_SET or AS_CONFED_SET in AS_PATH or AS4_PATH unless `as-set accept`. Send:
+no guard; a set reaches the wire only as the operator wrote it (`as-path [ seq
+] ( set )`, `confed-sequence [ ]`, `confed-set [ ]`).
+
+The change owed, with the file that blocks each part:
+
+| Part | Change | Blocked by |
+|------|--------|------------|
+| Receive leaf | `as-set` enum `withdraw`/`accept` (default withdraw) in the peer session container of `ze-bgp-conf.yang`, read in `reactor/config.go` beside `applyAIGPSettings`, stored on `PeerSettings` | `yang/ze-bgp-conf.yang`, `reactor/peer_settings.go` (held, foreign `ImportPolicy` hunks) |
+| Receive verdict | thread the accept flag into the `ValidateUpdateRFC7606AddPath` call in `Session` receive validation (`session_validation_receive.go`, clean) so `validateASPath` and `validateAS4PathAttr` skip `ASPathSetSegment` under accept, the other AS_PATH checks still run | needs the PeerSettings field |
+| Send text | update text has no set grammar: `attribute.ParseASPathText` (`core/bgp/attribute/text.go`) reads one flat sequence, and the route carries `[]uint32`. Add `( ... )` set segments (and confed forms) and carry segments to the encoder | clean, but useless without the guard change |
+| Send exemption | an operator-written set must pass `writeUpdateBody`; the writer sees only bytes, so either a provenance argument from the originating callers or a Session field, or delete the guard on the argument that every remaining set source is operator-configured (route text, raw attribute, a peer with `as-set accept`) | `reactor/session_write.go`, `reactor/session.go` (held, `egressFinalAccepts` hunks) |
+| Migration | `ze exabgp migrate` knows no `as-set` (nor `tunnel-encapsulation`): add to `internal/exabgp/migration/exabgp.yang` and map to the ze leaf | needs the ze leaf |
+| Bridge | delete the AS_SET row of `oldAllowed` in `internal/exabgp/bridge/old_allowed_test.go` and the AS_SET paragraph in `docs/exabgp/exabgp-differences.md` once the line is sent | needs send |
+| RFC records | `rfc/short/rfc9774.md` "No operator override" becomes the Section 3 exemption, default unchanged; RFC9774-3-1 and 3-2 tests gain the exempt polarity and fresh discrimination records (`rfc-change-ok "owner M25 2026-10-22: match ExaBGP f9bfb853b"`); `TestRFC9774Send*` and `TestRFC9774Receive*` stay as the default-path proof | follows the code |
+
+Resume when 644a4e78 has committed `session_write.go`, `session.go`,
+`peer_settings.go`, `ze-bgp-conf.yang` and `config/peers.go`, or once the
+owner says to carry them.
