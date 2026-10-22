@@ -338,7 +338,20 @@ still read v3's `neighbor-ip` field and failed bgp-flowspec-gobgp spuriously.
 | bgp-sr-policy-malformed-receive-gobgp | pass, revert-red re-proven | 2f5c10c737: v4 resets the session on the malformed NLRI; the scenario now also requires Ze's peer detail to show connections-established 1 and connections-dropped 0. Red a (srpolicy NLRI registration emptied) red at A's absence, and on its own at the counter step; red b (`srPolicyAnnounced` branch of `applyTunnelEncap` disabled) red at B's absence |
 | bgp-large-community-no-repeat-gobgp | pass, revert-red re-proven | this commit, comments only. Red with `false &&` before the `largeCommunityRedundant` condition of the egress normalizer (clone of 4bc9070cbc): GoBGP's read still passed, the speaker oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE; green restored. The earlier note here was wrong: v4.10.0's `DecodeFromBytes` keeps every value, but `ValidateAttribute` (pkg/packet/bgp/validate.go) drops repeats on receipt, so GoBGP still cannot go red. interop.md row 41 and the `checkers.go` comment now say so |
 | bgp-exabgp-bridge-rtc-gobgp | pass | none (the scenario still sends the specific membership only) |
+| bgp-addpath-best-path-pmacct | RED, cause not located | journal row in `plan/journal/constant-reported-as-measured-state.md` (2026-10-22): MED collector assertion 2; pmacct v1.8.0 prints `"as_path": ""` on every Loc-Rib row for 10.0.0.0/24, Adj-Rib-In rows carry both paths. Ze publishing no AS_PATH (`asPath` in `rib_bestchange.go` is filled only when `!sameBest`) versus pmacct 1.8.0 decoding is not told apart: capture the Loc-RIB Route Monitoring next |
+| bgp-addpath-rail-agreement-speaker | RED, cause not located | assertion 0 "wait for stored ADD-PATH route": after `gobgp global rib add` of the first prefix, `show bgp rib count` stayed 0 for 90s; GoBGP reports Peer Up, both speakers established with 0 route-bearing UPDATEs. The log keeps only the SSH tail of Ze's log, so the next step is Ze's log or `show bgp peer` during the wait. Earlier v3-era runs only timed out under load, so no green baseline on this host |
+| bgp-attribute-default-localpref-gobgp | RED, not diagnosed | assertion 6: "GoBGP route 10.64.1.0/24 still carries LocalPref 100" (failed in 25s, not a timeout). Suspect v4 display drift; read the scenario's step 6 and v4's LocalPref print first |
+
+Runner still going when this agent stopped: `scratchpad/run3.sh` (session
+scratchpad) over a `git clone --shared` of 8a5c45b223 at `scratchpad/reg`,
+running the remaining GoBGP list one at a time under the session flock from
+bgp-ebgp-gobgp to bgp-sr-policy-gobgp. One log per scenario at
+`tmp/session/2026-10-22-fb7d3e9b-9f4c-4139-a921-e861e0268991/scratch/<scenario>.log`,
+one `EXIT=` line per scenario in `.../scratch/run3-summary.txt`. These are
+machine-local: read them on this host, record the verdicts here.
 
 Owed next, in order:
 
-1. The rest of the scenario list above (addpath pmacct and rail-agreement, plus the plain regressions).
+1. Read the runner's results for bgp-ebgp-gobgp, bgp-evpn-gobgp, bgp-exabgp-bridge-sr-policy-gobgp, bgp-ipv6-ebgp-gobgp, bgp-local-pref-strip-gobgp, bgp-med-across-as-gobgp, bgp-med-ibgp-post-selection-removal-gobgp, bgp-med-increment-gobgp, bgp-med-remove-configured-gobgp, bgp-multihop-ebgp-gobgp, bgp-mup-malformed-t1st-withdraw-gobgp, bgp-role-gobgp, bgp-routes-gobgp, bgp-sr-policy-gobgp; diagnose and fix each red.
+2. Diagnose the three reds above (default-localpref first: fast and deterministic).
+3. Not started: bgp-cluster-list-length-bird, bgp-ecmp-frr, bgp-nexthop-self-local-auto-frr, bgp-remove-private-as-frr, ospfv3-nssa-redist-frr, ospfv3-redist-frr. Skip any the FRR/BIRD agent already recorded in "Progress (BGP peers)"; none were there on 2026-10-22 evening.
