@@ -309,8 +309,7 @@ func writeDesignDoorsRead(ctx context) *verdict {
 		return &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + systemDoorPath + " can be found.\n  The design-door gate is fail-closed.\n  ai/rules/architecture.md"}
 	}
 	doors, err := loadDoors(ctx.root)
-	var header *doorHeaderError
-	if errors.As(err, &header) {
+	if header, ok := errors.AsType[*doorHeaderError](err); ok {
 		return &verdict{2, "❌ BLOCKED: " + header.page + " is not a usable design door: " + header.reason +
 			".\n  Why: the gate reads each door's header to know which files it covers, and a door it cannot read would release them in silence.\n  Fix: give " + header.page + " one line `<!-- door-base: <path> <path> -->` naming the checkout paths it covers, then retry.\n  ai/doors/README.md, ai/rules/architecture.md"}
 	}

@@ -164,7 +164,7 @@ func doorBases(body string) (bases []string, reason string) {
 		if !closed {
 			return nil, "its door-base header does not close with -->"
 		}
-		for _, base := range strings.Fields(rest) {
+		for base := range strings.FieldsSeq(rest) {
 			bases = append(bases, strings.TrimSuffix(base, "/"))
 		}
 		if len(bases) == 0 {

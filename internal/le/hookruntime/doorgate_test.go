@@ -64,14 +64,11 @@ func writeFixtureFile(t *testing.T, root, path, body string) {
 
 // readDoor runs the Read hook over one door, as the harness does after a Read
 // tool call, with window adding the call's offset and limit.
-func readDoor(t *testing.T, root, session, agent, door string, window map[string]any) {
+func readDoor(t *testing.T, root, session, door string, window map[string]any) {
 	t.Helper()
 	input := map[string]any{"file_path": filepath.Join(root, filepath.FromSlash(door))}
 	maps.Copy(input, window)
 	payload := map[string]any{"session_id": session, "tool_name": "Read", "tool_input": input}
-	if agent != "" {
-		payload["agent_id"] = agent
-	}
 	if code, _, message := runHook(t, root, "mark-source-read", payload); code != 0 {
 		t.Fatalf("mark-source-read: code=%d message=%q", code, message)
 	}
@@ -83,7 +80,7 @@ func readEveryDoor(t *testing.T, root, session string) {
 	t.Helper()
 	writeDoors(t, root)
 	for _, door := range []string{doorSystem, doorBGPEngine, doorBGPPlugins, doorPluginInfra, doorHubEngine} {
-		readDoor(t, root, session, "", door, nil)
+		readDoor(t, root, session, door, nil)
 	}
 }
 
@@ -175,7 +172,7 @@ func TestDoorGateRequiresSystemAndTheCoveringDoor(t *testing.T) {
 			root := t.TempDir()
 			writeDoors(t, root)
 			for _, door := range test.read {
-				readDoor(t, root, "sess-a", "", door, nil)
+				readDoor(t, root, "sess-a", door, nil)
 			}
 			requireDoorGate(t, root, codeEditPayload("sess-a", "", test.tool, test.file), test.unread)
 		})
@@ -187,7 +184,7 @@ func TestDoorGateRequiresSystemAndTheCoveringDoor(t *testing.T) {
 func TestDoorGateMatchesAnAbsolutePath(t *testing.T) {
 	root := t.TempDir()
 	writeDoors(t, root)
-	readDoor(t, root, "sess-a", "", doorSystem, nil)
+	readDoor(t, root, "sess-a", doorSystem, nil)
 	file := filepath.Join(root, "internal", "component", "bgp", "plugins", "rib", "rib.go")
 	requireDoorGate(t, root, codeEditPayload("sess-a", "", "Edit", file), []string{doorBGPPlugins})
 }
@@ -203,12 +200,12 @@ func TestDoorGateCountsOnlyAWholeRead(t *testing.T) {
 	for _, window := range partial {
 		root := t.TempDir()
 		writeDoors(t, root)
-		readDoor(t, root, "sess-a", "", doorSystem, window)
+		readDoor(t, root, "sess-a", doorSystem, window)
 		requireDoorGate(t, root, codeEditPayload("sess-a", "", "Edit", "internal/component/foo/foo.go"), []string{doorSystem})
 	}
 	root := t.TempDir()
 	writeDoors(t, root)
-	readDoor(t, root, "sess-a", "", doorSystem, map[string]any{"offset": float64(1), "limit": float64(doorPageLines)})
+	readDoor(t, root, "sess-a", doorSystem, map[string]any{"offset": float64(1), "limit": float64(doorPageLines)})
 	requireDoorGate(t, root, codeEditPayload("sess-a", "", "Edit", "internal/component/foo/foo.go"), nil)
 }
 
@@ -252,7 +249,7 @@ func TestDoorGateHoldsEachSubagentToItsOwnRead(t *testing.T) {
 	root := t.TempDir()
 	writeDoors(t, root)
 	file := "internal/component/foo/foo.go"
-	readDoor(t, root, "sess-a", "", doorSystem, nil)
+	readDoor(t, root, "sess-a", doorSystem, nil)
 	requireDoorGate(t, root, codeEditPayload("sess-a", "agent1", "Edit", file), []string{doorSystem})
 	runBash(t, root, "sess-a", "agent1", "cat "+doorSystem)
 	requireDoorGate(t, root, codeEditPayload("sess-a", "agent1", "Edit", file), nil)
@@ -317,7 +314,7 @@ func TestDoorGateRefusesADoorWithoutAUsableHeader(t *testing.T) {
 func TestDoorGateResolvesTheCheckoutBoundary(t *testing.T) {
 	root := t.TempDir()
 	writeDoors(t, root)
-	readDoor(t, root, "sess-a", "", doorSystem, nil)
+	readDoor(t, root, "sess-a", doorSystem, nil)
 	alias := filepath.Join(t.TempDir(), "alias")
 	if err := os.Symlink(root, alias); err != nil {
 		t.Fatal(err)
