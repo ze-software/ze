@@ -27,6 +27,11 @@ const PPPDevice = "/dev/ppp"
 // DEV_PPP=missing when it does not.
 const PPPDeviceProbe = "echo DEV_PPP=$(test -c /dev/ppp && echo ok || echo missing)"
 
+// PPPProbeImage is the image each PPP lab runs its preflight container on. The
+// probe asks the host kernel, so any Alpine userland answers the same; it
+// tracks the base the lab images use.
+const PPPProbeImage = "alpine:3.24.3"
+
 // pppDeviceKey is the KEY of the line PPPDeviceProbe prints.
 const pppDeviceKey = "DEV_PPP"
 

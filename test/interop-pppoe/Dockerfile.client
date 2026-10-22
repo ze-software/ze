@@ -3,22 +3,47 @@
 # pppd with the rp-pppoe plugin is the reference CPE stack: it is what nearly
 # every consumer router and every Linux PPPoE dialer runs, and it is a second
 # implementation family from accel-ppp (which the Ze-as-client scenario already
-# faces). Alpine 3.21 ships pppd 2.5.1; the rp-pppoe plugin is packaged apart
-# as ppp-pppoe (/usr/lib/pppd/2.5.1/pppoe.so).
+# faces). pppd is built from the upstream ppp 2.5.4 release, because owner
+# decision M14 (ai/META-DECISIONS.md) has every lab peer run its latest stable
+# release and Alpine 3.24 packages 2.5.3. The rp-pppoe plugin is part of that
+# build (/usr/lib/pppd/2.5.4/pppoe.so).
 #
 # The container stays alive while the native checker drives pppd with
 # `docker exec`, once per credential. The good and rejected credential are two
 # runs of the same client rather than two containers.
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS build
 
-# ppp + ppp-pppoe: pppd and the rp-pppoe plugin; iproute2: ip link/addr on the
-# negotiated pppN; iputils: ping for the dataplane assertion; tcpdump: the
-# pppoe-empty-service-name checker captures the discovery exchange to read the
-# Service-Name tags Ze actually put on the wire, rather than trust pppd's log;
-# tcpreplay: the pppoe-pap-ze-ac checker resends the client's own captured PAP
-# Authenticate-Request from inside this container, so the send needs no host
-# privilege to enter the container's network namespace.
-RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils tcpdump tcpreplay
+# sha256 of the upstream release tarball, taken 2026-10-22.
+ARG PPP_VERSION=2.5.4
+ARG PPP_SHA256=379a630a40d858a1347f6592d671791dde12101697a743ef9900012f3765be31
+
+RUN apk add --no-cache build-base curl libpcap-dev linux-headers openssl-dev scanelf
+
+WORKDIR /src/ppp
+RUN curl -fsSL -o /src/ppp.tar.gz "https://download.samba.org/pub/ppp/ppp-${PPP_VERSION}.tar.gz" \
+    && echo "${PPP_SHA256}  /src/ppp.tar.gz" | sha256sum -c - \
+    && tar -xzf /src/ppp.tar.gz --strip-components=1 \
+    && ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/out \
+    && rm -rf /out/usr/include /out/usr/share \
+    && scanelf --needed --nobanner --format '%n#p' --recursive /out \
+        | tr ',' '\n' | sort -u | sed 's/^/so:/' > /out/.ppp-rundeps
+
+FROM alpine:3.24.3
+
+COPY --from=build /out/ /
+
+# iproute2: ip link/addr on the negotiated pppN; iputils: ping for the dataplane
+# assertion; tcpdump: the pppoe-empty-service-name checker captures the
+# discovery exchange to read the Service-Name tags Ze actually put on the wire,
+# rather than trust pppd's log; tcpreplay: the pppoe-pap-ze-ac checker resends
+# the client's own captured PAP Authenticate-Request from inside this container,
+# so the send needs no host privilege to enter the container's network
+# namespace. The rest are the shared objects pppd and its plugins need, read
+# from the binaries by scanelf rather than listed by hand.
+RUN apk add --no-cache iproute2 iputils tcpdump tcpreplay $(cat /.ppp-rundeps) \
+    && rm /.ppp-rundeps
 
 ENTRYPOINT ["sh", "-c", "mkdir -p /etc/ppp /var/log/ppp; exec tail -f /dev/null"]

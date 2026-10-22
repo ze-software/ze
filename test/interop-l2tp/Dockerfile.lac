@@ -1,8 +1,52 @@
 # LAC peer image for L2TP PPP/NCP interop lab.
 # Runs xl2tpd in foreground; pppd is started by xl2tpd.
+#
+# pppd and xl2tpd are built from the upstream ppp 2.5.4 and xl2tpd 1.3.20
+# releases, because owner decision M14 (ai/META-DECISIONS.md) has every lab peer
+# run its latest stable release and Alpine 3.24 packages ppp 2.5.3. Alpine's
+# xl2tpd package depends on that ppp, so xl2tpd is built here too, against
+# nothing but libpcap. xl2tpd keeps its default kernel mode (USE_KERNEL), and
+# pppd's pppol2tp plugin lands in /usr/lib/pppd/2.5.4.
+#
+# test/interop-radius-subscriber/Dockerfile.lac builds the same two releases
+# with the same pins: change both files together.
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS build
 
-RUN apk add --no-cache xl2tpd ppp iproute2 iputils
+# sha256 of the upstream release tarballs, taken 2026-10-22.
+ARG PPP_VERSION=2.5.4
+ARG PPP_SHA256=379a630a40d858a1347f6592d671791dde12101697a743ef9900012f3765be31
+ARG XL2TPD_VERSION=1.3.20
+ARG XL2TPD_SHA256=3db95450c5e1efaeea7547af344b5621f4453af3c227f26ec43bcbc79087b045
+
+RUN apk add --no-cache build-base curl libpcap-dev linux-headers openssl-dev scanelf
+
+WORKDIR /src/ppp
+RUN curl -fsSL -o /src/ppp.tar.gz "https://download.samba.org/pub/ppp/ppp-${PPP_VERSION}.tar.gz" \
+    && echo "${PPP_SHA256}  /src/ppp.tar.gz" | sha256sum -c - \
+    && tar -xzf /src/ppp.tar.gz --strip-components=1 \
+    && ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/out
+
+WORKDIR /src/xl2tpd
+RUN curl -fsSL -o /src/xl2tpd.tar.gz \
+        "https://github.com/xelerance/xl2tpd/archive/refs/tags/v${XL2TPD_VERSION}.tar.gz" \
+    && echo "${XL2TPD_SHA256}  /src/xl2tpd.tar.gz" | sha256sum -c - \
+    && tar -xzf /src/xl2tpd.tar.gz --strip-components=1 \
+    && make -j"$(nproc)" PREFIX=/usr \
+    && make install PREFIX=/usr DESTDIR=/out \
+    && rm -rf /out/usr/include /out/usr/share \
+    && scanelf --needed --nobanner --format '%n#p' --recursive /out \
+        | tr ',' '\n' | sort -u | sed 's/^/so:/' > /out/.lac-rundeps
+
+FROM alpine:3.24.3
+
+COPY --from=build /out/ /
+
+# The runtime libraries are the shared objects pppd, its plugins and xl2tpd need,
+# read from the binaries by scanelf rather than listed by hand.
+RUN apk add --no-cache iproute2 iputils $(cat /.lac-rundeps) \
+    && rm /.lac-rundeps && mkdir -p /etc/ppp /var/run/xl2tpd
 
 CMD ["xl2tpd", "-D", "-c", "/etc/xl2tpd/xl2tpd.conf"]

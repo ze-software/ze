@@ -15,7 +15,7 @@
 # from feature-gates.txt through internal/le/repo/featuretags, so this file names no
 # tag and this image cannot drift from the shipped binary's feature set.
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache tini iproute2 ppp
 

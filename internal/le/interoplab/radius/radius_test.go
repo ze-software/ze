@@ -643,14 +643,15 @@ func TestSuiteNeedsNoKernelModule(t *testing.T) {
 }
 
 // TestServerImageIsPinned holds R-3: a moving tag changes what these scenarios
-// mean with no ze change.
+// mean with no ze change. The image is interoplab.FreeRADIUSImage, which the
+// subscriber suite pulls too.
 func TestServerImageIsPinned(t *testing.T) {
-	name, version, found := strings.Cut(serverImage, ":")
+	name, version, found := strings.Cut(interoplab.FreeRADIUSImage, ":")
 	if !found || version == "" || version == "latest" {
-		t.Fatalf("the FreeRADIUS image %q is not pinned to an exact version", serverImage)
+		t.Fatalf("the FreeRADIUS image %q is not pinned to an exact version", interoplab.FreeRADIUSImage)
 	}
 	if !strings.Contains(name, "freeradius") {
-		t.Fatalf("the peer image %q is not FreeRADIUS; a peer built from ze's own code proves nothing", serverImage)
+		t.Fatalf("the peer image %q is not FreeRADIUS; a peer built from ze's own code proves nothing", interoplab.FreeRADIUSImage)
 	}
 }
 

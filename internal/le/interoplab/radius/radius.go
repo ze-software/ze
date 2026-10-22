@@ -37,12 +37,7 @@ const (
 	// Action is the native action identity served by this callable runner.
 	Action = "test integration/interop-radius"
 
-	// serverImage is pinned to an exact tag. A moving tag changes what these
-	// scenarios mean with no ze change, and the failure then looks like a ze
-	// regression (R-3). interoplab.FRRImage is pinned by digest for the same
-	// reason in the BGP, IPsec and L2TP suites.
-	serverImage = "docker.io/freeradius/freeradius-server:3.2.7"
-	zeImage     = "ze-radius-interop"
+	zeImage = "ze-radius-interop"
 
 	zePeer     = "ze"
 	serverPeer = "freeradius"
@@ -212,7 +207,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		Preflight: interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...),
 		Images: []interoplab.ImageBuild{
 			{Name: zePeer, Tag: zeImage, Dockerfile: filepath.Join(root, labDirectory, "Dockerfile.ze"), Context: root, Required: true},
-			{Name: serverPeer, Tag: serverImage, Pull: true, Required: true},
+			{Name: serverPeer, Tag: interoplab.FreeRADIUSImage, Pull: true, Required: true},
 		},
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,

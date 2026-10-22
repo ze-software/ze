@@ -32,11 +32,6 @@ const (
 	// Action is the native action identity served by this callable runner.
 	Action = "test integration/interop-radius-subscriber"
 
-	// serverImage is the pinned FreeRADIUS release the admin-login suite also
-	// runs; its radclient is the Dynamic Authorization Client. A moving tag
-	// would change what these scenarios mean with no ze change.
-	serverImage = "docker.io/freeradius/freeradius-server:3.2.7"
-
 	zeImage  = "ze-radius-subscriber-ze"
 	lacImage = "ze-radius-subscriber-lac"
 
@@ -142,7 +137,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 			interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
 		Images: []interoplab.ImageBuild{
 			{Name: peerZe, Tag: zeImage, Dockerfile: filepath.Join(lab, "Dockerfile.ze"), Context: root, Required: true},
-			{Name: peerServer, Tag: serverImage, Pull: true, Required: true},
+			{Name: peerServer, Tag: interoplab.FreeRADIUSImage, Pull: true, Required: true},
 			{Name: peerLAC, Tag: lacImage, Dockerfile: filepath.Join(lab, "Dockerfile.lac"), Context: lab, Required: true},
 		},
 		Scenarios: plans,
@@ -269,7 +264,7 @@ func preflight() interoplab.PreflightCheck {
 func preflightContainer() interoplab.OneShotContainer {
 	arguments := append([]string{"--cap-add", netAdminCapability}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
-		Image:     "alpine:3.21",
+		Image:     interoplab.PPPProbeImage,
 		Arguments: arguments,
 		Command:   []string{"sh", "-c", interoplab.PPPDeviceProbe},
 		Timeout:   120 * time.Second,

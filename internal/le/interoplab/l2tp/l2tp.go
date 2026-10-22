@@ -376,7 +376,7 @@ func preflight() interoplab.PreflightCheck {
 func preflightContainer() interoplab.OneShotContainer {
 	arguments := append([]string{"--cap-add", netAdminCapability}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
-		Image:     "alpine:3.21",
+		Image:     interoplab.PPPProbeImage,
 		Arguments: arguments,
 		Command: []string{"sh", "-c",
 			interoplab.PPPDeviceProbe + "; " +

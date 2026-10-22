@@ -5,7 +5,7 @@
 # it builds this image (internal/le/interoplab/radiussubscriber, LabBinaries).
 # tcpdump is the checker's view of the CoA datagrams ze receives.
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache tini iproute2 ppp tcpdump
 

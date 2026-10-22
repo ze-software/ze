@@ -6,6 +6,6 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /radius-mock ./internal/le/interoplab/l2tp/radiusmock
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 COPY --from=builder /radius-mock /usr/local/bin/radius-mock
 ENTRYPOINT ["/usr/local/bin/radius-mock"]
