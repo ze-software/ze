@@ -717,6 +717,13 @@ under `exabgp.api.version=4`, new `TestFleetGivesAnAPI6ScriptTheBlockAlways`;
 page `exabgp-bridge.md` "The negotiated block rides on every UPDATE line".
 Proof run: `./le --name pkfix test exabgp api api-packets-receive
 api-packets-consolidate api-packets-send` (delete `bin/le-pkfix` after).
+LANDED 225e526fac with the three cases. Against ze 1/3 pass; 48
+(api-packets-receive) and 49 stay red: the received KEEPALIVE that completes
+OpenConfirm reaches the bridge BEFORE ze's `negotiated` event, so its packet
+line carries the UNSET block where the pin (negotiated on the OPENs) writes the
+session's. Owed: the runner builds the block from the two OPEN events it
+already sees, or the engine emits `negotiated` before that KEEPALIVE. The other
+mismatches of 48/49 were not seen (the run's output was cut); rerun first.
 
 Left (item 3): the text UPDATE lines, ~250 per release: labeled (`label N`
 position), next-hop position, path-information, flow (`destination-ipv6 N`,
