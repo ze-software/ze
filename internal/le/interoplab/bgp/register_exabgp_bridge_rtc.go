@@ -10,15 +10,17 @@ import "time"
 // origin-as 65001 route-target 65001:100 next-hop ...`; the bridge translates
 // it to `update text ... mp ipv4/rtc add ...`, which the rtc plugin encodes as
 // the RFC 4684 Section 4 NLRI. GoBGP must hold the membership. The default
-// membership is not sent, because GoBGP v3.31.0 panics on one (ze.conf).
+// membership is not sent: GoBGP v3.31.0 panicked on one, and v4.10.0 no
+// longer does, but the scenario was not widened when the image moved (ze.conf).
 //
 // Without the bridge's rtc row (bridgeSAFI) the bridge refuses the line, so
 // nothing leaves ze and the first wait below times out.
 const (
 	scenarioExaBGPBridgeRTCGoBGP = "bgp-exabgp-bridge-rtc-gobgp"
 
-	// GoBGP v3's RouteTargetMembershipNLRI.String prints "<origin AS>:<route
-	// target>" (pkg/packet/bgp/bgp.go).
+	// GoBGP v4.10.0's RouteTargetMembershipNLRI.String prints "<origin
+	// AS>:<route target>/<prefix length in bits>" (pkg/packet/bgp/bgp.go), so
+	// this membership reads "65001:65001:100/96".
 	exabgpBridgeRTCMembership = "65001:65001:100"
 )
 

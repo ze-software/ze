@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- fail-closed FlowSpec observations.
 // Related: extended_relay.go -- records complete frames after delivery, no UPDATE edits.
-// GoBGP v3.31.0 JSON: https://github.com/osrg/gobgp/blob/v3.31.0/pkg/apiutil/util.go
-// Components/actions: https://github.com/osrg/gobgp/blob/v3.31.0/pkg/packet/bgp/bgp.go
+// GoBGP v4.10.0 JSON: https://github.com/osrg/gobgp/blob/v4.10.0/pkg/apiutil/util.go
+// Components/actions: https://github.com/osrg/gobgp/blob/v4.10.0/pkg/packet/bgp/bgp.go
 package bgp
 
 import (
@@ -198,9 +198,12 @@ func flowSpecWireUpdate(body []byte) (bool, bool, error) {
 	return matched, present, nil
 }
 
-// These raw DTOs follow GoBGP v3.31.0 apiutil.Destination/Path and the packet
-// package's MarshalJSON methods. Required zero-valued community fields use
-// pointers so a missing field cannot masquerade as an encoded AS0 or rate0.
+// These raw DTOs follow GoBGP v4.10.0 apiutil.Destination/Path and the packet
+// package's MarshalJSON methods. v4 names the path's sending peer
+// "peer-address" (Path.PeerAddress, filled from the API's NeighborIp by
+// NewDestination), where v3.31.0 named it "neighbor-ip". Required zero-valued
+// community fields use pointers so a missing field cannot masquerade as an
+// encoded AS0 or rate0.
 type flowSpecForeignPath struct {
 	NLRI struct {
 		Value []struct {
@@ -211,7 +214,7 @@ type flowSpecForeignPath struct {
 	Best       bool   `json:"best"`
 	Stale      bool   `json:"stale"`
 	Withdrawal bool   `json:"withdrawal"`
-	Neighbor   string `json:"neighbor-ip"`
+	Neighbor   string `json:"peer-address"`
 	Attributes []struct {
 		Type  int             `json:"type"`
 		Value json.RawMessage `json:"value"`
@@ -356,7 +359,7 @@ func flowSpecForeignCover(output, neighbor string) error {
 		} `json:"nlri"`
 		Best     bool   `json:"best"`
 		Stale    bool   `json:"stale"`
-		Neighbor string `json:"neighbor-ip"`
+		Neighbor string `json:"peer-address"`
 	}
 	if err := json.Unmarshal([]byte(output), &routes); err != nil {
 		return err

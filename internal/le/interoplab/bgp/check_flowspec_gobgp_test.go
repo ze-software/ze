@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-const flowSpecBaselineJSON = `"[destination: 10.99.0.0/24]":[{"nlri":{"value":[{"type":1,"value":{"prefix":"10.99.0.0/24"}}]},"best":true,"neighbor-ip":"172.30.0.10","attrs":[{"type":16,"value":[{"type":128,"subtype":6,"as":0,"rate":0}]}]}]`
-const flowSpecTargetJSON = `"[destination: 10.99.77.0/24]":[{"nlri":{"value":[{"type":1,"value":{"prefix":"10.99.77.0/24"}}]},"best":true,"neighbor-ip":"172.30.0.10","attrs":[{"type":16,"value":[{"type":128,"subtype":6,"as":0,"rate":9600}]}]}]`
+const flowSpecBaselineJSON = `"[destination: 10.99.0.0/24]":[{"nlri":{"value":[{"type":1,"value":{"prefix":"10.99.0.0/24"}}]},"best":true,"peer-address":"172.30.0.10","attrs":[{"type":16,"value":[{"type":128,"subtype":6,"as":0,"rate":0}]}]}]`
+const flowSpecTargetJSON = `"[destination: 10.99.77.0/24]":[{"nlri":{"value":[{"type":1,"value":{"prefix":"10.99.77.0/24"}}]},"best":true,"peer-address":"172.30.0.10","attrs":[{"type":16,"value":[{"type":128,"subtype":6,"as":0,"rate":9600}]}]}]`
 const flowSpecTargetBody = "000000264001010040020602010000fdecc010088006000046160000800e0b00018500000501180a634d"
 const flowSpecWithdrawBody = "0000000c800f090001850501180a634d"
 
@@ -22,7 +22,7 @@ func flowSpecCheckerBranches(t *testing.T) {
 	t.Run("no source readvertisement", TestFlowSpecSourceComplete)
 }
 
-// TestFlowSpecForeignEvidence pins GoBGP's actual v3.31.0 JSON schema. A rate on
+// TestFlowSpecForeignEvidence pins GoBGP's actual v4.10.0 JSON schema. A rate on
 // another path, stale/unselected route, failed query or absent AS0/rate0 field
 // cannot certify either usable state or unauthorized absence.
 func TestFlowSpecForeignEvidence(t *testing.T) {
@@ -159,7 +159,7 @@ func flowSpecTestCapture(t *testing.T, bodies ...string) string {
 // TestFlowSpecForeignCover refuses error documents and foreign paths with the
 // right map key but no selected NLRI from the actual relay neighbor.
 func TestFlowSpecForeignCover(t *testing.T) {
-	const positive = `{"10.99.77.0/24":[{"nlri":{"prefix":"10.99.77.0/24"},"best":true,"neighbor-ip":"172.30.0.10"}]}`
+	const positive = `{"10.99.77.0/24":[{"nlri":{"prefix":"10.99.77.0/24"},"best":true,"peer-address":"172.30.0.10"}]}`
 	if err := flowSpecForeignCover(positive, "172.30.0.10"); err != nil {
 		t.Fatal(err)
 	}

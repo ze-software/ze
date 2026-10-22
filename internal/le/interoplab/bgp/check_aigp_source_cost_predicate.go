@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- exact foreign AIGP observations.
 // FRR 10.3.1 bgpd/bgp_route.c: route_vty_out_detail emits aigpMetric, peer and nexthops.
-// GoBGP v3.31.0 pkg/packet/bgp/bgp.go: PathAttributeAigp.String renders decoded TLVs.
+// GoBGP v4.10.0 pkg/packet/bgp/bgp.go: PathAttributeAigp.String renders decoded TLVs.
 package bgp
 
 import (

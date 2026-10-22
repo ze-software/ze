@@ -95,7 +95,8 @@ func applyRFC7606Body(t *testing.T, s *Session, body []byte) (*wireu.WireUpdate,
 // UPDATE, by K0's bytes, which the family's recognizer keeps; L, and L2 with TLV 0xF0,
 // are kept byte for byte; no session reset.
 // PREVENTS: a malformed T1ST being installed and relayed (the defect D3), and its
-// withdrawal relayed by the malformed bytes (GoBGP 3.31.0 panics decoding them).
+// withdrawal relayed by the malformed bytes (GoBGP v4.10.0 resets the session on
+// them; v3.31.0 panicked decoding them).
 func TestMUPMalformedT1STTreatAsWithdraw(t *testing.T) {
 	l := mupWireNLRI(3, t1stBody(1, 0x00)...)
 	l2 := mupWireNLRI(3, t1stBody(3, 0x00, 0xf0, 0x02, 0xaa, 0xbb)...)
@@ -268,8 +269,9 @@ func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 // removed; a received withdrawal and a whole-UPDATE treat-as-withdraw forget the held
 // generation; a replacement longer than a one-octet attribute length gains the Extended
 // Length bit; every withdrawal Ze relays passes the family's own recognizer.
-// PREVENTS: Ze relaying an NLRI its own ValidateNLRI refuses (GoBGP 3.31.0 panics in
-// MUPType1SessionTransformedRoute.DecodeFromBytes on one), and a withdrawal relayed for a
+// PREVENTS: Ze relaying an NLRI its own ValidateNLRI refuses (GoBGP v4.10.0's
+// MUPType1SessionTransformedRoute.DecodeFromBytes refuses one and the session resets;
+// v3.31.0 panicked there), and a withdrawal relayed for a
 // route this session never held.
 func TestMUPMalformedT1STWithdrawnByHeldGeneration(t *testing.T) {
 	l := mupWireNLRI(3, t1stBody(1, 0x00)...)

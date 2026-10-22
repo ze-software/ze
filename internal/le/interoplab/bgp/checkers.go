@@ -677,11 +677,15 @@ var scenarioOperations = map[string][]operation{
 	},
 	// RFC 8092 Section 3, judged by GoBGP. The relayed route carries 65000:1:1
 	// and 65000:3:3, and Ze's export policy adds 65000:1:1 and 65000:2:2 twice.
-	// GoBGP 3.31.0 prints the values in wire order inside one bracket pair,
-	// `{LargeCommunity: [ a, b, c]}` (seen on the first run, 2026-10-21), so the
-	// whole attribute is matched: each value once, in the order Ze appends them.
-	// That read cannot go red: GoBGP removes repeats on receipt, so the second
-	// run with the egress removal reverted still printed each value once.
+	// GoBGP v4.10.0 prints the values in wire order inside one bracket pair,
+	// `{LargeCommunity: [ a, b, c]}` (PathAttributeLargeCommunities.String,
+	// pkg/packet/bgp/bgp.go), so the whole attribute is matched: each value
+	// once, in the order Ze appends them. On v3.31.0 that read could not go
+	// red: the run with the egress removal reverted still printed each value
+	// once (2026-10-21). v4.10.0's DecodeFromBytes keeps every value it reads
+	// and nothing in its receive path removes repeats, so the v4 read may now
+	// discriminate on its own; that revert has not been re-run on v4.10.0, and
+	// the native speaker's oracle stays the proof.
 	"bgp-large-community-no-repeat-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},

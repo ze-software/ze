@@ -19,7 +19,7 @@ const (
 	// The NLRI as GoBGP's SRPolicyNLRI.String prints it through gobgp-paths
 	// (srPolicyOriginatedBSIDSRv6 names the same NLRI in bgp-sr-policy-gobgp).
 	exabgpBridgeSRPolicyNLRI = "Distinguisher: 0, Color 300, Endpoint: 10.0.0.3"
-	// The tail of GoBGP v3.31.0's TunnelEncapSubTLVSRPreference.String,
+	// The tail of GoBGP v4.10.0's TunnelEncapSubTLVSRPreference.String,
 	// "{Flags: 0x%02x, Preference: %d}" (pkg/packet/bgp/sr_policy.go).
 	exabgpBridgeSRPolicyPreference = "Preference: 300}"
 	exabgpBridgeSRPolicyLabelFirst = "Label: 16001 TC: 0"

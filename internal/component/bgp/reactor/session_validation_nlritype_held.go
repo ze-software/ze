@@ -17,7 +17,11 @@
 // advertised to its peers by means of an UPDATE message." The route that became
 // unfeasible is the one held for the peer, so its withdrawal names that route.
 // The malformed bytes cannot: a receiver decodes every field of a withdrawn
-// NLRI, Ze's own recognizer refused those bytes, and GoBGP 3.31.0 panics on them.
+// NLRI, Ze's own recognizer refused those bytes, and GoBGP refuses them too:
+// GoBGP v3.31.0 panicked decoding them, and v4.10.0 bounds-checks every T1ST
+// field and answers a malformed attribute list, which its FSM turns into a
+// session reset (pkg/packet/bgp/mup.go, MUPType1SessionTransformedRoute.
+// DecodeFromBytes; pkg/server/fsm.go, handlingError).
 //
 // FRR and BIRD build the downstream withdrawal the same way, from the route they
 // hold and only when they advertised it. FRR's bgp_adj_out_unset_subgroup

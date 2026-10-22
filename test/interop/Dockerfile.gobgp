@@ -1,27 +1,29 @@
 # GoBGP daemon for interoperability testing.
 # Uses the official GoBGP binary from the golang image.
 
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
-RUN go install github.com/osrg/gobgp/v3/cmd/gobgpd@v3.31.0 && \
-    go install github.com/osrg/gobgp/v3/cmd/gobgp@v3.31.0
+RUN go install github.com/osrg/gobgp/v4/cmd/gobgpd@v4.10.0 && \
+    go install github.com/osrg/gobgp/v4/cmd/gobgp@v4.10.0
 
 # gobgp-paths prints the global RIB of one numeric AFI/SAFI, one path per
 # line: the NLRI then every path attribute, each through GoBGP's own String().
-# The gobgp CLI cannot do this for SR Policy: no GoBGP release (v3.31.0 to
-# v4.10.0) names SAFI 73 in its -a family switch (cmd/gobgp/common.go,
-# checkAddressFamily), so `gobgp global rib -a ipv4-srpolicy` answers
-# "unsupported address family". The daemon still holds the paths and serves
-# them over gRPC ListPath, which is what this reads.
-# It asks for the wire form only and decodes it with GoBGP's packet decoder,
-# never through apiutil: in v3.31.0 apiutil's conversion back from the API
-# form corrupts SR Policy. It rebuilds the NLRI with NewSRPolicyIPv4(Length,
-# ...), which divides the octet count the API carries by 8 again, so the
-# NLRI reads "Length: 1" and re-serializing it panics (slice bounds out of
-# range [:5] with capacity 2), and it rebuilds a 4-octet Binding SID with
-# NewBSID, which shifts the label the wire value already holds 12 more bits,
-# so Binding SID 1048575 prints as 1044480 (pkg/apiutil/attribute.go,
-# pkg/packet/bgp/sr_policy.go).
+# The gobgp CLI cannot do this for SR Policy: v4.10.0 names no SAFI 73 family
+# in its -a switch (cmd/gobgp/common.go, checkAddressFamily), so
+# `gobgp global rib -a ipv4-srpolicy` answers "unsupported address family".
+# The daemon still holds the paths and serves them over gRPC ListPath, which
+# is what this reads.
+# It asks for the wire form only (EnableOnlyBinary) and decodes it with
+# GoBGP's packet decoder (bgp.NLRIFromSlice, bgp.GetPathAttribute), never
+# through apiutil: in v4.10.0 apiutil's round trip through the API form still
+# corrupts the SR Policy NLRI. MarshalNLRI copies the NLRI Length, which
+# SRPolicyNLRI holds in octets, into the API field unchanged, and
+# UnmarshalNLRI rebuilds it with bgp.NewSRPolicy, which divides that octet
+# count by 8 again, so a 12-octet IPv4 NLRI reads "Length: 1"
+# (pkg/apiutil/attribute.go, MarshalNLRI and UnmarshalNLRI;
+# pkg/packet/bgp/sr_policy.go, NewSRPolicy). The Binding SID shift that v3
+# also suffered is fixed in v4.10.0: MarshalSRBSID shifts a 4-octet SID back
+# 12 bits before NewBSID shifts it forward (pkg/apiutil/attribute.go).
 # Usage: gobgp-paths <afi> <safi>, e.g. gobgp-paths 1 73 for ipv4/sr-policy.
 WORKDIR /src/gobgp-paths
 COPY <<'EOF' main.go
@@ -37,8 +39,8 @@ import (
 	"strings"
 	"time"
 
-	api "github.com/osrg/gobgp/v3/api"
-	"github.com/osrg/gobgp/v3/pkg/packet/bgp"
+	api "github.com/osrg/gobgp/v4/api"
+	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -65,14 +67,14 @@ func run(args []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, "127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.NewClient("127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("connect to gobgpd's gRPC API at 127.0.0.1:50051: %w", err)
 	}
 	defer conn.Close()
 
-	stream, err := api.NewGobgpApiClient(conn).ListPath(ctx, &api.ListPathRequest{
-		TableType:        api.TableType_GLOBAL,
+	stream, err := api.NewGoBgpServiceClient(conn).ListPath(ctx, &api.ListPathRequest{
+		TableType:        api.TableType_TABLE_TYPE_GLOBAL,
 		Family:           &api.Family{Afi: api.Family_Afi(afi), Safi: api.Family_Safi(safi)},
 		EnableOnlyBinary: true,
 	})
@@ -88,12 +90,9 @@ func run(args []string) error {
 			return fmt.Errorf("ListPath: %w", err)
 		}
 		for _, path := range response.Destination.Paths {
-			nlri, err := bgp.NewPrefixFromRouteFamily(uint16(afi), uint8(safi))
+			nlri, err := bgp.NLRIFromSlice(bgp.NewFamily(uint16(afi), uint8(safi)), path.NlriBinary)
 			if err != nil {
-				return fmt.Errorf("afi %d safi %d: %w", afi, safi, err)
-			}
-			if err := nlri.DecodeFromBytes(path.NlriBinary); err != nil {
-				return fmt.Errorf("decode NLRI %x: %w", path.NlriBinary, err)
+				return fmt.Errorf("decode afi %d safi %d NLRI %x: %w", afi, safi, path.NlriBinary, err)
 			}
 			var line strings.Builder
 			line.WriteString(nlri.String())
@@ -114,7 +113,7 @@ func run(args []string) error {
 }
 EOF
 RUN go mod init gobgp-paths && \
-    go get github.com/osrg/gobgp/v3@v3.31.0 && \
+    go get github.com/osrg/gobgp/v4@v4.10.0 && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/gobgp-paths .
 
