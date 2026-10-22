@@ -103,3 +103,23 @@ after the initial release).
   a reset. `git read-tree HEAD` is the owner's call.
 - An RFC-tagged test change needs the owner's `./le rfc approve`; after the
   fact, record it with `./le commit debt-discharge ... kind owner`.
+
+## Agent unicast (2026-10-22 Linux)
+
+Out of budget before testing or committing; all edits uncommitted, `go vet`
+clean, no test run on them.
+
+| Fix | Release behaviour | Edit |
+|-----|-------------------|------|
+| trailing `withdraw` flag | API routes go through `add_to_rib`, never the watchdog path; the flag is the internal INTERNAL_WITHDRAW attribute, never packed. All 15 corpus lines were announced | `bridge_attribute.go` reads and ignores it, `routeAttributes.Withdraw` deleted, verb flip removed from `bridge_command.go`, `bridge_route_forms.go`, `bridge_vpls.go`; `bridge_vpls_test.go` case now expects `add` |
+| `split /N` in `announce attribute(s) ... nlri` | 5.0 cuts each prefix into /N pieces | `splitPrefixes` in `bridge_route_forms.go`, used by `convertAttributesForm` and `buildRouteCommand` |
+| IPv6 `next-hop self` (~45 rows) | 5.0's recorder packed 0.0.0.0 in an AFI 2 MP_REACH, malformed under RFC 2545 Section 3 / RFC 7606; the pin's judge reads them UNREADABLE (4250/4250 at the pin) | `oldSessionReset` in `old_commands_test.go` runs `message.ValidateUpdateRFC7606AddPath` before decoding |
+
+Next, in order: fix the `withdraw` sentence in `docs/architecture/exabgp-bridge.md`
+(~line 70) and check `docs/exabgp/exabgp-differences.md`; run the corpus tests
+and the scoped `-race` run; then the untouched rows: `family-allowed in-open`
+(needs the session's multi-session fact, `selectorExcludes` in
+`bridge_selector.go`, `api-multisession.ci` depends on it), extended community
+`target4`/`origin4`, `as-path [ ... ] ( ... )` AS_SET, trailing backslash on
+`announce route ... \`. Journal row owed: update text answers "watchdog not yet
+implemented" while the judge's `ParseUpdateText` accepts the watchdog form.
