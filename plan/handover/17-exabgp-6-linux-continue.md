@@ -1138,3 +1138,27 @@ Still owed: `./le site build` in `../gh-pages` (the only red left in `./le doc
 check verify`: the same six commands missing from the site); table 4.1's
 FlowSpec row "Partial" not verified against either code; the migration schema
 has no `as-set` or `tunnel-encapsulation` leaf (AS_SET work).
+
+## FlowSpec row and MUP relay (2026-10-22)
+
+Landed 1be330a222: table 4.1 FlowSpec row verified. Both carry component types
+1 to 13 (RFC 8955, RFC 8956, flow-vpn) and every action: traffic-rate bytes and
+packets, traffic-action, rt-redirect 0x80/0x81/0x82, traffic-marking,
+redirect-to-IP, Simpson 0x0800, interface-set. Ze lacks one: it decodes the RFC
+8956 Section 6.1 IPv6 route-target redirect (0x000d) but has no `update text`
+or config word to send it (`attribute.FlowSpecRedirect` refuses IPv6; the
+bridge refuses `redirect [<ipv6>]:<nn>`). That is owed RFC 8956 work (M2), not
+yet a spec or journal row. The same report's "Missing Features in ZeBGP" list
+and its action items are still stale outside FlowSpec (GR, BMP, config
+parsing, RFC 5701 "not implemented").
+
+Landed 1994b7c89a: MUP -02 relay gap closed (M25 MUP item done). Design:
+`nlritype.RegisterCanonical` (a family's send form, Grow/WriteTo); the receive
+path's `RetainUpdate` writes kept routes in it, so the Adj-RIB-In, relays and
+events hold the octet; only a section holding such a route is rebuilt.
+`rewriteMPNLRISections` now sets Extended Length past 255. Red/green proven
+with `TestMUPT1ST02RelayedWithSourceLength`. Gates owed off this host: full
+`./le verify`, `./le test functional`, interop. The reactor package run here
+was red on 14 tests in the explicit-final-policy session's uncommitted files
+(`policy_replay_identity_test.go`, `rs_withdrawal_*`, owed-key recovery); none
+carries MUP. M25 left: AS_SET only.
