@@ -12,7 +12,7 @@
 | Real-path tests | test/ui/doctor-machine-id.ci, test/ui/doctor-config-claims.ci, test/plugin/kernel-capability-doctor-reports.ci, test/plugin/kernel-capability-refuses-start.ci, test/plugin/kernel-capability-unknown-starts.ci, test/plugin/kernel-capability-unused-starts.ci, test/plugin/kernel-capability-validate-fails.ci |
 | Docs | docs/guide/health-checks.md, docs/guide/production-diagnostics.md |
 | Doc review | 2026-10-07: kernel capability enrolment read against kernelcap.MustRegister callers (fib kernel for MPLS, ike engine for XFRM, the only two); other claims taken from the source anchors |
-| Defect review | 2026-10-07: plan/immediate/spec-kernel-capability-gate.md in progress (appliance boot AC-15 unvalidated, five kernel-capability .ci never executed); plan/journal/committed-tree-does-not-build.md (2026-10-05) checks_storage row open; journal 2026-08-31 traffic-usage readiness row unfixed |
+| Defect review | 2026-10-07: plan/release/validation/spec-kernel-capability-gate.md in progress (appliance boot AC-15 unvalidated, five kernel-capability .ci never executed); plan/journal/committed-tree-does-not-build.md (2026-10-05) checks_storage row open; journal 2026-08-31 traffic-usage readiness row unfixed |
 | Extra criteria | supported: the kernel capability gate boots on the appliance with MPLS configured = test/appliance/kernel-capability-mpls-boot.ci |
 
 ## Description

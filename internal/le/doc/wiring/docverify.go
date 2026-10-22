@@ -245,7 +245,7 @@ func rulesDigestStage(root string) (any, int) {
 		page := tb.Str(prose(report)).
 			Str("warning: the task corpus is empty, so no blocking rule can be shown ").
 			Str("unreachable and ai/rules/CORE.md loses that derivation -- check that ").
-			Str("plan/spec-*.md is readable\n").String()
+			Str("the declared plan category directories are readable\n").String()
 		if report.Failed() {
 			return docVerifyPage{text: page}, 1
 		}

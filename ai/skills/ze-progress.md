@@ -21,15 +21,15 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | 2 | Work Not Done | Every row in this spec's **Work Not Done** table names a spec that exists on disk, and no other spec's table routes unfinished work here. See step 5 for the two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
 | 4 | Commit A | `./le verify worktree` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
-| 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/spec-<name>.md` has been removed via `./le commit create ... remove plan/spec-<name>.md` in the same commit, which also deletes its working-tree copy |
+| 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/<work-folder>/spec-<name>.md` has been removed via `./le commit create ... remove plan/<work-folder>/spec-<name>.md` in the same commit, which also deletes its working-tree copy |
 
 A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpoints, not endpoints.
 
 ## Steps
 
 1. **Run `./le spec current`.** If empty: report "No spec selected. Run `/ze-spec` to pick or create one." and stop.
-2. **Read `plan/<spec-name>`.** Extract the metadata table (`Status`, `Updated`), the Acceptance Criteria table, the TDD Test Plan, the Files to Modify / Files to Create lists, and the Wiring Test table.
-3. **Check git state:** `git status`, `git log --oneline -20`, and `git log --oneline -- plan/<spec-name>`. Record the timestamp of the most recent commit touching any spec-scoped file.
+2. **Resolve and read the spec.** Find the claimed filename's actual `path` in `./le spec status`, then read that work-folder path. Extract the metadata table (`Status`, `Updated`), the Acceptance Criteria table, the TDD Test Plan, the Files to Modify / Files to Create lists, and the Wiring Test table.
+3. **Check git state:** `git status`, `git log --oneline -20`, and `git log --oneline -- <spec-path>` using that same resolved path. Record the timestamp of the most recent commit touching any spec-scoped file.
 4. **Stage 1 -- Implementation:** Build the AC / TDD / Files table below by checking each row against the code:
    - For every AC row in the spec: grep for the feature or the test that covers it. Mark `Done` only when the producing function exists; otherwise `Partial` or `Missing`.
    - For every TDD test name: `grep -rn "<TestName>" internal/ test/`. Mark `Present` or `Missing`. A renamed test is `Missing` unless the spec lists the new name.
@@ -52,7 +52,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
    - Does a committed journal row in `plan/journal/<class>.md` name this spec stem in its Spec column? If not, append a row to the matching class file.
-   - Is `plan/spec-<name>.md` still tracked by git (`git ls-files plan/spec-<name>.md`)?
+   - Is the spec's actual path from `./le spec status` still tracked by git?
    - If no journal row names this spec OR the spec file is still tracked: STAGE = 5. Go to step 9.
    - Otherwise: STAGE = done.
 9. **Report** using the format below.
@@ -96,7 +96,7 @@ Or: "Every item this spec did not do names a spec that exists."
 
 ### Commit B (closure -- spec -> journal)
 - Journal row naming this spec: [present in plan/journal/<class>.md / missing]
-- `plan/spec-<name>.md`: [still tracked / removed]
+- `plan/<work-folder>/spec-<name>.md`: [still tracked / removed]
 
 ### Next Action
 **Run:** `/ze-<command>`
@@ -114,7 +114,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 | 2 (genuine) | Write the destination spec in the right bucket and name it by path, or ask the owner to drop the item | The item survives this spec's closure as a spec of its own, which is the only form a count can see. Dropping it is the owner's decision, never the author's (`ai/rules/completion.md`). A row that names a spec on disk clears stage 2 |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
-| 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, prepare one commit through `./le commit create` with `file` for the journal file and `remove plan/spec-<name>.md` (the script deletes the spec's working-tree copy once the commit lands), then run its script | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
+| 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, prepare one commit through `./le commit create` with `file` for the journal file and `remove plan/<work-folder>/spec-<name>.md` (the script deletes the spec's working-tree copy once the commit lands), then run its script | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
 | done | "Spec complete. `/ze-spec` to pick the next one." | Nothing pending |
 
 ## Rules

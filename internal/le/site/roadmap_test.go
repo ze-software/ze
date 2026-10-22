@@ -67,10 +67,10 @@ func TestRoadmapBuildTracksPlanChanges(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			root, output := roadmapBuildPaths(t)
-			writeFixtureFile(t, filepath.Join(root, "plan", "immediate", "spec-router.md"),
-				"# Spec: Router obligation\n\n| Field | Value |\n|---|---|\n| Status | blocked |\n| Updated | 2026-09-18 |\n")
-			writeFixtureFile(t, filepath.Join(root, "plan", "spec-optional.md"),
-				"# Spec: Optional capability\n\n| Field | Value |\n|---|---|\n| Status | deferred |\n")
+			writeFixtureFile(t, filepath.Join(root, "plan", "release", "fixes", "spec-router.md"),
+				"# Spec: Router obligation\n\n| Field | Value |\n|---|---|\n| Status | blocked |\n| Priority | P0 |\n| Release reason | Repair shipped routing |\n| Updated | 2026-09-18 |\n")
+			writeFixtureFile(t, filepath.Join(root, "plan", "post-release", "engineering", "spec-optional.md"),
+				"# Spec: Optional capability\n\n| Field | Value |\n|---|---|\n| Status | deferred |\n| Priority | P3 |\n| Release reason | Independent capability |\n")
 			roadmapGit(t, root, "add", "plan")
 			roadmapGit(t, root, "-c", "commit.gpgsign=false", "commit", "-qm", "First obligation")
 			first, err := Build(BuildOptions{Repository: root, Output: output})
@@ -78,14 +78,14 @@ func TestRoadmapBuildTracksPlanChanges(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := readArtifact(t, output, roadmapDataFile)
-			writeFixtureFile(t, filepath.Join(root, "plan", "pre-release", "spec-new.md"),
-				"# Spec: New release obligation\n\n| Field | Value |\n|---|---|\n| Status | verification |\n")
-			roadmapGit(t, root, "add", "plan/pre-release/spec-new.md")
+			writeFixtureFile(t, filepath.Join(root, "plan", "release", "validation", "spec-new.md"),
+				"# Spec: New release obligation\n\n| Field | Value |\n|---|---|\n| Status | verification |\n| Priority | P2 |\n| Release reason | Release proof |\n")
+			roadmapGit(t, root, "add", "plan/release/validation/spec-new.md")
 			roadmapGit(t, root, "-c", "commit.gpgsign=false", "commit", "-qm", "Add release obligation")
 			revision := roadmapGit(t, root, "rev-parse", "HEAD")
-			writeFixtureFile(t, filepath.Join(root, "plan", "pre-release", "spec-new.md"), "# Spec: Dirty replacement\n")
-			writeFixtureFile(t, filepath.Join(root, "plan", "spec-untracked.md"), "# Spec: Untracked obligation\n")
-			writeFixtureFile(t, filepath.Join(root, "plan", "roadmap.md"), "# Stale generated inventory\n")
+			writeFixtureFile(t, filepath.Join(root, "plan", "release", "validation", "spec-new.md"), "# Spec: Dirty replacement\n")
+			writeFixtureFile(t, filepath.Join(root, "plan", "post-release", "engineering", "spec-untracked.md"), "# Spec: Untracked obligation\n")
+			writeFixtureFile(t, filepath.Join(root, "plan", "release", "roadmap.md"), "# Stale generated inventory\n")
 			second, err := Build(BuildOptions{Repository: root, Output: output, Partial: partial})
 			if err != nil {
 				t.Fatal(err)
@@ -129,10 +129,15 @@ func TestRoadmapBuildTracksPlanChanges(t *testing.T) {
 				}
 			}
 			mirror := readArtifact(t, output, "project/roadmap/index.md")
+			for _, metadata := range []string{"P0", "P2", "P3", "Repair shipped routing", "Release proof", "Independent capability"} {
+				if !strings.Contains(mirror, metadata) {
+					t.Errorf("roadmap mirror lost classification metadata %q", metadata)
+				}
+			}
 			if !strings.Contains(mirror, roadmap.Markdown(&snapshot, false)) {
 				t.Fatal("the mirror differs from the snapshot's Markdown")
 			}
-			if !strings.Contains(mirror, "/blob/"+revision+"/plan/pre-release/spec-new.md") {
+			if !strings.Contains(mirror, "/blob/"+revision+"/plan/release/validation/spec-new.md") {
 				t.Fatal("the source link does not pin the selected commit")
 			}
 			claims, err := readProducerRecord(Paths{Repository: root, Output: output})
@@ -176,7 +181,7 @@ func TestRoadmapBuildRefusesMissingPlan(t *testing.T) {
 	root, output := roadmapBuildPaths(t)
 	roadmapGit(t, root, "rm", "-r", "plan")
 	roadmapGit(t, root, "-c", "commit.gpgsign=false", "commit", "-qm", "Remove plan")
-	writeFixtureFile(t, filepath.Join(root, "plan", "spec-local.md"), "# Spec: Local only\n")
+	writeFixtureFile(t, filepath.Join(root, "plan", "post-release", "engineering", "spec-local.md"), "# Spec: Local only\n")
 	_, err := Build(BuildOptions{Repository: root, Output: output})
 	if err == nil {
 		t.Fatal("a committed tree without plan published an empty roadmap")
@@ -192,10 +197,10 @@ func TestRoadmapBuildRefusesMissingPlan(t *testing.T) {
 func TestRoadmapMetadataIsLiteralAndDeterministic(t *testing.T) {
 	root, output := roadmapBuildPaths(t)
 	title := `Literal <script>alert(1)</script> [link](https://invalid.test/) {{ze:unknown-count}}`
-	writeFixtureFile(t, filepath.Join(root, "plan", "immediate", "spec-hostile.md"),
+	writeFixtureFile(t, filepath.Join(root, "plan", "release", "fixes", "spec-hostile.md"),
 		"# Spec: "+title+"\n\n| Field | Value |\n|---|---|\n| Status | peculiar-state |\n"+
 			"| Depends | <img src=x onerror=alert(1)> |\n")
-	roadmapGit(t, root, "add", "plan/immediate/spec-hostile.md")
+	roadmapGit(t, root, "add", "plan/release/fixes/spec-hostile.md")
 	roadmapGit(t, root, "-c", "commit.gpgsign=false", "commit", "-qm", "Literal metadata")
 	paths := Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output}
 	if _, err := renderRoadmap(paths); err != nil {

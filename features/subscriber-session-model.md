@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/subscriber-summary-show.ci, test/plugin/subscriber-enricher-wiring-show.ci, test/l2tp/subscriber-reader-failing-socket.ci |
 | Docs | docs/guide/l2tp.md, docs/guide/pppoe.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the 2s enrich-show timeout is enrichShowTimeout in internal/component/plugin/server/enricher.go |
-| Defect review | 2026-10-07: plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md and plan/immediate/spec-subscriber-utilisation-has-no-operator-view.md open |
+| Defect review | 2026-10-07: plan/release/fixes/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md and plan/release/fixes/spec-subscriber-utilisation-has-no-operator-view.md open |
 | Extra criteria | supported: PPPoE and L2TP subscribers report the same session fields = test/plugin/subscriber-pppoe-l2tp-parity.ci |
 
 ## Description

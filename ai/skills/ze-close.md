@@ -52,7 +52,7 @@ Two reasons, both load-bearing.
 context already full of implementation detail. The measurable result: across 161
 specs, the closure tables were byte-identical to the template in 65-75% of
 in-progress specs, while sections authors added when they needed them were
-untouched in 0%. `plan/TEMPLATE-CLOSURE.md` was split out of `plan/TEMPLATE.md`
+untouched in 0%. `plan/templates/TEMPLATE-CLOSURE.md` was split out of `plan/templates/TEMPLATE.md`
 for exactly this reason; this skill is the same fix applied to the instructions.
 
 **Independence.** This skill judges work, so it must run in a context that did
@@ -75,13 +75,13 @@ in one thing: where the diff is.
 At `verification` the code is committed, so closure adds commit A (the edited
 spec and any fixes, documentation, or warranted lesson records) and commit B
 (spec removal). The handoff commit is neither of them. Get the handoff SHA from
-`git log -1 --format=%H -- plan/<spec-name>`.
+`git log -1 --format=%H -- <spec-path>`, using its actual work-folder path.
 
 ## Spec Sections Used by Each Step
 
 | Step | Spec Section(s) Consumed |
 |------|--------------------------|
-| 1. Deliverables review | **Deliverables Checklist**, then APPEND `plan/TEMPLATE-CLOSURE.md` and fill **Goal Validation** + **Implementation Summary** |
+| 1. Deliverables review | **Deliverables Checklist**, then APPEND `plan/templates/TEMPLATE-CLOSURE.md` and fill **Goal Validation** + **Implementation Summary** |
 | 2. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 4. Documentation review | **Documentation Update Checklist** (verify the per-category doc updates the implementation already made) |
 | 5. Review Gate | **Review Gate**: record via `./le spec review record`, loop to 0 BLOCKER/0 ISSUE |
@@ -91,7 +91,7 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
 
 1. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
    - **Append the closure sections FIRST (BLOCKING):** copy everything below the
-     horizontal rule in `plan/TEMPLATE-CLOSURE.md` to the end of the spec. Those
+     horizontal rule in `plan/templates/TEMPLATE-CLOSURE.md` to the end of the spec. Those
      sections (Implementation Summary, Mistake Log, Implementation Audit, Goal
      Validation, Work Not Done, Review Gate, Pre-Commit Verification) are
      what the steps below fill. They are deliberately absent until now.
@@ -181,9 +181,9 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
       - **Clear the citers first (BLOCKING).** Commit B removes the spec, and
         every sibling that cites it keeps a citation of a file that is gone.
 
-        Run `git grep -n "plan/<spec-name>"` over the WHOLE tracked tree and name
-        every hit. `plan/*.md` is the population `./le spec citation` reads, and
-        it is not the population that goes red: `./le doc check links` reads
+        Search for the spec's actual work-folder path over the WHOLE tracked tree
+        and name every hit. The declared work folders are the citation population,
+        but that is not the population that goes red: `./le doc check links` reads
         every tracked file, and `DesignReferences`
         (`internal/le/doc/wiring/designrefs.go`) resolves the `// Design:` header
         of every tracked Go file. A Go header is the citer kind this step has
@@ -212,16 +212,16 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
         can see it.
 
         These edits ride on commit A, because commit B removes a spec and adds
-        nothing. The gate reads `plan/spec-*.md`, so `plan/learned/` and
-        `plan/journal/` are outside this step. Do not edit
+        nothing. The gate reads the work-item folders declared by `specpath`,
+        so `plan/learned/` and `plan/journal/` are outside this step. Do not edit
         `plan/.citation-baseline` as part of closure: a bulk baseline refresh
         hides a citation that a repoint must fix.
 
         After the script has run, `./le spec citation` is green. A closure that
         leaves it red is not closed.
-      - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, and `file plan/<spec-name>` to preserve all implementation edits in git history.
+      - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, and `file <spec-path>` using its actual work-folder path to preserve all implementation edits in git history.
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
-      - **Commit B (spec closure):** run `./le commit create append remove plan/<spec-name>` with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file plan/<spec-name>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
+      - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 

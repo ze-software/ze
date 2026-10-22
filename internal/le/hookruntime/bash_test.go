@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 
 	// The four harness commands the heaviness test reads: two runners
 	// that admit, two helper tools that do not.
@@ -33,12 +34,12 @@ func TestGovernedWriteCatchesEveryInPlaceFlagSpelling(t *testing.T) {
 		name    string
 		command string
 	}{
-		{"perl-bare-i", `perl -i -pe 's/a/b/' plan/spec-x.md`},
-		{"perl-clustered-pi", `perl -pi -e 's/a/b/' plan/spec-x.md`},
-		{"perl-clustered-0pi", `perl -0pi -e 's/a/b/' plan/spec-x.md`},
-		{"perl-i-suffix", `perl -i.bak -pe 's/a/b/' plan/spec-x.md`},
-		{"sed-bare-i", `sed -i 's/a/b/' plan/spec-x.md`},
-		{"sed-clustered-Ei", `sed -Ei 's/a/b/' plan/spec-x.md`},
+		{"perl-bare-i", `perl -i -pe 's/a/b/' plan/post-release/engineering/spec-x.md`},
+		{"perl-clustered-pi", `perl -pi -e 's/a/b/' plan/post-release/engineering/spec-x.md`},
+		{"perl-clustered-0pi", `perl -0pi -e 's/a/b/' plan/post-release/engineering/spec-x.md`},
+		{"perl-i-suffix", `perl -i.bak -pe 's/a/b/' plan/post-release/engineering/spec-x.md`},
+		{"sed-bare-i", `sed -i 's/a/b/' plan/post-release/engineering/spec-x.md`},
+		{"sed-clustered-Ei", `sed -Ei 's/a/b/' plan/post-release/engineering/spec-x.md`},
 		{"sed-i-suffix", `sed -i.bak 's/a/b/' ai/rules/commands.md`},
 	}
 	for _, test := range blocked {
@@ -81,7 +82,7 @@ func TestSpecCurrentBehaviorAcceptsEverySourceKindZeHas(t *testing.T) {
 		t.Run(filepath.Ext(source), func(t *testing.T) {
 			root := t.TempDir()
 			body := specFixture(source)
-			path := filepath.Join(root, "plan", "spec-kind.md")
+			path := filepath.Join(root, "plan", "post-release", "engineering", "spec-kind.md")
 			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 				t.Fatal(err)
 			}
@@ -105,7 +106,7 @@ func TestSpecCurrentBehaviorStillRefusesASectionThatListsNothing(t *testing.T) {
 	root := t.TempDir()
 	body := strings.Replace(specFixture("internal/component/bgp/reactor/peer.go"),
 		"- [ ] `internal/component/bgp/reactor/peer.go`", "It was all read carefully.", 1)
-	path := filepath.Join(root, "plan", "spec-kind.md")
+	path := filepath.Join(root, "plan", "post-release", "engineering", "spec-kind.md")
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -182,9 +183,9 @@ func TestGovernedWriteLeavesReadsAlone(t *testing.T) {
 		name    string
 		command string
 	}{
-		{"sed-n-print", `sed -n '1,40p' plan/spec-x.md`},
-		{"grep", `grep -n Status plan/spec-x.md`},
-		{"perl-no-in-place", `perl -ne 'print if /Status/' plan/spec-x.md`},
+		{"sed-n-print", `sed -n '1,40p' plan/post-release/engineering/spec-x.md`},
+		{"grep", `grep -n Status plan/post-release/engineering/spec-x.md`},
+		{"perl-no-in-place", `perl -ne 'print if /Status/' plan/post-release/engineering/spec-x.md`},
 	}
 	for _, test := range allowed {
 		t.Run(test.name, func(t *testing.T) {
@@ -214,17 +215,17 @@ func TestGovernedWriteCatchesEveryScriptRuntime(t *testing.T) {
 		command string
 		blocked bool
 	}{
-		{"python3-c-open-write", `python3 -c "open('plan/spec-x.md','w').write('x')"`, true},
-		{"python3-heredoc-write-text", "python3 - <<'EOF'\nfrom pathlib import Path\nPath('plan/spec-x.md').write_text('x')\nEOF", true},
+		{"python3-c-open-write", `python3 -c "open('plan/post-release/engineering/spec-x.md','w').write('x')"`, true},
+		{"python3-heredoc-write-text", "python3 - <<'EOF'\nfrom pathlib import Path\nPath('plan/post-release/engineering/spec-x.md').write_text('x')\nEOF", true},
 		{"python3.12-os-replace", `python3.12 -c "import os; os.replace('scratch/x','ai/rules/commands.md')"`, true},
-		{"python-shutil-copy", `python -c "import shutil; shutil.copy('x', 'plan/spec-x.md')"`, true},
-		{"node-write-file-sync", `node -e "require('fs').writeFileSync('plan/spec-x.md', 'x')"`, true},
+		{"python-shutil-copy", `python -c "import shutil; shutil.copy('x', 'plan/post-release/engineering/spec-x.md')"`, true},
+		{"node-write-file-sync", `node -e "require('fs').writeFileSync('plan/post-release/engineering/spec-x.md', 'x')"`, true},
 		{"node-append-file-sync", `node -e "require('fs').appendFileSync('ai/rules/commands.md', 'x')"`, true},
-		{"perl-open-truncate-mode", `perl -e 'open(my $f, ">", "plan/spec-x.md"); print $f "x"'`, true},
-		{"python3-read-plan", `python3 -c "print(open('plan/spec-x.md').read())"`, false},
+		{"perl-open-truncate-mode", `perl -e 'open(my $f, ">", "plan/post-release/engineering/spec-x.md"); print $f "x"'`, true},
+		{"python3-read-plan", `python3 -c "print(open('plan/post-release/engineering/spec-x.md').read())"`, false},
 		{"python3-read-ai-rules", `python3 -c "print(open('ai/rules/commands.md').read())"`, false},
-		{"node-read-plan", `node -e "console.log(require('fs').readFileSync('plan/spec-x.md', 'utf8'))"`, false},
-		{"python3-write-admitted", `ZE_ADMIT_GOVERNED_WRITE="reads plan/, writes scratch" python3 -c "open('plan/spec-x.md','w').write('x')"`, false},
+		{"node-read-plan", `node -e "console.log(require('fs').readFileSync('plan/post-release/engineering/spec-x.md', 'utf8'))"`, false},
+		{"python3-write-admitted", `ZE_ADMIT_GOVERNED_WRITE="reads plan/, writes scratch" python3 -c "open('plan/post-release/engineering/spec-x.md','w').write('x')"`, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -297,14 +298,13 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 // TestSpecValidationReachesEveryReleaseBucket is the fail-open the release
 // buckets created.
 //
-// VALIDATES: a spec written under plan/immediate/ or plan/pre-release/ is
-// validated exactly as one under plan/.
+// VALIDATES: a spec in each declared current category is validated.
 // PREVENTS: the silent version of no validation at all. The predicate was a
 // regex spelling plan/ alone, and a path it did not match returned 0 with no
 // output, so this hook reported success over every spec in two of the three
 // buckets. The refusal below is what proves the hook READ the file.
 func TestSpecValidationReachesEveryReleaseBucket(t *testing.T) {
-	for _, bucket := range []string{"plan", "plan/immediate", "plan/pre-release"} {
+	for _, bucket := range specpath.Dirs() {
 		t.Run(bucket, func(t *testing.T) {
 			root := t.TempDir()
 			body := strings.Replace(specFixture("internal/component/bgp/reactor/peer.go"),
@@ -627,6 +627,21 @@ func TestTestDeletionAsksOnlyForATestPath(t *testing.T) {
 	for _, command := range asked {
 		if asked, message := testDeletionAsked(t, command); !asked {
 			t.Errorf("%q was not asked about as a test deletion: %s", command, message)
+		}
+	}
+}
+
+// TestSpecValidationRefusesObsoletePlacements ensures an old-layout write is
+// refused before it can disappear from current discovery.
+func TestSpecValidationRefusesObsoletePlacements(t *testing.T) {
+	for _, directory := range []string{"plan", "plan/immediate", "plan/pre-release", "plan/to-review"} {
+		root := t.TempDir()
+		code, _, message := runHook(t, root, "validate-spec", map[string]any{
+			"tool_name":  "Write",
+			"tool_input": map[string]any{"file_path": filepath.Join(root, directory, "spec-misplaced.md")},
+		})
+		if code != 2 || !strings.Contains(message, "obsolete spec directory") {
+			t.Fatalf("%s: code %d, message %q", directory, code, message)
 		}
 	}
 }

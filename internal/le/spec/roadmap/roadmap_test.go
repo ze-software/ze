@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
@@ -68,6 +69,10 @@ func fixtureCommit(t *testing.T, root string, files map[string]string) string {
 
 func fixtureSpec(title, status, depends string) string {
 	return fmt.Sprintf("# Spec: %s\n\n| Field | Value |\n|---|---|\n| Status | %s |\n| Depends | %s |\n| Phase | 1/2 |\n| Updated | 2026-09-18 |\n", title, status, depends)
+}
+
+func fixtureCurrentSpec(title, status, depends, priority string) string {
+	return fixtureSpec(title, status, depends) + "| Priority | " + priority + " |\n| Release reason | Release boundary fixture |\n"
 }
 
 func commandRoot(t *testing.T, root string) {
@@ -339,8 +344,8 @@ func TestRoadmapComparisonIsNotCompletion(t *testing.T) {
 func TestRoadmapIndexMatchesSnapshot(t *testing.T) {
 	root := fixtureRepository(t)
 	revision := fixtureCommit(t, root, map[string]string{
-		"plan/immediate/spec-safe.md": fixtureSpec("<script>alert(1)</script> [bad](javascript:evil) {{ze:unknown}}", "ready", "spec-target.md; prose <img src=x>"),
-		"plan/spec-target.md":         fixtureSpec("Target", "design", "unknown/spec-safe.md spec-missing.md"),
+		"plan/release/fixes/spec-safe.md":           fixtureCurrentSpec("<script>alert(1)</script> [bad](javascript:evil) {{ze:unknown}}", "ready", "spec-target.md; prose <img src=x>", "P1"),
+		"plan/post-release/features/spec-target.md": fixtureCurrentSpec("Target", "design", "unknown/spec-safe.md spec-missing.md", "P3"),
 	})
 	commandRoot(t, root)
 	output, code := dispatch(t, "update", "|", "json")
@@ -370,10 +375,10 @@ func TestRoadmapIndexMatchesSnapshot(t *testing.T) {
 			t.Fatalf("unsafe metadata or unresolved link %q survived: %s", unsafe, content)
 		}
 	}
-	if !strings.Contains(string(content), "[spec-target.md](spec-target.md)") {
+	if !strings.Contains(string(content), "[spec-target.md](../post-release/features/spec-target.md)") {
 		t.Fatal("exact selected dependency has no local link")
 	}
-	if !strings.Contains(Markdown(&snapshot, false), "/"+revision+"/plan/spec-target.md") {
+	if !strings.Contains(Markdown(&snapshot, false), "/"+revision+"/plan/post-release/features/spec-target.md") {
 		t.Fatal("site dependency has no pinned link")
 	}
 	var artifact *derived.Artifact
@@ -444,6 +449,122 @@ func TestRoadmapStatusVocabularyIsTheSpecVocabulary(t *testing.T) {
 	for _, status := range specstatus.Vocabulary {
 		if !strings.Contains(legend, "\n| "+status+" | ") {
 			t.Errorf("the status legend has no row for declared Status %q", status)
+		}
+	}
+}
+
+// TestCurrentRoadmapUsesTheDeclaration drives all six categories through the
+// collector and renderer. Priority precedes the prior bucket/status/name order;
+// dependency text remains visible rather than pretending to be a scheduler.
+func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
+	root := fixtureRepository(t)
+	files := map[string]string{
+		"plan/release/fixes/spec-routing.md":         fixtureCurrentSpec("Routing", "ready", "plan/release/validation/spec-proof.md", "P1"),
+		"plan/release/validation/spec-proof.md":      fixtureCurrentSpec("Proof", "blocked", "-", "P2"),
+		"plan/release/delivery/spec-image.md":        fixtureCurrentSpec("Image", "design", "-", "P2"),
+		"plan/post-release/features/spec-feature.md": fixtureCurrentSpec("Feature", "ready", "-", "P3"),
+		"plan/post-release/engineering/spec-tool.md": fixtureCurrentSpec("Tool", "in-progress", "-", "P3"),
+		"plan/proposals/spec-idea.md":                fixtureCurrentSpec("Idea", "skeleton", "-", "P2"),
+		"plan/release/fixes/spec-security.md":        fixtureCurrentSpec("Security", "blocked", "spec-routing.md", "P0"),
+		"plan/release/fixes/spec-routing-two.md":     fixtureCurrentSpec("Routing sibling", "ready", "-", "P1"),
+		"plan/release/fixes/spec-active.md":          fixtureCurrentSpec("Active", "in-progress", "-", "P1"),
+		"plan/release/fixes/spec-malformed.md":       "# missing metadata\n",
+		"plan/proposals/spec-invalid.md":             fixtureCurrentSpec("Invalid priority", "ready", "-", "urgent"),
+	}
+	snapshot, err := Collect(t.Context(), root, fixtureCommit(t, root, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(snapshot.Categories, specpath.Categories()) {
+		t.Fatalf("snapshot category declaration differs: %+v", snapshot.Categories)
+	}
+	if snapshot.Counts.Total != 11 || snapshot.Counts.Required != 7 || snapshot.Counts.NiceToHave != 4 {
+		t.Fatalf("current population counts = %+v", snapshot.Counts)
+	}
+	wantCounts := map[string]int{"fixes": 5, "validation": 1, "delivery": 1, "features": 1, "engineering": 1, "proposals": 2}
+	if !reflect.DeepEqual(snapshot.Counts.Buckets, wantCounts) {
+		t.Fatalf("current categories lost: %+v", snapshot.Counts.Buckets)
+	}
+	var names []string
+	for _, item := range snapshot.Items {
+		names = append(names, item.Name)
+		if item.Name == "malformed" {
+			if item.Status != specstatus.StatusUnparsed || len(item.Diagnostics) == 0 {
+				t.Fatalf("malformed work vanished: %+v", item)
+			}
+		}
+		if item.Name == "invalid" {
+			if !slices.Contains(item.Diagnostics, "priority unavailable or invalid") {
+				t.Fatalf("invalid priority not diagnosed: %+v", item)
+			}
+		}
+	}
+	wantOrder := []string{"security", "active", "routing", "routing-two", "proof", "image", "idea", "feature", "tool", "malformed", "invalid"}
+	if !slices.Equal(names, wantOrder) {
+		t.Fatalf("priority/category/status/name order = %v, want %v", names, wantOrder)
+	}
+	markdown := Markdown(&snapshot, true)
+	for _, category := range specpath.Categories() {
+		if strings.Count(markdown, "### "+category.Label+" (") != 1 {
+			t.Errorf("category %s not rendered exactly once: %s", category.Name, markdown)
+		}
+	}
+	for _, visible := range []string{
+		"| Priority | Release reason |", "Release boundary fixture",
+		"[plan/release/validation/spec-proof.md](validation/spec-proof.md)",
+		"[spec-routing.md](fixes/spec-routing.md)",
+		"../post-release/features/spec-feature.md", "../post-release/engineering/spec-tool.md",
+		"../proposals/spec-idea.md", "priority unavailable or invalid", "release reason unavailable",
+	} {
+		if !strings.Contains(markdown, visible) {
+			t.Errorf("roadmap omitted %q: %s", visible, markdown)
+		}
+	}
+}
+
+// TestRoadmapOldToNewRelocationKeepsHistory proves a move does not become
+// delivery and old optional work is not retrospectively classified as features.
+func TestRoadmapOldToNewRelocationKeepsHistory(t *testing.T) {
+	root := fixtureRepository(t)
+	old := fixtureCommit(t, root, map[string]string{
+		"plan/spec-tool.md":                fixtureSpec("Tool", "ready", "-"),
+		"plan/immediate/spec-fix.md":       fixtureSpec("Fix", "in-progress", "-"),
+		"plan/pre-release/spec-proof.md":   fixtureSpec("Proof", "blocked", "-"),
+		"plan/to-review/spec-uncounted.md": fixtureSpec("Old proposal", "skeleton", "-"),
+	})
+	current := fixtureCommit(t, root, map[string]string{
+		"plan/post-release/engineering/spec-tool.md": fixtureCurrentSpec("Tool", "ready", "-", "P3"),
+		"plan/release/fixes/spec-fix.md":             fixtureCurrentSpec("Fix", "in-progress", "-", "P1"),
+		"plan/release/validation/spec-proof.md":      fixtureCurrentSpec("Proof", "blocked", "-", "P2"),
+	})
+	report, err := Compare(t.Context(), root, old, current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.From.Counts.Total != 3 || report.To.Counts.Total != 3 || len(report.Changes) != 3 {
+		t.Fatalf("migration changed identities: %+v", report)
+	}
+	for _, change := range report.Changes {
+		if !change.Moved || change.Kind == "removed" || change.Kind == "added" {
+			t.Fatalf("relocation inferred addition/removal: %+v", change)
+		}
+		if change.Name == "tool" {
+			if change.Before.Bucket != "after" || change.After.Bucket != specpath.Engineering {
+				t.Fatalf("old optional work was retrospectively reclassified: %+v", change)
+			}
+		}
+	}
+	if !reflect.DeepEqual(report.From.Categories, specpath.HistoricalCategories()) {
+		t.Fatalf("historical declaration lost: %+v", report.From.Categories)
+	}
+	history := Markdown(&report.From, false)
+	if strings.Contains(history, "Post-release features") || !strings.Contains(history, "Historical optional work") {
+		t.Fatalf("historical rendering invented classification: %s", history)
+	}
+	localHistory := Markdown(&report.From, true)
+	for _, link := range []string{"../spec-tool.md", "../immediate/spec-fix.md", "../pre-release/spec-proof.md"} {
+		if !strings.Contains(localHistory, "]("+link+")") {
+			t.Errorf("historical relative link %s lost: %s", link, localHistory)
 		}
 	}
 }

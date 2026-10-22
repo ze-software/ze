@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // extractionSchemaVersion is the artifact shape this reader accepts.
@@ -221,13 +222,14 @@ func sectionDispositionNames() []string { return sortedKeys(sectionDispositions)
 // specPathRE refuses everything that is not a spec. plan/known-failures/ and
 // plan/learned/ are homes the compliance rule names as NOT a decision
 // procedure, and this shape refuses both, along with any path that leaves the
-// repository. A spec in ANY release bucket is accepted.
+// repository. Signed artifacts retain historical paths after a spec moves;
+// recognition accepts those paths, while relocationErrors resolves the current spec.
 var specPathRE = regexp.MustCompile(reSpecPath())
 
 func reSpecPath() string {
 	var tb textbuf.Buffer
 	tb.Str(`^(?:`)
-	for index, dir := range specDirNames() {
+	for index, dir := range specpath.HistoricalDirs() {
 		if index != 0 {
 			tb.Byte('|')
 		}
@@ -536,9 +538,9 @@ func validateRelocation(relocatedTo, reservedID, where, stem string) (string, st
 		return "", "", parseErr(tb.Str(where).Str(": ").Str(relocatedToSpec).
 			Str(" needs a 'relocated-to' naming the spec that owes this obligation, as ").
 			Str("<bucket>/spec-<name>.md with <bucket> one of ").
-			Str(strings.Join(specDirNames(), ", ")).Str("; got ").Str(pyRepr(relocatedTo)).
+			Str(strings.Join(specpath.HistoricalDirs(), ", ")).Str("; got ").Str(pyRepr(relocatedTo)).
 			Str(". A known-failure file, a learned summary and any document outside a ").
-			Str("release bucket are none of them a spec ").
+			Str("recognized spec bucket are none of them a spec ").
 			Str("(ai/rules/rfc-compliance.md)"))
 	}
 	var want textbuf.Buffer

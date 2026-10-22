@@ -1,0 +1,481 @@
+# Spec: cli-root-namespace-grammar-deferred-gate-reach
+
+| Field | Value |
+|-------|-------|
+| Status | blocked |
+| Priority | P3 |
+| Release reason | Release-independent cli root namespace grammar deferred gate reach work; historical findings do not establish a current product defect. |
+| Scope | tooling |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-08-05 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+**Provenance.** Two rows of the retired deferral shard "cli-root-namespace-grammar", dated
+2026-07-17, both homed on prose ("future root-surface-grammar spec", "future spec
+extending the gate to local metas"). Their source spec closed and its file is
+gone, so nothing on disk was ever going to become that spec. A prose destination
+is a deletion with a polite name (`ai/rules/planning.md`). This file is
+their home.
+
+## OWNER RULING 2026-08-05: Surface 1 is ANSWERED. No defect there.
+
+**Thomas: "We do not want any flags where the cli maps to the Yang otherwise it
+is ok."**
+
+So R3 binds the YANG-mapped command surface. A flag on a root handler in
+`cmd/ze/`, which maps to no YANG node, is legitimate.
+
+`--plugins` is exactly that: `registry.MustRegisterRootHandler` in
+`cmd/ze/ze_core_dispatch.go`, offline mode, no YANG behind it. It is CORRECT as
+it stands and needs no rename.
+
+**The ruling changed nothing, it confirmed what `ai/rules/cli.md` already says.**
+Its "No Flag Syntax in YANG" section states that the `--flag` form "is a
+presentation artifact of the offline `cmd/ze/` Go flag tooling
+(`flag.NewFlagSet`) and belongs ONLY there, never in the YANG layer". This spec
+asked as an open question something the rule had already answered. Nobody had
+connected the two.
+
+**Both Surface 1 questions are therefore closed.** Its first was whether a
+root-level flag is legitimate grammar at all: yes, off the YANG surface. Its
+second, what verb form replaces it, was conditional on the first being "no" and
+never becomes reachable.
+
+**And the gate is not wrong either, only silent about why.** `CheckName`, which
+owns R1, R2, R3 and R7, is run over the YANG tree and never over roots
+(`internal/le/cligrammar/cligrammar.go`). Under the ruling that is the correct scope,
+not an oversight. Roots get `CheckRootNamespace` alone, which is R9
+namespace-collision discipline, and R9 SHOULD bind them: a root colliding with a
+YANG namespace confuses a reader whatever surface declares it.
+
+## What is left, and it is much smaller than this file was written to describe
+
+Only Surface 2, and only its R9 half.
+
+The 33 `MustRegisterLocalMeta` paths reach no gate: nothing under
+`internal/component/command/grammar/` mentions local metas, and
+`internal/le/cligrammar/cligrammar.go` enumerates roots only. Under the ruling they need
+no R1/R2/R3 either, because they are not YANG-mapped. What they plausibly DO owe
+is the same namespace discipline roots owe, so that a local path cannot collide
+with a YANG namespace unnoticed.
+
+Whether that is worth a gate is a judgement about how likely the collision is,
+not a defect to fix. `registeredRootNames` already shows the shape: a Go AST walk
+over `cmd/ze` and `internal` taking the first string-literal argument, which
+mirrors trivially for `(Must)RegisterLocalMeta`.
+
+Status stays `blocked` pending that one judgement, NOT pending the flag question,
+which is answered above.
+
+## Re-verified 2026-08-05 (superseded in part by the ruling above)
+
+Both surfaces are still uncovered. Measured, not carried from the text above.
+
+**Surface 2 is uncovered completely.** The grammar package has no knowledge of
+local metas at all: nothing under `internal/component/command/grammar/` mentions
+them, and `internal/le/cligrammar/cligrammar.go` collects only roots, through
+`registeredRootNames`. That helper walks `cmd/ze` and `internal` with the Go AST
+and takes the first string-literal argument of every `RegisterRoot` and
+`(Must)RegisterRootHandler` call. Mirroring it for `(Must)RegisterLocalMeta` is
+mechanical; deciding WHICH rules bind a multi-token local path is not, and a wrong
+choice reds the build for every one of the 33 registrations at once.
+
+**Surface 1 is unchanged, and the code now states the behavior as intentional.**
+`CheckRootNamespace` (`internal/component/command/grammar/checker.go`) loops on
+`b > 0`, so a leading hyphen gives an empty left segment and skips the loop
+entirely. Its doc comment now says so in as many words: "A leading '-' (a
+flag-shaped root such as `--plugins`) has an empty left segment and is never
+flagged." That is a description of what the code does, not a ruling that it should
+(`ai/rules/evidence.md`: a comment is its author's belief, not a decision record).
+
+**Status set to `blocked`.** This spec's own Task says the two Surface 1 questions
+run in order and "the second question is only reachable after the first", and the
+first is whether a root-level flag is legitimate CLI grammar at all given R3
+(`no --flag`). That is Thomas's to answer. Surface 2's rule-selection design is
+reachable independently, but landing it alone would leave the spec open anyway,
+and its rule set is easier to choose once Surface 1 says whether flag-shaped roots
+are legal.
+
+**The one subject.** The CLI grammar gate has three declaration surfaces and
+proves only two of them. `ai/rules/cli.md` lists the feeders: the static
+YANG-tree gate, registration-time `validateCommandName`, the runtime built-in
+guard, the root-namespace feeder, and the demo call-site gate. Neither of the two
+surfaces below reaches any of them, so a violation there is not caught by anything
+and is not visible in any report.
+
+**Surface 1: root handlers whose name begins with a hyphen.** `--plugins` is
+registered through `registry.MustRegisterRootHandler` (`cmd/ze/ze_core_dispatch.go`,
+and dispatched in the same file's `case "--plugins"`). `grammar.CheckRootNamespace`
+governs every registered root, but its hyphen-split guard requires a non-empty left
+segment, so a leading hyphen makes the name invisible to it rather than illegal.
+Two questions, in order: is a root-level flag legitimate CLI grammar at all, given
+R3 (`no --flag`), and if it is not, what verb form replaces it. The second question
+is only reachable after the first.
+
+**Surface 2: local-handler paths.** `MustRegisterLocalMeta` registers 33 paths
+across the tree. They are a third declaration surface: not YANG-tree commands, not
+root handlers. `ai/rules/evidence.md` is why this row exists rather than a
+claim that the namespace is fully governed -- a guard that cannot see a surface must
+say so, and this is that saying.
+
+**Why the two travel together.** Both are the same defect in the same guard: a
+declaration surface the grammar feeders do not enumerate. Fixing either one alone
+leaves `CheckRootNamespace` still describing itself as governing the root namespace
+while two ways of entering that namespace go unread. The verdicts on the individual
+commands found there are the second half of the work, not the first.
+
+-> Constraint: this is a gate-reach question, not a rename. Do not migrate
+`--plugins` to a verb form before the first question above is answered, or the
+answer gets decided by the migration rather than by the rule.
+
+## Required Reading
+
+<!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
+     Capture what you learned as -> Decision: / -> Constraint: annotations, which
+     survive compaction; track reading progress in the session state file. -->
+
+### Architecture Docs
+- [ ] `docs/architecture/<doc>.md` - [why relevant]
+  → Decision: [specific architectural decision that constrains this spec]
+  → Constraint: [specific rule from the doc that applies here]
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
+  → Constraint: [specific RFC rule that applies here]
+
+**Key insights:** (minimal context to resume after compaction)
+- [insight from docs]
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE you write this spec)
+- [ ] `path/to/file.go` - [what it currently does]
+
+**Behavior to preserve:** (unless the user explicitly said to change it)
+- [output format, function signature, or `.ci` expectation callers depend on]
+
+**Behavior to change:** (only what the user asked for)
+- [list, or "None - preserve all existing behavior"]
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- A developer or CI typing `le cli grammar`. The command is registered by
+  `init()` in `internal/le/cligrammar/register.go` as a `leroot.GroupGate`
+  command in `registry.SectionTest`, mode `offline`, answered by `Answer`
+  (`internal/le/cligrammar/actions.go`). It takes no argument, so the checkout
+  it runs in IS the input.
+- Format at entry: the checkout root from `lepath.Root()`, plus
+  `leroot.Owned()`, the list of le's own registered command names. The data the
+  gate then reads is the tree's `.yang` files and the `.go` sources under
+  `cmd/ze` and `internal`, as text parsed into Go ASTs.
+- The registration sites this spec is about are the 33
+  `registry.MustRegisterLocalMeta("<path>", ...)` calls in plugin `register.go`
+  files (for example `internal/plugins/skills/register.go`,
+  `internal/plugins/explain/register.go`). They enter the gate as AST call
+  expressions, or they do not enter it at all, which is the defect.
+
+### Transformation Path
+1. `Answer` calls `Check(tree, DefaultFloor, leroot.Owned())`
+   (`internal/le/cligrammar/cligrammar.go`).
+2. `Check` builds the YANG command tree through `yang.DefaultLoader` and
+   `yang.BuildCommandTree`, and `walk` judges it against R1-R8. This is the
+   YANG-mapped surface, and the owner ruling above puts root flags outside it.
+3. `scanGoSurface(tree)` (`internal/le/cligrammar/flags.go`) walks `cmd/ze` and
+   `internal`, parses each non-test `.go` file, and dispatches on the selector
+   name of each `registry.`/`cmdregistry.` call. Three names fill
+   `surface.Roots`: `RegisterRootHandler`, `MustRegisterRootHandler` and
+   `RegisterRoot`. `RegisterLocalMeta` and `MustRegisterLocalMeta` match no
+   case, so a local meta path is dropped here. This is the exact line the
+   remaining work lands on, and the comment above `scanGoSurface` records the
+   exclusion as deliberate.
+4. Each population is floored before it is used: `Check` refuses with exit 2
+   when the YANG file count, the parsed Go file count, the root count, the flag
+   set count, the demo script count or the le root count is below
+   `DefaultFloor`. A widened scan owes its own floor, or it can read nothing
+   and still report OK.
+5. `grammar.CheckRootNamespace(roots, namespaces)` produces the R9 findings,
+   filtered through `rootNamespaceExempt`, and the same function runs a second
+   time over `leRoots` with `leNamespaces` and `leNamespaceExempt`. Local metas
+   reach neither call.
+6. `Answer` returns the `Result` with exit 0 when valid, 1 when a finding
+   stands, and 2 when the tree could not be read. `leroot.RegisterShape` files
+   the answer as `command.ShapeDoc`, so `| json`, `| yaml` and `| table`
+   render it.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Engine ↔ Plugin | [JSON format, command syntax] | No |
+
+### Integration Points
+- [Existing function/type this connects to] - [how it integrates]
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+
+## Risks & Assumptions
+
+<!-- LIVE: written during RESEARCH/DESIGN, statuses updated during implementation.
+     Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis)
+     land HERE, not only in conversation. -->
+
+### Assumptions
+<!-- Every row needs a validation method. `unvalidated` is not a valid final
+     status: closure re-checks each one. A broken assumption also gets a
+     Mistake Log row and a Deviations entry. -->
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+
+## Blast Radius
+
+<!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
+| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
+| Who else touches this path? | [other plugins, components, or specs working the same files] |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+<!-- BLOCKING: proves the feature is reachable from its intended entry point.
+     Without it the feature exists in isolation: unit tests pass, nothing calls it.
+     Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+
+## Acceptance Criteria
+
+<!-- Define BEFORE implementation. Each row is a testable assertion, stated as
+     observable behavior, never as the mechanism used to reach it. -->
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | [what triggers the behavior] | [observable outcome] |
+
+## End-to-End User Stories
+
+<!-- One row per user-facing operation the feature enables. ACs verify that
+     components work; stories verify the chain is connected. A broken link in a
+     path is a spec gap: add the missing component to ACs, Files, and Test Plan
+     before proceeding. Delete this section when Scope is tooling or docs. -->
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+
+### Functional Tests
+<!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
+     the feature. New RPCs/APIs are never covered by unit tests alone.
+     Structure: ai/patterns/functional-test.md -->
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+
+### Interop Tests (Scope: protocol)
+<!-- REQUIRED when wire-visible behavior changes. See
+     ai/rules/interop-and-goal-validation.md, including the vacuity traps: prove
+     the test FAILS when the behavior under test is reverted. -->
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+
+## Files to Modify
+<!-- MUST include feature code (internal/*, cmd/*), not only test files.
+     Check each file's // Design: annotation: if the change alters behavior the
+     referenced architecture doc describes, list that doc here too. -->
+- `internal/...` - [feature changes]
+
+## Files to Create
+- `internal/...` - [new feature file]
+- `test/.../*.ci` - [functional test for end-user behavior]
+
+### Integration Checklist
+<!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
+     row is indistinguishable from a forgotten one. N-A needs a reason. -->
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
+| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
+| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
+| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
+| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
+| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
+| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
+| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+
+### Documentation Update Checklist (BLOCKING)
+<!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
+     check, not a guess: at minimum grep docs/ for source anchors pointing at the
+     files you changed. Any factual doc change carries a source anchor. -->
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | | `docs/features.md` |
+| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
+| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
+| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
+| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
+| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
+| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
+| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
+| 11 | Affects daemon comparison? | | `docs/comparison.md` |
+| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
+| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
+| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
+| 16 | Any changed source file referenced by existing doc source anchors? | | Grep `docs/` for `source: <changed-file>` and update each stale claim |
+| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+
+## Implementation Steps
+
+<!-- Concrete phases of work, not a restatement of the /ze-implement stages
+     (those live in the skill). Phase 1 is ALWAYS wiring. Order by dependency:
+     schema before resolution, resolution before CLI. Each phase follows TDD
+     (write test -> fail -> implement -> pass) and ends with a self-critical
+     review; fix what it finds before starting the next phase. -->
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
+   - Tests: [wiring test names from the Wiring Test table]
+   - Files: [register.go, handler skeleton, route registration]
+   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
+2. **Phase: [name]** -- [what to implement]
+   - Tests: [test names from the TDD Plan]
+   - Files: [files from Files to Modify]
+   - Verify: tests fail → implement → tests pass → wiring test progresses
+
+### Critical Review Checklist
+
+<!-- Feature-SPECIFIC checks. The generic ones in ai/rules/quality.md always
+     apply and are not repeated here. A row that would read the same on any spec
+     is not worth a row. -->
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | Every user story has a working path, no broken links |
+| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
+| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
+| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
+| Rule: [relevant rule] | [what to check] |
+
+### Deliverables Checklist
+
+<!-- Every deliverable with a command that proves it. "Looks done" is not a
+     verification method. -->
+| Deliverable | Verification method |
+|-------------|---------------------|
+| [concrete thing that must exist] | [grep/ls/test command] |
+
+### Security Review Checklist
+
+<!-- Feature-specific: untrusted input, injection, resource exhaustion, error
+     leakage, authorization that could fail open. -->
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | [what inputs need validation and how] |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+<!-- LIVE: write immediately when you learn something. At closure these route to
+     a subsystem arch doc, a rule, or the learned summary. -->
+
+## Key Design Decisions
+<!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+
+## Known Limitations
+<!-- Deliberate scope boundaries. Anything here that is actually outstanding work
+     needs a row in the deferral shard named in the metadata table. -->
+- [What was deliberately not done and why]
+
+## RFC Documentation (Scope: protocol)
+
+Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
+MUST document: validation rules, error conditions, state transitions, timer
+constraints, message ordering, and every MUST/MUST NOT.
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-N all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
+- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
+- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `cli-root-namespace-grammar.md`, 2026-07-17
+
+Deferred by spec-cli-root-namespace-grammar (Known Limitations).
+
+Extend the grammar gate to the local-handler surface (`MustRegisterLocalMeta` paths, now including `update serve`), which the Phase 6 root feeder does not cover

@@ -19,12 +19,12 @@ func TestAnchorAuditSeparatesDeclaredOwnersFromMentions(t *testing.T) {
 	// PREVENTS: treating every document edge as equally blocking or omitting the
 	// source file's stronger declaration.
 	root := citationTree(t, map[string]string{
-		"docs/architecture/api/ipc.md": "<!-- source: pkg/plugin/rpc/mux.go -- Mux -->\n",
-		"docs/why-ze.md":               "<!-- source: pkg/plugin/rpc/mux.go -- Mux -->\n",
-		"pkg/plugin/rpc/mux.go":        "// Design: docs/architecture/api/ipc.md -- wire lifetime\npackage rpc\n",
-		"plan/spec-a.md":               "## Files to Modify\n- `pkg/plugin/rpc/mux.go` - lifetime\n",
+		"docs/architecture/api/ipc.md":            "<!-- source: pkg/plugin/rpc/mux.go -- Mux -->\n",
+		"docs/why-ze.md":                          "<!-- source: pkg/plugin/rpc/mux.go -- Mux -->\n",
+		"pkg/plugin/rpc/mux.go":                   "// Design: docs/architecture/api/ipc.md -- wire lifetime\npackage rpc\n",
+		"plan/post-release/engineering/spec-a.md": "## Files to Modify\n- `pkg/plugin/rpc/mux.go` - lifetime\n",
 	})
-	report, err := AuditAnchors(root, "plan/spec-a.md")
+	report, err := AuditAnchors(root, "plan/post-release/engineering/spec-a.md")
 	if err != nil {
 		t.Fatalf("AuditAnchors: %v", err)
 	}
@@ -45,9 +45,9 @@ func TestAnchorAuditAcceptsOwnerNamedAnywhereInSpec(t *testing.T) {
 	root := citationTree(t, map[string]string{
 		"docs/x.md":       "<!-- source: internal/x/x.go -- X -->\n",
 		"internal/x/x.go": "// Design: docs/x.md -- x\npackage x\n",
-		"plan/spec-a.md":  "## Files to Modify\n- `internal/x/x.go` - x\n\n| 1 | Docs | No | `docs/x.md` is unaffected |\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-a.md": "## Files to Modify\n- `internal/x/x.go` - x\n\n| 1 | Docs | No | `docs/x.md` is unaffected |\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
-	report, err := AuditAnchors(root, "plan/spec-a.md")
+	report, err := AuditAnchors(root, "plan/post-release/engineering/spec-a.md")
 	if err != nil {
 		t.Fatalf("AuditAnchors: %v", err)
 	}
@@ -61,8 +61,8 @@ func TestAnchorAuditReadsOnlyTheSourceHeader(t *testing.T) {
 	// document for this audit.
 	// PREVENTS: a body comment being mistaken for the file header contract.
 	root := citationTree(t, map[string]string{
-		"docs/indexed.md": "<!-- source: internal/x/x.go -- X -->\n",
-		"plan/spec-a.md":  "## Files to Modify\n- `internal/x/x.go` - x\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"docs/indexed.md":                         "<!-- source: internal/x/x.go -- X -->\n",
+		"plan/post-release/engineering/spec-a.md": "## Files to Modify\n- `internal/x/x.go` - x\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
 	body := ""
 	for range 26 {
@@ -76,7 +76,7 @@ func TestAnchorAuditReadsOnlyTheSourceHeader(t *testing.T) {
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	report, err := AuditAnchors(root, "plan/spec-a.md")
+	report, err := AuditAnchors(root, "plan/post-release/engineering/spec-a.md")
 	if err != nil {
 		t.Fatalf("AuditAnchors: %v", err)
 	}
@@ -90,12 +90,12 @@ func TestSpecCitationCommandMapsTheAnchorAudit(t *testing.T) {
 	// spec_doc_anchors.py interface to anchors spec <path>.
 	// PREVENTS: hook cutover retaining an audit API with no command route.
 	root := citationTree(t, map[string]string{
-		"docs/x.md":            "<!-- source: internal/x/x.go -- X -->\n",
-		"internal/x/x.go":      "// Design: docs/x.md -- x\npackage x\n",
-		"plan/spec-command.md": "## Files to Modify\n- `internal/x/x.go` - x\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"docs/x.md":       "<!-- source: internal/x/x.go -- X -->\n",
+		"internal/x/x.go": "// Design: docs/x.md -- x\npackage x\n",
+		"plan/post-release/engineering/spec-command.md": "## Files to Modify\n- `internal/x/x.go` - x\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
 	setCitationAnswerRoot(t, root)
-	payload, code := Answer([]string{"anchors", "spec", "plan/spec-command.md"})
+	payload, code := Answer([]string{"anchors", "spec", "plan/post-release/engineering/spec-command.md"})
 	report, ok := payload.(AnchorReport)
 	if code != 1 {
 		t.Fatalf("anchor command = (%#v, %d)", payload, code)
@@ -106,7 +106,7 @@ func TestSpecCitationCommandMapsTheAnchorAudit(t *testing.T) {
 	if len(report.Owners) != 1 {
 		t.Fatalf("anchor command = %#v", report)
 	}
-	if _, code := Answer([]string{"anchors", "plan/spec-command.md"}); code != 2 {
+	if _, code := Answer([]string{"anchors", "plan/post-release/engineering/spec-command.md"}); code != 2 {
 		t.Fatalf("anchor command accepted a path without the spec selector, code %d", code)
 	}
 }
@@ -287,15 +287,15 @@ func sortedSet(set map[string]bool) []string {
 func TestTheAnchorGuardSeesAFileInASmallPackage(t *testing.T) {
 	root := citationTree(t, map[string]string{
 		// Three files in one package: the bullet shape, exactly at the bound.
-		"docs/small-owner.md":     "<!-- source: internal/small/one.go -- One -->\n",
-		"docs/small-other.md":     "<!-- source: internal/small/one.go, two.go, three.go -- the package -->\n",
-		"internal/small/one.go":   "// Design: docs/small-owner.md -- one\npackage small\n",
-		"internal/small/two.go":   "package small\n",
-		"internal/small/three.go": "package small\n",
-		"plan/spec-small.md":      "## Files to Modify\n- `internal/small/one.go` - one\n", // <!-- doc-links: ignore (a fixture path this case writes into its own temporary tree, never into the checkout) -->
+		"docs/small-owner.md":                         "<!-- source: internal/small/one.go -- One -->\n",
+		"docs/small-other.md":                         "<!-- source: internal/small/one.go, two.go, three.go -- the package -->\n",
+		"internal/small/one.go":                       "// Design: docs/small-owner.md -- one\npackage small\n",
+		"internal/small/two.go":                       "package small\n",
+		"internal/small/three.go":                     "package small\n",
+		"plan/post-release/engineering/spec-small.md": "## Files to Modify\n- `internal/small/one.go` - one\n", // <!-- doc-links: ignore (a fixture path this case writes into its own temporary tree, never into the checkout) -->
 	})
 
-	report, err := AuditAnchors(root, "plan/spec-small.md")
+	report, err := AuditAnchors(root, "plan/post-release/engineering/spec-small.md")
 	if err != nil {
 		t.Fatalf("AuditAnchors: %v", err)
 	}

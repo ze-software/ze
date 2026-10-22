@@ -37,22 +37,27 @@ var (
 	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
 	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
 	// and the two per-prompt reminders are gone with their fixtures.
+	// Re-sealed 2026-10-23 for spec-plan-release-organization: the delegation
+	// message names plan/post-release/engineering/spec-fixture.md. No verdict,
+	// fixture identity, generator or population changed.
 	fixtureSiteDigest = [sha256.Size]byte{
-		0x81, 0x44, 0xd2, 0xeb, 0x3e, 0x4b, 0x71, 0x72,
-		0xee, 0x0c, 0x0e, 0xa4, 0xa9, 0x63, 0x83, 0x6e,
-		0x02, 0x1d, 0x62, 0x0a, 0xc6, 0x30, 0x10, 0xbf,
-		0x31, 0x8d, 0xaf, 0xb9, 0xb3, 0x3c, 0x9c, 0xf8,
+		0xdf, 0xa6, 0x29, 0xe8, 0xea, 0x03, 0xe4, 0x8e,
+		0x43, 0x27, 0x14, 0xdd, 0x90, 0xbc, 0xa4, 0xc6,
+		0x83, 0x90, 0x0f, 0xed, 0x14, 0x89, 0x77, 0x3e,
+		0x31, 0xc4, 0xff, 0xe3, 0xe8, 0x2b, 0xf0, 0x06,
 	}
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: it hashes the site and
 	// category text above, which name the subject-first commands.
 	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
 	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
 	// and the two per-prompt reminders are gone with their fixtures.
+	// Re-sealed 2026-10-23 for spec-plan-release-organization: the expanded
+	// delegation fixture carries the same relocated spec path as its site.
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0xb1, 0x38, 0xf7, 0xcb, 0x63, 0x56, 0x93, 0xab,
-		0x34, 0x36, 0x7b, 0x98, 0x19, 0x9a, 0xc9, 0x44,
-		0xb4, 0x76, 0x06, 0x7e, 0x98, 0xbc, 0x32, 0xe5,
-		0x3c, 0x46, 0xd8, 0xac, 0x37, 0x3d, 0xe8, 0x01,
+		0xa4, 0x7a, 0x91, 0xbf, 0x85, 0x58, 0x18, 0x52,
+		0x75, 0xe2, 0xf6, 0x11, 0x9a, 0x3b, 0x43, 0x0a,
+		0x9c, 0x2c, 0x8f, 0x8b, 0x5e, 0x90, 0x5a, 0xc3,
+		0xa6, 0x25, 0x93, 0x3c, 0x5a, 0xdc, 0xa3, 0xe3,
 	}
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
@@ -62,11 +67,14 @@ var (
 	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
 	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
 	// and the two per-prompt reminders are gone with their fixtures.
+	// Re-sealed 2026-10-23 for spec-plan-release-organization: governed-doc
+	// allow/refuse examples use the current post-release/engineering category.
+	// The category population and producer mappings are unchanged.
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0x5e, 0xde, 0x8a, 0xd9, 0x52, 0x3e, 0x3a, 0x21,
-		0x69, 0x70, 0xab, 0x3a, 0x8a, 0xe4, 0x3f, 0x4e,
-		0x67, 0x62, 0x64, 0x49, 0x5e, 0x6f, 0x16, 0x9e,
-		0xd8, 0x46, 0x3b, 0xa7, 0xd8, 0x2e, 0x40, 0xaf,
+		0x5e, 0xf6, 0x44, 0xde, 0x93, 0x7a, 0xbb, 0x76,
+		0xcb, 0x6b, 0x57, 0x6f, 0x6e, 0x22, 0x32, 0xb3,
+		0xd3, 0x90, 0x58, 0x7d, 0x54, 0x39, 0x61, 0x24,
+		0xab, 0xab, 0xa0, 0x8e, 0xae, 0x62, 0x75, 0x24,
 	}
 	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
@@ -194,11 +202,17 @@ var (
 	// ai/doors other than README.md with no usable header refuses, a file
 	// outside the checkout after symlink resolution is not gated, the
 	// unreadable-doors refusal is split by cause, and the marker escapes `+`.
+	// Re-sealed 2026-10-23 for spec-plan-release-organization: subagent context
+	// resolves the claim in current categories (and explains resolution errors),
+	// validation refuses obsolete categories, and design evidence uses current
+	// spec discovery. Also includes the previously committed a887d11f38 cleanup:
+	// FieldsSeq in doorBases and AsType in writeDesignDoorsRead, with unchanged
+	// behavior. The prior seal matches the sources immediately before that commit.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xfb, 0x11, 0xd1, 0x58, 0x66, 0xee, 0xf1, 0x38,
-		0xbb, 0x63, 0x10, 0xd5, 0x11, 0x3c, 0x08, 0xa7,
-		0xf2, 0x67, 0xfb, 0xed, 0xbc, 0x9b, 0x09, 0xe4,
-		0x98, 0xcd, 0x30, 0xb8, 0x50, 0x1a, 0x3c, 0xe9,
+		0xf9, 0xa6, 0x03, 0xc3, 0x4b, 0x1f, 0x45, 0xf7,
+		0x81, 0x35, 0x89, 0x20, 0xd5, 0xc9, 0x75, 0x10,
+		0x9e, 0x06, 0xbe, 0x8d, 0x42, 0xb3, 0x4a, 0x47,
+		0xf8, 0x09, 0x61, 0xc9, 0xc4, 0xec, 0x4a, 0x4a,
 	}
 )
 
@@ -252,7 +266,7 @@ var fixtureCategories = [...]fixtureCategory{
 	{categoryWeakenedHatch, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, probeLedgeredSkip, probeUnledgeredSkip},
 	{categoryRFCApproval, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, probeLedgeredEdit, probeUnledgeredEdit},
 	{categoryDraftIncubator, "run_draft_incubator", hookWriteEditFile, writeWeakeningAnchor, "test/draft/probe_test.go", "test/unit/probe_test.go"},
-	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
+	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/post-release/engineering/spec-x.md", "echo x > plan/post-release/engineering/spec-x.md"},
 	{categoryMarkSourceRead, "run_mark_source_read", hookLifecycleFile, "func hookSourceRead(", "internal/probe/probe.go", "docs/probe.md"},
 	{categoryDesignGate, "run_design_gate", hookWriteEditFile, "func writeDesignEvidence(", "source-read", "no-source-read"},
 	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "no-claimed-spec", probeClaimedSpec},
@@ -678,8 +692,8 @@ func designGateTree(value string) (string, error) {
 // own Status row, so a payload on its own tells it nothing.
 func specStatusTree(value string) (string, error) {
 	return probeTree("spec-status", map[string]string{
-		"tmp/session/.session-" + probeSession: probeSpecName + "\n",
-		"plan/" + probeSpecName:                "| Status | " + value + " |\n",
+		"tmp/session/.session-" + probeSession:           probeSpecName + "\n",
+		"plan/post-release/engineering/" + probeSpecName: "| Status | " + value + " |\n",
 	})
 }
 
@@ -984,7 +998,7 @@ None.
 // it. The hook re-reads the file from disk rather than judging what the payload
 // carried, so the body has to exist under a root the probe owns.
 func validateSpecTree(value string) (string, error) {
-	return probeTree("validate-spec", map[string]string{"plan/" + probeSpecName: value})
+	return probeTree("validate-spec", map[string]string{"plan/post-release/engineering/" + probeSpecName: value})
 }
 
 // probeClaimedSpec is the fixture value that asks claimedSpecTree for a
@@ -1000,7 +1014,8 @@ func claimedSpecTree(value string) (string, error) {
 		return probeTree(probeClaimedSpec, nil)
 	}
 	return probeTree(probeClaimedSpec, map[string]string{
-		"tmp/session/.session-" + probeSession: probeSpecName + "\n",
+		"tmp/session/.session-" + probeSession:           probeSpecName + "\n",
+		"plan/post-release/engineering/" + probeSpecName: "| Status | in-progress |\n",
 	})
 }
 
@@ -1121,7 +1136,7 @@ func wroteASourceMarker(said probeAnswer) (bool, error) {
 // namedTheClaimedSpec reports whether the subagent context carries the spec the
 // parent session claimed.
 func namedTheClaimedSpec(said probeAnswer) (bool, error) {
-	return strings.Contains(said.output, "plan/"+probeSpecName), nil
+	return strings.Contains(said.output, "plan/post-release/engineering/"+probeSpecName), nil
 }
 
 // keptTheStateText reports whether the value survives in the state file the
@@ -1167,7 +1182,7 @@ var categoryProbes = map[string]categoryProbe{
 	categoryGovernedDocEdit:      {check: "bashGovernedWrite", tool: "Bash", slot: slotCommand},
 	categoryRawJobAdmission:      {check: "bashRawHeavy", tool: "Bash", slot: slotCommand},
 	categoryYangDescription:      {check: "writeYangDescription", tool: toolWriteName, file: "internal/plugins/probe/yang/probe.yang", slot: slotContent},
-	categoryDesignGate:           {check: "writeDesignEvidence", tool: toolWriteName, file: "plan/" + probeSpecName, slot: slotContent, session: probeSession, tree: designGateTree},
+	categoryDesignGate:           {check: "writeDesignEvidence", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotContent, session: probeSession, tree: designGateTree},
 	categoryCommitGate:           {check: "postDeferral", tool: toolWriteName, file: "docs/probe.md", slot: slotContent},
 	categoryTestFirst:            {check: "writeSpecStatus", tool: toolWriteName, file: probeGoPath, slot: slotOffPayload, session: probeSession, tree: specStatusTree},
 	categoryJournalRowShape:      {check: "postJournal", tool: toolWriteName, file: probeJournalPath, slot: slotOffPayload, tree: journalTree},
@@ -1175,7 +1190,7 @@ var categoryProbes = map[string]categoryProbe{
 	categoryRFCApproval:          {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcApprovalTree},
 	categoryWeakenedHatch:        {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: weakenedHatchTree},
 	categoryDraftIncubator:       {check: weakeningCheckName, tool: toolWriteName, slot: slotPath, tree: draftIncubatorTree},
-	categoryValidateSpec:         {lifecycle: "validate-spec", tool: toolWriteName, file: "plan/" + probeSpecName, slot: slotOffPayload, tree: validateSpecTree},
+	categoryValidateSpec:         {lifecycle: "validate-spec", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotOffPayload, tree: validateSpecTree},
 	categorySessionID:            {lifecycle: "session-id", slot: slotSessionID},
 	categoryMarkSourceRead:       {lifecycle: "mark-source-read", slot: slotPath, session: probeSession, tree: blankProbeTree, answer: wroteASourceMarker},
 	categoryDelegation:           {lifecycle: "block-premature-stop", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree},

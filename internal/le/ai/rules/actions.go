@@ -288,7 +288,7 @@ func routerAnswer() (any, int) {
 // word, and digest_constants_python_test.go compares it to the Python by value.
 const emptyCorpusWarning = "the task corpus is empty, so no blocking rule can be shown " +
 	"unreachable and ai/rules/CORE.md loses that derivation -- check that " +
-	"plan/spec-*.md is readable"
+	"the declared plan category directories are readable"
 
 // reportEmptyCorpus writes that sentence.
 //

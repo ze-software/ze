@@ -1,0 +1,174 @@
+# Closure sections (append to the spec at /ze-close step 1)
+
+<!-- NOT a standalone spec. Append this file's sections (everything below the
+     horizontal rule) to plan/<work-folder>/spec-<name>.md when implementation is done and you
+     are heading for the audit, the review gate, and the two-commit closure.
+
+     Why it is separate from plan/templates/TEMPLATE.md: measured on 2026-07-25 across 161
+     specs, sections copied at spec CREATION but only used at CLOSURE reached
+     closure byte-identical to the template in 65-75% of in-progress specs
+     (Files Exist 11/15, AC Verified 11/15, Wiring Verified 9/12, Final status
+     11/17). The sections authors created when they needed them -- Goal
+     Validation, Implementation Summary, Key Design Decisions -- were untouched
+     in 0%. Distance from use, not difficulty, is what killed them. -->
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- [actual changes made]
+
+### Bugs Found/Fixed
+- [bugs discovered along the way, each with the test that now covers it]
+
+### Documentation Updates
+- [docs updated, naming each source anchor, or "None" with the grep that proves it]
+- [`./le doc check verify` result if docs changed]
+
+### Deviations from Plan
+- [what differed from the spec and why]
+
+## Mistake Log
+
+<!-- One table, one place. Ship the `none` row and either replace it or leave it
+     deliberately: three separate empty tables produced three separate 67-82%
+     untouched rates, because an empty table asks nothing.
+     Kind: assumption (a broken A-N) | approach (a route abandoned) | escalation
+     (a mistake frequent enough to deserve a rule). -->
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+<!-- BLOCKING before closure. See ai/rules/completion.md.
+     Status: Done (with file:line) | Partial | Skipped | Changed.
+     Partial and Skipped both require explicit user approval. -->
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+
+### Audit Summary
+- **Total items:**
+- **Done:**
+- **Partial:** (each needs user approval)
+- **Skipped:** (each needs user approval)
+- **Changed:** (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+<!-- Maps each goal from the Task section to proof it was achieved. "Tests pass"
+     is not evidence for a goal; a named test with its output is.
+     See ai/rules/interop-and-goal-validation.md for the required evidence per
+     goal type, and for the vacuity traps: a test that would still pass with the
+     behavior reverted proves nothing. -->
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| [what the feature is meant to achieve] | [interop / functional / benchmark / chaos test] | [test name, output, or file reference] |
+
+## Work Not Done
+
+<!-- Every in-scope item this spec did not do. Each one is a spec of its own by
+     now, in the bucket that item belongs to (plan/README.md), and this table
+     names it. There is no shard and no deferral row: a row nobody can count is a
+     row nobody schedules, which is why plan/deferrals/ was deleted on 2026-09-05
+     holding 103 live rows, 29 of which named no destination at all.
+     Scope reduction is the owner's decision, never the author's
+     (ai/rules/completion.md). -->
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| [the item] | [why this spec did not do it] | `plan/<bucket>/spec-<stem>.md` |
+
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md). The review is INDEPENDENT: reviewer
+     subagents or a fresh session over the actual diff, never your own inline
+     reasoning about code you just wrote.
+
+     Record the machine-checked artifact with:
+     ./le spec review record spec <spec> verdict CLEAN rounds <N> file <path> ...
+     Then check the reviewed population with:
+     ./le spec review check spec <spec> file <path> ...
+     rounds is the pass count and is required; more than five needs
+     rounds-reason naming the PRODUCT defect a later round found, AND
+     owner-authorised carrying Thomas's word, because more than five passes
+     is his decision (owner ruling 2026-08-17). At the cap you stop and ask him;
+     you never set that keyword on your own initiative. A false statement in
+     this record is a NOTE, never a reason for another round (ai/rules/planning.md).
+     ./le commit create checks the closure commit for a fresh, hash-pinned,
+     CLEAN artifact. Closure is the spec removal in commit B; a journal row
+     never makes commit A a closure. This table preserves the findings and
+     fixes in the committed spec; it does not replace the artifact or require
+     a separate learned summary. -->
+
+| Field | Value |
+|-------|-------|
+| Artifact | [path printed by `./le spec review record`] |
+| `./le spec review check` | [clean / not run] |
+| Rounds | [N, and for N>5 the product defect that earned each extra round] |
+| Reviewer lenses used | [e.g. logic+wiring, security+edge-cases, feature risk area] |
+
+### Findings fixed
+<!-- Only BLOCKER and ISSUE. NOTEs do not block: record them and proceed.
+     Every fix is new code that needs a fresh pass, so re-run until clean. -->
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+## Pre-Commit Verification
+
+<!-- BLOCKING. Do NOT trust the audit above: re-verify independently and paste
+     the evidence. For each row run a command (ls, grep, go test -run) now.
+
+     EVERY sub-table needs at least one data row: pre_commit_verification_gaps
+     in internal/le/commit/prepare.go checks them one by one and names the empty
+     ones. A row in Files Exist is not evidence for AC Verified.
+     Not acceptable: "already checked", "should work", a pointer to the audit. -->
+
+### Files Exist (ls)
+<!-- Every file in "Files to Create", and every .ci named in Wiring Test and
+     Functional Tests. Paste the ls output. -->
+| File | Exists | Evidence |
+|------|--------|----------|
+
+### AC Verified (grep/test)
+<!-- Every AC-N, re-checked. Acceptable: test name + pass output, grep showing
+     the call, ls showing the file. -->
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+
+### Wiring Verified (end-to-end)
+<!-- Every Wiring Test row: does the .ci exist AND exercise the claimed path?
+     Read the file; do not infer it from its name. -->
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+
+### Assumptions Resolved
+<!-- Every A-N. `unvalidated` is not a valid final status. A broken assumption
+     needs a Mistake Log row and a Deviations entry. -->
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+
+### Documentation Verified
+<!-- Every Yes in the Documentation checklist: verify the edited claim against
+     source. Every No: paste the grep that proves no update was needed. -->
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+
+## Core Insight
+<!-- Optional: the single most important design revelation from this work.
+     Not every spec has one. Delete the section if nothing qualifies.
+     Route it to the governing surface under ai/rules/planning.md. -->

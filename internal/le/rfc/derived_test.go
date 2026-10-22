@@ -92,19 +92,19 @@ func TestTheRebuildAnswersNothingForATreeWithNoSummaries(t *testing.T) {
 func TestTheRFCArtifactsAreFedByEverySourceTheRenderReads(t *testing.T) {
 	artifact := registeredArtifact(t, ledgerRel)
 	feeds := map[string]string{
-		"rfc/short/rfc4271.md":                           "Collect: every requirement and every Meta row",
-		"rfc/audit/rfc4271.json":                         "loadAudits: the verdicts and the freshness states",
-		"rfc/discrimination/rfc4271.json":                "loadDiscrimination: the recorded breaks",
-		"rfc/extraction/rfc4271.json":                    "renderExtractionTable -> evaluateExtractions -> LoadExtractions",
-		"rfc/full/rfc4271.txt":                           "evaluateExtractions -> Deriver.Inventory -> SourceText",
-		"rfc/drafts/draft-ietf-idr-bgp-model.txt":        "the same walk, for an RFC enrolled as a draft",
-		".github/workflows/nightly.yml":                  "carriers -> scheduledWorkflowActions -> readWorkflowSources",
-		"internal/component/bgp/message/rfc7606_test.go": "tagCovers: a tag carrier",
-		"test/plugin/open-hold-time.ci":                  "tagCovers: a tag carrier",
-		"internal/component/bgp/reactor/reactor.go":      "unscannedTags: an unclaimed `RFC requirement:` comment",
-		"internal/le/interoplab/ipsec/checkers.go":       "unscannedTags, over native interop Go",
-		"plan/immediate/spec-ipsec-remote-access.md":     "relocationErrors: a spec a relocated-to site names",
-		"plan/spec-ipsec-ipcomp.md":                      "relocationErrors, for a spec at the plan/ root",
+		"rfc/short/rfc4271.md":                            "Collect: every requirement and every Meta row",
+		"rfc/audit/rfc4271.json":                          "loadAudits: the verdicts and the freshness states",
+		"rfc/discrimination/rfc4271.json":                 "loadDiscrimination: the recorded breaks",
+		"rfc/extraction/rfc4271.json":                     "renderExtractionTable -> evaluateExtractions -> LoadExtractions",
+		"rfc/full/rfc4271.txt":                            "evaluateExtractions -> Deriver.Inventory -> SourceText",
+		"rfc/drafts/draft-ietf-idr-bgp-model.txt":         "the same walk, for an RFC enrolled as a draft",
+		".github/workflows/nightly.yml":                   "carriers -> scheduledWorkflowActions -> readWorkflowSources",
+		"internal/component/bgp/message/rfc7606_test.go":  "tagCovers: a tag carrier",
+		"test/plugin/open-hold-time.ci":                   "tagCovers: a tag carrier",
+		"internal/component/bgp/reactor/reactor.go":       "unscannedTags: an unclaimed `RFC requirement:` comment",
+		"internal/le/interoplab/ipsec/checkers.go":        "unscannedTags, over native interop Go",
+		"plan/release/fixes/spec-ipsec-remote-access.md":  "relocationErrors: a spec a relocated-to site names",
+		"plan/post-release/features/spec-ipsec-ipcomp.md": "relocationErrors, for a post-release feature spec",
 	}
 	for path, walk := range feeds {
 		if !artifact.Feeds(".", path) {

@@ -78,7 +78,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 | Daemon | Version | Image | Query Method | What It Validates |
 |--------|---------|-------|--------------|-------------------|
 | FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
-| BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Alpine 3.24.3 (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (owner decision M14); Alpine 3.24 packages 3.2.4 | birdc | eBGP, route exchange, triangle topologies |
+| BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (owner decision M14); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name | eBGP, route injection and verification |
 | StayRTR | 0.6.4 | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | pmacct `pmbmpd` | 1.8.0 | `pmacct/pmbmpd:v1.8.0` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
@@ -679,7 +679,7 @@ daemon that applies no AppArmor the option is left out. `ze-kernel-probe` parses
 <!-- source: internal/le/interoplab/apparmor.go -- labAppArmorProfileMissing, labAppArmorUnapplied, labAppArmorRefusal, appArmorLoadUnreachable -->
 
 A lab peer runs with no more than its daemon needs, never `--privileged`
-(`plan/pre-release/spec-lab-containers-least-privilege.md`). A sysctl set once
+(`plan/release/validation/spec-lab-containers-least-privilege.md`). A sysctl set once
 before the daemon starts is a `--sysctl` argument, written by Docker into the
 peer's own network namespace. A sysctl written while the peer runs takes
 `interoplab.NetSysctlWriteArguments` (`systempaths=unconfined`) together with

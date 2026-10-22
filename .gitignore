@@ -18,7 +18,7 @@ tmp/*
 *.test
 
 # Derived committed-tree release inventory.
-/plan/roadmap.md
+/plan/release/roadmap.md
 
 # Build outputs (kernel, initrd, pxe, ipxe)
 build/

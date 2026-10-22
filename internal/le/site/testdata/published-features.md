@@ -535,4 +535,4 @@ Implemented and tested, still waiting for production evidence.
 
 ## Release roadmap
 
-The [release inventory](https://ze-software.net/project/roadmap/) lists remaining release work items and nice-to-haves from committed specs. It is an inventory preview pending owner classification.
+The [release inventory](https://ze-software.net/project/roadmap/) lists remaining release work, post-release work, and proposals from committed specs. Classification is not release-readiness proof.

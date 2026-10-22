@@ -55,9 +55,7 @@ func closureInventory(root string) (ClosureReport, []string, error) {
 	}
 	paths := make([]string, 0, len(relatives))
 	for _, relative := range relatives {
-		if filepath.Base(relative) != specTemplateFile {
-			paths = append(paths, filepath.Join(root, filepath.FromSlash(relative)))
-		}
+		paths = append(paths, filepath.Join(root, filepath.FromSlash(relative)))
 	}
 	stems := make(map[string]bool, len(paths))
 	for _, path := range paths {

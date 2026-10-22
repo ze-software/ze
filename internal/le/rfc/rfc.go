@@ -57,11 +57,9 @@ const (
 	referenceReadmeRel = "reference/README.md"
 )
 
-// specDirNames are the release buckets a spec can live in. They come from
-// specpath, the one declaration of that layout, so the validator and the
-// resolver can never disagree about where a spec is (ai/rules/evidence.md).
-// This gate spelled "plan" alone until the buckets arrived, and it then refused
-// every relocation to a spec in plan/immediate/ or plan/pre-release/.
+// specDirNames lists current spec buckets for derived-feed invalidation.
+// Artifact recognition uses specpath.HistoricalDirs separately, because signed
+// records retain their original paths when specs move between buckets.
 func specDirNames() []string { return specpath.Dirs() }
 
 // testRoots are the source trees that can contain requirement tags.

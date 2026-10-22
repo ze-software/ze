@@ -14,7 +14,7 @@
 | RFCs | rfc9728 |
 | Docs | docs/features/ai-first.md |
 | Doc review | 2026-10-07: the row is one line (CLI-as-API with MCP transport); internal/component/mcp serves it |
-| Defect review | 2026-10-07: open: plan/immediate/spec-mcp-protected-resource-metadata-path.md (RFC 9728 metadata path) |
+| Defect review | 2026-10-07: open: plan/release/fixes/spec-mcp-protected-resource-metadata-path.md (RFC 9728 metadata path) |
 
 ## Description
 

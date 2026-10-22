@@ -67,7 +67,7 @@ func TestReviewArtifactIsSessionScopedAndDetectsAStaleFile(t *testing.T) {
 	// clean verdict.
 	root := reviewFixture(t)
 	request := reviewRecord{
-		Spec: "plan/spec-demo.md", Verdict: "clean", Rounds: 1,
+		Spec: "plan/post-release/engineering/spec-demo.md", Verdict: "clean", Rounds: 1,
 		Files: []string{"pkg/a.go"}, Model: "claude-opus-5", SessionID: "session-a",
 		Now: time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC),
 	}

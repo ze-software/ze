@@ -151,7 +151,7 @@ Because Ze is single-instance today. An instance-rooted namespace (`show router
 disambiguate. Adopting it now would be verbosity with no instance to select.
 
 Forward-looking: VRF / routing-instance support is designed in
-[`plan/spec-vrf-0-umbrella.md`](../../../plan/spec-vrf-0-umbrella.md) (agreed
+[`plan/post-release/features/spec-vrf-0-umbrella.md`](../../../plan/post-release/features/spec-vrf-0-umbrella.md) (agreed
 with user), and it **does adopt the instance-first form**: `show vrf <name>
 <object>` (e.g. `show vrf surfprotect route`), with the default VRF keeping the
 bare, unwrapped command (`show route`). This is deliberately the Nokia-shaped

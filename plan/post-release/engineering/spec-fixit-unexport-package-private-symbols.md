@@ -1,0 +1,498 @@
+# Spec: fixit-unexport-package-private-symbols
+
+| Field | Value |
+|-------|-------|
+| Status | ready |
+| Priority | P3 |
+| Release reason | Release-independent fixit unexport package private symbols work; historical findings do not establish a current product defect. |
+| Scope | tooling |
+| Depends | - |
+| Phase | 7/8 |
+| Updated | 2026-10-09 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+-> Decision (owner, 2026-10-08): this spec stays in scope as a long-running, multi-session effort. It is not near-done work in progress: the `Phase 7/8` above counts phases of the method, not the backlog, which the 2026-09-05 measurement below puts at up to 1993 exported declarations. A session takes a bounded batch, commits it, and leaves the spec open.
+
+## Correction 2026-09-05: this spec is NOT closeable, and a green check does not say it is
+
+A closure pass opened this spec on the reading that `./le repo check`
+passes with no `has no cross-package non-test caller` finding, so the backlog
+had drained. **That reading is wrong, and the check cannot support it.**
+
+`checkCrossPackageWiring` (`internal/le/repository/wiring.go`) builds its
+population from `declaredSymbols(tree, changed)`, and `changed` is whatever
+`ChangedFiles` (`internal/le/repository/repository.go`) answers: `git diff
+--name-only HEAD` plus `git ls-files --others --exclude-standard`. A symbol
+declared in a file nobody is editing is therefore never examined, in either
+mode. `./le repo tree-check` passes an explicitly empty changed set, so it
+examines none of them. A green run says the CHANGED files are clean. It says
+nothing about the tree. `plan/journal/gate-excludes-part-of-its-population.md`
+carries this as a 2026-08-18 row and a 2026-09-05 row.
+
+Measured on 2026-09-05, with a sweep that mirrors `hasCrossPackageRef` (a bare
+word search over non-test `.go` files outside the declaring directory, across
+the same `searchDirs`: `cmd`, `demos`, `docker`, `internal`, `pkg`, `tools`):
+**1993 exported declarations over 8569 Go files have no cross-package non-test
+reference.** That count applies none of the check's suppressions (a type reached
+through its constants or as a struct field, a method reached by interface
+dispatch, a `*ForTest` name), so it is an UPPER BOUND on the finding count and
+not the finding count. It is not near zero, which is the only thing the closure
+question needed.
+
+One member, verified by hand rather than by the sweep: `ExtractValues`
+(`cmd/ze/internal/cmdutil/cmdutil.go`) is exported, and its only non-test caller
+is `cmdutil.go` itself at the `res.Relative, res.Values, res.InlineAt =
+ExtractValues(...)` line in the same package. It is a genuine finding that
+`./le repo check` will not report until somebody edits that file.
+
+**The spec stays OPEN.** Two things it needs before anybody can work it again:
+
+1. The bucket-7 worklist is GONE. `tmp/unexport-bucket-7-remaining.tsv`,
+   `tmp/unexport-rename-driver.py`, `tmp/unexport-skipped-named-outside-go.tsv`
+   and `tmp/unexport-handoffs-buckets-1-6-8.md` are all absent from the tree
+   (`ls tmp/unexport-*` reports no such file). `tmp/` is scratch, so the
+   worklist did not survive its session. The next pass re-derives the worklist;
+   it does not look for those files.
+2. The population has to be re-derived from the tree rather than from the gate,
+   because the gate cannot see the tree. That derivation is what step 0 below
+   describes, and it must run against a whole-tree symbol set.
+
+## Provenance
+
+Reclassified as an improvement on 2026-08-14 at Thomas's instruction and moved
+from `plan/` to `plan/future/`. Reason: `plan/future/README.md` names this exact
+work as its own example of a cleanup with no wire-visible or operator-visible
+effect. Every change is a rename, so no behaviour moves.
+
+## Task
+
+`./le repo check` reported 467 findings of the form `exported symbol X has
+no cross-package non-test caller` on one large working tree in 2026-08. They are
+true: each names a symbol that is exported but reached only from inside its own
+package. **467 is not the tree's total and never was**: the check reads only the
+files the working tree changed, so the number it prints is a property of that
+tree's diff. See the 2026-09-05 correction above for what a whole-tree sweep
+measures. The current classifier is `checkCrossPackageWiring` in
+`internal/le/repository/wiring.go`. Its suppressions include `*ForTest`,
+types reached through other declarations, and interface-dispatched methods.
+Apply those current suppressions when deriving the remainder; an unsuppressed
+word-search count is only an upper bound.
+
+The fix for each is one rename: `Foo` becomes `foo`. Nothing is deleted.
+
+**This task is written to be executed by a small model.** Every trap is a
+pre-check that HALTS, never a judgement. The safety mechanism is `gopls rename`
+itself, which is type-aware across packages and test files and REFUSES an unsafe
+rename with the reason. A refusal is a skip, not a problem to solve.
+
+Worked example of a refusal, run against this tree:
+
+```
+$ gopls rename internal/component/config/transaction/solver.go:17:6 topologicalSort
+gopls: transaction/solver.go:17:6: renaming "TopologicalSort" to "topologicalSort"
+  would make it unexported
+iface/operation_address_swap_test.go:29:20: breaking references from packages
+  such as "github.com/ze-software/ze/internal/component/iface"
+```
+
+That symbol is skipped. No edit, no decision.
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `ai/rules/commands.md` - which commands are allowed, and why a bare `go build` is refused by a hook
+  → Constraint: use `go vet` to compile-check; `go build` without `-o bin/` is blocked
+- [ ] `ai/rules/go-standards.md` - naming
+  → Constraint: an unexported name keeps the same spelling with a lower-case first letter
+
+**Key insights:**
+- `gopls rename` uses one build context at a time. A reference that exists only
+  in a `_linux.go` file is invisible to it on a darwin host, so the `GOOS=linux`
+  compile in step 4 is what catches that, not the rename.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/le/repository/wiring.go` - `declaredSymbols` selects declarations from the supplied file set; `checkCrossPackageWiring` checks callers and suppressions
+- [ ] `internal/le/` native action tables - `ZE_FEATURES` at line 87 and the tag sets at 239, 243, 262
+
+**Behavior to preserve:**
+- Every symbol keeps its behavior. This is a rename, never a deletion, never a signature change.
+- Generated files are not edited.
+
+**Behavior to change:**
+- Every eligible export in the refreshed whole-tree worklist becomes package-private, subject to the recorded refusal rules. Historical counts do not define the remaining population.
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- A whole-tree declaration inventory, with the current wiring check's suppressions, supplies the worklist. `./le repo check` supplies changed-file feedback only.
+
+### Transformation Path
+1. Record the whole-tree inventory as rows of `file`, `line`, `symbol`, with each exclusion or refusal and its reason.
+2. `gopls rename -w` each one, or record its refusal.
+3. Compile and test the package under every tag set and both operating systems.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| darwin build view ↔ linux build view | `GOOS=linux go vet` after the rename | No |
+
+### Integration Points
+- `internal/le/repository/wiring.go` `checkCrossPackageWiring` supplies the classification rules and changed-file feedback; a whole-tree inventory is still required for AC-3
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | N-A | rename only |
+| No unintended coupling (components stay isolated) | N-A | reduces surface |
+| No duplicated functionality (extends existing, does not recreate) | N-A | no new code |
+| Zero-copy preserved where applicable | N-A | no wire path |
+| Registration over hardcoding | N-A | no plugin surface |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | `gopls rename` refuses every unsafe rename rather than producing a broken tree | run against `TopologicalSort`, which it refused, naming the external test package | a broken build reaches a commit | the refusal above, plus step 4 compiling under every tag set | confirmed |
+| A-2 | A reference visible only under a different GOOS is caught by the compile, not the rename | `gopls` uses one build context | a linux-only reference breaks the linux build | `GOOS=linux go vet` in step 4 | confirmed: `internal/chaos/peer/simulator_actions_iface_linux.go` (`ChaosResult`) and `internal/component/l2tp/ppp/ipv6_service_linux.go` (`IPv6ServiceConfig`, `NewIPv6Service`) each broke the linux view and were caught there, not by the rename |
+| A-3 | No flagged symbol is reached by reflection or by name from a non-Go file | none of the findings is a struct field, which is what JSON tags reach | a runtime break no compiler sees | step 2's grep over non-Go files | broken: 653 of the 2015 worklist rows name a symbol that appears as a whole word in a tracked non-Go file, so step 2's pre-check skips them rather than renaming them |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | A rename lands and the package no longer compiles for linux | `GOOS=linux go vet` fails | fix forward inside the same package, or re-export and skip the symbol |
+| R-2 | 400 renames in one commit make review impossible | the diff spans every component | one package per commit, in worklist order |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | A package fails to compile. No user-visible behavior changes, because no logic changes |
+| How is it reverted? | Per-package commits, so one revert per package |
+| Who else touches this path? | Any session working in the same package |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Whole-tree worklist plus `./le repo check` | → | `declaredSymbols` and `checkCrossPackageWiring` in `internal/le/repository/wiring.go` | every accepted rename disappears from both the refreshed inventory and the changed-file findings |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | A symbol on the worklist that `gopls rename` accepts | it is unexported, and its package compiles under every tag set for darwin and linux |
+| AC-2 | A symbol `gopls rename` refuses | it is left exactly as it was, and the refusal is recorded with its reason |
+| AC-3 | After every package is processed | The refreshed whole-tree inventory has no `has no cross-package non-test caller` finding except recorded AC-2 refusals, and `./le repo check` also reports none in its changed-file population |
+| AC-4 | Any package touched | `go test -race <pkg>` passes |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| existing package tests | per package | AC-4 | |
+
+### Functional Tests
+
+A rename preserves behavior, so the coverage is the EXISTING functional suite
+staying green rather than a new `.ci`. Run the suite that owns each package you
+touch, and paste its result in the per-package commit.
+
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `./le test functional plugin` | `test/plugin/*.ci` | a plugin still loads, registers and answers its commands after its package is renamed | |
+| `./le test functional parse` | `test/parse/*.ci` | config still parses when `internal/component/config` symbols are unexported | |
+| `./le test functional encode` | `test/encode/*.ci` | wire encoding is byte-identical after a BGP package rename | |
+| `./le test functional ui` | `test/ui/*.ci` | CLI commands still dispatch after a `cmd/` or `internal/component/cli` rename | |
+| `./le test functional web` | `test/web/*.ci` | web routes still resolve after an `internal/component/web` rename | |
+
+## Files to Modify
+- files named by the refreshed whole-tree worklist, one symbol per eligible finding; the earlier roughly 300-file estimate is historical
+
+## Files to Create
+- none
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | no config surface |
+| YANG validation constraints | N-A | no config surface |
+| YANG custom validators | N-A | no config surface |
+| CLI commands/flags | N-A | no CLI surface |
+| CLI grammar (keyword before value) | N-A | no CLI surface |
+| Editor autocomplete | N-A | no config surface |
+| Functional test for new RPC/API | N-A | no RPC |
+| Pipe completeness | N-A | no route output |
+| Env var registration | N-A | no env var |
+| Doctor check for runtime dependencies | N-A | no runtime dependency |
+| Prometheus counters/metrics | N-A | no daemon state |
+| BGP family surface | N-A | no protocol surface |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | No | internal API surface only |
+| 2 | Config syntax changed? | No | |
+| 3 | CLI command added/changed? | No | |
+| 4 | API/RPC added/changed? | No | |
+| 5 | Plugin added/changed? | No | |
+| 6 | Has a user guide page? | No | |
+| 7 | Wire format changed? | No | |
+| 8 | Plugin SDK/protocol changed? | No | nothing under `pkg/` is renamed without a check that it is not SDK surface |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | |
+| 10 | Test infrastructure changed? | No | |
+| 11 | Affects daemon comparison? | No | |
+| 12 | Internal architecture changed? | No | |
+| 13 | Route metadata keys added/changed? | No | |
+| 14 | Prometheus counters added/changed? | No | |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | a `<!-- source: path -- Symbol -->` anchor naming a renamed symbol must follow it |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | |
+
+## Implementation Steps
+
+**Work one package at a time, in worklist order. One package per commit.**
+
+### Step 0: build the worklist, once
+
+`declaredSymbols` in `internal/le/repository/wiring.go` reads only the supplied
+changed-file set, restricted to non-test declarations under `internal/` and
+`cmd/`. `ChangedFiles` in `internal/le/repository/repository.go` supplies the
+working-tree diff and untracked files. A clean changed-file result therefore
+cannot establish the whole-tree AC-3.
+
+Derive every eligible declaration under those roots, apply the current
+`checkCrossPackageWiring` caller and suppression rules, and record
+`file`, `line`, `symbol`, and `package` for each candidate. Preserve the SDK,
+generated-file, external-test and non-Go-reference exclusions below. Store the
+resumed worklist under the owning session's scratch path, and commit durable
+per-package dispositions with the work so a later session can recover them.
+
+The old Python command recipe is retired. Before renaming anything, name the
+current inventory instrument and demonstrate that it includes declarations in
+unchanged files. Recompute the population and the remaining bucket assignments;
+neither 467 nor the unsuppressed 1993 upper bound is a current worklist.
+
+### Step 1: pick one package
+
+Take every row whose fourth column is the same package. Process that package to
+completion before starting another.
+
+### Step 2: pre-checks that HALT (per symbol)
+
+Skip the symbol, record it, and move on when ANY of these is true. Do not try to
+make the rename possible.
+
+| Check | Command | Skip when |
+|-------|---------|-----------|
+| Generated file | `head -1 <file>` | the first line contains `Code generated` |
+| Named outside Go | `git grep -w <Symbol> -- ':!*.go' ':!vendor'` | any hit in `.md`, `.yang`, `.json`, or a script |
+| SDK surface | `echo <file>` | the path starts with `pkg/` |
+
+### Step 3: rename with gopls, which is the safety mechanism
+
+```
+FILE=<file>; LINE=<line>; SYM=<Symbol>
+NEW=$(python3 -c "import sys;s=sys.argv[1];print(s[0].lower()+s[1:])" "$SYM")
+COL=$(awk -v n="$LINE" 'NR==n{print index($0,"'"$SYM"'")}' "$FILE")
+gopls rename -w "$FILE:$LINE:$COL" "$NEW"
+```
+
+`gopls` exits non-zero and prints the breaking reference when the rename is
+unsafe. **That is a skip, not a failure to fix.** Record the symbol and its
+reason, change nothing, and continue. It catches the cases a grep cannot: a
+reference from another package's test file, a name that would collide with an
+existing identifier, a method that satisfies an interface.
+
+### Step 4: verify the package, all four build views
+
+```
+PKG=<package dir>
+FEATURES=$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')
+for GOOS_V in darwin linux; do
+  for TAGS in "ze_core ze_distro $FEATURES" "ze_core ze_le $FEATURES"; do
+    GOOS=$GOOS_V go vet -tags "$TAGS" ./$PKG/... || echo "FAILED: $GOOS_V / $TAGS"
+  done
+done
+go test -race ./$PKG
+```
+
+`go vet` compiles, so an undefined name fails here. **The `GOOS=linux` pass is
+not optional**: `gopls` sees one build context, so a reference that exists only
+in a `_linux.go` file is invisible to the rename and shows up only here. Eleven
+symbols in the current worklist have their only reference in a platform-tagged
+file.
+
+Never run a bare `go build`: a hook refuses it unless it writes to `bin/`.
+
+### Step 5: confirm the findings are gone
+
+```
+./le go lint rundocwiring/checks.go --root . --changed-file <each file you renamed in>
+```
+
+### Step 6: commit that package
+
+Use `internal/le/commit/prepare.go create`, one commit per package, listing every
+file with `--file`. Read `ai/rules/git-safety.md` first. Never run `git add`,
+`git commit`, or `git push` directly.
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every worklist row is either renamed or recorded as skipped with its reason |
+| Correctness | No signature, no behavior and no comment changed. Only identifiers |
+| Data flow | The four build views all compiled for every touched package |
+| Rule: `ai/rules/simplicity.md` | No symbol deleted, no API redesigned, no helper introduced |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| The backlog is cleared | `./le repo check` shows no wiring finding outside the recorded skips |
+| Nothing broke | `go test -race ./...` green for every touched package |
+| The skips are recorded | one row per skipped symbol, with the gopls reason |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | None. No input path changes |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| `gopls rename` refuses | Skip the symbol and record it. This is expected, not a failure |
+| `go vet` fails after a rename | Fix forward in that package, or re-export the symbol and record it as skipped |
+| A test fails after a rename | Re-export the symbol and record it. Never edit the test to match |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- The safety mechanism must be the tool, not the worklist. A grep classifier
+  written for this spec agreed with `gopls` on the case it was checked against,
+  but only `gopls` knows about interface satisfaction, identifier collision and
+  external test packages at once.
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| `gopls rename` per symbol | `sed` over the package | `sed` cannot see an interface method, a collision, or another package's test. `gopls` refuses instead of breaking |
+| Skip on refusal, never resolve | Rework the caller so the rename becomes possible | Reworking a caller is a design change, and this task must need no judgement |
+| One package per commit | One commit for all 467 | A 300-file rename commit cannot be reviewed, and one bad rename cannot be reverted alone |
+| Rename, never delete | Delete the unreachable symbol | Deleting needs a judgement about intent. Unexporting is reversible and behavior-preserving |
+
+## Known Limitations
+- Symbols that `gopls` refuses stay exported. That set is the honest remainder,
+  and it is smaller than the 467 the gate reports.
+- **`gopls` cannot refuse a rename it cannot see.** It runs with no build tags on
+  the host GOOS, so a reference in a file carrying `//go:build ze_core` or
+  `//go:build linux` is invisible to it, and the refusal that protects a
+  cross-package test reference never fires. `internal/component/plugin`
+  `AvailableInternalPlugins` was unexported this way and broke `cmd/ze`, whose
+  only caller is `cmd/ze/main_test.go` under `//go:build ze_core`. A per-package
+  `go vet` cannot catch it either, because it never compiles the other package.
+  The catch is the whole-tree `go vet` over all four build views, run once after
+  every package is processed.
+- **Unexporting reveals dead code.** `golangci-lint`'s `unused` and `unparam`
+  linters skip an exported declaration, so a symbol nothing calls reads as clean
+  while it is exported and reports the moment it is not. 60-odd symbols were
+  renamed, reported by the linter, and renamed back for this reason. They are
+  recorded in `plan/post-release/engineering/spec-unused-code-hidden-behind-exported-symbols.md`, because
+  deleting them is a judgement this rename-only task must not take.
+
+## Remaining Work
+
+Buckets 1 to 6 and 8 are processed. **Bucket 7 is untouched**: 170 symbols over
+23 packages. It was held back because its packages share a `./PKG/...` vet scope
+with almost every other bucket, so it had to run alone, and the session's budget
+ended first.
+
+**The worklist that named those 170 symbols no longer exists (2026-09-05).**
+`tmp/unexport-bucket-7-remaining.tsv`, its driver `tmp/unexport-rename-driver.py`,
+the pre-check skip list `tmp/unexport-skipped-named-outside-go.tsv` and the
+handoffs `tmp/unexport-handoffs-buckets-1-6-8.md` are all absent: `ls
+tmp/unexport-*` reports no such file. `tmp/` is scratch, so they did not survive
+the session that wrote them, and the 170 is now a number with nothing behind it.
+Do not go looking for those files. Re-derive the worklist with step 0, over the
+WHOLE tree rather than over the changed set, for the reason the 2026-09-05
+correction gives.
+
+The spec stays open for bucket 7 and for the re-derivation that has to precede
+it.
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-4 all demonstrated
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled
+- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written: the existing package tests and functional suites are the coverage. A rename adds no behavior, so it needs no new test
+- [ ] Tests FAIL: not applicable in the usual direction. The failing state this task guards against is a rename that breaks the build, and step 4 produces it deliberately by compiling all four build views. Paste any failure and the symbol re-exported in response
+- [ ] Tests PASS (paste output per package)
+- [ ] Functional suite for each touched area green (paste output)
+- [ ] Interop tests N-A: no protocol surface
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
+- [ ] Journal row for anything this teaches
+- [ ] **Commit A:** code + spec + journal row
+- [ ] **Commit B:** `git rm plan/post-release/engineering/spec-fixit-unexport-package-private-symbols.md` only
+
+## Pre-Commit Verification
+
+This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| none: the spec creates no file | N-A | `Files to Create` says none. The worklist artifacts `tmp/unexport-bucket-7-remaining.tsv` and `tmp/unexport-rename-driver.py` were present when this row was written and are GONE as of 2026-09-05 (`ls tmp/unexport-*`: no such file). `tmp/` is scratch |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_core ze_le $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
+| AC-2 | A refused symbol is untouched and its reason recorded | 139 refusals recorded in the per-bucket handoffs (`tmp/unexport-handoffs-buckets-1-6-8.md`), each carrying the `gopls` text |
+| AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT true tree-wide, and a green `./le repo check` cannot show that it is: the check reads the CHANGED file set only (`checkCrossPackageWiring`, `internal/le/repository/wiring.go`). A whole-tree sweep on 2026-09-05 put the upper bound at 1993 |
+| AC-4 | Every touched package passes its tests | `go test -race ./<pkg>` green for all 161 processed packages, per phase |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le repo check` -> `check_cross_package_wiring()` | none: the check IS the test | Yes. `validate.py --changed-file` re-run per package, and the finding for each renamed symbol is gone |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `internal/component/config/transaction/solver.go` `TopologicalSort` refused, naming the external test package |
+| A-2 | confirmed | `internal/chaos/peer/simulator_actions_iface_linux.go` and `internal/component/l2tp/ppp/ipv6_service_linux.go` broke only the linux view, caught by `GOOS=linux go vet` |
+| A-3 | broken | 653 of 2015 rows name a symbol that appears as a whole word in a tracked non-Go file. Step 2 skips them |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Item 16, source anchors naming a renamed symbol | `check_source_anchor_stale_paths` and `check_source_anchor_line_numbers` run inside every per-package `validate.py`, and reported nothing | Yes |
+| Items 1 to 15 and 17 | No user-facing surface changes: the change renames identifiers only, with no file move and no signature change | Yes |
+
+## Work Inherited From a Deferral Row
+
+<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
+     its destination is reproduced here, so the item and the reasoning behind it
+     survive the directory. Each row is outstanding work this spec owns. -->
+
+### From `fixit-unexport-package-private-symbols.md`, 2026-08-09
+
+Deferred by `plan/spec-problem-journal.md`.
+
+467 `exported symbol X has no cross-package non-test caller` findings from `./le repo check`

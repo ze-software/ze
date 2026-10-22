@@ -106,7 +106,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, inputs *llmsInputs) {
 		Str(" fuzz targets, ").Str(facts.Tests.E2EDisplay).Str(" end-to-end transcript steps, ").
 		Int(int64(facts.Interop.Scenarios)).Str(" interop scenarios across ").Str(facts.Interop.TargetDisplay).
 		Str(" target implementations.\n")
-	out.Str("- Release inventory preview pending owner classification: [roadmap](").
+	out.Str("- Classified planning inventory (not release-readiness proof): [roadmap](").
 		Str(siteBase).Str("project/roadmap/index.md), [snapshot JSON](").
 		Str(siteBase).Str(roadmapDataFile).Str(").\n")
 	out.Str("- Generated date: ").Str(facts.GeneratedAt).Str(".\n\n")

@@ -25,11 +25,11 @@ func TestConcurrentClaimsCannotExceedTheWIPCap(t *testing.T) {
 	// one repository lock.
 	// PREVENTS: two sessions both observing one free slot and opening two specs.
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"spec-a.md", "spec-b.md"} {
-		if err := os.WriteFile(filepath.Join(root, "plan", name), []byte(readySpecFixture), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "plan", "post-release", "engineering", name), []byte(readySpecFixture), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -78,11 +78,11 @@ func TestConcurrentSessionsKeepIndependentMarkers(t *testing.T) {
 	// overwriting each other's claim.
 	// PREVENTS: a shared marker turning the second claim into ownership theft.
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	body := []byte("| Field | Value |\n|-------|-------|\n| Status | in-progress |\n| Updated | 2026-08-27 |\n")
-	if err := os.WriteFile(filepath.Join(root, "plan", "spec-a.md"), body, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "plan", "post-release", "engineering", "spec-a.md"), body, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	owners := []specOwner{{Root: root, SessionID: "one"}, {Root: root, SessionID: "two"}}
@@ -127,10 +127,10 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	// state, model, review hash, release) answers through its own handler.
 	// PREVENTS: final hook routing reaching an API that has no command grammar.
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "plan", "spec-a.md"), []byte(readySpecFixture), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "plan", "post-release", "engineering", "spec-a.md"), []byte(readySpecFixture), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	setAnswerRoot(t, root)
@@ -140,7 +140,7 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	if current, ok := payload.(currentReport); code != 0 || !ok || current.Spec != "" {
 		t.Fatalf("current before claim = (%#v, %d)", payload, code)
 	}
-	payload, code = Claim([]string{"spec", "plan/spec-a.md"})
+	payload, code = Claim([]string{"spec", "plan/post-release/engineering/spec-a.md"})
 	if claim, ok := payload.(ClaimReport); code != 0 || !ok || !claim.Transitioned {
 		t.Fatalf("claim = (%#v, %d)", payload, code)
 	}
@@ -171,7 +171,7 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	if payload, code = Model([]string{"current"}); code != 1 {
 		t.Fatalf("unreadable model = (%#v, %d), want advisory code 1", payload, code)
 	}
-	if payload, code = Review([]string{"hash", "file", "plan/spec-a.md"}); code != 0 {
+	if payload, code = Review([]string{"hash", "file", "plan/post-release/engineering/spec-a.md"}); code != 0 {
 		t.Fatalf("review hash = (%#v, %d)", payload, code)
 	}
 	if payload, code = Release(nil); code != 0 {
@@ -235,12 +235,12 @@ func setAnswerRoot(t *testing.T, root string) {
 // (concurrent-session-corruption journal, 2026-08-14 and 2026-09-05).
 func TestAgentClaimsAreTheirOwnAndFallBackToTheParent(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	body := []byte("| Field | Value |\n|-------|-------|\n| Status | in-progress |\n| Updated | 2026-08-27 |\n")
 	for _, name := range []string{"spec-parent.md", "spec-one.md", "spec-two.md"} {
-		if err := os.WriteFile(filepath.Join(root, "plan", name), body, 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "plan", "post-release", "engineering", name), body, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -274,4 +274,33 @@ func TestAgentClaimsAreTheirOwnAndFallBackToTheParent(t *testing.T) {
 	current(one, "spec-parent.md")
 	current(two, "spec-two.md")
 	current(parent, "spec-parent.md")
+}
+
+// TestClaimFindsTheMovedIdentity preserves the stable marker when the source
+// path disappears and the same spec is carried in a current category.
+func TestClaimFindsTheMovedIdentity(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "tmp", "session", ".session-moved")
+	if err := os.MkdirAll(filepath.Dir(marker), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(marker, []byte("spec-moved.md\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "plan", "release", "fixes", "spec-moved.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(readySpecFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	owner := specOwner{Root: root, SessionID: "moved", WIPCap: 12}
+	report, err := owner.Claim("spec-moved.md")
+	if err != nil || !report.Transitioned {
+		t.Fatalf("claim moved identity: %+v, %v", report, err)
+	}
+	contents, err := os.ReadFile(marker)
+	if err != nil || string(contents) != "spec-moved.md\n" {
+		t.Fatalf("stable marker = %q, %v", contents, err)
+	}
 }

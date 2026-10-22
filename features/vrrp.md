@@ -8,7 +8,7 @@
 | Page | docs/guide/vrrp.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | owner ARP RFC defects (plan/immediate/spec-vrrp-owner-arp-rfc-defects.md), VPP backend (plan/spec-vrrp-7-vpp.md), RFC 9568 obligations the ledger marks Partial |
+| Scope gaps | owner ARP RFC defects (plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md), VPP backend (plan/post-release/features/spec-vrrp-7-vpp.md), RFC 9568 obligations the ledger marks Partial |
 | Level | experimental |
 | Components | internal/plugins/vrrp |
 | Real-path tests | test/vrrp/vrrp-config.ci, test/vrrp/vrrp-config-invalid.ci, test/vrrp/vrrp-instance-up.ci, test/vrrp/vrrp-accept-mode.ci, test/vrrp/vrrp-track.ci, test/vrrp/vrrp-show.ci, test/vrrp/vrrp-doctor.ci, test/vrrp/vrrp-macvlan-parent-selector.ci |
@@ -16,7 +16,7 @@
 | RFCs | rfc9568, rfc3768 |
 | Docs | docs/guide/vrrp.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; ze_vrrp_state and ze_vrrp_transitions_total match internal/plugins/vrrp/telemetry.go |
-| Defect review | 2026-10-07: plan/immediate/spec-vrrp-owner-arp-rfc-defects.md open; journal rows naming internal/plugins/vrrp taken as open |
+| Defect review | 2026-10-07: plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md open; journal rows naming internal/plugins/vrrp taken as open |
 
 ## Description
 

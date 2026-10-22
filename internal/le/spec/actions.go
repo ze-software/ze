@@ -277,7 +277,7 @@ func parseReviewRecord(args []string) (reviewRecord, error) {
 			request.FindingsFile = value
 		case "rounds-reason":
 			request.RoundsReason = value
-		case "owner-authorised": //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
+		case "owner-authorised": //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/templates/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
 			request.OwnerAuthorised = value
 		default:
 			return reviewRecord{}, fmt.Errorf("review record does not accept keyword %q", key)

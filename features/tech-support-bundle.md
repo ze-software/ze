@@ -12,7 +12,7 @@
 | Real-path tests | test/ui/support-basic.ci, test/ui/support-reason.ci, test/ui/support-module-filter.ci, test/ui/support-exclude.ci |
 | Docs | docs/guide/production-diagnostics.md |
 | Doc review | 2026-10-07: moduleRegistry in internal/component/support/modules.go holds exactly the 20 named modules and no SMART module, as the row now says |
-| Defect review | 2026-10-07: plan/spec-support-export.md is blocked new scope, not a defect; no journal row names internal/component/support |
+| Defect review | 2026-10-07: plan/post-release/features/spec-support-export.md is blocked new scope, not a defect; no journal row names internal/component/support |
 | Extra criteria | supported: archive carries one JSON file per module with the documented schema = test/ui/support-archive-schema.ci |
 
 ## Description

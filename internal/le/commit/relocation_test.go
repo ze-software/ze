@@ -9,7 +9,11 @@
 // was to split one bookkeeping change into as many commits as it moved specs.
 package commit
 
-import "testing"
+import (
+	"testing"
+
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
+)
 
 // TestRelocatingManySpecsIsNotAClosure is the case that was refused. Thirty
 // specs moved in one commit named thirty closures, and the gate allows one.
@@ -211,5 +215,49 @@ func TestARemovalListedInBothPathsAndRemovedIsStillAClosure(t *testing.T) {
 	}
 	if stem != "finished" {
 		t.Fatalf("closureStem = %q, want \"finished\": the same bucket is no relocation", stem)
+	}
+}
+
+// TestLayoutMigrationNeverClosesWork pairs every obsolete placement with a
+// current category, then proves that an unrelated real removal still closes.
+func TestLayoutMigrationNeverClosesWork(t *testing.T) {
+	added := []string{
+		"plan/release/fixes/spec-root.md",
+		"plan/release/validation/spec-immediate.md",
+		"plan/release/delivery/spec-prerelease.md",
+		"plan/proposals/spec-proposal.md",
+	}
+	removed := []string{
+		"plan/spec-root.md",
+		"plan/immediate/spec-immediate.md",
+		"plan/pre-release/spec-prerelease.md",
+		"plan/to-review/spec-proposal.md",
+	}
+	root := t.TempDir()
+	stem, err := closureStem(root, added, removed)
+	if err != nil || stem != "" {
+		t.Fatalf("migration closes %q: %v", stem, err)
+	}
+	removed = append(removed, "plan/post-release/features/spec-finished.md")
+	stem, err = closureStem(root, added, removed)
+	if err != nil || stem != "finished" {
+		t.Fatalf("real closure beside migration = %q, %v", stem, err)
+	}
+}
+
+// TestCurrentCategoryRelocationsNeverCloseWork checks both directions between
+// every current category and retains the same-directory closure discrimination.
+func TestCurrentCategoryRelocationsNeverCloseWork(t *testing.T) {
+	for _, source := range specpath.Dirs() {
+		for _, target := range specpath.Dirs() {
+			stem, err := closureStem(t.TempDir(), []string{target + "/spec-work.md"}, []string{source + "/spec-work.md"})
+			want := ""
+			if source == target {
+				want = "work"
+			}
+			if err != nil || stem != want {
+				t.Fatalf("%s to %s: closure %q, want %q: %v", source, target, stem, want, err)
+			}
+		}
 	}
 }

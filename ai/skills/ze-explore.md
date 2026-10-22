@@ -43,7 +43,7 @@ phase itself.
    |----------|--------------|
    | Source code | `internal/`, `pkg/`, `cmd/` |
    | Tests | `*_test.go`, `test/` (`.ci`, `.et`) |
-   | Specs | `plan/spec-*` |
+   | Specs | Work-item paths from `./le spec status` and `plan/README.md` |
    | Problem journal | `plan/journal/` |
    | Docs | `docs/` |
    | Config/YANG | `schema/`, `*.yang` |

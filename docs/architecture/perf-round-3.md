@@ -201,7 +201,7 @@ Files: `filter_scratch.go`, `filter_delta.go`, `filter_chain.go`,
 ## What Was Not Done
 
 An audit investigated seven additional candidates and rejected all of them.
-The evidence is recorded in `plan/spec-perf-next-0-umbrella.md` (Negative
+The evidence is recorded in `plan/post-release/engineering/spec-perf-next-0-umbrella.md` (Negative
 Findings table) so future sessions do not re-investigate them:
 
 - Engine event dispatch slice copy: BGP events never reach engine subscribers.

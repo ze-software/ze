@@ -13,7 +13,7 @@
 | Real-path tests | test/parse/cli-config-deactivate-container.ci, test/parse/cli-config-deactivate-leaf.ci, test/parse/cli-config-activate.ci |
 | Docs | docs/guide/config-deactivate.md |
 | Doc review | 2026-10-07: PruneInactive removes inactive subtrees at apply and the file keeps them, as the row says (kept in file, skipped at apply) |
-| Defect review | 2026-10-07: open: plan/immediate/spec-peer-deactivate-and-bulk-route-purge.md (a deactivated peer is removed rather than paused) |
+| Defect review | 2026-10-07: open: plan/release/fixes/spec-peer-deactivate-and-bulk-route-purge.md (a deactivated peer is removed rather than paused) |
 | Extra criteria | supported: deactivate then activate a peer on a running daemon keeps its identity = none yet |
 
 ## Description

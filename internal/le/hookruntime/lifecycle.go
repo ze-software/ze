@@ -542,8 +542,15 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 		if err == nil {
 			claim := specClaim(ctx, id)
 			if claim != "" && claim != specUnassigned {
-				text.Str("\nSpec claimed by the session that spawned you: plan/").Str(claim).
-					Str("\nRead it before acting. Its acceptance criteria are what your work is judged against.\n")
+				relative, err := specpath.Find(ctx.root, claim)
+				if err != nil {
+					text.Str("\nCannot resolve the session's claimed spec ").Str(claim).
+						Str(": ").Str(err.Error()).
+						Str("\nAsk the parent session to correct the spec placement or use ./le spec claim to update its claim before acting.\n")
+				} else {
+					text.Str("\nSpec claimed by the session that spawned you: ").Str(relative).
+						Str("\nRead it before acting. Its acceptance criteria are what your work is judged against.\n")
+				}
 			}
 			text.Str("\nParent session ID: ").Str(id).
 				Str("\nParent session scratch: ").Str(paths.Scratch).
@@ -644,12 +651,14 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 	if !oneOf(ctx.tool, toolWrite, "Edit") {
 		return 0
 	}
-	// Every release bucket, from the one declaration. The predicate was a
-	// regex naming plan/ alone, and it answered "not a spec" for
-	// plan/immediate/ and plan/pre-release/: every spec in two of the three
-	// buckets was written with NO validation, and the hook reported success
-	// (ai/rules/evidence.md).
-	if !specpath.IsSpec(relativePath(ctx)) {
+	// Current discovery never falls back to the obsolete layout. A write there
+	// must report the misplaced work rather than silently skip validation.
+	relative := relativePath(ctx)
+	if !specpath.IsSpec(relative) {
+		if _, historical := specpath.HistoricalBucket(relative); historical {
+			fmt.Fprintln(errOut, "validate-spec: "+relative+" is in an obsolete spec directory; move it to a current category listed in plan/README.md.") //nolint:errcheck // hook protocol
+			return 2
+		}
 		return 0
 	}
 	// The path IS a spec and the write already happened, so a read that fails

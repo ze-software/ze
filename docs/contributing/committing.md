@@ -70,15 +70,17 @@ path before the script is written:
 - A path `git check-ignore` matches. The index is consulted, so a TRACKED file
   that matches an ignore pattern is committable: git already carries it, and the
   pattern governs what is added under that path next.
-- A path that does not exist. Use `remove` for a tracked deletion. A rename is
-  a plain `rm` of the old path plus the new file: name the old path with
-  `remove` and the new one with `file`, because `git mv` stages. Renaming a
-  spec this way is not a closure, and owes no review artifact, only when
-  exactly one spec the commit adds, absent at HEAD, has text equal to the old
-  spec's text at HEAD with every occurrence of the old stem replaced by the new
-  stem. The pairing is one to one; other specs the commit adds do not affect it. Any
-  other edit in the same commit makes the removal a closure, so rename first
-  and edit in a later commit (`renamedSpecs`, `docs/contributing/spec-workflow.md`).
+- A path that does not exist. Use `remove` for a tracked deletion. For a
+  relocation, write the destination and leave the source in place; name the old
+  path with `remove` and the new one with `file`, because `git mv` stages.
+  The same spec filename carried into a different category is a relocation,
+  not closure, including migration from the old root, `immediate`,
+  `pre-release`, or `to-review` layout into the current categories.
+  A changed filename is a rename, not closure, only when exactly one added
+  spec absent at HEAD has text equal to the old spec at HEAD with every
+  occurrence of the old stem replaced by the new stem. Pairing is one to one.
+  Other edits in a stem rename make the removal a closure: rename first and
+  edit later (`renamedSpecs`, `docs/contributing/spec-workflow.md`).
 <!-- source: internal/le/commit/review.go -- renamedSpecs -->
 
 - A directory. Scripts stage explicit files.
@@ -141,7 +143,7 @@ read. The four kinds and what re-derives each one are in
   append \
   script tmp/commit-<session>-<tag>-<random>.sh \
   subject "spec: close spec-widget" \
-  remove plan/spec-widget.md
+  remove plan/release/fixes/spec-widget.md
 ```
 
 The `script=` line the command prints is the only authoritative path. Its name

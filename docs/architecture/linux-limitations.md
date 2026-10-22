@@ -136,7 +136,7 @@ For a `library` entry, read the module in the module cache:
   option takes an address other than `dev->dev_addr`.
 - **Ze meanwhile:** conformance gap. The fix is to make the solicitation
   leave the virtual-MAC macvlan, which is routing, not a kernel change:
-  `plan/immediate/spec-vrrp-owner-arp-rfc-defects.md`.
+  `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md`.
 
 <!-- source: internal/plugins/vrrp/ownerfilter.go -- owner filter drops parent Neighbor Advertisements only -->
 
@@ -282,7 +282,7 @@ For a `library` entry, read the module in the module cache:
   Lifted when the library takes a mask from the caller, or when Ze builds the
   selector itself.
 - **Ze meanwhile:** refuses OPAQUE at commit and at negotiation. The fix:
-  `plan/spec-ipsec-opaque-selector-port-mask.md`.
+  `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md`.
 
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmSelectorPort -->
@@ -331,7 +331,7 @@ For a `library` entry, read the module in the module cache:
   it, this entry is removed and the RFC row becomes a lower-layer row with
   that test.
 - **Ze meanwhile:** conformance gap with no Ze producer:
-  `plan/immediate/spec-rfc4301-architecture-gaps.md`.
+  `plan/release/fixes/spec-rfc4301-architecture-gaps.md`.
 
 <!-- source: rfc/short/rfc4301.md -- RFC4301-6.2-3 -->
 

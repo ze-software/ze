@@ -368,7 +368,7 @@ RFC 7383 fragmentation today (`wire.NotifyFragmentationSupported` is declared
 and never sent), and an implementation of it MUST leave the probe exchange whole
 whatever threshold it negotiates, because RFC 7383 Section 2.5.2 searches
 fragmentation thresholds downward and a fragmented probe would measure the
-threshold rather than the path (`plan/immediate/spec-ike-fragmentation-rfc7383.md`).
+threshold rather than the path (`plan/post-release/features/spec-ike-fragmentation-rfc7383.md`).
 
 <!-- source: internal/component/ike/engine/probe.go -- probeNotifyOctets -->
 <!-- source: internal/component/ike/wire/payload_notify.go -- NotifyZePathProbePadding -->

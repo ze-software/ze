@@ -26,12 +26,12 @@ func init() {
 }
 
 const (
-	leSpecBucketAfter     = "after"
-	leSpecBucketImmediate = "immediate"
-	leSpecCategoryBacklog = "backlog"
-	leSpecCategoryIdea    = "idea"
-	leSpecCategoryOther   = "other" // The spec category, not an appliance name.
-	leSpecFieldBucket     = "bucket"
+	leSpecBucketEngineering = "engineering"
+	leSpecBucketFixes       = "fixes"
+	leSpecCategoryBacklog   = "backlog"
+	leSpecCategoryIdea      = "idea"
+	leSpecCategoryOther     = "other" // The spec category, not an appliance name.
+	leSpecFieldBucket       = "bucket"
 )
 
 type uiLeSpecStatusAnswersCommandAnswer struct {
@@ -212,8 +212,8 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		}
 		// The page's SECTIONS are the status-derived CATEGORY, never the release
 		// BUCKET. The two were one field until 6fb9cd8814 (2026-09-05) split
-		// them: `bucket` is now the directory the spec sits in (after,
-		// immediate, pre-release, internal/le/spec/path) and `category` is
+		// them: `bucket` is the planning category declared by
+		// internal/le/spec/path and `category` is
 		// the backlog / idea / other split the sections print
 		// (specstatus.Category). Reading the section off `bucket` asks the
 		// wrong record for the answer.
@@ -225,7 +225,7 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		if wantSection == "" || !strings.Contains(section, wantSection) {
 			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want category %q", name, section, category)
 		}
-		if !slices.Contains([]string{leSpecBucketAfter, leSpecBucketImmediate, "pre-release"}, bucket) {
+		if !slices.Contains([]string{leSpecBucketEngineering, leSpecBucketFixes, "validation", "delivery", "features", "proposals"}, bucket) {
 			return uiLeSpecStatusAnswersFailf("record %q carries bucket %q, which names no release bucket", name, bucket)
 		}
 		for key, value := range map[string]string{
@@ -366,11 +366,14 @@ type leSpecStatusCase struct {
 func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []string, error) {
 	const committed = "2000-01-02"
 	expected := []leSpecStatusCase{
-		{"fixture-ready", "plan/immediate", leSpecBucketImmediate, "ready", leSpecCategoryBacklog, committed, committed, false},
-		{"fixture-untracked", "plan/immediate", leSpecBucketImmediate, "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
-		{"fixture-fresh", dirPlan, leSpecBucketAfter, "skeleton", leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
-		{"fixture-stale", dirPlan, leSpecBucketAfter, "skeleton", leSpecCategoryIdea, "2000-01-01", committed, true},
-		{"fixture-blocked", "plan/pre-release", "pre-release", "blocked", leSpecCategoryOther, "2000-01-01", committed, false},
+		{"fixture-ready", "plan/release/fixes", leSpecBucketFixes, "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-untracked", "plan/release/fixes", leSpecBucketFixes, "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
+		{"fixture-fresh", "plan/post-release/engineering", leSpecBucketEngineering, "skeleton", leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
+		{"fixture-stale", "plan/post-release/engineering", leSpecBucketEngineering, "skeleton", leSpecCategoryIdea, "2000-01-01", committed, true},
+		{"fixture-blocked", "plan/release/validation", "validation", "blocked", leSpecCategoryOther, "2000-01-01", committed, false},
+		{"fixture-delivery", "plan/release/delivery", "delivery", "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-feature", "plan/post-release/features", "features", "deferred", leSpecCategoryOther, committed, committed, false},
+		{"fixture-proposal", "plan/proposals", "proposals", "skeleton", leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
 	}
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, nil, err
@@ -399,7 +402,7 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		}
 		var body textbuf.Buffer
 		body.Str("# Spec: ").Str(spec.name).Str("\n\n| Field | Value |\n|---|---|\n| Status | ").
-			Str(spec.status).Str(" |\n| Phase | fixture-phase |\n| Depends | fixture-dependency |\n")
+			Str(spec.status).Str(" |\n| Priority | P2 |\n| Release reason | Fixture contract |\n| Phase | fixture-phase |\n| Depends | fixture-dependency |\n")
 		// The ready spec proves Updated falls back to the actual Git date.
 		if spec.name != "fixture-ready" {
 			body.Str("| Updated | ").Str(spec.updated).Str(" |\n")
@@ -411,7 +414,7 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 	commands := [][]string{
 		{argInit, argQuiet, gitInitNoTemplate, gitInitFixtureBranch},
 		{argAdd, "--", dirPlan},
-		{"rm", "--cached", "--", "plan/immediate/spec-fixture-untracked.md"},
+		{"rm", "--cached", "--", "plan/release/fixes/spec-fixture-untracked.md"},
 		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Fixture specs"},
 	}
 	for _, args := range commands {
@@ -430,12 +433,20 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 // leSpecStatusExpectedRecords is independent of production inventory types and
 // rejects renderings that agree with each other but misclassify the same spec.
 func leSpecStatusExpectedRecords(records []map[string]json.RawMessage, expected []leSpecStatusCase) error {
-	for i, spec := range expected {
+	for _, spec := range expected {
+		i := slices.IndexFunc(records, func(record map[string]json.RawMessage) bool {
+			name, err := stringField(record, fieldName)
+			return err == nil && name == spec.name
+		})
+		if i < 0 {
+			return uiLeSpecStatusAnswersFailf("inventory is missing authored spec %q", spec.name)
+		}
 		for key, want := range map[string]string{
 			"name": spec.name, "title": spec.name, "path": spec.dir + "/spec-" + spec.name + ".md",
 			"status": spec.status, leSpecFieldBucket: spec.bucket, "category": spec.category,
 			"updated": spec.updated, "git-modified": spec.modified,
 			"phase": "fixture-phase", "depends": "fixture-dependency",
+			"priority": "P2", "release-reason": "Fixture contract",
 		} {
 			got, err := stringField(records[i], key)
 			if err != nil {

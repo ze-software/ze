@@ -8,7 +8,7 @@
 | Page | docs/features/cli-commands.md |
 | Kind | daemon |
 | Scope | partial |
-| Scope gaps | declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md) |
+| Scope gaps | declared commands without leaves (plan/release/fixes/spec-declared-commands-without-leaves.md) |
 | Level | experimental |
 | Components | internal/plugins/signal/main.go, internal/component/ssh/ssh.go, internal/component/command |
 | Real-path tests | test/ui/cli-verb-daemon-dispatch.ci, test/ui/send-old-paths-are-refused.ci, test/ui/help-parent-node.ci |

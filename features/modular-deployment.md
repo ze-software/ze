@@ -7,12 +7,12 @@
 | Name | Modular Deployment |
 | Kind | daemon |
 | Scope | partial |
-| Scope gaps | BGP-off plugin functional coverage (plan/spec-fixit-bgp-off-plugin-functional.md), idempotent deferred reapply at startup (plan/immediate/spec-startup-deferred-reapply-idempotency.md) |
+| Scope gaps | BGP-off plugin functional coverage (plan/post-release/engineering/spec-fixit-bgp-off-plugin-functional.md), idempotent deferred reapply at startup (plan/release/fixes/spec-startup-deferred-reapply-idempotency.md) |
 | Level | experimental |
 | Components | internal/component/plugin/server/startup_autoload.go |
 | Real-path tests | test/reload/reload-add-bgp.ci, test/reload/reload-remove-bgp.ci |
 | Doc review | 2026-10-07: autoLoadForNewConfigPaths and autoStopForRemovedConfigPaths exist in startup_autoload.go; no user page links this row |
-| Defect review | 2026-10-07: open: plan/spec-fixit-bgp-off-plugin-functional.md, plan/immediate/spec-startup-deferred-reapply-idempotency.md |
+| Defect review | 2026-10-07: open: plan/post-release/engineering/spec-fixit-bgp-off-plugin-functional.md, plan/release/fixes/spec-startup-deferred-reapply-idempotency.md |
 | Extra criteria | supported: a user page describing config-driven loading = none yet |
 
 ## Description

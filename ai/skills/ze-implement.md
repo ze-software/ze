@@ -150,7 +150,7 @@ Review Gate, or the commits. Those are `/ze-close`, for two reasons:
 | 7. Critical review | **Critical Review Checklist** (feature-specific checks) |
 
 The spec carries only design-time sections while this skill runs. The closure
-half lives in `plan/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
+half lives in `plan/templates/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
 first needed.
 
 **Verification: inner loop vs gate.** Steps 6 and 9 use the native focused
@@ -163,7 +163,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
 
 ## Steps
 
-1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim spec <spec-name>`. Then read `plan/<spec-name>`.
+1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim spec <spec-name>`. Resolve its actual path through `./le spec status`, then read that path.
    - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
@@ -252,7 +252,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
     the tests prove, and any surviving risk from the spec's R-N rows. Then state
     plainly that closure (deliverables, security, docs, Review Gate, commits) is
     `/ze-close`, and that `ai/rules/planning.md` puts it on the review
-    model. Do NOT append `plan/TEMPLATE-CLOSURE.md`, do NOT run `/ze-review` as
+    model. Do NOT append `plan/templates/TEMPLATE-CLOSURE.md`, do NOT run `/ze-review` as
     the gate, and do NOT prepare a commit script here. The one exception is the
     two-session handoff below, which the spec declares before implementation
     starts.

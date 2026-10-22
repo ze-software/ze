@@ -10,6 +10,7 @@
 package feature
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -24,10 +25,8 @@ import (
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/rfc"
 	journal "github.com/ze-software/ze/internal/le/spec/journal"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
-
-// immediateSpecDir holds the specs for defects that block a release.
-const immediateSpecDir = "plan/immediate"
 
 // Verdict is the check's answer for one declaration.
 type Verdict struct {
@@ -49,11 +48,11 @@ type Verdict struct {
 // evidence is everything outside the declarations the check reads, loaded once
 // per run.
 type evidence struct {
-	tree      string
-	rfc       rfc.Collected
-	immediate map[string]string // spec path -> its Files to Modify section
-	journal   []journal.Row
-	dates     *changeDates
+	tree    string
+	rfc     rfc.Collected
+	fixes   map[string]string // spec path -> its Files to Modify section
+	journal []journal.Row
+	dates   *changeDates
 	// scenarios caches each interop suite's scenarios, name -> directory
 	// relative to tree; catalogErrors holds the suites whose catalog could
 	// not list them.
@@ -81,7 +80,7 @@ func checkOn(tree string, today time.Time) ([]Verdict, []error, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	immediate, err := immediateSpecs(tree)
+	fixes, err := releaseFixSpecs(tree)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -93,7 +92,7 @@ func checkOn(tree string, today time.Time) ([]Verdict, []error, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	in := &evidence{tree: tree, rfc: collected, immediate: immediate, journal: rows, dates: dates,
+	in := &evidence{tree: tree, rfc: collected, fixes: fixes, journal: rows, dates: dates,
 		scenarios: map[string]map[string]string{}, catalogErrors: map[string]string{}, held: map[string]bool{}}
 	byID := make(map[string]*Declaration, len(declarations))
 	for i := range declarations {
@@ -370,11 +369,11 @@ func (in *evidence) criterionDocs(d *Declaration, verdict *Verdict) {
 	}
 }
 
-// criterionDefects is S5's mechanical half (AC-7): no immediate spec may name a
+// criterionDefects is S5's mechanical half (AC-7): no fixes spec may name a
 // Components path in its Files to Modify.
 func (in *evidence) criterionDefects(d *Declaration, verdict *Verdict) {
-	for _, spec := range sortedKeys(in.immediate) {
-		section := in.immediate[spec]
+	for _, spec := range sortedKeys(in.fixes) {
+		section := in.fixes[spec]
 		for _, component := range d.Components {
 			if strings.Contains(section, component) {
 				verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
@@ -452,30 +451,35 @@ func ceilingOfPart(id string, verdicts []Verdict) Level {
 	return LevelUnspecified
 }
 
-// immediateSpecs answers each plan/immediate spec's Files to Modify section.
-func immediateSpecs(tree string) (map[string]string, error) {
-	entries, err := os.ReadDir(filepath.Join(tree, immediateSpecDir))
-	if os.IsNotExist(err) {
-		return map[string]string{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
+// releaseFixSpecs answers release-fix specs' Files to Modify sections. The
+// category declaration owns the directory, not this maturity consumer.
+func releaseFixSpecs(tree string) (map[string]string, error) {
 	out := map[string]string{}
-	for _, entry := range entries {
-		if entry.IsDir() {
+	for _, category := range specpath.Categories() {
+		if category.Name != specpath.Fixes {
 			continue
 		}
-		if !strings.HasSuffix(entry.Name(), ".md") {
+		directory := filepath.Join(tree, filepath.FromSlash(category.Dir))
+		entries, err := os.ReadDir(directory)
+		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		rel := immediateSpecDir + "/" + entry.Name()
-		text, err := os.ReadFile(filepath.Join(tree, rel)) //nolint:gosec // rel is an entry of plan/immediate, listed above
 		if err != nil {
 			return nil, err
 		}
-		if section, found := sectionBody(string(text), "## Files to Modify"); found {
-			out[rel] = section
+		for _, entry := range entries {
+			relative := category.Dir + "/" + entry.Name()
+			if !specpath.IsSpec(relative) {
+				continue
+			}
+			match := filepath.Join(directory, entry.Name())
+			text, err := os.ReadFile(match) //nolint:gosec // match is a spec below the declared category
+			if err != nil {
+				return nil, err
+			}
+			if section, found := sectionBody(string(text), "## Files to Modify"); found {
+				out[relative] = section
+			}
 		}
 	}
 	return out, nil

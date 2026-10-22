@@ -18,15 +18,15 @@ import (
 )
 
 // OutputRel is derived output and never an inventory input.
-const OutputRel = "plan/roadmap.md"
+const OutputRel = "plan/release/roadmap.md"
 const area = "spec roadmap"
 const valueRef = "ref"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "list", Why: "report a committed release inventory preview",
+	leaction.Action{Verb: "list", Why: "report a committed release inventory",
 		Parameters: []leaction.Parameter{{Keyword: "revision", Value: valueRef, Requirement: leaction.Optional}},
 		AnswerArgs: runList},
-	leaction.Action{Verb: "update", Why: "regenerate plan/roadmap.md from a committed tree", Writes: true,
+	leaction.Action{Verb: "update", Why: "regenerate " + OutputRel + " from a committed tree", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: "revision", Value: valueRef, Requirement: leaction.Optional}},
 		AnswerArgs: runUpdate},
 	leaction.Action{Verb: "compare", Why: "compare endpoint queues without inferring completion",
@@ -37,7 +37,7 @@ var actions = leaction.New(area,
 )
 
 func init() {
-	// GroupGenerate rather than GroupReport: plan/roadmap.md is this area's
+	// GroupGenerate rather than GroupReport: plan/release/roadmap.md is this area's
 	// product, and indexCurrent compares it against the tree, which is rung 1
 	// of the ladder in leroot/group.go. A report gates nothing AND writes
 	// nothing, and `update` writes.
@@ -134,14 +134,14 @@ func Update(ctx context.Context, root, revision string) (UpdateReport, error) {
 	if historical {
 		content = "Historical snapshot: the selected revision differs from current HEAD. Relative links refer to the local checkout, whose files can differ.\n\n" + content
 	}
-	if err := os.MkdirAll(filepath.Join(root, specpath.Root), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, filepath.Dir(OutputRel)), 0o750); err != nil {
 		return UpdateReport{}, fmt.Errorf("create roadmap output directory: %w", err)
 	}
 	if err := derived.WriteAtomic(filepath.Join(root, OutputRel), []byte(content)); err != nil {
 		return UpdateReport{}, err
 	}
 	return UpdateReport{Path: OutputRel, Revision: snapshot.Revision, InputDigest: snapshot.InputDigest,
-		Historical: historical, Qualification: Qualification}, nil
+		Historical: historical, Qualification: snapshot.Qualification}, nil
 }
 
 func indexCurrent(root string) bool {

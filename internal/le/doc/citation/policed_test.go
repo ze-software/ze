@@ -16,11 +16,16 @@ func TestPolicedKeepsCorpusFilesUnderRecordTrees(t *testing.T) {
 	}{
 		{"plan/learned/RECURRING-PATTERNS.md", true},
 		{"plan/README.md", true},
+		{"plan/templates/TEMPLATE.md", true},
+		{"plan/templates/TEMPLATE-CLOSURE.md", true},
 		{"ai/rules/testing.md", true},
 		{"docs/contributing/rfc-conformance-gates.md", true},
 		{"internal/component/gtsm/gtsm_test.go", true},
 		{"plan/learned/123-some-spec.md", false},
 		{"plan/journal/unwired-feature.md", false},
+		{"plan/records/knowledge-routing-plan.md", false},
+		{"plan/release/fixes/spec-open.md", false},
+		{"plan/proposals/spec-idea.md", false},
 		{"test/weakened/8c4ad6c3.md", false},
 		{"vendor/example.com/x/README.md", false},
 	}

@@ -14,7 +14,7 @@ func writeSpec(t *testing.T, root, name, status string) {
 	t.Helper()
 
 	body := "| Field | Value |\n|---|---|\n| Status | " + status + " |\n| Updated | 2026-08-29 |\n"
-	path := filepath.Join(root, "plan", name)
+	path := filepath.Join(root, "plan", "release", "fixes", name)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("create plan/: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestAnUnknownStatusPrintsAfterTheNamedOnes(t *testing.T) {
 func TestASpecWithNoTableCountsAsUnparsed(t *testing.T) {
 	root := t.TempDir()
 	writeSpec(t, root, "spec-a.md", "ready")
-	if err := os.WriteFile(filepath.Join(root, "plan", "spec-broken.md"), []byte("# no table here\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "plan", "release", "fixes", "spec-broken.md"), []byte("# no table here\n"), 0o600); err != nil {
 		t.Fatalf("write the broken spec: %v", err)
 	}
 

@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,8 +21,8 @@ import (
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
-// Qualification stays explicit until the owner resolves the portfolio decisions.
-const Qualification = "Inventory preview pending owner classification. Bucket assignments are recorded facts; required/optional classification is not yet approved."
+// Qualification states the release boundary without claiming readiness from counts.
+const Qualification = "Release fixes, validation and delivery are required; post-release work and unapproved proposals are not release commitments. Dependencies take precedence over priority."
 
 // Named failures distinguish an unreadable population from an empty one.
 var (
@@ -35,17 +34,19 @@ var (
 
 // Item contains only the metadata published by the roadmap, never a spec body.
 type Item struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Path        string   `json:"path"`
-	Bucket      string   `json:"bucket"`
-	Status      string   `json:"status"`
-	Depends     string   `json:"depends"`
-	Phase       string   `json:"phase"`
-	Set         string   `json:"set"`
-	Updated     string   `json:"updated"`
-	SourceURL   string   `json:"source-url"`
-	Diagnostics []string `json:"diagnostics"`
+	Name          string   `json:"name"`
+	Title         string   `json:"title"`
+	Path          string   `json:"path"`
+	Bucket        string   `json:"bucket"`
+	Status        string   `json:"status"`
+	Priority      string   `json:"priority"`
+	ReleaseReason string   `json:"release-reason"`
+	Depends       string   `json:"depends"`
+	Phase         string   `json:"phase"`
+	Set           string   `json:"set"`
+	Updated       string   `json:"updated"`
+	SourceURL     string   `json:"source-url"`
+	Diagnostics   []string `json:"diagnostics"`
 }
 
 // Counts count files, including every malformed and parked item.
@@ -59,13 +60,14 @@ type Counts struct {
 
 // Snapshot is the reproducible input shared by the repository, site, and news.
 type Snapshot struct {
-	SchemaVersion int    `json:"schema-version"`
-	Revision      string `json:"revision"`
-	InputDigest   string `json:"input-digest"`
-	Qualification string `json:"qualification"`
-	Measure       string `json:"measure"`
-	Counts        Counts `json:"counts"`
-	Items         []Item `json:"items"`
+	SchemaVersion int                 `json:"schema-version"`
+	Revision      string              `json:"revision"`
+	InputDigest   string              `json:"input-digest"`
+	Qualification string              `json:"qualification"`
+	Measure       string              `json:"measure"`
+	Counts        Counts              `json:"counts"`
+	Items         []Item              `json:"items"`
+	Categories    []specpath.Category `json:"categories"`
 }
 
 // Collect resolves revision once, then reads only objects reachable from that commit.
@@ -84,21 +86,29 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	snapshot := Snapshot{
-		SchemaVersion: 1, Revision: resolved, Qualification: Qualification,
+		SchemaVersion: 2, Revision: resolved, Qualification: Qualification,
 		Measure: "spec work items; counts do not measure effort or release readiness",
 		Items:   make([]Item, 0, len(entries)),
 		Counts:  Counts{Buckets: make(map[string]int), Statuses: make(map[string]int)},
 	}
-	for _, directory := range specpath.Dirs() {
-		bucket, ok := specpath.Bucket(path.Join(directory, "spec-population.md"))
-		if ok {
-			snapshot.Counts.Buckets[bucket] = 0
+	snapshot.Categories = snapshotCategories(entries)
+	for _, category := range snapshot.Categories {
+		if category.Dir == specpath.Root {
+			snapshot.Qualification = "Historical inventory: original directory classifications are preserved, not mapped to current queues. Counts do not establish release readiness."
+			break
 		}
+	}
+	order := make(map[string]int, len(snapshot.Categories))
+	required := make(map[string]bool, len(snapshot.Categories))
+	for index, category := range snapshot.Categories {
+		snapshot.Counts.Buckets[category.Name] = 0
+		order[category.Name] = index
+		required[category.Name] = category.Required
 	}
 	identities := make(map[string]string, len(entries))
 	digest := sha256.New()
 	for index, entry := range entries {
-		parsed, err := specstatus.Parse(blobs[index], entry.path, nil)
+		parsed, err := specstatus.ParseHistorical(blobs[index], entry.path, nil)
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("%w: %s: %w", ErrRead, entry.path, err)
 		}
@@ -112,6 +122,7 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 		item := Item{
 			Name: parsed.Name, Title: parsed.Title, Path: parsed.Path, Bucket: parsed.Bucket,
 			Status: parsed.Status, Depends: parsed.Depends, Phase: parsed.Phase,
+			Priority: parsed.Priority, ReleaseReason: parsed.ReleaseReason,
 			Set: parsed.Set, Updated: parsed.Updated, SourceURL: sourceURL(resolved, entry.path),
 			Diagnostics: make([]string, 0),
 		}
@@ -120,19 +131,18 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 		snapshot.Counts.Total++
 		snapshot.Counts.Buckets[item.Bucket]++
 		snapshot.Counts.Statuses[item.Status]++
-		if item.Bucket == specpath.After {
+		if required[item.Bucket] {
+			snapshot.Counts.Required++
+		} else {
 			snapshot.Counts.NiceToHave++
-			continue
 		}
-		snapshot.Counts.Required++
 	}
 	snapshot.InputDigest = hex.EncodeToString(digest.Sum(nil))
-	order := make(map[string]int)
-	for index, directory := range specpath.Dirs() {
-		order[directory] = index
-	}
 	slices.SortFunc(snapshot.Items, func(left, right Item) int {
-		if result := cmp.Compare(order[path.Dir(left.Path)], order[path.Dir(right.Path)]); result != 0 {
+		if result := cmp.Compare(priorityOrder(left.Priority), priorityOrder(right.Priority)); result != 0 {
+			return result
+		}
+		if result := cmp.Compare(order[left.Bucket], order[right.Bucket]); result != 0 {
 			return result
 		}
 		if result := cmp.Compare(specstatus.StatusOrder(left.Status), specstatus.StatusOrder(right.Status)); result != 0 {
@@ -141,6 +151,42 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 		return cmp.Compare(left.Name, right.Name)
 	})
 	return snapshot, nil
+}
+
+// A retired layout keeps its actual category names and obligations. A tree with
+// both layouts reports both rather than silently relabeling old work.
+func snapshotCategories(entries []treeEntry) []specpath.Category {
+	current, historical := false, false
+	for _, entry := range entries {
+		if specpath.IsSpec(entry.path) {
+			current = true
+		} else {
+			historical = true
+		}
+	}
+	if !historical {
+		return specpath.Categories()
+	}
+	categories := specpath.HistoricalCategories()
+	if current {
+		categories = append(categories, specpath.Categories()...)
+	}
+	return categories
+}
+
+func priorityOrder(priority string) int {
+	switch priority {
+	case "P0":
+		return 0
+	case "P1":
+		return 1
+	case "P2":
+		return 2
+	case "P3":
+		return 3
+	default:
+		return 4
+	}
 }
 
 func itemDiagnostics(item *Item) {
@@ -159,6 +205,16 @@ func itemDiagnostics(item *Item) {
 	}
 	if _, err := time.Parse(time.DateOnly, item.Updated); err != nil {
 		item.Diagnostics = append(item.Diagnostics, "updated date unavailable or invalid")
+	}
+	// The new metadata contract does not rewrite what old commits were required
+	// to declare. Current-layout files keep missing or invalid values visible.
+	if specpath.IsSpec(item.Path) {
+		if priorityOrder(item.Priority) == 4 {
+			item.Diagnostics = append(item.Diagnostics, "priority unavailable or invalid")
+		}
+		if strings.TrimSpace(item.ReleaseReason) == "" {
+			item.Diagnostics = append(item.Diagnostics, "release reason unavailable")
+		}
 	}
 }
 
@@ -204,7 +260,12 @@ func tree(ctx context.Context, root, revision string) ([]treeEntry, error) {
 		if rel == specpath.Root {
 			planFound = fields[1] == "tree"
 		}
-		if !specpath.IsSpec(rel) {
+		bucket, recognized := specpath.HistoricalBucket(rel)
+		if !recognized {
+			continue
+		}
+		// Old proposals were not part of the historical roadmap population.
+		if bucket == "to-review" {
 			continue
 		}
 		if fields[1] != "blob" {

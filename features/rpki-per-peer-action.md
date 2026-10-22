@@ -7,7 +7,7 @@
 | Name | RPKI Per-Peer Action |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RFC 8210 gap row in rfc/short/rfc8210.md, invalid routes accepted under state policy (plan/immediate/spec-rpki-invalid-accepted-and-state-policy.md) |
+| Scope gaps | RFC 8210 gap row in rfc/short/rfc8210.md, invalid routes accepted under state policy (plan/release/fixes/spec-rpki-invalid-accepted-and-state-policy.md) |
 | Level | experimental |
 | Components | internal/component/bgp/plugins/rpki |
 | Real-path tests | test/plugin/rpki-per-peer-action.ci, test/plugin/rpki-group-action.ci, test/plugin/rpki-revalidate-late-sync.ci, test/plugin/rpki-validate-reject.ci, test/plugin/rpki-validate-accept.ci |
@@ -15,7 +15,7 @@
 | RFCs | rfc8210, rfc6811 |
 | Docs | docs/guide/rpki.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; peer > group > global resolution is what rpki-per-peer-action.ci and rpki-group-action.ci assert |
-| Defect review | 2026-10-07: plan/immediate/spec-rpki-invalid-accepted-and-state-policy.md open; journal origin-rail disagreement row taken as open |
+| Defect review | 2026-10-07: plan/release/fixes/spec-rpki-invalid-accepted-and-state-policy.md open; journal origin-rail disagreement row taken as open |
 | Extra criteria | supported: blackhole-exempt exempts agreed blackhole routes through the daemon = test/plugin/rpki-blackhole-exempt.ci |
 
 ## Description

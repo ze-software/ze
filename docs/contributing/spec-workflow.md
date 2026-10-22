@@ -14,6 +14,8 @@ validates it on every write.
 | Field | Purpose | Values |
 |-------|---------|--------|
 | Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `verification`, `blocked`, `deferred`, `done` |
+| Priority | Ordering within the release queue | `P0` security, data loss or fail-open; `P1` routing, configuration or lifecycle correctness; `P2` release proof/delivery or a release-independent proposal; `P3` post-release work |
+| Release reason | Why this work belongs in its release category | A concise rationale based on remaining work and evidence |
 | Handoff | Who closes this spec | `verify` for the two-session handoff, `-` for closure in the same session |
 | Depends | Blocking prerequisite | A spec filename, or `-` |
 | Phase | Multi-phase progress | `N/M`, or `-` for single-phase |
@@ -47,6 +49,40 @@ the release roadmap both read it.
 `./le spec status` prints the whole inventory, and `./le spec status | json`
 gives the machine-readable form.
 
+## Work queues and placement
+
+`specpath.Categories` is the one declaration of each queue's name, directory,
+display label and release requirement. Inventory, counts and roadmap sections
+derive from it. Lifecycle status is independent of placement.
+<!-- source: internal/le/spec/path/specpath.go -- Categories, Bucket, All, Find -->
+
+| Directory | Work | Required for release |
+|-----------|------|----------------------|
+| `plan/release/fixes/` | Incorrect shipped behavior and required repairs | Yes |
+| `plan/release/validation/` | Proof of shipped behavior and release support claims | Yes |
+| `plan/release/delivery/` | Artifacts, installation, appliance boot and essential onboarding | Yes |
+| `plan/post-release/features/` | Additional capabilities and absent features | No |
+| `plan/post-release/engineering/` | Release-independent refactors, tooling and optimizations | No |
+| `plan/proposals/` | Unapproved work | No |
+
+Current inventory refuses specs at the root or in the retired `immediate`,
+`pre-release` and `to-review` directories; it never quietly omits them.
+Duplicate stems are errors. A filename remains the identity when work moves,
+and moving or splitting a spec is not closure.
+
+Priority ranks work within the queue, but dependencies take precedence. A
+required behavior of an implemented capability cannot be deferred as an absent
+feature. When a spec mixes those scopes, split the implementation ownership and
+acceptance criteria, with reciprocal `Work Not Done` rows identifying the new
+owner of each obligation. Preserve historical narrative as history rather than
+turning old Task prose into a claim about the current product.
+
+Templates live under `plan/templates/`, and loose historical records under
+`plan/records/`. Named journal, learned, handover, verification-debt and
+known-failure directories retain their roles; those live obligations are not
+historical deferrals. The root README is the navigation entry point.
+
+
 ## Committed release roadmap
 
 `./le spec roadmap list [revision <ref>]` reads a committed Git tree. The default
@@ -56,17 +92,28 @@ the same typed snapshot, including its input digest and diagnostics.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
 
 `./le spec roadmap update [revision <ref>]` writes the derived, untracked
-`plan/roadmap.md` with relative source links. Historical updates are labeled.
+`plan/release/roadmap.md` with relative source links. Historical updates are labeled.
 The derived-artifact freshness check compares the recorded revision with `HEAD`;
 a commit therefore requires regeneration. Pending edits appear only after commit.
 <!-- source: internal/le/spec/roadmap/register.go -- Update, indexCurrent -->
 
-The inventory is a preview pending owner classification. Both required buckets
-include every spec, whatever its lifecycle state, and root specs remain optional.
-Missing metadata stays visible with diagnostics; duplicate stems and unreadable
-trees fail. Counts measure spec work items and do not establish release readiness.
-The website consumes this same collector without reading the generated index.
+The three release categories include every spec, whatever its lifecycle state.
+Post-release categories and proposals are visible but not required for release;
+a proposal is not an approved delivery commitment. Rows sort by priority, then
+the existing category, status and name order. Dependencies remain visible; this
+report is not a dependency scheduler. Missing or invalid metadata stays visible
+with diagnostics; duplicate stems and unreadable trees fail. Counts measure
+spec work items and do not establish release readiness. The website consumes
+this same collector and category declaration without reading the generated index.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect, Snapshot -->
+
+Old committed revisions retain their actual `after`, `immediate` and
+`pre-release` classifications and source paths. Old root work is never guessed
+to be a current feature. The formerly excluded `to-review` directory stays
+outside old roadmap populations, while historical path recognition includes it
+for relocation guards and citations. This is explicit historical interpretation,
+not a fallback allowing obsolete current placements.
+<!-- source: internal/le/spec/path/specpath.go -- HistoricalBucket, HistoricalCategories -->
 
 `./le spec roadmap compare from <ref> to <ref>` returns both pinned snapshots
 and their added, removed, moved, and status-changed items. A move can also change
@@ -107,8 +154,8 @@ closure candidate.
 `closureStem` reads a REMOVED spec file as the closure, and that removal is the
 ONLY signal. The same spec name removed from one release bucket and carried in
 another in the same commit is a RELOCATION, not a closure, and `relocatedSpecs`
-excludes it. It reads over every pair of buckets in both directions, because a
-triage sweep re-files work upward as often as downward. A spec removed under one
+excludes it. It recognizes historical source locations as well as all current
+categories, so old-to-new migration remains relocation. A spec removed under one
 stem and added under another in the same commit is a RENAME, not a closure, and
 `renamedSpecs` excludes it, but only when the added spec is new (absent from the
 parent) and its text equals the removed spec's text at the parent with every
@@ -162,13 +209,13 @@ grep limited to `// Design:` finds only one of the three forms.
 | Gate | Reads |
 |------|-------|
 | `./le doc check links` | `// Design:` lines and tracked path citations |
-| `./le spec citation` (`internal/le/spec/citation`) | Every `plan/spec-*.md` citation inside a spec |
-| `internal/le/doc/check.CheckLinks` tracked-citation pass | Every tracked path citation, a `plan/spec-*.md` target included |
+| `./le spec citation` (`internal/le/spec/citation`) | Spec-path citations inside current specs, including stale citations of historical locations |
+| `internal/le/doc/check.CheckLinks` tracked-citation pass | Every tracked path citation, including a target in any current spec category |
 
 ## Work not done
 
 An in-scope item a spec does not do becomes its OWN spec, and the source spec's
-`Work Not Done` table names that spec by path (`plan/TEMPLATE-CLOSURE.md`).
+`Work Not Done` table names that spec by path (`plan/templates/TEMPLATE-CLOSURE.md`).
 Nothing is parked in a row. `plan/deferrals/` held that role until 2026-09-05, <!-- doc-links: ignore (the directory was deleted on 2026-09-05 and this sentence is the record of it) -->
 and `ai/rationale/unfinished-scope-becomes-a-spec.md` records why it was
 deleted: 103 live rows on the last day, 29 of them naming no destination spec
@@ -178,7 +225,7 @@ at all, so that work sat in no count and nothing scheduled it.
 |--------|---------|
 | What was not done | The specific item, never a vague category. "Edge cases" is not an item |
 | Why | Why this spec did not do it |
-| The spec that now owns it | The path of a spec that exists on disk: `plan/spec-<stem>.md`, `plan/immediate/spec-<stem>.md`, or `plan/pre-release/spec-<stem>.md` |
+| The spec that now owns it | The path of a spec that exists on disk in one of the six declared current categories |
 
 The destination is a PATH. "later", "future work", "a follow-up" and "TBD" are
 not destinations, and a destination that is prose is a deletion with a polite
@@ -192,18 +239,18 @@ empty.
 
 | Order | Action |
 |-------|--------|
-| 1 | Search the three buckets and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
+| 1 | Search the six categories and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
 | 2 | If one exists, add the item to its `## Task` section and name that spec in the table |
-| 3 | If none does, write a new spec from `plan/TEMPLATE.md` and name it in the table |
+| 3 | If none does, write a new spec from `plan/templates/TEMPLATE.md` and name it in the table |
 
 A new spec goes in the bucket the ITEM belongs to, which is not always the
 bucket the source spec sits in (`plan/README.md`). An item a first-release
-operator meets as a bug goes to `plan/immediate/`, however small it looked from
-inside the source spec.
+operator meets as a bug goes to `plan/release/fixes/`, however small it looked
+from inside the source spec.
 
 Name it `plan/<bucket>/spec-<source>-<subtask>.md`: the source stem without its
 `spec-` prefix, then a short kebab-case name for the item. Create it from
-`plan/TEMPLATE.md` with `Status | skeleton`, fill only the `## Task` section
+`plan/templates/TEMPLATE.md` with `Status | skeleton`, fill only the `## Task` section
 with the item and any constraint already known, and name the source spec there
 so the provenance survives. A skeleton is captured intent, not a designed spec.
 It moves to `design` when somebody picks it up.
@@ -302,12 +349,12 @@ row count is the recurrence.
 
 ## Creating a spec
 
-Start from `plan/TEMPLATE.md`: read it, copy its full content, fill the relevant
+Start from `plan/templates/TEMPLATE.md`: read it, copy its full content, fill the relevant
 sections and leave the rest as `(fill during design)`. Writing a spec from memory
 loses required section headers, which `hookValidateSpec` then rejects.
 
 The closure half of the lifecycle lives in a second template,
-`plan/TEMPLATE-CLOSURE.md`, appended by `/ze-close` at step 1. Do not copy the
+`plan/templates/TEMPLATE-CLOSURE.md`, appended by `/ze-close` at step 1. Do not copy the
 closure sections into a new spec. Measured across 161 specs, sections copied at
 creation but used only at closure arrived at closure untouched in 65-75% of
 in-progress specs, while sections authors added when they needed them were
@@ -372,7 +419,7 @@ that is already done is never left in `plan/`.
 
 Extract every requirement from the spec (task items, AC-N assertions, TDD tests,
 files listed), give each one a status, and fill the audit table from
-`plan/TEMPLATE-CLOSURE.md`.
+`plan/templates/TEMPLATE-CLOSURE.md`.
 
 | Status | What it owes |
 |--------|--------------|

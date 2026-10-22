@@ -13,7 +13,7 @@
 | Real-path tests | test/ui/web-commit-transactional.ci, test/ui/web-commit-reject.ci, test/ui/web-delete-list-entry.ci, test/ui/web-recovery-session-survives-commit.ci, test/ui/web-tool-decode.ci, test/ui/web-user-removed-by-reload.ci |
 | Docs | docs/features/web-interface.md |
 | Doc review | 2026-10-07: counted 58 .templ files under internal/component/web and 9 under internal/component/lg; MANIFEST.md lists htmx 4.0.0; matches the row |
-| Defect review | 2026-10-07: no defect row found; plan/spec-web-testing-gaps.md records test gaps, not a behavior defect |
+| Defect review | 2026-10-07: no defect row found; plan/post-release/engineering/spec-web-testing-gaps.md records test gaps, not a behavior defect |
 
 ## Description
 

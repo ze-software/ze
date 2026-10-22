@@ -241,14 +241,14 @@ func TestSessionIDHookStatusContract(t *testing.T) {
 
 func TestStopWarningIsOneLineNamingTheOpenSpec(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(root, "tmp", "session"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	spec := "# Spec\n\n| Field | Value |\n|-------|-------|\n| Status | in-progress |\n"
-	if err := os.WriteFile(filepath.Join(root, "plan", "spec-open.md"), []byte(spec), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "plan", "post-release", "engineering", "spec-open.md"), []byte(spec), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	claim := filepath.Join(root, "tmp", "session", ".session-sess-stop")
@@ -373,11 +373,11 @@ func TestPostFormatGoLeavesGeneratedSourceAlone(t *testing.T) {
 // (ai/rules/evidence.md).
 func TestValidateSpecRefusesASpecItCannotRead(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 
-	absent := filepath.Join(root, "plan", "spec-this-does-not-exist.md")
+	absent := filepath.Join(root, "plan", "post-release", "engineering", "spec-this-does-not-exist.md")
 	code, _, message := runHook(t, root, "validate-spec", map[string]any{
 		"tool_name":  "Edit",
 		"tool_input": map[string]any{"file_path": absent, "new_string": "x"},
@@ -385,11 +385,11 @@ func TestValidateSpecRefusesASpecItCannotRead(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("an unreadable spec passed with code = %d, want 2 (message %q)", code, message)
 	}
-	if !strings.Contains(message, "NOTHING WAS CHECKED") || !strings.Contains(message, "plan/spec-this-does-not-exist.md") {
+	if !strings.Contains(message, "NOTHING WAS CHECKED") || !strings.Contains(message, "plan/post-release/engineering/spec-this-does-not-exist.md") {
 		t.Fatalf("the refusal named neither the failure nor the path: %q", message)
 	}
 
-	present := filepath.Join(root, "plan", "spec-kind.md")
+	present := filepath.Join(root, "plan", "post-release", "engineering", "spec-kind.md")
 	// A skeleton carries no design document, so the anchor audit stays out of
 	// this test: what it pins is that a spec the hook CAN read is validated and
 	// passes, which is the polarity the refusal above must not have taken away.
@@ -427,7 +427,7 @@ func TestStopHookJudgesStateNotWording(t *testing.T) {
 	}
 
 	closed := t.TempDir()
-	writeHookFixture(t, closed, "plan/spec-widget.md",
+	writeHookFixture(t, closed, "plan/post-release/engineering/spec-widget.md",
 		"| Field | Value |\n|-------|-------|\n| Status | in-progress |\n\n## Goal\n")
 	writeHookFixture(t, closed, "plan/learned/900-widget.md", "# Widget\n")
 	writeHookFixture(t, closed, "tmp/session/.session-sess-owed", "spec-widget.md\n")

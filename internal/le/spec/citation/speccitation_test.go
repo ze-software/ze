@@ -12,12 +12,14 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 func citationTree(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatalf("mkdir plan: %v", err)
 	}
 	for relative, body := range files {
@@ -45,8 +47,8 @@ func scanCitationTree(t *testing.T, files map[string]string) Report {
 // active specs and compare the complete rendered page and verdict.
 func TestValidSiblingCitationPasses(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-a.md": "See `plan/spec-b.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
-		"plan/spec-b.md": "No references.\n",
+		"plan/post-release/engineering/spec-a.md": "See `plan/post-release/engineering/spec-b.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-b.md": "No references.\n",
 	})
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want 0", code)
@@ -60,11 +62,11 @@ func TestValidSiblingCitationPasses(t *testing.T) {
 // structured location and the byte-complete failure page.
 func TestDanglingCitationIsStructuredAndFatal(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-a.md": "first\nSee `plan/spec-gone.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-a.md": "first\nSee `plan/post-release/engineering/spec-gone.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
 	wantFinding := DanglingFinding{
-		Citer:  DocumentLocation{Path: "plan/spec-a.md", Line: 2},
-		Target: "plan/spec-gone.md",
+		Citer:  DocumentLocation{Path: "plan/post-release/engineering/spec-a.md", Line: 2},
+		Target: "plan/post-release/engineering/spec-gone.md",
 	}
 	if !reflect.DeepEqual(report.Dangling, []DanglingFinding{wantFinding}) {
 		t.Fatalf("Dangling = %#v, want %#v", report.Dangling, []DanglingFinding{wantFinding})
@@ -73,7 +75,7 @@ func TestDanglingCitationIsStructuredAndFatal(t *testing.T) {
 		t.Fatalf("verdict = %d, want 1", code)
 	}
 	want := "./le spec citation FAILED: dangling spec references\n" +
-		"  plan/spec-a.md:2: references plan/spec-gone.md which is absent on disk (not in baseline)\n" +
+		"  plan/post-release/engineering/spec-a.md:2: references plan/post-release/engineering/spec-gone.md which is absent on disk (not in baseline)\n" +
 		"\n1 dangling reference(s). Either fix the citing reference, or -- if the target is legitimately gone -- add it to plan/.citation-baseline.\n"
 	if got := report.Text(); got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
@@ -84,14 +86,14 @@ func TestDanglingCitationIsStructuredAndFatal(t *testing.T) {
 // names whose lexical orders differ, then require document and encounter order.
 func TestDanglingFindingsUseProducerOrder(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-b.md": "`plan/spec-c.md` then `plan/spec-bb.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
-		"plan/spec-a.md": "`plan/spec-z.md`.\n",                        // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-b.md": "`plan/post-release/engineering/spec-c.md` then `plan/post-release/engineering/spec-bb.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-a.md": "`plan/post-release/engineering/spec-z.md`.\n",                                                 // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
 	var targets []string
 	for _, finding := range report.Dangling {
 		targets = append(targets, finding.Target)
 	}
-	want := []string{"plan/spec-z.md", "plan/spec-c.md", "plan/spec-bb.md"}
+	want := []string{"plan/post-release/engineering/spec-z.md", "plan/post-release/engineering/spec-c.md", "plan/post-release/engineering/spec-bb.md"}
 	if !reflect.DeepEqual(targets, want) {
 		t.Errorf("dangling targets = %v, want %v", targets, want)
 	}
@@ -101,17 +103,17 @@ func TestDanglingFindingsUseProducerOrder(t *testing.T) {
 // Method: cite one baselined target and one newly absent target in one line.
 func TestBaselineGrowthFailsOnlyForTheNewTarget(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/.citation-baseline": "# known\nplan/spec-old.md\n",
-		"plan/spec-a.md":          "`plan/spec-old.md` then `plan/spec-new.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/.citation-baseline":                 "# known\nplan/post-release/engineering/spec-old.md\n",
+		"plan/post-release/engineering/spec-a.md": "`plan/post-release/engineering/spec-old.md` then `plan/post-release/engineering/spec-new.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
-	if !reflect.DeepEqual(report.Baseline, []string{"plan/spec-old.md"}) {
+	if !reflect.DeepEqual(report.Baseline, []string{"plan/post-release/engineering/spec-old.md"}) {
 		t.Fatalf("Baseline = %v", report.Baseline)
 	}
 	if len(report.Dangling) != 1 {
 		t.Fatalf("Dangling = %#v, want one finding", report.Dangling)
 	}
-	if report.Dangling[0].Target != "plan/spec-new.md" {
-		t.Fatalf("Dangling = %#v, want only plan/spec-new.md", report.Dangling)
+	if report.Dangling[0].Target != "plan/post-release/engineering/spec-new.md" {
+		t.Fatalf("Dangling = %#v, want only plan/post-release/engineering/spec-new.md", report.Dangling)
 	}
 }
 
@@ -119,8 +121,8 @@ func TestBaselineGrowthFailsOnlyForTheNewTarget(t *testing.T) {
 // citation and its allowlist entry, then require a clean zero-baseline answer.
 func TestBaselineShrinkPasses(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/.citation-baseline": "# all known dangling references were cleaned\n",
-		"plan/spec-a.md":          "No citation remains.\n",
+		"plan/.citation-baseline":                 "# all known dangling references were cleaned\n",
+		"plan/post-release/engineering/spec-a.md": "No citation remains.\n",
 	})
 	if got, want := report.Text(), "./le spec citation OK (1 specs, 0 baselined dangling)\n"; got != want {
 		t.Errorf("Text = %q, want %q", got, want)
@@ -131,8 +133,8 @@ func TestBaselineShrinkPasses(t *testing.T) {
 // unreferenced baseline entry and prove that it remains non-fatal but visible.
 func TestUnreferencedBaselineEntryDoesNotBlockCleanup(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/.citation-baseline": "plan/spec-gone.md\n",
-		"plan/spec-a.md":          "No citation remains.\n",
+		"plan/.citation-baseline":                 "plan/post-release/engineering/spec-gone.md\n",
+		"plan/post-release/engineering/spec-a.md": "No citation remains.\n",
 	})
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want 0", code)
@@ -146,11 +148,11 @@ func TestUnreferencedBaselineEntryDoesNotBlockCleanup(t *testing.T) {
 // the named token off the cited source line and inspect the complete finding.
 func TestTokenDriftWarnsWithoutFailing(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-a.md": "The guard `oldToken` lives at `src/foo.go:2`.\n",
-		"src/foo.go":     "package foo\nnewToken := 1\n",
+		"plan/post-release/engineering/spec-a.md": "The guard `oldToken` lives at `src/foo.go:2`.\n",
+		"src/foo.go": "package foo\nnewToken := 1\n",
 	})
 	wantFinding := DriftFinding{
-		Citer:       DocumentLocation{Path: "plan/spec-a.md", Line: 1},
+		Citer:       DocumentLocation{Path: "plan/post-release/engineering/spec-a.md", Line: 1},
 		Source:      SourceLocation{Path: "src/foo.go", Line: "2"},
 		SourceToken: "oldToken",
 	}
@@ -160,7 +162,7 @@ func TestTokenDriftWarnsWithoutFailing(t *testing.T) {
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want advisory code 0", code)
 	}
-	want := "WARN plan/spec-a.md:1: citation `src/foo.go:2` no longer shows token `oldToken` on that line (line-token drift)\n" +
+	want := "WARN plan/post-release/engineering/spec-a.md:1: citation `src/foo.go:2` no longer shows token `oldToken` on that line (line-token drift)\n" +
 		"./le spec citation OK (1 specs, 0 baselined dangling, 1 line-token WARN)\n"
 	if got := report.Text(); got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
@@ -171,8 +173,8 @@ func TestTokenDriftWarnsWithoutFailing(t *testing.T) {
 // Method: cite the exact token and require no advisory finding.
 func TestPresentSourceTokenDoesNotWarn(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-a.md": "The guard `newToken` lives at `src/foo.go:2`.\n",
-		"src/foo.go":     "package foo\nnewToken := 1\n",
+		"plan/post-release/engineering/spec-a.md": "The guard `newToken` lives at `src/foo.go:2`.\n",
+		"src/foo.go": "package foo\nnewToken := 1\n",
 	})
 	if len(report.Warnings) != 0 {
 		t.Fatalf("Warnings = %#v, want none", report.Warnings)
@@ -183,8 +185,8 @@ func TestPresentSourceTokenDoesNotWarn(t *testing.T) {
 // removed spec from plan/learned and require no fatal dangling finding.
 func TestLearnedSummaryMayCiteAClosedSpec(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-a.md":      "No references.\n",
-		"plan/learned/100.md": "`plan/spec-closed.md` is now closed.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-a.md": "No references.\n",
+		"plan/learned/100.md":                     "`plan/spec-closed.md` is now closed.\n", // <!-- doc-links: ignore (a historical citation in a test fixture) -->
 	})
 	if len(report.Dangling) != 0 {
 		t.Fatalf("Dangling = %#v, want none", report.Dangling)
@@ -195,8 +197,8 @@ func TestLearnedSummaryMayCiteAClosedSpec(t *testing.T) {
 // line and prove that it is neither a drift warning nor a fatal finding.
 func TestMalformedCitationIsIgnored(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-a.md": "The guard `oldToken` lives at `src/foo.go:two`.\n",
-		"src/foo.go":     "package foo\nnewToken := 1\n",
+		"plan/post-release/engineering/spec-a.md": "The guard `oldToken` lives at `src/foo.go:two`.\n",
+		"src/foo.go": "package foo\nnewToken := 1\n",
 	})
 	if len(report.Warnings) != 0 {
 		t.Fatalf("malformed citation produced warnings=%#v", report.Warnings)
@@ -210,11 +212,11 @@ func TestMalformedCitationIsIgnored(t *testing.T) {
 // specs and one learned summary, then require specs first and learned last.
 func TestWarningsUseSpecThenLearnedOrder(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-b.md":        "`tokenB` at `src/x.go:1`.\n",
-		"plan/spec-a.md":        "`tokenA` at `src/x.go:1`.\n",
-		"plan/learned/1.md":     "`tokenL` at `src/x.go:1`.\n",
-		"src/x.go":              "none\n",
-		"plan/spec-template.md": "`ignored` at `src/x.go:1`.\n",
+		"plan/post-release/engineering/spec-b.md": "`tokenB` at `src/x.go:1`.\n",
+		"plan/post-release/engineering/spec-a.md": "`tokenA` at `src/x.go:1`.\n",
+		"plan/learned/1.md":                       "`tokenL` at `src/x.go:1`.\n",
+		"src/x.go":                                "none\n",
+		"plan/templates/TEMPLATE.md":              "`ignored` at `src/x.go:1`.\n",
 	})
 	var tokens []string
 	for _, warning := range report.Warnings {
@@ -245,10 +247,10 @@ func TestMissingPlanDirectoryFailsClosed(t *testing.T) {
 // invalid byte in an active spec and require the decoder error.
 func TestUnreadableCitationTextFailsClosed(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, "plan"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
 		t.Fatalf("mkdir plan: %v", err)
 	}
-	path := filepath.Join(root, "plan", "spec-a.md")
+	path := filepath.Join(root, "plan", "post-release", "engineering", "spec-a.md")
 	if err := os.WriteFile(path, []byte{0xff, '\n'}, 0o600); err != nil {
 		t.Fatalf("write invalid spec: %v", err)
 	}
@@ -273,9 +275,9 @@ func TestAnswerRefusesArguments(t *testing.T) {
 	}
 }
 
-// Goal: prove the gate reads a spec in every release bucket and checks a
-// citation of one. Method: scan a tree whose three buckets each hold one spec,
-// where the pre-release spec cites a bucket path that is absent.
+// Goal: prove the gate reads specs across release and post-release queues and checks a
+// citation of one. Method: scan a tree whose three selected queues each hold one spec,
+// where the validation spec cites a bucket path that is absent.
 //
 // PREVENTS: two silent halves of the same failure. A population globbed from
 // plan/ alone never reads the specs of the other two buckets, and a reference
@@ -283,18 +285,50 @@ func TestAnswerRefusesArguments(t *testing.T) {
 // pointer between buckets is reported by nobody.
 func TestEveryReleaseBucketIsCitedAndScanned(t *testing.T) {
 	report := scanCitationTree(t, map[string]string{
-		"plan/spec-after.md":                "See `plan/immediate/spec-now.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
-		"plan/immediate/spec-now.md":        "No references.\n",
-		"plan/pre-release/spec-blocking.md": "See `plan/immediate/spec-gone.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/post-release/engineering/spec-after.md": "See `plan/release/fixes/spec-now.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
+		"plan/release/fixes/spec-now.md":              "No references.\n",
+		"plan/release/validation/spec-blocking.md":    "See `plan/release/fixes/spec-gone.md`.\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
 	if report.Specs != 3 {
 		t.Fatalf("the population held %d specs, want 3: a bucket was not read", report.Specs)
 	}
 	want := []DanglingFinding{{
-		Citer:  DocumentLocation{Path: "plan/pre-release/spec-blocking.md", Line: 1},
-		Target: "plan/immediate/spec-gone.md",
+		Citer:  DocumentLocation{Path: "plan/release/validation/spec-blocking.md", Line: 1},
+		Target: "plan/release/fixes/spec-gone.md",
 	}}
 	if !reflect.DeepEqual(report.Dangling, want) {
 		t.Fatalf("Dangling = %#v, want %#v", report.Dangling, want)
+	}
+}
+
+// TestEveryCurrentCategoryChecksReferences proves no new category hides a
+// dangling citation by placing the same missing target in each declared queue.
+func TestEveryCurrentCategoryChecksReferences(t *testing.T) {
+	files := map[string]string{}
+	for _, category := range specpath.Categories() {
+		files[category.Dir+"/spec-"+category.Name+".md"] = "See `plan/release/fixes/spec-missing.md`.\n"
+	}
+	report := scanCitationTree(t, files)
+	if report.Specs != len(files) || len(report.Dangling) != len(files) {
+		t.Fatalf("category population %d, dangling %d, want %d each", report.Specs, len(report.Dangling), len(files))
+	}
+	for _, finding := range report.Dangling {
+		if finding.Target != "plan/release/fixes/spec-missing.md" {
+			t.Fatalf("wrong target: %+v", finding)
+		}
+	}
+}
+
+// TestCurrentSpecStillChecksHistoricalReferences ensures moving the citer does
+// not make an obsolete target invisible to the citation gate.
+func TestCurrentSpecStillChecksHistoricalReferences(t *testing.T) {
+	for _, directory := range []string{"plan", "plan/immediate", "plan/pre-release", "plan/to-review"} {
+		target := directory + "/spec-gone.md"
+		report := scanCitationTree(t, map[string]string{
+			"plan/proposals/spec-citer.md": "See `" + target + "`.\n",
+		})
+		if len(report.Dangling) != 1 || report.Dangling[0].Target != target {
+			t.Fatalf("historical target %s: %+v", target, report.Dangling)
+		}
 	}
 }

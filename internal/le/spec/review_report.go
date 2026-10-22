@@ -23,7 +23,7 @@ type reviewArtifact struct {
 	Files           []ReviewedFile `json:"files"`
 	Findings        string         `json:"findings,omitempty"`
 	RoundsReason    string         `json:"rounds-reason,omitempty"`
-	OwnerAuthorised string         `json:"owner-authorised,omitempty"` //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
+	OwnerAuthorised string         `json:"owner-authorised,omitempty"` //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/templates/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
 }
 
 // Document renders the persisted artifact format.
@@ -40,7 +40,7 @@ func (a reviewArtifact) Document() string {
 		tb.Str("\nrounds-reason: ").Str(a.RoundsReason).Byte('\n')
 	}
 	if a.OwnerAuthorised != "" {
-		tb.Str("\nowner-authorised: ").Str(a.OwnerAuthorised).Byte('\n') //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
+		tb.Str("\nowner-authorised: ").Str(a.OwnerAuthorised).Byte('\n') //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/templates/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
 	}
 	tb.Str("\n## Findings\n\n").Str(firstNonemptyString(a.Findings, "(none recorded)")).Str("\n")
 	return tb.String()

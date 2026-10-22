@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
@@ -18,7 +17,7 @@ import (
 func (snapshot *Snapshot) Text() string { return Markdown(snapshot, false) }
 
 // Markdown renders a snapshot without reading the filesystem or the clock.
-// localLinks selects links relative to plan/roadmap.md; site links pin each commit.
+// localLinks selects links relative to plan/release/roadmap.md; site links pin each commit.
 func Markdown(snapshot *Snapshot, localLinks bool) string {
 	var out strings.Builder
 	out.WriteString("# Release roadmap\n\nGenerated inventory; do not edit this output.\n\n")
@@ -52,10 +51,17 @@ func Markdown(snapshot *Snapshot, localLinks bool) string {
 		out.WriteString("\nNo spec work items exist in this selected tree. This empty inventory does not establish release readiness.\n")
 	}
 	out.WriteString("\n## Required before release\n\n")
-	group(&out, snapshot, specpath.Immediate, "Operator-visible defects and missing behavior", localLinks)
-	group(&out, snapshot, specpath.PreRelease, "Other release obligations", localLinks)
-	out.WriteString("## Nice-to-haves\n\nThe first release can ship without these items; no later delivery date is implied.\n\n")
-	group(&out, snapshot, specpath.After, "Optional work", localLinks)
+	for _, category := range snapshot.Categories {
+		if category.Required {
+			group(&out, snapshot, category.Name, category.Label, localLinks)
+		}
+	}
+	out.WriteString("## Not required for release\n\nPost-release work has no promised delivery date. Proposals remain unapproved.\n\n")
+	for _, category := range snapshot.Categories {
+		if !category.Required {
+			group(&out, snapshot, category.Name, category.Label, localLinks)
+		}
+	}
 	out.WriteString("## Status legend\n\n| Status | Meaning |\n|---|---|\n" +
 		"| skeleton | Captured task; design has not started |\n" +
 		"| design | Research and design in progress |\n" +
@@ -76,7 +82,7 @@ func group(out *strings.Builder, snapshot *Snapshot, bucket, title string, local
 		out.WriteString("No work items in this bucket.\n\n")
 		return
 	}
-	out.WriteString("| Work item | Status | Updated | Phase | Dependencies | Diagnostics |\n|---|---|---|---|---|---|\n")
+	out.WriteString("| Work item | Priority | Release reason | Status | Updated | Phase | Dependencies | Diagnostics |\n|---|---|---|---|---|---|---|---|\n")
 	for index := range snapshot.Items {
 		item := &snapshot.Items[index]
 		if item.Bucket != bucket {
@@ -90,9 +96,9 @@ func group(out *strings.Builder, snapshot *Snapshot, bucket, title string, local
 		if _, err := time.Parse(time.DateOnly, date); err != nil {
 			date = "unavailable"
 		}
-		fmt.Fprintf(out, "| [%s](%s) (%s) | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(out, "| [%s](%s) (%s) | %s | %s | %s | %s | %s | %s | %s |\n",
 			escape(title), itemLink(item, localLinks), escape("spec-"+item.Name),
-			escape(item.Status), escape(date), escape(item.Phase),
+			escape(item.Priority), escape(item.ReleaseReason), escape(item.Status), escape(date), escape(item.Phase),
 			dependencies(snapshot, item.Depends, localLinks), escape(strings.Join(item.Diagnostics, "; ")))
 	}
 	out.WriteByte('\n')
@@ -100,12 +106,15 @@ func group(out *strings.Builder, snapshot *Snapshot, bucket, title string, local
 
 func itemLink(item *Item, localLinks bool) string {
 	if localLinks {
-		return escapedPath(strings.TrimPrefix(item.Path, specpath.Root+"/"))
+		if relative, ok := strings.CutPrefix(item.Path, path.Dir(OutputRel)+"/"); ok {
+			return escapedPath(relative)
+		}
+		return "../" + escapedPath(strings.TrimPrefix(item.Path, "plan/"))
 	}
 	return item.SourceURL
 }
 
-var dependencyRE = regexp.MustCompile(`(?:plan/(?:immediate/|pre-release/)?)?spec-[a-zA-Z0-9][a-zA-Z0-9._-]*\.md`)
+var dependencyRE = regexp.MustCompile(`(?:plan/(?:[a-zA-Z0-9._-]+/)*)?spec-[a-zA-Z0-9][a-zA-Z0-9._-]*\.md`)
 
 func dependencies(snapshot *Snapshot, declared string, localLinks bool) string {
 	var out strings.Builder

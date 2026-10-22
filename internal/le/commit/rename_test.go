@@ -28,7 +28,7 @@ var renameWork = map[string]string{
 // and in a self-reference, the two places a rename has to rewrite.
 func renameFixtureSpec(stem string) string {
 	return "# Spec: " + stem + "\n\n| Status | in-progress |\n\n" + renameWork[stem] + "\n" +
-		"See plan/spec-" + stem + ".md for the acceptance criteria.\n"
+		"See plan/post-release/engineering/spec-" + stem + ".md for the acceptance criteria.\n"
 }
 
 // commitRenameBaseline commits each spec at HEAD with its fixture body, so the
@@ -37,7 +37,7 @@ func commitRenameBaseline(t *testing.T, stems ...string) string {
 	t.Helper()
 	root := newCommitRepository(t)
 	for _, stem := range stems {
-		path := "plan/spec-" + stem + ".md"
+		path := "plan/post-release/engineering/spec-" + stem + ".md"
 		writeCommitFixture(t, root, path, renameFixtureSpec(stem))
 		runCommitGit(t, root, "add", "--", path)
 	}
@@ -51,11 +51,11 @@ func commitRenameBaseline(t *testing.T, stems ...string) string {
 // commit closes nothing.
 func TestAStemRenameWithCarriedContentIsNotAClosure(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name")
-	writeCommitFixture(t, root, "plan/spec-new-name.md", renameFixtureSpec("new-name"))
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
 	stem, err := closureStem(root,
-		[]string{"plan/spec-new-name.md", "plan/spec-old-name.md"},
-		[]string{"plan/spec-old-name.md"})
+		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
+		[]string{"plan/post-release/engineering/spec-old-name.md"})
 	if err != nil {
 		t.Fatalf("a stem rename was refused: %v", err)
 	}
@@ -69,12 +69,12 @@ func TestAStemRenameWithCarriedContentIsNotAClosure(t *testing.T) {
 // removal is a closure and the commit is refused without a review.
 func TestARenameThatAlsoChangesContentIsAClosure(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name")
-	writeCommitFixture(t, root, "plan/spec-new-name.md",
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md",
 		renameFixtureSpec("new-name")+"\nOne more acceptance criterion.\n")
 
 	stem, err := closureStem(root,
-		[]string{"plan/spec-new-name.md", "plan/spec-old-name.md"},
-		[]string{"plan/spec-old-name.md"})
+		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
+		[]string{"plan/post-release/engineering/spec-old-name.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
@@ -84,8 +84,8 @@ func TestARenameThatAlsoChangesContentIsAClosure(t *testing.T) {
 
 	_, err = Create(root, &Options{
 		Subject: "plan: rename and edit a spec",
-		Files:   []string{"plan/spec-new-name.md"},
-		Remove:  []string{"plan/spec-old-name.md"},
+		Files:   []string{"plan/post-release/engineering/spec-new-name.md"},
+		Remove:  []string{"plan/post-release/engineering/spec-old-name.md"},
 	})
 	if err == nil || !strings.Contains(err.Error(), "no independent-review artifact") {
 		t.Fatalf("Create = %v, want the closure refused for want of a review", err)
@@ -96,12 +96,12 @@ func TestARenameThatAlsoChangesContentIsAClosure(t *testing.T) {
 // where the refusal was observed.
 func TestCreateAcceptsAPureStemRename(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name")
-	writeCommitFixture(t, root, "plan/spec-new-name.md", renameFixtureSpec("new-name"))
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
 	if _, err := Create(root, &Options{
 		Subject: "plan: rename a spec",
-		Files:   []string{"plan/spec-new-name.md"},
-		Remove:  []string{"plan/spec-old-name.md"},
+		Files:   []string{"plan/post-release/engineering/spec-new-name.md"},
+		Remove:  []string{"plan/post-release/engineering/spec-old-name.md"},
 	}); err != nil {
 		t.Fatalf("Create refused a pure stem rename: %v", err)
 	}
@@ -111,11 +111,11 @@ func TestCreateAcceptsAPureStemRename(t *testing.T) {
 // removed specs, the one renamed is excused and the other still closes.
 func TestOneRenameBesideARemovalLeavesTheRemovalAClosure(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name", "finished")
-	writeCommitFixture(t, root, "plan/spec-new-name.md", renameFixtureSpec("new-name"))
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
 	stem, err := closureStem(root,
-		[]string{"plan/spec-new-name.md", "plan/spec-old-name.md", "plan/spec-finished.md"},
-		[]string{"plan/spec-old-name.md", "plan/spec-finished.md"})
+		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md", "plan/post-release/engineering/spec-finished.md"},
+		[]string{"plan/post-release/engineering/spec-old-name.md", "plan/post-release/engineering/spec-finished.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
@@ -129,17 +129,17 @@ func TestOneRenameBesideARemovalLeavesTheRemovalAClosure(t *testing.T) {
 func TestOneAddedSpecCannotExcuseTwoRemovals(t *testing.T) {
 	root := newCommitRepository(t)
 	body := "# Spec\n\nNo stem appears here.\n"
-	for _, path := range []string{"plan/spec-one.md", "plan/spec-two.md"} {
+	for _, path := range []string{"plan/post-release/engineering/spec-one.md", "plan/post-release/engineering/spec-two.md"} {
 		writeCommitFixture(t, root, path, body)
 		runCommitGit(t, root, "add", "--", path)
 	}
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "spec baseline")
-	writeCommitFixture(t, root, "plan/spec-three.md", body)
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-three.md", body)
 
 	if _, err := closureStem(root,
-		[]string{"plan/spec-three.md"},
-		[]string{"plan/spec-one.md", "plan/spec-two.md"}); err == nil {
+		[]string{"plan/post-release/engineering/spec-three.md"},
+		[]string{"plan/post-release/engineering/spec-one.md", "plan/post-release/engineering/spec-two.md"}); err == nil {
 		t.Fatal("one added spec excused two removals")
 	}
 }
@@ -149,11 +149,11 @@ func TestOneAddedSpecCannotExcuseTwoRemovals(t *testing.T) {
 // now holds.
 func TestAnExistingSpecIsNoRenameTarget(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name", "new-name")
-	writeCommitFixture(t, root, "plan/spec-new-name.md", renameFixtureSpec("new-name"))
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
 	stem, err := closureStem(root,
-		[]string{"plan/spec-new-name.md", "plan/spec-old-name.md"},
-		[]string{"plan/spec-old-name.md"})
+		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
+		[]string{"plan/post-release/engineering/spec-old-name.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
@@ -166,11 +166,11 @@ func TestAnExistingSpecIsNoRenameTarget(t *testing.T) {
 // content read runs: the same name in another bucket stays a relocation.
 func TestABucketMoveIsStillARelocation(t *testing.T) {
 	root := commitRenameBaseline(t, "moving")
-	writeCommitFixture(t, root, "plan/immediate/spec-moving.md", renameFixtureSpec("moving")+"edited\n")
+	writeCommitFixture(t, root, "plan/release/fixes/spec-moving.md", renameFixtureSpec("moving")+"edited\n")
 
 	stem, err := closureStem(root,
-		[]string{"plan/immediate/spec-moving.md", "plan/spec-moving.md"},
-		[]string{"plan/spec-moving.md"})
+		[]string{"plan/release/fixes/spec-moving.md", "plan/post-release/engineering/spec-moving.md"},
+		[]string{"plan/post-release/engineering/spec-moving.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
@@ -186,18 +186,18 @@ func TestABucketMoveIsStillARelocation(t *testing.T) {
 func TestADischargeReadsARenameFromTheCommitBlobs(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name")
 	parent := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
-	writeCommitFixture(t, root, "plan/spec-new-name.md", renameFixtureSpec("new-name"))
-	runCommitGit(t, root, "add", "--", "plan/spec-new-name.md")
-	runCommitGit(t, root, "rm", "-q", "--", "plan/spec-old-name.md")
+	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
+	runCommitGit(t, root, "add", "--", "plan/post-release/engineering/spec-new-name.md")
+	runCommitGit(t, root, "rm", "-q", "--", "plan/post-release/engineering/spec-old-name.md")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "rename")
 	sha := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
-	runCommitGit(t, root, "rm", "-q", "--", "plan/spec-new-name.md")
+	runCommitGit(t, root, "rm", "-q", "--", "plan/post-release/engineering/spec-new-name.md")
 
 	facts := commitFacts{
 		SHA: sha, Parent: parent, Subject: "rename",
-		Paths:   []string{"plan/spec-new-name.md", "plan/spec-old-name.md"},
-		Removed: []string{"plan/spec-old-name.md"},
+		Paths:   []string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
+		Removed: []string{"plan/post-release/engineering/spec-old-name.md"},
 	}
 	if err := verifyKindNotApplicable(root, gateReviewOverride, facts); err != nil {
 		t.Fatalf("a discharge read the committed rename as a closure: %v", err)

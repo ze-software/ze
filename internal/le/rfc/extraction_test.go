@@ -282,6 +282,83 @@ func TestAnUnsignedSkeletonParsesAndStillFailsTheCheck(t *testing.T) {
 	}
 }
 
+// TestHistoricalRelocationArtifactsReachMigratedSpecs loads an unchanged signed
+// artifact through the sign-off consumer, then removes its live reservation.
+// Historical path recognition must permit the move without forgiving lost debt.
+func TestHistoricalRelocationArtifactsReachMigratedSpecs(t *testing.T) {
+	for _, directory := range []string{"plan", "plan/immediate", "plan/pre-release", "plan/to-review"} {
+		t.Run(directory, func(t *testing.T) {
+			relocatedTo := directory + "/spec-widget.md"
+			const target = "plan/release/fixes/spec-widget.md"
+			const artifactPath = "rfc/extraction/rfc9999.json"
+			artifact := `{"schema-version": 1, "stem": "rfc9999",
+ "register": "rfc2119", "source-path": "rfc/full/rfc9999.txt",
+ "source-sha": "` + RequirementSHA(derivedFixture) + `",
+ "signed-off": "2026-08-31", "reviewer": "the relocation test",
+ "sections": [{"id": "front", "sites": 0, "disposition": "skipped",
+               "skip-kind": "front-matter", "reason": "the title block"},
+              {"id": "1", "sites": 0, "disposition": "walked"},
+              {"id": "2", "sites": 1, "disposition": "walked"}],
+ "sites": [{"id": "2:1", "quote": "A speaker MUST send the widget.",
+            "disposition": "excluded", "excluded-kind": "relocated-to-spec",
+            "reason": "the widget spec owns the obligation",
+            "relocated-to": "` + relocatedTo + `", "reserved-id": "RFC9999-2-1"}]}`
+			tree := fixtureTree(t, map[string]string{
+				"rfc/full/rfc9999.txt": derivedFixture,
+				artifactPath:           artifact,
+				target:                 "# Spec: Widget\n\nImplement RFC9999-2-1.\n",
+			})
+			signed, errs, err := evaluateExtractions(NewDeriver(tree), nil)
+			if err != nil {
+				t.Fatalf("load historical relocation: %v", err)
+			}
+			if len(errs) != 0 {
+				t.Fatalf("migrated reservation refused: %v", errs)
+			}
+			if len(signed) != 1 {
+				t.Fatalf("valid migrated sign-offs = %d, want 1", len(signed))
+			}
+			art, held := signed["rfc9999"]
+			if !held {
+				t.Fatal("the migrated RFC lost its sign-off")
+			}
+			if len(art.Sites) != 1 {
+				t.Fatalf("signed sites = %d, want 1", len(art.Sites))
+			}
+			if art.Sites[0].RelocatedTo != relocatedTo {
+				t.Fatalf("historical path rewritten to %q", art.Sites[0].RelocatedTo)
+			}
+
+			if err := os.WriteFile(filepath.Join(tree, filepath.FromSlash(target)),
+				[]byte("# Spec: Widget\n\nNo reservation remains.\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			signed, errs, err = evaluateExtractions(NewDeriver(tree), nil)
+			if err != nil {
+				t.Fatalf("reloading historical relocation: %v", err)
+			}
+			if len(signed) != 0 {
+				t.Fatalf("removed reservation retained sign-off: %v", signed)
+			}
+			if len(errs) != 1 {
+				t.Fatalf("removed reservation violations = %v, want one", errs)
+			}
+			want := "reserves RFC9999-2-1 in " + relocatedTo +
+				", and that file no longer names RFC9999-2-1 in live prose"
+			if !strings.Contains(errs[0], want) {
+				t.Errorf("reservation refusal = %q, want %q", errs[0], want)
+			}
+			raw, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(artifactPath)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(raw) != artifact {
+				t.Fatal("checking the migrated target changed the signed artifact bytes")
+			}
+		})
+	}
+}
+
 // VALIDATES: the exclusion vocabulary is a CLOSED set that now holds
 // feature-out-of-scope. A site carrying it parses, and a kind nobody declared
 // is still refused with the legal set printed in the message.

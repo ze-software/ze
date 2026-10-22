@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-esp-dual-form-receive.md -- one Child SA receives both ESP forms
+// Design: plan/release/validation/spec-ipsec-esp-dual-form-receive.md -- one Child SA receives both ESP forms
 // RFC: rfc/short/rfc7296.md -- receive both ESP forms at any time (Section 2.23)
 // RFC: rfc/short/rfc3948.md -- UDP encapsulation of ESP, header and port rules
 

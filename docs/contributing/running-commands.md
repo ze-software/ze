@@ -1072,7 +1072,7 @@ pretool hook reads a runner as heavy for the lossy-pipe refusal, and a helper as
 light, from the same registration (`leroot.Admits`). Anything else is admitted by
 typing it after `./le job run label <label> command`. The rest of the heavy
 population joins in
-`plan/spec-native-action-job-admission.md`, so a second `./le verify current
+`plan/post-release/engineering/spec-native-action-job-admission.md`, so a second `./le verify current
 fast` does NOT block on the first: only its lint stage does.
 
 `ZE_RUN_SLOTS` (`SlotsKey`) sets the slot count. It defaults to one slot per core

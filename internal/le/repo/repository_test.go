@@ -173,9 +173,9 @@ func TestOnlyAnInProgressSpecsAcceptanceCriteriaAreRead(t *testing.T) {
 		"",
 	}, "\n")
 	root := tree(t, map[string]string{
-		"plan/spec-open.md":   inProgress,
-		"plan/spec-closed.md": done,
-		"plan/notes.md":       inProgress,
+		"plan/post-release/engineering/spec-open.md":   inProgress,
+		"plan/post-release/engineering/spec-closed.md": done,
+		"plan/notes.md": inProgress,
 	})
 
 	findings, err := checkSpecACCompleteness(root)
@@ -188,8 +188,8 @@ func TestOnlyAnInProgressSpecsAcceptanceCriteriaAreRead(t *testing.T) {
 	if findings[0].Message != "AC-2 has empty 'Demonstrated By' column" {
 		t.Fatalf("message %q", findings[0].Message)
 	}
-	if findings[0].File != "plan/spec-open.md" || findings[0].Line != 4 {
-		t.Fatalf("located at %s:%d, want plan/spec-open.md:4", findings[0].File, findings[0].Line)
+	if findings[0].File != "plan/post-release/engineering/spec-open.md" || findings[0].Line != 4 {
+		t.Fatalf("located at %s:%d, want plan/post-release/engineering/spec-open.md:4", findings[0].File, findings[0].Line)
 	}
 }
 
@@ -778,11 +778,11 @@ func TestTheSignatureSplitBalancesItsParentheses(t *testing.T) {
 // a different order, which no verdict comparison would catch.
 func TestTheChecksRunInTheScriptsOrder(t *testing.T) {
 	root := tree(t, map[string]string{
-		"docs/a.md":                 "<!-- source: internal/a/x.go:1 -- line number -->\n<!-- source: internal/gone.go -- stale -->\n",
-		"internal/a/x.go":           "package a\n\nfunc Orphan() {}\n",
-		"plan/spec-open.md":         "| Status | in-progress |\n### Acceptance Criteria\n| AC-1 | thing |  | a note |\n",
-		"internal/plugins/x/cmd.go": "package x\nfunc init(){ MustRegisterRootHandler(\"show thing\", nil) }\n",
-		"test/ui/a.ci":              "nothing\n",
+		"docs/a.md":       "<!-- source: internal/a/x.go:1 -- line number -->\n<!-- source: internal/gone.go -- stale -->\n",
+		"internal/a/x.go": "package a\n\nfunc Orphan() {}\n",
+		"plan/post-release/engineering/spec-open.md": "| Status | in-progress |\n### Acceptance Criteria\n| AC-1 | thing |  | a note |\n",
+		"internal/plugins/x/cmd.go":                  "package x\nfunc init(){ MustRegisterRootHandler(\"show thing\", nil) }\n",
+		"test/ui/a.ci":                               "nothing\n",
 	})
 	got := messages(t, root, []string{"internal/a/x.go", "internal/plugins/x/cmd.go"})
 	want := []string{"contains line number", "non-existent file", "no cross-package", "Demonstrated By", "no .ci test"}

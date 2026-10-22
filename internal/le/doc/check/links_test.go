@@ -196,8 +196,8 @@ func TestDesignReferencesUseTheNativeOwner(t *testing.T) {
 	// VALIDATES: the links action includes test-file Design references and durable-spec refusal.
 	// PREVENTS: a full links action omitting the pre-existing native Design checker.
 	root := fixtureRepository(t, map[string]string{
-		"internal/x/x_test.go": "// Design: plan/spec-live.md\npackage x\n",
-		"plan/spec-live.md":    "# Live\n",
+		"internal/x/x_test.go":                       "// Design: plan/post-release/engineering/spec-live.md\npackage x\n",
+		"plan/post-release/engineering/spec-live.md": "# Live\n",
 	})
 	report, err := checkLinks(root)
 	if err != nil {

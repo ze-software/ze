@@ -1,4 +1,4 @@
-// Design: plan/immediate/spec-fib-depth.md -- Linux netlink rich route programming
+// Design: plan/release/validation/spec-fib-depth.md -- Linux netlink rich route programming
 // Related: richroute.go -- RichRoute struct and richRouteBackend interface
 // Related: backend_linux.go -- base netlinkBackend
 

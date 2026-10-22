@@ -133,7 +133,7 @@ func TestTextMarksAStaleSkeleton(t *testing.T) {
 // TestTextAlignsEveryRowOnTheSameColumns pins the column arithmetic.
 //
 // VALIDATES: the header row, the box-drawing rule and a data row all start
-// their fifth cell at the same offset, and that offset is the sum of the
+// their sixth cell at the same offset, and that offset is the sum of the
 // widths declared above them.
 // PREVENTS: one of the three rows being written from a different width, which
 // leaves a rule that sits under the wrong columns while every assertion about
@@ -154,9 +154,9 @@ func TestTextAlignsEveryRowOnTheSameColumns(t *testing.T) {
 	separator := rowNaming(t, page, "─────")
 	data := rowNaming(t, page, "fixture-short")
 	for i, line := range []string{header, separator, data} {
-		if got := runeOffsetOfColumn(line, 4); got != colFlag+2+colBucket+2+colStatus+2+colUpdated+2 {
-			t.Errorf("row %d starts its fifth column at rune %d, want %d:\n%q",
-				i, got, colFlag+2+colBucket+2+colStatus+2+colUpdated+2, line)
+		if got := runeOffsetOfColumn(line, 5); got != colFlag+2+colBucket+2+8+2+colStatus+2+colUpdated+2 {
+			t.Errorf("row %d starts its sixth column at rune %d, want %d:\n%q",
+				i, got, colFlag+2+colBucket+2+8+2+colStatus+2+colUpdated+2, line)
 		}
 	}
 }
@@ -202,7 +202,7 @@ func TestInventoryIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	if len(records) != 1 {
 		t.Fatalf("the payload holds %d records, want 1", len(records))
 	}
-	want := []string{"name", "title", "path", "status", "depends", "phase", "set", "updated", "git-modified", "bucket", "category", "stale"}
+	want := []string{"name", "title", "path", "status", "priority", "release-reason", "depends", "phase", "set", "updated", "git-modified", "bucket", "category", "stale"}
 	if len(records[0]) != len(want) {
 		t.Errorf("the record carries %d keys, want %d: %v", len(records[0]), len(want), records[0])
 	}

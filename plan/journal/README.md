@@ -117,7 +117,7 @@ Per-row patches without steps 2 and 3 set no capture.
 
 ## Resolving rows
 
-`plan/spec-journal-resolution.md` owns how rows and classes get resolved (owner
+`plan/post-release/engineering/spec-journal-resolution.md` owns how rows and classes get resolved (owner
 decision M28): which DUE class a pass takes next, how a session claims it, what
 evidence a `fixed:` row carries, how a row whose code is gone is closed, and when
 a row that cannot express its defect and ensure its resolution is promoted to a

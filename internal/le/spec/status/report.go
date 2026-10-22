@@ -17,21 +17,23 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // Spec is one row of the inventory.
 type Spec struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Path        string `json:"path"`
-	Status      string `json:"status"`
-	Depends     string `json:"depends"`
-	Phase       string `json:"phase"`
-	Set         string `json:"set"`
-	Updated     string `json:"updated"`
-	GitModified string `json:"git-modified"`
-	// Bucket is the RELEASE bucket, from the directory the spec sits in:
-	// specpath.After, specpath.Immediate or specpath.PreRelease.
+	Name          string `json:"name"`
+	Title         string `json:"title"`
+	Path          string `json:"path"`
+	Status        string `json:"status"`
+	Priority      string `json:"priority"`
+	ReleaseReason string `json:"release-reason"`
+	Depends       string `json:"depends"`
+	Phase         string `json:"phase"`
+	Set           string `json:"set"`
+	Updated       string `json:"updated"`
+	GitModified   string `json:"git-modified"`
+	// Bucket is the work queue declared by specpath.Categories, from its directory.
 	Bucket string `json:"bucket"`
 	// Category is the committed-backlog / idea-capture / other split, from the
 	// spec's status. It answers a different question from Bucket: what state
@@ -151,6 +153,19 @@ func (in Inventory) Text() string {
 	}
 	tb.Str(")\n")
 
+	bucketCounts := make(map[string]int)
+	for i := range in {
+		bucketCounts[in[i].Bucket]++
+	}
+	tb.Str("Work queues: ")
+	for index, category := range specpath.Categories() {
+		if index != 0 {
+			tb.Str(" | ")
+		}
+		tb.Str(category.Name).Byte(' ').Int(int64(bucketCounts[category.Name]))
+	}
+	tb.Byte('\n')
+
 	backlog, ideas, other, stale := in.categories()
 	tb.Str("Categories: committed backlog ").Int(int64(len(backlog))).
 		Str(" (design/ready/in-progress/verification) | idea capture ").Int(int64(len(ideas))).
@@ -171,10 +186,10 @@ func categorySection(tb *textbuf.Buffer, title string, rows Inventory) {
 		tb.Str("  (none)\n\n")
 		return
 	}
-	specRow(tb, "Flag", "Bucket", "Status", "Updated", "Spec", "Phase", "Set", "Depends")
+	specRow(tb, "Flag", "Bucket", "Priority", "Status", "Updated", "Spec", "Phase", "Set", "Depends", "Release reason")
 	specRow(tb,
-		dashes(colFlag), dashes(colBucket), dashes(colStatus), dashes(colUpdated),
-		dashes(colSpec), dashes(colPhase), dashes(colSet), dashes(colDepends),
+		dashes(colFlag), dashes(colBucket), dashes(8), dashes(colStatus), dashes(colUpdated),
+		dashes(colSpec), dashes(colPhase), dashes(colSet), dashes(colDepends), dashes(14),
 	)
 	for i := range rows {
 		s := &rows[i]
@@ -182,7 +197,7 @@ func categorySection(tb *textbuf.Buffer, title string, rows Inventory) {
 		if s.Stale {
 			flag = "STALE"
 		}
-		specRow(tb, flag, s.Bucket, s.Status, s.Updated, s.Name, s.Phase, s.Set, s.Depends)
+		specRow(tb, flag, s.Bucket, s.Priority, s.Status, s.Updated, s.Name, s.Phase, s.Set, s.Depends, s.ReleaseReason)
 	}
 	tb.Byte('\n')
 }
@@ -190,15 +205,16 @@ func categorySection(tb *textbuf.Buffer, title string, rows Inventory) {
 // specRow writes one padded row. The widths are in RUNES, which is what the
 // fixed-width verb the script used pads by, so a box-drawing separator lands in
 // the same column as an ASCII value.
-func specRow(tb *textbuf.Buffer, flag, bucket, status, updated, spec, phase, set, depends string) {
+func specRow(tb *textbuf.Buffer, flag, bucket, priority, status, updated, spec, phase, set, depends, reason string) {
 	tb.PadRight(flag, colFlag).Str("  ").
 		PadRight(bucket, colBucket).Str("  ").
+		PadRight(priority, 8).Str("  ").
 		PadRight(status, colStatus).Str("  ").
 		PadRight(updated, colUpdated).Str("  ").
 		PadRight(spec, colSpec).Str("  ").
 		PadRight(phase, colPhase).Str("  ").
 		PadRight(set, colSet).Str("  ").
-		Str(depends).Byte('\n')
+		PadRight(depends, colDepends).Str("  ").Str(reason).Byte('\n')
 }
 
 // dashes answers the rule cell under a column that many runes wide. The unit is

@@ -198,10 +198,11 @@ its Markdown through the docs renderer. The page, `index.md`, and
 schema version, full revision, and digest of the plan inputs.
 <!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
 
-The output is an inventory preview pending owner classification. It includes
-both required buckets and the root nice-to-have bucket, including unknown
-metadata and parked states. Counts measure release work items and do not prove
-readiness or delivery. Pending edits appear after commit and regeneration.
+The output is a classified planning inventory. It separates release fixes,
+validation and delivery from post-release features, engineering and proposals,
+including unknown metadata and parked states. Priority and release rationale
+describe planning intent, not proof of correctness. Counts do not prove readiness
+or delivery. Pending edits appear after commit and regeneration.
 The feature page links this inventory rather than maintaining pending cards.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
 <!-- source: internal/le/site/datapages.go -- featuresBody, featuresMirror -->
@@ -215,7 +216,7 @@ declarations. The rules are in `docs/contributing/feature-maturity.md`, "The
 published surfaces".
 <!-- source: internal/le/site/datapages.go -- loadFeatureData -->
 
-The build does not read a local `plan/roadmap.md`. Source links name the selected
+The build does not read a local `plan/release/roadmap.md`. Source links name the selected
 commit, and an unreadable or missing `plan/` stops the build. Verify privately
 with `./le site build output <session-scratch-directory>`, then inspect the
 roadmap with JavaScript disabled and a narrow viewport.

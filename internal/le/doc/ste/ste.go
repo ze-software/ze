@@ -129,7 +129,7 @@ var excludeDirs = []string{
 // excludeGlobs contains documents that closure DELETES. An STE edit there has no
 // lasting value (owner directive, 2026-08-10). A spec exists for one work item
 // and `git rm` removes it in commit B. Durable `plan/journal/`,
-// `plan/learned/`, and `plan/TEMPLATE.md` files stay in scope because later
+// `plan/learned/`, and `plan/templates/TEMPLATE.md` files stay in scope because later
 // sessions read them.
 //
 // The globs come from specpath, so a spec is out of scope in every release

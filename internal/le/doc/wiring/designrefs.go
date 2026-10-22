@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 const (
@@ -91,7 +92,7 @@ func designReferenceFindings(root string) ([]string, error) {
 			}
 
 			where := tb.Reset().Str(rel).Byte(':').Int(int64(lineIndex + 1)).String()
-			if strings.HasSuffix(rel, "_test.go") && strings.HasPrefix(resolved, "plan/spec-") {
+			if strings.HasSuffix(rel, "_test.go") && specpath.IsSpec(resolved) {
 				broken = append(broken, brokenDesignRef{
 					where: tb.Reset().Str(where).
 						Str(": a test must cite a durable document, never a spec deleted at closure ").

@@ -61,14 +61,14 @@ type ReviewResult struct {
 func relocatedSpecs(paths, removed []string) map[string]bool {
 	removedFrom := make(map[string]string, len(removed))
 	for _, path := range removed {
-		if bucket, ok := specpath.Bucket(path); ok {
+		if bucket, ok := specpath.HistoricalBucket(path); ok {
 			removedFrom[filepath.Base(path)] = bucket
 		}
 	}
 
 	moved := make(map[string]bool)
 	for _, path := range paths {
-		bucket, ok := specpath.Bucket(path)
+		bucket, ok := specpath.HistoricalBucket(path)
 		if !ok {
 			continue
 		}
@@ -160,7 +160,7 @@ func closedSpecStem(paths, removed []string, sides specSides) (string, error) {
 	stems := make(map[string]bool)
 	for _, path := range removed {
 		base := filepath.Base(path)
-		if specpath.IsSpec(path) && !moved[base] && !renamed[path] {
+		if _, isSpec := specpath.HistoricalBucket(path); isSpec && !moved[base] && !renamed[path] {
 			stems[specpath.Stem(base)] = true
 		}
 	}
@@ -226,7 +226,7 @@ func renamedSpecs(paths, removed []string, moved map[string]bool, sides specSide
 	removedSet := make(map[string]bool, len(removed))
 	for _, path := range removed {
 		removedSet[path] = true
-		if specpath.IsSpec(path) && !moved[filepath.Base(path)] {
+		if _, isSpec := specpath.HistoricalBucket(path); isSpec && !moved[filepath.Base(path)] {
 			gone = append(gone, path)
 		}
 	}
@@ -278,7 +278,7 @@ func renamedSpecs(paths, removed []string, moved map[string]bool, sides specSide
 func addedSpecTexts(paths []string, removed, moved map[string]bool, sides specSides) (map[string]string, error) {
 	added := make(map[string]string)
 	for _, path := range paths {
-		if !specpath.IsSpec(path) {
+		if _, isSpec := specpath.HistoricalBucket(path); !isSpec {
 			continue
 		}
 		if removed[path] {

@@ -12,7 +12,7 @@
 | Real-path tests | test/ui/update-serve.ci |
 | Docs | docs/guide/self-update.md |
 | Doc review | 2026-10-07: selfupdate.go carries the FNV spread; the backend files named in the anchors exist |
-| Defect review | 2026-10-07: open: plan/pre-release/spec-selfupdate-manifest-authenticity.md (manifest not signed) |
+| Defect review | 2026-10-07: open: plan/release/fixes/spec-selfupdate-manifest-authenticity.md (manifest not signed) |
 | Extra criteria | supported: functional tests for check and download and apply and rollback = none yet; supported: gokrazy A/B update proof = none yet |
 
 ## Description

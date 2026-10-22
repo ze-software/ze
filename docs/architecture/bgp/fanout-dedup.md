@@ -95,7 +95,7 @@ is among them, and each was shown red by breaking the suppression it names.
 The AC-1/AC-2 negatives are expressible with the current harness, but no live
 fan-out fixture of that name supplies their socket proof. Recovery or
 reconstruction is owned by
-`plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`, which retains the
+`plan/release/validation/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`, which retains the
 recorded community-suppression and hex-decoding blockers. The historical
 draft's pinned frames are not current executed evidence; the holder requires
 the socket assertions and their discrimination proof before promotion.

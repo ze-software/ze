@@ -126,8 +126,8 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 	// that is too narrow making a rewrite falsify history.
 	const line = "./le test-unit all\n"
 	files := map[string]string{
-		"plan/spec-other.md":                   line,
-		"internal/le/le/root/retired_extra.go": line,
+		"plan/post-release/engineering/spec-other.md": line,
+		"internal/le/le/root/retired_extra.go":        line,
 	}
 	var skipped []string
 	for _, path := range retiredDeclarations {
@@ -149,7 +149,7 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, path := range []string{"plan/spec-other.md", "internal/le/le/root/retired_extra.go"} {
+	for _, path := range []string{"plan/post-release/engineering/spec-other.md", "internal/le/le/root/retired_extra.go"} {
 		if !retiredFound(report, "le test-unit", path, 1) {
 			t.Errorf("%s:1 is not listed; the file matched %v", path, retiredLinesOf(report, path))
 		}

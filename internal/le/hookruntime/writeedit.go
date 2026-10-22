@@ -218,7 +218,7 @@ func writePointLanguage(ctx context) *verdict {
 // writeDesignEvidence refuses a spec or design written before its source was read.
 func writeDesignEvidence(ctx context) *verdict {
 	relative := relativePath(ctx)
-	designDocument := specpath.IsSpec(relative) || anyPrefix(relative, "plan/design-", ".claude/plan/")
+	designDocument := specpath.IsSpec(relative) || strings.HasPrefix(relative, ".claude/plan/")
 	if !designDocument {
 		return nil
 	}

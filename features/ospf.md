@@ -8,7 +8,7 @@
 | Page | docs/guide/ospf.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RFC 3101 NSSA single ABR default producer and its interop scenarios (plan/immediate/spec-ospf-nssa-single-abr-producer.md), RFC 2328 and RFC 5340 obligations the ledger marks Partial |
+| Scope gaps | RFC 3101 NSSA single ABR default producer and its interop scenarios (plan/release/fixes/spec-ospf-nssa-single-abr-producer.md), RFC 2328 and RFC 5340 obligations the ledger marks Partial |
 | Level | experimental |
 | Components | internal/plugins/ospf |
 | Real-path tests | test/ospf/ospf-config.ci, test/ospf/ospf-neighbor.ci, test/ospf/ospf-flooding.ci, test/ospf/ospf-inter-area.ci, test/ospf/ospf-nssa.ci, test/ospf/ospf-stub.ci, test/ospf/ospf-route-install.ci, test/ospf/ospf-gr-helper.ci, test/ospf/ospf-sr-config.ci, test/ospf/ospf-lfa-compute.ci, test/ospf/ospf-virtual-link-config.ci, test/ospfv3/ospfv3-vlink.ci, test/ospfv3/ospfv3-sr-originate.ci, test/ospfv3/ospfv3-nssa-abr-default.ci |

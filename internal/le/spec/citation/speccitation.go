@@ -23,23 +23,16 @@ import (
 const (
 	baselinePath = "plan/.citation-baseline"
 	planPath     = specpath.Root
-	// specTemplateFile is the spec template every new spec starts from. It is
-	// not a spec, so it neither cites nor is cited.
-	specTemplateFile = "spec-template.md"
 )
 
-// specReferencePattern matches a citation of a spec in ANY release bucket. It
-// is BUILT from specpath.Dirs rather than spelled here: a pattern that named
-// plan/ alone matched no citation of a spec in plan/immediate/ or
-// plan/pre-release/, and an unmatched citation is one this gate never checks
-// (ai/rules/evidence.md).
-//
-// The alternatives are sorted longest first so the directory a reader sees is
-// the directory the match names.
+// specReferencePattern matches current and historical spec paths. The source
+// population is current-only, but a live spec citing an obsolete location must
+// still report the stale reference rather than silently stop matching it.
+// The alternatives are sorted longest first so the match names the full path.
 var specReferencePattern = regexp.MustCompile(specReferenceExpression())
 
 func specReferenceExpression() string {
-	dirs := specpath.Dirs()
+	dirs := specpath.HistoricalDirs()
 	sort.Slice(dirs, func(left, right int) bool { return len(dirs[left]) > len(dirs[right]) })
 	quoted := make([]string, 0, len(dirs))
 	for _, dir := range dirs {
@@ -90,7 +83,7 @@ func scanRepository(root string, repository *os.Root) (Report, error) {
 		Warnings: []DriftFinding{},
 	}
 
-	specs, err := specPaths(root)
+	specs, err := specpath.All(root)
 	if err != nil {
 		return report, err
 	}
@@ -130,24 +123,7 @@ func scanRepository(root string, repository *os.Root) (Report, error) {
 	return report, nil
 }
 
-// specPaths answers the citing population: every spec in every release bucket,
-// minus the template.
-func specPaths(root string) ([]string, error) {
-	all, err := specpath.All(root)
-	if err != nil {
-		return nil, err
-	}
-	specs := make([]string, 0, len(all))
-	for _, relative := range all {
-		if filepath.Base(relative) == specTemplateFile {
-			continue
-		}
-		specs = append(specs, relative)
-	}
-	return specs, nil
-}
-
-func documentPaths(root, pattern string, excludeTemplate bool) ([]string, error) {
+func documentPaths(root, pattern string) ([]string, error) {
 	plan := filepath.Join(root, planPath)
 	info, err := os.Stat(plan)
 	if err != nil {
@@ -163,11 +139,6 @@ func documentPaths(root, pattern string, excludeTemplate bool) ([]string, error)
 	}
 	paths := make([]string, 0, len(matches))
 	for _, match := range matches {
-		if excludeTemplate {
-			if filepath.Base(match) == specTemplateFile {
-				continue
-			}
-		}
 		relative, err := filepath.Rel(root, match)
 		if err != nil {
 			return nil, fmt.Errorf("make %s relative to repository: %w", match, err)
@@ -190,7 +161,7 @@ func learnedPaths(root string) ([]string, error) {
 	if !info.IsDir() {
 		return nil, nil
 	}
-	return documentPaths(root, filepath.Join(planPath, "learned", "*.md"), false)
+	return documentPaths(root, filepath.Join(planPath, "learned", "*.md"))
 }
 
 func loadBaseline(repository *os.Root) ([]string, error) {

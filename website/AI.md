@@ -182,9 +182,10 @@ a stale recorded run; `./le site build refresh` re-records those first
   Shared Markdown rendering publishes `/project/roadmap/` and its `index.md`;
   `data/release-roadmap.json` carries the same inventory with schema version,
   full revision, and its own input digest. The website source digest covers
-  only website inputs. The build never reads the generated `plan/roadmap.md`
+  only website inputs. The build never reads the generated `plan/release/roadmap.md`
   or falls back to working-tree specs. Pending edits appear after commit and
-  regeneration. All output is an inventory preview pending owner classification.
+  regeneration. Classification and priority describe planning intent, not proof
+  of correctness, readiness or delivery.
   Feature cards describe shipped or experimental capabilities and link to the
   roadmap for remaining release work items.
 - **The RFC requirement ledger.** `data/rfc-requirements.json` is derived once

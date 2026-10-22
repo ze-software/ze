@@ -1,4 +1,4 @@
-// Design: plan/immediate/spec-fib-depth.md -- rich route programming
+// Design: plan/release/validation/spec-fib-depth.md -- rich route programming
 // Related: fibkernel.go -- processEvent uses richRouteBackend when available
 // Related: backend_linux.go -- netlinkBackend implements richRouteBackend
 

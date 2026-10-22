@@ -14,7 +14,7 @@
 | Docs | docs/guide/rpki.md |
 | Stub evidence | test/plugin/rpki-aspa-valid.ci, test/plugin/rpki-aspa-invalid.ci, test/plugin/rpki-aspa-unknown.ci, test/plugin/rpki-aspa-disabled.ci, test/plugin/rpki-aspa-policy-reject.ci, test/plugin/rpki-aspa-policy-logonly.ci, test/plugin/rpki-aspa-policy-unknown-reject.ci |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; reject log-only accept match parseActionLeaf in internal/component/bgp/plugins/rpki/rpki_config.go |
-| Defect review | 2026-10-07: plan/immediate/spec-rpki-invalid-accepted-and-state-policy.md open |
+| Defect review | 2026-10-07: plan/release/fixes/spec-rpki-invalid-accepted-and-state-policy.md open |
 | Extra criteria | supported: ASPA records served by a real RTR v2 cache = test/interop/scenarios/rtr-stayrtr-aspa |
 
 ## Description

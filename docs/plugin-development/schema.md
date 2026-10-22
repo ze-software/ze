@@ -13,7 +13,7 @@ A config block under an external plugin's own root is refused when the config
 is loaded, before any plugin starts: `ze config validate` reports
 `unknown top-level keyword: <root>`. Compiling an external plugin's module at
 startup, so its own root becomes valid config, is planned
-(`plan/spec-plugin-external-yang-at-startup.md`). The `acme-monitor` example
+(`plan/post-release/features/spec-plugin-external-yang-at-startup.md`). The `acme-monitor` example
 at the end of this page shows that planned behavior for an external plugin.
 <!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema; deliverConfigRPC -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
@@ -250,7 +250,7 @@ stays a string checked by a `ze:validate` function.
 external process and defines its own root, `acme-monitor`. Today Ze refuses
 an `acme-monitor { ... }` block in the config (see "What works today" above),
 so the plugin never receives a section. The example becomes valid when
-`plan/spec-plugin-external-yang-at-startup.md` lands. The SDK calls it shows
+`plan/post-release/features/spec-plugin-external-yang-at-startup.md` lands. The SDK calls it shows
 (`NewConfigTx`, `Run`, `SchemaDecl`) work today for roots a compiled-in module
 defines.
 

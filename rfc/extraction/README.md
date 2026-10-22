@@ -269,16 +269,26 @@ the claim on every run and REFUSES the sign-off when:
 
 | Condition | Where |
 |---|---|
-| `relocated-to` is absent, or is not `plan/spec-<name>.md` | parse time, `_relocation_fields` |
-| `reserved-id` is absent, or is not an id of THIS RFC (`<RFCSTEM>-<section>-<n>`) | parse time, `_relocation_fields` |
+| `relocated-to` is absent, or is not a spec path in a current or historical bucket | parse time, `validateRelocation` |
+| `reserved-id` is absent, or is not an id of THIS RFC (`<RFCSTEM>-<section>-<n>`) | parse time, `validateRelocation` |
 | either field sits on a site that is not a `relocated-to-spec` exclusion | parse time |
-| the named spec does not exist, or cannot be read | check time, `_relocation_errors` |
-| the spec exists but no longer names `reserved-id`, as a whole id | check time, `_relocation_errors` |
-| `rfc/short/<stem>.md` still declares `reserved-id` | check time, `_relocation_errors` |
+| the named spec does not exist, or cannot be read | check time, `relocationErrors` |
+| the spec exists but no longer names `reserved-id`, as a whole id in live prose | check time, `relocationErrors` |
+| `rfc/short/<stem>.md` still declares `reserved-id` | check time, `relocationErrors` |
 
 A deferral shard, a known-failure file and a learned summary are all refused by the path
 shape. `ai/rules/rfc-compliance.md` names those three as NOT a compliance decision
 procedure, and this kind may not become one.
+
+Signed artifacts keep their original `relocated-to` bytes when a spec moves.
+`reSpecPath` recognizes the current and historical directories declared by
+`specpath.HistoricalDirs`; `relocationErrors` resolves the filename through
+`specpath.Find` to its current category and checks the live reservation there.
+This is historical artifact recognition, not permission to keep a current spec
+in a retired directory. Current inventory and derived feeds remain current-only.
+<!-- source: internal/le/rfc/artifact.go -- reSpecPath, validateRelocation -->
+<!-- source: internal/le/rfc/signoff.go -- relocationErrors -->
+<!-- source: internal/le/spec/path/specpath.go -- HistoricalDirs, Find -->
 
 **A closing spec turns the site red, and that is correct.** A completed spec is deleted
 (`ai/rules/planning.md`), so the tripwire fires the day the work lands. By then the

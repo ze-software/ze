@@ -157,7 +157,7 @@ the schema the config is parsed with. An external plugin sends its YANG text to
 the Hub at startup, but the Hub stores it and never parses it, and the config
 was already parsed before the plugin started. A third-party plugin therefore
 cannot yet extend the configuration schema without rebuilding Ze; compiling its
-module at startup is planned (`plan/spec-plugin-external-yang-at-startup.md`).
+module at startup is planned (`plan/post-release/features/spec-plugin-external-yang-at-startup.md`).
 <!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema, never read -->
 <!-- source: internal/component/config/loader.go -- LoadConfig parses with the compiled-in schema -->
 

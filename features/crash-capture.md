@@ -12,7 +12,7 @@
 | Real-path tests | test/ui/cli-crashes-offline-show.ci, test/ui/cli-crashes-readiness.ci, test/ui/cli-crashes-kernel-kind.ci, test/plugin/support-crashes-kernel.ci |
 | Docs | docs/guide/operations.md, docs/guide/appliance.md |
 | Doc review | 2026-10-07: ring.Recent(64) in internal/core/crashlog/crashlog.go; ze_crashes_artifacts and ze_crashes_kernel_capture_armed gauges in internal/plugins/crashes/readiness.go |
-| Defect review | 2026-10-07: plan/spec-crash-capture.md in progress (QEMU kernel-panic and warm-reboot labs unwritten); journal 2026-09-13 crashdump test row unfixed |
+| Defect review | 2026-10-07: plan/release/fixes/spec-crash-capture.md in progress (QEMU kernel-panic and warm-reboot labs unwritten); journal 2026-09-13 crashdump test row unfixed |
 | Extra criteria | supported: a kernel panic in a QEMU guest is harvested into show crashes after warm reboot = test/appliance/crash-kernel-panic-harvest.ci |
 
 ## Description

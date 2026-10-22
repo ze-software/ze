@@ -11,6 +11,7 @@ package feature
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,7 +46,7 @@ func fixtureTree(t *testing.T, edit func(string) string) string {
 	files["internal/widget/widget_test.go"] = "package widget\n\nimport \"testing\"\n\nfunc TestWidget(t *testing.T) {}\n"
 	files["test/plugin/widget.ci"] = "cmd=foreground:seq=1:exec=ze\n"
 	files["docs/widget.md"] = "# Widget\n"
-	files["plan/immediate/spec-unrelated.md"] = "# Spec\n\n## Files to Modify\n- `internal/other/x.go`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
+	files["plan/release/fixes/spec-unrelated.md"] = "# Spec\n\n## Files to Modify\n- `internal/other/x.go`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
 	files["features/widget.md"] = edit(passingDeclaration)
 	for rel, content := range files {
 		writeFile(t, tree, rel, content)
@@ -119,6 +120,21 @@ func writeFile(t *testing.T, tree, rel, content string) {
 	}
 	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCheckRefusesUnreadableReleaseFixInventory(t *testing.T) {
+	tree := fixtureTree(t, same)
+	directory := filepath.Join(tree, "plan", "release", "fixes")
+	if err := os.Rename(directory, directory+".saved"); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, tree, "plan/release/fixes", "not a directory\n")
+
+	_, _, err := checkOn(tree, fixtureToday)
+	var pathError *os.PathError
+	if !errors.As(err, &pathError) || pathError.Path != directory {
+		t.Fatalf("unreadable release-fix inventory must stop the maturity check: %v", err)
 	}
 }
 
@@ -241,9 +257,9 @@ func TestCheckRefusesSupportedWithRFCGap(t *testing.T) {
 
 func TestCheckRefusesSupportedWithImmediateSpec(t *testing.T) {
 	tree := fixtureTree(t, same)
-	writeFile(t, tree, "plan/immediate/spec-widget-bug.md", "# Spec\n\n## Files to Modify\n- `internal/widget/widget.go`\n") // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
+	writeFile(t, tree, "plan/release/fixes/spec-widget-bug.md", "# Spec\n\n## Files to Modify\n- `internal/widget/widget.go`\n") // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
 	verdict := judgeOne(t, tree)
-	requireRefused(t, &verdict, "S5: plan/immediate/spec-widget-bug.md names internal/widget")
+	requireRefused(t, &verdict, "S5: plan/release/fixes/spec-widget-bug.md names internal/widget")
 }
 
 // TestCheckRefusesSupportedWithoutGreenRun is owner decision D-6: a test that
@@ -452,5 +468,19 @@ func TestScenarioTreeIDIsGitsTreeID(t *testing.T) {
 	writeFile(t, tree, fixtureScenarioDir+"/peer/extra.conf", "untracked\n")
 	if untracked, err := scenarioTreeID(tree, fixtureScenarioDir); err != nil || untracked == clean {
 		t.Fatalf("an untracked file left the id at %s (err %v)", untracked, err)
+	}
+}
+
+// TestReleaseFixScanDoesNotTurnAbsentFeaturesIntoDefects distinguishes an open
+// repair from optional work even when both name the same component path.
+func TestReleaseFixScanDoesNotTurnAbsentFeaturesIntoDefects(t *testing.T) {
+	tree := fixtureTree(t, same)
+	writeFile(t, tree, "plan/post-release/features/spec-widget-extra.md", "# Spec\n\n## Files to Modify\n- `internal/widget/widget.go`\n") // <!-- doc-links: ignore (a synthetic component path in an isolated fixture) -->
+	writeFile(t, tree, "plan/proposals/spec-widget-idea.md", "# Spec\n\n## Files to Modify\n- `internal/widget/widget.go`\n")              // <!-- doc-links: ignore (a synthetic component path in an isolated fixture) -->
+	verdict := judgeOne(t, tree)
+	for _, problem := range verdict.Unmet[LevelSupported] {
+		if strings.HasPrefix(problem, "S5:") {
+			t.Fatalf("optional work became a defect: %s", problem)
+		}
 	}
 }

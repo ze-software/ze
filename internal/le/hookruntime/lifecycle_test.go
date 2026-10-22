@@ -6,6 +6,7 @@ import (
 	stdcontext "context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -16,7 +17,76 @@ import (
 
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/rfc"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
+
+// TestSubagentContextResolvesClaim drives the JSON hook entry over every current
+// category and unresolved claims, so a filename cannot become an invented path.
+func TestSubagentContextResolvesClaim(t *testing.T) {
+	const claim = "spec-context-probe.md"
+	tests := []struct {
+		name  string
+		paths []string
+		want  string
+	}{
+		{name: "missing", want: "no such spec"},
+		{name: "duplicate", paths: []string{
+			"plan/release/fixes/" + claim,
+			"plan/post-release/engineering/" + claim,
+		}, want: "two buckets"},
+	}
+	for _, category := range specpath.Categories() {
+		tests = append(tests, struct {
+			name  string
+			paths []string
+			want  string
+		}{name: category.Name, paths: []string{category.Dir + "/" + claim}})
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeHookFixture(t, root, "tmp/session/.session-context-parent", claim+"\n")
+			for _, path := range test.paths {
+				writeHookFixture(t, root, path, "# Spec: context probe\n")
+			}
+			code, output, diagnostics := runHook(t, root, "subagent-context",
+				map[string]any{"session_id": "context-parent"})
+			if code != 0 {
+				t.Fatalf("code = %d, want advisory context; stderr: %s", code, diagnostics)
+			}
+			var response struct {
+				Output struct {
+					Event   string `json:"hookEventName"`
+					Context string `json:"additionalContext"`
+				} `json:"hookSpecificOutput"`
+			}
+			if err := json.Unmarshal([]byte(output), &response); err != nil {
+				t.Fatal(err)
+			}
+			if response.Output.Event != "SubagentStart" {
+				t.Fatalf("event = %q", response.Output.Event)
+			}
+			context := response.Output.Context
+			if test.want != "" {
+				for _, want := range []string{"Cannot resolve the session's claimed spec " + claim, test.want, "./le spec claim"} {
+					if !strings.Contains(context, want) {
+						t.Errorf("context missing %q: %s", want, context)
+					}
+				}
+				if strings.Contains(context, "Spec claimed by the session that spawned you:") {
+					t.Errorf("unresolved claim emitted a spec path: %s", context)
+				}
+				return
+			}
+			if !strings.Contains(context, "Spec claimed by the session that spawned you: "+test.paths[0]+"\n") {
+				t.Errorf("context missing category-qualified path: %s", context)
+			}
+			if strings.Contains(context, "Cannot resolve") {
+				t.Errorf("resolved claim emitted a failure: %s", context)
+			}
+		})
+	}
+}
 
 // TestSessionHookCountsNoDischargedRowAsOwed drives the third consumer of the
 // ledger over a discharged row.

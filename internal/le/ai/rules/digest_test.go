@@ -829,7 +829,7 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 
 func TestTheRouterSubtractsACoreDerivedWithoutTheCorpus(t *testing.T) {
 	files := digestCorpus()
-	files["plan/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
+	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
 	root := digestTree(t, files)
 
 	report, err := Router(root)
@@ -853,7 +853,7 @@ func TestTheRouterSubtractsACoreDerivedWithoutTheCorpus(t *testing.T) {
 
 	// One shared term is not enough: the threshold is minHits distinctive
 	// words, because a single shared word routes everything.
-	files["plan/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy encoder.\n"
+	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy encoder.\n"
 	thin := digestTree(t, files)
 	thinReport, err := Router(thin)
 	if err != nil {
@@ -869,10 +869,10 @@ func TestTheRouterSubtractsACoreDerivedWithoutTheCorpus(t *testing.T) {
 
 func TestTheRouterReadsOnlyTheSectionsThatStateTheWork(t *testing.T) {
 	files := digestCorpus()
-	files["plan/spec-thing.md"] = "# Spec\n\n## Summary\n\nqdisc gokrazy elsewhere\n\n" +
+	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Summary\n\nqdisc gokrazy elsewhere\n\n" +
 		"## Task\n\nthe real statement\n\n### Sub\n\nstill inside the task\n\n" +
 		"## Risks\n\nqdisc gokrazy again\n"
-	files["plan/TEMPLATE.md"] = "# T\n\n## Task\n\ntemplate text\n"
+	files["plan/templates/TEMPLATE.md"] = "# T\n\n## Task\n\ntemplate text\n"
 	files["plan/RECURRING.md"] = "# R\n\n## Task\n\nall caps stem\n"
 	root := digestTree(t, files)
 
@@ -904,7 +904,7 @@ func TestAnEmptyCorpusIsReportedRatherThanPassingForAResult(t *testing.T) {
 	}
 
 	files := digestCorpus()
-	files["plan/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
+	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
 	full, err := Digest(digestTree(t, files), false)
 	if err != nil {
 		t.Fatalf("Digest: %v", err)
@@ -959,7 +959,7 @@ func TestTheEmptyCorpusAnswerWarnsOnStderrAndStillAnswersZero(t *testing.T) {
 
 func TestTheNewReportsAreStructuredDataWithKebabCaseKeys(t *testing.T) {
 	files := digestCorpus()
-	files["plan/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
+	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
 	root := digestTree(t, files)
 
 	index, err := Index(root, true)

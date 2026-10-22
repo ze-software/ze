@@ -849,7 +849,7 @@ func removedSpecPath(root string, facts commitFacts) (string, error) {
 		return "", err
 	}
 	for _, path := range facts.Removed {
-		if specpath.IsSpec(path) && specpath.Stem(filepath.Base(path)) == stem {
+		if _, isSpec := specpath.HistoricalBucket(path); isSpec && specpath.Stem(filepath.Base(path)) == stem {
 			return path, nil
 		}
 	}

@@ -1,0 +1,490 @@
+# Spec: lab-containers-least-privilege
+
+| Field | Value |
+|-------|-------|
+| Status | blocked |
+| Priority | P0 |
+| Release reason | Least-privilege release proofs retain outstanding confinement and grant-removal evidence; landed restrictions are not missing implementation. |
+| Blocked by | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md`: the AC-8/AC-9 lab runs, AC-2 AppArmor load and AC-10 evidence need a Docker host on Ze's kernel (the owner approval of the `plan/verification-debt/d1987d95.md` rows was given 2026-10-11, see the RESOLVED decision below) |
+| Scope | tooling |
+| Depends | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (D-7, the AppArmor profile registry at a1636c2223) |
+| Phase | - |
+| Handoff | - |
+| Updated | 2026-10-21 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+Every Docker container a Ze lab or proof starts that leaves Docker's default confinement (`--privileged`, `seccomp=unconfined`, `apparmor=unconfined`) gets the treatment the VRRP lab got at a1636c2223: it is granted exactly what its daemon needs (capabilities, devices, namespaced sysctls, a Ze AppArmor profile registered in `interoplab`), and broad privilege stays only where a justified verdict says the need is unbounded.
+
+Owner instruction, 2026-10-10 (recorded as the approval, design gates waived by the owner's "implement"): the remaining containers in the D-7 verdict table of `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` get the same least-privilege treatment as VRRP, as their own spec, and the spec is implemented.
+
+Owner principle D-7, restated at his request on 2026-10-10 in corrected English and made generic rather than specific to AppArmor: "The host should be set up correctly for Ze. A user will meet a misconfigured host sooner or later; when they do, Ze should report it without friction, and the path from the symptom to understanding the problem and its fix should be as smooth as possible. Where tooling can make sure the admin does the right thing, we should have the tooling." The owner's clarification, same day: the point is user friendliness, on every user interface Ze has (CLI, web, `ze doctor`, logs, the `./le` tooling), not the CLI alone, so every refusal this spec writes names what is wrong, why, and the exact command that fixes it.
+
+-> Decision (owner, 2026-10-10, "make it generic"): one generic lab profile, not one per lab. A peer that writes its own network namespace's sysctls at run time runs under `ze-lab-net-sysctl` (docker-default with `/proc/sys` writes denied everywhere but under `net/`), registered once in `interoplab`; a lab names it, never defines its own copy.
+-> Decision (owner, confirmed 2026-10-10): "make it generic" means ONE shared AppArmor profile, `ze-lab-net-sysctl`, for every lab container that writes network sysctls, granting only what the labs together need; no per-lab profiles. The IPsec strongSwan peer and the RSVP-TE Ze nodes use it; VRRP moves onto it and `ze-lab-vrrp` is deleted (docker-host spec's work).
+
+Goals.
+
+| ID | Goal |
+|----|------|
+| G-1 | No lab container runs `--privileged` unless this spec records a verdict that its need is unbounded |
+| G-2 | Every grant a container keeps is proven necessary: removing it makes the lab fail |
+| G-3 | A container that needs more than docker-default's AppArmor rules runs under a registered Ze profile, loaded by `./le setup docker-kernel apparmor confirm <name>`, never unconfined |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/testing/interop.md` - the Docker host kernel check and the AppArmor profile registry
+  → Decision: a lab's profile registers with `interoplab.RegisterAppArmorProfile` from a `register_apparmor.go` in the lab's own package; a peer names it in `PeerConfig.AppArmorProfile`; `runContainer` adds `--security-opt apparmor=<name>` only on a daemon that reports AppArmor and refuses on a Linux client whose `/sys/kernel/security/apparmor/profiles` lacks it, naming `./le setup docker-kernel apparmor confirm <name>`. One registry, no list.
+  → Constraint: a profile is built with `kernelcap.DockerDefaultProfile(name, procSysDenies, mounts)` and `kernelcap.ProcSysWriteDenies(keep)`; `keep` is ONE path, a trailing slash grants the directory, any other keep is one file and everything longer is denied. Two disjoint keeps cannot be expressed, because each deny chain refuses the other.
+- [ ] `docs/architecture/core-design.md` - declared by the deployment and terminal-demo files
+  → Constraint: unaffected; this spec changes container argv only, no package boundary or registration
+- [ ] `ai/rules/platform-linux.md` - labs run on Ze's kernel
+  → Constraint: a lab runs through `./le test qemu docker-lab` (the Alpine guest on Ze's runtime kernel); that guest carries no AppArmor, so a profile is exercised only on an AppArmor Linux host, and its parse is proven with `apparmor_parser -Q` in `ubuntu:24.04`.
+- [ ] `gokrazy/kernel/runtime.config` - what Ze's kernel builds in
+  → Constraint: `CONFIG_PPP`, `CONFIG_PPPOE`, `CONFIG_L2TP`, `CONFIG_PPPOL2TP`, `CONFIG_MPLS_ROUTING`, `CONFIG_MPLS_IPTUNNEL`, `CONFIG_XFRM_USER`, `CONFIG_IP_NF_NAT`, `CONFIG_TUN`, `CONFIG_HUGETLBFS` are all `=y`, so no container on the lab's kernel needs `modprobe` or `CAP_SYS_MODULE`. A host with these as modules loads them itself (D-7: the host is set up for Ze); a container never loads a host kernel module.
+- [ ] Docker's defaults (moby `oci/defaults.go`, `profiles/seccomp/default.json`)
+  → Constraint: the default capability set holds `NET_RAW`, `SETUID`, `SETGID`, `NET_BIND_SERVICE`, `DAC_OVERRIDE`, `CHOWN`, `KILL`, `MKNOD` but not `NET_ADMIN`, `SYS_ADMIN`, `IPC_LOCK`, `SYS_MODULE`. Docker mounts `/proc/sys` read-only (lifted only by `--security-opt systempaths=unconfined`), shows no host device but the defaults (`--device` adds one), and its default seccomp profile admits `mount`, `unshare`, `setns` only when `CAP_SYS_ADMIN` is granted. `--sysctl net.*=v` is written by the runtime into the container's own network namespace before the process starts.
+
+**Key insights:**
+- A sysctl written once at start becomes `--sysctl`; a sysctl written at run time needs `systempaths=unconfined` and a Ze profile narrowing `/proc/sys` writes.
+- PPP needs `--device /dev/ppp` and `NET_ADMIN` (`PPPIOCNEWUNIT` checks `CAP_NET_ADMIN` in the network namespace); XFRM, L2TP genl, MPLS routes, addresses, routes and iptables need `NET_ADMIN`; raw sockets (rawprobe, tcpdump, PPPoE discovery, RSVP protocol 46) need `NET_RAW`, which Docker grants by default.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/le/interoplab/apparmor.go` - the profile registry and `appArmorSecurityOption`
+- [ ] `internal/component/kernelcap/apparmor.go` - `DockerDefaultProfile`, `ProcSysWriteDenies`
+- [ ] `internal/le/interoplab/docker.go` - `PeerConfig`, `runContainer` argv
+- [ ] `internal/le/interoplab/bgp/register_apparmor.go` - the VRRP precedent
+- [ ] `internal/le/interoplab/ipsec/ipsec.go` - IPsec peers
+- [ ] `internal/le/interoplab/ipsec/nat.go` - the NAT script
+- [ ] `internal/le/interoplab/ipsec/helpers.go` - the run-time sysctl writes on strongSwan
+- [ ] `internal/le/interoplab/l2tp/l2tp.go` - L2TP peers and preflight
+- [ ] `internal/le/interoplab/pppoe/scenarios.go` - PPPoE peers
+- [ ] `internal/le/interoplab/rsvpte/rsvpte.go` - RSVP-TE ze and preflight
+- [ ] `internal/le/test/deployment/vppiface.go` - the VPP deployment container
+- [ ] `internal/le/verify/evidence/evidence.go` - the evidence container
+- [ ] `internal/le/site/terminaldemo/render.go` - the demo renderer
+- [ ] `internal/component/l2tp/kernel_linux.go` - `probeKernelModules`
+
+**Behavior to preserve:** every scenario's verdict; each lab's preflight still refuses a host lacking the kernel feature.
+
+**Behavior to change:** the containers' privileges, per the table below.
+
+`git grep` of `--privileged`, `seccomp=unconfined`, `apparmor=unconfined` in non-test Go, 2026-10-10:
+
+| # | Site | Container | Runs | What it does that docker-default refuses |
+|---|------|-----------|------|------------------------------------------|
+| 1 | `internal/le/interoplab/ipsec/ipsec.go` `dockerPrivileged` | NAT box (`nat.go` `natSetupScript`) | `sysctl -w` ip_forward, send_redirects, accept_redirects at start; `ip addr add`; iptables nat; later `ip route`, `ip rule`, iptables OUTPUT via `docker exec` (`helpers.go`) | the three sysctl writes (read-only `/proc/sys`), every netlink and iptables write (`NET_ADMIN`) |
+| 1 | same | strongSwan charon (`test/interop-ipsec/Dockerfile.strongswan`) | XFRM SAs and policies, routes; `rawprobe` raw sockets; the lab's `dropFragmentsAtPeer` (`helpers.go`) writes `net.ipv4.ipfrag_low_thresh` and `ipfrag_high_thresh` at run time | XFRM and route writes (`NET_ADMIN`); the two run-time sysctl writes (read-only `/proc/sys`, docker-default's `deny @{PROC}/sys/[^k]** w`) |
+| 1 | same | ze IKE (`Dockerfile.ze`) | XFRM SAs, policies, `XFRM_MSG_MIGRATE_STATE`, MOBIKE address changes via `docker exec ip addr` | XFRM and address writes (`NET_ADMIN`) |
+| 2 | `internal/le/interoplab/l2tp/l2tp.go` `privilegedArgument` | ze LNS, xl2tpd LAC, preflight alpine | L2TP genl tunnels and sessions, PPPoL2TP sockets, `/dev/ppp` units; preflight `modprobe` with `/lib/modules` mounted | `NET_ADMIN`, the `/dev/ppp` device; `modprobe` (`SYS_MODULE`) |
+| 3 | `internal/le/interoplab/pppoe/pppoe.go`, `scenarios.go` | ze, accel-ppp, pppd client, preflight | PPPoE discovery (AF_PACKET), PPPoX sockets, `/dev/ppp`; images' entrypoints `modprobe` | `NET_ADMIN`, `/dev/ppp`; `modprobe` |
+| 4 | `internal/le/interoplab/rsvpte/rsvpte.go` | ze RSVP-TE node, MPLS preflight | `<role>-setup.sh` writes `net.mpls.platform_labels`, `net.mpls.conf.<dev>.input` (including `prot0`, created by the script at run time) and `net.ipv4.ip_forward`; MPLS routes; raw protocol-46 socket; tcpdump | `NET_ADMIN`; the run-time sysctl writes; preflight `modprobe mpls_router` |
+| 5 | `internal/le/test/deployment/l2tp.go` `containerArgs` | xl2tpd and ze in one container | `/dev/ppp`, L2TP, PPP | `NET_ADMIN`, `/dev/ppp` |
+| 5 | `internal/le/test/deployment/vppiface.go` `containerArgs` | VPP (dpdk disabled, `VPPStartupConfig`) and ze | tap interfaces (`/dev/net/tun`), linux-cp, buffer memory, `mlock` | `NET_ADMIN`, `/dev/net/tun`, `IPC_LOCK`; hugepages: see A-4 |
+| 6 | `internal/le/verify/evidence/evidence.go` `dockerArgs` | the clean-clone verification gate (`ContainerScript`: `./le verify current mode full`) | every test the gate runs, including those `caps=` admits | open-ended: see Verdicts |
+| 7 | `internal/le/site/terminaldemo/render.go` `containerCommand` | the website terminal-demo renderer | `NET_ADMIN`, `NET_RAW`, `SYS_ADMIN` always, `seccomp=unconfined` always, `--privileged` for a demo whose manifest says `privileged` | see Verdicts |
+
+`internal/le/interoplab/ipsec/ipsec.go` FRR peer already runs with `NET_ADMIN`, `SYS_ADMIN` and no privilege: out of scope.
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+`./le test integration interop-ipsec` (and `interop-l2tp` via `interop`, `interop-pppoe`, `interop-rsvpte`), run on Ze's kernel by `./le test qemu docker-lab lab "<le words>"`; `./le test deployment l2tp-test`, `vpp-iface-test`; `./le verify evidence ...`; the terminal-demo render.
+
+### Transformation Path
+1. A lab's `prepareScenario` builds `interoplab.PeerConfig` per container: `Capabilities` (rendered `--cap-add`), `Arguments` (verbatim argv: `--device`, `--sysctl`, `--security-opt systempaths=unconfined`), `AppArmorProfile`.
+2. `Docker.runContainer` (`internal/le/interoplab/docker.go`) renders the argv; `appArmorSecurityOption` adds the profile on an AppArmor daemon or refuses naming the load command.
+3. A deployment proof builds its own `docker run` argv in `containerArgs`.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| le ↔ Docker daemon | `docker run` argv | unit tests over the recorded argv |
+| container ↔ host kernel | capabilities, devices, sysctls, AppArmor | lab runs on Ze's kernel through `docker-lab` |
+
+### Integration Points
+- `interoplab.RegisterAppArmorProfile` and `./le setup docker-kernel apparmor confirm <name>`: a new profile is loadable with no edit to the setup action.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | Yes | grants go through `PeerConfig` and the existing argv builders |
+| No unintended coupling (components stay isolated) | Yes | each lab owns its grants and its profile |
+| No duplicated functionality (extends existing, does not recreate) | Yes | profiles use `kernelcap.DockerDefaultProfile` and `ProcSysWriteDenies` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | tooling argv |
+| Registration over hardcoding, outbound | Yes | a profile registers from the lab's `register_apparmor.go` |
+| Registration over hardcoding, inbound | Yes | `internal/le/setup/dockerkernel/dockerkernel_apparmor.go` iterates `AppArmorProfileNames()`; no list names the new profiles |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | ze in the IPsec, L2TP and PPPoE labs writes no sysctl | `git grep /proc/sys` in `internal/component/l2tp`, the IKE dataplane: none; the scenarios' `ze.conf` carry no `sysctl` block | ze logs a write failure or exits; the lab says which | lab run through `docker-lab` | unvalidated |
+| A-2 | ze's L2TP kernel probe (`probeKernelModules`, `internal/component/l2tp/kernel_linux.go`) passes on Ze's kernel without `modprobe`: it returns early only when `/sys/module/l2tp_ppp` exists, and a built-in module with no parameter may not appear there | `moduleBuiltIn` reads `/sys/module/<name>` only | ze refuses to start in the L2TP and PPPoE labs: the probe must also accept `/proc/net/pppol2tp` (the preflight's own test), fixed in ze, never by granting `SYS_MODULE` | lab run | resolved at the producer, lab run owed: `net/l2tp/l2tp_ppp.c` declares `MODULE_VERSION(PPPOL2TP_DRV_VERSION)`; built in with `CONFIG_SYSFS`, `MODULE_VERSION` places a `module_version_attribute` in `__modver` (`include/linux/module.h`), and `version_sysfs_builtin` (`kernel/params.c`) creates `/sys/module/l2tp_ppp` through `lookup_or_create_module_kobject`, so ze's probe passes on Ze's kernel with no fix |
+| A-3 | accel-ppp and pppd need no run-time sysctl write that fails fatally | accel-ppp warns on a failed write | a scenario fails naming the write; a profile is added as for strongSwan | lab run | unvalidated |
+| A-4 | VPP without dpdk runs its buffers and heap on 4K pages when hugepages cannot be reserved | VPP's physmem falls back to the default page size | VPP refuses to start; the container gets `/dev/hugepages` mounted and the host reserves pages | `./le test deployment vpp-iface-test` | confirmed in emulation, real-host run owed: on colima (aarch64, kernel 6.8, the amd64 image emulated) VPP 26.06 started under `NET_ADMIN`, `IPC_LOCK`, `/dev/net/tun` and no hugepages, its `default-numa-0` pool holding 5978 buffers; `create tap` then needs `/dev/vhost-net` (`open '/dev/vhost-net': No such file or directory` without it, `TUNSETIFF: Operation not permitted` without `NET_ADMIN`), so `--device /dev/vhost-net` joins AC-7. VPP also started with `IPC_LOCK` removed, so that grant is not yet proven necessary (AC-9). The proof itself refused on colima before its container (`ze-kernel-probe` not loaded, D-7) and the image is amd64-only, so the HVF docker-lab guest cannot run it. Confirmed on a real amd64 host on 2026-10-10: on `ssh claude` (Ubuntu 24.04.5, kernel 6.8, no hugepages reserved for the container) VPP v26.06 started under the AC-7 grants, created `tap0` and answered 3 of 3 pings (the `IPC_LOCK` decision under Verdicts). The proof action itself (`./le test deployment vpp-iface-test`) is still owed: it refuses on that host's stock kernel (AC-8 evidence) |
+| A-5 | `--sysctl net.ipv4.conf.all.send_redirects=0` and the two others are accepted by Docker for a container on a user bridge | Docker admits `net.*` for a container with its own network namespace | `docker run` refuses with the key named | lab run | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | a grant is missing and a scenario fails on a host fact, read as a Ze defect | the failure names EPERM, EACCES, `Operation not permitted`, `Read-only file system` | the lab's log carries the daemon's error; add the one grant with its reason |
+| R-2 | the guest carries no AppArmor, so a profile's grant is never exercised there | none in the guest | the profile's text is unit tested against the paths the lab writes, and it parses under `apparmor_parser -Q`; an AppArmor host run is named as owed |
+| R-3 | `systempaths=unconfined` on ANY daemon that applies no AppArmor (the docker-lab guest, an SELinux host, a host with AppArmor disabled: `appArmorSecurityOption` returns no option there) lets container root, which is host uid 0 with no user namespace, write every host-global sysctl whose handler checks only ownership (`kernel.*`, `vm.*`, `fs.*`), not only `kernel.*` | none | used only where a run-time write is required (strongSwan, rsvpte ze, the `rib-fib` terminal demo), as VRRP does; only an AppArmor host with `ze-lab-net-sysctl` loaded confines the writes to `net/`, and an AppArmor host without the profile loaded is refused before the container starts |
+| R-4 | a host with L2TP/PPPoE/MPLS as modules not loaded fails the preflight where it used to load them | preflight refusal | the refusal names the modules and the host command; the module is the host's setup (D-7) |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | a lab or proof fails on the lab host; nothing user-visible ships |
+| How is it reverted? | one commit per container |
+| Who else touches this path? | the docker-host session (kernelcap, doctor, `interoplab` kernel check) edits `interoplab` too: this spec adds files and touches only each lab's own package |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| `./le test integration interop-ipsec` | → | `prepareScenario` peers | `TestIPsecLabPeersRunWithoutPrivilege` (`internal/le/interoplab/ipsec/privilege_test.go`) |
+| `./le test integration interop` (L2TP scenarios) | → | `zePeer`, `lacPeer`, `preflight` | `TestL2TPLabPeersRunWithoutPrivilege` (`internal/le/interoplab/l2tp/privilege_test.go`) |
+| `./le test integration` PPPoE lab | → | `prepare*` peers, `preflight` | `TestPPPoELabPeersRunWithoutPrivilege` (`internal/le/interoplab/pppoe/privilege_test.go`) |
+| `./le test integration interop-rsvpte` | → | `zePeer`, `mplsPreflight` | `TestRSVPTELabPeersRunWithoutPrivilege`, `TestRSVPTEPreflightRunsWithoutPrivilege` (`internal/le/interoplab/rsvpte/privilege_test.go`) |
+| `./le test deployment l2tp-test` | → | `L2TP.containerArgs` | `TestL2TPDeploymentContainerRunsWithoutPrivilege` (`internal/le/test/deployment/privilege_test.go`) |
+| `./le test deployment vpp-iface-test` | → | `vppIface.containerArgs` | `TestVPPDeploymentContainerRunsWithoutPrivilege` (same file) |
+| `./le setup docker-kernel apparmor confirm <name>` | → | `appArmorLoadConfirmed` over the registry | existing `internal/le/setup/dockerkernel/dockerkernel_apparmor_test.go`, which iterates every registered profile |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | IPsec lab peers | no argv carries `--privileged`; nat, strongSwan and ze carry `--cap-add NET_ADMIN`; the NAT box carries `--sysctl` for `net.ipv4.ip_forward=1`, `net.ipv4.conf.all.send_redirects=0`, `net.ipv4.conf.all.accept_redirects=0` and its script writes no sysctl; strongSwan carries `systempaths=unconfined` and `AppArmorProfile` `ze-lab-net-sysctl`, and both `peerReassemblyMarks` lie under the profile's grant (derived in the test) |
+| AC-2 | `ze-lab-net-sysctl` | registered once in `interoplab`; docker-default with `/proc/sys` writes denied except under `net/`, `deny mount,` kept, no `mount options` or `remount`; parses under `apparmor_parser -Q` in `ubuntu:24.04` |
+| AC-3 | L2TP lab peers and preflight | no `--privileged`, no `/lib/modules` mount, no `modprobe`; ze and LAC carry `NET_ADMIN` and `--device /dev/ppp`; the preflight carries the same and refuses naming the missing module or device |
+| AC-4 | PPPoE lab peers and preflight, and the images' entrypoints | as AC-3 for ze, accel-ppp, the pppd client and the preflight; no entrypoint runs `modprobe` |
+| AC-5 | RSVP-TE ze and the MPLS preflight | no `--privileged`, no `modprobe`; ze carries `NET_ADMIN`, `systempaths=unconfined` and `AppArmorProfile` `ze-lab-net-sysctl` (every key the scenarios' setup scripts write lies under its grant, derived in the test from the scripts); the preflight runs unprivileged and reads `/proc/sys/net/mpls/platform_labels` |
+| AC-6 | deployment L2TP container (`./le test deployment l2tp-test`; `l2tp-ppp-test` runs on the host with no container) | no `--privileged`; `NET_ADMIN`, `--device /dev/ppp` |
+| AC-7 | deployment VPP container | no `--privileged`; the grants A-4's run settles (`NET_ADMIN`, `--device /dev/net/tun`, `--device /dev/vhost-net` for VPP's tap backend, plus hugepages only if the run shows VPP needs them); no `IPC_LOCK` (owner decision 4, settled on `ssh claude`) |
+| AC-8 | each lab and proof above, run through `./le test qemu docker-lab` on Ze's kernel (or its deployment action) | passes as it did with `--privileged` |
+| AC-9 | each grant (each capability, device, sysctl, systempaths) removed in turn | the lab fails, naming the refused operation; the red is recorded in this spec |
+| AC-10 | evidence and terminal-demo | the verdict in Verdicts is implemented or recorded with its justification; the D-7 table row is updated |
+
+## Verdicts
+
+| Site | Verdict |
+|------|---------|
+| 1 IPsec | REPLACE: AC-1, AC-2 |
+| 2 L2TP | REPLACE: AC-3 |
+| 3 PPPoE | REPLACE: AC-4 |
+| 4 RSVP-TE | REPLACE: AC-5. `--sysctl` cannot name `net.mpls.conf.prot0.input` because `prot0` is created by the setup script, so the run-time write stays and the profile confines it. Review round 1 NOTE 8, recorded and not changed: every rsvpte Ze node writes `net.mpls.platform_labels`, `net.mpls.conf.eth0.input` and `net.ipv4.ip_forward` at run time from its setup script, and only the `plr-backup-path-to-egress-merge-point` transit also writes `prot0`, an interface its script creates. Moving the three common keys to `--sysctl` at create would leave `systempaths=unconfined` on that one node only, but whether `eth0` exists when the runtime applies `--sysctl` is unproven without a lab run, and no VM runs in this session |
+| 5 deployment | REPLACE: AC-6, AC-7 |
+| 6 evidence | the container runs `./le verify current mode full`, whose population is every test in the tree, and `caps=` admits a capability-gated test where the host holds the capability. The need is therefore the union of the `caps=` vocabulary, which a registry already declares. Design: derive the `--cap-add` list from that vocabulary, never a hand list; until implemented `--privileged` stays, recorded here |
+| 7 terminal demo | `seccomp=unconfined` is redundant beside `--cap-add SYS_ADMIN` (Docker's default seccomp admits `mount`, `unshare`, `setns` with that capability) and is removed; the per-demo `--privileged` stays a manifest decision per demo, each justified in the manifest (`privileged-reason`, 2d429ec8be). Review round 1 NOTE 9: `rib-fib` needed only `/proc/sys/net` writes (`fib-kernel` has the `sysctl` plugin turn on forwarding), so it now states `"net-sysctl": true` and runs with `systempaths=unconfined` under `ze-lab-net-sysctl`, never `--privileged` (4d6aec8f8d) |
+
+-> Decision (owner, 2026-10-10, four questions answered through the coordinator):
+1. D-7 table rows in `spec-docker-hosts-run-the-ze-kernel.md`: this spec owns them and updates them in their own commit.
+2. Site 6 evidence: least privilege. The `--cap-add` list is derived from the `caps=` vocabulary (`internal/test/runner` `capsRequired`) and `--privileged` is dropped, proven by a run inside that container; where a full `./le verify current mode full` run is out of reach, the narrowest run that exercises every derived capability, saying exactly what ran and what did not.
+3. Per-demo `--privileged`: each `demos/terminal/manifest.json` entry that is privileged carries a reason field in the manifest's own key style; the renderer refuses a privileged demo with no reason (problem, why, fix per `ai/rules/user-facing-errors.md`), a test proves the refusal, and the four privileged demos carry their reason.
+4. VPP `IPC_LOCK`: settled on the amd64 Linux host `ssh claude`: VPP run with the `vppIface.containerArgs` image and grants once with `IPC_LOCK` and once without, in containers named and removed by the agent; dropped if VPP starts, creates its tap and moves traffic without it, kept with the exact failure recorded otherwise.
+
+-> Decision (implementation, 2026-10-10, owner decision 4 settled): `IPC_LOCK` is dropped from `vppIface.containerArgs`. On `ssh claude` (amd64, Ubuntu, kernel 6.8, Docker AppArmor `docker-default`), `ligato/vpp-base:latest` (VPP v26.06-release) ran `VPPStartupConfig` under `--cap-add NET_ADMIN --device /dev/net/tun --device /dev/vhost-net`, once with `--cap-add IPC_LOCK` (containers `lcp-vpp-ipclock-with`, CapEff `a80475fb`) and once without (`lcp-vpp-ipclock-without`, CapEff `a80435fb`). Both answered `show version`, held the `default-numa-0` pool of 5978 buffers on default pages, created `tap0` (host side `vpptap0`), and `ping -c 3 10.99.0.1` from the host side to VPP's `tap0` address answered 3 of 3 (rtt 0.19-0.58 ms with, 0.32-0.76 ms without). Both containers were removed. ze in that container takes its `memlock` lock softly (`internal/plugins/memlock`), so the missing grant costs ze nothing but the lock. `TestVPPDeploymentContainerRunsWithoutPrivilege` now refuses `IPC_LOCK`.
+-> Decision (implementation, 2026-10-10, owner decision 2 implemented): the evidence container's grants were `runner.CapsDockerNames()` (`internal/test/runner/caps.go`, derived from `capsRequired` through `capDockerName`): `BPF`, `NET_ADMIN`, `NET_BIND_SERVICE`, `NET_RAW`, `SYS_TIME`, superseded in review round 1 by the decision below; `--privileged` is gone and Docker's default seccomp and AppArmor stay on. Proof run on `ssh claude` in `golang:1.27` (the evidence image), with exactly those grants (container `lcp-caps-granted`, CapEff `80aa0435fb`, Seccomp 2, `docker-default (enforce)`): a netlink dummy link add and delete, a raw ICMP socket, a bind of UDP 127.0.0.1:53 and a `BPF_MAP_CREATE` all succeeded. Control without the grants (`lcp-caps-default`): the link add and the map create were refused `operation not permitted`; with `NET_RAW` also dropped the raw socket was refused too. The bind of port 53 succeeded even with `NET_BIND_SERVICE` dropped, because Docker sets `net.ipv4.ip_unprivileged_port_start=0` in a container's namespace, so that grant is held but not discriminated there. `SYS_TIME` was NOT exercised, and will not be: `settimeofday` in a container sets the host's clock. It was held because the `caps=` vocabulary declares it (`capsRequired`); the bit was present in CapEff.
+-> Decision (review round 1, 2026-10-10, owner-delegated through the main thread): `SYS_TIME` is left out. `ContainerCapsDockerNames` (renamed from `CapsDockerNames`) skips the `capsAltersHost` tokens (`sys-time`), because a grant that lets a test set the host's clock is not one an evidence run may take. The evidence container holds `BPF`, `NET_ADMIN`, `NET_BIND_SERVICE`, `NET_RAW` and `--device /dev/ppp` (from the `containerDevices` table in `internal/test/runner/devices.go`; the per-test declaration, first `devices=` on `option=needs-linux`, then `option=opens-device` in 11e3964084, was deleted in review round 3 by 61e717df0c), and `test/plugin/storage-ntp-restart.ci` (`caps=` with `sys-time`) skips there by its `caps=` gate (2e16e9e966).
+-> Decision (implementation, 2026-10-10, `NET_BIND_SERVICE` discriminated): on `ssh claude`, `golang:1.27`, every run under `--sysctl net.ipv4.ip_unprivileged_port_start=1024`, a `perl` `bind` of UDP 127.0.0.1:53: with the evidence grants (`lcp-nbs-granted`, CapEff `80aa0435fb`) it succeeded; with `BPF NET_ADMIN NET_RAW SYS_TIME` and `--cap-drop NET_BIND_SERVICE` (`lcp-nbs-dropped`, CapEff `80aa0431fb`) it was refused `Permission denied`; the same container without the sysctl (`ip_unprivileged_port_start=0`, Docker's namespace default) bound it. So the grant is necessary on a host or namespace that keeps the kernel's default of 1024, and redundant under Docker's default namespace value. Note for the reviewer: `NET_BIND_SERVICE` is also in Docker's default capability set, and `--cap-add` beside `--cap-drop` of one capability keeps it (`lcp-nbs-dropped` with both flags still held bit 10), so removing only the `--cap-add NET_BIND_SERVICE` from the evidence argv changes nothing; the evidence argv states the need, Docker's default would supply it anyway. All `lcp-nbs-*` containers ran with `--rm`. NOT run: `./le verify current mode full` inside the container (hours, outside this budget), so a test outside the `caps=` vocabulary that needed more than these grants (for example `SYS_ADMIN` for a namespace) is not ruled out; the main thread owes `./le verify evidence release-candidate` on a Linux host with `ze-kernel-probe` loaded.
+
+-> Decision (implementation, 2026-10-10): site 5 covers both VPP proofs, because `vpp-test` (`newVPP`) and `TestVPPSRv6ServiceRoute` start the container through the same `vppIface.containerArgs`. Site 7's `seccomp=unconfined` is removed (`containerCommand`, `TestRenderAllRunsValidationAndPublishesExactArtifacts` red before, green after); no demo was rendered, so the render run is owed.
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestIPsecLabPeersRunWithoutPrivilege` | `internal/le/interoplab/ipsec/privilege_test.go` | AC-1 | |
+| `TestNetSysctlAppArmorProfileGrantsOnlyNetWrites` | `internal/le/interoplab/apparmor_netsysctl_test.go` | AC-2 | |
+| `TestNetSysctlGrantedFollowsTheProfile` | same | AC-2 (the NAT script's no-write check is inside `TestIPsecLabPeersRunWithoutPrivilege`) | |
+| `TestL2TPLabPeersRunWithoutPrivilege` | `internal/le/interoplab/l2tp/privilege_test.go` | AC-3 | |
+| `TestPPPoELabPeersRunWithoutPrivilege` | `internal/le/interoplab/pppoe/privilege_test.go` | AC-4 | |
+| `TestRSVPTELabPeersRunWithoutPrivilege` (derives every setup-script key through `NetSysctlGranted`), `TestRSVPTEPreflightRunsWithoutPrivilege` | `internal/le/interoplab/rsvpte/privilege_test.go` | AC-5 | |
+| `TestL2TPDeploymentContainerRunsWithoutPrivilege`, `TestVPPDeploymentContainerRunsWithoutPrivilege` | `internal/le/test/deployment/privilege_test.go` | AC-6, AC-7 | |
+
+### Boundary Tests (numeric inputs)
+N-A: no numeric input.
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| interop-ipsec on Ze's kernel | `./le test qemu docker-lab lab "test integration interop-ipsec"` | AC-8, AC-9 | owed |
+| L2TP, PPPoE, RSVP-TE labs | `./le test qemu docker-lab lab "<lab action>"` | AC-8, AC-9 | owed |
+| deployment proofs | `./le test deployment l2tp-test`, `vpp-iface-test` | AC-8, AC-9 | owed. 2026-10-10 on `ssh claude` from a clone at 8f52f9b540 (this spec's code through 28df8df562): `vpp-iface-test` and `vpp-test` both refused before any container, at the Docker kernel check: `the Docker daemon's kernel 6.8.0-146-generic lacks 2 kernel feature(s) Ze needs`, `ipsec-mobike (CONFIG_XFRM_MIGRATE)` and `mpls-transit-mtu (CONFIG_MPLS_IP_MTU)`, fix `./le setup docker-kernel install` (a host install, not done). The Ze-kernel route, `./le test qemu docker-lab lab "test deployment vpp-iface-test"`, refused too: the amd64 runtime-kernel cache entry `7.2.9-runtime-amd64-runtime-7c0d8f79-fd63186e` is not built there (fix `./ze appliance kernel --target runtime --arch amd64`); the build was not started because the host had 15 GB free against a 10 GB floor. A first `vpp-iface-test` attempt failed on `docker info` taking 17 s against the 15 s `dockerInfoTimeout` (a transient daemon stall; the next call took 0.1 s) |
+| profile parse | `apparmor_parser -Q` in `ubuntu:24.04` | AC-2, AC-5 | passed 2026-10-10 on the `ssh claude` host itself (Ubuntu 24.04.5, AppArmor parser 4.0.1): the text `interoplab.LookupAppArmorProfile("ze-lab-net-sysctl").Text()` answers at 244f78b1f5 (50 lines, sha256 `a5a09c44...`) parsed with `apparmor_parser -Q -K -T`, exit 0; the same text with one invalid rule inserted exited 1 (`syntax error, unexpected TOK_ID`), so the parse discriminates. Not loaded (no root) |
+
+### Interop Tests (Scope: protocol)
+N-A as new scenarios: no protocol behavior changes; the existing scenarios are the proof (AC-8).
+
+## Files to Modify
+- `internal/le/interoplab/ipsec/ipsec.go`, `nat.go` - grants, `--sysctl`, profile
+- `internal/le/interoplab/l2tp/l2tp.go`, `test/interop-l2tp/*` - grants, preflight
+- `internal/le/interoplab/pppoe/pppoe.go`, `scenarios.go`, `test/interop-pppoe/Dockerfile.*` - grants, preflight, entrypoints
+- `internal/le/interoplab/rsvpte/rsvpte.go` - grants, preflight
+- `internal/le/test/deployment/l2tp.go`, `vppiface.go` - grants
+- `internal/le/site/terminaldemo/render.go`, `types.go`, `manifest.go`, `demos/terminal/manifest.json` - seccomp, `privileged-reason`, `net-sysctl`; `internal/le/interoplab/apparmor_netsysctl.go` - `NetSysctlSecurityArguments`
+- `internal/test/runner/caps.go`, `record.go`, `record_parse.go`, `record_parse_vocabulary.go`, `internal/le/verify/evidence/evidence.go` - `ContainerCapsDockerNames`, `needs-linux` refusing unknown keys, empty `caps=` and unknown tokens (`TestNeedsLinuxRefusesUnknownKeys`, which also refuses `opens-device` as an unknown option type), the evidence `--device` list from `ContainerDevicePaths`, and `deviceRefusal` naming `sudo modprobe <module>` when the Docker host lacks the node. No per-test device option: round 2's `option=opens-device` (11e3964084) was deleted in round 3 (61e717df0c)
+- `test/l2tp/*.ci`, `test/pppoe/*.ci` - no net change: the 34 files carried a device option line from 2e16e9e966 and 11e3964084 until 61e717df0c removed it, and each is byte-identical to `origin/main`
+- `test/interop-l2tp/Dockerfile.lac`, `Dockerfile.ze` - drop `kmod`
+- `docs/architecture/testing/ci-format.md` (the `opens-device` rows added and then removed), `docs/contributing/gh-pages.md` (`privileged-reason`, `net-sysctl`, the AppArmor load refusal)
+- `internal/le/site/terminaldemo/render.go` - a `net-sysctl` demo tees its stderr into `internal/le/le/tail` and maps runc's AppArmor failure (`interoplab.NetSysctlUnapplied`) to the load-command refusal
+- `internal/le/interoplab/ipsec/checkers.go`, `helpers.go`, `ipsec.go` - `scenarioCheck{run, writesPeerSysctl}` on `scenarioCheckers`, `peerSysctlWriters` deleted
+- `internal/le/interoplab/bgp/prepare.go`, `l2tp/l2tp.go`, `ipsec/ipsec.go` - the FRR `SYS_ADMIN` grant quotes FRR's capability list, naming `frr-10.5.3` and `frr-10.3.1`
+- `internal/le/interoplab/apparmor_netsysctl.go` - `appArmorUnappliedLine`: `NetSysctlUnapplied` quotes runc's line alone
+- `test/weakened/d1987d95.md` - rows for `TestPPPSessionTestsDeclareDevPPP` and `TestOpensDeviceIsValidatedAndRecorded`, replaced by `TestContainerDevicesCoverWhatPPPOpens` and `TestNeedsLinuxRefusesUnknownKeys`
+- `plan/journal/silent-fall-through.md` - round 3 NOTE 5 (option types other than `timeout` and `needs-linux` drop unknown keys)
+- `internal/test/fixture/ui_fixture_le_evidence_answers.go`, `ui_fixture_le_evidence_vpp_answers.go` - assert the grants, not `--privileged`
+- `docs/architecture/testing/interop.md` - the profile table; `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` D-7 table rows
+
+## Files to Create
+- `internal/le/interoplab/apparmor_netsysctl.go`, `internal/le/interoplab/register_apparmor_netsysctl.go` - the generic `ze-lab-net-sysctl` profile and its registration
+- the `privilege_test.go` files above
+- `internal/test/runner/devices.go` - the `containerDevices` table ({path, module}), `ContainerDevicePaths`, `DeviceHostModule`; `TestContainerDevicesCoverWhatPPPOpens` requires the table to equal the `/dev/` nodes `internal/component/l2tp` opens
+- `internal/le/interoplab/grantcheck/grantcheck.go` - `Parse`, `ParsePeer`, `StagedRoots`, `Problems`: every lab privilege test pins the exact grant set, including network, device cgroup rules, volumes and mounts, `--privileged=<bool>`, `OtherGrants` (`--volumes-from`, `--gpus`, `--runtime`, `--cgroup-parent`, `--user`, `--group-add`, `--cap-drop`, `--ulimit`), `Unclassified` for any flag it does not know (always a problem), a peer's AppArmor profile and every mount that is writable, a unix socket, or from outside the staged files once symlinks are resolved (`resolvePath`)
+- `internal/le/le/tail/tail.go` - the bounded stderr tail shared by the evidence runner and the terminal-demo renderer
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | tooling |
+| YANG validation constraints | No | tooling |
+| YANG custom validators | No | tooling |
+| CLI commands/flags | No | the existing `apparmor confirm <name>` takes any registered name |
+| CLI grammar (keyword before value) | No | unchanged |
+| Editor autocomplete | No | unchanged |
+| Functional test for new RPC/API | No | no RPC |
+| Pipe completeness | No | no output change |
+| Env var registration | No | none |
+| Doctor check for runtime dependencies | No | lab containers, not a ze runtime dependency; the host check is `./le setup docker-kernel check` |
+| Prometheus counters/metrics | No | none |
+| BGP family surface (new SAFI / capability / attribute) | No | none |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | lab tooling |
+| 2 | Config syntax changed? | No | |
+| 3 | CLI command added/changed? | No | |
+| 4 | API/RPC added/changed? | No | |
+| 5 | Plugin added/changed? | No | |
+| 6 | Has a user guide page? | Yes | `docs/guide/developer-setup.md` names the AppArmor load action; it derives the names from the registry listing |
+| 7 | Wire format changed? | No | |
+| 8 | Plugin SDK/protocol changed? | No | |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md` (lab containers' privileges and profiles) |
+| 11 | Affects daemon comparison? | No | |
+| 12 | Internal architecture changed? | No | `docs/architecture/core-design.md`, declared by `internal/le/test/deployment` and `internal/le/site/terminaldemo` files, is unaffected: no architecture changes, only container argv |
+| 13 | Route metadata keys added/changed? | No | |
+| 14 | Prometheus counters added/changed? | No | |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/release/validation/spec-lab-containers-least-privilege.md` per commit |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/architecture/testing/interop.md` prose naming `--privileged` per lab |
+
+## Implementation Steps
+
+One container site per commit, test first:
+1. IPsec (AC-1, AC-2): write the tests, see them red, change `ipsec.go`, `nat.go`, add the profile.
+2. L2TP (AC-3), 3. PPPoE (AC-4), 4. RSVP-TE (AC-5), 5. deployment (AC-6, AC-7), 6. terminal demo seccomp (AC-10).
+7. Each commit owes its lab run on Ze's kernel (AC-8) and one grant-removal red per grant (AC-9), run serially, at low host load.
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | each lab still passes on Ze's kernel |
+| Correctness | no grant without a named operation that needs it |
+| Naming | profile names `ze-lab-<lab>[-<peer>]` |
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] every assumption row carries basis and validation
+- [ ] every AC is testable
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-N all demonstrated
+- [ ] `./le verify worktree` passes
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+
+## Review Gate
+
+### Status: review loop closed after round 4; owner approval owed
+
+Round 4 left 0 BLOCKER code-side and 0 ISSUE; its 5 NOTEs are fixed below. The loop is closed for code. BLOCKER 1 that remains is the owner's approval only (the verification-debt rows in `plan/verification-debt/d1987d95.md` and the decision below), not a code finding.
+
+What remains owed before closure:
+
+| Owed | Who | What closes it |
+|------|-----|----------------|
+| Owner approval | Thomas | his answer to the verification-debt rows for 2e16e9e966, 11e3964084 and 61e717df0c (`./le commit debt-discharge ... kind owner`, or `./le rfc approve unit` per unit) |
+| AC-8 and AC-9 lab runs | main thread | the amd64 runtime kernel cache entry built on a host with room, then every lab and proof run in the docker-lab guest (AC-8 row), then one grant-removal red per grant (AC-9 row) |
+| AC-2 AppArmor load | main thread, root on an AppArmor host | `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl` loads and enforces the profile |
+| AC-10 evidence | main thread | `./le verify evidence release-candidate` on Ze's kernel with `ze-kernel-probe` loaded, and one terminal-demo render on amd64 Linux including `rib-fib`. Attempted 2026-10-11 on `ssh claude` with the renderer image built there (`ze-terminal-demo-render-all:...-liberation-2.1.5`, id `1245f714befa`) at 14e552532b: `./le site terminal-demo render name rib-fib` refused at the Docker host kernel check (stock 6.8.0-146-generic lacks `CONFIG_XFRM_MIGRATE` and `CONFIG_MPLS_IP_MTU`; fix `./le setup docker-kernel install`), before the `net-sysctl` grant or the AppArmor profile was reached. Whether `ze-lab-net-sysctl` is loaded there is unknown: the profile list is root-only and was not read with `sudo` |
+| Full lint and verify | main thread or a fresh agent | `./le go lint run` and `./le verify worktree` over the tree |
+
+### Round 4 (2026-10-10, independent reviewer): fixes
+
+0 BLOCKER code-side, 0 ISSUE, 5 NOTE, over 61e717df0c to 6d8feeca0b.
+
+| Finding | Fix |
+|---------|-----|
+| NOTE 1: `resolvePath` kept a dangling symlink inside a staged root lexically when `filepath.EvalSymlinks` failed, so it passed as staged; its comment said the missing part "holds no symlink because it holds nothing" | 3decb37219: `resolvePath` Lstats each prefix; one that exists but does not resolve (a dangling symlink, a loop) answers not-judgeable, and `stagedInside` refuses it; the comment states the new contract. `TestParsePeerResolvesSymlinksAndRefusesSockets` gains a dangling symlink and a path below one, both red with the Lstat check disabled |
+| NOTE 2: a read-only mount of a DIRECTORY holding a unix socket passed, and `StagedRoots` includes the system temporary directory (the X11 socket directory on Linux) | 3decb37219: `stagedInside` refuses every directory mount; every lab mount (BGP, IPsec, L2TP, PPPoE, RADIUS, RSVP-TE) is a file, so no lab needs one. The `ParsePeer` comment says so. The test mounts a directory holding a socket, red with the directory check disabled; every grantcheck user's privilege test stays green |
+| NOTE 3: `Parse` stopped at the first positional, so an argv opening with the docker binary parsed to no grant | 3decb37219: a leading `docker` (any path whose base is `interoplab.DockerExecutable`, now exported) is skipped, and any other opening word lands in `Unclassified`. `TestParseReadsPastTheExecutableAndRefusesAnOpeningWord`, red against the old stop-at-positional read |
+| NOTE 4: the `prepare.go` FRR comment called `frr:10.3.1` "the image the labs pin", but three BGP scenarios pin 10.4.1 and 10.7.1 through `frr-image` files | a152c566c2: the comment names frr-10.3.1 (`defaultFRRImage`), frr-10.4.1 (`bgp-linklocal-only-multihop-withdraw-frr`), frr-10.7.1 (the two `bgp-srv6-next-hop-identity` scenarios) and frr-10.5.3. At each, `zebra/main.c` and `bgpd/bgp_main.c` `_caps_p` list `ZCAP_SYS_ADMIN` and `lib/privs.c` prints "privs_init: initial cap_set_proc failed"; 10.3.1, 10.4.1 and 10.5.3 read from the local FRR checkout, 10.7.1 from the tag on GitHub (absent locally) |
+| NOTE 5: `docs/architecture/testing/interop.md` did not describe the exact grant-set check | 3decb37219: section "The exact grant-set check" (what `Parse` and `ParsePeer` read, fail-closed on unclassified flags, staged mounts) |
+
+-> Decision (review round 3, 2026-10-10, main thread on the owner's delegation of privilege calls, option (a)): the per-test device declaration is deleted. `option=opens-device` had no reader (the evidence container is granted the whole `ContainerDevicePaths` table) and it over-declared the SCCRQ-only tests. 61e717df0c removes the option grammar (`record_parse` case, `Record.Devices`, vocabulary entry, `ci-format.md` rows) and the option line from all 34 `test/l2tp` and `test/pppoe` files. Each of them, including the four RFC-tagged ones (`radius-acct-wire`, `rfc2661-emitted-control-shape`, `rfc2661-sccrq-mandatory-avp`, `rfc2661-sccrq-tunnel-id-zero`), is byte-identical to `origin/main`, so the round-2 OPEN OWNER QUESTIONS for those four are withdrawn: no assertion, expectation, claim or option line of theirs differs from the base. The table (`containerDevices`) and the device-error refusal (`deviceRefusal`) stay.
+
+-> Constraint: the commit gate and `./le commit audit base origin/main` judge each commit, not the net diff. 61e717df0c needed `rfc-change-ok` (removing a line HEAD carried is a change to a tagged unit), and the audit still lists the four files once for each of 2e16e9e966, 11e3964084 and 61e717df0c. The verification-debt rows for 2e16e9e966 and 11e3964084, and the new one for 61e717df0c, in `plan/verification-debt/d1987d95.md` stay open until the owner answers them (`./le commit debt-discharge ... kind owner`, or `./le rfc approve unit` for each unit); the decision above is the evidence that answer rests on.
+
+-> Decision (owner, 2026-10-11): RESOLVED. Thomas answered the OPEN OWNER QUESTIONS for the four RFC-tagged `.ci` files with "clear" (his words: "I approve the two IKE test edits, ok clear"). The three owner-approval rows (lines 12, 13 and 14 of `plan/verification-debt/d1987d95.md`, covering 2e16e9e966, 11e3964084 and 61e717df0c) are discharged with kind `owner` in `plan/verification-debt/discharged/d1987d95.md`, quoting him. `./le commit audit base origin/main` still lists the four files for each of those commits, because the audit judges every commit's own diff and reads no approval record; the discharge is what answers the debt rows.
+
+### Round 3 (2026-10-10, independent reviewer): fixes
+
+1 BLOCKER, 2 ISSUE, 7 NOTE, over df2c52ac24 to 4753797b5e. The review text was handed to the fixing agent by the main thread and is not kept in a file, so each row names the finding by what its fix commit records.
+
+| Finding | Fix |
+|---------|-----|
+| BLOCKER 1 and ISSUE 2: `option=opens-device` had no reader (the evidence container is granted the whole `ContainerDevicePaths` table) and over-declared the SCCRQ-only tests | 61e717df0c, option (a) of the decision above: the option grammar (`record_parse` case, `Record.Devices`, vocabulary entry, `ci-format.md` rows) and the option line in all 34 `test/l2tp` and `test/pppoe` files are deleted; `devices.go` keeps the table as `containerDevices {path, module}`; `TestContainerDevicesCoverWhatPPPOpens` derives the device set from the `/dev/` literals `internal/component/l2tp` opens (red with the table set to `/dev/net/tun`); `TestNeedsLinuxRefusesUnknownKeys` keeps the key refusals and refuses `opens-device` as an unknown option type; the two replaced tests are rows in `test/weakened/d1987d95.md` |
+| ISSUE 1: `grantcheck.Parse` skipped every flag it did not know, so `--volumes-from`, `--gpus`, `--runtime`, `--cgroup-parent`, `--user`, `--group-add` or a joined short spelling (`-v/:/host`, `-itv/:/host`) passed the exact check | 19c846f3bb: `Parse` reads every flag (`grantFlags`, `nonGrantFlags`, short forms as Docker reads them, stop at `--` or the image); `OtherGrants` holds those six plus `--cap-drop` and `--ulimit`; an unknown flag lands in `Unclassified`, which `Problems` always reports; mutants red; every lab argv passes unchanged |
+| NOTE 3 | 61e717df0c: resolved by the same deletion, as the main thread mapped it |
+| NOTE 4: `stagedInside` compared cleaned paths, so a symlink out of a staged root or a unix socket under one passed as a staged file | 2d3ec909b0: `resolvePath` resolves the longest existing prefix through `filepath.EvalSymlinks`, and a socket is a grant wherever it lies; `TestParsePeerResolvesSymlinksAndRefusesSockets`, red with the lexical comparison restored. 6d8feeca0b: the test listens through a `net.ListenConfig` (scoped lint, `noctx`) |
+| NOTE 5: `.ci` option types other than `timeout` and `needs-linux` ignore an unknown key | 9bd028370a: one row in `plan/journal/silent-fall-through.md`; outside this spec's scope, not fixed |
+| NOTE 6: `NetSysctlUnapplied` quoted the whole stderr tail, build output included | e7d9930f26: `appArmorUnappliedLine` quotes runc's "unable to apply apparmor profile" line alone; `TestNetSysctlUnappliedQuotesOnlyTheRuncLine`, red against the previous producer |
+| NOTE 7: the FRR `SYS_ADMIN` quotes named no FRR version | 94caa32651: the comments name `frr-10.5.3`, where they were first read, and `frr-10.3.1`, the tag of the `quay.io/frrouting/frr:10.3.1` image the labs pin; both tags list `ZCAP_SYS_ADMIN` in `_caps_p` (`zebra/main.c`, `bgpd/bgp_main.c`) and exit in `lib/privs.c` `zprivs_caps_init` with "privs_init: initial cap_set_proc failed" |
+| NOTE 8: the unit evidence line named a commit older than the round-2 fixes | the unit evidence line below is refreshed: all `ok` at 6d8feeca0b |
+| NOTE 9 | recorded, no change, as the main thread directed |
+
+### Round 2 (2026-10-10, independent reviewer): fixes
+
+0 BLOCKER, 5 ISSUE, 6 NOTE, over 2e16e9e966 to e655be2e5c.
+
+| Finding | Fix |
+|---------|-----|
+| ISSUE 1: `grantcheck` missed `--network`/`--net`, `--device-cgroup-rule`, `-v`/`--volume`/`--mount`, `--privileged=1`, a peer's AppArmor profile and its mounts | df2c52ac24: `Parse` reads them all, `ParsePeer(peer, StagedRoots(t)...)` adds the profile and every mount that is writable or from outside the staged files; the six lab tests use `ParsePeer`; the deployment tests pin their two writable mounts |
+| ISSUE 2: the evidence run reported only Docker's exit code when the host lacks `/dev/ppp` | 481cc1e6b6: `startDocker` keeps a bounded stderr tail; `deviceRefusal` maps "error gathering device information" for a `ContainerDevicePaths` node to `sudo modprobe <module>` (`runner.DeviceHostModule`); `TestAHostWithoutAContainerDeviceNamesTheModule` |
+| ISSUE 3: a `net-sysctl` demo whose AppArmor profile runc cannot apply failed with an exit code and no load command; the profile's Runs text named only lab peers | dd0958b5de: `runDemoContainer` tees the demo's stderr into `internal/le/le/tail` (the evidence runner's private buffer moved there) and maps runc's failure through `interoplab.NetSysctlUnapplied` to the load-command refusal; Runs reads "a container (a lab peer or a terminal demo)"; red observed with the mapping disabled |
+| ISSUE 4: `ci-format.md` said `devices=` grants the node; the declared set missed the L2TP tests that reach `ppp.DevPPPSetup`; the checked set was a hand list | 11e3964084: `option=opens-device:name=ppp` is its own option and gates nothing (as a `needs-linux` key it would have skipped the cross-platform L2TP tests on macOS); 34 `test/l2tp` and `test/pppoe` files without `ze.l2tp.disable-kernel-dataplane` declare it; `TestPPPSessionTestsDeclareDevPPP` derives the set from the tree; `ci-format.md` corrected |
+| ISSUE 5: `TestRSVPTEPreflightRunsWithoutPrivilege` checked three flags | df2c52ac24: `grantcheck.Problems` against the empty grant set |
+| NOTE 6: the `capDockerName` comment called every name a grant | 8e40ece7f9 (comment only: `SYS_TIME` is named and granted to no container) |
+| NOTE 7: `spec-docker-hosts-run-the-ze-kernel.md` line 39 named `runner.CapsDockerNames` | 8e40ece7f9: names `ContainerCapsDockerNames` (SYS_TIME left out) and `ContainerDevicePaths` |
+| NOTE 8: FRR peers hold `SYS_ADMIN` with no recorded need | 8e40ece7f9: the grant is needed. FRR's `zebra/main.c` and `bgpd/bgp_main.c` list `ZCAP_SYS_ADMIN` in `_caps_p`, and `lib/privs.c` `zprivs_caps_init` exits ("privs_init: initial cap_set_proc failed") when it cannot raise it; a comment above each grant in `ipsec/ipsec.go`, `l2tp/l2tp.go`, `bgp/prepare.go` quotes this |
+| NOTE 9: an unknown option key, an empty `devices=` and a misspelt token were accepted | 11e3964084: `needs-linux` and `opens-device` refuse unknown keys, empty `caps=`/`name=` and unknown tokens (`TestOpensDeviceIsValidatedAndRecorded`) |
+| NOTE 10: the evidence argv test matched only the split spelling and missed `--network`, `--device-cgroup-rule` | 481cc1e6b6: `TestACleanTreeStartsOneContainer` uses `grantcheck` and pins the four mounts |
+| NOTE 11: `rib-fib` on a daemon without AppArmor: `systempaths=unconfined` with `SYS_ADMIN` unmasks `/proc/sysrq-trigger` and `/proc/kcore` | recorded, not changed: narrower than the `--privileged` it replaced, covered by R-3 (any daemon applying no AppArmor), and the demo container runs `--network none` |
+
+Discrimination of the round-2 tests that were committed without an observed red (2026-10-10). Each mutant is a mutated copy of the producer in session scratch, compiled in with `go test -overlay`; the shared tree was never changed. Every mutant turned the named test red, on the named case:
+
+| Mutant (producer change) | Test | Red on |
+|--------------------------|------|--------|
+| `valueFlags` without `--network`, `--net` | `TestProblemsCatchEveryExtraGrant` | host network, joined net |
+| `valueFlags` without `--device-cgroup-rule` | same | device cgroup rule |
+| `valueFlags` without `-v`, `--volume`, `--mount` | same | docker socket, volume root, mount |
+| `Parse` ignores the value of `--privileged=<v>` | same | privileged=1, privileged typo |
+| `privilegedValue` reads an unparseable value as false | same | privileged typo |
+| `ParsePeer` drops `AppArmorProfile` | same | apparmor profile |
+| `ParsePeer` skips a staged mount whether or not it is read-only | same | writable mount |
+| `ParsePeer` skips every read-only mount | same | outside the lab, whole lab root, escapes the root |
+| `stagedInside` counts the root itself as inside | same | whole lab root |
+| `stagedInside` counts `..` paths as inside | same | outside the lab, escapes the root |
+| `Run` never calls `deviceRefusal` | `TestAHostWithoutAContainerDeviceNamesTheModule` | "a host without /dev/ppp answered no error" |
+| `deviceRefusal` skips the paths with a known module | same | same |
+
+Not discriminated by a unit test: `startDocker` capturing docker's stderr into the tail runs the real `docker` binary, so only `tail.TestBufferKeepsTheLastOctets` covers the buffer; the path is exercised by `./le verify evidence release-candidate` on a host without `/dev/ppp` (AC-10 row, owed).
+
+### Round 1 (2026-10-10, independent reviewer): fixes
+
+| Finding | Fix |
+|---------|-----|
+| BLOCKER 1: the evidence container ran the PPP session tests without `/dev/ppp` | 2e16e9e966: `option=needs-linux` gains `devices=<token>` (`internal/test/runner/devices.go`); the evidence argv adds `--device` from `ContainerDevicePaths`; seven `.ci` files declare `devices=ppp`, read by `TestPPPSessionTestsDeclareDevPPP` |
+| ISSUE 2: `SYS_TIME` in the evidence grants sets the host clock | 2e16e9e966: `ContainerCapsDockerNames` skips `capsAltersHost` (`sys-time`); Verdicts decision above |
+| ISSUE 3: the lab privilege tests checked grants by presence, not the exact set | 5195967a99: `internal/le/interoplab/grantcheck` (`Parse`, `Problems`); all six lab tests and the PPPoE and L2TP preflight tests pin the exact set (FRR peers `NET_ADMIN`+`SYS_ADMIN`, scripted RSVP speakers `NET_ADMIN`+`NET_RAW`, pinned as found) |
+| ISSUE 4: the PPPoE preflight refusal named no host fix for a missing `/dev/ppp` | 6948695bdc: names `sudo modprobe ppp_generic` (`TestPPPoEPreflightWithoutDevPPPNamesTheHostFix`) |
+| ISSUE 5: the spec named `l2tp-ppp-test` for the containerised L2TP proof | this commit: `l2tp-test` throughout; AC-6 names the action |
+| ISSUE 6: `peerSysctlWriters` is a second list beside `scenarioCheckers` | df2c52ac24, as designed: the `scenarioCheckers` entry is `scenarioCheck{run, writesPeerSysctl}`, `peerSysctlWriters` is deleted, `ipsec.go`, the `helpers.go` message and `ipsecPeerGrants` read the flag; `TestOnlyCheckersThatWritePeerSysctlsAreFlagged` parses the package and follows calls to `dropFragmentsAtPeer`, red observed with the flag removed from `ike-padded-probe-strongswan` |
+| NOTE 7, NOTE 12 | 2e16e9e966: `SYS_RESOURCE` dropped from `capDockerName`; `TestEveryCapsBitHasADockerName` reads an independent literal table; the evidence test pins caps `[BPF NET_ADMIN NET_BIND_SERVICE NET_RAW]`, devices `[/dev/ppp]`, and refuses `--privileged`, `--security-opt`, `--cap-drop`, `--userns`, `--pid`, `--ipc` |
+| NOTE 8: rsvpte MPLS sysctls could move to `--sysctl` | recorded in Verdicts site 4, not changed (unproven without a lab run) |
+| NOTE 9: `rib-fib` ran `--privileged` for a `/proc/sys/net` write | 4d6aec8f8d: `"net-sysctl": true`, `systempaths=unconfined` under `ze-lab-net-sysctl` (`TestANetSysctlDemoRunsWithoutPrivilege`, red with the grant ignored) |
+| NOTE 10, NOTE 11 | 6948695bdc: the L2TP preflight refusal ends without a newline; `kmod` dropped from `test/interop-l2tp/Dockerfile.lac` and `Dockerfile.ze` (`TestL2TPLabImagesLoadNoModule`) |
+| NOTE 13: `setupSysctlKeys` skipped any write form but `sysctl -w` | 6fd229e38a: reads `echo value > /proc/sys/...` too and refuses every other write form (`TestScriptSysctlWritesRefusesFormsItCannotRead`) |
+| (spec) R-3 understated the risk | this commit: any daemon applying no AppArmor, and `kernel.*`, `vm.*`, `fs.*` |
+
+
+Commit range, this spec's commits only, oldest first (other sessions' commits interleave, so review these by SHA, never `cd27eb4339..HEAD`):
+
+| SHA | Subject | Covers |
+|-----|---------|--------|
+| cd27eb4339 | plan: lab containers get least privilege, one spec per D-7 row | the spec |
+| dba10b4c75 | interoplab: IPsec lab peers run with NET_ADMIN, never --privileged | AC-1, AC-2 |
+| 6d6f2fb308 | interoplab: L2TP lab peers hold NET_ADMIN and /dev/ppp, not --privileged | AC-3 |
+| bdee1599a3 | interoplab: PPPoE lab peers hold NET_ADMIN and /dev/ppp, no --privileged | AC-4 |
+| 9cf91dc469 | interoplab: RSVP-TE Ze nodes hold NET_ADMIN, never --privileged | AC-5 |
+| dc39259013 | deployment: the L2TP proof's container runs without --privileged | AC-6 |
+| bfc03548de | journal: the evidence fixture's fake docker answers no daemon query | journal row |
+| bf2d59fa9e | terminaldemo: demo containers keep the default seccomp profile | AC-10 site 7 |
+| 6ac9aa5b10 | deployment: VPP proofs run with grants, never --privileged | AC-7 |
+| e0d84318e9 | verify evidence: container holds the caps= grants, never --privileged | AC-10 site 6, owner decision 2 |
+| 28df8df562 | deployment: the VPP container drops IPC_LOCK | AC-7, owner decision 4 |
+| 2d429ec8be | terminaldemo: a privileged demo states its privileged-reason | AC-10 site 7, owner decision 3 |
+| e4efbbfda7 | plan: D-7 verdict rows record the least-privilege lab containers | AC-10, owner decision 1 |
+| 244f78b1f5 | pppoe, rsvpte: lab refusals end without a newline, one --device flag | scoped lint findings |
+| 07ae49c335 | plan: spec evidence from the Linux host, Review Gate | spec only |
+| 2e16e9e966 | verify evidence: /dev/ppp from a devices= vocabulary, no SYS_TIME | round 1 BLOCKER 1, ISSUE 2, NOTE 7, NOTE 12 |
+| 5195967a99 | interoplab: lab privilege tests pin the exact grant set | round 1 ISSUE 3 |
+| 6948695bdc | interoplab: PPP refusals name the host fix; L2TP images drop kmod | round 1 ISSUE 4, NOTE 10, NOTE 11 |
+| 4d6aec8f8d | terminaldemo: rib-fib writes /proc/sys/net without --privileged | round 1 NOTE 9 |
+| 6fd229e38a | interoplab rsvpte: privilege test refuses sysctl writes it cannot read | round 1 NOTE 13 |
+| 94d1165931 | (US spelling from the scoped lint over 6fd229e38a) | round 1 NOTE 13 |
+| e655be2e5c | plan: review round 1 fixes recorded, ready for round 2 | round 1 ISSUE 5, NOTE 8, the SYS_TIME and R-3 corrections |
+| df2c52ac24 | interoplab: grantcheck reads every escalation; IPsec flag on its checker | round 2 ISSUE 1, ISSUE 5, round 1 ISSUE 6 |
+| 481cc1e6b6 | verify evidence: a host without /dev/ppp names sudo modprobe ppp_generic | round 2 ISSUE 2, NOTE 10 |
+| dd0958b5de | terminaldemo: a net-sysctl demo the daemon cannot confine names the load | round 2 ISSUE 3 |
+| 11e3964084 | test runner: option=opens-device, derived from the tree, refuses typos | round 2 ISSUE 4, NOTE 9 |
+| 8e40ece7f9 | interoplab: FRR's SYS_ADMIN grant quotes the FRR source asking for it | round 2 NOTE 6, NOTE 7, NOTE 8 |
+| f3e1e15123 | plan: review round 2 fixes recorded, ready for round 3 | round 2 NOTE 11, the round-2 discrimination evidence |
+| 668b7c52b5 | terminaldemo, runner: scoped lint findings in round-2 code | scoped lint over the round-2 commits |
+| 4753797b5e | (spec: commit range and scoped-lint record) | spec only |
+| 61e717df0c | test runner: no per-test device option, the table follows the open | round 3 BLOCKER 1, ISSUE 2, NOTE 3 |
+| 19c846f3bb | grantcheck: an unclassified docker flag fails the exact grant check | round 3 ISSUE 1 |
+| 2d3ec909b0 | grantcheck: a staged mount is judged where it resolves; sockets grant | round 3 NOTE 4 |
+| e7d9930f26 | interoplab: the net-sysctl AppArmor refusal quotes runc's line alone | round 3 NOTE 6 |
+| 94caa32651 | interoplab: the FRR SYS_ADMIN quotes name the FRR versions read | round 3 NOTE 7 |
+| 9bd028370a | journal: .ci option types other than timeout and needs-linux drop keys | round 3 NOTE 5 |
+| 6d8feeca0b | grantcheck: the socket test listens through a ListenConfig | scoped lint over 2d3ec909b0 |
+| 3decb37219 | grantcheck: refuse dangling links, directory mounts and opening words | round 4 NOTE 1, NOTE 2, NOTE 3, NOTE 5 |
+| a152c566c2 | interoplab/bgp: FRR SYS_ADMIN comment names every pinned FRR tag | round 4 NOTE 4 |
+
+Unit evidence: `go test -race` with the gate tags over `internal/le/interoplab`, `.../ipsec`, `.../l2tp`, `.../pppoe`, `.../rsvpte`, `internal/le/site/terminaldemo`, `internal/le/verify/evidence`, `internal/test/runner`, `internal/le/test/deployment`, `internal/le/le/tail`, `internal/le/interoplab/grantcheck`: all `ok` at 6d8feeca0b (2026-10-10). Round 4: `go test -race` with the gate tags over `internal/le/interoplab/grantcheck` and `internal/le/interoplab`, and the privilege tests of `.../pppoe`, `.../rsvpte`, `.../ipsec`, `.../l2tp`, `internal/le/test/deployment` and `internal/le/verify/evidence`: all `ok` at 3decb37219. Scoped lint over `grantcheck` and `interoplab`: 0 issues; over `interoplab/bgp`: red only on lines no commit of this spec wrote (journal row in `plan/journal/lint-contract-not-applied.md`, a152c566c2).
+
+| AC | Evidence | Owed, and where |
+|----|----------|-----------------|
+| AC-1 | `TestIPsecLabPeersRunWithoutPrivilege` (argv, `--sysctl` set, NAT script writes no sysctl, `peerReassemblyMarks` under the grant), dba10b4c75 | lab run on Ze's kernel (AC-8) |
+| AC-2 | `TestNetSysctlAppArmorProfileGrantsOnlyNetWrites`, `TestNetSysctlGrantedFollowsTheProfile`; `apparmor_parser -Q` exit 0 on Ubuntu 24.04.5 / parser 4.0.1, invalid-rule control exit 1 (TDD Functional Tests row) | load and enforce on an AppArmor host (needs root: `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`) |
+| AC-3 | `TestL2TPLabPeersRunWithoutPrivilege` (argv, preflight argv, refusal text), 6d6f2fb308; A-2 resolved at the producer | lab run (AC-8) |
+| AC-4 | `TestPPPoELabPeersRunWithoutPrivilege`, entrypoints carry no `modprobe`, bdee1599a3 | lab run (AC-8); A-3 unvalidated until then |
+| AC-5 | `TestRSVPTELabPeersRunWithoutPrivilege` (every setup-script key derived through `NetSysctlGranted`), `TestRSVPTEPreflightRunsWithoutPrivilege`, 9cf91dc469 | lab run (AC-8) |
+| AC-6 | `TestL2TPDeploymentContainerRunsWithoutPrivilege`, evidence fixture `ui_fixture_le_evidence_answers.go`, dc39259013 | `./le test deployment l2tp-test` on Ze's kernel (AC-8) |
+| AC-7 | `TestVPPDeploymentContainerRunsWithoutPrivilege` (refuses `--privileged` and `IPC_LOCK`), 6ac9aa5b10, 28df8df562; manual VPP run on `ssh claude` with and without `IPC_LOCK` (Verdicts) | `vpp-iface-test` and `vpp-test` through the proof action: refused on `ssh claude` at the kernel check (TDD Functional Tests row) |
+| AC-8 | none yet: every lab and proof run refused at the Docker kernel check (stock Ubuntu 6.8 lacks `CONFIG_XFRM_MIGRATE`, `CONFIG_MPLS_IP_MTU`), and the docker-lab guest's amd64 kernel cache entry is not built on `ssh claude` | main thread: build `./ze appliance kernel --target runtime --arch amd64` on a host with room (more than 10 GB spare after the build), then `./le test qemu docker-lab lab "<action>"` for `test integration interop-ipsec`, the L2TP and PPPoE labs, `test integration interop-rsvpte`, `test deployment l2tp-test`, `vpp-iface-test`, `vpp-test`; the RSVP-TE and IPsec strongSwan peers also need `ze-lab-net-sysctl` loaded on an AppArmor host |
+| AC-9 | evidence container: `NET_ADMIN`, `NET_RAW`, `BPF` reds recorded; `NET_BIND_SERVICE` red under `ip_unprivileged_port_start=1024` (Verdicts); `SYS_TIME` not granted (it sets the host clock; 2e16e9e966), so `storage-ntp-restart.ci` skips in the container; VPP `IPC_LOCK` shown unnecessary and dropped | one grant-removal red per grant for every lab and proof, in a clone, after AC-8 is green |
+| AC-10 | site 6: e0d84318e9, 2e16e9e966 (grants from `runner.ContainerCapsDockerNames`, devices from `ContainerDevicePaths`, `TestEveryCapsBitHasADockerName`, evidence argv test); site 7: bf2d59fa9e, 2d429ec8be, 4d6aec8f8d (`TestRenderAllRunsValidationAndPublishesExactArtifacts`, `TestAPrivilegedDemoWithoutAReasonIsRefused`, `TestANetSysctlDemoRunsWithoutPrivilege`); D-7 rows e4efbbfda7 | `./le verify evidence release-candidate` on a Linux host with `ze-kernel-probe` loaded and Ze's kernel (the full verify inside the container never ran); one terminal-demo render on amd64 Linux, which must include `rib-fib` (its render contract changed in 4d6aec8f8d) on an AppArmor host with `ze-lab-net-sysctl` loaded |
+
+Scoped lint after round 2 (2026-10-10, `./le go lint run scope` over grantcheck, ipsec, l2tp, pppoe, rsvpte, bgp, evidence, terminaldemo, `le/tail`, `test/runner`): the three findings in this spec's code are fixed in 668b7c52b5. What remains is in other sessions' code: `internal/le/interoplab/bgp` goconst, gosec, errorlint, modernize, staticcheck and prealloc findings in `check_*.go`, `speaker_parsed_empty_mp.go`, and `prepare.go` lines 363, 410 and 557 (none written by this spec), plus `internal/test/runner/needs_path.go` and `ports_lease_test.go`. `internal/le/test/deployment` could not be linted: it imports `internal/appliance`, which does not typecheck while another session's uncommitted `internal/appliance/kernelbuilder/driver.go` is in the tree.
+
+Gates owed by the main thread: `./le go lint run` (the scoped run over this spec's packages left findings only in other sessions' files: `internal/test/fixture/plugin_fixture_rfc2545_*`, `plugin_fixture_03_bfd.go`, `plugin_fixture_15_rpki.go`, `plugin_fixture_clamped_path_linux.go`, `ui_fixture_le_binary_dispatches.go`, `ui_fixture_pipe_review_entry_contracts.go`, `internal/test/runner/needs_path.go`, `ports_lease_test.go`) and `./le verify worktree`. The independent review rounds are done (round 4 closed the loop); the full list of what remains is the table under "Status" above.

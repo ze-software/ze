@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/gnmi-show.ci |
 | Docs | docs/guide/gnmi.md |
 | Doc review | 2026-10-07: default port 9339 in ze-gnmi-conf.yang, subtle.ConstantTimeCompare at server.go, the three named metrics in internal/component/gnmi; Get, Set and Subscribe are unproven at the daemon rather than known false |
-| Defect review | 2026-10-07: plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md is design scope (caller identity), not a defect in the stated behavior; no journal row names internal/component/gnmi |
+| Defect review | 2026-10-07: plan/release/fixes/spec-login-identity-for-looking-glass-and-gnmi.md is design scope (caller identity), not a defect in the stated behavior; no journal row names internal/component/gnmi |
 | Extra criteria | supported: Capabilities, Get, Set and Subscribe STREAM against a running daemon = test/plugin/gnmi-get-set-subscribe.ci; supported: gnmic drives the daemon = test/interop/gnmi-gnmic.md |
 
 ## Description

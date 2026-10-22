@@ -153,7 +153,7 @@ These return hook protocol output directly rather than a check verdict, so
 | `rule-coverage-report` | Stop | Reports which rule points this session's transcript exercised. |
 | `session-end-summary` | Stop | Calls `./le session end-summary`. It preserves handoffs and never releases a spec claim. |
 | `session-end-deferrals` | Stop | Prints the open deferral count. Advisory. |
-| `subagent-context` | SubagentStart | Validates the parent session ID and emits the parent context. |
+| `subagent-context` | SubagentStart | Validates the parent session ID and emits the parent context. Resolves the claimed filename to its current category path; an unresolved or ambiguous claim emits an explicit warning and repair instruction instead of an invented path. |
 | `mark-lsp-invoked` | PostToolUse `LSP` | Writes the session-scoped LSP marker. |
 | `mark-source-read` | PostToolUse `Read` | A Read of a gated document in this checkout (`docs/contributing/ze-go-style.md`, or a page under `ai/doors/`) that returns every line (no offset past line 1, and a limit, or the tool's 2000-line cap, that reaches the last line) writes that document's read marker, which `writeStyleGuideRead` and `writeDesignDoorsRead` read. A Read of a `.go`, `.sh`, `.yang`, `.mk` or `Makefile` path writes a source-read evidence marker for its kind. Neither inspects what the Read returned. |
 | `mark-agent-spawned` | PostToolUse `Task\|Agent` | Writes the session-scoped agent marker. |

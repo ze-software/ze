@@ -7,14 +7,14 @@
 | Name | MPLS / LDP / RSVP-TE |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RSVP message validation (plan/immediate/spec-rsvp-message-validation.md), RFC 4090 one-to-one backup (plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md), RFC 2205 gap rows in rfc/short/rfc2205.md, interop with RSVP-TE implementations other than freeRouter |
+| Scope gaps | RSVP message validation (plan/release/validation/spec-rsvp-message-validation.md), RFC 4090 one-to-one backup (plan/post-release/features/spec-mpls-9-rsvp-te-one-to-one-backup.md), RFC 2205 gap rows in rfc/short/rfc2205.md, interop with RSVP-TE implementations other than freeRouter |
 | Level | experimental |
 | Components | internal/plugins/ldp, internal/plugins/rsvpte, internal/plugins/fib/kernel, internal/core/mplsfib, internal/component/mpls |
 | Real-path tests | test/ldp/ldp-session.ci, test/ldp/ldp-convergence.ci, test/ldp/ldp-keepalive-time.ci, test/ldp/ldp-reload.ci, test/rsvpte/rsvpte-lsp-setup.ci, test/rsvpte/rsvpte-lsp-teardown.ci, test/rsvpte/rsvpte-bandwidth.ci, test/rsvpte/rsvpte-frr.ci, test/rsvpte/rsvpte-reroute.ci, test/plugin/fib-mpls-kernel.ci, test/plugin/mpls-push.ci, test/plugin/mpls-withdraw.ci, test/plugin/mpls-forwarding-show.ci, test/plugin/mpls-doctor.ci |
 | RFCs | rfc3032, rfc5036, rfc3209, rfc2205, rfc4090 |
 | Docs | docs/guide/mpls.md, docs/guide/rsvp-te.md |
 | Doc review | 2026-10-08: every source anchor in the Description resolves to its file and symbol; the freeRouter interop is stated as the Docker suite interop-rsvpte, matching the scenarios in internal/le/interoplab/rsvpte/checkers.go and docs/guide/rsvp-te.md, with TestRSVPFreeRouterInterop in internal/plugins/rsvpte/freertr_interop_integration_linux_test.go stated as a manual procedure with no recorded pass |
-| Defect review | 2026-10-07: plan/immediate/spec-rsvp-message-validation.md, spec-rsvpte-ero-strict-loose-hops (closed 2026-10-08), plan/immediate/spec-rsvpte-frr-link-protection-fallback.md and plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md open |
+| Defect review | 2026-10-07: plan/release/validation/spec-rsvp-message-validation.md, spec-rsvpte-ero-strict-loose-hops (closed 2026-10-08), plan/release/fixes/spec-rsvpte-frr-link-protection-fallback.md and plan/post-release/features/spec-mpls-9-rsvp-te-one-to-one-backup.md open |
 | Extra criteria | supported: cross-vendor RSVP-TE interop recorded green = internal/plugins/rsvpte/freertr_interop_integration_linux_test.go::TestRSVPFreeRouterInterop |
 
 ## Description

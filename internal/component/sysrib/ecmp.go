@@ -1,4 +1,4 @@
-// Design: plan/immediate/spec-fib-depth.md -- ECMP grouping
+// Design: plan/release/validation/spec-fib-depth.md -- ECMP grouping
 // Related: sysrib.go -- recomputeBest calls into ecmpGroup after selecting best
 
 package sysrib

@@ -7,7 +7,7 @@
 | Name | IS-IS |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | non-congruent IPv4 and IPv6 topologies (RFC 5120 Multi-Topology), SPF and LSP timers (plan/spec-isis-spf-lsp-timers.md) |
+| Scope gaps | non-congruent IPv4 and IPv6 topologies (RFC 5120 Multi-Topology), SPF and LSP timers (plan/post-release/features/spec-isis-spf-lsp-timers.md) |
 | Level | experimental |
 | Components | internal/plugins/isis |
 | Real-path tests | test/isis/isis-adjacency.ci, test/isis/isis-auth.ci, test/isis/isis-config.ci, test/isis/isis-dis.ci, test/isis/isis-flooding.ci, test/isis/isis-ipv6.ci, test/isis/isis-hostname-ascii.ci, test/isis/isis-redist-bgp.ci, test/isis/isis-route-install.ci, test/isis/isis-show.ci |

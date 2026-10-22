@@ -52,9 +52,11 @@ Supported requires, among the criteria the report names:
 | S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario; a promotion needs each run current |
 | S3 RFC | each listed enrolled stem published as supported by the RFC ledger, with no gated requirement marked `{gap}`; an unenrolled stem is reported as a bound |
 | S4 docs | a Docs page and a Doc review |
-| S5 defects | no `plan/immediate/` spec naming a Components path in its Files to Modify, and a Defect review no older than the newest journal row naming one ("re-review owed") |
+| S5 defects | no `plan/release/fixes/` spec naming a Components path in its Files to Modify, and a Defect review no older than the newest journal row naming one ("re-review owed") |
 | S6 not stub-only | at least one real-path or interop item not listed in Stub evidence |
 | Extra criteria | every extra criterion gating Supported resolves |
+
+<!-- source: internal/le/feature/check.go -- releaseFixSpecs, criterionDefects -->
 
 A level once Supported stays Supported (owner decision 2026-10-08). A
 promotion, a declaration raised to Supported where `HEAD` holds it below

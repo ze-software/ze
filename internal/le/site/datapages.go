@@ -382,8 +382,8 @@ func featuresBody(data featureData, shipped []featureCard) string {
 	body.Str("            <section id=\"roadmap\" aria-labelledby=\"roadmap-title\">\n").
 		Str("                <h2 id=\"roadmap-title\">Release roadmap</h2>\n").
 		Str("                <p>The <a href=\"../project/roadmap/\">release inventory</a> lists remaining ").
-		Str("release work items and nice-to-haves from committed specs. It is an inventory preview ").
-		Str("pending owner classification.</p>\n            </section>\n")
+		Str("release work, post-release work, and proposals from committed specs. ").
+		Str("Classification is not release-readiness proof.</p>\n            </section>\n")
 	return body.String()
 }
 
@@ -496,8 +496,8 @@ func featuresMirror(data featureData, shipped int) string {
 		}
 	}
 	mirror.Str("## Release roadmap\n\nThe [release inventory](").Str(siteBase).
-		Str("project/roadmap/) lists remaining release work items and nice-to-haves from committed specs. ").
-		Str("It is an inventory preview pending owner classification.\n\n")
+		Str("project/roadmap/) lists remaining release work, post-release work, and proposals from committed specs. ").
+		Str("Classification is not release-readiness proof.\n\n")
 	return strings.TrimSpace(mirror.String()) + "\n"
 }
 

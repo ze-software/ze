@@ -333,7 +333,7 @@ var coverageFileKinds = []fileKind{
 		"documentation", "docs", "doc", "prose", "user-visible behavior", "comment", "comments",
 	}},
 	{name: "spec", matches: func(path string) bool {
-		return specpath.IsSpec(path) || strings.HasPrefix(path, "plan/design-")
+		return specpath.IsSpec(path)
 	}, keywords: []string{
 		"spec", "specs", "acceptance criterion", "acceptance criteria",
 	}},

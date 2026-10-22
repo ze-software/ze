@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-esp-dual-form-receive.md -- one Child SA receives both ESP forms
+// Design: plan/release/validation/spec-ipsec-esp-dual-form-receive.md -- one Child SA receives both ESP forms
 // RFC: rfc/short/rfc7296.md -- receive both ESP forms at any time (Section 2.23)
 // Overview: espform.go -- the datagram builder, the watched-SPI registry and the rate bound
 

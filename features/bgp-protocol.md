@@ -8,7 +8,7 @@
 | Page | docs/features/bgp-protocol.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RFC 4271 iBGP MED re-advertisement (plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md), RFC 4724 RFC 6793 and RFC 8654 obligations the ledger marks Partial, RFC 7606 gap row in rfc/short/rfc7606.md |
+| Scope gaps | RFC 4271 iBGP MED re-advertisement (plan/release/fixes/spec-rfc4271-med-ibgp-readvertisement.md), RFC 4724 RFC 6793 and RFC 8654 obligations the ledger marks Partial, RFC 7606 gap row in rfc/short/rfc7606.md |
 | Level | experimental |
 | Components | internal/component/bgp, cmd/ze, internal/component/config/infra |
 | Real-path tests | test/plugin/bgp-update-delay.ci, test/plugin/bgp-update-delay-converges.ci, test/plugin/bgp-update-delay-validation.ci, test/ui/bgp-update-delay-command.ci |
@@ -16,7 +16,7 @@
 | RFCs | rfc4271, rfc4760, rfc6793, rfc4724, rfc7606, rfc8654 |
 | Docs | docs/features/bgp-protocol.md |
 | Doc review | 2026-10-19: re-read after the 2026-10-19 docs/features/bgp-protocol.md edits, which added the two RFC 9774 AS_SET rows and the draft-ietf-idr-linklocal-capability 32-octet next-hop row; no claim here names AS_PATH segments or a 32-octet next hop, so the earlier review stands. 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; 2026-10-07 review otherwise stands |
-| Defect review | 2026-10-07: plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md open; spec-rfc-verdict-fix-bgp open; journal helper-bypassed-by-an-open-coded-copy forward-rail rows taken as open |
+| Defect review | 2026-10-07: plan/release/fixes/spec-rfc4271-med-ibgp-readvertisement.md open; spec-rfc-verdict-fix-bgp open; journal helper-bypassed-by-an-open-coded-copy forward-rail rows taken as open |
 
 ## Description
 

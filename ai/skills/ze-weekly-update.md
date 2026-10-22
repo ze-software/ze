@@ -84,10 +84,11 @@ edits enter the report only after a commit and a new comparison.
    Use `./le spec roadmap list revision <release-to>` for the same end snapshot.
    Read both endpoint inventories and their diagnostics. Do not scan specs to
    build a separate news inventory.
-7. Read `immediate` and `pre-release` separately and together as the required
-   total, then read the root nice-to-have group. Include every declared state.
-   Skeleton, blocked, deferred, malformed, and `verification` items remain open.
-   Keep diagnostics visible and retain the inventory-preview qualification.
+7. Read the snapshot's declared categories separately and its required total.
+   Current categories distinguish release fixes, validation and delivery from
+   post-release features, engineering and proposals; historical snapshots retain
+   their old categories. Include every declared state and diagnostic. Keep the
+   qualification that classification is not proof of readiness or delivery.
 8. Distinguish additions, removals, bucket moves, and status transitions.
    Explain changes in required totals with those categories.
    A move can also have a status transition. Neither fact establishes delivery.

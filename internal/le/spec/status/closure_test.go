@@ -15,7 +15,7 @@ func TestClosureTurnsRedOnlyForCommittedExactEvidence(t *testing.T) {
 	// index membership is green.
 	// PREVENTS: an uncommitted closure draft wedging an active implementation.
 	root := t.TempDir()
-	path := filepath.Join(root, "plan", "spec-widget.md")
+	path := filepath.Join(root, "plan", "release", "fixes", "spec-widget.md")
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestJournalEvidenceNeedsAFinishedReviewGate(t *testing.T) {
 	// Review Gate has no open close checkbox.
 	// PREVENTS: the first mid-work problem journal row blocking every stop.
 	root := t.TempDir()
-	path := filepath.Join(root, "plan", "spec-widget.md")
+	path := filepath.Join(root, "plan", "release", "fixes", "spec-widget.md")
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestClosureConsumesNormalizedJournalEvidence(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	path := filepath.Join(root, "plan", "spec-widget.md")
+	path := filepath.Join(root, "plan", "release", "fixes", "spec-widget.md")
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)
 	}

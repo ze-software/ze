@@ -46,7 +46,7 @@ internal/le/interoplab/pppoe/
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
   check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
   check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
-                         IPv6CP proof, BLOCKED until plan/spec-l2tp-ipv6-subscriber.md
+                         IPv6CP proof, BLOCKED until plan/post-release/features/spec-l2tp-ipv6-subscriber.md
                          lands (see the file's own header comment)
 ```
 
@@ -225,7 +225,7 @@ starts, on any configuration. Both scenarios run against pppd 2.5.4 only: this
 lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
 role its images support. Both checkers return a citing error at the first
 missing wire evidence rather than passing vacuously.
-`plan/spec-l2tp-ipv6-subscriber.md` is what switches them on.
+`plan/post-release/features/spec-l2tp-ipv6-subscriber.md` is what switches them on.
 
 ## Relationship to other evidence
 

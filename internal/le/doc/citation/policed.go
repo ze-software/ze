@@ -29,8 +29,8 @@ var CorpusGlobs = [...]string{
 	".claude/README.md",
 	".claude/hooks/README.md",
 	"plan/README.md",
-	"plan/TEMPLATE.md",
-	"plan/TEMPLATE-CLOSURE.md",
+	"plan/templates/TEMPLATE.md",
+	"plan/templates/TEMPLATE-CLOSURE.md",
 	"plan/learned/RECURRING-PATTERNS.md",
 	"plan/learned/HOOK-FRICTION.md",
 	"plan/learned/DESIGN-HISTORY.md",
@@ -78,8 +78,7 @@ func excludes() []string {
 		// (CorpusGlobs), whatever this prefix says.
 		"plan/learned/",
 		"plan/audits/",
-		"plan/audit-",
-		"plan/handoff-",
+		"plan/records/",
 		// The two test ledgers are records of the same kind, and they are the
 		// only ones that live outside plan/. A weakened row exists to name a
 		// test that was DELETED and the spec that deleted it, so a path inside

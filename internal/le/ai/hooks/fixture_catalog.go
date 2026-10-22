@@ -333,7 +333,7 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryDelegation, name: "delegation-nudge-silent-when-spawned", expectedExit: -1, messages: []fixtureMessage{{match: matchNotContains, text: delegationHeading}}},
 	{category: categoryDelegation, name: "delegation-spawned-allows-stop", expectedExit: 0},
 	{category: categoryDelegation, name: "delegation-no-spec-no-nudge", expectedExit: -1, messages: []fixtureMessage{{match: matchNotContains, text: delegationHeading}}},
-	{category: categoryDelegation, name: "delegation-context-names-spec", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: "plan/spec-fixture.md"}}},
+	{category: categoryDelegation, name: "delegation-context-names-spec", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: "plan/post-release/engineering/spec-fixture.md"}}},
 	{category: categoryDelegation, name: "delegation-context-carries-contract", expectedExit: -1, messages: []fixtureMessage{{match: matchContains, text: planningRule}, {match: matchContains, text: "evidence.md"}}},
 	{category: categoryDelegation, name: "delegation-context-no-spec-block", expectedExit: 0, messages: []fixtureMessage{{match: matchNotContains, text: "Spec claimed by"}}},
 	{category: categoryDelegation, name: "delegation-stop-hook-registered", expectedExit: -1},

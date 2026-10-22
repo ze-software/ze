@@ -4,17 +4,9 @@
 // that layout: which directories hold them, which bucket a path belongs to,
 // what the whole population is, and where one named spec sits.
 //
-// The three buckets are release buckets. plan/ holds the work the first release
-// ships WITHOUT, plan/immediate/ the work a first-release operator meets as a
-// bug, and plan/pre-release/ the work the release cannot go out without.
-//
-// One declaration, and every other surface derives from it
-// (ai/rules/principles.md). The layout used to be re-spelled at a dozen glob
-// sites, path joins and regexes across internal/le, so adding plan/immediate/
-// and plan/pre-release/ left each of those sites reading plan/ alone. A glob
-// and a path join answer an empty population for a directory they do not name,
-// and a regex that does not match returns "not a spec": both fail open and
-// neither says anything (ai/rules/evidence.md).
+// Current placement and historical interpretation are separate contracts. Current
+// inventory refuses obsolete locations; committed history retains its original
+// classifications rather than guessing where an old work item belongs today.
 package specpath
 
 import (
@@ -27,19 +19,17 @@ import (
 	"strings"
 )
 
-// The bucket names, as Bucket answers them and as `./le spec status` prints
-// them.
+// Category names identify current work queues, independently of lifecycle status.
 const (
-	// After is work the first release ships without.
-	After = "after"
-	// Immediate is work a first-release operator meets as a bug.
-	Immediate = "immediate"
-	// PreRelease is work the release cannot go out without.
-	PreRelease = "pre-release"
+	Fixes       = "fixes"
+	Validation  = "validation"
+	Delivery    = "delivery"
+	Features    = "features"
+	Engineering = "engineering"
+	Proposals   = "proposals"
 )
 
-// Root is the directory every bucket lives under, and is itself the directory
-// of the After bucket.
+// Root is the directory every category lives under.
 const Root = "plan"
 
 // namePrefix and nameSuffix bound a spec's file name. A file directly inside a
@@ -49,23 +39,52 @@ const (
 	nameSuffix = ".md"
 )
 
-// buckets is THE declaration: one row per release bucket, in bucket order, each
-// naming the bucket and the slash-relative directory that holds it. Dirs,
-// Globs, Bucket, All and Find each read this table and nothing else, so a
-// fourth bucket is one row here and a rename of one is one edit.
-//
-// These three directories ARE the spec population. Nothing recurses below one,
-// so plan/to-review/ is counted nowhere, exactly as it was when plan/ alone was
-// the population (plan/journal/gate-excludes-part-of-its-population.md,
-// 2026-08-22). A directory that should be counted is a row here, and adding one
-// is the only way to be counted.
-var buckets = [...]struct {
-	name string
-	dir  string
-}{
-	{After, Root},
-	{Immediate, Root + "/immediate"},
-	{PreRelease, Root + "/pre-release"},
+// Category declares a queue's identity, location, display label and release obligation.
+type Category struct {
+	Name     string `json:"name"`
+	Dir      string `json:"dir"`
+	Label    string `json:"label"`
+	Required bool   `json:"required"`
+}
+
+// buckets is the one current declaration. Inventory, counts and presentation
+// derive from these rows; proposals are visible without being release commitments.
+var buckets = [...]Category{
+	{Fixes, Root + "/release/fixes", "Correctness fixes", true},
+	{Validation, Root + "/release/validation", "Release validation", true},
+	{Delivery, Root + "/release/delivery", "Release delivery", true},
+	{Features, Root + "/post-release/features", "Post-release features", false},
+	{Engineering, Root + "/post-release/engineering", "Post-release engineering", false},
+	{Proposals, Root + "/proposals", "Unapproved proposals", false},
+}
+
+// historicalBuckets describes the old population, not a current fallback. In
+// particular, "after" never implies that an old spec was an absent feature.
+var historicalBuckets = [...]Category{
+	{"after", Root, "Historical optional work", false},
+	{"immediate", Root + "/immediate", "Historical operator-visible obligations", true},
+	{"pre-release", Root + "/pre-release", "Historical release obligations", true},
+}
+
+// historicalProposal was recognizable work but excluded from the old inventory.
+var historicalProposal = Category{Name: "to-review", Dir: Root + "/to-review"}
+
+// Categories returns the current declaration in reporting order. The caller owns
+// the slice, so modifying a report cannot change subsequent inventory semantics.
+func Categories() []Category { return slices.Clone(buckets[:]) }
+
+// HistoricalCategories returns only the retired layout for committed snapshots.
+// It MUST NOT be used to admit current filesystem placements.
+func HistoricalCategories() []Category { return slices.Clone(historicalBuckets[:]) }
+
+// HistoricalDirs lists recognized citation and relocation locations, not the
+// current inventory. Current filesystem callers MUST use Dirs.
+func HistoricalDirs() []string {
+	dirs := Dirs()
+	for _, category := range historicalBuckets {
+		dirs = append(dirs, category.Dir)
+	}
+	return append(dirs, historicalProposal.Dir)
 }
 
 // Dirs answers the bucket directories, slash-relative to the checkout root, in
@@ -73,7 +92,7 @@ var buckets = [...]struct {
 func Dirs() []string {
 	dirs := make([]string, 0, len(buckets))
 	for _, bucket := range buckets {
-		dirs = append(dirs, bucket.dir)
+		dirs = append(dirs, bucket.Dir)
 	}
 	return dirs
 }
@@ -84,7 +103,7 @@ func Dirs() []string {
 func Globs() []string {
 	globs := make([]string, 0, len(buckets))
 	for _, bucket := range buckets {
-		globs = append(globs, bucket.dir+"/"+namePrefix+"*"+nameSuffix)
+		globs = append(globs, bucket.Dir+"/"+namePrefix+"*"+nameSuffix)
 	}
 	return globs
 }
@@ -98,15 +117,42 @@ func Globs() []string {
 // has no bucket, and naming one anyway would file a pre-release spec as work
 // the release ships without (ai/rules/principles.md).
 func Bucket(relPath string) (bucket string, ok bool) {
-	clean := path.Clean(filepath.ToSlash(relPath))
+	return bucketIn(relPath, buckets[:])
+}
+
+// HistoricalBucket recognizes committed sources, including old-to-new relocations.
+// Callers inspecting current files MUST use Bucket instead.
+// It also recognizes the formerly uncounted to-review directory for relocation;
+// HistoricalCategories deliberately excludes that directory from old reports.
+func HistoricalBucket(relPath string) (string, bool) {
+	if bucket, ok := Bucket(relPath); ok {
+		return bucket, true
+	}
+	if bucket, ok := bucketIn(relPath, historicalBuckets[:]); ok {
+		return bucket, true
+	}
+	return bucketIn(relPath, []Category{historicalProposal})
+}
+
+func bucketIn(relPath string, categories []Category) (string, bool) {
+	slash := filepath.ToSlash(relPath)
+	for component := range strings.SplitSeq(slash, "/") {
+		if component == ".." {
+			return "", false
+		}
+	}
+	clean := path.Clean(slash)
 	base := path.Base(clean)
-	if !strings.HasPrefix(base, namePrefix) || !strings.HasSuffix(base, nameSuffix) {
+	if !strings.HasPrefix(base, namePrefix) {
+		return "", false
+	}
+	if !strings.HasSuffix(base, nameSuffix) {
 		return "", false
 	}
 	dir := path.Dir(clean)
-	for _, candidate := range buckets {
-		if dir == candidate.dir {
-			return candidate.name, true
+	for _, candidate := range categories {
+		if dir == candidate.Dir {
+			return candidate.Name, true
 		}
 	}
 	return "", false
@@ -120,15 +166,10 @@ func IsSpec(relPath string) bool {
 	return ok
 }
 
-// All answers every spec across the buckets, relative to root, slash-separated
-// and sorted. It does not recurse below a bucket directory.
-//
-// It REFUSES a root that holds no plan/ directory. filepath.Glob answers an
-// empty list and no error for a pattern whose directory is absent, so a caller
-// standing in the wrong tree would read "no specs" as an inventory of an empty
-// population rather than as a failure to find one. An absent plan/immediate/ or
-// plan/pre-release/ is a different fact and stays an answer: Git tracks no
-// empty directory, so a bucket whose last spec closed has no directory left.
+// All answers every current spec, relative to root, slash-separated and sorted.
+// Missing empty buckets are valid because Git tracks no empty directories.
+// An absent plan, an unreadable bucket, an obsolete placement or a duplicated
+// identity is an error, never an apparently empty or partial inventory.
 func All(root string) ([]string, error) {
 	info, err := os.Stat(filepath.Join(root, Root))
 	if err != nil {
@@ -138,22 +179,58 @@ func All(root string) ([]string, error) {
 		return nil, fmt.Errorf("read the spec population under %s: %s is not a directory", Root, Root)
 	}
 
-	var specs []string
-	for _, glob := range Globs() {
-		matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(glob)))
-		if err != nil {
-			return nil, fmt.Errorf("match the spec population %s: %w", glob, err)
+	for _, category := range historicalBuckets {
+		if err := refuseObsolete(root, category.Dir); err != nil {
+			return nil, err
 		}
-		for _, match := range matches {
-			relative, err := filepath.Rel(root, match)
-			if err != nil {
-				return nil, fmt.Errorf("make %s relative to the checkout root: %w", match, err)
+	}
+	if err := refuseObsolete(root, historicalProposal.Dir); err != nil {
+		return nil, err
+	}
+	var specs []string
+	identities := make(map[string]string)
+	for _, category := range buckets {
+		entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(category.Dir)))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read spec bucket %s: %w", category.Dir, err)
+		}
+		for _, entry := range entries {
+			relative := category.Dir + "/" + entry.Name()
+			if !IsSpec(relative) {
+				continue
 			}
-			specs = append(specs, filepath.ToSlash(relative))
+			if previous, exists := identities[entry.Name()]; exists {
+				return nil, fmt.Errorf("spec %s is in two buckets: %s, %s", entry.Name(), previous, relative)
+			}
+			identities[entry.Name()] = relative
+			specs = append(specs, relative)
 		}
 	}
 	slices.Sort(specs)
 	return specs, nil
+}
+
+func refuseObsolete(root, directory string) error {
+	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(directory)))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect obsolete spec location %s: %w", directory, err)
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), namePrefix) {
+			continue
+		}
+		if !strings.HasSuffix(entry.Name(), nameSuffix) {
+			continue
+		}
+		return fmt.Errorf("obsolete spec placement %s/%s: move the work item into a declared category under %s", directory, entry.Name(), strings.Join(Dirs(), ", "))
+	}
+	return nil
 }
 
 // ErrNoSpec is what Find wraps when no bucket holds the name. A caller for
@@ -182,13 +259,23 @@ func Find(root, name string) (string, error) {
 		base = namePrefix + base
 	}
 
-	found := make([]string, 0, len(buckets))
-	for _, bucket := range buckets {
-		relative := bucket.dir + "/" + base
+	var found []string
+	for _, directory := range HistoricalDirs() {
+		relative := directory + "/" + base
 		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(relative)))
-		if err == nil && info.Mode().IsRegular() {
-			found = append(found, relative)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
 		}
+		if err != nil {
+			return "", fmt.Errorf("find %s: %w", relative, err)
+		}
+		if !IsSpec(relative) {
+			return "", fmt.Errorf("obsolete spec placement %s: move it into a declared current category", relative)
+		}
+		if !info.Mode().IsRegular() {
+			return "", fmt.Errorf("find %s: not a regular spec file", relative)
+		}
+		found = append(found, relative)
 	}
 	switch len(found) {
 	case 1:

@@ -14,7 +14,7 @@
 | RFCs | rfc4301 |
 | Docs | docs/guide/ipsec.md |
 | Doc review | 2026-10-07: every source anchor resolves; the row now states that close-action, the DPD action and key-exchange ikev1 do not change behavior, matching the open immediate specs |
-| Defect review | 2026-10-07: open: plan/immediate/spec-ipsec-close-action-and-dpd-action-select-nothing.md, spec-ipsec-key-exchange-ikev1-runs-ikev2.md; journal unwired-feature.md and documentation-shows-config-the-parser-refuses.md rows name this config; journal rows naming a Component, not each re-verified here: guard-enumerates-instead-of-subtracting.md:22, silent-fall-through.md:24 |
+| Defect review | 2026-10-07: open: plan/release/fixes/spec-ipsec-close-action-and-dpd-action-select-nothing.md, spec-ipsec-key-exchange-ikev1-runs-ikev2.md; journal unwired-feature.md and documentation-shows-config-the-parser-refuses.md rows name this config; journal rows naming a Component, not each re-verified here: guard-enumerates-instead-of-subtracting.md:22, silent-fall-through.md:24 |
 | Extra criteria | supported: every enum value of an action leaf has a test proving distinct behavior = test/ipsec/ipsec-close-action-values.ci; supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

@@ -164,7 +164,7 @@ func TestSessionCoverageCoreMembershipIsAStandaloneArtifactPath(t *testing.T) {
 	fixture.writeRule(t, "spec-no-code.md", "writing or editing a spec", "blocking")
 	fixture.writeRule(t, "completion.md", "when creating or updating a spec", "blocking")
 	fixture.writeCore(t, "spec-no-code.md")
-	fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "plan", "spec-thing.md")})
+	fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "plan", "post-release", "engineering", "spec-thing.md")})
 
 	report, _ := fixture.analyze(t)
 	if len(report.AlwaysOnRules) != 1 || report.AlwaysOnRules[0] != "spec-no-code.md" {
@@ -220,7 +220,7 @@ func TestSessionCoverageMissingOrChangedCoreExcludesNothingAndSpeaks(t *testing.
 					t.Fatalf("fixture CORE.md: %v", err)
 				}
 			}
-			fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "plan", "spec-thing.md")})
+			fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "plan", "post-release", "engineering", "spec-thing.md")})
 
 			report, diagnostic := fixture.analyze(t)
 			if len(report.Missed) != 1 || report.AlwaysOnExcluded != 0 {

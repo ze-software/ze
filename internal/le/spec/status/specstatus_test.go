@@ -38,7 +38,7 @@ import (
 // to end by internal/le/parity/parity_test.go and by
 // test/ui/le-spec-status-answers.ci.
 
-// templateShapedSpec returns a spec of the shape plan/TEMPLATE.md produces: a
+// templateShapedSpec returns a spec of the shape plan/templates/TEMPLATE.md produces: a
 // title, a six-line HTML authoring comment, then the metadata table. That
 // comment is what pushed the Status row past the old fixed ten-line window, so
 // every spec written from the template read as "unknown" to this tool.
@@ -49,7 +49,7 @@ func templateShapedSpec(status, updated string) string {
 	sb.WriteString("| Field | Value |\n|-------|-------|\n")
 	sb.WriteString("| Status | ")
 	sb.WriteString(status)
-	sb.WriteString(" |\n| Depends | - |\n| Phase | - |\n| Updated | ")
+	sb.WriteString(" |\n| Priority | P2 |\n| Release reason | Release proof |\n| Depends | - |\n| Phase | - |\n| Updated | ")
 	sb.WriteString(updated)
 	sb.WriteString(" |\n\n## Task\n\nFixture prose.\n")
 	return sb.String()
@@ -65,6 +65,9 @@ func planTree(t *testing.T, specs map[string]string) string {
 		t.Fatalf("create the fixture plan directory: %v", err)
 	}
 	for name, body := range specs {
+		if !strings.Contains(name, "/") {
+			name = "release/fixes/" + name
+		}
 		path := filepath.Join(root, "plan", filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatalf("create the fixture bucket directory for %s: %v", name, err)
@@ -157,7 +160,7 @@ func TestSkeletonStaleBoundary(t *testing.T) {
 	}
 }
 
-// templateSpec reproduces the shape plan/TEMPLATE.md produces, with an
+// templateSpec reproduces the shape plan/templates/TEMPLATE.md produces, with an
 // Assumptions table below the first heading whose own header row ends in
 // "| Status |".
 const templateSpec = "# Spec: example\n" +
@@ -295,7 +298,7 @@ func TestCollectDistinguishesUnparsedFromUnknown(t *testing.T) {
 		}
 	}
 
-	want := "spec-status: plan/spec-fixture-no-table.md has no '| Field | Value |' metadata table"
+	want := "spec-status: plan/release/fixes/spec-fixture-no-table.md has no '| Field | Value |' metadata table"
 	if len(warnings) != 1 || warnings[0] != want {
 		t.Errorf("warnings = %q, want exactly one line:\n%s", warnings, want)
 	}
@@ -384,7 +387,7 @@ func TestCollectAcceptsAnEmptyPlanDirectory(t *testing.T) {
 // cannot defeat it the way it defeats chmod 000.
 func TestCollectFailsOnASpecItCannotRead(t *testing.T) {
 	root := planTree(t, map[string]string{"spec-fixture-real.md": templateShapedSpec("ready", "2026-08-20")})
-	link := filepath.Join(root, "plan", "spec-fixture-dangling.md")
+	link := filepath.Join(root, "plan", "release", "fixes", "spec-fixture-dangling.md")
 	if err := os.Symlink(filepath.Join(root, "plan", "gone.md"), link); err != nil {
 		t.Skipf("this filesystem does not support symbolic links: %v", err)
 	}
@@ -393,11 +396,11 @@ func TestCollectFailsOnASpecItCannotRead(t *testing.T) {
 	}
 }
 
-// TestCollectSkipsTheTemplate keeps plan/spec-template.md out of the counts.
+// TestCollectSkipsTheTemplate keeps templates outside the spec population.
 func TestCollectSkipsTheTemplate(t *testing.T) {
 	root := planTree(t, map[string]string{
-		"spec-template.md":     templateShapedSpec("design", "2026-08-20"),
-		"spec-fixture-real.md": templateShapedSpec("ready", "2026-08-20"),
+		"templates/spec-template.md": templateShapedSpec("design", "2026-08-20"),
+		"spec-fixture-real.md":       templateShapedSpec("ready", "2026-08-20"),
 	})
 	inventory, _ := collect(t, root, fixedNow)
 	if len(inventory) != 1 {
@@ -497,24 +500,27 @@ func TestCollectSortsNewestFirstWithinAStatus(t *testing.T) {
 
 // TestCollectNamesTheReleaseBucketOfEverySpec is the release-bucket column.
 //
-// VALIDATES: a spec carries the bucket of the directory it sits in, and the
-// three buckets are all read.
-// PREVENTS: an inventory over plan/ alone. A glob that names one directory
-// answers an empty list and no error for the other two, so the page would have
-// reported a third of the backlog as the whole of it.
+// VALIDATES: every declared category is read, including unapproved proposals.
+// PREVENTS: a newly declared directory being silently omitted from inventory.
 func TestCollectNamesTheReleaseBucketOfEverySpec(t *testing.T) {
 	root := planTree(t, map[string]string{
-		"spec-fixture-after.md":                  templateShapedSpec("ready", "2026-08-20"),
-		"immediate/spec-fixture-immediate.md":    templateShapedSpec("ready", "2026-08-20"),
-		"pre-release/spec-fixture-preRelease.md": templateShapedSpec("ready", "2026-08-20"),
+		"release/fixes/spec-fixture-fixes.md":                  templateShapedSpec("ready", "2026-08-20"),
+		"release/validation/spec-fixture-validation.md":        templateShapedSpec("ready", "2026-08-20"),
+		"release/delivery/spec-fixture-delivery.md":            templateShapedSpec("ready", "2026-08-20"),
+		"post-release/features/spec-fixture-features.md":       templateShapedSpec("ready", "2026-08-20"),
+		"post-release/engineering/spec-fixture-engineering.md": templateShapedSpec("ready", "2026-08-20"),
+		"proposals/spec-fixture-proposals.md":                  templateShapedSpec("skeleton", "2026-08-20"),
 	})
 	inventory, _ := collect(t, root, fixedNow)
 	got := byName(inventory)
 
 	want := map[string]string{
-		"fixture-after":      specpath.After,
-		"fixture-immediate":  specpath.Immediate,
-		"fixture-preRelease": specpath.PreRelease,
+		"fixture-fixes":       specpath.Fixes,
+		"fixture-validation":  specpath.Validation,
+		"fixture-delivery":    specpath.Delivery,
+		"fixture-features":    specpath.Features,
+		"fixture-engineering": specpath.Engineering,
+		"fixture-proposals":   specpath.Proposals,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("the inventory holds %d specs, want %d: %v", len(got), len(want), got)
@@ -523,5 +529,58 @@ func TestCollectNamesTheReleaseBucketOfEverySpec(t *testing.T) {
 		if got[name].Bucket != bucket {
 			t.Errorf("%s is in bucket %q, want %q", name, got[name].Bucket, bucket)
 		}
+	}
+}
+
+// TestParseSeparatesCurrentAndHistoricalPlacement preserves old classifications
+// only for the explicit historical reader, while both retain metadata failures.
+func TestParseSeparatesCurrentAndHistoricalPlacement(t *testing.T) {
+	body := []byte(templateShapedSpec("ready", "2026-08-20"))
+	for _, rel := range []string{"plan/spec-old.md", "plan/immediate/spec-old.md", "plan/pre-release/spec-old.md"} {
+		if _, err := Parse(body, rel, nil); err == nil {
+			t.Errorf("current parser admitted %s", rel)
+		}
+		item, err := ParseHistorical(body, rel, nil)
+		if err != nil {
+			t.Fatalf("historical parse %s: %v", rel, err)
+		}
+		bucket, ok := specpath.HistoricalBucket(rel)
+		if !ok || item.Bucket != bucket {
+			t.Errorf("historical classification changed: %+v", item)
+		}
+	}
+	item, err := Parse(body, "plan/release/validation/spec-proof.md", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Priority != "P2" || item.ReleaseReason != "Release proof" {
+		t.Fatalf("release metadata lost: %+v", item)
+	}
+	page := Inventory{item}.Text()
+	if !strings.Contains(page, "P2") || !strings.Contains(page, "Release proof") {
+		t.Fatalf("release metadata absent from status output: %s", page)
+	}
+}
+
+// TestCurrentTemplateNamedSpecCannotDisappear proves template exclusion is by
+// directory rather than a magic filename that hides a current work item.
+func TestCurrentTemplateNamedSpecCannotDisappear(t *testing.T) {
+	root := planTree(t, map[string]string{
+		"spec-template.md": "# Spec: current work\n\nMissing table\n",
+		"spec-ordinary.md": templateShapedSpec("ready", "2026-08-20"),
+	})
+	inventory, warnings := collect(t, root, fixedNow)
+	if len(inventory) != 2 || len(warnings) != 1 {
+		t.Fatalf("current filename was excluded: inventory=%+v warnings=%v", inventory, warnings)
+	}
+	if byName(inventory)["template"].Status != StatusUnparsed {
+		t.Fatal("malformed current work lost its failure status")
+	}
+	phrases, err := StatusPhrases(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total(t, phrases) != 2 {
+		t.Fatalf("summary omitted current template-named work: %v", phrases)
 	}
 }

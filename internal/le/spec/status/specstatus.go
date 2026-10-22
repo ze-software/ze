@@ -135,7 +135,7 @@ var headerRE = regexp.MustCompile(`^\|\s*Field\s*\|\s*Value\s*\|`)
 // that table was found.
 //
 // The scan is anchored on the "| Field | Value |" header row rather than on a
-// line count, because plan/TEMPLATE.md opens with a six-line authoring comment
+// line count, because plan/templates/TEMPLATE.md opens with a six-line authoring comment
 // that pushes the table past any fixed window. It stops at the first "## "
 // heading and at the first line that leaves the table, so the trailing header
 // rows of the Assumptions, TDD and Interop tables further down the file are
@@ -266,28 +266,38 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 // Parse reads metadata from source bytes without consulting the filesystem or clock.
 // Missing dates remain empty so historical callers cannot invent current dates.
 func Parse(data []byte, rel string, warn func(string)) (Spec, error) {
-	content := string(data)
-	base := path.Base(rel)
-	name := specpath.Stem(base)
-
-	// A path that reached here came from specpath.All or specpath.Find, so it
-	// IS a spec in a bucket. An unplaceable one is a caller defect rather than
-	// a spec filed as "after": say so instead of naming a bucket.
 	bucket, placed := specpath.Bucket(rel)
 	if !placed {
-		return Spec{}, fmt.Errorf("%s is not a spec in any release bucket", rel)
+		return Spec{}, fmt.Errorf("%s is not a spec in any current category", rel)
 	}
+	return parseMetadata(data, rel, bucket, warn), nil
+}
 
+// ParseHistorical reads a committed spec without reclassifying its old directory.
+// Current filesystem callers MUST use Parse.
+func ParseHistorical(data []byte, rel string, warn func(string)) (Spec, error) {
+	bucket, placed := specpath.HistoricalBucket(rel)
+	if !placed {
+		return Spec{}, fmt.Errorf("%s is not a spec in any historical category", rel)
+	}
+	return parseMetadata(data, rel, bucket, warn), nil
+}
+
+func parseMetadata(data []byte, rel, bucket string, warn func(string)) Spec {
+	content := string(data)
+	base := path.Base(rel)
 	rows, found := metaRows(content)
 	s := Spec{
-		Name:    name,
-		Path:    rel,
-		Bucket:  bucket,
-		Status:  metaField(rows, "Status"),
-		Depends: metaField(rows, "Depends"),
-		Phase:   metaField(rows, "Phase"),
-		Updated: metaField(rows, "Updated"),
-		Set:     detectSet(base),
+		Name:          specpath.Stem(base),
+		Path:          rel,
+		Bucket:        bucket,
+		Priority:      metaField(rows, "Priority"),
+		ReleaseReason: metaField(rows, "Release reason"),
+		Status:        metaField(rows, "Status"),
+		Depends:       metaField(rows, "Depends"),
+		Phase:         metaField(rows, "Phase"),
+		Updated:       metaField(rows, "Updated"),
+		Set:           detectSet(base),
 	}
 	for line := range strings.SplitSeq(content, "\n") {
 		if strings.HasPrefix(line, "## ") {
@@ -318,7 +328,7 @@ func Parse(data []byte, rel string, warn func(string)) (Spec, error) {
 	if s.Phase == "" {
 		s.Phase = "-"
 	}
-	return s, nil
+	return s
 }
 
 // StatusPhrases answers the population's per-status breakdown as
@@ -342,9 +352,6 @@ func StatusPhrases(root string) ([]string, error) {
 
 	counts := map[string]int{}
 	for _, rel := range specs {
-		if path.Base(rel) == specTemplateFile {
-			continue
-		}
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a spec path specpath matched under the repository root
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", rel, err)
@@ -368,9 +375,8 @@ func StatusPhrases(root string) ([]string, error) {
 // Collect reads every spec in every release bucket and answers the inventory,
 // sorted by status order and then by updated date descending.
 //
-// specpath declares which directories the population is, and the walk does not
-// recurse below one, so plan/to-review/ is counted nowhere. Collect REFUSES a
-// tree that holds no plan/ directory: see the comment on specpath.All.
+// specpath declares the current categories, including proposals. Collect refuses
+// obsolete placements and a tree with no plan/ directory through specpath.All.
 //
 // now is a parameter because the skeleton TTL is the one judgement here that
 // reads a clock, and a caller that cannot fix the clock cannot test the flag.
@@ -385,9 +391,6 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 
 	specs := make(Inventory, 0, len(paths))
 	for _, rel := range paths {
-		if path.Base(rel) == specTemplateFile {
-			continue
-		}
 		s, err := loadSpec(ctx, root, rel, warn)
 		if err != nil {
 			return nil, fmt.Errorf("load %s: %w", rel, err)
@@ -409,8 +412,3 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 	})
 	return specs, nil
 }
-
-// specTemplateFile is the spec template every new spec starts from.
-const (
-	specTemplateFile = "spec-template.md"
-)

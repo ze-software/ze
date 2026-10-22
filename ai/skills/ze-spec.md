@@ -54,7 +54,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 **Goal:** Agree on what we're building.
 
 1. ASK the user what feature/task they want to spec (if not provided as argument)
-2. Search `plan/spec-*.md`, `plan/immediate/spec-*.md` and `plan/pre-release/spec-*.md` for related active specs
+2. Run `./le spec status` and search the work-item folders declared in `plan/README.md` for related specs, including proposals.
 3. Search `plan/journal/*.md` for problems already recorded in this area
 4. Check `ai/INDEX.md` for relevant architecture docs
 5. Present:
@@ -100,7 +100,7 @@ other research. A feature can be more than one type -- read every row that appli
 `ai/INDEX.md` (the "Build / extend" table) is the authoritative feature-type to
 pattern map; consult it if the type is unclear.
 
-**2. Answer every row of both checklists in `plan/TEMPLATE.md`** with `Yes` (naming
+**2. Answer every row of both checklists in `plan/templates/TEMPLATE.md`** with `Yes` (naming
 the file), `No`, or `N-A` (with a reason). Never leave the cell blank: an
 unanswered row is indistinguishable from a forgotten one, which is why 286
 Documentation rows and 138 Integration rows across the existing specs still carry
@@ -114,8 +114,8 @@ feature type:
   codes, never a queue of writing for closure (`ai/rules/documentation.md`). `/ze-close`
   verifies those edits and finds the gaps.
 
-`plan/TEMPLATE.md` is design-time only. The closure sections live in
-`plan/TEMPLATE-CLOSURE.md` and are appended by `/ze-close` at step 1. Do not
+`plan/templates/TEMPLATE.md` is design-time only. The closure sections live in
+`plan/templates/TEMPLATE-CLOSURE.md` and are appended by `/ze-close` at step 1. Do not
 copy them into a new spec.
 
 **3. Discovery (BLOCKING):** answer the `ai/rules/repo-maintenance.md` Mechanical
@@ -259,12 +259,9 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 ### Step 4: WRITE (Hard Gate)
 
-**Goal:** Produce the spec file using `plan/TEMPLATE.md`.
+**Goal:** Produce the spec file using `plan/templates/TEMPLATE.md`.
 
-1. Choose the release bucket FIRST (`plan/README.md`). Ask what it costs the first release to leave this work undone:
-   - An operator meets it as a bug: `plan/immediate/`.
-   - No operator meets it, and the release cannot go out without it: `plan/pre-release/`.
-   - The release ships without it: `plan/`.
+1. Choose the work-item folder FIRST using `plan/README.md`. Separate release fixes, validation and delivery from post-release features and engineering; unapproved work belongs in proposals. Record `Priority`, `Release reason` and `Depends`. Split mixed fix-and-feature obligations under M32 rather than making the whole RFC a release prerequisite.
 2. Write (or update) the spec at `plan/<bucket>/spec-<name>.md` using template format
 3. Fill all sections from research and design phases:
    - Required Reading with `→ Decision:` / `→ Constraint:` annotations

@@ -7,13 +7,13 @@
 | Name | Operational Report Bus |
 | Kind | daemon |
 | Scope | partial |
-| Scope gaps | functional coverage of most named sources, empty-bus shutdown observation (plan/spec-finish-report-bus.md) |
+| Scope gaps | functional coverage of most named sources, empty-bus shutdown observation (plan/release/validation/spec-finish-report-bus.md) |
 | Level | experimental |
 | Components | internal/core/report |
 | Real-path tests | test/plugin/warnings-show.ci, test/plugin/warnings-filter-show.ci, test/plugin/errors-sent-show.ci, test/plugin/errors-received-show.ci, test/plugin/errors-config-abort-show.ci |
 | Docs | docs/guide/operational-reports.md |
 | Doc review | 2026-10-07: internal/core/report/report.go names show errors and the login banner as readers of the same source |
-| Defect review | 2026-10-07: open: plan/spec-finish-report-bus.md (empty-bus shutdown hang not reproduced, coverage unfinished) |
+| Defect review | 2026-10-07: open: plan/release/validation/spec-finish-report-bus.md (empty-bus shutdown hang not reproduced, coverage unfinished) |
 
 ## Description
 

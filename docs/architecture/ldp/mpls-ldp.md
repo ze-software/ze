@@ -130,7 +130,7 @@ Detected (0x0B) and the mapping is not applied (section 3.4.4.1).
 The same check is not implemented for Label Request: `processMessages` leaves
 that message type unhandled. RFC5036-3.4.4.1-1 and -2 therefore remain weak for
 their whole-message scope; the Label Mapping proof does not cover that absent
-receive path. `plan/spec-ldp-label-request-path.md` owns it.
+receive path. `plan/release/fixes/spec-ldp-label-request-path.md` owns it.
 
 A received Notification is read too: a Status Code with the E bit set ends the
 read loop, which closes the connection and drops the peer's bindings (section
