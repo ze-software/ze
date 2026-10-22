@@ -134,3 +134,57 @@ implements the watchdog route form.
 
 Next: the watchdog route form (above), item 2 (AC-38, `TestOldResponses50/42`),
 then items 4 to 8.
+
+## Agent old-responses (2026-10-22 Linux)
+
+Item 2 (AC-38) has its judge, and the judge is RED. `internal/exabgp/bridge/old_responses_test.go`
+ports the pin's `qa/bin/test_old_responses` and its ALLOWED table: 17 rows, the
+marker "End of the rows copied from the pin. Ze's own rows follow.", and no ze
+row yet. Each event goes through the engine's subscriber formatter
+(format.AppendMessage / AppendSentMessage, JSONEncoder, AppendStateChange), then
+`ReadEvent` and `Event.Line(FormatV4Text|FormatV4JSON)`. The session is the
+first neighbor in `testdata/exabgp-old/configs-<release>.json.gz`, named as the
+release named it, together with its OPEN. Set `ZE_OLD_VERBOSE=1` to list every
+failure. The log prints `class <count> <encoder> <kind> <where>`.
+
+Commits: d1eef6673c the judge; 3d46585641 router-id on the non-UPDATE JSON
+(format.peerMap); 0ca6982927 BoRR and EoRR folded into `refresh`, with the words
+query, begin and end; 95a6236e93 the text `route eor` line. Counts: 5.0 went
+from 4449 to 8091 of 23392 lines, 4.2 from 7391 to 8583 of 20930. The 117 (5.0)
+and 2751 (4.2) lines the release could not write are skipped, as the pin skips them.
+
+Classes left, largest first (5.0 counts):
+1. No `packets` or `consolidate` rendering, about 9000 lines across the kinds.
+   These are the header and body forms of ExaBGP's `receive { packets;
+   consolidate; }`. Ze must deliver the raw message (FormatFull), and the
+   bridge needs a render mode per process. This is a feature.
+2. `neighbor.negotiated` on every UPDATE JSON line, 2000 lines. 5.0 writes the
+   session's negotiated block inside each update line. The bridge has to keep
+   the peer's negotiated event and attach it to each line. Read 5.0's
+   `response/json.py` first.
+3. Events ze has no producer for: fsm (864 JSON), signal (288), connected
+   (144+144), shutdown (144+144), and OPERATIONAL messages (288+288, plus their
+   packets forms).
+4. OPEN, about 300 text and 16 JSON lines. The text capability list uses ze's
+   own words (`unknown-64 ...`) where ExaBGP writes `graceful restart flags ...`,
+   `route refresh` and `operational`. JSON capabilities come out `{}` for an
+   OPEN with RFC 9072 extended optional parameters, so DecodeOpen misreads it.
+5. The `negotiated` event's JSON content (144), and the UPDATE attribute and
+   NLRI forms: the extended-community string (160); as-path (28), because the
+   overlay in WireUpdateToExabgpJSON does not run on the runtime path; flow
+   next-hop and string; aggregator, cluster-list and originator-id; the
+   labeled, flow, vpls, mvpn and mup text lines.
+6. The `down` reason, 144 JSON and 144 text lines. Ze sends tcp-failure, while
+   the pin's judge hands `peer reset` to both encoders. To decide: map ze's
+   reason words to ExaBGP's in the bridge, or add a ze ALLOWED row with an
+   argued reason.
+7. 40 UPDATEs, JSON and text, that get no line from ze: the judge drops an
+   UPDATE whose Attrs() errors or that `oldSessionReset` resets. Read each one.
+
+Next step: class 2, which is bridge-only and worth 2000 lines, then 4, then 5.
+Classes 1 and 3 are absent features that the pin's corpus exercises (M3). They
+are owed, and the main thread decides whether they run in this spec or in their own.
+Owed gates, not run because of the host rule: `./le verify worktree`, `./le go
+lint run`, `./le test functional exabgp-test`, any `.ci` that pins exact OPEN,
+KEEPALIVE, NOTIFICATION or refresh JSON (router-id is now present, and borr and
+eorr now arrive as `refresh`), and independent review.
