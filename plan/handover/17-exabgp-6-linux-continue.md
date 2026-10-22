@@ -742,3 +742,36 @@ OWED gates (host rule): `./le go lint run`, `./le verify worktree`,
 `./le test functional exabgp-test`, `./le test functional plugin`,
 `./le repo generate` / CODE-TO-DOCS refresh (bridge_event_wire.go is new),
 independent review.
+
+## Agent signal/shutdown proofs (2026-10-22 Linux)
+
+Signal: `test/plugin/signal-event.ci` (fixture `plugin_fixture_signal_event.go`,
+two Register lines in `plugin_fixture_12.go`) proves a plugin receives
+`signal 1 SIGHUP` in JSON and text after SIGHUP to the daemon. Green; red with
+`announceSignal` returning at once ("no signal event for SIGHUP reached the
+plugin within 10s"). Committed with this section. Seen: the `.ci` leaf
+`encoder text` does not reach an SDK process; the text fixture calls
+`plugin.SetEncoding("text")`.
+
+Prefix-SID: no defect. RFC 9252 Section 7 treat-as-withdraw reaches plugins as
+a withdraw (`validatePrefixSIDValue` -> `applyRFC7606` ->
+`SynthesizeWithdrawFamilies` in `processValidatedMessage`); the empty
+`"update":{}` was the judge's rendering. Proven by
+`reactor/prefixsid_service_tlv_withdraw_test.go` (red with the verdict mapped
+to attribute-discard). Committed with this section.
+
+Shutdown: DEFECT, half fixed, uncommitted. The engine sends no `bye` on daemon
+stop (`ProcessManager.Stop`: "No bye round-trip"), so the `OnBye` handlers in
+both runners never ran. Uncommitted: `OnBye` removed from
+`internal/plugins/exabgp/main_sdk.go` and `bridgeplugin/internal.go`;
+`fleet.Shutdown()` runs after `p.Run` returns (before `fleet.Stop()` external,
+before `cancel()` internal); `Fleet.Shutdown` comment ("MUST be called before
+Stop"); `exabgp-bridge.md` paragraph; drafts
+`test/draft/plugin/exabgp-bridge-shutdown-{internal,external}.ci` with fixture
+`plugin_fixture_exabgp_shutdown.go` (Register in `plugin_fixture_06.go`).
+Both drafts red before the fix; external now PASSES; internal still FAILS:
+`Shutdown` only queues the line and `cancel()` kills the script
+(`exec.CommandContext`, script.go) before `writeLoop` writes it. Next: Shutdown
+queues the line, closes each started script's queue, waits for its writer
+(writer-done channel closed at the end of `writeLoop`), bounded ~1s; promote
+both drafts; rerun; optionally an exabgp-compat case vs the pin.

@@ -30,6 +30,8 @@ func init() {
 	Register("plugin/quiesce-barrier", p12ObserveDriver("quiesce-barrier", p12QuiesceBarrier))
 	Register("plugin/rbac-web-config-deny", p12WebRBAC)
 	Register("plugin/fsm-connected-events", p12SubscribedDriver("fsm-test", []string{"connected", "fsm"}, p12FSMConnectedEvents))
+	Register("plugin/signal-event-json", p12SubscribedDriver("signal-json", []string{"signal"}, p12SignalEventJSON))
+	Register("plugin/signal-event-text", p12SubscribedDriver("signal-text", []string{"signal"}, p12SignalEventText))
 	Register("plugin/reactor-bus-subscribe", p12SubscribedDriver("bus-test", []string{eventState}, p12BusSubscribe))
 
 	Register("plugin/redistribute-as112-announce", p12ObserveDriver("as112-announce-test", p12AS112Announce))

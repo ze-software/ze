@@ -1,0 +1,72 @@
+# Test: a plugin subscribed to `signal` is told when the daemon takes SIGHUP
+# VALIDATES: SIGHUP to the daemon reaches a JSON process as
+#            `"signal":{"code":1,"name":"SIGHUP"}` and a text process as
+#            `peer 127.0.0.1 remote as 1 signal 1 SIGHUP`, once per configured peer
+#            (hub announceSignal, cmd/ze/hub/signal_announce.go, published on the
+#            EventBus and fanned out by Reactor.onDaemonSignal,
+#            internal/component/bgp/reactor/reactor_signal_events.go)
+# PREVENTS: the hub taking a signal that no process attached to a peer hears of,
+#           which ExaBGP's `api signal` delivers to every neighbor's processes
+# The text process asks for text through the SDK subscription (SetEncoding).
+# The JSON plugin sends the SIGHUP itself, from daemon.pid, once daemon.ready exists.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external signal-json {
+		run "le test fixture plugin/signal-event-json"
+		encoder json
+	}
+	external signal-text {
+		run "le test fixture plugin/signal-event-text"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		attach process signal-json {
+			receive [ signal ]
+		}
+		attach process signal-text {
+			receive [ signal ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: signal event delivered as json:
+expect=stderr:contains=OK: signal event delivered as text: peer 127.0.0.1 remote as 1 signal 1 SIGHUP
