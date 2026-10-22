@@ -7,6 +7,17 @@ Linux host. The long running log is `03-session-2026-10-18-linux-continue.md`
 Claimed spec: `plan/immediate/spec-exabgp-6-api-compatibility.md` (Phase 7 in
 progress). Claim it again on Linux with `./le spec claim spec <file>`.
 
+## STOPPED 2026-10-23 (owner: "Stop all, we are running out of tokens")
+
+Two agents were stopped mid-work and may have left uncommitted edits: the
+FlowSpec IPv6 route-target redirect send (owner: "we must be able to send";
+journal row in `plan/journal/unwired-feature.md`), and the wiki review (wiki
+checkout, 1 unpushed commit 351aba8; pages such as
+`exabgp-migration-walkthrough.md`, `bgp-nlri-flowspec.md` unchecked). Run
+`git status` in main and in `../wiki` before resuming either. Held fixes still
+wait on the explicit-final-policy session; the final suites/interop run is
+owed after everything lands; the website waits for the weekly release.
+
 ## START HERE: state at the end of Linux session ed4b8d60 (2026-10-22)
 
 Supersedes the "Owner decisions still open" and "Remaining work" sections
@@ -23,7 +34,7 @@ another session (handover 19).
 
 Held in the working tree, uncommitted, because each file also carries the
 explicit-final-policy session's uncommitted rename (spec
-`plan/immediate/spec-bgp-explicit-final-policy.md`), which does not build
+`spec-bgp-explicit-final-policy`), which does not build
 against HEAD. Land each with or after that session's commit:
 - negotiated before the OpenConfirm KEEPALIVE: `reactor/{peer_derived_bindings,peer_derived_bindings_test,peer_run,peer_settings_apply,reactor_notify}.go` and its `docs/architecture/api/json-format.md` hunk; restore the page paragraph kept in `plan/handover/17-negotiated-before-keepalive-page.md` in the same commit and delete that file. Proven: api-packets-receive/consolidate/send 3/3 against ze and the pin.
 - lint: `plugins/cmd/peer/peer.go` (goconst, misspell), `reactor/peer_forward_facts.go` (exhaustive), `reactor/rs_withdrawal_convergence_test.go` (ineffassign).
