@@ -333,3 +333,40 @@ func TestTextEncoderOmitsAnEmptyAttributeList(t *testing.T) {
 		t.Errorf("text event:\n%q\nwant it to carry a non-empty as-path", got)
 	}
 }
+
+// TestRefreshSubtypeEvents checks that the three ROUTE-REFRESH subtypes reach
+// an API 4 helper as ExaBGP's one `refresh` kind, with the subtype's word.
+//
+// VALIDATES: ze's `refresh`, `borr` and `eorr` events are read as kind
+// `refresh`, written on the text line as `query`, `begin` and `end`, given the
+// JSON `route-refresh` member, and filed under the `receive-refresh` key.
+// PREVENTS: a BoRR or EoRR reaching a helper as no line, or a JSON line with
+// no route-refresh member (TestOldResponses50).
+func TestRefreshSubtypeEvents(t *testing.T) {
+	for zeKind, word := range map[string]string{"refresh": "query", "borr": "begin", "eorr": "end"} {
+		event := ReadEvent(map[string]any{
+			"type": "bgp",
+			"bgp": map[string]any{
+				"message": map[string]any{"type": zeKind, "direction": "received"},
+				"peer":    map[string]any{"remote": map[string]any{"address": "10.0.0.2", "as": float64(64512)}},
+				zeKind:    map[string]any{"afi": "ipv4", "safi": "unicast"},
+			},
+		})
+		if event.Kind != msgTypeRefresh {
+			t.Errorf("%s: kind %q, want refresh", zeKind, event.Kind)
+		}
+		if key := event.APIKey(); key != "receive-refresh" {
+			t.Errorf("%s: API key %q, want receive-refresh", zeKind, key)
+		}
+		text, form := event.AppendText(nil)
+		want := "neighbor 10.0.0.2 receive route-refresh afi ipv4 safi unicast " + word + "\n"
+		if form != TextWritten || string(text) != want {
+			t.Errorf("%s: text %q (form %d), want %q", zeKind, text, form, want)
+		}
+		neighbor, _ := event.ExabgpJSON(FormatV4JSON)["neighbor"].(map[string]any) //nolint:errcheck // nil fails below
+		member, _ := neighbor["route-refresh"].(map[string]any)                     //nolint:errcheck // as above
+		if member["subtype"] != word || member["afi"] != "ipv4" || member["safi"] != "unicast" {
+			t.Errorf("%s: route-refresh member %v, want afi ipv4 safi unicast subtype %s", zeKind, member, word)
+		}
+	}
+}

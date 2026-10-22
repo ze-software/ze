@@ -530,8 +530,9 @@ func (e Event) appendRefreshText(buf []byte) []byte {
 	buf = appendJSONNumber(buf, e.Data["afi"])
 	buf = append(buf, " safi "...)
 	buf = appendJSONNumber(buf, e.Data["safi"])
+	// Text.refresh writes `{refresh.reserved}`, the subtype's word.
 	buf = append(buf, ' ')
-	buf = appendJSONNumber(buf, e.Data["subtype"])
+	buf = append(buf, e.RefreshSubtype...)
 	return append(buf, '\n')
 }
 

@@ -100,7 +100,26 @@ type Event struct {
 	// RouterID is THIS speaker's BGP Identifier for the session, empty when the
 	// event carries none.
 	RouterID string
+	// RefreshSubtype is ExaBGP's word for a ROUTE-REFRESH's Message Subtype,
+	// `query`, `begin` or `end`, and empty for every other kind.
+	RefreshSubtype string
 }
+
+// exabgpRefreshSubtypes maps the kind ze names a ROUTE-REFRESH event by, its
+// Message Subtype (format.DecodedRouteRefresh.SubtypeName), to ExaBGP's word
+// for that subtype (src/exabgp/bgp/message/refresh.py, Reserved.__str__).
+//
+// RFC 7313 Section 3.2: "0 - Normal route refresh request [RFC2918] with/without
+// ORF [RFC5291]", "1 - Demarcation of the beginning of a route refresh (BoRR)
+// operation", "2 - Demarcation of the ending of a route refresh (EoRR)
+// operation".
+//
+// ExaBGP has one message kind for all three, `refresh`, and states the subtype
+// inside it. Ze named a BoRR and an EoRR event `borr` and `eorr`, so until
+// 2026-10-22 the bridge wrote a v4 helper no text line for either, a JSON line
+// with no `route-refresh` member, and filed both under an API key no grant
+// names (TestOldResponses50).
+var exabgpRefreshSubtypes = map[string]string{"refresh": "query", "borr": "begin", "eorr": "end"}
 
 // ReadEvent reads one ze JSON event.
 //
@@ -150,6 +169,11 @@ func ReadEvent(zebgp map[string]any) Event {
 	if event.Kind == "" {
 		event.Kind = eventKindByKey(event.Payload)
 	}
+	zeKind := event.Kind
+	if subtype, isRefresh := exabgpRefreshSubtypes[zeKind]; isRefresh {
+		event.Kind = msgTypeRefresh
+		event.RefreshSubtype = subtype
+	}
 
 	if peer, ok := event.Payload["peer"].(map[string]any); ok {
 		if remote, ok := peer["remote"].(map[string]any); ok {
@@ -171,7 +195,7 @@ func ReadEvent(zebgp map[string]any) Event {
 	// no container of its own to descend into.
 	event.Data = event.Payload
 	if event.Kind != msgTypeState {
-		if nested, ok := event.Payload[event.Kind].(map[string]any); ok {
+		if nested, ok := event.Payload[zeKind].(map[string]any); ok {
 			event.Data = nested
 		}
 	}
@@ -280,6 +304,13 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 
 	case msgTypeNegotiated:
 		result[msgTypeNegotiated] = convertNegotiated(e.Data)
+
+	case msgTypeRefresh:
+		// The member is `route-refresh`, not the kind (Response.V4.JSON.refresh,
+		// src/exabgp/reactor/api/response/json.py).
+		neighbor["route-refresh"] = map[string]any{
+			"afi": e.Data["afi"], "safi": e.Data["safi"], "subtype": e.RefreshSubtype,
+		}
 	}
 
 	result["neighbor"] = neighbor
