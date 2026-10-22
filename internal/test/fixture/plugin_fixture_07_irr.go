@@ -188,6 +188,9 @@ func filterIRRFail07(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func filterIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
+	if err := waitForPeerUpdate07()(ctx, p); err != nil {
+		return err
+	}
 	if result := done07(ctx, p, "update bgp irr all"); result.status != statusDone {
 		return fmt.Errorf("update bgp irr all status=%s error=%w", result.status, result.err)
 	}
@@ -201,7 +204,7 @@ func filterIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
 	if _, ok := object07(result.data)["entries"]; !ok {
 		return errors.New("show bgp irr missing entries after refresh")
 	}
-	return nil
+	return quiesce07(ctx, p)
 }
 
 func updateASSet07(ctx context.Context, p *sdk.Plugin, name string) (map[string]any, error) {
