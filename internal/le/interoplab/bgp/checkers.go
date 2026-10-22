@@ -680,12 +680,13 @@ var scenarioOperations = map[string][]operation{
 	// GoBGP v4.10.0 prints the values in wire order inside one bracket pair,
 	// `{LargeCommunity: [ a, b, c]}` (PathAttributeLargeCommunities.String,
 	// pkg/packet/bgp/bgp.go), so the whole attribute is matched: each value
-	// once, in the order Ze appends them. On v3.31.0 that read could not go
-	// red: the run with the egress removal reverted still printed each value
-	// once (2026-10-21). v4.10.0's DecodeFromBytes keeps every value it reads
-	// and nothing in its receive path removes repeats, so the v4 read may now
-	// discriminate on its own; that revert has not been re-run on v4.10.0, and
-	// the native speaker's oracle stays the proof.
+	// once, in the order Ze appends them. That read cannot go red: GoBGP
+	// removes repeats on receipt, as RFC 8092 Section 3 requires of a
+	// receiver. v4.10.0's DecodeFromBytes keeps every value, and
+	// ValidateAttribute (pkg/packet/bgp/validate.go), run on every received
+	// UPDATE, then drops each repeat. With the egress removal reverted, the
+	// read still printed each value once on v3.31.0 (2026-10-21) and on
+	// v4.10.0 (2026-10-22), so the native speaker's oracle is the proof.
 	"bgp-large-community-no-repeat-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
@@ -693,7 +694,9 @@ var scenarioOperations = map[string][]operation{
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: [ 65000:1:1, 65000:3:3, 65000:2:2]}"}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		// GoBGP removes repeats on receipt, so the discriminating read is the
-		// native speaker's: its oracle judges the LARGE_COMMUNITY as sent. The
+		// native speaker's: its oracle judges the LARGE_COMMUNITY as sent, and
+		// with the egress removal reverted it fails on 65000:1:1 and 65000:2:2
+		// transmitted twice in one UPDATE (GoBGP v4.10.0, 2026-10-22). The
 		// injected route carries three distinct values once tagged (1:1, 3:3,
 		// 2:2) and GoBGP's fence two, so a distinct count of 3 proves the
 		// injected route reached the speaker with its egress tags.

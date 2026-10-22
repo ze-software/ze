@@ -336,8 +336,9 @@ still read v3's `neighbor-ip` field and failed bgp-flowspec-gobgp spuriously.
 | bgp-flowspec-sctp-gobgp | pass | 62bd6f2a09: nft prints SCTP as protocol 132 (`meta l4proto 132`), so the old check on the word `sctp` could never fail; the same on nftables 1.1.1 and 1.1.6 |
 | bgp-vpn-gobgp | pass, stronger proof | 2f5c10c737: an ipv4/unicast route beside the two mpls-vpn routes, so both AFI 1 families must negotiate. Red with the unicast announcement removed (new ipv4 RIB wait) and with ipv4/unicast removed from ze.conf. The GoBGP 3.31 limitation row left interop.md (carried by 74154ab819) |
 | bgp-sr-policy-malformed-receive-gobgp | pass, revert-red re-proven | 2f5c10c737: v4 resets the session on the malformed NLRI; the scenario now also requires Ze's peer detail to show connections-established 1 and connections-dropped 0. Red a (srpolicy NLRI registration emptied) red at A's absence, and on its own at the counter step; red b (`srPolicyAnnounced` branch of `applyTunnelEncap` disabled) red at B's absence |
+| bgp-large-community-no-repeat-gobgp | pass, revert-red re-proven | this commit, comments only. Red with `false &&` before the `largeCommunityRedundant` condition of the egress normalizer (clone of 4bc9070cbc): GoBGP's read still passed, the speaker oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE; green restored. The earlier note here was wrong: v4.10.0's `DecodeFromBytes` keeps every value, but `ValidateAttribute` (pkg/packet/bgp/validate.go) drops repeats on receipt, so GoBGP still cannot go red. interop.md row 41 and the `checkers.go` comment now say so |
+| bgp-exabgp-bridge-rtc-gobgp | pass | none (the scenario still sends the specific membership only) |
 
 Owed next, in order:
 
-1. Revert-red for bgp-large-community-no-repeat-gobgp: put `false &&` before the `largeCommunityRedundant` condition in the egress normalizer, in a clone. Then correct interop.md row 41 and the scenario comment in `checkers.go`, which say GoBGP removes repeats on receipt: v4.10.0's `PathAttributeLargeCommunities.DecodeFromBytes` keeps every value.
-2. bgp-exabgp-bridge-rtc-gobgp, then the rest of the scenario list above (addpath pmacct and rail-agreement, plus the plain regressions).
+1. The rest of the scenario list above (addpath pmacct and rail-agreement, plus the plain regressions).
