@@ -2,6 +2,7 @@ package bridgerun
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +18,11 @@ import (
 // the file holds what the child read before it died. Shutdown that only queues
 // the line loses the race to the kill and the files come back empty; Shutdown
 // MUST return only once each child has read the line and exited on its EOF.
+//
+// Each script's stdout goes to its file, so its stdout pipe closes at once
+// while it still reads stdin. That is the second thing the test holds: reap
+// once forgot stdin as soon as stdout closed, so every later line, this one
+// included, was dropped and the script never saw its EOF.
 func TestFleetShutdownReachesTheScriptsBeforeTheCancel(t *testing.T) {
 	dir := t.TempDir()
 	textOut := filepath.Join(dir, "text.events")
@@ -34,6 +40,14 @@ func TestFleetShutdownReachesTheScriptsBeforeTheCancel(t *testing.T) {
 	if err := fleet.Start(ctx, &recorder{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
+	// A daemon stops scripts that are already reading. Each `cat >` creates its
+	// file when it starts, so both files existing is that precondition; without
+	// it a loaded host can spend Shutdown's bound starting the shells.
+	waitFor(t, "both scripts running", func() bool {
+		_, textErr := os.Stat(textOut)
+		_, jsonErr := os.Stat(jsonOut)
+		return textErr == nil && jsonErr == nil
+	})
 
 	fleet.Shutdown()
 	cancel()

@@ -420,20 +420,27 @@ func (s *script) status(ctx context.Context, d Dispatcher, asJSON bool) ([]byte,
 // reap waits for the exited child and forgets its pipes. It runs after read
 // has returned, because Wait closes the stdout pipe under any reader still on
 // it (os/exec, Cmd.StdoutPipe).
+//
+// The stdout pipe closing does not mean the child has gone: a script that
+// redirects its stdout and keeps reading its stdin is still owed every line,
+// the shutdown line included, and only its EOF ends it. So stdin stays the
+// writer's until Wait returns, and Wait closes it once the child has exited.
 func (s *script) reap() {
 	s.mu.Lock()
 	c := s.child
+	s.mu.Unlock()
+
+	if c != nil {
+		if err := c.Wait(); err != nil {
+			s.log.Debug("exabgp-bridge script exited", "script", s.name, "error", err)
+		}
+	}
+
+	s.mu.Lock()
 	s.child = nil
 	s.stdin = nil
 	s.stdout = nil
 	s.mu.Unlock()
-
-	if c == nil {
-		return
-	}
-	if err := c.Wait(); err != nil {
-		s.log.Debug("exabgp-bridge script exited", "script", s.name, "error", err)
-	}
 }
 
 // writeLoop drains the queue into the child's stdin. It is the one writer the
