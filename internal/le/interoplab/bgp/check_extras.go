@@ -108,15 +108,20 @@ var scenarioExtras = map[string][]operation{
 	// (pkg/server/fsm.go, handlingError). v3.31.0 kept the session instead, and
 	// the revert-red recorded then (2026-10-21, commit f40f1fea9b) went red at
 	// A's absence because GoBGP refused the UPDATE and kept A. On v4.10.0 the
-	// reset drops C, the step's proof, but a session that re-establishes inside
-	// the wait brings C back without A, so whether a relayed 13-octet NLRI still
-	// turns this step red is unproven until the revert is re-run on v4.10.0.
+	// same revert (2026-10-22) still goes red at A's absence, for another
+	// reason: the reset drops C, the step's proof, and the injector has closed
+	// by then, so the re-established session never gets C back. That verdict
+	// rests on the injector's timing, so the last step reads Ze's own counters
+	// for the GoBGP session: one connection established and none dropped,
+	// which a reset over a relayed 13-octet NLRI cannot leave behind.
 	scenarioSRPolicyMalformedReceiveGoBGP: {
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyReceivedA, srPolicyReceivedB, srPolicyReceivedControl}, timeout: 120 * time.Second},
 		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, absent: []string{srPolicyReceivedA}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
 		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, absent: []string{srPolicyReceivedB}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyReceivedControl}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
+		// RFC 9830 Section 5
+		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("show bgp peer " + gobgpLabAddress + " detail"), fields: map[string]string{zeFieldConnectionsEstablished: "1", zeFieldConnectionsDropped: "0"}},
 	},
 	scenarioFlowspecFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"ipv4Flowspec", frrCapabilityNegotiated}},
@@ -174,8 +179,13 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitJSONFields, peer: "ze", command: zeCommand("show bgp rib count"), minimum: map[string]int{"count": 1}, timeout: 30 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// GoBGP 3.31 was recorded keeping one Multiprotocol capability per AFI, so
+	// of ipv4-unicast and l3vpn-ipv4-unicast (both AFI 1) only one family
+	// carried routes. Ze's VPN routes and its unicast route both reaching
+	// GoBGP's RIB prove v4.10.0 negotiated both families.
 	scenarioVPNGoBGP: {
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "vpnv4", "-j"}, contains: []string{peerPrefixFirst, peerPrefixSecond}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, "-j"}, contains: []string{vpnSameAFIUnicastPrefix}, timeout: 30 * time.Second},
 	},
 	"bmp-frr": {
 		{kind: opWaitContains, peer: peerBMP, command: []string{cmdCat, "/tmp/bmp-status.json"}, contains: []string{"initiation", "peer-up", "route-monitoring"}, timeout: 30 * time.Second},

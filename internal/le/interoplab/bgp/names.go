@@ -376,6 +376,18 @@ const (
 // peer's session is up before the scenario reads anything after it.
 const peerPrefixFence = "10.20.0.0/24"
 
+// vpnSameAFIUnicastPrefix is the ipv4/unicast route bgp-vpn-gobgp sends beside
+// its ipv4/mpls-vpn routes, so both families sharing AFI 1 carry a route.
+const vpnSameAFIUnicastPrefix = "10.97.0.0/24"
+
+// The session counters in Ze's peer detail answer. A session that was reset
+// and re-established leaves connections-established above one and
+// connections-dropped above zero.
+const (
+	zeFieldConnectionsEstablished = "connections-established"
+	zeFieldConnectionsDropped     = "connections-dropped"
+)
+
 // The two prefixes bgp-path-asn-leak-frr sends on one FRR session. They differ
 // only in the AS_PATH FRR writes for each, so a reject-asn list that named the
 // wrong ASN, or judged the wrong position, moves one of them and never both.

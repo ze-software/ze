@@ -201,10 +201,19 @@ func announcementPlan(scenario string) (processPlan, error) {
 			// the ESI carries that ESI non-zero, with a zero GW IP.
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp l2vpn/evpn add ip-prefix rd 1:1 esi " + evpnOverlayESI + " etag 0 prefix " + evpnOverlayPrefix + " overlay-index esi label 0", quiesce: true},
 		}
-	case scenarioVPNFRR, scenarioVPNGoBGP:
+	case scenarioVPNFRR:
 		plan.updates = []announcement{
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp ipv4/mpls-vpn rd 65001:100 label 1000 add 10.99.0.0/24", quiesce: true},
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp ipv4/mpls-vpn rd 65001:100 label 1001 add 10.99.1.0/24", quiesce: true},
+		}
+	case scenarioVPNGoBGP:
+		// RFC 4760 Section 8: one route in each of the two families sharing
+		// AFI 1 (ipv4/unicast, SAFI 1, and ipv4/mpls-vpn, SAFI 128), so GoBGP
+		// holding both proves it negotiated both rather than one per AFI.
+		plan.updates = []announcement{
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp ipv4/mpls-vpn rd 65001:100 label 1000 add 10.99.0.0/24", quiesce: true},
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp ipv4/mpls-vpn rd 65001:100 label 1001 add 10.99.1.0/24", quiesce: true},
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri add " + vpnSameAFIUnicastPrefix, quiesce: true},
 		}
 	case "as112-community-frr":
 		add("update text origin igp nhop 172.30.0.2 community [no-export] nlri add 192.175.48.0/24")
