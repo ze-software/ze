@@ -15,7 +15,9 @@ below, which describe the start of that session.
 Done: AC-37 (`TestOldCommands50/42` 4250/4250, 2541/2541) and AC-38
 (`TestOldResponses50/42` 23392/23392, 20930/20930), scoped runs. Owner
 decisions taken: M15 no OPERATIONAL, M16 no multi-session, M20 byte-exact RFC
-quotes, M21 build-cache cap, M22 shared launcher; the strict AC-38 judge is in
+quotes, the build-cache cap and the shared launcher (rows M21 and M22 until
+2026-10-22, now O-1 in `plan/spec-le-build-cache-cap.md` and
+`plan/spec-le-shared-build-launcher.md`); the strict AC-38 judge is in
 the spec's Key Design Decisions. Handover items 1, 2, 6 done; item 3 finished by
 another session (handover 19).
 
@@ -53,6 +55,9 @@ Journal rows written: `unwired-feature.md` (auto-flush), `zero-value-as-valid-an
 |---|----------|---------|
 | 1 | Cap the Go build-cache size, enforced on every `./le` run? | The Mac disk filled three times on 2026-10-21/22: the checkout, shared and ambient Go caches regrow to about 85 GB within hours with many sessions building. Safe `cache-clean` (803356e056) cannot free young entries by design |
 | 2 | Shared-build launcher for `bin/` (content-addressed, hard-linked `le-<name>`)? | 77 `le-<name>` launchers of 137 MB each were mostly identical builds. The 24 h idle trim keeps them because each was used that day |
+
+Rows 1 and 2 were decided on 2026-10-22, "yes" to each: O-1 in
+`plan/spec-le-build-cache-cap.md` and in `plan/spec-le-shared-build-launcher.md`.
 
 Owner decisions taken this session are in `ai/META-DECISIONS.md`: M11 (third-party
 module changes are local diffs, never a fork) and M12 (full YANG coverage runs

@@ -6,6 +6,7 @@ severity: blocking
 directives ## Directives
   hold-every-protocol-to-its-own-rfcs
   quote-the-rfc-text-a-new-function-implements
+  keep-a-quoted-rfc-sentence-byte-exact
   count-conformance-on-the-whole-stack
   name-who-implements-each-rfc
   a-requirement-list-is-a-claim-until-it-is-walked

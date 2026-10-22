@@ -13,14 +13,22 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Owner decision M21 (`ai/META-DECISIONS.md`, 2026-10-22): the Go build cache gets
-a size cap that every `./le` run enforces. Background, handover 17
+Owner decisions, recorded here because they approve this feature (they were
+rows M21 and M26 of `ai/META-DECISIONS.md` until 2026-10-22, when that file was
+kept to meta decisions only):
+
+| Id | Date | Decision | Thomas's words |
+|----|------|----------|----------------|
+| O-1 | 2026-10-22 | The Go build cache gets a size cap that every `./le` run enforces | "yes" to "Cap the Go build-cache size, enforced on every `./le` run?" |
+| O-2 | 2026-10-22 | The trim limits the ambient Go cache (`~/.cache/go-build`) as well as le's own caches, superseding D-6 of the closed `spec-le-bounds-its-build-stores`; le's caches keep their 40G budget (A-1, AC-10, AC-11) | "The trim should limit both cache." and "40 gig is right" |
+
+O-1: the Go build cache gets a size cap that every `./le` run enforces. Background, handover 17
 (`plan/handover/17-exabgp-6-linux-continue.md`, "Owner decisions" row 1): the
 Mac disk filled three times on 2026-10-21/22, because the checkout, shared and
 ambient Go caches regrew to about 85 GB within hours while many sessions built,
 and the safe `./le scratch cache-clean` cannot free young entries by design.
 
-A cap already half exists, and this spec closes the gap between it and M21
+A cap already half exists, and this spec closes the gap between it and O-1
 rather than building a second one (`ai/rules/no-layering.md`). Today le starts a
 detached store trim at most once an hour, holds the checkout, shared and
 bootstrap Go caches to one 40G total and the lint cache to 10G, never removes an
@@ -67,7 +75,7 @@ is, which process holds the remainder, and the exact fix.
 N-A: tooling, no protocol.
 
 **Key insights:** (minimal context to resume after compaction)
-- The cap exists (`trimStores`, hourly, 40G union, 10G lint, 3h floor, ambient skipped under D-6). M21 is met by four changes, not a new mechanism: a per-run due check on a ledger plus `statfs`, a process-bounded cutoff instant in place of the fixed floor, an ambient budget, and an unmet report with holder and fix.
+- The cap exists (`trimStores`, hourly, 40G union, 10G lint, 3h floor, ambient skipped under D-6). O-1 is met by four changes, not a new mechanism: a per-run due check on a ledger plus `statfs`, a process-bounded cutoff instant in place of the fixed floor, an ambient budget, and an unmet report with holder and fix.
 - Go marks an entry used by refreshing its mtime only when the mtime is at least one hour old (`mtimeInterval`, `markUsed`, `cmd/go/internal/cache/cache.go`, Go 1.27.2), and one go command can read an output it looked up at its start much later (a link late in `go test ./...` reads archives looked up in its first minute). So an entry is safe to remove only when its mtime is older than the start of every live cache user minus one hour minus a margin. That is an INSTANT, not a moving floor: a process that starts after the scan can only push mtimes forward.
 - The per-run check must not run `go env GOCACHE`; the trim child records every capped cache's path and device in the ledger, and the per-run check reads only that.
 
@@ -96,7 +104,7 @@ N-A: tooling, no protocol.
 **Behavior to change:**
 - G-1: the due rule gains a per-run ledger check (AC-1 to AC-4).
 - G-2: the fixed three-hour floor is deleted and replaced by a cutoff instant derived from the live cache users (AC-5 to AC-9), in both the store trim and the safe `cache-clean` default, because both read the same `cachePass`.
-- G-3: the ambient cache gets budget `ze.le.store.ambient-cache-budget` (AC-10, AC-11), superseding D-6 under M21 (see Q-1 in the report and A-1).
+- G-3: the ambient cache gets budget `ze.le.store.ambient-cache-budget` (AC-10, AC-11), superseding D-6 under O-1 and O-2 (see Q-1 in the report and A-1).
 - G-4: an unmet budget names the holder and the fix in the report, in `last.log`, and in the ledger (AC-12, AC-13).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -141,7 +149,7 @@ N-A: tooling, no protocol.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | M21 supersedes D-6, so the ambient cache joins the cap | M21's background names "checkout, shared and ambient" as the caches that regrew; D-6 predates it (2026-10-05 versus 2026-10-22) | The ambient budget is dropped and the ambient row stays a skip; AC-10 and AC-11 go | The owner, Q-1 | validated 2026-10-22: Thomas, "The trim should limit both cache." and "40 gig is right" (M26) |
+| A-1 | O-1 supersedes D-6, so the ambient cache joins the cap | O-1's background names "checkout, shared and ambient" as the caches that regrew; D-6 predates it (2026-10-05 versus 2026-10-22) | The ambient budget is dropped and the ambient row stays a skip; AC-10 and AC-11 go | The owner, Q-1 | validated 2026-10-22: Thomas, "The trim should limit both cache." and "40 gig is right" (O-2) |
 | A-2 | Every live process that can read a Go cache entry is visible in this user's process table as a cache reader, a job holder, a le personality or a `qemu-system-*` process | `cacheuse.go` header; QEMU guest builds run under the le that drives `guestRun` (`guest_linux.go`); Colima container builds read the host-mounted `XDG_CACHE_HOME` only when le starts them | A container or guest build not started by le could lose an entry it looked up and fail with `cache entry not found` once | Grep every `docker run` and VM mount of a cache path in `internal/le` and `internal/test` during Phase 3; record each launcher | unvalidated |
 | A-3 | A le or ze-le process's start bounds every build it drives, inside a guest or a container | Each driver is a long-lived parent of the build it waits on (`guestRun`, interoplab builds) | A driver that exits while its build continues detaches the build from the bound | Same grep as A-2, plus reading each driver's wait | unvalidated |
 | A-4 | Go never reads a cache output whose lookup was made before the go process started; a go command's lookups all happen inside its own lifetime | `cmd/go/internal/cache`: lookups and `markUsed` happen in the process that reads the file | A tool caching a path across processes (none known) could read a removed file | Grep `GOCACHE` consumers in gopls and golangci-lint docs; gopls keeps its own cache (`cacheuse.go`) | unvalidated |
@@ -168,7 +176,7 @@ N-A: tooling, no protocol.
 |----------|--------|
 | What breaks if this is wrong? | Other sessions' builds on the same machine fail with `cache entry not found` (R-1, R-2), or every le call and hook slows (R-5). No shipped binary changes |
 | How is it reverted? | A single commit revert; `ze.le.store.trim=off` stops every automatic start at once |
-| Who else touches this path? | the M22 shared-build launcher work, whenever it starts (the launcher trim in `livetrim.go` runs in the same child); any session editing `internal/le/scratch` |
+| Who else touches this path? | the shared-build launcher work (`plan/spec-le-shared-build-launcher.md`), whenever it starts (the launcher trim in `livetrim.go` runs in the same child); any session editing `internal/le/scratch` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -392,7 +400,7 @@ The unmet line, as a text sample (the implementer may reword within AC-12):
 | An unmet cap is reported, never enforced by refusing commands | Refuse cache-hungry commands while over cap | Refusing a hook call would stop every session; the cap is a disk-protection measure, and the device-full preflight is a separate journal item (`plan/journal/full-disk-false-red.md`, 2026-09-19) |
 
 ## Known Limitations
-- `GOMODCACHE` is not capped: it is not a build cache, it grows per module version rather than per build, and M21 names the build cache.
+- `GOMODCACHE` is not capped: it is not a build cache, it grows per module version rather than per build, and O-1 names the build cache.
 - A cache reader outside this user's process table (another user, a container not started by le) is not seen (A-2); the doc names this residual.
 - The race R-2 remains, as it does for Go's own trim.
 - A louder surface for an unmet cap than the store-trim report and `last.log` (for example a `./le setup check` row) is not in this spec; see Q-3 in the handback.

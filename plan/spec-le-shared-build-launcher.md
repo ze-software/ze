@@ -13,8 +13,15 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Owner decision M22 (`ai/META-DECISIONS.md`, 2026-10-22): `bin/` gets a
-shared-build launcher. Every `le-<name>` build is content-addressed and
+Owner decision O-1, recorded here because it approves this feature (it was row
+M22 of `ai/META-DECISIONS.md` until 2026-10-22, when that file was kept to meta
+decisions only):
+
+| Id | Date | Decision | Thomas's words |
+|----|------|----------|----------------|
+| O-1 | 2026-10-22 | `bin/` gets a shared-build launcher: `le-<name>` builds are content-addressed and hard-linked to one copy per distinct build | "yes" to "Shared-build launcher for `bin/` (content-addressed, hard-linked `le-<name>`)?" |
+
+O-1: `bin/` gets a shared-build launcher. Every `le-<name>` build is content-addressed and
 hard-linked to one copy per distinct build, instead of one 137 MB binary per
 name.
 
@@ -350,11 +357,11 @@ N-A: tooling, no protocol peer.
 | Refuse when hard links fail | Fall back to a private copy | `ai/rules/no-layering.md` bans keeping the old path as a fallback |
 | Link count and ctime judge an entry | A reference list or lock file | A list is state several sessions write; the kernel already counts links |
 | One retry on a vanished entry, no lock | A lock around publish and trim | The launcher contract is "no lock"; one retry with the staging file in hand closes the only race the trim adds |
-| Shared `bin/le` stays out of the store | Link `bin/le` too | M22 names `le-<name>` builds; owner question Q-2 |
+| Shared `bin/le` stays out of the store | Link `bin/le` too | O-1 names `le-<name>` builds; owner question Q-2 |
 
 ## Known Limitations
 - `bin/le` and the platform fallback `bin/le-<OS>-<arch>/le` keep their own copies (Q-2)
-- The `./ze` root launcher's `bin/ze` is not touched; M22 names le builds only
+- The `./ze` root launcher's `bin/ze` is not touched; O-1 names le builds only
 
 ## Owner Questions
 
@@ -364,7 +371,7 @@ and Q-3 taken at the readings below, stated to him and not overruled.
 | ID | Question | Reading this spec proceeds under |
 |----|----------|----------------------------------|
 | Q-1 | On a filesystem without hard links, refuse `--name` (this spec, per no-layering) or keep a private per-name copy? | Refuse |
-| Q-2 | Should the shared `bin/le` (and the platform fallback) also publish through the store? | No, M22 names `le-<name>` only |
+| Q-2 | Should the shared `bin/le` (and the platform fallback) also publish through the store? | No, O-1 names `le-<name>` only |
 | Q-3 | The floor for an unlinked store entry, a new fixed constant beside owner decision D-3's ages | 1 hour: the retry covers the race, the floor bounds churn |
 
 ## Checklist
