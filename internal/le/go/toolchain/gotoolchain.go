@@ -732,10 +732,12 @@ func (t Toolchain) Environment(opts EnvOptions) []string {
 }
 
 // EnvironmentContext is Environment under ctx: a done ctx starts no
-// `go env GOFLAGS` query, and the answer then carries no GOFLAGS entry. That
-// environment builds the same result as one with the entry, so it is still a
-// correct answer, and no warning is printed, because the caller's own command
-// is refused by the same done ctx and nothing would run without -trimpath.
+// `go env GOFLAGS` query, and the answer then carries no -trimpath GOFLAGS
+// entry of its own (an inherited GOFLAGS stays as it was). That environment
+// does NOT build the same result: without -trimpath the binary embeds this
+// machine's paths. It is returned with no warning only because the caller's
+// own command is refused by the same done ctx, so nothing runs with it. A
+// caller MUST NOT start a command with it once ctx is done.
 func (t Toolchain) EnvironmentContext(ctx context.Context, opts EnvOptions) []string {
 	inherited := os.Environ()
 	if opts.Test {
