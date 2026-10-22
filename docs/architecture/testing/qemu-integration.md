@@ -578,7 +578,10 @@ most-specific-bind lookup then sends every loopback ssh to the loopback VM,
 so a wildcard `run` would reach a `docker-lab` VM.
 
 A forward with no fixed port (`ssh-port`, `ze.qemu.ssh.port`,
-`ze.install.ssh.port`) takes the first port in 2222..2321 that two checks pass.
+`ze.install.ssh.port`) takes the first port in 2223..2322 that two checks pass.
+The band starts above 2222 because 2222 is the SSH port `ze appliance run`
+forwards by default and Ze's own CLI SSH default, so a le VM never takes the
+port an operator types `ssh -p 2222 localhost` to reach.
 The first is the per-port lock the functional runner leases test ports through
 (`/tmp/le-port-locks-<euid>`, a fixed path whatever `TMPDIR` says, so root's
 locks sit apart in `/tmp/le-port-locks-0`). le takes the lock and holds it

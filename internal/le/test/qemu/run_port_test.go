@@ -6,6 +6,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
@@ -190,4 +191,25 @@ func releasedLoopbackPort(t *testing.T) int {
 		t.Fatalf("release the port: %v", err)
 	}
 	return tcp.Port
+}
+
+// VALIDATES: the band le takes forward ports from excludes the SSH port
+// `ze appliance run` forwards by default, and Ze's own CLI SSH default.
+// METHOD: read the appliance default from appliance.DefaultConfig, and the
+// CLI default as a literal (defaultListen in internal/component/ssh/ssh.go is
+// unexported), and require each to fall outside forwardPortFirst..forwardPortLast.
+// PREVENTS: finding F-2 on bf8fff3d54, where on macOS a le VM started first and
+// an appliance started second both bound 2222, and `ssh -p 2222 localhost`
+// reached le's VM rather than the appliance.
+func TestForwardPortBandExcludesTheApplianceSSHPort(t *testing.T) {
+	const cliSSHPort = 2222 // internal/component/ssh/ssh.go, defaultListen 127.0.0.1:2222
+	ports := map[string]int{
+		"ze appliance run SSH forward": appliance.DefaultConfig("band").QEMU.SSHPort,
+		"ze CLI SSH listener":          cliSSHPort,
+	}
+	for name, port := range ports {
+		if port >= forwardPortFirst && port <= forwardPortLast {
+			t.Errorf("%s default %d lies in the le forward band %d..%d", name, port, forwardPortFirst, forwardPortLast)
+		}
+	}
 }

@@ -28,10 +28,14 @@ const forwardHost = "127.0.0.1"
 
 // The band the forward ports come from. A port in it reads as an SSH forward
 // in `ss` or `lsof`, and the band is the one the operator overrides with
-// ze.qemu.ssh.port or ze.install.ssh.port.
+// ze.qemu.ssh.port or ze.install.ssh.port. It starts at 2223, not 2222:
+// 2222 is the SSH port `ze appliance run` forwards by default (on the
+// wildcard) and Ze's own CLI SSH default (127.0.0.1:2222). On macOS a le VM
+// holding 127.0.0.1:2222 binds beside the appliance's wildcard forward, and
+// `ssh -p 2222 localhost` then reaches le's VM rather than the appliance.
 const (
-	forwardPortFirst = 2222
-	forwardPortLast  = 2321
+	forwardPortFirst = 2223
+	forwardPortLast  = 2322
 )
 
 // forwardReservations holds the lock on every port this process has handed a
