@@ -446,23 +446,65 @@ func sleepContext(ctx context.Context, duration time.Duration) error {
 	}
 }
 
+// freeRunSSHPort answers a host port for the QEMU SSH forward. The port is
+// released before QEMU binds it, so two runs probing in the same instant can
+// still pick the same one; the second QEMU then refuses the forward at start.
 func freeRunSSHPort() (int, error) {
-	for port := 2222; port <= 2321; port++ {
-		listener, err := netListenWildcard(port)
-		if err != nil {
-			continue
-		}
-		if err := listener.Close(); err != nil {
-			return 0, fmt.Errorf("release SSH port %d: %w", port, err)
-		}
-		return port, nil
-	}
-	return 0, errors.New("no free host port in 2222..2321 for the QEMU SSH forward")
+	return freeSSHPortIn(2222, 2321)
 }
 
-func netListenWildcard(port int) (io.Closer, error) {
-	var config net.ListenConfig
-	return config.Listen(context.Background(), "tcp", textbuf.StrIntStr(":", int64(port), ""))
+// freeSSHPortIn answers the first port in first..last that sshPortFree finds
+// free on every address a forward binds.
+func freeSSHPortIn(first, last int) (int, error) {
+	for port := first; port <= last; port++ {
+		free, err := sshPortFree(port)
+		if err != nil {
+			return 0, err
+		}
+		if free {
+			return port, nil
+		}
+	}
+	var b textbuf.Buffer
+	return 0, errors.New(b.Str("no free host port in ").Int(int64(first)).Str("..").Int(int64(last)).
+		Str(" for the QEMU SSH forward: every one is held, most likely by other QEMU runs. ").
+		Str("Fix: stop a VM you no longer need, or set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) to a free port.").String())
+}
+
+// sshForwardHosts are the addresses this package's hostfwd strings bind:
+// docker-lab forwards on 127.0.0.1, run and install-test on the wildcard.
+var sshForwardHosts = [...]string{"127.0.0.1", "0.0.0.0"}
+
+// sshPortFree binds port on every forward address, IPv4 as slirp binds, with
+// SO_REUSEADDR cleared. With it set, as Go sets it on every listener, macOS
+// lets the wildcard bind sit beside another VM's 127.0.0.1 forward, and Linux
+// lets it sit beside a forward bound and not yet listening; without it, any
+// overlapping holder refuses the bind on both. An error answers a probe that
+// could not be released, never a held port.
+func sshPortFree(port int) (bool, error) {
+	config := net.ListenConfig{Control: clearReuseAddress}
+	for _, host := range sshForwardHosts {
+		listener, err := config.Listen(context.Background(), "tcp4", net.JoinHostPort(host, strconv.Itoa(port)))
+		if err != nil {
+			return false, nil //nolint:nilerr // a refused bind is the answer "held", not a failure
+		}
+		if err := listener.Close(); err != nil {
+			return false, fmt.Errorf("release SSH port probe %s:%d: %w", host, port, err)
+		}
+	}
+	return true, nil
+}
+
+// clearReuseAddress runs after Go has set SO_REUSEADDR and before the bind.
+func clearReuseAddress(_, _ string, raw syscall.RawConn) error {
+	var optionErr error
+	err := raw.Control(func(fd uintptr) {
+		optionErr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 0)
+	})
+	if err != nil {
+		return err
+	}
+	return optionErr
 }
 
 // Plan resolves the cache, kernel, port, firmware, and complete QEMU argv.

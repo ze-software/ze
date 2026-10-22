@@ -561,6 +561,19 @@ subscription is taken by the root and changes nothing; the two-minute bound
 still ends the wait. When the root ends the run, `le test qemu run` prints
 that error before it exits with the signal's code.
 
+### The SSH forward's host port
+
+A run with no `ssh-port` takes the first port in 2222..2321 that no socket
+holds. QEMU's hostfwd binds `0.0.0.0` for `run` and `install-test`, and
+`127.0.0.1` for `docker-lab`, so the probe binds both addresses, IPv4, with
+`SO_REUSEADDR` cleared: with it set, as Go sets it by default, macOS lets a
+wildcard bind sit beside another VM's loopback forward, and the second run
+died at boot with only an sshd timeout. The port is still released before
+QEMU binds it, so two runs that probe in the same instant can still pick the
+same port; the second QEMU then refuses the forward at start.
+<!-- source: internal/le/test/qemu/run.go -- freeRunSSHPort, freeSSHPortIn, sshPortFree -->
+<!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortAnswersAFreePort -->
+
 ### A VM never outlives its le
 
 Leading its own group takes QEMU out of the terminal's Ctrl-C, so a `le`
