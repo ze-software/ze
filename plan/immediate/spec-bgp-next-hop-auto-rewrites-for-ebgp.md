@@ -29,7 +29,7 @@ Owner decision (Thomas, 2026-10-03): change the CODE so `auto` rewrites the
 next hop to this speaker's own address for an eBGP peer, single hop and
 multihop alike, as the RFC 4271 Section 5.1.3 default. The YANG text stays as
 written and becomes true. The work lives in this spec, separate from the
-link-local spec `plan/immediate/spec-bgp-update-propagation-rfc-defects.md`
+link-local spec `spec-bgp-update-propagation-rfc-defects` (closed 2026-10-21)
 (defect D6), which owns the `unchanged` towards multihop case.
 
 ### Owner-approved behaviour table

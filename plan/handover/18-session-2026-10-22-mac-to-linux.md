@@ -10,6 +10,12 @@ would publish a false statement.
 
 ## What landed before the move, and what is a patch
 
+**Update 2026-10-22:** Thomas ordered the patch content committed before closure
+("the plans and docs are not commited"). It landed in the commit that removed both
+`18-mac-to-linux-*.patch` files, so at closure there is nothing to apply: the learned
+file, the doc status and the repoints are already in the tree, and they read as
+closed while the two specs are still open.
+
 | Spec | Committed | Kept as patch, and why |
 |------|-----------|------------------------|
 | `spec-bgp-rs-replacement-on-withdrawal` | `e306f08858`: the Phase 3a draft (six reactor files) and the Phase 4 `departureOweFraming` fix with `TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility`. A WIP commit: the reactor package is red, its body names the 12 red tests | nothing |

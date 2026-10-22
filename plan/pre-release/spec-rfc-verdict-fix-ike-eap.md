@@ -669,7 +669,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 
 ### What Was Implemented
 - 44 commits since 2026-09-28 touch this child's eleven `rfc/audit/<stem>.json` files, including the AC-C2 record sweep `6b968f093b` (120 records), the tag fixes `1075b8992f`, the RFC9190 re-record `4074fd651a` and the Linux-host RFC4555-4.2.5-1 positive record `4baacedc8f`.
-- 2026-10-11: `internal/core/eap/rfc5216_resumption_defect_test.go` (the tag-free red probe landed in `62ac09f39b`) carries `// RFC naming: untagged -- ...` naming `plan/immediate/spec-ike-eap-rfc-defects.md` AC-4, which replaces it with a tagged proof of the fix. The test body is unchanged and still fails as the defect record intends (`TestRFC5216ResumingServerSendsNothingButChangeCipherSpecAndFinished`: handshake types `[2 4]`, a NewSessionTicket after server_hello).
+- 2026-10-11: `internal/core/eap/rfc5216_resumption_defect_test.go` (the tag-free red probe landed in `62ac09f39b`) carries `// RFC naming: untagged -- ...` naming `spec-ike-eap-rfc-defects` AC-4, which replaces it with a tagged proof of the fix. The test body is unchanged and still fails as the defect record intends (`TestRFC5216ResumingServerSendsNothingButChangeCipherSpecAndFinished`: handshake types `[2 4]`, a NewSessionTicket after server_hello).
 
 ### Bugs Found/Fixed (D-8, each with production code)
 | Commit | Fix |
@@ -698,7 +698,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC3948-2.1-2 (wrong), RFC4301-4.4.2.1-3 (wrong), RFC5216-2.1.1-4 (wrong), RFC5216-2.1.1-5 (weak), RFC5216-2.1.2-1 (weak); four are in AC rows of `plan/immediate/spec-ike-eap-rfc-defects.md`, RFC4301-4.4.2.1-3 in AC-7 of `plan/spec-ipsec-lifetime-volume.md` | |
+| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC3948-2.1-2 (wrong), RFC4301-4.4.2.1-3 (wrong), RFC5216-2.1.1-4 (wrong), RFC5216-2.1.1-5 (weak), RFC5216-2.1.2-1 (weak); four are in AC rows of `spec-ike-eap-rfc-defects`, RFC4301-4.4.2.1-3 in AC-7 of `plan/spec-ipsec-lifetime-volume.md` | |
 | AC-C2 | Done | 137 verdicts moved to `enforced` since `174862502f`; every tagged unit carries a record except RFC4303-2.1-1's four units, which is the parent's cross-group verdict (parent AC-9), not this child's | judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
 | AC-C3 | Rows done, verdicts owed | "Row work outcomes, 2026-10-11": the five dropped obligations of review B1 are rows `RFC4555-3.6-2`, `-3.6-3`, `-4.2.6-1`, `RFC4303-3.4.4.1-2` and re-quoted `RFC4301-4.4.1-6`, or a dated correction (`RFC3748-2.3-1`) | the new rows' verdicts wait for an independent judge ("Verdicts owed") |
 | AC-C4 | Done | the five blocked verdicts sit in their owning specs' ACs | |
@@ -716,7 +716,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| RFC3948-2.1-2, RFC5216-2.1.1-4, RFC5216-2.1.1-5, RFC5216-2.1.2-1 | producer defects (P-3) | `plan/immediate/spec-ike-eap-rfc-defects.md` |
+| RFC3948-2.1-2, RFC5216-2.1.1-4, RFC5216-2.1.1-5, RFC5216-2.1.2-1 | producer defects (P-3) | `spec-ike-eap-rfc-defects` (closed 2026-10-21, `plan/learned/032-ike-eap-rfc-defects.md`) |
 | RFC4301-4.4.2.1-3 | Ze keeps no byte-count lifetime | `plan/spec-ipsec-lifetime-volume.md` AC-7 |
 | `./le verify worktree` | needs a quiet machine | this spec, before closure |
 

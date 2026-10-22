@@ -90,7 +90,7 @@ reload"), and `test/reload/bgp-dynamic-filter-swap-live.ci` asserts it.
 |--------|----------|
 | `cdc0bba8a2` fix(bgp-rs): `queueSizeConfigTx` verify/apply/rollback for `worker-queue-size` | Done; rs reads no other config leaf (`server.go` OnConfigure registers `queueSizeTx.configure` only), so rs is outside the population |
 | `filter_irr` (`config_tx.go`) | Done; the template |
-| `plan/immediate/spec-bgp-update-propagation-rfc-defects.md` D5 (status design) | Plans a filter_community `OnConfigVerify`/`OnConfigApply` that rebuilds its blackhole-agreement cache. This spec owns filter_community's whole transaction (definitions and per-peer filter configs); D5's cache becomes one more field of the same snapshot. Whichever lands second extends the first, never adds a second apply handler (`OnConfigApply` overwrites: one handler per plugin) |
+| `spec-bgp-update-propagation-rfc-defects` D5 (closed 2026-10-21; its cache landed as `blackholeAgreements`, `filter_community/blackhole.go`, built by `parseBlackholeAgreements`) | Plans a filter_community `OnConfigVerify`/`OnConfigApply` that rebuilds its blackhole-agreement cache. This spec owns filter_community's whole transaction (definitions and per-peer filter configs); D5's cache becomes one more field of the same snapshot. Whichever lands second extends the first, never adds a second apply handler (`OnConfigApply` overwrites: one handler per plugin) |
 | No other spec | `grep` of `plan/*.md`, `plan/immediate/`, `plan/pre-release/` for `OnConfigApply`, "ignores reload" and the plugin names found no spec covering this population |
 
 ### Journal rows this spec closes
