@@ -440,3 +440,73 @@ Owed gates (host rule): the reactor package race run (started, unread),
 `./le go lint run`, `./le arch tier check` (format and server now import
 bgp/fsm), `./le verify worktree`, `./le test functional exabgp-test`,
 independent review.
+
+## Agent packets (2026-10-22 Linux)
+
+Class 1 (`packets`, `consolidate`, `parsed`) is DONE in the working tree.
+Judge counts with every agent's work in the tree: 5.0 10931 -> 22090 of 23392,
+4.2 11255 -> 19881 of 20930 (before the M15 row: 20938 and 19636). Every
+`packets` and `consolidate` class is at 0 except what the parsed line already
+carries (class 5: extended-community, as-path, flow next-hop, aggregator,
+labeled text) and 3+3 4.2 `update packets` the reactor resets the session on
+(ExaBGP writes the packet before decoding, ze delivers no event).
+
+Design:
+- Engine: `JSONEncoder.Message(peer, msg, fmtMode)` (new
+  `bgp/format/json_message.go`) is the ONE JSON path for OPEN, NOTIFICATION,
+  KEEPALIVE, ROUTE-REFRESH; a `full` subscriber gets `"raw":{"message":"<hex
+  body>"}` (the name `raw` format already used). `json.go`: the four methods
+  became `e.marshal(e.<kind>Payload(...))`. `server/events.go`
+  `formatMessageForSubscription` calls Message for JSON. `text_update.go`: an
+  EOR under `full` JSON is the `eor` object plus `raw.update`
+  (`isEORJSONUpdate`, `appendEORUpdateJSON(..., full)`); it was an empty
+  `update:{}` before. Text encoding of the four kinds is unchanged (no raw).
+- Bridge: both runners subscribe `plugin.FormatFull` (`main_sdk.go`,
+  `bridgeplugin/internal.go`). New `bridge/bridge_event_packets.go`: `Packet`
+  (type code + hex body, read in `ReadEvent`), `Forms`/`FormsFor` (the pin's
+  `_tell_api_received` / `_to_api` table), `Event.Lines(format, forms, log)`.
+  `bridge_event.go`: `Event.Packet`, `readPacket` call, `exabgpEnvelope`
+  extracted from ExabgpJSON. `bridge_negotiated.go`: Note gives every message
+  kind the block (the packet line writes it). Fleet: cache
+  `[2][FormsCount][FormatCount]`, `script.forms(peer, direction)`; a script
+  with no feed is FormParsed. External runner unchanged (no feed, parsed).
+- Migration: `appendFormGrants` writes `<dir>-packets`, `<dir>-consolidate`,
+  and `<dir>-parsed` only beside one of them (keeps `event [ receive-update
+  send-update ]` of TestMigrateCarriesTheEventsEachNeighborGrants).
+- Judge: zeDocument renders packets/consolidate through messageDocument with
+  `FormatFull` and `encoder.Message`; `oldForms`; Note on every non-state
+  event; M15/M16 negotiated rows widened to `^(open|notification|keepalive|
+  refresh) packets `; new M15 rows `^operational ` (json, text).
+- Pages: `json-format.md` (after "With Raw Wire Bytes"), `exabgp-bridge.md`
+  (new section "A message as its packet", negotiated paragraph), YANG `event`
+  description.
+
+Divergences stated on the page: consolidate/parsed are per script, ExaBGP per
+neighbor; a direction naming no form word gets the decoded line (ExaBGP:
+nothing).
+
+Class 5 single path NOT done: the bridge now holds every UPDATE's bytes
+(`Event.Packet.body`), so `overlayASPath`/`overlayExtendedCommunities`
+(`bridge_wire_json.go` `WireUpdateToExabgpJSON`) can now run on the runtime
+path. Owed: decode `Packet.body` with the session's encoding context
+(`sessionContextID`, as the judge does) in `updateMessageJSON`, apply the
+overlays, then delete whichever renderer duplicates the other.
+
+Files, NOT committed. Mine alone: new `bgp/format/json_message.go`,
+`json_message_test.go`, `bridge/bridge_event_packets.go`,
+`bridge_event_packets_test.go`, `bridgerun/forms_test.go`,
+`migration/migrate_api_forms_test.go`; `migration/migrate_api_events.go`,
+`bgp/format/text_update.go`, `bridge/bridge_negotiated.go`,
+`bridgerun/{fleet,script,fleet_test}.go`, `main_sdk.go`,
+`bridgeplugin/internal.go`, the YANG, `exabgp-bridge.md` (also fsm agent's
+hunks). Shared with the fsm agent (carry in its batch): `bgp/format/json.go`,
+`bgp/server/events.go`, `bridge/bridge_event.go`, `old_responses_test.go`,
+`json-format.md`.
+
+Green (race, scoped): format, server, migration, plugins/exabgp/..., bridge
+except TestOldResponses50/42 (AC-38 not complete, class 5 left).
+
+OWED: a `.ci` through a migrated `receive { packets; consolidate; }` config
+(not written); `./le go lint run`, `./le arch tier check`, `./le verify
+worktree`, `./le test functional exabgp-test`, `./le test functional plugin`
+(the bridge subscribes `full` now), independent review.
