@@ -162,14 +162,19 @@ func plugin15RPKILateSync(ctx context.Context, p *sdk.Plugin) error {
 // delivers a path whose RPKI verdict flips AFTER the path is held.
 //
 // Method: once the destination peer (127.0.0.2) has its first session and its
-// End-of-RIB, the observer tears that session down and only then lets the
-// source peer (127.0.0.1) announce 10.0.0.0/24 origin AS 65001. The VRP set is
-// still empty, so the route validates NotFound and `not-found reject` holds it
-// ineligible while ze waits out its connect-retry. The destination's second
-// session then carries only its End-of-RIB, because peer-up replay leaves an
-// ineligible path out. The observer releases the RTR cache (10.0.0.0/8 maxlen
-// 24 AS 65001), the route becomes Valid, and only the relay plugin's
-// revalidation relay can send it. The destination's ze-peer pins the bytes;
+// End-of-RIB, the observer holds it administratively down (`request peer
+// disable`) and only then lets the source peer (127.0.0.1) announce
+// 10.0.0.0/24 origin AS 65001. The VRP set is still empty, so the route
+// validates NotFound and `not-found reject` holds it ineligible. A teardown
+// would not do: ze dials a torn-down peer again with no wait (peer_run.go,
+// the ErrTeardown branch), so the second session raced the source UPDATE and
+// took its live forward, an ineligible announcement sent as a withdrawal. The
+// observer releases the hold (`request peer enable`) only once the route is
+// judged ineligible, and the destination's second session then carries only
+// its End-of-RIB, because peer-up replay leaves an ineligible path out. The
+// observer then releases the RTR cache (10.0.0.0/8 maxlen 24 AS 65001), the
+// route becomes Valid, and only the relay plugin's revalidation relay can
+// send it. The destination's ze-peer pins the bytes;
 // this observer waits for ze to count the UPDATE sent, so it does not shut ze
 // down first.
 func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
@@ -182,11 +187,11 @@ func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
 	if !plugin15DestinationSettled(ctx, p) {
 		return fmt.Errorf("the UPDATEs sent on the destination's first session never stopped")
 	}
-	if r := plugin15Dispatch(ctx, p, "request peer 127.0.0.2 teardown 4"); !plugin15Done(r) {
-		return fmt.Errorf("tear down the destination session: status=%s data=%s", r.status, r.text())
+	if r := plugin15Dispatch(ctx, p, "request peer 127.0.0.2 disable revalidation relay test"); !plugin15Done(r) {
+		return fmt.Errorf("hold the destination down: status=%s data=%s", r.status, r.text())
 	}
-	// The source sends only now, while ze waits out its connect-retry toward
-	// the destination, so no gate event reaches a destination session.
+	// The source sends only now, while the destination is held down, so the
+	// live forward of the ineligible path reaches no destination session.
 	if err := os.WriteFile("source.go", nil, 0o600); err != nil {
 		return fmt.Errorf("release the source UPDATE: %w", err)
 	}
@@ -201,6 +206,9 @@ func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
 	}
 	if plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "connections-established") >= 2 {
 		return fmt.Errorf("the destination's second session came up before the route was judged ineligible")
+	}
+	if r := plugin15Dispatch(ctx, p, "request peer 127.0.0.2 enable"); !plugin15Done(r) {
+		return fmt.Errorf("release the destination hold: status=%s data=%s", r.status, r.text())
 	}
 	if !Poll(ctx, 60, 500*time.Millisecond, func() bool {
 		return plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "connections-established") >= 2

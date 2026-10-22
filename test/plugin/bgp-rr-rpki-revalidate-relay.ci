@@ -13,11 +13,14 @@
 #
 # Flow (observer fixture plugin/rpki-revalidate-relay):
 # 1. the destination's first session comes up and gets its End-of-RIB; the
-#    observer tears it down and only then lets the source announce
-#    10.0.0.0/24 origin AS 65001
+#    observer holds it down (`request peer 127.0.0.2 disable`) and only then
+#    lets the source announce 10.0.0.0/24 origin AS 65001. A teardown would
+#    race: ze dials a torn-down peer again at once, and the second session
+#    took the live forward of the held path, a withdrawal
 # 2. the VRP set is empty, so the route validates NotFound and
 #    `not-found reject` holds it ineligible
-# 3. the destination's second session comes up; peer-up replay leaves the
+# 3. the observer releases the hold (`request peer 127.0.0.2 enable`) and the
+#    destination's second session comes up; peer-up replay leaves the
 #    ineligible path out, so it carries only its End-of-RIB
 # 4. the observer releases 10.0.0.0/8 maxlen 24 AS 65001, the route becomes
 #    Valid, and only the revalidation relay can deliver it
@@ -43,12 +46,16 @@ option=timeout:value=60s
 option=asn:value=65000
 option=linger:value=true
 # conn=1 comes up before the source announces: only its End-of-RIB. The
-# observer then tears it down. conn=2's peer-up replay leaves the ineligible
-# path out, so its End-of-RIB comes first, alone.
+# observer then holds it down: Cease, Administrative Shutdown. conn=2's
+# peer-up replay leaves the ineligible path out, so its End-of-RIB comes
+# first, alone.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# SUBJECT: the revalidated path.
-expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00
+# SUBJECT: the revalidated path, reflected: the received attributes, then
+# ORIGINATOR_ID 127.0.0.1 (the source's BGP Identifier, 8009047F000001) and
+# CLUSTER_LIST 10.0.0.1 (800A040A000001), RFC 4456 Section 8. Len=0044(68),
+# attribute length 0029(41), NLRI 10.0.0.0/24.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004402000000294001010040020602010000FDE9400304C0000201400504000000648009047F000001800A040A000001180A0000
 EOF_DESTINATION
 
 stdin=ze-bgp:terminator=EOF_CONF

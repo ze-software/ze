@@ -43,3 +43,24 @@ the repoints in `plan/pre-release/spec-rfc-verdict-fix-ike-eap.md` and
 Thomas ordered it committed anyway ("the plans and docs are not commited"): it
 landed in `db31d2bdb9`, which removed handover 18's two patches. At each spec's
 close there is nothing to apply; the closing commit only has to make the text true.
+
+## Linux session result (2026-10-22, step 2)
+
+Both tests were red on first run, from test defects, not product defects:
+
+| Failure | Cause, at the producer | Fix |
+|---------|------------------------|-----|
+| `ZE-OBSERVER-FAIL: the destination's second session came up before the route was judged ineligible` (both) | The observer used `request peer 127.0.0.2 teardown 4` and assumed ze waits out `connect-retry`. `Peer.run` (`internal/component/bgp/reactor/peer_run.go`) answers `ErrTeardown` by dialing again with no wait, so conn=2 raced the source UPDATE | `plugin_fixture_15_rpki.go` holds the destination with `request peer 127.0.0.2 disable ...` and releases it with `request peer 127.0.0.2 enable` only after the route is judged NotFound/ineligible |
+| rr destination conn=2 seq=2 got `UPDATE WITHDRAWN 10.0.0.0/24` | Consequence of the race: conn=2 was up when the source UPDATE was live-forwarded, and `forwardUpdateValidated` / `forwardValidationWire` (`internal/component/bgp/reactor/forward_validation.go`) send an ineligible announcement as a withdrawal, as `docs/architecture/bgp/structural-forwarding.md` "Receive validation and cache changes" documents. Expected behavior, not a defect | gone with the ordering fix |
+| rr `expect=bgp:conn=2:seq=2` was a 17-byte stub | never filled in | full 68-byte UPDATE: received attributes, ORIGINATOR_ID 127.0.0.1, CLUSTER_LIST 10.0.0.1; matched byte for byte by the run |
+
+Green: `./le --name h19 test bgp plugin --pattern rpki-revalidate-relay -v`, PASS 140 bgp-rr-rpki-revalidate-relay, PASS 159 bgp-rs-rpki-revalidate-relay.
+
+Red walk, once per relay, each relay call replaced by `continue`, then restored byte for byte (no diff left in either file):
+
+| Relay disabled | Result |
+|----------------|--------|
+| `rr/validation.go` `replayValidation`, the `ribevents.RelayReplayPath` call | FAIL 140: `ZE-OBSERVER-FAIL: the destination never received the revalidated path 10.0.0.0/24: 0 UPDATEs sent before the release, 0 after`; the destination's conn=2 second message was the shutdown Cease 6/2, the expected UPDATE (ORIGINATOR_ID, CLUSTER_LIST, NLRI 10.0.0.0/24) missing |
+| `rs/server_validation.go` `replayValidation`, the `ribevents.RelayReplayPath` call | FAIL 159: same observer line; the expected UPDATE (AS_PATH [65000 65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24) missing, Cease 6/2 in its place |
+
+Steps 1 and 3 (staticcheck part 2 of 6, `./le verify worktree`) were not run by this agent.
