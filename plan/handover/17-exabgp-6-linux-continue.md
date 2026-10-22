@@ -248,3 +248,66 @@ remains owed as ALLOWED rows quoting M15.
 Housekeeping: `tmp/commit-005e4774-a-687a42.sh` is a duplicate script from a
 refused `create`. Never run it. Owed gates: `./le go lint run`, `./le verify
 worktree`, `./le test functional exabgp-test`, and independent review.
+
+## Agent OPEN/UPDATE forms (2026-10-22 Linux)
+
+Classes 4 and 5 of "Agent old-responses". Counts (judge `TestOldResponses`):
+5.0 went from 8091 to 10931 of 23392, 4.2 from 8583 to 11255 of 20930. The
+tree held the other agents' uncommitted work too, so not all of the gain is
+this agent's.
+
+Landed:
+- 0d19c740ca `format.DecodeOpen` read the optional parameters with a
+  one-octet loop of its own, so an RFC 9072 extended OPEN listed no capability
+  (ExaBGP 5.0's twenty-family OPEN). It now walks with
+  `capability.WalkOptionalParams` and `ExtendedParams`. An Extended Next Hop
+  that lists no family is now one entry with no value (ExaBGP's `nexthop()`).
+  Tests: `TestDecodeOpenExtendedParams` (red seen with the flag forced false),
+  `TestDecodeOpenEmptyExtendedNextHop`. Page: `json-format.md`.
+- 5b86bdd18e the judge links bgp-rr (`old_responses_plugins_test.go`), as the
+  daemon does. Originator-id and cluster-list came out as `attr-9` and
+  `attr-10` hex because of the test's setup, not the bridge.
+
+Class 4 is DONE and NOT committed: no OPEN line is left in either release,
+packets and consolidate aside. The files: new `bridge_event_open_text.go`
+writes ExaBGP's `str(Capabilities).lower()`, per code in code order, built
+from the JSON body `capabilityBody`, so a refused payload is `unknown <name>`
+on both encoders, and GR, Add-Path and Multiple Labels are read in wire order.
+New `bridge_event_open_text_test.go` holds `TestCapabilitiesText`. Hunks in
+`bridge_event_text.go`: `appendOpenText` calls it, `asn` is `openMyAS`
+(AS_TRANS), and `appendJSONNumber` takes an `int`. Hunks in
+`docs/architecture/exabgp-bridge.md`: the paragraph after the down reason, and
+the diverge table loses its capability row ("Two places"). It is held because
+both shared files also carry the event-producers agent's down-reason hunks,
+whose referent `bridge_event_state.go` is not in HEAD. Commit it in the same
+batch as that agent's class 6 (its section above lists the files).
+
+Class 5 left (5.0 counts, first difference per line only, so more hide behind):
+- The `negotiated` event content is at 0, from the negotiated agent's
+  uncommitted `bridge_negotiated.go` `convertNegotiated`. Nothing done here.
+- extended-community 160 (4.2 116), extended-community-ipv6 4, as-path 28.
+  ExaBGP writes `{string, value}` members, AS_PATH segments, and its own
+  `origin:<asn>:<ip>` order. `WireUpdateToExabgpJSON` already does all three
+  with `overlayASPath` and `overlayExtendedCommunities` from the PARSED wire
+  attributes, but only `internal/le/interoplab/bgp/exabgp_server.go` calls it.
+  The runtime `Event.Line` path renders from ze's JSON event, which carries the
+  display text alone. One path needs the wire attributes on the runtime path,
+  which is the FormatFull delivery class 1 (packets) needs. Design: when the
+  bridge holds the UPDATE's raw bytes, render through the overlay functions,
+  then delete whichever renderer the other duplicates (no-layering).
+  Coordinate with the packets agent, which owns the delivery.
+- aggregator 2 (4.2 2): no `RegisterJSONFormatter(AttrAggregator, ...)`
+  exists anywhere, so ze writes `attr-7` where ExaBGP writes `"<asn>:<ip>"`.
+  Owed: a formatter in `internal/core/bgp/attribute/register.go`, and its page.
+- flow: `string` brackets a multi-value port (`destination-port [ >=80&<=90 ]`,
+  2); the next-hop of flow and flow-vpn routes (8+4); 4.2 `destination-ipv6`
+  with an offset (4); bgp-prefix-sid (4.2, 4); community/N (4).
+- Text UPDATE lines, about 250: labeled (where `label N` goes), where the
+  next-hop goes, path-information, flow, vpls `rd ... endpoint`, mvpn
+  (`afi ipv4 safi mcast-vpn`), mup (`afi ipv6 safi mup`). These are the
+  `extensive()` text per family. Read the pin's NLRI `extensive()` and `str()`
+  first.
+
+No ALLOWED row added. Owed gates (host rule): `./le go lint run`, `./le verify
+worktree`, `./le test functional exabgp-test`, any `.ci` that pins a text OPEN
+line (the capability words changed), and independent review.
