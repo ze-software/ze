@@ -50,7 +50,25 @@ behind `if false &&` (D2), `ValidateNLRI` failure answering `Keep` in
 | Review rounds 4 and 5 | round 4: 1 ISSUE (the D2 speaker oracle passed with no LARGE_COMMUNITY); fixed in 5af84be2ea (counts `large-community-updates` and `large-community-distinct`, checker requires 1 and 3). Round 5: 0 BLOCKER, 0 ISSUE. The review artifact must be re-recorded with `rounds 5` over the reviewed files plus `internal/le/interoplab/bgp/{speaker.go,check_rfc_predicate.go,checkers.go,speaker_test.go,register_speaker.go,names.go}` and the D2 scenario files |
 | Final runs NOT DONE | the green and red runs at 5af84be2ea died before any scenario: the Mac root disk was full (391M free; journal `full-disk-false-red.md`, 2026-10-21). Trees `scratch/iopg4` (green) and `scratch/iopr4` (red, five `RED-TREE` marks) are still on disk with their caches removed; rebuild both from HEAD if in doubt |
 
+## Done 2026-10-22, third session (subagent of 0b4a8e87)
+
+| Item | Evidence |
+|------|----------|
+| Green run, all five, at b2ff0fbbfc trees | one boot, no selector: `[1/5] bgp-attr-flags-low-nibble-gobgp: pass (2s)`, `[2/5] bgp-large-community-no-repeat-gobgp: pass (40s)`, `[3/5] bgp-mup-malformed-t1st-withdraw-gobgp: pass (57s)`, `[4/5] bgp-rfc7999-blackhole-readvertise-frr: pass (8s)`, `[5/5] bgp-role-rs-client-learned-not-upward-frr: pass (4s)`, `interop: 5 passed, 0 failed`. Recorded in the spec's Goal Validation (uncommitted spec edit) |
+| Review artifact re-recorded `rounds 5` | 109 files; four left out because other specs' commits changed them after round 5 (named in the spec's Review Gate); `./le spec review check` OK |
+| Spec closure edits (uncommitted, in the working tree) | Review Gate rounds 4 and 5, R4-I1, A-3 broken with Mistake Log and Deviation rows, Goal Validation green lines. Citers repointed to the bare stem: `spec-bgp-graceful-restart-rfc-defects.md`, `spec-bgp-link-local-only-next-hop.md`, `spec-bgp-next-hop-auto-rewrites-for-ebgp.md`, `spec-plugin-reload-applies-or-refuses.md`. `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` line 628 still cites the full path and carries another session's ike-eap hunk; repoint it at closure |
+| Red run NOT DONE | stopped at 01:46 with the root disk at 3.0G free after a foreign `le verify worktree` |
+
+Three traps the docker-lab route hit this time, each with its fix:
+1. A `git archive` export has no `gokrazy/modcache` download cache, so the docker-host build fails `module lookup disabled by GOPROXY=off`. Link the checkout's entries in, as `sharedModcacheLink` does: for every entry under `gokrazy/modcache` the export lacks, a symlink to the checkout's.
+2. An export under `tmp/session/<id>/scratch/` is too deep: the forwarded docker socket path exceeds 103 bytes (`dockerlab.go`, `unixSocketPathMax`). Put the export at `~/.cache/ze/iop/<name>` (`/tmp` is refused by the hook).
+3. An empty guest console and "sshd did not answer within 5m0s" meant another session's QEMU held port 2222. Wait on `pgrep -f "[q]emu-system-aarch64"` and retry.
+
+The red edits (python `str.replace`, each asserted unique): D1 drop `\t\tattrs[pos] &^= attrFlagsUnusedMask\n` (`reactor/session_egress_normalize.go`); D2 `if code == attribute.AttrLargeCommunity && length%` to `if false && code == ...` (same file); D3 `return nlritype.Withdraw` under `ValidateNLRI(afi, one) != nil` to `return nlritype.Keep` (`nlri/mup/rfc7606.go::recognizerFor`); D4 drop `|| srcRole == roleRS` (`role/otc.go`); D5 `if true { return false }` first in `blackholeReadvertiseRefused` (`filter_community/blackhole.go`).
+
 ## Resume here (next machine or session)
+
+0. Since 2026-10-22, only the red run, `./le verify worktree`, and the closure commits remain. Build the red export at `~/.cache/ze/iop/r5` (only the five scenario directories: `git archive HEAD | tar -x --exclude='test/interop/scenarios/*'`, then `git archive HEAD <the five dirs> | tar -x`), apply the red edits above, link the modcache, run with no selector, then delete the export. Expect each scenario red at its own assertion. Then go to step 3.
 
 1. Reclaim disk (owner), then run green and red over the five scenarios, one boot each: build a `git archive HEAD` export, move every other directory out of `test/interop/scenarios/`, run `./le test qemu docker-lab lab "test integration interop" timeout 3600s` from it with no selector. Wait on `pgrep -f "[q]emu-system-aarch64"` and port 2222 (`lsof -nP -iTCP:2222 -sTCP:LISTEN`); a bare `qemu-system` pattern matches the waiting shell itself.
 2. Expect green 5/5 (the last green, at 897ac54217 trees, passed D1, D2, D3, D5; D4 failed for the injector cause fixed in 0bd7a50667). Expect each red at its own assertion; D2's red is now the speaker oracle.
