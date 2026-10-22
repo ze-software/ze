@@ -4,7 +4,9 @@ package testqemu
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -338,5 +340,46 @@ func TestDockerLabRefusesAShareTheGuestCannotMount(t *testing.T) {
 				t.Errorf("refusal of %s lacks %q: %v", point, want, err)
 			}
 		}
+	}
+}
+
+// TestDockerLabRunRefusesAShareBeforeQEMUStarts proves the share refusal is
+// reached through the run's entry point, not only through the helper.
+//
+// VALIDATES: review R2-3: dockerLab over a checkout outside every writable
+// guest root (the fake run's tree under /tmp, with the production roots)
+// answers the share refusal, and neither ssh-keygen nor QEMU ever runs.
+// METHOD: the fakes of TestDockerLabForwardsOneInterruptThenStopsTheVM with
+// shareMountRoots reset to dockerhost.ShareMountRoots(), ops.Run and
+// ops.Start recording every call.
+// PREVENTS: a refactor of dockerLabPrepare that drops the dockerLabShares
+// call or moves it after the boot, which the helper's own test cannot see.
+func TestDockerLabRunRefusesAShareBeforeQEMUStarts(t *testing.T) {
+	run, tree, logPath := fakeDockerLabRun(t)
+	run.shareMountRoots = dockerhost.ShareMountRoots()
+	var started []string
+	run.ops.Run = func(_ context.Context, spec commandSpec) (commandResult, error) {
+		started = append(started, spec.Name)
+		return commandResult{}, nil
+	}
+	run.ops.Start = func(command *exec.Cmd) error {
+		started = append(started, command.Path)
+		return errors.New("QEMU started after the share refusal should have stopped the run")
+	}
+
+	_, err := run.dockerLab(t.Context(), dockerLabRequest{image: "/img", linuxZe: "/ze"})
+	if err == nil {
+		t.Fatalf("dockerLab over %s outside every guest root succeeded, want the share refusal", tree)
+	}
+	for _, want := range []string{"docker-lab cannot share " + tree, "read-only root", "Fix:"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("dockerLab error lacks %q: %v", want, err)
+		}
+	}
+	if len(started) != 0 {
+		t.Errorf("commands ran before the share refusal: %q", started)
+	}
+	if events := readLog(t, logPath); events != "" {
+		t.Errorf("the run reached the guest: events %q", events)
 	}
 }

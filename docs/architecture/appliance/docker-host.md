@@ -99,10 +99,14 @@ with status 125, which gokrazy's supervisor reads as "do not restart": the
 sequence is half applied by then, and a restart would fail on an earlier step
 (the cidata volume is already mounted) and bury the first error. A program
 restarted after step 9 completed also exits with status 125, and prints that
-the guest needs a reboot (`colima restart ze`): the services the first run
-started outlive it, and a new supervisor that knows none of them would start a
-second sshd on the bound port and a second dockerd on the same data root.
+the guest needs a reboot, naming both: `colima restart ze` for the Colima
+profile, and a rerun of `./le test qemu docker-lab` for the QEMU guest. The
+services the first run started outlive it, and a new supervisor that knows none
+of them would start a second sshd on the bound port and a second dockerd on the
+same data root. The program learns it already ran from a marker on the `/run`
+tmpfs, which a reboot clears; a marker it cannot read is refused the same way.
 
+<!-- source: internal/appliance/dockerhost/restart.go -- refuseRestart -->
 <!-- source: internal/appliance/dockerhost/boot.go -- Boot, mountShareRoots, mountBinfmtMisc, mountShares, sealShareRoots, shareRequest -->
 <!-- source: internal/appliance/dockerhost/etc.go -- mountWritableEtc -->
 <!-- source: internal/appliance/dockerhost/applets.go -- appletLinks -->

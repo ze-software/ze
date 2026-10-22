@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -114,7 +115,7 @@ func TestContainerdConfigSeeded(t *testing.T) {
 
 // TestServiceLaunchRefusedOnceStopping checks the restart path against a stop
 // that overtakes it: launch on a service already stopping starts nothing,
-// and a real service stopped inside its restart backoff ends promptly.
+// and a real service stopped inside its restart backoff ends at once.
 //
 // VALIDATES: review R1-1: stop sets stopping under svc.mu and launch checks
 // it under the same lock, so a stop during the backoff cannot leave a new
@@ -141,19 +142,32 @@ func TestServiceLaunchRefusedOnceStopping(t *testing.T) {
 		t.Fatalf("launch on a stopping service recorded process %d", svc.process.Pid)
 	}
 
-	failing, err := startService(UnitSpec{Name: "fails.service", Argv: []string{"/bin/sh", "-c", "exit 1"}, Restart: RestartAlways, StopGrace: time.Second}, io.Discard)
+	// The second half proves the backoff wait itself watches quit: a stop
+	// that lands inside the restart backoff ends the service at once rather
+	// than after the backoff. It waits for the supervisor's "starting it
+	// again" line, so the stop is known to land inside the backoff, then
+	// bounds the stop well under restartBackoffMin. Without the quit case in
+	// supervise's backoff select, the stop waits out the backoff and this
+	// half fails.
+	retrying := &announcement{marker: "starting it again", seen: make(chan struct{})}
+	failing, err := startService(UnitSpec{Name: "fails.service", Argv: []string{"/bin/sh", "-c", "exit 1"}, Restart: RestartAlways, StopGrace: time.Second}, retrying)
 	if err != nil {
 		t.Fatalf("startService: %v", err)
 	}
-	// The first process exits at once; the service then waits out
-	// restartBackoffMin (1 s), and stop lands inside that window.
-	<-time.After(200 * time.Millisecond)
+	select {
+	case <-retrying.seen:
+	case <-time.After(5 * time.Second):
+		failing.stop()
+		t.Fatal("the failing service never entered its restart backoff within 5s")
+	}
 	stopped := make(chan struct{})
 	go stopAndClose(failing, stopped)
+	bound := restartBackoffMin / 2
 	select {
 	case <-stopped:
-	case <-time.After(5 * time.Second):
-		t.Fatal("stop during the restart backoff did not return within 5s")
+	case <-time.After(bound):
+		<-stopped
+		t.Fatalf("stop during the restart backoff took longer than %s: the backoff wait does not watch quit", bound)
 	}
 }
 
@@ -161,6 +175,22 @@ func TestServiceLaunchRefusedOnceStopping(t *testing.T) {
 func stopAndClose(svc *service, stopped chan<- struct{}) {
 	svc.stop()
 	close(stopped)
+}
+
+// announcement is a service log that closes seen the first time a write
+// carries marker. Safe for concurrent use: the service's process and its
+// lifecycle goroutine both write to it.
+type announcement struct {
+	marker string
+	seen   chan struct{}
+	once   sync.Once
+}
+
+func (a *announcement) Write(p []byte) (int, error) {
+	if strings.Contains(string(p), a.marker) {
+		a.once.Do(func() { close(a.seen) })
+	}
+	return len(p), nil
 }
 
 // TestDockerUnitStopGrace checks each built-in unit's stop grace: dockerd

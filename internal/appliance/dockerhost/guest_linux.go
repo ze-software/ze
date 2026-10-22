@@ -93,14 +93,10 @@ func RunGuest() int {
 		banner = "ze-docker-host: kernel unknown: " + err.Error()
 	}
 	_, _ = fmt.Fprintln(console, banner) //nolint:errcheck // console
-	// A restart after the boot sequence ran is refused, not served: the
-	// services the previous run started (sshd, containerd, dockerd) outlive
-	// it, and a fresh supervisor knows none of them, so it would start a
-	// second sshd on the bound port and a second dockerd on the same data
-	// root. Killing recorded pids would need a pid file trusted across a
-	// crash; a reboot is the one recovery that restores a known state.
-	if _, err := os.Stat(bootedMarker); err == nil {
-		_, _ = fmt.Fprintln(console, "ze-docker-host: this program exited after the boot sequence ran, so the services it started may still run and a new supervisor would start a second copy of each; not restarting. Fix: reboot the guest (colima restart ze)") //nolint:errcheck // console
+	// A restart after the boot sequence ran is refused, not served
+	// (refuseRestart says why).
+	if err := refuseRestart(bootedMarker); err != nil {
+		_, _ = fmt.Fprintln(console, "ze-docker-host:", err) //nolint:errcheck // console
 		return exitDoNotRestart
 	}
 	c, err := Boot(linuxSystem{}, "/")

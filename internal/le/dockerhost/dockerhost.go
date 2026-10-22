@@ -6,8 +6,10 @@
 // On macOS every lab Docker daemon runs on Ze's kernel and Ze's system (owner
 // decision M10, ai/META-DECISIONS.md): the `ze` Colima profile, which boots
 // Ze's image (`./le setup docker-host start`). Colima serves that profile's
-// daemon on ~/.colima/ze/docker.sock, so Environment names that socket as
-// DOCKER_HOST whenever the operator has not named one. It never selects
+// daemon on ze/docker.sock under its configuration root (ZeSocket), which
+// ColimaHome resolves as Colima does: COLIMA_HOME when it exists, else
+// ~/.colima. Environment names that socket as DOCKER_HOST whenever the
+// operator has not named one. It never selects
 // Colima's `default` profile, /var/run/docker.sock or the client's current
 // context: each runs another kernel, and taking one when the `ze` socket is
 // absent would run the labs on a daemon M10 rules out, so Environment refuses

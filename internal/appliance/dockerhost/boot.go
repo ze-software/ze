@@ -174,7 +174,7 @@ var writableOverlays = []struct{ dir, runtime string }{
 	{dir: "/lib/modules", runtime: "/run/ze-docker-host/lib-modules"},
 }
 
-// mountWritableTrees backs /home with /perm/home and puts a tmpfs upper
+// mountWritableTrees backs homeRoot (/home) with homeStore (/perm/home) and puts a tmpfs upper
 // layer over each writableOverlays tree.
 func mountWritableTrees(sys System, root string) error {
 	if err := os.MkdirAll(guest(root, homeStore), 0o755); err != nil { //nolint:gosec // every account reads its home through /home
@@ -186,8 +186,11 @@ func mountWritableTrees(sys System, root string) error {
 	if err := os.Chmod(guest(root, homeStore), 0o755); err != nil { //nolint:gosec // every account reads its home through /home
 		return fmt.Errorf("chmod %s: %w", homeStore, err)
 	}
-	if err := sys.Mount(MountRequest{Source: homeStore, Target: "/home", Bind: true}); err != nil {
-		return fmt.Errorf("bind %s on /home: %w", homeStore, err)
+	// The bind lands on homeRoot, the one declaration of where a Linux host's
+	// shares go: ShareMountRoots tells the host that root is writable, and
+	// this bind is what makes it so.
+	if err := sys.Mount(MountRequest{Source: homeStore, Target: homeRoot, Bind: true}); err != nil {
+		return fmt.Errorf("bind %s on %s: %w", homeStore, homeRoot, err)
 	}
 	for _, overlay := range writableOverlays {
 		upper := overlay.runtime + "/upper"

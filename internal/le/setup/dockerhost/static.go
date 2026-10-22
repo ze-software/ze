@@ -7,9 +7,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -172,6 +174,14 @@ func hasEveryBinary(dir string) bool {
 	return true
 }
 
+// errDockerCLIMissing is the refusal of a build on a host whose PATH holds no
+// docker CLI: the static binaries are built in a container, so the build
+// cannot start without one.
+var errDockerCLIMissing = errors.New("the docker CLI is not on PATH, and `./le setup docker-host build` " +
+	"builds the static OpenSSH, sudo and iptables binaries in a container. " +
+	"Fix: install the docker CLI (macOS: `brew install docker`; Debian or Ubuntu: `sudo apt install docker.io`), " +
+	"point it at a running daemon, then run `./le setup docker-host build` again")
+
 // builderTimeout bounds one builder container run: OpenSSH, sudo and
 // iptables built from source under emulation (an amd64 build on an arm64
 // Mac) take tens of minutes, never an hour.
@@ -185,7 +195,14 @@ const builderTimeout = time.Hour
 // lab, so the lab endpoint rules do not choose its daemon. The one-shot runs
 // with --rm and is removed by name when the bound or ctx ends it, so nothing
 // of the run stays on the daemon.
+//
+// The docker CLI is looked up first, so a host without it gets the install fix
+// rather than the client's own "executable file not found" wrapped as a
+// builder failure that tells the operator to correct the build.
 func runBuilderContainer(ctx context.Context, run containerRun) error {
+	if _, err := exec.LookPath(dockerCLI); err != nil {
+		return errDockerCLIMissing
+	}
 	_, err := interoplab.NewBuildToolDocker().RunOneShot(ctx, interoplab.OneShotContainer{
 		Image: run.image,
 		Mounts: []interoplab.Mount{

@@ -238,8 +238,9 @@ kernel that lacks one.
   which boots Ze's docker-host image (Ze's runtime kernel, dockerd,
   containerd). `./le setup docker-host start` builds the image when needed and
   runs the profile, never touching Colima's `default` profile. With DOCKER_HOST
-  unset, every lab names the profile's socket, `~/.colima/ze/docker.sock`,
-  itself, whatever the current Docker context says; when that socket is absent
+  unset, every lab names the profile's socket, `ze/docker.sock` under
+  Colima's home (`$COLIMA_HOME` when that directory exists, else
+  `~/.colima`), itself, whatever the current Docker context says; when that socket is absent
   the lab stops before it builds anything and names
   `./le setup docker-host start`. It never falls back to `default` or to
   Docker Desktop. A DOCKER_HOST you set is used as it is, and the lab's Docker
@@ -247,8 +248,10 @@ kernel that lacks one.
   anything missing (colima, lima, docker, `brew install e2fsprogs` for
   `mkfs.ext4`), and `./le setup docker-host stop` stops it. The image build and
   the profile's lifecycle are in `docs/architecture/appliance/docker-host.md`.
-- **macOS, the QEMU guest:** the second route runs the labs inside the Alpine
-  QEMU guest booted on Ze's own arm64 runtime kernel under HVF. Build the kernel
+- **macOS, the QEMU guest:** the second route boots the same docker-host
+  image under QEMU with HVF, on Ze's own arm64 runtime kernel, and runs the
+  labs from the host le against the guest's dockerd through a forwarded
+  socket. Build the kernel
   cache entry once with `./le build host-driver` and then
   `./ze-host appliance kernel --target runtime --arch arm64` (the `./ze`
   wrapper builds without `appliance`), then run a lab as

@@ -58,7 +58,8 @@ var dockerHostActions = leaction.New(dockerHostArea,
 		Verb:   "start",
 		Writes: true,
 		Why: "macOS: build the image if needed, then run it as the `ze` Colima profile, whose Docker socket" +
-			" ~/.colima/ze/docker.sock the labs use; a changed image stops, deletes and recreates the profile." +
+			" (ze/docker.sock under Colima's home: COLIMA_HOME, else ~/.colima) the labs use;" +
+			" a changed image stops, deletes and recreates the profile." +
 			" Colima's `default` profile is never named",
 		Answer: runStart,
 	},
