@@ -299,3 +299,82 @@ func TestGenericAttributeTypedForwarded(t *testing.T) {
 		assert.Equal(t, []string{"send bgp * update text nhop 1.2.3.4 " + generic + " nlri add 10.0.0.0/24"}, commandTexts(translation))
 	}
 }
+
+// TestIPv4AdministratorCommunity pins ExaBGP's `target4:` and `origin4:`.
+//
+// VALIDATES: each reaches ze as the IPv4 address specific form ExaBGP packs it
+// as (type 0x01, a four octet administrator, a two octet local one), whether the
+// administrator is written dotted, decimal, hexadecimal or with a trailing `L`,
+// and up to the largest four octet value; a value past it is passed as written.
+// PREVENTS: ze refusing `target4:71200:12000` as an unknown type, which 5.0
+// sent as 01 02 00011620 2EE0 (qa/old/commands-5.0.json).
+func TestIPv4AdministratorCommunity(t *testing.T) {
+	cases := []struct {
+		written string
+		want    string
+	}{
+		{"target4:71200:12000", "target:0.1.22.32:12000"},
+		{"origin4:71100:11000", "origin:0.1.21.188:11000"},
+		{"TARGET4:1:2", "target:0.0.0.1:2"},
+		{"target4:192.0.2.1:5", "target:192.0.2.1:5"},
+		{"target4:0x10:5", "target:0.0.0.16:5"},
+		{"target4:100L:5", "target:0.0.0.100:5"},
+		{"target4:0:0", "target:0.0.0.0:0"},
+		{"target4:4294967295:65535", "target:255.255.255.255:65535"},
+		{"target4:4294967296:1", "target4:4294967296:1"},
+		{"target4:x:1", "target4:x:1"},
+		{"target4:1", "target4:1"},
+		{"65000:1", "target:65000:1"},
+		{"origin:65000:1", "origin:65000:1"},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, qualifyExtCommunity(tc.written), tc.written)
+	}
+
+	translation, err := TranslateLine("announce route 10.0.0.12/32 next-hop 15.15.15.12 extended-community [target4:71200:12000 origin4:1.2.3.4:7]")
+	if err != nil {
+		t.Fatalf("TranslateLine: %v", err)
+	}
+	if len(translation.Commands) != 1 {
+		t.Fatalf("commands = %v, want one", translation.Commands)
+	}
+	got := translation.Commands[0].Text
+	if !strings.Contains(got, "[target:0.1.22.32:12000 origin:1.2.3.4:7]") {
+		t.Errorf("command %q does not carry the IPv4 administrator forms", got)
+	}
+}
+
+// TestGroupAddressRouteIsMulticast pins the SAFI of a family-less route.
+//
+// VALIDATES: `announce route` and `announce attributes ... nlri` of a prefix in
+// 224.0.0.0/4, or of an IPv4-mapped IPv6 group written dotted, go out as
+// multicast, and the prefixes either side of the range as unicast.
+// PREVENTS: ze sending `announce route 239.1.1.0/24` as unicast, where 5.0
+// sends SAFI 2 (IP.tosafi; qa/old/commands-5.0.json).
+func TestGroupAddressRouteIsMulticast(t *testing.T) {
+	cases := []struct {
+		line   string
+		family string
+	}{
+		{"announce route 239.1.1.0/24 next-hop 1.1.1.1", " ipv4/multicast "},
+		{"announce route 224.0.0.0/24 next-hop 1.1.1.1", " ipv4/multicast "},
+		{"announce route 239.255.255.255/32 next-hop 1.1.1.1", " ipv4/multicast "},
+		{"announce route 223.255.255.0/24 next-hop 1.1.1.1", " nlri add "},
+		{"announce route 240.0.0.0/24 next-hop 1.1.1.1", " nlri add "},
+		{"announce attributes next-hop 1.1.1.1 nlri 230.0.0.0/24", " ipv4/multicast "},
+		{"announce route ::ffff:239.1.1.1/128 next-hop 2001:db8::1", " ipv6/multicast "},
+		{"announce route 2001:db8::/32 next-hop 2001:db8::1", " ipv6/unicast "},
+	}
+	for _, tc := range cases {
+		translation, err := TranslateLine(tc.line)
+		if err != nil {
+			t.Fatalf("TranslateLine(%q): %v", tc.line, err)
+		}
+		if len(translation.Commands) != 1 {
+			t.Fatalf("TranslateLine(%q) = %v, want one command", tc.line, translation.Commands)
+		}
+		if got := translation.Commands[0].Text; !strings.Contains(got, tc.family) {
+			t.Errorf("TranslateLine(%q) = %q, want it to carry %q", tc.line, got, tc.family)
+		}
+	}
+}

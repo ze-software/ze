@@ -558,14 +558,9 @@ func buildRouteCommand(selector, family, verb, body string) ([]Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	attrs, err := parseRouteAttributes(attrTokens)
+	attrs, err := parseFamilyRouteAttributes(family, attrTokens)
 	if err != nil {
 		return nil, err
-	}
-	// ExaBGP's `withdraw` flag announces the route in its withdrawn state, so
-	// it flips the NLRI verb rather than adding an attribute.
-	if attrs.Withdraw {
-		verb = nlriDel
 	}
 	// `split /<n>` announces the PIECES and not the prefix that was written, so
 	// the one NLRI becomes several before the command is built.
@@ -573,17 +568,10 @@ func buildRouteCommand(selector, family, verb, body string) ([]Command, error) {
 		if len(nlriTokens) != 1 {
 			return nil, fmt.Errorf("%w: split needs exactly one prefix", errSplitLength)
 		}
-		pieces, whole, err := splitPrefix(nlriTokens[0], attrs.Split)
+		nlriTokens, err = splitPrefixes(nlriTokens, &attrs)
 		if err != nil {
 			return nil, err
 		}
-		if whole {
-			var tb textbuf.Buffer
-			tb.Str("split /").Int(int64(attrs.Split)).Str(" is shorter than the prefix ").
-				Str(nlriTokens[0]).Str(", so the prefix is sent whole")
-			attrs.Warnings = append(attrs.Warnings, tb.String())
-		}
-		nlriTokens = pieces
 	}
 	warnRouteLine(attrs)
 
@@ -770,7 +758,36 @@ func familyOfRoute(routeStr string) string {
 	case attrs.Has(bridgeAttrLabel):
 		return safiFamily(afi, zeLabeledSAFI)
 	}
-	return safiFamily(afi, bridgeUnicastSAFI)
+	if len(parts) == 0 {
+		return safiFamily(afi, bridgeUnicastSAFI)
+	}
+	return safiFamily(afi, prefixSAFI(parts[0]))
+}
+
+// prefixSAFI answers the SAFI ExaBGP gives a route that carries no route
+// distinguisher and no label: multicast for a group address, unicast for every
+// other prefix.
+//
+// ExaBGP reads it off the address, IP.tosafi: "if int(ip.split('.')[0]) in
+// IP._multicast_range: return SAFI.multicast", the range being 224 to 239, and
+// for an IPv4-mapped IPv6 address the same test on its IPv4 part
+// (protocol/ip/address.py at 685f772e; 5.0.1 tested IPv4 alone). 5.0 sent
+// `announce route 239.1.1.0/24 next-hop self` as SAFI 2 (qa/old/commands-5.0.json),
+// 4.2 as unicast (the pin's ALLOWED table). A prefix that does not parse is
+// answered unicast, and ze's parser then refuses it by name.
+func prefixSAFI(prefix string) string {
+	address, _, _ := strings.Cut(prefix, "/")
+	parsed, err := netip.ParseAddr(address)
+	if err != nil {
+		return bridgeUnicastSAFI
+	}
+	if parsed.Is4In6() && strings.Contains(address, ".") {
+		parsed = parsed.Unmap()
+	}
+	if parsed.Is4() && parsed.IsMulticast() {
+		return bridgeMulticastSAFI
+	}
+	return bridgeUnicastSAFI
 }
 
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.

@@ -177,9 +177,6 @@ type routeAttributes struct {
 	// Tokens are the ze update-text attribute tokens, in the order they were
 	// written. They sit BEFORE the nlri section in the finished command.
 	Tokens []string
-	// Withdraw is set by ExaBGP's `withdraw` flag, which announces the route in
-	// its withdrawn state rather than adding it.
-	Withdraw bool
 	// Split is the prefix length ExaBGP's `split /<n>` cuts the route into, or
 	// zero when the line carries none.
 	Split int
@@ -233,14 +230,26 @@ func (a routeAttributes) Has(zeKeyword string) bool { return a.written[zeKeyword
 // without an attribute the operator wrote is a different route, and the script
 // that wrote it is acknowledged either way.
 func parseRouteAttributes(parts []string) (routeAttributes, error) {
+	return parseFamilyRouteAttributes("", parts)
+}
+
+// parseFamilyRouteAttributes is parseRouteAttributes for a line that names its
+// family, which decides what a repeated next-hop means (bridgeNextHopLastFamily).
+func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes, error) {
+	nextHopLast := bridgeNextHopLastFamily(family)
 	out := routeAttributes{written: make(map[string]bool, len(parts)/2), valueAt: map[string]int{}, codes: map[attribute.AttributeCode]string{}}
 	for i := 0; i < len(parts); {
 		key := strings.ToLower(parts[i])
 
-		// ExaBGP's `withdraw` flag turns an announce into a withdrawal of the
-		// same route, so it is read here rather than encoded.
+		// ExaBGP's `withdraw` flag changes nothing an API route sends. It is the
+		// INTERNAL_WITHDRAW attribute, which only the configuration's watchdog
+		// pool reads (add_to_rib_watchdog, rib/outgoing.py in 4.2.25, 5.0.1 and
+		// the 6.0 pin). An API route reaches the RIB through add_to_rib, never
+		// add_to_rib_watchdog, whether or not it names a watchdog (inject_change,
+		// configuration/configuration.py in 5.0.1; line 146 at the pin), and
+		// pack skips internal attributes, so 4.2 and 5.0 ANNOUNCE every
+		// `announce ... withdraw` line (qa/old/commands-*.json).
 		if key == withdrawVerb {
-			out.Withdraw = true
 			i++
 			continue
 		}
@@ -265,6 +274,9 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 				ErrLineNotTranslated, key, err, key, attrValueName(key))
 		}
 		i = next
+		if attr.Ze == out.nextHopKeyword() {
+			value = mupNextHop(family, value)
+		}
 
 		// `split /<n>` cuts the NLRI rather than adding an attribute, so it is
 		// carried out to the caller that owns the prefix.
@@ -356,6 +368,13 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			out.Tokens[at] = value
 			continue
 		}
+		// A next-hop given again on a mup or mcast-vpn route replaces the
+		// first, as the next-hop of every other family does not
+		// (bridgeNextHopLastFamily).
+		if at, field := out.valueAt[attr.Ze]; field && nextHopLast && attr.Ze == out.nextHopKeyword() {
+			out.Tokens[at] = value
+			continue
+		}
 		// Any other repeated attribute keeps its first value: the RIB holds
 		// one attribute of each kind, and ExaBGP's API keeps the one it read
 		// first and logs the one it dropped (X-26, X-27). Forwarding both
@@ -368,13 +387,44 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 		out.written[attr.Ze] = true
 		out.Tokens = append(out.Tokens, attr.Ze)
 		if attr.Arity != arityFlag {
-			if bridgeListAttrs[attr.Ze] || bridgeNLRIFields[attr.Ze] {
+			if bridgeListAttrs[attr.Ze] || bridgeNLRIFields[attr.Ze] || nextHopLast && attr.Ze == out.nextHopKeyword() {
 				out.valueAt[attr.Ze] = len(out.Tokens)
 			}
 			out.Tokens = append(out.Tokens, value)
 		}
 	}
 	return out, nil
+}
+
+// bridgeNextHopLastFamily reports whether a repeated next-hop replaces the
+// first on a route of the family. ExaBGP reads a mup and an mcast-vpn route
+// through SelectLine, whose _apply sets the next hop each time it reads one
+// (`route = route.with_nexthop(ip)`, configuration/grammar/tree/select.py at
+// 685f772e), as 5.0's mup and mvpn_route did (`change.nlri.nexthop =
+// nexthop`); every other family keeps the first (static.first_next_hop). These
+// two are the families whose NLRI is a field list, bridgePluginNLRIFamily.
+func bridgeNextHopLastFamily(family string) bool {
+	return bridgePluginNLRIFamily(family)
+}
+
+// mupNextHop answers the next-hop of a route of the family as ExaBGP sends it:
+// an IPv4 address on an IPv6 mup route is mapped into IPv6, `::ffff:<ipv4>`
+// (MupNextHop, "an IPv4 address is mapped into IPv6 for an IPv6 route",
+// configuration/grammar/tree/select.py at 685f772e; 5.0 sent `next-hop
+// 1.2.3.4` on `announce ipv6 mup` as ::ffff:1.2.3.4, qa/old/commands-5.0.json).
+// Every other value, `self` included, is answered as written.
+func mupNextHop(family, value string) string {
+	if family != bridgeAFIv6+"/"+bridgeMUPSAFI {
+		return value
+	}
+	address, err := netip.ParseAddr(value)
+	if err != nil {
+		return value
+	}
+	if !address.Is4() {
+		return value
+	}
+	return netip.AddrFrom16(address.As16()).String()
 }
 
 // bridgeListAttrs are the attributes ExaBGP merges when a line gives one
@@ -706,11 +756,16 @@ func qualifyExtCommunities(value string) string {
 	return tb.Byte('[').Str(textbuf.Join(fields, " ")).Byte(']').String()
 }
 
-// qualifyExtCommunity writes `target:` onto one bare `<asn>:<n>` community.
+// qualifyExtCommunity writes `target:` onto one bare `<asn>:<n>` community, and
+// the IPv4 administrator form onto ExaBGP's `target4:` and `origin4:`
+// (ipv4AdministratorCommunity).
 func qualifyExtCommunity(value string) string {
 	head, tail, ok := strings.Cut(value, ":")
 	if !ok || tail == "" {
 		return value
+	}
+	if zeType, isIPv4Type := bridgeIPv4AdministratorTypes[strings.ToLower(head)]; isIPv4Type {
+		return ipv4AdministratorCommunity(zeType, tail, value)
 	}
 	// A leading NUMBER is an administrator field, so the type word is missing.
 	// A leading word is the type itself: `target`, `origin`, `rate-limit`.
@@ -719,4 +774,44 @@ func qualifyExtCommunity(value string) string {
 	}
 	var tb textbuf.Buffer
 	return tb.Str("target:").Str(value).String()
+}
+
+// bridgeIPv4AdministratorTypes maps ExaBGP's `target4` and `origin4` to the ze
+// type that carries the same sub-type.
+//
+// ExaBGP gives both the IPv4 address specific header whatever the administrator
+// is written as: `'target4': bytes([0x01, 0x02])`, `'origin4': bytes([0x01,
+// 0x03])`, packed `'LH'`, a four octet administrator then a two octet local one
+// (_HEADER and _ENCODE, configuration/static/parser.py in 5.0.1,
+// configuration/grammar/types/bgp.py at the 6.0 pin). 5.0 sent
+// `target4:71200:12000` as 01 02 00011620 2EE0 (qa/old/commands-5.0.json).
+// RFC 4360 Section 4: the IPv4 Address Specific Route Target is type 0x01,
+// sub-type 0x02, and Section 5 the Route Origin is sub-type 0x03.
+var bridgeIPv4AdministratorTypes = map[string]string{
+	"target4": "target",
+	"origin4": "origin",
+}
+
+// ipv4AdministratorCommunity answers `<zeType>:<a.b.c.d>:<local>` for the
+// `<administrator>:<local>` of a `target4:` or `origin4:` community, which ze
+// reads as the IPv4 address specific form. The administrator is a dotted quad,
+// or a number ExaBGP's _integer reads (decimal, `0x` hexadecimal, a trailing
+// `L`) that is written as the four octets it packs. A value that is neither is
+// answered as written, so ze's parser refuses it by name.
+func ipv4AdministratorCommunity(zeType, tail, written string) string {
+	administrator, local, ok := strings.Cut(tail, ":")
+	if !ok {
+		return written
+	}
+	if _, err := netip.ParseAddr(administrator); err == nil {
+		var tb textbuf.Buffer
+		return tb.Str(zeType).Byte(':').Str(administrator).Byte(':').Str(local).String()
+	}
+	number, err := strconv.ParseUint(strings.TrimSuffix(administrator, "L"), 0, 32)
+	if err != nil {
+		return written
+	}
+	address := netip.AddrFrom4([4]byte{byte(number >> 24), byte(number >> 16), byte(number >> 8), byte(number)})
+	var tb textbuf.Buffer
+	return tb.Str(zeType).Byte(':').Str(address.String()).Byte(':').Str(local).String()
 }

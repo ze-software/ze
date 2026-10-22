@@ -58,15 +58,10 @@ func convertEOR(selector, rest string) ([]Command, bool, error) {
 
 	afi := strings.ToLower(fields[2])
 	safi := strings.ToLower(fields[3])
-	if !bridgeAFI[afi] {
-		return nil, true, fmt.Errorf("%w: %q names no address family", errEORNeedsFamily, fields[2])
+	family, err := pairFamily(errEORNeedsFamily, afi, safi)
+	if err != nil {
+		return nil, true, err
 	}
-	if _, known := bridgeSAFI[safi]; !known {
-		return nil, true, fmt.Errorf("%w: %q names no subsequent address family", errEORNeedsFamily, fields[3])
-	}
-
-	var tb textbuf.Buffer
-	family := tb.Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi)).String()
 	return []Command{eorCommand(selector, family)}, true, nil
 }
 
@@ -89,15 +84,13 @@ func convertRouteRefresh(selector, rest string) (Translation, bool, error) {
 	}
 	afi := fields[2]
 	safi := fields[3]
-	if !bridgeAFI[afi] {
-		return Translation{}, true, fmt.Errorf("%w: %q names no address family", errRouteRefreshNeedsFamily, afi)
-	}
-	if _, known := bridgeSAFI[safi]; !known {
-		return Translation{}, true, fmt.Errorf("%w: %q names no subsequent address family", errRouteRefreshNeedsFamily, safi)
+	family, err := pairFamily(errRouteRefreshNeedsFamily, afi, safi)
+	if err != nil {
+		return Translation{}, true, err
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("request peer ").Str(selector).Str(" refresh ").Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi))
+	tb.Str("request peer ").Str(selector).Str(" refresh ").Str(family)
 	return Translation{Commands: textCommands(tb.String()), Selector: selector}, true, nil
 }
 
@@ -118,10 +111,6 @@ func eorCommand(selector, family string) Command {
 	}
 	return Command{Text: tb.Str(" eor").String()}
 }
-
-// bridgeAFI is the address family set ExaBGP names in a family-qualified line.
-// Source: ExaBGP src/exabgp/configuration/neighbor/family.py.
-var bridgeAFI = map[string]bool{bridgeAFIv4: true, bridgeAFIv6: true, "l2vpn": true}
 
 // convertAttributesForm translates ExaBGP's `announce attributes <attrs> nlri
 // <prefix>...`, which states one attribute set and then every prefix that
@@ -162,9 +151,6 @@ func convertAttributesForm(selector, rest, verb string) ([]Command, bool, error)
 	if len(prefixes) == 0 {
 		return nil, true, fmt.Errorf("%w: the `nlri` section names no prefix", ErrLineNotTranslated)
 	}
-	if attrs.Withdraw {
-		verb = nlriDel
-	}
 
 	// Every prefix carries the same attribute set, so it is ONE ze command
 	// naming them all. Whether they share an UPDATE on the wire is the
@@ -174,19 +160,30 @@ func convertAttributesForm(selector, rest, verb string) ([]Command, bool, error)
 	if err != nil {
 		return nil, true, err
 	}
+	// 5.0 cuts EACH prefix of the `nlri` section into its `split /<n>` pieces
+	// (qa/old/commands-5.0.json: `split /25 nlri 10.0.0.0/24 20.0.0.0/24` packs
+	// four /25 routes). 4.2 ignored the word here; the pin's ALLOWED table keeps
+	// the more specifics for it too.
+	if attrs.Split > 0 {
+		prefixes, err = splitPrefixes(prefixes, &attrs)
+		if err != nil {
+			return nil, true, err
+		}
+	}
 	warnRouteLine(attrs)
 	return oneCommandPerNLRI(selector, family, verb, attrs, prefixes, false), true, nil
 }
 
 // familyForAttributes reads the family off an attribute set and the first
 // prefix that carries it. A route distinguisher makes it a VPN route, a bare
-// label makes it a labeled one, and the prefix decides the AFI.
+// label makes it a labeled one, and the prefix decides the AFI and, for a
+// group address, the multicast SAFI (prefixSAFI).
 func familyForAttributes(attrs routeAttributes, prefix string) string {
 	afi := bridgeAFIv4
 	if strings.Contains(prefix, ":") {
 		afi = bridgeAFIv6
 	}
-	safi := bridgeUnicastSAFI
+	safi := prefixSAFI(prefix)
 	switch {
 	case attrs.Has("rd"):
 		safi = bridgeVPNSAFI
@@ -317,6 +314,27 @@ func splitPrefix(prefix string, length int) (pieces []string, whole bool, err er
 		addr = nextPrefixAddr(addr, length)
 	}
 	return out, false, nil
+}
+
+// splitPrefixes cuts every prefix into its attrs.Split pieces, in the order
+// the prefixes were written, and records a warning for each prefix a length
+// shorter than its own leaves whole (splitPrefix).
+func splitPrefixes(prefixes []string, attrs *routeAttributes) ([]string, error) {
+	var pieces []string
+	for _, prefix := range prefixes {
+		cut, whole, err := splitPrefix(prefix, attrs.Split)
+		if err != nil {
+			return nil, err
+		}
+		if whole {
+			var tb textbuf.Buffer
+			tb.Str("split /").Int(int64(attrs.Split)).Str(" is shorter than the prefix ").
+				Str(prefix).Str(", so the prefix is sent whole")
+			attrs.Warnings = append(attrs.Warnings, tb.String())
+		}
+		pieces = append(pieces, cut...)
+	}
+	return pieces, nil
 }
 
 // splitLimitBits bounds a split to 2^10 pieces. ExaBGP has no such bound, and

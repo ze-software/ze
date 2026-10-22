@@ -224,17 +224,26 @@ func bracketEntryExcluded(words []string) bool {
 // selectorExcludes reports whether a qualifier's value names something no ze
 // session can be, so that an address carrying it reaches no session.
 //
-// There is exactly one such value. `family-allowed in-open` is ExaBGP's
-// "negotiate the families in the OPEN", and its own parser answers an empty
-// family list for it. ze STATES the families its OPEN offers and has no mode
-// that defers the choice, so no ze session is ever the one that qualifier
-// names. bridge_neighbor.go refuses the same word on `create neighbor`, for the
-// same reason and from the same reading.
+// The one qualifier that can is `family-allowed`, because its value is fixed for
+// every ze session. ExaBGP matches each qualifier against the session's name,
+// Neighbor.name(): `family-allowed in-open` when the neighbor has no
+// multi-session capability, the session's family list when it has (`session =
+// 'in-open'`, bgp/neighbor.py in 5.0.1, neighbor/neighbor.py at the 6.0 pin).
+// ze negotiates no multi-session (the migration drops the capability with a
+// warning, native config refuses it) and neither does a neighbor `create
+// neighbor` adds, so every ze session is the `in-open` one: that value always
+// matches, and a family list, `family-allowed ipv4-unicast`, never does
+// (match_neighbor, reactor/api/command/limit.py). 4.2 and 5.0 send `neighbor
+// 127.0.0.1 family-allowed in-open announce route ...` (qa/old/commands-*.json),
+// and StatusPeers prints the same `family-allowed in-open` name.
 //
 // Every other value CAN name ze's session, and ze has at most one per address,
 // so the qualifier is discarded rather than evaluated (see the note above).
 func selectorExcludes(key, value string) bool {
-	return key == bridgeFamilyAllowed && strings.EqualFold(value, "in-open")
+	if key != bridgeFamilyAllowed {
+		return false
+	}
+	return !strings.EqualFold(value, "in-open")
 }
 
 // selectorForAddresses renders one or more neighbor addresses as the ze

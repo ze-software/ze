@@ -81,10 +81,6 @@ func convertVPLSRoute(selector, rest, verb string) ([]Command, bool, error) {
 	if err != nil {
 		return nil, true, err
 	}
-	// ExaBGP's `withdraw` flag announces the route in its withdrawn state.
-	if attrs.Withdraw {
-		verb = nlriDel
-	}
 	return oneCommandPerNLRI(selector, bridgeVPLSFamily, verb, attrs, nlriTokens, false), true, nil
 }
 

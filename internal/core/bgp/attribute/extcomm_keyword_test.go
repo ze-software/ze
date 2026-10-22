@@ -138,3 +138,44 @@ func TestLayer2InfoEncode(t *testing.T) {
 		}
 	}
 }
+
+// TestTrafficMarkAndActionKeywords pins the octets of the two FlowSpec action
+// communities written in the spelling AppendDecoded renders.
+//
+// VALIDATES: `mark:46` writes RFC 8955 Section 7.5, type 0x8009 with the DSCP
+// in the last octet, and `traffic-action:sample-terminal` writes Section 7.3,
+// type 0x8007 with S and T set; each reads back by the same name, and a DSCP
+// above 63 or an unknown action word is refused.
+// PREVENTS: `update text` refusing the spelling ze itself prints for a
+// community it received, which left the ExaBGP bridge no way to send
+// `mark` or `action`.
+func TestTrafficMarkAndActionKeywords(t *testing.T) {
+	tests := []struct {
+		text   string
+		octets string
+	}{
+		{"mark:46", "800900000000002e"},
+		{"mark:0", "8009000000000000"},
+		{"traffic-action:sample-terminal", "8007000000000003"},
+		{"traffic-action:sample", "8007000000000002"},
+		{"traffic-action:terminal", "8007000000000001"},
+	}
+	for _, tt := range tests {
+		ec, matched, err := ParseExtendedCommunityKeyword(tt.text)
+		if !matched || err != nil {
+			t.Fatalf("ParseExtendedCommunityKeyword(%q): matched %v, err %v", tt.text, matched, err)
+		}
+		if got := hex.EncodeToString(ec[:]); got != tt.octets {
+			t.Errorf("%s: octets = %s, want %s", tt.text, got, tt.octets)
+		}
+		if got := string(ec.AppendDecoded(nil)); got != tt.text {
+			t.Errorf("%s: AppendDecoded = %q", tt.text, got)
+		}
+	}
+
+	for _, text := range []string{"mark:64", "mark:256", "mark:-1", "mark:", "traffic-action:drop"} {
+		if _, matched, err := ParseExtendedCommunityKeyword(text); !matched || err == nil {
+			t.Errorf("ParseExtendedCommunityKeyword(%q): matched %v, err %v, want a refusal", text, matched, err)
+		}
+	}
+}

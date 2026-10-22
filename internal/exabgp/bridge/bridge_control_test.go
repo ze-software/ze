@@ -274,19 +274,20 @@ func TestAFieldValueKeepsItsBareAddress(t *testing.T) {
 	}
 }
 
-// TestFamilyAllowedInOpenReachesNoSession pins the one selector qualifier that
-// EXCLUDES: `family-allowed in-open`.
+// TestFamilyAllowedListReachesNoSession pins the one selector qualifier that
+// EXCLUDES: `family-allowed` with a family list.
 //
-// VALIDATES: a line qualified `family-allowed in-open` dispatches nothing and is
-// still answered, and every other qualifier value still reaches the address.
-// PREVENTS: the route going out. ExaBGP's `in-open` names a session that
-// negotiates the families the OPEN carried; ze STATES the families its OPEN
-// offers and has no such mode, so no ze session is the one that qualifier
-// names (neighborFamilies, bridge_neighbor.go, refuses the same word on
-// `create neighbor`). Sending anyway put a prefix on the wire that ExaBGP would
-// not have sent, which is what `test/exabgp-compat/api/api-multisession.ci`
-// caught: five commands, four expected frames.
-func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
+// VALIDATES: a line qualified `family-allowed in-open` reaches the address, a
+// line qualified with a family list dispatches nothing and is still answered,
+// and every other qualifier still reaches the address.
+// PREVENTS: a route going out that ExaBGP would not send, or one it sends being
+// dropped. ExaBGP matches the qualifier against Neighbor.name(), which carries
+// `family-allowed in-open` unless the neighbor has the multi-session
+// capability. ze negotiates no multi-session, so every ze session is named
+// `in-open` (selectorExcludes): 4.2 and 5.0 sent `neighbor 127.0.0.1
+// family-allowed in-open announce route ...` (qa/old/commands-*.json), and a
+// family list names only a multi-session neighbor.
+func TestFamilyAllowedListReachesNoSession(t *testing.T) {
 	cases := []struct {
 		name      string
 		line      string
@@ -294,14 +295,14 @@ func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
 		want      string
 	}{
 		{
-			name:      "in-open reaches nothing",
-			line:      "neighbor 127.0.0.1 local-as 1 family-allowed in-open announce route 9.9.9.9/24 next-hop 101.1.101.1",
-			unmatched: true,
+			name: "in-open reaches the address",
+			line: "neighbor 127.0.0.1 local-as 1 family-allowed in-open announce route 9.9.9.0/24 next-hop 101.1.101.1",
+			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri add 9.9.9.0/24",
 		},
 		{
-			name: "a named family still reaches the address",
-			line: "neighbor 127.0.0.1 local-as 1 family-allowed ipv4-unicast announce route 1.2.0.0/24 next-hop 101.1.101.1",
-			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri add 1.2.0.0/24",
+			name:      "a family list reaches nothing",
+			line:      "neighbor 127.0.0.1 local-as 1 family-allowed ipv4-unicast announce route 1.2.0.0/24 next-hop 101.1.101.1",
+			unmatched: true,
 		},
 		{
 			name: "the other qualifiers still reach the address",
@@ -310,7 +311,7 @@ func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
 		},
 		{
 			name: "one excluded neighbor leaves the other addressed",
-			line: "neighbor 127.0.0.1 family-allowed in-open, neighbor 127.0.0.2 announce route 1.4.0.0/24 next-hop 101.1.101.1",
+			line: "neighbor 127.0.0.1 family-allowed ipv4-unicast/ipv6-unicast, neighbor 127.0.0.2 announce route 1.4.0.0/24 next-hop 101.1.101.1",
 			want: "send bgp 127.0.0.2 update text nhop 101.1.101.1 nlri add 1.4.0.0/24",
 		},
 	}
@@ -424,7 +425,7 @@ func TestThePeerKeywordNamesTheSameSessionsAsNeighbor(t *testing.T) {
 		},
 		{
 			name:      "a bracket list every address is excluded from",
-			line:      "peer [10.0.0.1 family-allowed in-open] announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			line:      "peer [10.0.0.1 family-allowed ipv4-unicast] announce route 1.0.0.0/8 next-hop 1.1.1.1",
 			unmatched: true,
 		},
 		{

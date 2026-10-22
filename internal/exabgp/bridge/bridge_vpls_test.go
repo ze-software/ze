@@ -35,7 +35,7 @@ func TestBridgeVPLSCommand(t *testing.T) {
 		{
 			"withdraw flag",
 			"neighbor 127.0.0.1 announce vpls rd 1:1 endpoint 1 offset 0 size 10 base 1000 withdraw",
-			"send bgp 127.0.0.1 update text mp l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000",
+			"send bgp 127.0.0.1 update text mp l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000",
 		},
 	}
 

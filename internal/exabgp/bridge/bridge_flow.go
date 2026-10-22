@@ -3,6 +3,8 @@
 // spellings this file reuses (normalizeFlowSpecComponentToken, flowSpecComponentType,
 // normalizeFlowSpecComponentValue, normalizeFlowSpecExtCommunityToken, flowSpecVPNFamily)
 // Related: bridge_event.go — the JSON direction, which renders the same actions back to ExaBGP
+// RFC: rfc/short/rfc8955.md -- the FlowSpec components and traffic actions read here
+// RFC: rfc/short/rfc8956.md -- the IPv6 prefix components and their offset
 
 package bridge
 
@@ -14,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -353,15 +356,11 @@ func (r *flowRoute) readWord(tokens []string, i int) (int, error) {
 	case "community", "large-community", "extended-community":
 		return r.readCommunity(word, tokens, i)
 
-	case "mark", "action":
-		// Each of these two has an encoder in ze
-		// (attribute.FlowSpecTrafficMarking, attribute.FlowSpecTrafficAction)
-		// and no name in the extended
-		// community vocabulary `update text` reads
-		// (route/route_community.go parseExtendedCommunity), so there is no
-		// command to write. Naming the word is what tells the operator which
-		// action was refused.
-		return 0, fmt.Errorf("exabgp flow route: %q has no ze update-text spelling", tokens[i])
+	case "mark":
+		return r.readMark(tokens, i)
+
+	case "action":
+		return r.readAction(tokens, i)
 	}
 
 	return r.readComponent(tokens, i)
@@ -393,6 +392,66 @@ func (r *flowRoute) readRateLimit(tokens []string, i int) (int, error) {
 		}
 	}
 
+	r.actions = append(r.actions, tb.String())
+	return next, nil
+}
+
+// readMark reads `mark <dscp>`, the traffic-marking action, which ze's update
+// text spells `mark:<dscp>` (attribute.ParseExtendedCommunityKeyword).
+//
+// RFC 8955 Section 7.5: "The traffic marking Extended Community instructs a
+// system to modify the DSCP bits in the IP header (Section 3 of [RFC2474]) of
+// a transiting IP packet to the corresponding value encoded in the 6 least
+// significant bits of the Extended Community value". ExaBGP takes
+// the decimal digits alone (configuration/grammar/types/flow.py, _mark, and
+// 5.0.1 configuration/flow/parser.py, mark), so a sign or a hex value is
+// refused here where ze's integer parser would read it.
+func (r *flowRoute) readMark(tokens []string, i int) (int, error) {
+	value, next, ok := flowRouteScalar(tokens, i)
+	if !ok {
+		return 0, flowRouteMissingValue(tokens[i])
+	}
+	if strings.Trim(value, "0123456789") != "" {
+		return 0, fmt.Errorf("exabgp flow route: mark %q is not a DSCP value: write it with the digits 0 to 9, from 0 to %d",
+			value, attribute.FlowSpecDSCPMax)
+	}
+	var tb textbuf.Buffer
+	r.actions = append(r.actions, tb.Str("mark:").Str(value).String())
+	return next, nil
+}
+
+// readAction reads `action <words>`, the traffic-action action, which ze's
+// update text spells `traffic-action:<sample|terminal|sample-terminal>`.
+//
+// RFC 8955 Section 7.3: "Terminal Action (bit 47): When this bit is set, the
+// traffic filtering engine will evaluate any subsequent Flow Specifications
+// (as defined by the ordering procedure Section 5.1)." and "Sample (bit 46):
+// Enables traffic sampling and logging for this Flow Specification (only
+// effective when set)." ExaBGP sets each bit when
+// its word appears anywhere in the value, and refuses a value holding neither
+// (configuration/grammar/types/flow.py, _action, and 5.0.1
+// configuration/flow/parser.py, action), so the value is read that way rather
+// than handed to ze's stricter word list.
+func (r *flowRoute) readAction(tokens []string, i int) (int, error) {
+	value, next, ok := flowRouteScalar(tokens, i)
+	if !ok {
+		return 0, flowRouteMissingValue(tokens[i])
+	}
+	sample := strings.Contains(value, "sample")
+	terminal := strings.Contains(value, "terminal")
+
+	var tb textbuf.Buffer
+	tb.Str("traffic-action:")
+	switch {
+	case sample && terminal:
+		tb.Str("sample-terminal")
+	case sample:
+		tb.Str("sample")
+	case terminal:
+		tb.Str("terminal")
+	default:
+		return 0, fmt.Errorf("exabgp flow route: action %q is not a flow action: write sample, terminal or sample-terminal", value)
+	}
 	r.actions = append(r.actions, tb.String())
 	return next, nil
 }
@@ -488,7 +547,8 @@ func flowRouteRedirectToIP(word, addr string) string {
 // The extended communities are normalized to ze's spelling, which is what the
 // flat form already does: ExaBGP writes a packet rate as
 // `rate-limit-packets:N` and a byte rate as `rate-limit:N:bytes`, and ze writes
-// `rate-limit:N:packets` and `rate-limit:N`.
+// `rate-limit:N:packets` and `rate-limit:N`. A bare `<asn>:<n>` is a route
+// target to ExaBGP, as in a unicast route (qualifyExtCommunity).
 func (r *flowRoute) readCommunity(word string, tokens []string, i int) (int, error) {
 	items, next, err := flowRouteList(tokens, i)
 	if err != nil {
@@ -505,7 +565,7 @@ func (r *flowRoute) readCommunity(word string, tokens []string, i int) (int, err
 			if err := CheckExtendedCommunityItem(item); err != nil {
 				return 0, fmt.Errorf("exabgp flow route: %w", err)
 			}
-			r.extended = append(r.extended, normalizeFlowSpecExtCommunityToken(item))
+			r.extended = append(r.extended, normalizeFlowSpecExtCommunityToken(qualifyExtCommunity(item)))
 		}
 	}
 	return next, nil
@@ -519,8 +579,23 @@ func (r *flowRoute) readCommunity(word string, tokens []string, i int) (int, err
 // one rather than as a keyword whose value is missing.
 func (r *flowRoute) readComponent(tokens []string, i int) (int, error) {
 	word := strings.ToLower(tokens[i])
-	if _, ok := flowSpecComponentType(normalizeFlowSpecComponentToken(r.family, word)); !ok {
+	keywordType, ok := flowSpecComponentType(normalizeFlowSpecComponentToken(r.family, word))
+	if !ok {
 		return 0, fmt.Errorf("exabgp flow route: unknown keyword %q", tokens[i])
+	}
+	prefixWord := keywordType == flowspec.FlowDestPrefix || keywordType == flowspec.FlowSourcePrefix
+
+	// A condition keyword that ends the line holds no {operator, value} pair,
+	// and ExaBGP reads it as no component at all: its condition reader loops
+	// over the words of the value and yields nothing for an empty one
+	// (configuration/grammar/types/flow.py, _expression, and 5.0.1
+	// configuration/flow/parser.py, _generic_condition), so the route goes out
+	// without it. RFC 8955 Section 4.2.2.3: "Encoding: <type (1 octet),
+	// [numeric_op, value]+>", so a component with no pair has nothing to
+	// encode, and every condition type shares that shape. A prefix
+	// keyword is not a condition, and ExaBGP refuses it with no value.
+	if i+1 == len(tokens) && !prefixWord {
+		return i + 1, nil
 	}
 
 	items, next, err := flowRouteList(tokens, i)
@@ -528,7 +603,12 @@ func (r *flowRoute) readComponent(tokens []string, i int) (int, error) {
 		return 0, err
 	}
 
-	if word == "source" || word == "destination" {
+	// Every spelling of the two prefix keywords reaches one ExaBGP reader,
+	// which takes the AFI from the prefix (5.0.1 configuration/announce/flow.py,
+	// `destination-ipv6: destination`), so the prefix decides the family and
+	// the qualified word is rebuilt from it.
+	if prefixWord {
+		word = strings.TrimSuffix(strings.TrimSuffix(word, "-ipv4"), "-ipv6")
 		if strings.Contains(items[0], ":") {
 			r.family = flowRouteIPv6Family(r.family)
 		}

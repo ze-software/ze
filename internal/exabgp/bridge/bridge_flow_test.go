@@ -250,6 +250,44 @@ func TestConvertFlowRouteGrammar(t *testing.T) {
 			want: "send bgp 10.0.0.1 update text extended-community [rate-limit:0] " +
 				"mp ipv4/flow add source-ipv4 10.0.0.1/32 protocol tcp udp",
 		},
+		{
+			// RFC 8955 Sections 7.5 and 7.3, in ze's colon spelling.
+			name:   "mark and action become the traffic-marking and traffic-action communities",
+			family: "ipv4/flow",
+			body:   "flow route destination 10.0.0.0/24 discard mark 46 action terminal-sample",
+			want: "send bgp 10.0.0.1 update text extended-community [rate-limit:0 mark:46 traffic-action:sample-terminal] " +
+				"mp ipv4/flow add destination-ipv4 10.0.0.0/24",
+		},
+		{
+			name:   "a lone sample action sets only S",
+			family: "ipv4/flow",
+			body:   "flow route destination 10.0.0.0/24 action sample",
+			want: "send bgp 10.0.0.1 update text extended-community [traffic-action:sample] " +
+				"mp ipv4/flow add destination-ipv4 10.0.0.0/24",
+		},
+		{
+			// ExaBGP's condition reader yields no rule for an empty value.
+			name:   "a condition keyword ending the line adds no component",
+			family: "ipv4/flow",
+			body:   "flow route destination 10.0.0.0/24 discard destination-port",
+			want: "send bgp 10.0.0.1 update text extended-community [rate-limit:0] " +
+				"mp ipv4/flow add destination-ipv4 10.0.0.0/24",
+		},
+		{
+			// 5.0.1 configuration/announce/flow.py maps destination-ipv6 to the
+			// reader that takes the AFI from the prefix.
+			name:   "a qualified IPv6 prefix keyword moves the family and keeps its offset",
+			family: "ipv4/flow",
+			body:   "flow route source-ipv6 ::1/128/120",
+			want:   "send bgp 10.0.0.1 update text mp ipv6/flow add source-ipv6 ::1/128/120",
+		},
+		{
+			name:   "a bare two-part extended community is a route target",
+			family: "ipv4/flow",
+			body:   "flow route destination 10.0.0.0/24 discard extended-community 0:0",
+			want: "send bgp 10.0.0.1 update text extended-community [target:0:0 rate-limit:0] " +
+				"mp ipv4/flow add destination-ipv4 10.0.0.0/24",
+		},
 	}
 
 	for _, tt := range tests {
@@ -281,14 +319,26 @@ func TestConvertFlowRouteRefusesAndNames(t *testing.T) {
 			names: "sauce",
 		},
 		{
-			name:  "an action ze has no update-text spelling for",
-			body:  "flow route { match { source 1.2.3.4/32; } then { mark 8; } }",
+			// ExaBGP's _mark takes decimal digits only.
+			name:  "a mark that is not written in decimal digits",
+			body:  "flow route { match { source 1.2.3.4/32; } then { mark 0x08; } }",
+			names: "0x08",
+		},
+		{
+			name:  "a mark with no value",
+			body:  "flow route { match { source 1.2.3.4/32; } then { mark; } }",
 			names: "mark",
 		},
 		{
-			name:  "a traffic action ze has no update-text spelling for",
-			body:  "flow route { match { source 1.2.3.4/32; } then { action sample-terminal; } }",
-			names: "action",
+			// ExaBGP's _action refuses a value holding neither word.
+			name:  "a traffic action naming neither sample nor terminal",
+			body:  "flow route { match { source 1.2.3.4/32; } then { action drop; } }",
+			names: "drop",
+		},
+		{
+			name:  "a prefix keyword ending the line",
+			body:  "flow route destination 10.0.0.0/24 discard source",
+			names: "source",
 		},
 		{
 			name:  "the IETF redirect with no address",

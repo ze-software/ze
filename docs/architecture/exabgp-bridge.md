@@ -51,7 +51,14 @@ alone, because ExaBGP's `api_eor` answers `Family(AFI.ipv4, SAFI.unicast)` when
 no family token follows; any other token count is refused. Each line sends its
 marker, however many the session already carried, as ExaBGP does.
 
+Both lines carry no route, so the `<afi> <safi>` pair may name any family ze
+carries, `l2vpn vpls`, `l2vpn evpn` and `bgp-ls bgp-ls` included. The pair is
+looked up in the family registry, with ExaBGP's `nlri-mpls` and `mcast-vpn`
+read as ze's `mpls-label` and `mvpn`. A pair no linked plugin registers is
+refused with the families ze does carry.
+
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- convertEOR -->
+<!-- source: internal/exabgp/bridge/bridge_family_pair.go -- pairFamily -->
 
 An `announce vpls` or `withdraw vpls` line becomes
 `update text <attributes> mp l2vpn/vpls add|del rd <rd> ve-id <n>
@@ -60,7 +67,10 @@ NLRI. ExaBGP names the fields `rd`, `endpoint`, `offset`, `size` and `base`, and
 writes them among the attributes in any order, so they are taken out by name and
 every other word goes to the attribute parser. All five are required: a line
 missing one is refused by name, never sent with a zero in its place. A trailing
-`withdraw` flag on an announce deletes the route, as it does for every family.
+`withdraw` flag on an announce is read and dropped, and the route is announced,
+as it is for every family: in ExaBGP the flag is the internal INTERNAL_WITHDRAW
+attribute, which only a configured watchdog reads and which is never packed, so
+4.2 and 5.0 announce every `announce ... withdraw` line an API script writes.
 
 <!-- source: internal/exabgp/bridge/bridge_vpls.go -- convertVPLSRoute -->
 
@@ -258,6 +268,20 @@ The set is an allow-list rather than a subtraction, so a SAFI added later gets
 no prefix length until somebody decides it should.
 
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- defaultPrefixLengths, bridgePrefixSAFI -->
+
+## Extended community type words ze spells otherwise
+
+Two extended community spellings ExaBGP reads have no ze word, so the bridge
+rewrites the item before ze parses it. A bare `<asn>:<n>` is a route target, as
+ExaBGP's decoder renders it back (`target:<asn>:<n>`). `target4:<a>:<n>` and
+`origin4:<a>:<n>` are the IPv4 address specific route target and route origin
+(RFC 4360 Section 4, type 0x01), whatever `<a>` is written as: ExaBGP packs a
+number there into the four octets of the administrator, so `target4:71200:12000`
+leaves as `target:0.1.22.32:12000`, the bytes 5.0 sends. A dotted
+administrator is kept as written. A value ExaBGP would refuse reaches ze as
+written, and ze refuses it by name.
+
+<!-- source: internal/exabgp/bridge/bridge_attribute.go -- qualifyExtCommunity, bridgeIPv4AdministratorTypes, ipv4AdministratorCommunity -->
 
 `convertRoute` is the one place that decides what the bridge translates, and it
 answers the same set of forms for a line that names a neighbor and for a line
@@ -728,7 +752,9 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | A selector that names no peer this process feeds | refused, nothing dispatched |
 | `flow route` with no `match` | refused |
 | A flow route, braced or flat, announce or withdraw, matching an ICMP type or code and a port | refused before ze sees it, answered `error` as ExaBGP 6.0 answers it (its `propagated` drops the route as the line is parsed, so `api_flow` returns none), with a warning naming the route: RFC 8955 Section 4.2 says no packet matches it and it SHOULD NOT be propagated |
-| `flow route` with `mark` or `action`, or `redirect [<ipv6>]:<nn>` (the IPv6 route-target redirect) | refused, naming the word: `update text` has no spelling for it |
+| `flow route` with `redirect [<ipv6>]:<nn>` (the IPv6 route-target redirect) | refused, naming the word: `update text` has no spelling for it |
+| `flow route` with `mark` given anything but decimal digits, or `action` given a value holding neither `sample` nor `terminal` | refused, naming the value, as ExaBGP refuses it. A valid `mark <dscp>` is sent as `mark:<dscp>` and `action <words>` as `traffic-action:<sample\|terminal\|sample-terminal>` |
+| `flow route` whose last word is a condition keyword with no value (`... discard destination-port`) | sent without that component, as ExaBGP 4.2, 5.0 and 6.0 send it: their condition reader yields no rule for an empty value. A prefix keyword with no value is refused |
 | `copy`, `redirect-simpson`, `copy-simpson` or `redirect-to-nexthop-ietf` given something that is not an address | refused, naming the value |
 | An `interface-set:` item inside `extended-community`, on a flow route or any other route | refused, naming the `interface-set` keyword to write it with: ExaBGP has no such extended community type |
 | An interface-set whose transitivity is neither `transitive` nor `non-transitive`, or whose AS number holds a period | refused, transitivity judged first as ExaBGP does |
@@ -765,15 +791,23 @@ repeated large community stays in the merged list, which ExaBGP drops as it
 merges: Ze drops it on the way out, as RFC 8092 Section 3 requires
 ("Duplicate BGP Large Community values MUST NOT be transmitted"). A label, an
 RD and a path identifier are fields of the NLRI, which ExaBGP sets as it reads
-them, so the last one written is the route's. ExaBGP 4.2 merged no list and
-5.0 merged only the extended communities. The bridge follows 6.0, so a 4.2 or
+them, so the last one written is the route's. So is the next-hop of a mup or
+an mcast-vpn route: ExaBGP reads those two families through `SelectLine`,
+which sets the next hop each time it reads one
+(`configuration/grammar/tree/select.py`), as 5.0 did, while every other family
+keeps the first. On an IPv6 mup route an IPv4 next-hop is sent mapped into
+IPv6, `::ffff:<ipv4>`, as ExaBGP's `MupNextHop` maps it. ExaBGP 4.2 merged no
+list and 5.0 merged only the extended communities. The bridge follows 6.0, so a 4.2 or
 5.0 script meets what it would meet on upgrading ExaBGP.
 
 A route line's backslash escapes are resolved before it is split into words,
 as every ExaBGP release reads a route command (`unescape` in
 `configuration/grammar/lexer.py`; `tokens` in 4.2 and 5.0). `\b`, `\f`, `\n`,
 `\r` and `\t` are those characters, `\uXXXX` is the character it names, and
-any other escaped character is itself, so `med 100\n` sends MED 100. Only a
+any other escaped character is itself, so `med 100\n` sends MED 100. A
+backslash ending the line escapes the space ExaBGP adds before the `;` it
+closes an API command with (`read_command`, `configuration/grammar/read.py`),
+so it is no word, and `next-hop self \` sends the route alone, as 5.0 did. Only a
 route, flow, vpls or attributes line is read that way. A neighbor control, a
 refresh or an operational line reaches its converter with its backslashes as
 written, as ExaBGP reads those with `shlex.split` on the raw text.

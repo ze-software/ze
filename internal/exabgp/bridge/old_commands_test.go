@@ -266,6 +266,9 @@ func decodeOldUpdate(body []byte, facts SessionFacts) (rows []string, ok bool) {
 			ok = false
 		}
 	}()
+	if oldSessionReset(body, facts) {
+		return nil, false
+	}
 	rendered, err := WireUpdateToExabgpJSON(body, facts, rpc.DirectionReceived)
 	if err != nil {
 		return nil, false
@@ -313,6 +316,42 @@ func decodeOldUpdate(body []byte, facts SessionFacts) (rows []string, ok bool) {
 		rows = append(rows, canonicalJSON(map[string]any{"eor": eor}))
 	}
 	return rows, len(rows) > 0
+}
+
+// oldSessionReset reports whether ze, receiving the UPDATE body, resets the
+// session rather than reading a route from it: the RFC 7606 walk the reactor
+// runs before the bridge sees a message (message.ValidateUpdateRFC7606AddPath).
+//
+// The renderer alone is lenient where the walk is not. 5.0's recorder packed
+// `next-hop self` of an IPv6 route on the IPv4 session unresolved, as a four
+// octet 0.0.0.0 in an AFI 2 MP_REACH_NLRI, and the renderer shows it as that
+// address. RFC 2545 Section 3 gives an IPv6 next hop 16 or 32 octets, and RFC
+// 7606 Section 7.11: "If the Length of Next Hop Network Address field of the
+// MP_REACH attribute is inconsistent with that which was expected, the
+// attribute is considered malformed." No peer reads a route from it, which is
+// the pin's verdict too: its decoder refuses the message (UNREADABLE,
+// qa/bin/test_old_commands). 5.0.1 itself never sent it: inject_change calls
+// remove_self, whose ip_self raises TypeError for a route of another family
+// than the session's (bgp/neighbor.py).
+func oldSessionReset(body []byte, facts SessionFacts) bool {
+	if len(body) < 4 {
+		return false
+	}
+	withdrawn := int(binary.BigEndian.Uint16(body))
+	if len(body) < 4+withdrawn {
+		return false
+	}
+	attrs := int(binary.BigEndian.Uint16(body[2+withdrawn:]))
+	start := 4 + withdrawn
+	if len(body) < start+attrs {
+		return false
+	}
+	var addPath func(uint16, uint8) bool
+	if facts.Encoding != nil {
+		addPath = func(uint16, uint8) bool { return true }
+	}
+	verdict := message.ValidateUpdateRFC7606AddPath(body[start:start+attrs], len(body) > start+attrs, true, true, addPath, false)
+	return verdict != nil && verdict.Action == message.RFC7606ActionSessionReset
 }
 
 // nextHopGroups reads an announce family (keyed by next hop) or a withdraw

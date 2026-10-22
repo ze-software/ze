@@ -26,15 +26,36 @@ import (
 // first, through ParseExtendedCommunityKeyword, so a community added here is
 // accepted on every surface and none of the three is edited for it.
 var extCommKeywords = map[string]func(value string) (ExtendedCommunity, error){
-	interfaceSetKeyword: parseInterfaceSet,
-	layer2InfoKeyword:   parseLayer2Info,
+	interfaceSetKeyword:  parseInterfaceSet,
+	layer2InfoKeyword:    parseLayer2Info,
+	trafficMarkKeyword:   parseTrafficMark,
+	trafficActionKeyword: FlowSpecTrafficAction,
 }
 
 // The names AppendDecoded writes and the parsers read.
 const (
-	interfaceSetKeyword = "interface-set"
-	layer2InfoKeyword   = "l2info"
+	interfaceSetKeyword  = "interface-set"
+	layer2InfoKeyword    = "l2info"
+	trafficMarkKeyword   = "mark"
+	trafficActionKeyword = "traffic-action"
 )
+
+// parseTrafficMark reads the value of `mark:<dscp>`, the traffic-marking
+// community AppendDecoded writes: a decimal DSCP, which FlowSpecTrafficMarking
+// bounds.
+//
+// RFC 8955 Section 7.5: "The traffic marking Extended Community instructs a
+// system to modify the DSCP bits in the IP header (Section 3 of [RFC2474]) of
+// a transiting IP packet to the corresponding value encoded in the 6 least
+// significant bits of the Extended Community value". A value above
+// 63 is refused there, never truncated.
+func parseTrafficMark(value string) (ExtendedCommunity, error) {
+	dscp, err := strconv.ParseUint(value, 10, 8)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("mark %q: the DSCP is a decimal number from 0 to %d", value, FlowSpecDSCPMax)
+	}
+	return FlowSpecTrafficMarking(dscp)
+}
 
 // ParseExtendedCommunityKeyword reads one extended community written as
 // `<keyword>:<value>` for a keyword this package registers. matched is false

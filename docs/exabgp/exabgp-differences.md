@@ -109,7 +109,8 @@ keeps"). Four differences remain.
   whole. ExaBGP logs each; Ze logs `exabgp-bridge route line` with the dropped
   value. A repeated `community`, `extended-community` or `large-community` is
   merged into the first and logs nothing, and a repeated `label`, `rd` or
-  `path-information` replaces the first, as on ExaBGP 6.0. ExaBGP 4.2 merged no
+  `path-information` replaces the first, as on ExaBGP 6.0. So does a repeated
+  `next-hop` on a mup or mcast-vpn route, as on 5.0 and 6.0. ExaBGP 4.2 merged no
   list and 5.0 merged only the extended communities; the bridge follows 6.0, so
   a 4.2 or 5.0 script meets on Ze what it would meet on upgrading ExaBGP.
 
@@ -125,6 +126,11 @@ it (`_check_component_order`, `src/exabgp/bgp/message/update/nlri/flow.py`),
 and Ze refuses it by name, because a second prefix has no operator list to
 merge into the first (`FlowSpec.AddComponent`). A 4.2 or 5.0 script that sent
 one meets on Ze what it would meet on upgrading ExaBGP.
+
+An AS_PATH holding an AS_SET (`as-path [ 65001 ] ( 65002 65003 )`) is sent by
+ExaBGP 4.2, 5.0 and 6.0 and refused by Ze. RFC 9774 Section 3: BGP speakers
+"MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs".
+The RFC outranks ExaBGP's behavior, so `update text` has no spelling for a set.
 
 Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/announce.py`,
 `src/exabgp/configuration/grammar/tree/static.py`, CHANGELOG 6.0.0.
@@ -171,10 +177,12 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
   command reaches the session the address names.
 - A Ze selector names a peer by address, name, ASN or glob. It cannot conjoin a
   predicate onto an address, so there is nothing to translate a qualifier into.
-- The exception is `family-allowed in-open`, which no Ze session can satisfy.
-  ExaBGP's `in-open` names a session that negotiates the families the OPEN
-  carried; Ze STATES the families its OPEN offers and has no mode that defers
-  the choice. The bridge therefore treats the address it qualifies as excluded.
+- The exception is `family-allowed`, whose value is the same for every Ze
+  session. Ze negotiates no multi-session: the migration drops the capability
+  with a warning, and `create neighbor` never sets it, as ExaBGP's does not.
+  ExaBGP names such a session `family-allowed in-open`, so `family-allowed
+  in-open` reaches the address, and a family list (`family-allowed
+  ipv4-unicast`), which names only a multi-session neighbor, excludes it.
 - A selector left with no peer (every address excluded, or every address
   outside the peers the process feeds) is refused: the bridge dispatches
   nothing and answers the reason and `error`, as ExaBGP 6.0's dispatcher does
@@ -187,21 +195,25 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 
 **Impact:**
 - A qualified command is accepted and reaches the peer the address names,
-  unless the qualifier is `family-allowed in-open`.
+  unless the qualifier is `family-allowed` with a family list.
 - The cost is bounded in one direction. An address resolves to at most one
   session in Ze, so a qualifier could only ever have REJECTED that session. Ze
   therefore sends where ExaBGP would have stayed silent, and never the reverse.
-- One qualifier VALUE does exclude, because it can never match: see
-  `family-allowed in-open` above. Any other value could name Ze's single
+- One qualifier does exclude, because it can never match: `family-allowed`
+  with a family list, see above. Any other value could name Ze's single
   session, so it is discarded rather than evaluated.
 
 **Tests affected:**
 - `test/exabgp-compat/etc/run/api-multisession.run` sends
   `neighbor 127.0.0.1 local-as 1 family-allowed in-open announce route 9.9.9.9/24`,
-  which ExaBGP drops because the session is named `family-allowed ipv4-unicast`
-  under `multi-session`. `test/exabgp-compat/api/api-multisession.ci` expects
-  four UPDATE frames from five commands for that reason, and Ze now sends four
-  and acknowledges five.
+  and `neighbor 127.0.0.1 local-as 1 family-allowed ipv4-unicast announce route
+  1.2.0.0/24`. ExaBGP, whose config there carries `multi-session`, names the
+  session `family-allowed ipv4-unicast`, sends the second and drops the first.
+  Ze has no multi-session session, so it does the reverse, as ExaBGP does for a
+  neighbor without the capability: `test/exabgp-compat/api/api-multisession.ci`
+  expects four UPDATE frames from five commands, 9.9.9.0/24 among them and
+  1.2.0.0/24 not. ExaBGP 4.2 and 5.0 send `family-allowed in-open` routes
+  (`qa/old/commands-*.json`, `TestOldCommands50`, `TestOldCommands42`).
 - `test/exabgp-compat/etc/run/api-announcement.run` uses the other qualifier
   types, none of which excludes a session there.
 
@@ -216,7 +228,9 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 since 2026-09-05, so a qualified command no longer fails to translate. The
 earlier text said such commands "will NOT work". Corrected again the same day:
 `family-allowed in-open` now excludes, so the claim that no qualifier ever does
-is gone.
+is gone. Corrected 2026-10-22: `in-open` is the name of every session without
+multi-session, which every Ze session is, so it matches and a family list is
+the value that excludes.
 
 ---
 

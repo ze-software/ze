@@ -22,7 +22,10 @@ import (
 // not one of them (TestLineNeighborControlEscapesRaw). `\n`, `\r` and `\t` become
 // characters in SPACES, so they end a word: 5.0 sent MED 100 for `med 100\n
 // nlri ...` in 44 recorded commands (testdata/exabgp-old/commands-5.0.json.gz).
-// Any other escaped character is itself, `\uXXXX` is the character it names.
+// Any other escaped character is itself, `\uXXXX` is the character it names,
+// and a backslash ending the line escapes the space the pin adds before the
+// command's terminator (read_command, configuration/grammar/read.py), so 5.0
+// sent `announce route 10.0.0.0/8 next-hop self \` as the route alone.
 // PREVENTS: the bridge handing `100\n` to ze as the MED, which ze refuses.
 func TestLineEscapesResolved(t *testing.T) {
 	for _, tc := range []struct {
@@ -35,6 +38,8 @@ func TestLineEscapesResolved(t *testing.T) {
 		{`announce route 10.0.0.0/24 next-hop self\n`, " nhop self "},
 		{`announce route 10.0.0.0/24 next-hop 1.2.3.4 m\ed 300`, " med 300 "},
 		{`announce route 10.0.0.0/24 next-hop 1.2.3.4 \u006ded 400`, " med 400 "},
+		{`announce route 10.0.0.0/24 next-hop self \`, " nhop self "},
+		{`announce route 10.0.0.0/24 next-hop self \ med 500`, " med 500 "},
 	} {
 		translation, err := TranslateLine(tc.line)
 		if err != nil {

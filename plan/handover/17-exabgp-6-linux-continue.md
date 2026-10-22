@@ -104,22 +104,33 @@ after the initial release).
 - An RFC-tagged test change needs the owner's `./le rfc approve`; after the
   fact, record it with `./le commit debt-discharge ... kind owner`.
 
-## Agent unicast (2026-10-22 Linux)
+## Linux session ed4b8d60 state (2026-10-22)
 
-Out of budget before testing or committing; all edits uncommitted, `go vet`
-clean, no test run on them.
+Item 1 (old-command corpus) landed in one commit, "exabgp: old-command corpus
+closes flow, unicast, mup and control classes": `TestOldCommands42` green
+2541/2541, `TestOldCommands50` 4248/4250. The two red rows are `announce
+operational adm|asm ... advisory`, held on OD-1, put to Thomas 2026-10-22 and
+unanswered: keep the refusal (two ALLOWED rows) or implement origination (own
+spec). The AS_SET row is ALLOWED under RFC 9774 Section 3 and recorded in
+`docs/exabgp/exabgp-differences.md`. `api-multisession.ci` (upstream port) now
+expects the `family-allowed in-open` route and not the `ipv4-unicast` one,
+because Ze has no multi-session capability, so every session is ExaBGP's
+`in-open` one; flagged to Thomas.
 
-| Fix | Release behaviour | Edit |
-|-----|-------------------|------|
-| trailing `withdraw` flag | API routes go through `add_to_rib`, never the watchdog path; the flag is the internal INTERNAL_WITHDRAW attribute, never packed. All 15 corpus lines were announced | `bridge_attribute.go` reads and ignores it, `routeAttributes.Withdraw` deleted, verb flip removed from `bridge_command.go`, `bridge_route_forms.go`, `bridge_vpls.go`; `bridge_vpls_test.go` case now expects `add` |
-| `split /N` in `announce attribute(s) ... nlri` | 5.0 cuts each prefix into /N pieces | `splitPrefixes` in `bridge_route_forms.go`, used by `convertAttributesForm` and `buildRouteCommand` |
-| IPv6 `next-hop self` (~45 rows) | 5.0's recorder packed 0.0.0.0 in an AFI 2 MP_REACH, malformed under RFC 2545 Section 3 / RFC 7606; the pin's judge reads them UNREADABLE (4250/4250 at the pin) | `oldSessionReset` in `old_commands_test.go` runs `message.ValidateUpdateRFC7606AddPath` before decoding |
+Item 3 is being finished by another session (handover 19's "Linux session
+result" section: fixture race fixed, stub filled, both red walks done).
 
-Next, in order: fix the `withdraw` sentence in `docs/architecture/exabgp-bridge.md`
-(~line 70) and check `docs/exabgp/exabgp-differences.md`; run the corpus tests
-and the scoped `-race` run; then the untouched rows: `family-allowed in-open`
-(needs the session's multi-session fact, `selectorExcludes` in
-`bridge_selector.go`, `api-multisession.ci` depends on it), extended community
-`target4`/`origin4`, `as-path [ ... ] ( ... )` AS_SET, trailing backslash on
-`announce route ... \`. Journal row owed: update text answers "watchdog not yet
-implemented" while the judge's `ParseUpdateText` accepts the watchdog form.
+Thomas, 2026-10-22: "do not run full testing on this host, it is too busy".
+So no `./le verify worktree`, full suite or full lint here; scoped package runs
+only. Owed elsewhere for this commit: `./le verify worktree`, `./le go lint
+run`, `./le test functional exabgp-test` (incl. `api-multisession`), `./le test
+functional encode` (new update-text keywords `mark:`, `traffic-action:`, flow
+`/len/offset`), `./le rfc check`, independent review. Journal row added:
+`validate-accepts-what-start-refuses.md` (judge accepts `watchdog` that update
+text refuses). That row is inside AC-37, not beside it: about 95 5.0 lines
+pass only because the judge skips the daemon's refusal, so AC-37 is not met
+until the judge applies `handleUpdateText`'s refusals and update text
+implements the watchdog route form.
+
+Next: the watchdog route form (above), item 2 (AC-38, `TestOldResponses50/42`),
+then items 4 to 8.

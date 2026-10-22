@@ -175,9 +175,9 @@ func parsePrefixComponentText(args []string, compType flowspec.FlowComponentType
 		return nil, 0, fmt.Errorf("%s requires prefix", args[0])
 	}
 
-	prefix, err := netip.ParsePrefix(args[1])
+	prefix, offset, err := parsePrefixOffsetText(args[1])
 	if err != nil {
-		return nil, 0, fmt.Errorf("invalid prefix: %w", err)
+		return nil, 0, err
 	}
 
 	// Validate AFI match
@@ -188,10 +188,59 @@ func parsePrefixComponentText(args []string, compType flowspec.FlowComponentType
 		return nil, 0, errIpv6PrefixForIpv4Flowspec
 	}
 
-	if compType == flowspec.FlowDestPrefix {
+	// A prefix with no offset keeps the plain constructor, which leaves its
+	// address as written; the offset constructor masks the skipped bits.
+	switch {
+	case offset == 0 && compType == flowspec.FlowDestPrefix:
 		return flowspec.NewFlowDestPrefixComponent(prefix), 2, nil
+	case offset == 0:
+		return flowspec.NewFlowSourcePrefixComponent(prefix), 2, nil
+	case compType == flowspec.FlowDestPrefix:
+		return flowspec.NewFlowDestPrefixComponentWithOffset(prefix, offset), 2, nil
 	}
-	return flowspec.NewFlowSourcePrefixComponent(prefix), 2, nil
+	return flowspec.NewFlowSourcePrefixComponentWithOffset(prefix, offset), 2, nil
+}
+
+// parsePrefixOffsetText reads a prefix written `<address>/<length>`, or for
+// IPv6 `<address>/<length>/<offset>`, the form flowspec.FormatPrefixWithOffset
+// renders and ExaBGP writes. An offset of 0 is the plain prefix.
+//
+// RFC 8956 Section 3.1: "offset: This indicates the number of most significant
+// address bits to skip before bitwise pattern matching starts." and "If length
+// = 0 and offset = 0, this component matches every address; otherwise, length
+// MUST be in the range offset < length < 129 or the component is malformed."
+// The offset is an IPv6 field only: RFC 8955's IPv4 prefix components carry
+// none.
+func parsePrefixOffsetText(text string) (netip.Prefix, uint8, error) {
+	prefixText, offsetText, hasOffset := text, "", false
+	if first := strings.IndexByte(text, '/'); first >= 0 {
+		if second := strings.IndexByte(text[first+1:], '/'); second >= 0 {
+			prefixText, offsetText, hasOffset = text[:first+1+second], text[first+2+second:], true
+		}
+	}
+
+	prefix, err := netip.ParsePrefix(prefixText)
+	if err != nil {
+		return netip.Prefix{}, 0, fmt.Errorf("invalid prefix: %w", err)
+	}
+	if !hasOffset {
+		return prefix, 0, nil
+	}
+	if !prefix.Addr().Is6() {
+		return netip.Prefix{}, 0, fmt.Errorf("invalid prefix %q: an offset is an IPv6 FlowSpec field (RFC 8956), write %s", text, prefixText)
+	}
+	offset, err := strconv.ParseUint(offsetText, 10, 8)
+	if err != nil {
+		return netip.Prefix{}, 0, fmt.Errorf("invalid prefix %q: the offset %q is not a number from 0 to 127", text, offsetText)
+	}
+	if offset == 0 {
+		return prefix, 0, nil
+	}
+	// RFC 8956 Section 3.1: "length MUST be in the range offset < length < 129".
+	if int(offset) >= prefix.Bits() {
+		return netip.Prefix{}, 0, fmt.Errorf("invalid prefix %q: the offset %d must be below the length %d (RFC 8956 Section 3.1)", text, offset, prefix.Bits())
+	}
+	return prefix, uint8(offset), nil
 }
 
 // parseNumericComponentText parses numeric component with operators.
