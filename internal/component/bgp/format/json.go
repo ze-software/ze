@@ -51,10 +51,23 @@ func peerMap(peer *plugin.PeerInfo) map[string]any {
 	if peer.LocalAddress.IsValid() {
 		localAddr = peer.LocalAddrStr()
 	}
+	remote := map[string]any{"address": peer.AddrStr(), "as": peer.PeerAS}
 	m := map[string]any{
 		"name":   peer.Name,
 		"local":  map[string]any{"address": localAddr, "as": peer.LocalAS},
-		"remote": map[string]any{"address": peer.AddrStr(), "as": peer.PeerAS},
+		"remote": remote,
+	}
+	// The same two identifiers appendPeerJSON writes, for the same reasons: this
+	// speaker's at the top, the peer's in the remote block. Until 2026-10-22 this
+	// map carried neither, so an OPEN, NOTIFICATION, KEEPALIVE or ROUTE-REFRESH
+	// event named no router-id while an UPDATE of the same session did, and the
+	// ExaBGP bridge wrote a line without the `router-id` ExaBGP writes on every
+	// one (TestOldResponses50).
+	if peer.RouterID != 0 {
+		m["router-id"] = string(appendRouterID(nil, peer.RouterID))
+	}
+	if peer.RemoteRouterID != 0 {
+		remote["router-id"] = string(appendRouterID(nil, peer.RemoteRouterID))
 	}
 	if peer.GroupName != "" {
 		m["group"] = peer.GroupName

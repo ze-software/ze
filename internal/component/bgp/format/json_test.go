@@ -2134,3 +2134,34 @@ func TestEventJSONRawSection(t *testing.T) {
 	assert.Contains(t, raw, "attributes", "raw should have attributes")
 	assert.Contains(t, raw, "nlri", "raw should have nlri")
 }
+
+// TestJSONEncoderRouterIDOnEveryMessage checks that the non-UPDATE events name
+// the same two BGP Identifiers an UPDATE event does.
+//
+// VALIDATES: a KEEPALIVE event carries this speaker's router-id at the peer
+// level and the peer's in the remote block, as appendPeerJSON writes them.
+// PREVENTS: the ExaBGP bridge writing an OPEN, NOTIFICATION, KEEPALIVE or
+// ROUTE-REFRESH line without the router-id ExaBGP writes on every line.
+func TestJSONEncoderRouterIDOnEveryMessage(t *testing.T) {
+	peer := &plugin.PeerInfo{
+		Address:        netip.MustParseAddr("10.0.0.2"),
+		LocalAddress:   netip.MustParseAddr("10.0.0.17"),
+		LocalAS:        64512,
+		PeerAS:         64512,
+		RouterID:       0x0a000011,
+		RemoteRouterID: 0x0a000002,
+	}
+	var event map[string]any
+	if err := json.Unmarshal([]byte(NewJSONEncoder("").Keepalive(peer, rpc.DirectionReceived, 0)), &event); err != nil {
+		t.Fatalf("keepalive JSON does not parse: %v", err)
+	}
+	bgp, _ := event["bgp"].(map[string]any)    //nolint:errcheck // nil fails the lookups below
+	peerJSON, _ := bgp["peer"].(map[string]any) //nolint:errcheck // as above
+	if got := peerJSON["router-id"]; got != "10.0.0.17" {
+		t.Errorf("peer router-id = %v, want 10.0.0.17", got)
+	}
+	remote, _ := peerJSON["remote"].(map[string]any) //nolint:errcheck // as above
+	if got := remote["router-id"]; got != "10.0.0.2" {
+		t.Errorf("remote router-id = %v, want 10.0.0.2", got)
+	}
+}
