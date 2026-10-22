@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -358,7 +358,7 @@ and the commit SHAs. The Pass Log is append-only otherwise.
 
 ## Known Limitations
 
-- Owner question, status: a never-closing spec has no status in `Vocabulary`. The smallest change is one new value, `standing` ("a process spec that never closes; work is recorded as dated entries"), mapped to Backlog, and permitted by `writeSpecStatus`. The alternative is no code: this spec stays `in-progress` permanently. Phase 3 waits for this answer; Phases 1, 2 and passes do not.
+- Owner question, status, ANSWERED 2026-10-22 (Thomas: "add standing"; spec approved: "approve"): Phase 3 adds the `standing` status ("a process spec that never closes; work is recorded as dated entries"), mapped to Backlog and permitted by `writeSpecStatus`; this spec becomes `standing` in that phase's commit.
 
 ## Checklist
 
