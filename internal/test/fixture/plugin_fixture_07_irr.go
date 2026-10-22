@@ -75,11 +75,12 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 // resolved is accepted once the list arrives, with no action by the peer's
 // operator. Method: the mock IRR fails the first query, so the first
 // resolution fails and the peer's UPDATE is rejected as no-prefix-list. Once
-// the ASN shows the error and the peer's UPDATE has been counted, the observer
+// the ASN shows the error and the peer's following End-of-RIB is counted, the
+// initial filter verdict and held-route tracking have completed. The observer
 // refreshes the ASN the way an operator does; the filter must then send a
-// ROUTE-REFRESH (the peer's script answers it by sending the route again), and
-// the reactor must deliver that route here, which it does only after the
-// import chain accepted it (reactor_notify.go).
+// ROUTE-REFRESH (the peer's script checks it before sending the route again).
+// Shutdown waits for that route here, delivered only after the import chain
+// accepted it (reactor_notify.go).
 func filterIRRReadmit07(ctx context.Context, _ []string) error {
 	const name = "plugin/filter-irr-readmit"
 	updates := make(chan string, 4)
@@ -108,24 +109,34 @@ func filterIRRReadmit07(ctx context.Context, _ []string) error {
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
-		failed := until07(ctx, p, "show bgp irr", 40, 250*time.Millisecond, func(result commandResult07) bool {
-			for _, row := range array07(object07(result.data)["entries"]) {
+		var failed commandResult07
+		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+			failed = command07(ctx, p, "show bgp irr")
+			if failed.status != statusDone {
+				return false
+			}
+			for _, row := range array07(object07(failed.data)["entries"]) {
 				entry := object07(row)
 				if number07(entry["asn"]) == 65001 && entry["status"] == statusError {
 					return true
 				}
 			}
 			return false
-		})
-		if failed.status != statusDone {
-			return fmt.Errorf("show bgp irr status=%s error=%w", failed.status, failed.err)
+		}) {
+			return fmt.Errorf("ASN 65001 never reported its initial IRR failure: status=%s data=%s error=%w", failed.status, text07(failed.data), failed.err)
 		}
-		received := until07(ctx, p, "show bgp peer 127.0.0.1 detail", 40, 250*time.Millisecond, func(result commandResult07) bool {
-			peer := object07(object07(object07(result.data)["peers"])["127.0.0.1"])
-			return number07(peer["updates-received"]) >= 1
-		})
-		if received.status != statusDone {
-			return fmt.Errorf("show bgp peer detail status=%s error=%w", received.status, received.err)
+		// updates-received advances before the import filter runs. The next
+		// frame's EOR counter advances only after that verdict and hold finish.
+		var received commandResult07
+		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+			received = command07(ctx, p, "show bgp peer 127.0.0.1 detail")
+			if received.status != statusDone {
+				return false
+			}
+			peer := object07(object07(object07(received.data)["peers"])["127.0.0.1"])
+			return number07(peer["eor-received"]) >= 1
+		}) {
+			return fmt.Errorf("the End-of-RIB following the initial rejected UPDATE never arrived: status=%s data=%s error=%w", received.status, text07(received.data), received.err)
 		}
 		select {
 		case update := <-updates:

@@ -7,8 +7,9 @@
 # 1. The mock IRR fails its first query, so AS65001's first resolution fails.
 # 2. The peer sends 10.0.0.0/24; the filter rejects it as no-prefix-list and
 #    holds it for re-evaluation.
-# 3. The observer waits for the failed resolution and the counted UPDATE, then
-#    runs `update bgp irr all`, which now resolves AS-TEST.
+# 3. The peer sends an End-of-RIB after that UPDATE. The observer waits for the
+#    failed resolution and eor-received, which proves the preceding filter
+#    decision and hold completed, then runs `update bgp irr all` to resolve AS-TEST.
 # 4. The filter sees that the held prefix is in the new list and sends a
 #    ROUTE-REFRESH for ipv4/unicast; the peer answers by sending the route again.
 # 5. The observer receives the accepted 10.0.0.0/24 (internal/test/fixture/
@@ -22,10 +23,13 @@ option=tcp_connections:value=1
 option=timeout:value=25s
 # UPDATE from AS 65001: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+# This later frame cannot be counted until the preceding filter verdict and
+# held-route tracking finish on the session's synchronous receive path.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # ROUTE-REFRESH: marker(16) + length(0017=23) + type(05) + AFI(0001) + reserved(00) + SAFI(01)
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
 # The same UPDATE again, as a peer answers a ROUTE-REFRESH
-action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
