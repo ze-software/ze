@@ -14,7 +14,15 @@ FlowSpec IPv6 route-target redirect send (owner: "we must be able to send";
 journal row in `plan/journal/unwired-feature.md`), and the wiki review (wiki
 checkout, 1 unpushed commit 351aba8; pages such as
 `exabgp-migration-walkthrough.md`, `bgp-nlri-flowspec.md` unchecked). Run
-`git status` in main and in `../wiki` before resuming either. Held fixes still
+`git status` in main and in `../wiki` before resuming either. Checked at stop:
+the wiki agent left no edits (wiki clean, only 351aba8 unpushed). The redirect
+agent left uncommitted, untested edits in `internal/core/bgp/attribute/flowspec_encode.go`,
+`extcomm_decoded.go`, `internal/exabgp/bridge/bridge_flow.go`,
+`bridge_flow_test.go` and `docs/architecture/api/update-syntax.md`; the
+dirty `reactor/flowspec_*_test.go` and `rfc8955_flowspec_forward_mixed_test.go`
+are most likely the explicit-final-policy session's (check their diff before
+touching them). Resume the redirect from those edits: tests, `.ci` wire proof,
+docs, journal row close. Held fixes still
 wait on the explicit-final-policy session; the final suites/interop run is
 owed after everything lands; the website waits for the weekly release.
 
