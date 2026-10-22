@@ -451,10 +451,13 @@ func sleepContext(ctx context.Context, duration time.Duration) error {
 // still pick the same one. When both forwards bind the same address, the
 // second QEMU refuses the forward at start. When they differ, a run or
 // install-test wildcard forward beside a docker-lab 127.0.0.1 forward, macOS
-// lets both bind (slirp sets SO_REUSEADDR). Every ssh client dials 127.0.0.1,
-// and by BSD's most-specific-bind lookup the docker-lab 127.0.0.1 forward takes
-// every loopback connection: the wildcard run's ssh reaches the docker-lab VM,
-// whichever QEMU started first.
+// lets both bind (slirp sets SO_REUSEADDR). Every ssh client reaches the
+// forward over IPv4 loopback: docker-lab, hugepages and install-test dial
+// 127.0.0.1, and run dials localhost, which falls back to 127.0.0.1 because
+// slirp binds IPv4 only. By BSD's most-specific-bind lookup the docker-lab
+// 127.0.0.1 forward then takes every loopback connection: the wildcard run's
+// ssh reaches the docker-lab VM, whichever QEMU started first. This is
+// reasoned from the lookup, not measured.
 func freeRunSSHPort() (int, error) {
 	return freeSSHPortIn(2222, 2321)
 }
@@ -495,7 +498,7 @@ func sshPortFree(port int) (bool, error) {
 			return false, nil //nolint:nilerr // a refused bind is the answer "held", not a failure
 		}
 		if err := listener.Close(); err != nil {
-			return false, fmt.Errorf("release SSH port probe %s:%d: %w. A fixed port skips this probe. Fix: set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) to a free port", host, port, err)
+			return false, fmt.Errorf("release SSH port probe %s:%d: %w. A fixed SSH port skips this probe. Fix: set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run and docker-lab, or ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for install-test, to a free port", host, port, err)
 		}
 	}
 	return true, nil

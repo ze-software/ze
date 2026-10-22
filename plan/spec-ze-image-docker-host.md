@@ -515,7 +515,7 @@ N-A: tooling.
 |-------|-------|
 | Artifact | |
 | `./le spec review check` | not run |
-| Rounds | 4 (round 4: 0 BLOCKER, 1 ISSUE, fixed); round 5 owed |
+| Rounds | 5 (round 5: 0 BLOCKER, 1 ISSUE, fixed; the round-5 fix is unreviewed: the session's five rounds are spent) |
 | Reviewer lenses used | |
 
 ### Findings fixed
@@ -549,14 +549,19 @@ N-A: tooling.
 | R3-3 | NOTE | new tests' discrimination | round-2 tests | no change: every new test is red on revert |
 | R3-4 | NOTE | probe addresses | `qemu/run.go` `sshForwardHosts` | no change: the probe binds exactly the addresses QEMU's forwards bind |
 | R3-8 | NOTE | lint warnings | `qemu` package | no change: the warnings predate these commits |
-| R4-1 | ISSUE | bd9432b616 said the second run's ssh reaches the other VM; every ssh client dials 127.0.0.1, so by BSD's most-specific-bind lookup the docker-lab 127.0.0.1 forward takes it, whichever started first | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port"; journal 2026-10-10 row; R3-1 row | `qemu: correct the cross-address SSH forward direction` (reasoned from the BSD lookup, not measured) |
+| R4-1 | ISSUE | bd9432b616 said the second run's ssh reaches the other VM; every ssh client reaches the forward over IPv4 loopback (127.0.0.1, or `localhost` falling back to it because slirp binds IPv4 only; premise corrected by R5-1), so by BSD's most-specific-bind lookup the docker-lab 127.0.0.1 forward takes it, whichever started first | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port"; journal 2026-10-10 row; R3-1 row | `qemu: correct the cross-address SSH forward direction` (reasoned from the BSD lookup, not measured) |
 | R4-2 | NOTE | 2026-10-22 journal row missed the hugepages SSH forward (`hostfwd=tcp::` on a `freePort` port probed on 127.0.0.1 only) | `qemu/boot.go` `qemuArgs`; `qemu/hugepages.go` `freePort` | `qemu: correct the cross-address SSH forward direction` (added to the row's surface and symptom; no code change) |
 | R4-3 | NOTE | blank line before the R3-1 row broke the findings table | this spec | `qemu: correct the cross-address SSH forward direction` (blank line removed, and the same one before R2-1) |
 | R4-4 | NOTE | probe-release error named the fix but not why it works | `qemu/run.go` `sshPortFree` | `qemu: correct the cross-address SSH forward direction` (adds "A fixed port skips this probe.") |
+| R5-1 | ISSUE | 5587257763 said every ssh client dials 127.0.0.1; `run` (`run_exec.go`, `run_guestcommand.go`) dials `root@localhost`, and only hugepages `Hugepages.ssh`, docker-lab `sshArgs` and install-test `install_boot.go` dial 127.0.0.1. The conclusion holds by reasoning, not measured: slirp binds IPv4 only, so `localhost` falls back to 127.0.0.1 | `qemu/run.go` `freeRunSSHPort`; `qemu-integration.md` "The SSH forward's host port"; R4-1 row | `qemu: state how each ssh client reaches the loopback SSH forward` (journal 2026-10-10 row names no dial address; unchanged) |
+| R5-2 | NOTE | probe-release error said "A fixed port skips this probe" and named only `ze.qemu.ssh.port`; install-test's fixed SSH port is `ze.install.ssh.port`, and its web-port probe has no skip | `qemu/run.go` `sshPortFree` | `qemu: state how each ssh client reaches the loopback SSH forward` ("A fixed SSH port skips this probe"; names `ze.qemu.ssh.port` (`ZE_QEMU_SSH_PORT`) and `ze.install.ssh.port` (`ZE_INSTALL_SSH_PORT`)) |
+| R5-3 | NOTE | R4-2 re-checked | `qemu/boot.go`, `qemu/hugepages.go` | no change: R4-2 confirmed |
 
 Round 2 reviewed only the round-1 fixes: a02b362081, 2b98d538dc, 02fa09c15f, c0b69d7a53, b5079f335a, fa2b697807 and the sibling call sites they touched.
 
 Round 3 reviews only the round-2 fixes: 2ed28efa6e, 135308541f.
+
+A closing review owes only the round-5 fix: `qemu: state how each ssh client reaches the loopback SSH forward`.
 
 Round 4 reviews only the round-3 fixes: bd9432b616.
 
