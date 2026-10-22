@@ -744,9 +744,16 @@ const (
 	srv6IneligiblePrefix = "2001:db8:9252:1::/64"
 )
 
-// flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the
-// flowspec scenario lowers, and whose absence proves the rule was withdrawn.
-const flowspecMatchSCTP = "sctp"
+// flowspecMatchSCTP and flowspecMatchSCTPJSON are the SCTP match the flowspec
+// scenario lowers, as nft(8) prints it in text and in JSON (`nft -j`). The lab
+// image's nft (Alpine 3.24.3, nftables 1.1.6, musl) prints the protocol as its
+// number, 132 (SCTP), in both forms: `meta l4proto 132` and
+// `{"meta": {"key": "l4proto"}}, "right": 132}`. The word "sctp" appears in
+// neither, so an absence check on it passed whatever the ruleset held.
+const (
+	flowspecMatchSCTP     = "meta l4proto 132"
+	flowspecMatchSCTPJSON = `"key": "l4proto"}}, "right": 132}`
+)
 
 // virtualLinkTransitArea is the OSPF transit area of the virtual link, as the
 // transit_area label of the virtual-link metrics the scenario reads.

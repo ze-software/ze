@@ -489,11 +489,11 @@ var scenarioOperations = map[string][]operation{
 		// A unicast-only change must remove and restore the existing filter;
 		// the peer never reannounces its FlowSpec between these assertions.
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "del", flowspecMatchPrefix}},
-		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchSCTP}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
+		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchSCTPJSON}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, flowspecMatchPrefix, "nexthop", "172.30.0.5"}},
 		{kind: opWaitContains, peer: "ze", command: []string{cmdNft, nftActionList, nftObjectRuleset}, contains: []string{flowspecMatchSCTP, flowspecMatchPrefix}, timeout: 30 * time.Second},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, "del", "match", "destination", flowspecMatchPrefix, "protocol", "==sctp", "then", "discard"}},
-		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchSCTP}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
+		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchSCTPJSON}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	"bgp-gtsm-frr": {
