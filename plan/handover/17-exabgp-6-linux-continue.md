@@ -448,6 +448,17 @@ or `state` class remains. Pages: `json-format.md`, `exabgp-bridge.md`,
 `behavior/signals.md`, `config-reference.md` (receive table),
 `guide/bgp-peering.md`.
 
+REACTOR RACE RUN, read after the handback (uncommitted note): exit 1. FAIL
+`TestSessionDownFollowsBufferedDeliveries/hold_timer_expiry`,
+`TestOwedKeyFenceInterleavings`,
+`TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource`,
+`TestRFC8654FatalLengthReelectsAlternateBest`, then `panic: test timed out
+after 20m0s` with `TestRFC9687Event29ReleasesTheLivePeersRIB` running 17m12s.
+Not yet split between the callback move in `peer_run.go` (the FSM callback now
+also runs for pre-Run transitions, such as a failed dial) and the load on the
+host or other sessions' work. The next agent MUST run each named test alone,
+with the fix and with the old ordering, before the engine batch lands.
+
 STILL OWED: a functional proof through the real daemon for `signal` (SIGHUP
 to the daemon, a plugin subscribed to `signal` sees `signal 1 SIGHUP`) and for
 the bridge `shutdown` line (a `test/exabgp-compat` or `.ci` case whose script
@@ -610,3 +621,55 @@ Owed hunks, all in files another agent holds:
 OWED gates (host rule): `./le go lint run`, `./le verify worktree`,
 `./le test functional exabgp-test`, `./le test functional decode` (any `.ci`
 expecting `attr-6`/`attr-7`; none found by grep), independent review.
+
+## Agent packets .ci (2026-10-22 Linux)
+
+The owed user-level proof of class 1, written, NOT committed (the main thread
+commits it with the implementation). Three exabgp-compat cases in population
+`api`, each one text and one json process on the same neighbor and the same
+`.run`:
+
+| Case | Config forms | Messages judged |
+|------|--------------|-----------------|
+| `api-packets-receive` | `receive { packets; parsed; open; keepalive; update; notification; }` | OPEN, KEEPALIVE, UPDATE (default route the mock sends), NOTIFICATION (mock's Cease with communication), packet line then parsed line |
+| `api-packets-consolidate` | `receive { packets; consolidate; parsed; ... }` | the same four, one consolidated line each (UPDATE: start/announced+header/end) |
+| `api-packets-send` | `send { packets; open; keepalive; update; notification; }` | ze's OPEN, KEEPALIVE, EOR, the script's route, the NOTIFICATION from `teardown 4` |
+
+Mechanism: the script reads the first session's lines up to the NOTIFICATION,
+drops empty lines and (json) `time host pid ppid counter`, compares them with
+the lines embedded in its `.run` (captured from the 6.0 pin on this case), and
+announces 10.0.1.0/24 (text pass), 10.0.2.0/24 (json pass) or 10.0.9.0/24
+(fail); session B expects the pass routes. A mismatch is written to stderr
+(`api-packets: <enc> line N: wanted/got`), which shows in the failure block.
+`hold-time 180;` is explicit in the configs: a migrated config with no
+hold-time sends 90 where ExaBGP sends 180 (migration default divergence, not
+journaled yet).
+
+Results: pin 3/3 PASS (`LE_TEST_NO_BUILD=1 ... bin/le-pkci/le test exabgp api
+--dut exabgp api-packets-receive api-packets-consolidate api-packets-send`).
+Ze 0/3: every TEXT line matches the pin in all three cases; every json line
+that is a packet line (and the UPDATE lines) lacks ExaBGP's `negotiated`
+block. Cause at the producer: the fleet's render loop in `bridgerun/fleet.go`
+(`read.WithoutNegotiated()` for a script `!s.receives(read.Peer,
+bridge.APIKeyNegotiated)`) strips the block, after the `Sessions` comment in
+`bridge_negotiated.go`, whose quoted line ("negotiated = self.negotiated if
+self.neighbor.api.get('negotiated', False) else None") is not in the 6.0 pin:
+`reactor/protocol.py` `_to_api` takes `neg: Negotiated = self.negotiated`
+unconditionally and `api/response/json.py` `packets()` adds it whenever
+`negotiated is not Negotiated.UNSET`. Also owed: the pin writes the block on
+OPEN packet lines BEFORE negotiation (asn4 false, hold_time 0,
+message_size 4096, families []), where ze has no block yet.
+
+Red walk, run: `FormsFor` made to return `FormParsed` first, ze rebuilt by the
+runner, `api-packets-receive` and `api-packets-send` went red on their TEXT
+halves (38 `api-packets: text line` mismatches: parsed lines where the pin
+writes packet lines); the file restored byte for byte (sha256 checked), ze
+rebuilt, text halves green again (0 text mismatches, 22 json lines, all the
+`negotiated` block). `./le --name` could not build le mid-session (another
+session's fixture redeclaration), so the runs used the already built
+`bin/le-pkci/le`, deleted after.
+
+Files: `test/exabgp-compat/api/api-packets-{receive,consolidate,send}.ci`,
+`test/exabgp-compat/etc/api-packets-{receive,consolidate,send}.conf`,
+`test/exabgp-compat/etc/run/api-packets-{receive,consolidate,send}.run`,
+`test/exabgp-compat/etc/run/exabgp_packets.py`.
