@@ -1,15 +1,16 @@
 # RustyBGP daemon for performance testing.
-# Builds from GitHub source using musl for static linking.
+# Builds the latest release tag, v0.2.0, from GitHub source using musl for
+# static linking (owner decision M14: a pinned release, never moving master).
 
-FROM rust:1.88-alpine AS builder
+FROM rust:1.99.1-alpine3.24 AS builder
 
-RUN apk add --no-cache musl-dev protobuf-dev git
+RUN apk add --no-cache musl-dev protobuf-dev git make
 
 WORKDIR /src
-RUN git clone --depth 1 https://github.com/osrg/rustybgp.git . && \
+RUN git clone --depth 1 --branch v0.2.0 https://github.com/osrg/rustybgp.git . && \
     cargo build --release
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache tini
 

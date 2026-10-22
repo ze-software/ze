@@ -18,11 +18,11 @@
 # Pinned by version, not by `latest`: an image whose payload changes under the
 # test turns an interop verdict into a moving target.
 
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine3.24 AS builder
 
 RUN go install github.com/bgp/stayrtr/cmd/stayrtr@v0.6.4
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache tini
 
