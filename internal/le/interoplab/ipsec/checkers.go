@@ -2688,10 +2688,17 @@ const childlessCreateWait = 150 * time.Second
 // SA, and its first scheduled creation is refused too. The checker then loads a
 // child proposal Ze offers. strongSwan's vici merge_config takes the "updated
 // vici connection" branch when only the children differ: replace_children swaps
-// the child configs inside the peer_cfg the existing IKE SA references, and
-// clear_start_action touches only children whose start_action is start, which
-// this one is not. So the IKE SA stays, and Ze's next scheduled CREATE_CHILD_SA
-// (with KE, PFS on) installs the Child SA on the SAME IKE SA.
+// the child configs inside the peer_cfg the existing IKE SA references. Since
+// strongSwan 6.0 ("The behavior when reloading or unloading connections that
+// include `start` in their `start_action` has been improved", NEWS) that branch
+// also deletes every IKE SA of the connection that holds no Child SA, unless an
+// added child carries start in its start_action ("keep empty IKE_SAs only if we
+// are to initiate any CHILD_SAs", replace_children in vici_config.c of 6.1.0).
+// So the fix also adds ze-keep, a pass shunt with start_action trap|start:
+// run_start_action installs a shunt for a pass child and returns before it
+// initiates anything, so strongSwan sends no request of its own. The IKE SA
+// stays, and Ze's next scheduled CREATE_CHILD_SA (with KE, PFS on) installs the
+// Child SA on the SAME IKE SA.
 //
 // RFC 7296 Section 2.21.2: "However, if the failure is related to creating the
 // Child SA, the IKE SA is created and the Child SA is not created".
@@ -2709,7 +2716,9 @@ func checkChildlessIKESAZeInitiator(ctx context.Context, lab *scenarioLab) error
 	if err := lab.waitLog(ctx, zePeer, "child-sa: creation refused, keeping the IKE SA", 60*time.Second); err != nil {
 		return fmt.Errorf("ze never retried the refused Child SA with CREATE_CHILD_SA: %w", err)
 	}
-	fixConfig := "connections {\n    ze {\n        children {\n            ze-child {\n                esp_proposals = aes256gcm16-modp2048\n            }\n        }\n    }\n}\n"
+	fixConfig := "connections {\n    ze {\n        children {\n            ze-child {\n                esp_proposals = aes256gcm16-modp2048\n            }\n" +
+		"            ze-keep {\n                mode = pass\n                start_action = trap|start\n" +
+		"                local_ts = 0.0.0.0/0[udp/9]\n                remote_ts = 0.0.0.0/0[udp/9]\n            }\n        }\n    }\n}\n"
 	var tb textbuf.Buffer
 	command := tb.Str("cat > /etc/swanctl/conf.d/zz-fix.conf <<'EOF'\n").Str(fixConfig).Str("EOF").String()
 	if _, err := lab.exec(ctx, swanPeer, "sh", "-c", command); err != nil {
