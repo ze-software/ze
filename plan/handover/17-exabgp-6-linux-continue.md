@@ -869,3 +869,45 @@ negotiated work and the extra-key judge.
 OWED gates: `./le go lint run`, `./le verify worktree`,
 `./le test functional exabgp-test`, `./le repo generate` / CODE-TO-DOCS
 (three new files), independent review.
+
+## Agent extra members and flow announce (2026-10-22 Linux)
+
+TestOldResponses50 21649/23392 -> 23392/23392, TestOldResponses42
+12720/20930 -> 20930/20930 (both PASS). Each extra member judged against
+the 6.0 pin 685f772e on the same API version (the API 4 JSON encoder,
+`response/v4/json.py`, delegates to `response/json.py` with `use_v4_json`):
+
+| Member | 6.0 pin | Action |
+|--------|---------|--------|
+| `/neighbor/direction` on connected, down, up, fsm, signal, negotiated | Not written: `self._neighbor(neighbor, None, ...)`, `dir_field = ... if direction else ''` | Ze defect, FIXED 2e26c8b9b4: `exabgpEnvelope` writes it only for a kind in `packetCodes`. Test `TestExabgpJSONDirectionOnMessagesOnly` |
+| `/neighbor/router-id` on every 4.2 line | Written: `rid_field = f', "router-id": ...' if router_id else ''` | ALLOWED row, 5273cc82f2 |
+| `extended-community/N/transitive` (interface-set) | Written: `flowspec_scope.py` `InterfaceSet.json` | ALLOWED row, 5273cc82f2 |
+| `extended-community-ipv6` on 4.2 | Written: `collection.py` `IPV6_EXTENDED_COMMUNITY: (..., 'extended-community-ipv6', ...)` | ALLOWED row, 5273cc82f2, beside the pin's own `attribute-0x19-0xC0` row |
+
+REPORTED, not changed: the tightened comparator contradicts the pin's judge.
+`qa/bin/test_old_responses` `differences()`: "A key this tree adds is not read
+by a helper written before it: only what the release wrote is held to", and
+AC-38 says "equals it parsed". Ze's judge is stricter on purpose (551fd480d1,
+it caught attr-14), so the three 6.0 additions carry rows the pin never needed.
+Owner or main thread decides whether that stays.
+
+Defect 3 (flow announce `wire[ipv6/flow](49 bytes)`), FIXED at the receive
+path, 61bc0cfa63: the flowspec plugin registers an `nlrisyntax` rule for its
+four families, so `message.validateMPNLRISyntax` resets the session on a
+FlowSpec NLRI its parser refuses (RFC 8955 Section 4.2 -> Section 10 ->
+RFC 7606 Section 3 (j); ExaBGP 6.0 `Notify(3, 10)` in `nlri/flow.py`; BIRD
+`bgp_parse_error`). Test `TestFlowSpecSyntaxRuleResetsOnMalformedNLRI`, red
+observed with the verdict disabled. The brief's "RFC 8955 Section 7" is
+Traffic Filtering Actions; NLRI error handling is Sections 4.2 and 10.
+Left as a journal row (`plan/journal/zero-value-as-valid-answer.md`,
+2026-10-22): `format.appendNLRIJSONValue` still writes the carrier's name
+when any plugin decoder fails on bytes the receive path did not judge.
+
+Pre-existing lint seen on a realigned line: goconst `peer` in
+`bridge_event.go` `exabgpEnvelope` (same count at HEAD).
+
+OWED gates: `./le go lint run`, `./le verify worktree`, `./le test
+functional exabgp-test`, `./le test functional decode` and `plugin` (a
+malformed flow NLRI now resets the session), interop (flowspec against a
+peer), `./le repo generate` / CODE-TO-DOCS (new `rfc8955_syntax.go`),
+independent review.
