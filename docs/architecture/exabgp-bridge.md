@@ -1100,7 +1100,7 @@ error and no log line.
 <!-- source: internal/exabgp/bridge/bridge_event_open.go -- Event.openJSON, openCapabilitiesJSON, capabilityBody -->
 <!-- source: internal/exabgp/bridge/bridge_event_notification.go -- notificationData.v4Data, notificationData.readable -->
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpNLRIObject, labelValuesOnly, appendFlowStringNextHop -->
-<!-- source: internal/exabgp/bridge/bridge_event_text.go -- labeledText.appendAnnounced, labeledText.appendQualifier -->
+<!-- source: internal/exabgp/bridge/bridge_event_text_nlri.go -- appendPrefixExtensive, appendLabelsText -->
 <!-- source: internal/exabgp/bridge/bridge_script_version.go -- ScriptVersion.Detect, ScriptVersion.Reset, Event.Line -->
 <!-- source: internal/exabgp/bridge/bridge.go -- Bridge.Start, Bridge.dispatchBatch, Bridge.translateAndForward -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->

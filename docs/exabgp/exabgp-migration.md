@@ -6,7 +6,7 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 
 | Principle | Description |
 |-----------|-------------|
-| **Config migration** | `ze config migrate` converts ExaBGP configs |
+| **Config migration** | `ze exabgp migrate` converts ExaBGP configs |
 | **API differences OK** | Document differences, provide migration path |
 | **No silent breakage** | Breaking changes must have migration or clear error |
 | **Plural communities** | Ze uses `communities` (plural), ExaBGP uses `community` |
@@ -14,7 +14,7 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 ## Migration Rules
 
 ### 1. Config Files
-- ExaBGP configs MUST work with `ze config migrate`
+- ExaBGP configs MUST work with `ze exabgp migrate`
 - New Ze-only features MAY use different syntax
 - Deprecated ExaBGP syntax MUST be migrated automatically
 
@@ -36,7 +36,10 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 | Config syntax | `api [<name>] { processes [...] }` | `attach process <name> { }` | The name is optional and groups the settings for a reader. A peer can carry several api blocks, and ExaBGP unions them |
 | Process selection | `processes-match [ <regex>... ]` | `attach process <name> { }` | The pattern is anchored at the start of the process name, as `re.match` anchors it. A pattern set that selects no process is refused, and the two lists are mutually exclusive |
 | NLRI format | `announce`/`withdraw` with next-hop grouping | `<family>` array with `action: add/del` | See below |
-| RD format | `65000:1` | `2:65000:1` (with type prefix) | Disambiguates Type 0 vs Type 2 |
+| RD format | `65000:1` | `0:65000:1` (with type prefix) | Disambiguates Type 0 vs Type 2 |
+
+The differences that remain between the ExaBGP bridge and ExaBGP itself are
+listed in [exabgp-differences.md](exabgp-differences.md).
 
 ## NLRI Format Change
 
@@ -112,24 +115,36 @@ When introducing a breaking change:
    - Add to release notes
 
 3. **Provide compatibility option (if practical)**
-   - Config flag: `encoding legacy;`
-   - Environment variable
+   - A config leaf
+   - An environment variable
 
 ## Migration Tools
 
 ### Config Migration
 
 ```bash
-# Check what needs migration
-ze config validate old.conf
+# Preview what would be done
+ze exabgp migrate --dry-run exabgp.conf
 
-# Preview changes
-ze config migrate --dry-run old.conf
+# Write the migrated config (to stdout)
+ze exabgp migrate exabgp.conf > ze-bgp.conf
 
-# Write the migrated config to a new file
-ze config migrate -o new.conf old.conf
+# Migrate an ExaBGP INI environment file
+ze exabgp migrate --env exabgp.env
 ```
-<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate -->
+<!-- source: internal/plugins/exabgp/main.go -- the migrate command's flags and examples -->
+
+A capability the migration does not translate (`multi-session`, `operational`,
+or any other keyword) is dropped with one warning per peer naming each one, and
+the rest of the config is converted. Ze supports neither BGP multi-session nor
+the OPERATIONAL message (owner decisions M16 and M15).
+<!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilities, untranslatedCapabilityWarning -->
+
+A process block's `on-exit` leaf (`keep` or `withdraw`) is carried as written,
+and left unset when the ExaBGP block leaves it unset. The bridge then decides
+what becomes of an exited script's routes as ExaBGP 6.0 does
+(`docs/architecture/exabgp-bridge.md`).
+<!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
 
 A neighbor with `shutdown true` migrates to the peer `shutdown {}` container,
 so the migrated peer stays held down as it was under ExaBGP, and `request peer
@@ -173,6 +188,17 @@ the migration refuses it and names the neighbor, the next hop and the family,
 as ExaBGP 6.0 does at load.
 <!-- source: internal/exabgp/migration/migrate_extended_nexthop.go -- addExtendedNextHopEntries, requireExtendedNextHop -->
 
+#### IPv4 next hop for an IPv6 route
+
+An IPv6 route whose next hop is an IPv4 address migrates with the next hop
+written IPv4-mapped, `::ffff:<ipv4>`, as ExaBGP 6.0 sends it. A VPN route is
+mapped too, and the engine writes the zero RD before it. ExaBGP 4.2 and 5.0
+sent the four octets, which RFC 2545 Section 3 gives no form: the Length of
+Next Hop Network Address field "shall be set to 16, when only a global address
+is present, or 32 if a link-local address is also included in the Next Hop
+field".
+<!-- source: internal/exabgp/migration/migrate_routes.go -- mapIPv6RouteIPv4NextHop -->
+
 ### Running ExaBGP Plugins
 
 Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:
@@ -197,4 +223,4 @@ See `internal/exabgp/` for the Go library implementation.
 
 ---
 
-**Updated:** 2026-01-16
+**Updated:** 2026-10-22

@@ -5,7 +5,7 @@ describe the migration and compatibility tooling.
 
 | Document | Purpose |
 |----------|---------|
-| `exabgp-migration.md` | How to migrate: `ze config migrate` and the `ze exabgp plugin` bridge |
+| `exabgp-migration.md` | How to migrate: `ze exabgp migrate` and the `ze exabgp plugin` bridge |
 | `exabgp-code-map.md` | File-by-file map from the ExaBGP Python codebase to Ze packages |
 | `exabgp-comparison-report.md` | Feature-by-feature comparison of ExaBGP and Ze |
 | `exabgp-differences.md` | Intentional behavioural and syntax differences |

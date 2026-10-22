@@ -1,37 +1,12 @@
 # ZeBGP vs ExaBGP Behavioral Differences
 
-This file documents intentional differences between ZeBGP and ExaBGP behavior.
-These are not bugs - they are design decisions where ZeBGP diverges from ExaBGP.
+This file lists the differences that remain between Ze and ExaBGP at
+f9bfb853b, the release the bridge and the migration follow (owner decision
+M25, `ai/META-DECISIONS.md`). Each is a design decision, not a bug. A
+difference that has been resolved is removed from this page.
 
 **Impact on testing:** When `.ci` files from ExaBGP tests don't match ZeBGP output
 due to these differences, update the `.ci` files to match ZeBGP's behavior.
-
----
-
-## Attribute Ordering in UPDATE Messages -- RESOLVED, no longer a difference
-
-This entry described Ze emitting attributes in RFC 4271 Section 5 description
-order (MP_REACH_NLRI after LARGE_COMMUNITY) while ExaBGP sorted by type code.
-That is no longer true, and the entry is kept only so the change is traceable.
-
-Ze now keeps attributes in ascending type-code order in every builder, which is
-what ExaBGP does and what RFC 4271 Appendix F.3 describes:
-
-- `internal/component/bgp/message/update_build.go` sorts explicitly by `Code()`.
-- `internal/component/bgp/reactor/reactor_api_batch.go` appends MP_REACH_NLRI
-  (14) after the lower-coded attributes it emits, and AS4_PATH (17) last.
-- `internal/component/bgp/reactor/peer_rib_routes.go` writes MP_REACH_NLRI
-  between the lower-coded optional attributes (ATOMIC_AGGREGATE 6, AGGREGATOR 7,
-  COMMUNITIES 8, ORIGINATOR_ID 9, CLUSTER_LIST 10) and the higher-coded ones
-  (EXT_COMMUNITIES 16, IPV6_EXT_COMMUNITIES 25, LARGE_COMMUNITIES 32).
-
-The third builder was the last one out of order. Which of the three runs is
-decided by `Peer.ShouldQueue()`, that is by timing, so one route encoded to two
-different byte strings depending on whether it drained through the initial-sync
-queue or the post-establishment batch builder. Aligning it removed both the
-ExaBGP difference and the non-determinism.
-<!-- source: internal/component/bgp/message/update_build.go -- sort.Slice by Code(), "per RFC 4271 Appendix F.3" -->
-<!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- MP_REACH written between lower- and higher-coded attributes -->
 
 ---
 
@@ -72,7 +47,7 @@ Upstream (exa-networks/exabgp at f9bfb853b): `src/exabgp/reactor/api/__init__.py
 
 The bridge answers ExaBGP 6.0's refusals and keep-first rules as ExaBGP does
 (`docs/architecture/exabgp-bridge.md`, "What the bridge refuses, and what it
-keeps"). Four differences remain.
+keeps"). Five differences remain.
 
 - **OPERATIONAL is not sent.** ExaBGP sends `announce operational <kind> ...`
   for a known kind (draft-ietf-idr-operational-message). Ze does not originate
@@ -104,6 +79,24 @@ keeps"). Four differences remain.
   `next-hop` on a mup or mcast-vpn route, as on 5.0 and 6.0. ExaBGP 4.2 merged no
   list and 5.0 merged only the extended communities; the bridge follows 6.0, so
   a 4.2 or 5.0 script meets on Ze what it would meet on upgrading ExaBGP.
+- **An AS_PATH holding an AS_SET is not sent.** `as-path [ 65001 ] ( 65002
+  65003 )` is sent by ExaBGP 4.2, 5.0 and 6.0 and refused by Ze, whose
+  `update text` has no spelling for a set. RFC 9774 Section 3: BGP speakers
+  "MUST NOT advertise BGP UPDATE messages containing AS_SETs or
+  AS_CONFED_SETs". On receive both treat such a route as withdrawn, but ExaBGP
+  offers the neighbor leaf `as-set accept` to keep it (`as_set`,
+  `src/exabgp/bgp/neighbor/settings.py`) and Ze has no such override. Owner
+  decision M25 gives ExaBGP's behavior the win here, so this difference is
+  owed work, not a settled design.
+- **A generic attribute must carry flags RFC 4271 allows.** `attribute [ 0x99
+  0x60 0x... ]` sends an attribute Ze knows no type for as a well-known one,
+  and flags 0x60 or 0x70 on a well-known or optional non-transitive code set
+  the Partial bit. ExaBGP 4.2, 5.0 and 6.0 send the flags as written
+  (`configuration/grammar/types/bgp.py` hands them to
+  `GenericAttribute.make_generic` unchecked). Ze
+  refuses the line and names the flags to write. RFC 4271 Section 4.3: "For
+  well-known attributes and for optional non-transitive attributes, the
+  Partial bit MUST be set to 0."
 
 A value-less attribute (`path-information` alone) and a mask that is no number
 (`10.0.0.0/x`) are refused by both. ExaBGP 5.0 ignored the first and took the
@@ -118,11 +111,6 @@ and Ze refuses it by name, because a second prefix has no operator list to
 merge into the first (`FlowSpec.AddComponent`). A 4.2 or 5.0 script that sent
 one meets on Ze what it would meet on upgrading ExaBGP.
 
-An AS_PATH holding an AS_SET (`as-path [ 65001 ] ( 65002 65003 )`) is sent by
-ExaBGP 4.2, 5.0 and 6.0 and refused by Ze. RFC 9774 Section 3: BGP speakers
-"MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs".
-The RFC outranks ExaBGP's behavior, so `update text` has no spelling for a set.
-
 Upstream (exa-networks/exabgp at f9bfb853b): `src/exabgp/reactor/api/command/announce.py`,
 `src/exabgp/configuration/grammar/tree/static.py`, CHANGELOG 6.0.0.
 
@@ -132,17 +120,10 @@ Upstream (exa-networks/exabgp at f9bfb853b): `src/exabgp/reactor/api/command/ann
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable.go -- CheckMatchable -->
 <!-- source: internal/core/bgp/nlri/flowspec/unmatchable_values.go -- checkComponentValues, checkPortValues -->
 <!-- source: internal/core/bgp/nlri/flowspec/types.go -- AddComponent -->
+<!-- source: internal/component/bgp/textparse/rawattr.go -- CheckRawAttributeFlags -->
+<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment -->
 
 ---
-
-## Neighbor disable and enable -- no difference
-
-ExaBGP 6 `neighbor <ip> disable [<message>]` and `neighbor <ip> enable` reach
-`request peer <ip> disable` and `enable` unchanged, and the `api-disable`
-compatibility test passes against Ze and against the pinned ExaBGP alike. The
-config side matches too: `shutdown true` migrates to the peer `shutdown {}`
-container (`exabgp-migration.md`).
-<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertDisable, convertEnable -->
 
 ## Neighbor Qualifier Syntax (Multi-Session)
 
@@ -169,8 +150,9 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 - A Ze selector names a peer by address, name, ASN or glob. It cannot conjoin a
   predicate onto an address, so there is nothing to translate a qualifier into.
 - The exception is `family-allowed`, whose value is the same for every Ze
-  session. Ze negotiates no multi-session: the migration drops the capability
-  with a warning, and `create neighbor` never sets it, as ExaBGP's does not.
+  session. Ze does not support multi-session (owner decision M16): the
+  migration drops the capability with a warning, and `create neighbor` never
+  sets it, as ExaBGP's does not.
   ExaBGP names such a session `family-allowed in-open`, so `family-allowed
   in-open` reaches the address, and a family list (`family-allowed
   ipv4-unicast`), which names only a multi-session neighbor, excludes it.
@@ -290,35 +272,31 @@ and has no `scope` block to put it in.
 
 ---
 
-## Withdrawal labels
+## A FlowSpec NLRI with no component
 
-**ExaBGP behavior:** upstream ExaBGP reads the three octets before the RD or prefix
-of a withdrawn labeled route (`mpls-vpn`, `nlri-mpls`) as a label stack and
-writes them under `label`, so a withdrawal carrying 0x003E81 renders
-`"label": [[1000, 16001]]`.
+A received FlowSpec NLRI of length 0 resets the session on Ze. RFC 8955
+Section 4.2 writes the NLRI as `<[component]+>`, at least one component, and:
+"An NLRI value not encoded as specified here, including an NLRI that contains
+an unknown component type, is considered malformed and error handling
+according to Section 10 is performed." ExaBGP 6.0 reads it without a
+NOTIFICATION: `Flow.unpack_nlri` (`src/exabgp/bgp/message/update/nlri/flow.py`)
+raises only on a missing, truncated or overrunning length. ExaBGP 4.2 and 5.0
+sent such an NLRI for a flow command with no match component; the old-command
+corpus records 99 of them per release, and ze's own row `oldMalformedRecorded`
+judges each recording malformed where the pin's judge counts it as nothing
+sent.
+<!-- source: internal/core/bgp/nlri/nlrisplit/flowspec.go -- SplitFlowSpec -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go -- judgeFlowSpecSection, flowSpecMalformed -->
 
-**ZeBGP behavior:** the withdrawal carries no `label` member, whatever the three
-octets hold. On send, Ze writes 0x800000 in the field of every labeled
-withdrawal, whatever label the API command or the config names: an API
-`withdraw ... label 1000` puts 0x800000 on the wire, where upstream ExaBGP puts
-0x003E81. A command naming a stack, `label [ 1000 2000 ]`, withdraws with the
-one three-octet field rather than the stack. A withdrawal Ze relays, and a raw
-UPDATE an operator injects, leave with 0x800000 too.
+## A MUP Type 1 ST route in the -02 encoding is relayed as received
 
-**RFC compliance:** RFC 8277 Section 2.4 calls those octets the Compatibility
-field and says "Upon transmission, the Compatibility field SHOULD be set to
-0x800000." and "Upon reception, the value of the Compatibility field MUST be
-ignored." Reporting them as the route's label would hand a script a value the
-RFC says carries no meaning. `docs/architecture/api/json-format.md` states the
-same rule for Ze's own event.
-
-**Impact:** a script that read the label of a withdrawn route must key on the
-RD and prefix instead. `test/exabgp-compat/api/api-vpnv4.ci` expects the
-withdrawal without `label`, and 0x800000 in its raw frame.
-<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- parseVPN -->
-<!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpNLRIObject -->
-<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- setWithdrawalCompatibility -->
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection -->
+A Type 1 Session Transformed route that ends right after its Endpoint Address,
+the -02 encoding without the Source Address Length octet, is read by both as
+Source Address Length 0 (owner decision M25; `src/exabgp/bgp/message/update/nlri/mup/t1st.py`). ExaBGP re-sends
+it in the current form, with the octet. Ze re-encodes it with the octet where it
+builds the route from its decoded value, but its raw ingress relay forwards a
+received -02 route with the octets it arrived with. This gap is owed work.
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP.parseBodyT1ST -->
 
 ---
 
