@@ -3,6 +3,7 @@
 package pppoe
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 
@@ -59,7 +60,7 @@ func TestRebuildIPv6CPConfigureRequestCarriesTheZeroIdentifier(t *testing.T) {
 	if frame.interfaceID != ([8]byte{}) {
 		t.Fatalf("interface identifier %x, want all-zero", frame.interfaceID)
 	}
-	if string(built[:discovery.EthHdrLen+4]) != string(template[:discovery.EthHdrLen+4]) {
+	if !bytes.Equal(built[:discovery.EthHdrLen+4], template[:discovery.EthHdrLen+4]) {
 		t.Fatal("the rebuilt frame changed the template's Ethernet or PPPoE session header")
 	}
 	length := binary.BigEndian.Uint16(built[discovery.EthHdrLen+4 : pppSessionOverhead])
