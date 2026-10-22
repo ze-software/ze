@@ -70,7 +70,8 @@ module exabgp {
         leaf local-address { type string; }
         leaf local-as { type zt:asn; }
         leaf peer-as { type zt:asn; }
-        leaf hold-time { type uint16; default 90; }
+        // ExaBGP's default in 4.2, 5.0 and 6.0 (migrate_defaults.go, exabgpHoldTimeDefault).
+        leaf hold-time { type uint16; default 180; }
         leaf passive { type boolean; default false; }
         leaf group-updates { type boolean; default true; }
         leaf auto-flush { type boolean; default true; }

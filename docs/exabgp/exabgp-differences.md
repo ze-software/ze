@@ -359,6 +359,19 @@ peer `stop, message [removed]` in both.
 
 <!-- source: internal/exabgp/bridge/bridge_event_state.go -- exabgpDownReasons -->
 
+## Default hold time and Graceful Restart time
+
+ExaBGP offers a hold time of 180 seconds when a neighbor states none
+(`src/exabgp/bgp/neighbor/settings.py`, `hold_time: int = 180`), and gives a
+Graceful Restart enabled without a time the hold time as its Restart Time.
+Ze's `receive-hold-time` defaults to 90 and its `restart-time` to 120. A peer
+written for Ze by hand gets Ze's defaults. A config converted by
+`ze exabgp migrate` does not: the migration states ExaBGP's values, so the
+migrated session offers what the ExaBGP one did
+(`docs/exabgp/exabgp-migration.md`, "Hold time and Graceful Restart time").
+
+<!-- source: internal/exabgp/migration/migrate_defaults.go -- exabgpHoldTimeDefault, exabgpGracefulRestartTime -->
+
 ## Template for Future Differences
 
 ### Feature Name

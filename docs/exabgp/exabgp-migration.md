@@ -137,6 +137,23 @@ so the migrated peer stays held down as it was under ExaBGP, and `request peer
 administratively down").
 <!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields; internal/exabgp/migration/migrate_serialize.go -->
 
+#### Hold time and Graceful Restart time
+
+ExaBGP offers a hold time of 180 seconds when a neighbor states none, in 4.2,
+5.0 and 6.0 alike. Ze's own `timer { receive-hold-time }` defaults to 90. So the
+migration writes `timer { receive-hold-time 180 }` for every neighbor that
+states no `hold-time`, and the migrated peer offers what the ExaBGP one did. A
+stated `hold-time` is carried as it is.
+
+ExaBGP enables Graceful Restart without a time (a bare `graceful-restart;`, or
+`graceful-restart 0;`) by advertising the neighbor's hold time as the Restart
+Time, capped at 4095, the most the twelve-bit field holds. Ze's `restart-time`
+defaults to 120, so the migration writes that time explicitly:
+`graceful-restart 180` for a neighbor with no `hold-time`. A stated time is
+carried as it is.
+<!-- source: internal/exabgp/migration/migrate_defaults.go -- exabgpHoldTimeDefault, exabgpGracefulRestartTime, migratedCapabilityValue -->
+<!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields, migrateCapability -->
+
 #### Extended next hop for an IPv4 route
 
 ExaBGP 4.2 and 5.0 sent an IPv4 route with an IPv6 next hop without asking the

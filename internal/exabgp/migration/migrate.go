@@ -3,6 +3,7 @@
 // Detail: migrate_routes.go -- route conversion to Ze update blocks
 // Detail: migrate_family.go -- family and nexthop syntax conversion
 // Detail: migrate_serialize.go -- config tree serialization
+// Detail: migrate_defaults.go -- ExaBGP defaults the migration states
 
 // Package migration converts ExaBGP configuration to Ze format.
 package migration
@@ -681,12 +682,12 @@ func copySimpleFields(src, dst *config.Tree) {
 		}
 	}
 
-	// ExaBGP "hold-time" -> Ze "timer > receive-hold-time"
-	if v, ok := src.Get("hold-time"); ok {
-		timerContainer := config.NewTree()
-		timerContainer.Set("receive-hold-time", v)
-		dst.SetContainer("timer", timerContainer)
-	}
+	// ExaBGP "hold-time" -> Ze "timer > receive-hold-time". The leaf is written
+	// for every neighbor, stated or not, because the two defaults differ:
+	// exabgpHoldTime answers ExaBGP's 180 where ze's own leaf would answer 90.
+	timerContainer := config.NewTree()
+	timerContainer.Set("receive-hold-time", exabgpHoldTime(src))
+	dst.SetContainer("timer", timerContainer)
 
 	// ExaBGP "local-link-local" -> Ze session > link-local <addr>.
 	//
@@ -887,20 +888,15 @@ func migrateCapability(src, dst *config.Tree) {
 		for _, field := range capabilityValueFields {
 			// Check for container form first (e.g., graceful-restart { restart-time 120; }).
 			if container := srcCap.GetContainer(field); container != nil {
-				// Copy the container as-is.
-				dstCap.SetContainer(field, container.Clone())
+				// Copy the container, stating ExaBGP's Restart Time when it
+				// names none (exabgpGracefulRestartTime).
+				dstCap.SetContainer(field, migratedCapabilityContainer(src, field, container))
 				hasCapabilities = true
 				continue
 			}
 			// Check for value form (e.g., graceful-restart 120;).
 			if v, ok := srcCap.GetFlex(field); ok {
-				if v == "" || v == configTrue {
-					// ExaBGP allows bare "graceful-restart;" which parser stores as "true".
-					// ZeBGP uses "enable" for boolean capabilities.
-					dstCap.Set(field, "enable")
-				} else {
-					dstCap.Set(field, v)
-				}
+				dstCap.Set(field, migratedCapabilityValue(src, field, v))
 				hasCapabilities = true
 			}
 		}

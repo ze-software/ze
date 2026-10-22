@@ -308,9 +308,12 @@ neighbor 10.0.0.1 {
 	assert.True(t, result.RIBInjected, "expected RIBInjected=true")
 }
 
-// TestMigrateWithGRBare verifies bare graceful-restart; converts to enable.
+// TestMigrateWithGRBare verifies bare graceful-restart; states ExaBGP's
+// Restart Time.
 //
-// VALIDATES: Bare graceful-restart; becomes graceful-restart enable; (not "true").
+// VALIDATES: Bare graceful-restart; becomes graceful-restart 180;, the hold
+// time ExaBGP borrows for it (migrate_defaults.go), not "true" and not a bare
+// "enable" that would leave ze's default of 120.
 // PREVENTS: Parser "true" placeholder leaking to output.
 func TestMigrateWithGRBare(t *testing.T) {
 	input := `
@@ -330,9 +333,10 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Must contain "graceful-restart enable" not "graceful-restart true"
-	assert.Contains(t, output, "graceful-restart enable")
+	// Must contain "graceful-restart 180", not "graceful-restart true" or "enable".
+	assert.Contains(t, output, "graceful-restart 180")
 	assert.NotContains(t, output, "graceful-restart true")
+	assert.NotContains(t, output, "graceful-restart enable")
 }
 
 // TestMigrateWithRR verifies route-refresh injects RIB plugin.
