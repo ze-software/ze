@@ -11,7 +11,8 @@
 # 10.64.0.0/24 also carries COMMUNITY 65005:1, which is the condition the INC-LP
 # policy matches, so its preference becomes 80 + 50 = 130. 10.64.1.0/24 does
 # not, and it is the in-run control: same session, same rail, same policy chain,
-# and no LOCAL_PREF at all, because ze inserts none on egress.
+# and only the LOCAL_PREF 100 ze's forward rail adds toward an internal peer
+# (RFC 4271 Section 5.1.5).
 #
 # 130 IS THE CONFIGURED BASE AND 150 IS THE DECLARED ONE. Reverting the config
 # plumbing leaves the schema's 100 in force and GoBGP reads 150, which is the
@@ -48,9 +49,9 @@ expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDED400304AC1E0009C00804FDED0001180A4000
 
 # (2) 10.64.1.0/24, untagged, so the policy leaves it alone. This is the
-# control: no LocalPref at GoBGP means the 130 above came from the policy the
-# operator named, not from a daemon that writes a preference onto everything it
-# relays.
+# control: LocalPref 100 at GoBGP, the internal-peer default, means the 130
+# above came from the policy the operator named, not from a daemon that writes
+# the computed preference onto everything it relays.
 #   NLRI:      180A4001            10.64.1.0/24
 # attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
 action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDED400304AC1E0009180A4001

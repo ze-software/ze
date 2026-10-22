@@ -1395,11 +1395,18 @@ func checkAttributeDefaultLocalPref(ctx context.Context, check *interoplab.Check
 		// policy matches.
 		configuredPrefix = "10.64.0.0/24"
 		// The in-run control. Same session, same route-server rail, same policy
-		// chain, outside the match container. Ze inserts no LOCAL_PREF of its
-		// own on egress, so this route reaches GoBGP carrying none.
+		// chain, outside the match container.
 		controlPrefix = "10.64.1.0/24"
 		// 80 + 50, where 80 is the base ze.conf configures.
 		configuredPreference = "130"
+		// What the control carries. RFC 4271 Section 5.1.5: "LOCAL_PREF is a
+		// well-known attribute that SHALL be included in all UPDATE messages
+		// that a given BGP speaker sends to other internal peers." The forward
+		// rail adds 100 to a relayed route that has none (applyFactsLocalPref),
+		// and the configured base of 80 governs the policy arithmetic alone
+		// (ze-bgp-conf.yang, defaults attribute). 130 or 150 here is a blanket
+		// rewrite, and 80 is the arithmetic base leaking onto the wire.
+		internalPreference = "100"
 		// The injector's AS, read back at GoBGP as proof that the route it holds
 		// is the relayed one rather than something ze rebuilt.
 		sourceAS = "65005"
@@ -1461,9 +1468,12 @@ func checkAttributeDefaultLocalPref(ctx context.Context, check *interoplab.Check
 
 	// Assertion 6. The operation is what an operator selects and never a blanket
 	// rewrite. This route travels the same session, the same rail and the same
-	// policy chain, and nothing on the forward rails inserts attribute 5, so it
-	// arrives with none. Without this polarity a ze that wrote a preference onto
-	// every relayed route would satisfy assertion 5.
+	// policy chain, and the policy leaves it alone, so the only LOCAL_PREF it
+	// carries is the one the forward rail adds toward an internal peer
+	// (applyFactsLocalPref, reactor/forward_local_pref.go), which is the fixed
+	// 100 the originating rails write and never the configured arithmetic base.
+	// Without this polarity a ze that wrote the computed preference onto every
+	// relayed route would satisfy assertion 5.
 	control, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, controlPrefix}, nil)
 	if err != nil {
 		return fail(6, err)
@@ -1471,7 +1481,7 @@ func checkAttributeDefaultLocalPref(ctx context.Context, check *interoplab.Check
 	if err := requireGoBGPSourceBlock(control, controlPrefix, sourceAS, injectorAddress); err != nil {
 		return fail(6, err)
 	}
-	if err := requireGoBGPAttributeAbsent(control, controlPrefix, gobgpLocalPrefAttribute); err != nil {
+	if err := requireGoBGPAttributeValue(control, controlPrefix, gobgpLocalPrefAttribute, internalPreference); err != nil {
 		return fail(6, err)
 	}
 

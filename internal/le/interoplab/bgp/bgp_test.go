@@ -1277,10 +1277,13 @@ func TestBespokeCheckerBranches(t *testing.T) {
 			// What the same chain writes when the configured base never reaches
 			// the plugin: the schema's declared 100 plus 50.
 			fromDeclaredBase = "150"
+			// What the forward rail adds toward an internal peer for a route
+			// that carries none (RFC 4271 Section 5.1.5).
+			internal = "100"
 		)
 		table := gobgpTable(
 			gobgpRouteLine(configured, source, path, "[{Origin: i} {LocalPref: "+computed+"} [65005:1]]"),
-			gobgpRouteLine(control, source, path, "[{Origin: i}]"),
+			gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: "+internal+"}]"),
 		)
 		if err := requireGoBGPSourceBlock(table, configured, sourceAS, source); err != nil {
 			t.Fatalf("the matched route was not read as the injected one: %v", err)
@@ -1288,8 +1291,8 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		if err := requireGoBGPAttributeValue(table, configured, gobgpLocalPrefAttribute, computed); err != nil {
 			t.Fatalf("the configured base's result was rejected: %v", err)
 		}
-		if err := requireGoBGPAttributeAbsent(table, control, gobgpLocalPrefAttribute); err != nil {
-			t.Fatalf("the control route's absent preference was rejected: %v", err)
+		if err := requireGoBGPAttributeValue(table, control, gobgpLocalPrefAttribute, internal); err != nil {
+			t.Fatalf("the control route's internal-peer preference was rejected: %v", err)
 		}
 		// The defect this scenario exists to catch. The chain computing from the
 		// schema's declared base writes 150, and that must not read as the
@@ -1304,16 +1307,22 @@ func TestBespokeCheckerBranches(t *testing.T) {
 			t.Fatal("a route with no preference at all passed as the computed one")
 		}
 		// A blanket rewrite would satisfy the assertion above, so the control
-		// has to refuse a preference of any value.
+		// has to refuse the computed preference.
 		blanket := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: "+computed+"}]"))
-		if requireGoBGPAttributeAbsent(blanket, control, gobgpLocalPrefAttribute) == nil {
+		if requireGoBGPAttributeValue(blanket, control, gobgpLocalPrefAttribute, internal) == nil {
 			t.Fatal("a blanket rewrite passed as an operation the operator selected")
 		}
-		// A preference of zero is a preference, and the control asserts an
-		// ABSENCE rather than a small number.
-		zeroed := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: 0}]"))
-		if requireGoBGPAttributeAbsent(zeroed, control, gobgpLocalPrefAttribute) == nil {
-			t.Fatal("a preference carrying zero read as an absent attribute")
+		// The configured base is the arithmetic's starting point, not the value
+		// the forward rail writes, so 80 on the control is a leak.
+		leaked := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i} {LocalPref: 80}]"))
+		if requireGoBGPAttributeValue(leaked, control, gobgpLocalPrefAttribute, internal) == nil {
+			t.Fatal("the arithmetic base written onto the wire passed as the internal-peer default")
+		}
+		// RFC 4271 Section 5.1.5 obliges the attribute toward an internal peer,
+		// so a control that arrives with none is a defect, not a pass.
+		absent := gobgpTable(gobgpRouteLine(control, source, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(absent, control, gobgpLocalPrefAttribute, internal) == nil {
+			t.Fatal("a relayed iBGP route with no LOCAL_PREF passed the control")
 		}
 		if requireGoBGPSourceBlock(gobgpTable(gobgpRouteLine(configured, source, "65001", "[{Origin: i}]")), configured, sourceAS, source) == nil {
 			t.Fatal("a path without the injected AS passed as the relayed source block")
