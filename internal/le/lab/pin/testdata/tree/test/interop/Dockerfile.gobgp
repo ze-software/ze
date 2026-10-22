@@ -1,0 +1,6 @@
+FROM golang:1.25-alpine AS build
+RUN go install github.com/osrg/gobgp/v3/cmd/gobgp@v3.31.0
+RUN git clone --depth 1 --branch v0.7.0 https://github.com/lance0/rustbgpd.git /src/rustbgpd
+FROM alpine:3.21.3
+COPY --from=build /go/bin/gobgp /usr/bin/gobgp
+FROM build AS again

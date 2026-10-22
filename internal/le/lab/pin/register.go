@@ -1,0 +1,25 @@
+// Design: docs/architecture/testing/interop.md -- lab peer pins and their upstream
+//
+// One package, one register.go, one init(). Adding a tool to le is this file
+// plus a blank import in internal/le/register.go, and nothing else.
+
+package pin
+
+import (
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
+)
+
+func init() {
+	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
+		ShortHelp: "every pinned interop and integration lab peer compared with its upstream latest stable release (network)",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
+	})
+	leroot.RegisterActions(area, Actions)
+	// Each answer carries one row set, the pins, so the row operators act on
+	// them rather than being refused.
+	leroot.RegisterShape(area, command.ShapeMap)
+}

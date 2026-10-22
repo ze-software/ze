@@ -53,6 +53,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/versionpin"
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
+	_ "github.com/ze-software/ze/internal/le/lab/pin"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	_ "github.com/ze-software/ze/internal/le/mrt"

@@ -1,0 +1,6 @@
+FROM alpine:3.24.3 AS build
+ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
+ARG ZE_SOURCE_COMMIT=6c295d8ae79c834ef631d3d21d373c335fb05328
+ARG ZE_SOURCE_DATE=2026-09-23T10:00:00Z
+RUN curl -o s.tgz "https://codeload.github.com/${ZE_SOURCE_REPOSITORY}/tar.gz/${ZE_SOURCE_COMMIT}"
+FROM scratch AS export
