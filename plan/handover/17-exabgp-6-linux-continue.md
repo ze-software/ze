@@ -1108,3 +1108,25 @@ OWED gates: `./le plugin declarations check`, `./le cli dispatch check`,
 YANG, like the existing announce/withdraw), `./le arch tier check`,
 `./le arch enumeration check`, `./le test exabgp api` for the on-exit and
 watchdog cases.
+
+## Phase 8 docs consolidation (2026-10-22)
+
+Landed 344a793863: `exabgp-differences.md` lists only differences that remain
+against f9bfb853b (three resolved sections removed; zero-length FlowSpec NLRI
+and MUP -02 relay gap added); `exabgp-migration.md` and `docs/exabgp/README.md`
+named `ze config migrate` for ExaBGP configs (it is `ze exabgp migrate`), plus
+a wrong RD example and a made-up `encoding legacy` leaf; the bridge page's
+stale anchor. Checked and correct: `config/environment.md`; `guide/plugins.md`
+lists no bridge leaves; `functional-tests.md` pin prose matches (file held by
+another session).
+
+Still owed: `exabgp-comparison-report.md` table 4.1 (VPLS shows ze "No"; MVPN
+and MUP show ExaBGP "No"; both have all three; an SR Policy row and links to
+the bridge and differences pages); the bridge feature file under `features/`,
+`rfc/short/rfc4684.md` and its rfc-status row, the bridge parts of
+`json-format.md` and `update-syntax.md`; the wiki command catalog disagrees
+with the live command list on `request bgp watchdog forget` (from af1bc41c96;
+`./le doc yang-contract doc-drift`); `ai/DOCS-TO-CODE.md` stale (`./le doc
+index write`). Code nits found: the zero-length comment in
+`nlrisplit/flowspec.go` gives a wrong reason for a correct refusal; the
+migration schema has no `as-set` or `tunnel-encapsulation` leaf (AS_SET work).
