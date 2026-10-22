@@ -76,8 +76,9 @@ keeps"). Four differences remain.
 
 - **OPERATIONAL is not sent.** ExaBGP sends `announce operational <kind> ...`
   for a known kind (draft-ietf-idr-operational-message). Ze does not originate
-  OPERATIONAL, so the bridge refuses the line and says so (Open Owner Decision
-  OD-1). An unknown kind is refused as ExaBGP refuses it.
+  OPERATIONAL, so the bridge refuses the line and says so: Ze does not support
+  the OPERATIONAL message (owner decision M15, 2026-10-22). An unknown kind is
+  refused as ExaBGP refuses it.
 - **More flow routes match no packet.** ExaBGP 6.0 drops a flow route that
   matches an ICMP type or code and a port (`Flow.unmatchable`,
   `src/exabgp/bgp/message/update/nlri/flow.py`) and sends every other one. Ze

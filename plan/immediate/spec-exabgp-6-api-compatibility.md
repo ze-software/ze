@@ -592,10 +592,10 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 
 | ID | Question | Recommendation |
 |----|----------|----------------|
-| OD-1 | `announce operational <kind> ...` with a KNOWN kind: Ze does not originate the OPERATIONAL message (draft-ietf-idr-operational-message), so the bridge refuses it. Implement origination, or keep the refusal recorded as a gap? | Keep the refusal, naming that Ze does not send OPERATIONAL, recorded in `docs/exabgp/exabgp-differences.md`; origination is a new protocol feature outside this order |
+| OD-1 | `announce operational <kind> ...` with a KNOWN kind: Ze does not originate the OPERATIONAL message (draft-ietf-idr-operational-message), so the bridge refuses it. Implement origination, or keep the refusal recorded as a gap? | DECIDED 2026-10-22 (M15): "we do not support operational on ze". The refusal stays; the old-corpus rows are ALLOWED (`old_allowed_test.go`) |
 
 ## Known Limitations
-- OPERATIONAL origination: see OD-1. Not in the agreed scope; becomes its own spec only if the owner answers OD-1 with "implement".
+- OPERATIONAL: Ze does not support it (OD-1, M15). The bridge refuses `announce operational`.
 
 ## RFC Documentation (Scope: protocol)
 

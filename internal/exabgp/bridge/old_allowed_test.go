@@ -82,6 +82,8 @@ var oldAllowed = []oldAllowedRow{
 		"a Type 1 ST route with no source: draft-ietf-bess-mup-safi Section 3.1.3.1, \"The Source Address Length has a fixed length of 1 octet.  Source Address Length is 0 bytes then the Source address is not carried within the NLRI.\" 5.0 (the -02 encoding) left the octet out, which ze reads as the mandatory fields exceeding the declared Length (Treat-as-withdraw); ze sends the octet as 0, as the pin does (\"the Source Address Length is always sent, 0 when there is no source\", bgp/message/update/nlri/mup/t1st.py at 685f772e)"),
 	oldAllow("4.2 5.0", `\bas-path \[[^\]]*(\] *)?\(`, "",
 		"an AS_PATH carrying an AS_SET, written `( ... )`: RFC 9774 Section 3, BGP speakers \"MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs\". 4.2 and 5.0 sent the set, this tree refuses the line"),
+	oldAllow("4.2 5.0", `^announce operational `, "",
+		"an OPERATIONAL message (draft-ietf-idr-operational-message): 5.0 sent it, Ze does not support OPERATIONAL and the bridge refuses the line with its reason (owner decision M15, ai/META-DECISIONS.md)"),
 }
 
 // oldCommandAllowed reports whether a row exempts the command for the release.
