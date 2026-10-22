@@ -339,6 +339,11 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 
 	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, zeConfigFile), zeMountedConfig)}
 	zeArguments := ipv6Sysctls()
+	sysctls, sysctlErr := zeSysctlArguments(scenario)
+	if sysctlErr != nil {
+		return nil, sysctlErr
+	}
+	zeArguments = append(zeArguments, sysctls...)
 	zeCommand := []string{"start", zeMountedConfig}
 	// A scenario carrying keepalived.conf runs ze as a VRRP router, and VRRP
 	// writes sysctls once it knows its interface (applyDataplaneSysctls,

@@ -47,6 +47,10 @@ const (
 	opWaitContainsAny
 	opDelayRequireContains
 	opWaitRPKI
+	// opStop stops a peer's container and returns once Docker reports it stopped,
+	// so an opStart after it restarts the process rather than racing a container
+	// that is still shutting down. timeout is the grace period before SIGKILL.
+	opStop
 )
 
 type operation struct {
@@ -245,6 +249,8 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return lab.Signal(ctx, current.peer, current.argument)
 	case opStart:
 		return lab.Start(ctx, current.peer)
+	case opStop:
+		return lab.Stop(ctx, current.peer, int(current.timeout/time.Second))
 	case opWaitLogFields:
 		return waitLogFields(ctx, lab, current.peer, current.timeout, current.fields, current.minimum)
 	case opWaitLogContains:

@@ -11,7 +11,34 @@ work survives a machine move (M9). Delete this file in the spec's closing commit
 | `b75f0355c6` | AC-C3 rows RFC3101-3.2-3, RFC7770-2.2-2, RFC7166-4.6-7 (+4.6-4 gap), first verdicts by an independent judge; journal row on the umbrella's false RFC 7166 claim |
 | `0de9b98e6c` | AC-C3 row RFC5709-3.2-6 (key storage persists), single-polarity, judged enforced |
 
-## Update 2026-10-22 00:30 (read this first)
+## Update 2026-10-22 01:50 (read this first)
+
+- `df2e303665` landed: nine OSPF scenario configs that `ze config validate` refused (one-line blocks
+  with no `;`, `router-information` under `address-family ipv6`), so `ospf-gr-frr` and siblings never
+  could pass. Its script hit the held `.git/index.lock`: the commit landed, the index repair it
+  printed (`git ls-tree HEAD -- <11 paths> | git update-index --index-info`) was NOT run.
+- Unit-level reds observed in an export of `df2e303665` (revert, red, restore, green) for the three
+  fixes FRR cannot discriminate: GR identity, AuType 2 replay, NSSA-external scope. Evidence and FRR
+  quotes are in the spec's Goal Validation.
+- Committed with this update, NOT yet run: `ospf-sr-anycast-nexthop-frr` (two FRRs, anycast
+  10.255.255.100/32 index 100; red under the revert = restore the `19de202493^` body of
+  `sr_install.go::forwarding` only, Ze then swaps `16100 as to 17100`), `ospf-self-lsa-flush-frr`
+  (new `opStop` step; red under the revert = delete the `if local.Age.IsMaxAge()` branch in
+  `lsdb/origination.go::handleSelfReceived`). Last-key red: make `lastKeyExtendedIndex` return -1.
+  The two paragraphs documenting them, and the `ze-sysctls` file, sit uncommitted in
+  `docs/architecture/testing/interop.md`: that file also holds another session's hunk naming
+  `dockerhost.ColimaHome`, which HEAD does not have, so it was not carried. Commit the paragraphs
+  with that hunk's owner, or once its producer lands.
+- Interop BLOCKED: the run queued at 00:42 waited behind other sessions' verify runs and the disk
+  fell to 3 GB free (floor 15 GB). Rerun the list in the spec's Work Not Done row, one at a time,
+  from a fresh `git archive` export (cache and gokrazy/modcache symlinked, the two ignored
+  gokrazy go.sum files copied, short path).
+- Then: review round 3 (`ze-review`), one `./le verify worktree`, `ze-close`.
+- FRR-unreachable judgement on RFC7684-2.1-3: its row note claims NSSA-external maps to area, which
+  no production path reaches; the audit note already says so. Reviewer to decide whether the note
+  must drop that clause (`ai/rules/rfc-compliance.md`, "no layer performs").
+
+## Update 2026-10-22 00:30
 
 Landed: `fbf78a55bb` (AuType negatives install metrics before open, each with an AuType 1
 control; journal row closed; RFC2328-8.2-3 re-judged enforced by a non-author). Its script

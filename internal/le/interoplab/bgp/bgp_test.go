@@ -210,7 +210,7 @@ func TestEveryScenarioOperationUsesRecorder(t *testing.T) {
 		opFRRSession, opBIRDSession, opGoBGPSession, opFRRRoute, opFRRRouteAbsent,
 		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS,
 		opWaitContains, opWaitContainsAny, opWaitAbsent, opRequireContains, opRequireAbsent,
-		opRequireJSONFields, opWaitJSONFields, opExec, opSignal, opStart,
+		opRequireJSONFields, opWaitJSONFields, opExec, opSignal, opStart, opStop,
 		opWaitLogFields, opWaitLogContains, opDelayRequireContains, opWaitRPKI,
 	} {
 		if covered[branch] == 0 {
@@ -249,6 +249,7 @@ func TestEveryScenarioOperationRejectsContradictoryRecorder(t *testing.T) {
 func TestRequiredOperationBranchScenarioMappings(t *testing.T) {
 	for branch, scenario := range map[operationKind]string{
 		opStart:           "vrrp-mastership-keepalived",
+		opStop:            "ospf-self-lsa-flush-frr",
 		opWaitContainsAny: "ospf-nbma-frr",
 	} {
 		found := false
@@ -493,6 +494,7 @@ func TestBespokeCheckerBranches(t *testing.T) {
 	t.Run(scenarioAIGPSourceCostFRR, aigpSourceCostCheckerBranches)
 	t.Run(bfdProfileEditScenario, bfdProfileEditCheckerBranches)
 	t.Run(attachReceiveOnlyLiveScenario, liveKeepSessionCheckerBranches)
+	t.Run(ospfSRAnycastScenario, ospfSRAnycastCheckerBranches)
 
 	t.Run("bfd-frr", func(t *testing.T) {
 		const established = "BGP state = Established, up for 00:00:05\n  Connections established 1; dropped 0\n"
@@ -1727,7 +1729,7 @@ func recorderFor(current *operation) *recordingLab {
 		recorder.logs = report.String()
 	case opWaitLogContains:
 		recorder.logs = strings.Join(current.contains, " ")
-	case opExec, opSignal, opStart:
+	case opExec, opSignal, opStart, opStop:
 		recorder.output = ""
 	default:
 		panic("BUG: recorder has an unknown operation kind")
@@ -1770,7 +1772,7 @@ func contradictoryRecorderFor(current *operation) *recordingLab {
 		recorder.output = `{}`
 	case opWaitRPKI:
 		recorder.output = strings.Replace(rpkiRetainedObservation, `"ineligible":true`, `"ineligible":false`, 1)
-	case opExec, opSignal, opStart:
+	case opExec, opSignal, opStart, opStop:
 		recorder.failure = fmt.Errorf("recorded mutation failed")
 	case opWaitLogFields:
 		recorder.logs = "note: result: FAIL\n"

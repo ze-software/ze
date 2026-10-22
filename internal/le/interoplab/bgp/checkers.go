@@ -1145,6 +1145,7 @@ var scenarioOperations = map[string][]operation{
 	"ospf-ri-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
+	"ospf-self-lsa-flush-frr": ospfSelfLSAFlushOperations,
 	"ospf-sr-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
