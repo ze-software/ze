@@ -189,8 +189,8 @@ M10 makes every lab Docker daemon run on Ze's kernel and Ze's system. Today the 
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le setup docker-host build` | → | docker-host area `build` action → image builder (Prepare + gok) | `TestDockerHostBuildActionBuildsTheInstance` (`internal/le/setup/dockerhostimage/build_test.go`, injected fetcher and gok runner) |
-| `./le setup docker-host start` | → | colima argv builder, image-key compare, delete-then-start | `TestDockerHostStartRecreatesProfileOnNewImage` (`internal/le/setup/dockerhostimage/colima_test.go`, recorder colima) |
+| `./le setup docker-host build` | → | docker-host area `build` action → image builder (Prepare + gok) | `TestDockerHostBuildActionBuildsTheInstance` (`internal/le/setup/dockerhost/build_test.go`, injected fetcher and gok runner) |
+| `./le setup docker-host start` | → | colima argv builder, image-key compare, delete-then-start | `TestDockerHostStartRecreatesProfileOnNewImage` (`internal/le/setup/dockerhost/colima_test.go`, recorder colima) |
 | `./le setup docker-host start` | → | same | `TestDockerHostNeverNamesTheDefaultProfile` (same file) |
 | any darwin Docker lab | → | `dockerhost.Environment` darwin candidate | `TestEnvironmentSelectsTheZeProfileSocket` (`internal/le/dockerhost/dockerhost_test.go`) |
 | darwin Docker lab with no socket | → | kernel check route text | `TestKernelCheckRouteNamesDockerHostSetup` (`internal/le/interoplab/kernelcheck_test.go`) |
@@ -225,10 +225,10 @@ M10 makes every lab Docker daemon run on Ze's kernel and Ze's system. Today the 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestPrepareTakesTheInstanceName` | `internal/appliance/instance/prepare_test.go` | Prepare copies the named instance; empty name refused | |
-| `TestDockerHostBuildActionBuildsTheInstance` | `internal/le/setup/dockerhostimage/build_test.go` | Prepare called with `docker-host`, extra files per arch, no `injectZeFS` | |
+| `TestDockerHostBuildActionBuildsTheInstance` | `internal/le/setup/dockerhost/build_test.go` | Prepare called with `docker-host`, extra files per arch, no `injectZeFS` | |
 | `TestDockerHostBuildRefusesAChecksumMismatch` | same | AC-5 refusal text and that no image is written | |
 | `TestDockerHostBuildKeyIsStable` | same | same inputs, same key; any pin, kernel key or source change, new key | |
-| `TestDockerHostStartRecreatesProfileOnNewImage` | `internal/le/setup/dockerhostimage/colima_test.go` | AC-7 argv sequence | |
+| `TestDockerHostStartRecreatesProfileOnNewImage` | `internal/le/setup/dockerhost/colima_test.go` | AC-7 argv sequence | |
 | `TestDockerHostNeverNamesTheDefaultProfile` | same | every argv carries `--profile ze` | |
 | `TestDockerHostStartTakesTheLock` | same | R-10 second concurrent start waits or refuses naming the holder pid | |
 | `TestEnvironmentSelectsTheZeProfileSocket` | `internal/le/dockerhost/dockerhost_test.go` | AC-8 (a), and that `default` is never chosen | |
@@ -251,7 +251,7 @@ M10 makes every lab Docker daemon run on Ze's kernel and Ze's system. Today the 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestDockerHostAreaIsRegistered` | `internal/le/setup/dockerhostimage/register_test.go` (le has no `.ci` harness; this runs the registered area through `leroot`'s dispatcher as `./le setup docker-host` does) | `./le setup docker-host` lists build, start, stop, check with their keywords | |
+| `TestDockerHostAreaIsRegistered` | `internal/le/setup/dockerhost/register_test.go` (le has no `.ci` harness; this runs the registered area through `leroot`'s dispatcher as `./le setup docker-host` does) | `./le setup docker-host` lists build, start, stop, check with their keywords | |
 | AC-1, AC-2, AC-9 real runs | the owner's Mac and the nightly, output pasted in the spec | boot under limactl, Colima `ze`, QEMU docker-lab | |
 
 ### Interop Tests (Scope: protocol)
@@ -275,7 +275,7 @@ N-A: tooling. The labs these daemons serve are the interop suites themselves; AC
 - `gokrazy/docker-host/binaries.json` - the pin file (D-4).
 - `cmd/ze-docker-host/main.go` - gokrazy package; dispatches on `argv[0]` (`systemctl` runs the shim).
 - `internal/appliance/dockerhost/` - `cidata.go`, `users.go`, `mounts.go`, `supervise.go`, `systemctl.go`, `boot.go` with tests.
-- `internal/le/setup/dockerhostimage/` - `register.go` (area `docker-host`), `build.go`, `fetch.go`, `colima.go`, `limacheck.go` (AC-1 helper template writer), tests.
+- `internal/le/setup/dockerhost/` - `register.go` (area `docker-host`), `build.go`, `fetch.go`, `colima.go`, `limacheck.go` (AC-1 helper template writer), tests.
 - `internal/le/test/qemu/cidata.go` - cidata volume writer for the QEMU route.
 - No `.ci` file: le actions have no functional `.ci` harness (no `test/le/` directory exists); the dispatcher test above stands in.
 
@@ -285,7 +285,7 @@ N-A: tooling. The labs these daemons serve are the interop suites themselves; AC
 | YANG schema (new RPCs/config) | N-A | le tooling; no ze config or RPC |
 | YANG validation constraints | N-A | no YANG |
 | YANG custom validators | N-A | no YANG |
-| CLI commands/flags | Yes | `internal/le/setup/dockerhostimage/register.go` (le area `setup docker-host`: `build`, `start`, `stop`, `check`); `docker-lab` keywords unchanged |
+| CLI commands/flags | Yes | `internal/le/setup/dockerhost/register.go` (le area `setup docker-host`: `build`, `start`, `stop`, `check`); `docker-lab` keywords unchanged |
 | CLI grammar (keyword before value) | Yes | `start arch <a>` style keywords through `leaction` (`ai/rules/cli.md`) |
 | Editor autocomplete | N-A | le actions complete from the registered action list |
 | Functional test for new RPC/API | N-A | no RPC; the le area is proved by `TestDockerHostAreaIsRegistered` and the AC-2, AC-7 real runs |
@@ -418,7 +418,7 @@ N-A: tooling. The labs these daemons serve are the interop suites themselves; AC
 |-------|-----------------|
 | Input validation | cidata values (user name, uid, home, keys, hostname) are validated before they reach passwd, sudoers or a path: user and hostname against a strict pattern, uid as in the boundary table, no `/` or `..` in names |
 | Privilege | sudoers grants NOPASSWD to the Lima user only (matching Lima's `90-lima-users`); sshd allows public-key only, no root login, no passwords |
-| Supply chain | every fetched or built binary checked against `binaries.json` sha256 before it enters an image; source tarballs pinned by sha256 too |
+| Supply chain | every fetched download (Docker's static tarball, the OpenSSH, sudo and iptables source tarballs) checked against its `binaries.json` sha256 before use, and the builder image pinned by digest. NOT checked: the compiler, headers and musl `staticRecipe` installs with `apk add` from Alpine's live repository; journal row 2026-10-21 in `plan/journal/gate-verdict-depends-on-the-machine.md` (review R1-8) |
 | Exposure | dockerd listens only on the unix socket; the QEMU forward binds a socket under the session's scratch with mode 0600 |
 | Resource | the supervisor restarts a dying daemon with backoff, never in a tight loop |
 
@@ -513,9 +513,23 @@ N-A: tooling.
 |-------|-------|
 | Artifact | |
 | `./le spec review check` | not run |
-| Rounds | |
+| Rounds | 1 (every finding fixed, table below); round 2 owed, scope stated under the table |
 | Reviewer lenses used | |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| R1-1 | ISSUE | stop during restart backoff blocked forever | `dockerhost/supervise.go` `launch` | a02b362081 (`TestServiceLaunchRefusedOnceStopping`, red then green) |
+| R1-2 | ISSUE | ':' and line breaks in home, shell, comment | `dockerhost/cidata.go` `validate` | a02b362081 (`TestCidataRefusesUnsafeValues` rows, red then green) |
+| R1-11 | ISSUE | reserved names and sshd uid | `dockerhost/cidata.go` `reservedAccounts` | a02b362081 (same test; uid 1000 kept by design, `groupLines`) |
+| R1-7 | ISSUE | restart after boot started duplicate services | `dockerhost/guest_linux.go` `RunGuest` | a02b362081 (exits 125; untested: linux-only absolute paths) |
+| R1-12 | NOTE | one stop grace for every unit | `UnitSpec.StopGrace` | a02b362081 (`TestDockerUnitStopGrace`) |
+| tier | BLOCKER | `le arch tier check`: docker exec outside interoplab | `setup/dockerhost/static.go` | 2b98d538dc (`NewBuildToolDocker`, `TestBuildToolDockerKeepsTheProcessEnvironment`) |
+| R1-3 | ISSUE | image key missed shaping paths | `setup/dockerhost/build.go` `digestRoots` | c0b69d7a53 (`TestSourceDigestCoversEveryPathThatShapesTheImage`, red then green) |
+| R1-4 | ISSUE | share outside writable guest roots | `qemu/dockerlab.go` `refuseUnmountableShare` | b5079f335a (`TestDockerLabRefusesAShareTheGuestCannotMount`; refusal chosen: a tmpfs over /opt or /var hides image content) |
+| R1-6 | ISSUE | Colima home and profile declared twice | `le/dockerhost` `ColimaHome`, `ZeProfile` | c0b69d7a53 (`TestColimaHomeFollowsColimasResolution`) |
+| R1-9, R1-10 | NOTE | Getwd as repo root; false comment | `actions.go` `parseBuildRequest`; `gotoolchain.go` `EnvironmentContext` | c0b69d7a53 (R1-9), fa2b697807 (R1-10) |
+| R1-5, R1-8, R1-13 | NOTE | stale pages, supply-chain row, paths | rule point, guides, journal, this spec | c0b69d7a53 (guides, docker-host.md, build-artifacts.md, interop.md, ai/INDEX.md; foreign hunks carried, their referents in HEAD), b5079f335a (qemu-integration.md), fa2b697807 (rule point, journal row), the spec commit (supply-chain row, R1-13 paths) |
+| lint | NOTE | gofmt (2) and misspell (3) in the a02b362081 files | `dockerhost/docker.go`, `guest_linux.go`, `supervise.go`, `supervise_test.go` | 02fa09c15f (scoped golangci-lint 0 issues, darwin and GOOS=linux) |
+
+Round 2 reviews only the round-1 fixes: a02b362081, 2b98d538dc, 02fa09c15f, c0b69d7a53, b5079f335a, fa2b697807 and the sibling call sites they touched.
