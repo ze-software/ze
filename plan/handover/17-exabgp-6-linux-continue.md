@@ -311,3 +311,59 @@ Class 5 left (5.0 counts, first difference per line only, so more hide behind):
 No ALLOWED row added. Owed gates (host rule): `./le go lint run`, `./le verify
 worktree`, `./le test functional exabgp-test`, any `.ci` that pins a text OPEN
 line (the capability words changed), and independent review.
+
+## Agent packets/negotiated (2026-10-22 Linux)
+
+Class 2 (`neighbor.negotiated` on every UPDATE JSON line) is done in the working
+tree and NOT committed. Its hunks share `internal/exabgp/bridge/bridge_event.go`
+with the down-reason agent's (`exabgpDownReason`, defined in the untracked
+`bridge_event_state.go`), and each side's hunks reference a file only the other
+adds, so ONE commit must carry both sets. Counts (TestOldResponses):
+5.0 8091 -> 10923 of 23392, 4.2 8583 -> 11249 of 20930. The negotiated class
+went from 2000 (5.0) and 1946 (4.2) to 0, and the `negotiated` event's 144 too.
+
+My files and hunks:
+- `internal/component/bgp/format/json.go` `JSONEncoder.Negotiated` writes
+  `message-size`, `route-refresh`, `extended-next-hop` (decoded, never written).
+  Test `TestJSONEncoderNegotiated`; page `docs/architecture/api/json-format.md`.
+- `internal/exabgp/bridge/bridge_negotiated.go` (new) and its test: `Sessions`
+  (per peer, from `negotiated` to `down`), `Event.WithoutNegotiated`,
+  `APIKeyNegotiated`, `convertNegotiated` moved here and rewritten to 5.0's
+  `_negotiated` (families in AFI/SAFI order, `nexthop`, both `add_path` lists,
+  `multisession` and `operational` false).
+- `bridge_event.go`: the `Event.Negotiated` field, the UPDATE case writing it in
+  `neighbor`, the `negotiated` event's block moved inside `neighbor`.
+- `bridge.go` (external runner, always attaches) and `bridgerun/fleet.go`
+  (internal runner, no block for a script whose feed lacks `negotiated`, since
+  ExaBGP passes None) call `Sessions.Note`. Test
+  `TestFleetPutsTheNegotiatedBlockOnlyWhereGranted` in `fleet_test.go`.
+- `bridge_test.go`: the three negotiated tests read the block from `neighbor`.
+- Judge: the session takes `HoldTime` from the OPEN and notes its negotiated
+  event; two ze ALLOWED rows, M16 (multisession) and M15 (operational).
+- `docs/architecture/exabgp-bridge.md`: the section "The negotiated block rides
+  on every UPDATE line".
+
+Class 1 (packets and consolidate, about 9000 lines) is NOT started beyond the
+facts:
+- 5.0 `reactor/protocol.py` `_to_api` and `read_message`. `consolidate` together
+  with `packets` writes the parsed line plus `header` (19 octets: marker,
+  length, type) and `body`. `packets` without consolidate writes
+  `Response.packets`: `message {category, header, body}` plus the negotiated
+  block. `parsed` writes the plain line. Text: `neighbor X receive 2 header 0x..
+  body 0x..`, with the body left out when empty. A consolidated UPDATE text adds
+  a ` header .. body ..` line before `update end`.
+- Ze: an UPDATE has `FormatFull` (`raw.update`). OPEN, NOTIFICATION, KEEPALIVE
+  and ROUTE-REFRESH JSON in `server/events.go` `formatMessageForSubscription`
+  carry no raw bytes. The header is derived from the body length and the type.
+- The bridge subscribes with format "" (`SetStartupSubscriptions` in
+  `main_sdk.go` and `bridgeplugin/internal.go`).
+- Owed: a per-(peer, script) render mode from the migrated feed grants
+  (`receive-packets`, `receive-consolidate`, `receive-parsed`, `send-packets`;
+  check what `ze exabgp migrate` writes), the `full` subscription, raw bytes for
+  the four non-UPDATE kinds, the judge's `packets` and `consolidate` branches in
+  `zeDocument`, and a `.ci` through a migrated config.
+
+Next step: the main thread lands class 2 and class 6 in one commit, then class 1
+starts at `ze exabgp migrate` and `api { receive { packets; consolidate; } }`.
+Owed gates (host rule): `./le go lint run`, `./le arch tier check`,
+`./le test functional exabgp-test`, `./le verify worktree`, independent review.
