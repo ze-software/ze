@@ -4,6 +4,51 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-22 night, later: Phase 4 departure-label fix written, held behind the 3a draft
+
+- DEFECT (Phase 4, read and run at the producer): a departure of a labelled
+  route whose announcement carried a multi-label stack wrote NOTHING to a
+  non-ADD-PATH destination. `oweDeparture` (`reactor/relay_recovery.go`)
+  owed the plugin's announcement bytes as they came (bgp-rr's
+  `update hex nlri <fam> [addpath] del <announcement hex>`, `walkVPNNLRIs` /
+  `walkNLRIsAllocating` `WireForm`); the admission writes `record.nlri` as
+  the withdrawal, whose splitter reads one Compatibility field, so labels 2
+  and 3 were read as RD and prefix octets, the writer keyed a route the
+  destination never held, and the departed route stayed at the client.
+  One-label routes were already right (`setWithdrawalCompatibility` rewrites
+  the field to 0x800000).
+- FIX, in the working tree: `departureOweFraming` (called from
+  `oweDeparture` after the owner test) rewrites the departure NLRI through
+  `nlrisplit.GetWithdrawalWriter` then `oweAnnouncementFraming`, the
+  one-label framing every owed record holds. RFC 8277 Section 2.4 quoted.
+  The reactor, not bgp-rr, is fixed, because the record is the producer of
+  the wire bytes and rr's tagged `TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes`
+  pins the command it sends.
+- TEST: `reactor/recovery_departure_labels_test.go`,
+  `TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility`: ipv4/mpls-vpn
+  and ipv4/mpls-label, source ADD-PATH framing off and on, bgp-rr's command
+  through the real hex parser, RIB answers withdraw; asserts the written
+  MP_UNREACH NLRI is `[len-48][80 00 00][RD][192.0.2]`. RED over a
+  `git archive HEAD` export (all four subtests: 0 UPDATEs written, debug
+  showed the record owed with owner true, then no write); GREEN with the fix,
+  `-race -count=30` together with `TestRecoveryRetryOwnsReplacementSession`.
+- TEST FIX (wrong timing): `TestRecoveryRetryOwnsReplacementSession` read the
+  Cease bytes once `tearingDown` was set, but `Session.seal` sets it on the
+  way to the wire; it failed once (`"0" is not greater than or equal to
+  "21"`) in a loaded wide run. Now it waits for the bytes after `<-done`.
+  Not re-run after the edit: the disk filled (1.1 GB free) mid-run.
+- HELD, NOT COMMITTED: `./le commit create` commits the whole blob of a
+  path, and `relay_recovery.go` also carries the uncommitted 3a draft below,
+  which turns the reactor package red. The two test files can land with the
+  fix. Local copies: `backups/work-20261022-015442-rs-phase-3a.patch` (the
+  six 3a files, my hunk inside) and `backups/work-20261022-015442-rs-phase-4-tests.patch`.
+  These are machine-local: the text above is the cross-machine record.
+- NEXT: decide the 3a draft (finish it, or move it out so the departure fix
+  lands alone), then commit the departure fix with its two tests. Round 12
+  must cover that commit and all of 3a. Phase 2b second half: D1's producer
+  now exists (`gr.go` reads `rpc.ReasonNotification`), so it is unblocked;
+  check D1's commit before starting.
+
 ## STATE 2026-10-22 night: Phase 3a writer and admission drafted, NOT committed, reactor red
 
 A Phase 3a agent ran out of budget mid-package. Its production draft sits
