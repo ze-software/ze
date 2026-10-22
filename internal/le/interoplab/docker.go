@@ -432,7 +432,9 @@ func architectureToken(value string) bool {
 // Suite.Run does that for a lab, and any other caller MUST call ReleaseImage
 // after a successful Build. The shared Tag stays. A build that carries a named
 // context runs only where the docker CLI builds with BuildKit, and is refused
-// before `docker build` runs otherwise (requireBuildKit).
+// before `docker build` runs otherwise (requireBuildKit). A Dockerfile that
+// builds a peer from source more than one month old is refused, or has its
+// followed checkout updated, before `docker build` runs (RequireFreshSource).
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	if build.Timeout < 0 {
@@ -443,6 +445,12 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	timeout := max(build.Timeout, d.buildTimeout)
 	if timeout <= 0 {
 		return image, errors.New("Docker build timeout must be positive")
+	}
+	// A source-built peer is built only from source less than one month old
+	// (M14). Every lab image reaches Docker through this method, so the rule
+	// holds for a suite, a labtest and the perf DUTs alike (sourcepin.go).
+	if err := d.RequireFreshSource(ctx, build, time.Now()); err != nil {
+		return image, err
 	}
 	image.retainedTag = retainedTagRepository + ":" + rand.Text()
 	arguments := []string{DockerExecutable, "build"}

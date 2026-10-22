@@ -3,6 +3,14 @@
 #
 # freeRtr has its own TCP/IP stack -- rawInt.bin bridges the Docker
 # network interface to freeRtr's virtual interface layer via UDP.
+#
+# The `freertr` context is the local checkout perfrunner passes (FREERTR_DIR,
+# default ../rtr). freeRtr publishes no stable release, so before this image is
+# built Docker.Build fast-forwards that checkout to its upstream when its HEAD
+# is more than one month old, and refuses the build when the checkout holds
+# uncommitted changes (owner decision M14, internal/le/interoplab/sourcepin.go).
+ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
+ARG ZE_SOURCE_CHECKOUT=freertr
 
 FROM eclipse-temurin:21-jdk-alpine AS java-builder
 WORKDIR /build
