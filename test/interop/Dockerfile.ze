@@ -19,7 +19,7 @@
 # (ze_bgp). The producer reads that manifest through internal/le/repo/featuretags, so
 # this file names no feature and cannot drift from the shipped binary.
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 # nftables supplies the `nft` CLI. Ze programs the kernel over netlink and needs
 # no binary, but a scenario that asserts what reached the KERNEL has no other
