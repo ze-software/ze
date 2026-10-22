@@ -919,13 +919,12 @@ func TestDiscriminationRealRecordsSurviveAMechanicalRename(t *testing.T) {
 }
 
 // VALIDATES: the Security Review Checklist's input-validation row -- a gomu report's file
-// path is AUTHORED input that reaches a tree write, so it passes the refusal a record's own
-// keys pass.
+// path is AUTHORED input that selects the source a Go overlay replaces, so it passes the
+// refusal a record's own keys pass.
 // METHOD: three report paths, one per shape that leaves the checkout, beside the ordinary
 // path the same loader accepts. The accepted case is what says the refusal is not "refuse
 // everything".
-// PREVENTS: `..` and an absolute path reaching the Go overlay's Replace key and, on the
-// interop carrier, the os.WriteFile target requireRedInTree writes the broken source to.
+// PREVENTS: `..` and an absolute path reaching the Go overlay's Replace key.
 func TestGomuReportRefusesAPathOutsideTheCheckout(t *testing.T) {
 	tree := t.TempDir()
 	report := func(file string) string {

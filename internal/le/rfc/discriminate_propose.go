@@ -141,9 +141,8 @@ func loadGomuReport(tree, path string) ([]reportMutant, error) {
 // spellings of one file would compare unequal in the coverage lookup.
 //
 // The report is AUTHORED INPUT and its path is not a trusted one: it becomes the
-// key of a Go overlay, and on the interop carrier requireRedInTree writes the
-// broken source to it with os.WriteFile. So it passes the refusal a record's
-// own keys pass, rather than a trim that would carry `../` straight through.
+// key of a Go overlay. So it passes the refusal a record's own keys pass, rather
+// than a trim that would carry `../` straight through.
 func repoRelative(tree, path, where string) (string, error) {
 	// The tree prefix and its separator come off together. Trimming a leading
 	// slash on its own turns /etc/passwd into etc/passwd, which reads as an
@@ -159,8 +158,8 @@ func repoRelative(tree, path, where string) (string, error) {
 	}
 	var tb textbuf.Buffer
 	return "", parseErr(tb.Str(where).Str(": the report names the file ").Quoted(path).
-		Str(", which is not a path in this checkout. A break is applied to that path and, on ").
-		Str("the interop carrier, written to it, so a report is never a trusted path source"))
+		Str(", which is not a path in this checkout. A break is applied to that path ").
+		Str("through a Go overlay, so a report is never a trusted path source"))
 }
 
 // coverageSet is the lines a run executed at least once, per repo-relative file.

@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -257,9 +258,6 @@ func (o *observationRunner) requireProducerReachedIn(module, profile string) err
 // flake each turn a run red, and none of them says the break was discriminated
 // by the claim's own test.
 func (o *observationRunner) requireRed(broken overlayFile) (ObservedRed, error) {
-	if o.carrier.Kind == kindInterop {
-		return o.requireRedInTree(broken)
-	}
 	overlay, err := writeOverlay(o.tree, broken)
 	if err != nil {
 		return ObservedRed{}, err
@@ -493,8 +491,11 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 	cmd.Dir = dir
 	cmd.Env = environ
 	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	// Keep result stdout clean and share one writer so os/exec serializes
+	// both streams into the attribution buffer while reporting real progress.
+	output := io.MultiWriter(&out, os.Stderr)
+	cmd.Stdout = output
+	cmd.Stderr = output
 	runErr := cmd.Run()
 	if ctx.Err() != nil {
 		var tb textbuf.Buffer
@@ -681,75 +682,6 @@ func producerLineSpan(tree, rel, symbol string) (lineRange, bool) {
 		return lineRange{first: first, last: last}, true
 	}
 	return lineRange{}, false
-}
-
-// requireRedInTree is requireRed for the one carrier whose break travels in the
-// working tree rather than in a Go overlay.
-//
-// Until 2026-09-06 the lab had no other route: the BGP interop image compiled ze
-// INSIDE Docker from the repository as its build context, and a host-side
-// overlay is a file that container never sees. That is no longer the reason. The
-// lab now cross-compiles both binaries on the host and the image copies them in
-// (internal/le/interoplab/zebuild.go, StageBinaries), and that build inherits
-// this process's environment, so a GOFLAGS overlay WOULD reach it.
-//
-// The working-tree route is kept by decision. Changing how a conformance gate
-// applies a break is its own change with its own evidence, and this route is
-// what the house method in docs/contributing/testing.md has always said to do by
-// hand.
-//
-// The producer is put back on every path and the restore is CONFIRMED byte for
-// byte. Several sessions share this checkout, so a producer left broken is not
-// this record's problem alone. A restore that did not take is reported as the
-// failure it is, never folded into the record's own verdict.
-func (o *observationRunner) requireRedInTree(broken overlayFile) (ObservedRed, error) {
-	path := treePath(o.tree, broken.rel)
-	original, err := os.ReadFile(path) // #nosec G304 -- a repo-relative path fingerprintKey validated
-	if err != nil {
-		var tb textbuf.Buffer
-		return ObservedRed{}, parseErr(tb.Str(broken.rel).Str(": cannot read the producer before ").
-			Str("breaking it, and a break with no way back is never applied: ").Err(err))
-	}
-	if err := os.WriteFile(path, []byte(broken.content), sourceMode); err != nil {
-		var tb textbuf.Buffer
-		return ObservedRed{}, parseErr(tb.Str(broken.rel).Str(": cannot apply the break: ").Err(err))
-	}
-
-	started := time.Now()
-	passed, output, runErr := o.run("", "")
-	if restoreErr := restoreSource(path, broken.rel, original); restoreErr != nil {
-		return ObservedRed{}, restoreErr
-	}
-	if runErr != nil {
-		return ObservedRed{}, runErr
-	}
-	if err := o.judgeRed(passed, output); err != nil {
-		return ObservedRed{}, err
-	}
-	return ObservedRed{Command: o.command,
-		Seconds: int(time.Since(started).Seconds()), Red: excerpt(output)}, nil
-}
-
-// sourceMode is the permission a Go source file carries in this checkout.
-const sourceMode = 0o644
-
-// restoreSource puts a broken producer back and CONFIRMS it went back.
-//
-// Reading the bytes again is the whole point: a write that reported success and
-// left a short file would leave this checkout broken for every other session,
-// and the next thing this run does is report a proof.
-func restoreSource(path, rel string, original []byte) error {
-	var tb textbuf.Buffer
-	if err := os.WriteFile(path, original, sourceMode); err != nil {
-		return parseErr(tb.Str(rel).Str(": THE PRODUCER IS STILL BROKEN. Putting it back failed: ").
-			Err(err).Str(". Restore it from git before anything else"))
-	}
-	back, err := os.ReadFile(path) // #nosec G304 -- the path just written
-	if err != nil || !bytes.Equal(back, original) {
-		return parseErr(tb.Str(rel).Str(": THE PRODUCER MAY STILL BE BROKEN. It was put back and ").
-			Str("does not read back byte for byte. Restore it from git before anything else"))
-	}
-	return nil
 }
 
 // excerptLines is how much of a run's output a refusal and a record carry.

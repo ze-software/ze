@@ -1252,20 +1252,27 @@ the tag's own prose names that the break's text touches, which decides what is
 offered first and nothing else: the gate never judges whether a break is a GOOD
 break.
 
-The break travels in a Go overlay, so no file on disk is modified and a
-concurrent session in the same checkout sees nothing. The interop carrier is the
-one exception: there the break goes into the working tree and is put back byte
-for byte, which is what `docs/contributing/testing.md` has always said to do by
-hand.
+Every carrier applies the break through a Go overlay. `writeOverlay` stages the
+replacement and overlay in a private directory for that observation, and
+`requireRed` passes it to the carrier's runner. The shared producer is never
+modified, even while the broken run is executing. Killing an observation cannot
+leave that producer broken for another session.
+<!-- source: internal/le/rfc/discriminate_observe.go -- writeOverlay, requireRed -->
 
-That exception used to be forced. The lab image compiled ze INSIDE Docker from
-the repository as its build context, where a host-side overlay is a file the
-container never sees. Since 2026-09-06 the lab cross-compiles both binaries on
-the host and the image copies them in
-(`internal/le/interoplab/zebuild.go`, `StageBinaries`), and that build inherits
-the environment, so an overlay WOULD reach it. The working-tree route is now a
-DECISION rather than a necessity: how a conformance gate applies a break is its
-own change with its own evidence.
+For interop, the recorder re-executes the native action with the scenario
+selector and `GOFLAGS=-overlay=<path>` in the child's environment. The native
+lab's `StageBinaries` cross-compiles on the host with that environment, and the
+Docker images copy in the resulting binaries. No source mutation or restoration
+is needed.
+<!-- source: internal/le/rfc/discriminate_observe.go -- carrierArgv, environment -->
+<!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, stageBinaries, stageBinary -->
+
+Child stdout and stderr stream to the recorder's stderr as they arrive, while
+the complete combined output is retained for attribution and the record's
+excerpt. Structured result stdout stays separate. This exposes real progress to
+the job log rather than hiding it until the child exits; it adds no heartbeat,
+so a silent child stays silent.
+<!-- source: internal/le/rfc/discriminate_observe.go -- exec, judgeRed, excerpt -->
 
 ## The escape, and the precondition behind each reason
 

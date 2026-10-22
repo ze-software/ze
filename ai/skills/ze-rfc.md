@@ -524,13 +524,11 @@ RED. `./le rfc check` refuses a tagged unit that is new against git HEAD and car
 | 2 | `./le rfc discriminate stem <stem> report <path>` | reads a gomu JSON report and proposes candidate breaks for the unit tags, best first |
 | 3 | `./le rfc discriminate-record ...` | runs that tagged unit alone and requires the GREEN first, applies one break, requires the RED, and writes `rfc/discrimination/<stem>.json` |
 
-The green comes BEFORE the break, not after it: a unit already failing proves nothing
-about a break, and there is no post-restore run on any route. A unit or `.ci` break is a
-Go overlay, so no file on disk is touched and there is nothing to restore. An interop
-break edits the working tree, and that one is put back and re-read byte for byte.
-The lab used to compile ze inside Docker, where an overlay could not reach it; it
-now cross-compiles on the host, so the working-tree route is a decision rather
-than a necessity (`internal/le/rfc/discriminate_observe.go`, requireRedInTree).
+The green comes BEFORE the break: a unit already failing proves nothing about a
+break. Every carrier applies its break through a private Go overlay, including
+interop, so shared source is never modified and no restoration run is needed.
+The runner and evidence contract live in
+`docs/contributing/rfc-conformance-gates.md`, "Producing a record: the two proof routes".
 
 `discriminate-record` refuses to write a red it did not observe, and refuses a red that
 does not NAME the tagged unit: a build error and a failing sibling test each turn a run

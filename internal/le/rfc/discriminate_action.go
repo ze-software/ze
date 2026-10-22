@@ -9,11 +9,9 @@
 // A record nobody observed publishes a red nobody observed, which is the single
 // failure the artifact exists to prevent (AC-11).
 //
-// The break is applied through a Go overlay wherever the compiler that reads it
-// is one this process starts, so no source file on disk is modified: several
-// sessions share this checkout, and a producer disabled in the tree for the
-// minute a suite takes would red every one of them. The interop carrier is the
-// exception and requireRedInTree (discriminate_observe.go) says why.
+// The break is applied through a Go overlay for every carrier, so no source
+// file on disk is modified: several sessions share this checkout, and a producer
+// disabled in the tree while a suite runs would red every one of them.
 package rfc
 
 import (
