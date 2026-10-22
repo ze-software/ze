@@ -1,5 +1,9 @@
 # dnsmasq DHCPv4 server for interoperability testing of ze's DHCP client.
-# Alpine ships dnsmasq in its main repository.
+#
+# dnsmasq is built from the upstream 2.93 release, because owner decision M14
+# (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
+# Alpine 3.24 packages 2.92. The build uses dnsmasq's default feature set and
+# installs to /usr/sbin/dnsmasq.
 #
 # iproute2 is present so a checker can read the container's interface state
 # over `docker exec`. tini forwards the SIGHUP a checker sends to reload the
@@ -9,9 +13,29 @@
 # every lab mount is read-only, and the renew-NAK scenario writes a reservation
 # mid-run (dhcp-hostsfile, re-read on SIGHUP).
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS build
 
-RUN apk add --no-cache dnsmasq iproute2 tini
+# sha256 of the upstream release tarball, taken 2026-10-22.
+ARG DNSMASQ_VERSION=2.93
+ARG DNSMASQ_SHA256=0c00d4e5c97c8306e5fb932b348b34269c9c29a0e7df0e8e82958b407092bc19
+
+RUN apk add --no-cache build-base curl linux-headers
+
+WORKDIR /src
+RUN curl -fsSL -o dnsmasq.tar.xz "https://thekelleys.org.uk/dnsmasq/dnsmasq-${DNSMASQ_VERSION}.tar.xz" \
+    && echo "${DNSMASQ_SHA256}  dnsmasq.tar.xz" | sha256sum -c - \
+    && tar -xJf dnsmasq.tar.xz --strip-components=1 \
+    && make -j"$(nproc)" PREFIX=/usr \
+    && make install PREFIX=/usr DESTDIR=/out \
+    && rm -rf /out/usr/share
+
+FROM alpine:3.24.3
+
+# dnsmasq drops root to the `dnsmasq` user by default, which the Alpine package
+# created and a source install does not.
+RUN apk add --no-cache iproute2 tini && adduser -S -D -H -h /dev/null -s /sbin/nologin dnsmasq
+
+COPY --from=build /out/ /
 
 # --keep-in-foreground so docker sees the real process, --log-facility=- so
 # `docker logs` carries every DHCP transaction the checker reads.

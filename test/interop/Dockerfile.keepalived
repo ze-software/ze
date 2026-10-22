@@ -1,14 +1,41 @@
 # keepalived VRRP daemon for interoperability testing.
-# Alpine ships keepalived in its community repository (v2.3.1, built with
-# VRRP + VRRP_VMAC, verified 2026-07-15).
+#
+# keepalived is built from the upstream 2.4.3 release, because owner decision
+# M14 (ai/META-DECISIONS.md) has every lab peer run its latest stable release
+# and Alpine 3.24 packages 2.3.4. VRRP and VRRP_VMAC are in the default build;
+# the LVS checkers are not built, because no scenario runs one.
 #
 # iproute2 is present so the typed checker can read the container's interface
 # and neighbour state (`ip -j addr`, `ip -j neigh`) over `docker exec`, proving
 # the virtual IP actually moved rather than trusting a log.
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS build
 
-RUN apk add --no-cache keepalived iproute2 tini
+# sha256 of the upstream release tarball, taken 2026-10-22.
+ARG KEEPALIVED_VERSION=2.4.3
+ARG KEEPALIVED_SHA256=a0faef8e401c143487b131b526df7541c1e33d9b8814642fa9dfe8bb250a9632
+
+RUN apk add --no-cache build-base curl libnl3-dev linux-headers openssl-dev scanelf
+
+WORKDIR /src
+RUN curl -fsSL -o keepalived.tar.gz \
+        "https://www.keepalived.org/software/keepalived-${KEEPALIVED_VERSION}.tar.gz" \
+    && echo "${KEEPALIVED_SHA256}  keepalived.tar.gz" | sha256sum -c - \
+    && tar -xzf keepalived.tar.gz --strip-components=1 \
+    && ./configure --prefix=/usr --sysconfdir=/etc --disable-lvs \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/out \
+    && rm -rf /out/usr/share \
+    && scanelf --needed --nobanner --format '%n#p' --recursive /out \
+        | tr ',' '\n' | sort -u | sed 's/^/so:/' > /out/.keepalived-rundeps
+
+FROM alpine:3.24.3
+
+COPY --from=build /out/ /
+
+# The runtime libraries are the shared objects keepalived needs, read from the
+# binary by scanelf rather than listed by hand.
+RUN apk add --no-cache iproute2 tini $(cat /.keepalived-rundeps) && rm /.keepalived-rundeps
 
 # -n foreground (tini reaps, docker sees the real process), -l log to stderr so
 # `docker logs` carries it, -D for protocol-level detail when a scenario fails.
