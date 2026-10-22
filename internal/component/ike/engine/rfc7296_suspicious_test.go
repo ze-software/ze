@@ -19,7 +19,7 @@ import (
 
 // susOutOfSA builds the header-only datagram a stale or forged peer sends: a request
 // under an SPI pair no SA holds.
-func susOutOfSA(t *testing.T, flags uint8, exchange uint8) []byte {
+func susOutOfSA(t *testing.T, flags, exchange uint8) []byte {
 	t.Helper()
 	msg := wire.Message{Header: wire.Header{
 		InitiatorSPI: [8]byte{0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4},

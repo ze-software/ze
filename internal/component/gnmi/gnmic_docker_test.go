@@ -88,7 +88,7 @@ func TestGnmicInterop(t *testing.T) {
 
 	t.Run("capabilities advertise the loaded models and JSON_IETF", func(t *testing.T) {
 		result := runGnmic(t, certs, address, gnmicToken, "capabilities")
-		requireGnmicExit(t, result, 0)
+		requireGnmicSuccess(t, result)
 		var answer gpb.CapabilityResponse
 		decodeGnmicOutput(t, result.Stdout, &answer)
 		if !slices.Equal(answer.GetSupportedEncodings(), []gpb.Encoding{gpb.Encoding_JSON_IETF}) {
@@ -106,7 +106,7 @@ func TestGnmicInterop(t *testing.T) {
 
 	t.Run("get answers the running value", func(t *testing.T) {
 		result := runGnmic(t, certs, address, gnmicToken, "get", "--encoding", "json_ietf", "--path", "/bgp/router-id")
-		requireGnmicExit(t, result, 0)
+		requireGnmicSuccess(t, result)
 		var answer gpb.GetResponse
 		decodeGnmicOutput(t, result.Stdout, &answer)
 		notifications := answer.GetNotification()
@@ -123,7 +123,7 @@ func TestGnmicInterop(t *testing.T) {
 
 	t.Run("subscribe once sends the value then the sync", func(t *testing.T) {
 		result := runGnmic(t, certs, address, gnmicToken, "subscribe", "--mode", "once", "--path", "/bgp/router-id")
-		requireGnmicExit(t, result, 0)
+		requireGnmicSuccess(t, result)
 		responses := decodeGnmicSubscribeOutput(t, result.Stdout)
 		if len(responses) != 2 {
 			t.Fatalf("Subscribe ONCE answered %d responses, want an update and the sync: %s", len(responses), result.Stdout)
@@ -136,7 +136,7 @@ func TestGnmicInterop(t *testing.T) {
 
 	t.Run("set commits the update", func(t *testing.T) {
 		result := runGnmic(t, certs, address, gnmicToken, "set", "--update", "/bgp/router-id:::string:::"+gnmicSetRouterID)
-		requireGnmicExit(t, result, 0)
+		requireGnmicSuccess(t, result)
 		var answer gpb.SetResponse
 		decodeGnmicOutput(t, result.Stdout, &answer)
 		results := answer.GetResponse()
@@ -181,10 +181,11 @@ func runGnmic(t *testing.T, certs, address, token string, command ...string) int
 	})
 }
 
-func requireGnmicExit(t *testing.T, result interoplab.CommandResult, code int) {
+// requireGnmicSuccess asserts gnmic exited 0.
+func requireGnmicSuccess(t *testing.T, result interoplab.CommandResult) {
 	t.Helper()
-	if result.ExitCode != code {
-		t.Fatalf("gnmic exited %d, want %d\nstdout: %s\nstderr: %s", result.ExitCode, code, result.Stdout, result.Stderr)
+	if result.ExitCode != 0 {
+		t.Fatalf("gnmic exited %d, want 0\nstdout: %s\nstderr: %s", result.ExitCode, result.Stdout, result.Stderr)
 	}
 }
 

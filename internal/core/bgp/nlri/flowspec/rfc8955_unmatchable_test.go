@@ -2,6 +2,7 @@ package flowspec
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -215,12 +216,7 @@ func TestCheckMatchable(t *testing.T) {
 func TestCheckMatchableTypesOnly(t *testing.T) {
 	present := func(types ...FlowComponentType) func(FlowComponentType) bool {
 		return func(t FlowComponentType) bool {
-			for _, p := range types {
-				if p == t {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(types, t)
 		}
 	}
 	err := CheckMatchable(AFIIPv4, present(FlowICMPType, FlowTCPFlags), nil)
