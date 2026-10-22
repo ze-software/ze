@@ -23,6 +23,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TextForm says what the text encoder made of one event.
@@ -127,6 +129,17 @@ func (e Event) appendUpdateText(buf []byte) []byte {
 
 	buf = append(buf, " start\n"...)
 
+	// An End-of-RIB marker is one `route` line, as Text.update writes it:
+	// `route eor <afi>/<safi> (<afi name> <safi name>)` (EORNLRI.extensive,
+	// src/exabgp/bgp/message/update/eor.py). Until 2026-10-22 the bridge wrote
+	// only the start and end lines, so a v4 text helper never learned which RIB
+	// had ended (TestOldResponses50).
+	if afi, safi, isEOR := eorFamilyParts(e.Data); isEOR {
+		buf = appendEORText(buf, prefix, afi, safi, e.Peer)
+		buf = append(buf, prefix...)
+		return append(buf, " end\n"...)
+	}
+
 	attributes := appendTextAttributes(nil, e.Data)
 
 	nlri, _ := e.Data[bridgeUpdateNLRI].(map[string]any)
@@ -149,6 +162,29 @@ func (e Event) appendUpdateText(buf []byte) []byte {
 
 	buf = append(buf, prefix...)
 	return append(buf, " end\n"...)
+}
+
+// appendEORText writes the `route eor` line of an End-of-RIB marker. The codes
+// come from the family registry; a family it does not hold has no codes to
+// write, so the line is left out and logged rather than written with a wrong
+// number.
+func appendEORText(buf []byte, prefix, afi, safi, peer string) []byte {
+	found, known := family.LookupFamily(afi + "/" + safi)
+	if !known {
+		bridgeLog().Warn("exabgp-bridge: End-of-RIB of a family the registry does not hold; the text line names no route",
+			"peer", peer, "family", afi+"/"+safi)
+		return buf
+	}
+	buf = append(buf, prefix...)
+	buf = append(buf, " route eor "...)
+	buf = strconv.AppendUint(buf, uint64(found.AFI), 10)
+	buf = append(buf, '/')
+	buf = strconv.AppendUint(buf, uint64(found.SAFI), 10)
+	buf = append(buf, " ("...)
+	buf = append(buf, afi...)
+	buf = append(buf, ' ')
+	buf = append(buf, safi...)
+	return append(buf, ")\n"...)
 }
 
 // appendUpdateOperation writes one announce or withdraw group of an UPDATE.

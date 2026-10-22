@@ -370,3 +370,27 @@ func TestRefreshSubtypeEvents(t *testing.T) {
 		}
 	}
 }
+
+// TestEORTextRouteLine checks the End-of-RIB line an API 4 text helper reads.
+//
+// VALIDATES: ze's EOR update event is written between start and end as
+// `route eor 1/1 (ipv4 unicast)`, ExaBGP's EORNLRI.extensive.
+// PREVENTS: a text helper meeting an empty UPDATE and never learning which
+// RIB ended (TestOldResponses50).
+func TestEORTextRouteLine(t *testing.T) {
+	event := ReadEvent(map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update", "direction": "received"},
+			"peer":    map[string]any{"remote": map[string]any{"address": "10.0.0.2", "as": float64(64512)}},
+			"update":  map[string]any{"eor": map[string]any{"family": "ipv4/unicast"}},
+		},
+	})
+	text, form := event.AppendText(nil)
+	want := "neighbor 10.0.0.2 receive update start\n" +
+		"neighbor 10.0.0.2 receive update route eor 1/1 (ipv4 unicast)\n" +
+		"neighbor 10.0.0.2 receive update end\n"
+	if form != TextWritten || string(text) != want {
+		t.Errorf("text %q (form %d), want %q", text, form, want)
+	}
+}
