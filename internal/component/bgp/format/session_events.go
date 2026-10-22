@@ -63,6 +63,8 @@ func AppendFSM(buf []byte, peer *plugin.PeerInfo, from, to fsm.State, encoding s
 //
 // JSON: {"type":"bgp","bgp":{"message":{"type":"signal"},"peer":{...},"signal":{"code":1,"name":"SIGHUP"}}}.
 // Text: peer <address> remote as <asn> signal <code> <name>.
+//
+//nolint:misspell // `_signalled` is ExaBGP's own identifier in reactor/loop.py, quoted as spelled
 func AppendSignal(buf []byte, peer *plugin.PeerInfo, number int, name, encoding string) []byte {
 	if encoding == plugin.EncodingJSON {
 		buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"signal"},`...)

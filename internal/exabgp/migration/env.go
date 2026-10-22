@@ -114,7 +114,7 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 		if e.Section == sectionLog && isEnvLogTopic(e.Key) {
 			subsystem := envTopicToSubsystem[e.Key]
 			level := "disabled"
-			if e.Value == "true" {
+			if e.Value == configTrue {
 				level = "debug"
 			}
 			if existing, exists := subsystems[subsystem]; exists {

@@ -286,9 +286,14 @@ func updateEventZe(family, nextHop, nlri, attr string) string {
 		`"update":{"attr":` + attr + `,"nlri":{"` + family + `":[{"action":"add","next-hop":"` + nextHop + `","nlri":[` + nlri + `]}]}}}}`
 }
 
-// announcedNLRI answers the one NLRI an UPDATE rendered in JSON announces.
-func announcedNLRI(t *testing.T, rendered map[string]any, family, nextHop string) map[string]any {
+// announcedNextHop is the next hop every UPDATE announcedNLRI reads carries.
+const announcedNextHop = "1.2.3.4"
+
+// announcedNLRI answers the one NLRI an UPDATE rendered in JSON announces
+// through announcedNextHop.
+func announcedNLRI(t *testing.T, rendered map[string]any, family string) map[string]any {
 	t.Helper()
+	nextHop := announcedNextHop
 	neighbor, _ := rendered["neighbor"].(map[string]any)
 	message, _ := neighbor["message"].(map[string]any)
 	update, _ := message["update"].(map[string]any)
@@ -309,15 +314,15 @@ func announcedNLRI(t *testing.T, rendered map[string]any, family, nextHop string
 // `string` ending with the next hop (NLRI.v4_text); an API 6 helper keeps the
 // raw label entry and the bare flow string (ExaBGP 0e8dc3bd2).
 func TestV4ShapesRestoredFrom5x(t *testing.T) {
-	labeled := readZeEvent(t, updateEventZe("ipv4/mpls-label", "1.2.3.4",
+	labeled := readZeEvent(t, updateEventZe("ipv4/mpls-label", announcedNextHop,
 		`{"prefix":"10.0.0.0/24","labels":[[100,1601]]}`, `{"origin":"igp"}`))
-	sameJSON(t, "v4 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV4JSON), "ipv4 nlri-mpls", "1.2.3.4")["label"], `[[100]]`)
-	sameJSON(t, "v6 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV6JSON), "ipv4 nlri-mpls", "1.2.3.4")["label"], `[[100, 1601]]`)
+	sameJSON(t, "v4 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV4JSON), "ipv4 nlri-mpls")["label"], `[[100]]`)
+	sameJSON(t, "v6 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV6JSON), "ipv4 nlri-mpls")["label"], `[[100, 1601]]`)
 
-	flow := readZeEvent(t, updateEventZe("ipv4/flow", "1.2.3.4",
+	flow := readZeEvent(t, updateEventZe("ipv4/flow", announcedNextHop,
 		`{"source-ipv4":[["10.0.1.0/24"]]}`, `{"origin":"igp"}`))
-	v4String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV4JSON), "ipv4 flow", "1.2.3.4")["string"].(string)
-	v6String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV6JSON), "ipv4 flow", "1.2.3.4")["string"].(string)
+	v4String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV4JSON), "ipv4 flow")["string"].(string)
+	v6String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV6JSON), "ipv4 flow")["string"].(string)
 	if v6String == "" {
 		t.Fatalf("no flow string")
 	}

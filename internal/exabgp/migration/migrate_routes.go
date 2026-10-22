@@ -595,7 +595,7 @@ func flowRouteMatchable(match *config.Tree, isIPv6 bool) error {
 // parseFlowMatchEntry splits a freeform entry into criterion and value.
 // Freeform stores "keyword value" as key→"true", or "keyword" as key→"[ values ]".
 func parseFlowMatchEntry(key, val string) (string, string) {
-	if val == "true" || val == "" {
+	if val == configTrue || val == "" {
 		parts := strings.SplitN(key, " ", 2)
 		if len(parts) == 2 {
 			return parts[0], parts[1]

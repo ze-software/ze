@@ -86,7 +86,7 @@ func (s *Sessions) Note(e *Event) {
 // Section 4), and the zero ContextID, which overlayWire reads as unknown, for
 // a block that states neither or a registry that is full.
 func sessionAttrContext(block map[string]any) bgpctx.ContextID {
-	asn4, stated := block["asn4"].(bool)
+	asn4, stated := block[negotiatedASN4].(bool)
 	if !stated {
 		return 0
 	}
@@ -130,6 +130,15 @@ func carriesNegotiated(kind string) bool {
 	return false
 }
 
+// The members of the negotiated block that state one capability's outcome
+// (Negotiated in src/exabgp/bgp/message/open/capability/negotiated.py).
+const (
+	negotiatedASN4         = "asn4"
+	negotiatedMultisession = "multisession"
+	negotiatedNextHop      = "nexthop"
+	negotiatedOperational  = "operational"
+)
+
 // unsetNegotiated is the 6.0 pin's block for a session whose OPENs are not
 // exchanged yet, Negotiated.UNSET as Response.JSON._negotiated writes it: no
 // family, no hold time, and RFC 4271's 4096-octet message maximum
@@ -137,10 +146,10 @@ func carriesNegotiated(kind string) bool {
 // every call, because a caller's line owns it.
 func unsetNegotiated() map[string]any {
 	return map[string]any{
-		"message_size": float64(4096), "hold_time": float64(0), "asn4": false,
-		"multisession": false, "operational": false, "refresh": "absent",
-		"families": []string{}, "nexthop": []string{},
-		"add_path": map[string]any{"send": []string{}, "receive": []string{}},
+		"message_size": float64(4096), "hold_time": float64(0), negotiatedASN4: false,
+		negotiatedMultisession: false, negotiatedOperational: false, "refresh": "absent",
+		"families": []string{}, negotiatedNextHop: []string{},
+		"add_path": map[string]any{modeSend: []string{}, modeReceive: []string{}},
 	}
 }
 
@@ -176,10 +185,10 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 	}
 
 	result := map[string]any{
-		"multisession": false,
-		"operational":  false,
-		"nexthop":      []string{},
-		"add_path":     map[string]any{"send": []string{}, "receive": []string{}},
+		negotiatedMultisession: false,
+		negotiatedOperational:  false,
+		negotiatedNextHop:      []string{},
+		"add_path":             map[string]any{modeSend: []string{}, modeReceive: []string{}},
 	}
 
 	// Ze nests the hold time under `timer` and spells it `hold-time`, the
@@ -192,8 +201,8 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 	if v, ok := zebgp["message-size"]; ok {
 		result["message_size"] = v
 	}
-	if v, ok := zebgp["asn4"]; ok {
-		result["asn4"] = v
+	if v, ok := zebgp[negotiatedASN4]; ok {
+		result[negotiatedASN4] = v
 	}
 	// Ze's words are ExaBGP's: absent, normal, enhanced (REFRESH.json).
 	if v, ok := zebgp["route-refresh"]; ok {
@@ -214,7 +223,7 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 	}
 	// ExaBGP writes one "<afi> <safi> <next-hop afi>" per RFC 8950 tuple.
 	if nextHops, ok := zebgp["extended-next-hop"].(map[string]any); ok {
-		result["nexthop"] = convertNextHops(nextHops)
+		result[negotiatedNextHop] = convertNextHops(nextHops)
 	}
 	// Paths-limit is ze's, with no ExaBGP spelling to match: its keys follow
 	// the ExaBGP conventions (underscore, space-separated families).

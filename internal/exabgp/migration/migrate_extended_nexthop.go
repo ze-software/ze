@@ -131,5 +131,5 @@ func extendedNextHopDisabled(src *config.Tree) bool {
 	if !ok {
 		return false
 	}
-	return value == capabilityDisable || value == "false"
+	return value == capabilityDisable || value == configFalse
 }

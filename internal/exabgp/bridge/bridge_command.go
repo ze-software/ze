@@ -222,6 +222,40 @@ const (
 	pingWord     = "ping"
 )
 
+// The v4 acknowledgement controls: `session ack enable|disable|silence` in API
+// 6 (v6ControlSpellings).
+const (
+	enableAckWord  = "enable-ack"
+	disableAckWord = "disable-ack"
+	silenceAckWord = "silence-ack"
+)
+
+// versionWord is ExaBGP's v4 spelling of `system version`.
+const versionWord = "version"
+
+// apiWord and apiVersionWord are the two words of ExaBGP's `api version`
+// command, which reads or sets the API version of the script that sends it.
+const (
+	apiWord        = "api"
+	apiVersionWord = "version"
+)
+
+// The words of ExaBGP's adj-rib commands, `clear adj-rib in|out`, `flush
+// adj-rib out` and `show adj-rib in|out`.
+const (
+	clearWord  = "clear"
+	adjRIBWord = "adj-rib"
+	ribInWord  = "in"
+	ribOutWord = "out"
+)
+
+// neighborWord is the word of ExaBGP's v4 commands that name a neighbor:
+// `neighbor <ip> ...`, `show neighbor`, `create|delete neighbor`.
+const neighborWord = "neighbor"
+
+// unspecifiedName is what String writes for an enum's unset zero value.
+const unspecifiedName = "unspecified"
+
 // Nothing reports a line that carries no command: a blank line, or a comment.
 // It is an ANSWER rather than a failure, and it is named so that no caller has
 // to read an empty Command as one.
@@ -443,11 +477,11 @@ func convertControl(selector, rest string) (Translation, bool) {
 	var tb textbuf.Buffer
 	// enumeration: exempt (these are ExaBGP's own API control words, not the CLI verb vocabulary)
 	switch {
-	case len(fields) == 1 && fields[0] == "enable-ack":
+	case len(fields) == 1 && fields[0] == enableAckWord:
 		return Translation{Local: LocalAckEnable}, true
-	case len(fields) == 1 && fields[0] == "disable-ack":
+	case len(fields) == 1 && fields[0] == disableAckWord:
 		return Translation{Local: LocalAckDisableAfter}, true
-	case len(fields) == 1 && fields[0] == "silence-ack":
+	case len(fields) == 1 && fields[0] == silenceAckWord:
 		return Translation{Local: LocalAckDisableNow}, true
 	case fields[0] == pingWord:
 		return Translation{Local: pingAction(fields)}, true
@@ -456,7 +490,7 @@ func convertControl(selector, rest string) (Translation, bool) {
 	case len(fields) == 1 && fields[0] == shutdownWord,
 		len(fields) == 2 && fields[0] == "request" && fields[1] == shutdownWord:
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
-	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" && fields[2] == "in":
+	case len(fields) == 3 && fields[0] == clearWord && fields[1] == adjRIBWord && fields[2] == ribInWord:
 		// ze refuses `clear bgp rib in|out|advertised` without a selector,
 		// because the all-peers effect must be typed. ExaBGP's neighbor-less
 		// form means every peer the process serves, which is what selector
@@ -465,13 +499,13 @@ func convertControl(selector, rest string) (Translation, bool) {
 			Commands: textCommands(tb.Str("clear bgp rib in ").Str(selector).String()),
 			Selector: selector,
 		}, true
-	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" && fields[2] == "out":
+	case len(fields) == 3 && fields[0] == clearWord && fields[1] == adjRIBWord && fields[2] == ribOutWord:
 		// ExaBGP withdraws every route the adj-rib-out holds
 		// (OutgoingRIB.withdraw at the pin): ze's engine-side withdrawal of
 		// the session's Adj-RIB-Out, not bgp-rib's resend.
 		command := Command{Text: tb.Str("clear bgp rib advertised ").Str(selector).String(), WithdrawsAdjRIBOut: true}
 		return Translation{Commands: []Command{command}, Selector: selector}, true
-	case len(fields) == 3 && fields[0] == "flush" && fields[1] == "adj-rib" && fields[2] == "out":
+	case len(fields) == 3 && fields[0] == "flush" && fields[1] == adjRIBWord && fields[2] == ribOutWord:
 		// ExaBGP resends the adj-rib-out (OutgoingRIB.resend at the pin),
 		// bracketed by BoRR and EoRR when Enhanced Route Refresh was
 		// negotiated: bgp-rib's resend does both.

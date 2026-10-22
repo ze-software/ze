@@ -348,17 +348,17 @@ func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
 		panic("BUG: invalid bridge format")
 	}
 	result = map[string]any{
-		"exabgp": envelope,
-		"time":   float64(time.Now().Unix()),
-		"host":   hostname(),
-		"pid":    os.Getpid(),
-		"ppid":   os.Getppid(),
-		"type":   e.Kind,
+		"exabgp":         envelope,
+		exabgpMemberTime: float64(time.Now().Unix()),
+		"host":           hostname(),
+		"pid":            os.Getpid(),
+		"ppid":           os.Getppid(),
+		"type":           e.Kind,
 	}
 
 	neighbor = map[string]any{
-		"address": map[string]any{"local": e.Local, "peer": e.Peer},
-		"asn":     map[string]any{"local": e.LocalASN, "peer": e.PeerASN},
+		"address": map[string]any{"local": e.Local, exabgpMemberPeer: e.Peer},
+		"asn":     map[string]any{"local": e.LocalASN, exabgpMemberPeer: e.PeerASN},
 	}
 	// Only a BGP message travels, so only a message states its direction.
 	// ExaBGP 6.0 hands `_neighbor` a direction for each message it encodes and
@@ -611,7 +611,7 @@ var exabgpNLRIMembers = map[string]string{
 	"label-base":      "base",
 	"ve-id":           "endpoint",
 	"ve-block-offset": "offset",
-	"ve-block-size":   "size",
+	"ve-block-size":   exabgpVPLSSize,
 }
 
 // exabgpNLRIObject restates one non-string NLRI the way ExaBGP writes it: a

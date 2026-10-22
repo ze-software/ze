@@ -50,16 +50,16 @@ var ErrUnknownCommand = errors.New("unknown command")
 
 // v6Roots are ExaBGP's V6_ROOTS: "the first words of the v6 commands; no v4
 // command starts with one of them".
-var v6Roots = map[string]struct{}{"daemon": {}, "session": {}, "system": {}, "rib": {}, "peer": {}}
+var v6Roots = map[string]struct{}{"daemon": {}, "session": {}, "system": {}, "rib": {}, peerWord: {}}
 
 // v4SimpleWords are the keys of ExaBGP's V4_SIMPLE_TRANSLATIONS
 // (src/exabgp/reactor/api/dispatch/v4.py): one v4 keyword that has a v6
 // spelling, whatever follows it.
 var v4SimpleWords = map[string]struct{}{
 	"shutdown": {}, "reload": {}, "restart": {}, "status": {},
-	"enable-ack": {}, "disable-ack": {}, "silence-ack": {}, "enable-sync": {}, "disable-sync": {},
+	enableAckWord: {}, disableAckWord: {}, silenceAckWord: {}, "enable-sync": {}, "disable-sync": {},
 	"reset": {}, "ping": {}, "bye": {},
-	"help": {}, "version": {}, "crash": {}, "queue-status": {},
+	"help": {}, versionWord: {}, "crash": {}, "queue-status": {},
 }
 
 // String answers the version as ExaBGP writes it: `auto`, `4` or `6`
@@ -73,7 +73,7 @@ func (v APIVersion) String() string {
 	case APIV6:
 		return "6"
 	case APIVersionUnspecified:
-		return "unspecified"
+		return unspecifiedName
 	default:
 		panic("BUG: invalid bridge API version")
 	}
@@ -105,7 +105,7 @@ func ParseAPIVersion(word string) (APIVersion, error) {
 
 // APIVersionFromEnv answers the version every script starts with: the
 // `exabgp.api.version` setting, auto when unset. A value ExaBGP would refuse is
-// refused here, so the fleet does not start on a setting it cannot honour.
+// refused here, so the fleet does not start on a setting it cannot honor.
 func APIVersionFromEnv() (APIVersion, error) {
 	raw := env.Get(apiVersionEnvKey)
 	if strings.TrimSpace(raw) == "" {
@@ -140,7 +140,7 @@ func CommandAPIVersion(line string) APIVersion {
 	if _, ok := v6Roots[words[0]]; ok {
 		return APIV6
 	}
-	if words[0] == "neighbor" {
+	if words[0] == neighborWord {
 		return APIV4
 	}
 	if hasV6Translation(words) {
@@ -158,19 +158,19 @@ func hasV6Translation(words []string) bool {
 	switch words[0] {
 	case "teardown", "announce", "withdraw":
 		return true
-	case "api":
-		return len(words) >= 2 && words[1] == "version"
+	case apiWord:
+		return len(words) >= 2 && words[1] == apiVersionWord
 	case "show":
-		if len(words) >= 3 && words[1] == "adj-rib" {
-			return words[2] == "in" || words[2] == "out"
+		if len(words) >= 3 && words[1] == adjRIBWord {
+			return words[2] == ribInWord || words[2] == ribOutWord
 		}
-		return len(words) >= 2 && words[1] == "neighbor"
+		return len(words) >= 2 && words[1] == neighborWord
 	case "flush":
-		return len(words) >= 3 && words[1] == "adj-rib" && words[2] == "out"
-	case "clear":
-		return len(words) >= 3 && words[1] == "adj-rib" && (words[2] == "in" || words[2] == "out")
+		return len(words) >= 3 && words[1] == adjRIBWord && words[2] == ribOutWord
+	case clearWord:
+		return len(words) >= 3 && words[1] == adjRIBWord && (words[2] == ribInWord || words[2] == ribOutWord)
 	case "create", "delete":
-		return len(words) >= 2 && words[1] == "neighbor"
+		return len(words) >= 2 && words[1] == neighborWord
 	}
 	return false
 }
@@ -276,7 +276,7 @@ func (f Format) String() string {
 	case FormatV6JSON:
 		return "v6 json"
 	case FormatUnspecified:
-		return "unspecified"
+		return unspecifiedName
 	default:
 		panic("BUG: invalid bridge format")
 	}
@@ -301,7 +301,7 @@ func apiVersionRequest(line string) (APIVersionRequest, bool) {
 	if len(words) >= 1 && words[0] == "system" {
 		words = words[1:]
 	}
-	if len(words) < 2 || words[0] != "api" || words[1] != "version" {
+	if len(words) < 2 || words[0] != apiWord || words[1] != apiVersionWord {
 		return APIVersionRequest{}, false
 	}
 	return APIVersionRequest{Words: words[2:], JSON: words[len(words)-1] == "json"}, true

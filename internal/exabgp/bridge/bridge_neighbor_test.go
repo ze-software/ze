@@ -20,7 +20,7 @@ import (
 // Administrative Shutdown; one number is a Cease subcode; two are a code and a
 // subcode; the rest, shlex-split and joined with one space, is the text.
 //
-// VALIDATES: the command, the selector travelling with it, and no UPDATE claimed.
+// VALIDATES: the command, the selector traveling with it, and no UPDATE claimed.
 // PREVENTS: a code other than Cease refused or dropped, and a teardown with text
 // or with no number refused, which a script written for ExaBGP 6 meets as an
 // error where ExaBGP closes the session.

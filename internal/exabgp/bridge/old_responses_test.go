@@ -134,10 +134,15 @@ var oldResponsesAllowed = []oldResponseRow{
 			`be set to Unrecognized Well-known Attribute." The release delivered it as attribute-0x99-0x60`),
 	oldResponseAllow("4.2 5.0", "text", `^update \S+ \S*40050400000064(6099|7099)`, `.`,
 		"the unrecognized well-known attribute, as in JSON"),
-	oldResponseAllow("4.2", "json", `^update \S+ \S*800E[0-9A-F]{2}000285[0-9A-F]*028078(00){15}01`, `^/neighbor/message/update/announce/ipv6 flow/`,
+	oldResponseAllow("4.2", "json", `^update \S+ \S*800E[0-9A-F]{2}000285[0-9A-F]*028078(00){15}01`, ``,
 		`4.2 packed source-ipv6 ::1/128/120 with sixteen pattern octets, where RFC 8956 Section 3.1 says "The encoded `+
 			`pattern contains enough octets for the bits used in matching (length minus offset bits)", which is one octet `+
-			`for 128 minus 120: the NLRI is malformed and ze reads no flow route from it`),
+			`for 128 minus 120. RFC 8955 Section 4.2: "An NLRI value not encoded as specified here, including an NLRI that `+
+			`contains an unknown component type, is considered malformed and error handling according to Section 10 is `+
+			`performed", and an NLRI that cannot be parsed takes RFC 7606's session reset, so ze writes no line for the UPDATE`),
+	oldResponseAllow("4.2", "text", `^update \S+ \S*800E[0-9A-F]{2}000285[0-9A-F]*028078(00){15}01`, ``,
+		`the malformed 4.2 source-ipv6 offset pattern, as in JSON: RFC 8956 Section 3.1 and RFC 8955 Section 4.2, `+
+			`session reset, so ze writes no line for the UPDATE`),
 	oldResponseAllow("4.2", "json", `^update \S+ \S*C02818050015`, `^/neighbor/message/update/(announce|attribute/.+)$`,
 		`4.2 packed the SRv6 L3 Service TLV with no SID Information Sub-TLV header (the pre-RFC 9252 draft shape), so `+
 			`the octets after its reserved octet read as a Sub-TLV of 256 octets in a TLV of 21: malformed, and RFC 9252 `+

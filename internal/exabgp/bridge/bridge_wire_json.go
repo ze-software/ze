@@ -156,7 +156,7 @@ func exabgpUpdateObject(document map[string]any) (map[string]any, bool) {
 // before it compares two ExaBGP documents. `counter` is theirs too and ze writes
 // none; it is listed so a future line carrying one is dropped rather than newly
 // mismatched.
-var exabgpVolatileMembers = []string{"exabgp", "time", "host", "pid", "ppid", "counter"}
+var exabgpVolatileMembers = []string{"exabgp", exabgpMemberTime, "host", "pid", "ppid", "counter"}
 
 // DropVolatile removes the members no two runs agree on, in place, and answers
 // the same map so a caller can chain it.
@@ -179,9 +179,9 @@ func DropVolatile(document map[string]any) map[string]any {
 	}
 	switch neighbor["direction"] {
 	case "in":
-		neighbor["direction"] = "receive"
+		neighbor["direction"] = modeReceive
 	case "out":
-		neighbor["direction"] = "send"
+		neighbor["direction"] = modeSend
 	}
 	return document
 }

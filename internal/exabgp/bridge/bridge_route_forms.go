@@ -262,12 +262,16 @@ var errMaskNotNumber = errors.New("the mask of a prefix is no number")
 // `10.0.0.0/x`. ExaBGP 5.0 took it as the host route 10.0.0.0/32; 6.0 refuses
 // it in the configuration and on the API (X-29), so the bridge refuses it in
 // ExaBGP's terms rather than handing ze a token whose refusal names no mask.
+//
+// A token whose part before the slash is no address answers nil on purpose: it
+// is not a prefix with a bad mask, and the NLRI run carries such tokens (an RD,
+// a label), which ze judges in its own terms.
 func refuseMaskNotNumber(token string) error {
 	address, mask, ok := strings.Cut(token, "/")
 	if !ok {
 		return nil
 	}
-	if _, err := netip.ParseAddr(address); err != nil {
+	if !isAddress(address) {
 		return nil
 	}
 	if _, err := strconv.ParseUint(mask, 10, 8); err == nil {
@@ -275,6 +279,13 @@ func refuseMaskNotNumber(token string) error {
 	}
 	return fmt.Errorf("%w: %w: %q has the mask %q; write the prefix length as a number, %s/<length>",
 		ErrLineNotTranslated, errMaskNotNumber, token, mask, address)
+}
+
+// isAddress answers whether text is one IPv4 or IPv6 address. The parse error
+// is the answer "no", not a failure to report.
+func isAddress(text string) bool {
+	_, err := netip.ParseAddr(text)
+	return err == nil
 }
 
 // splitPrefix cuts one prefix into every subnet of the given length, which is

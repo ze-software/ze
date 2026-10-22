@@ -46,7 +46,7 @@ func appendCapabilitiesText(buf []byte, list any) []byte {
 // would refuse is written as UnknownCapability here too.
 func appendCapabilityText(buf []byte, code int, values []string) []byte {
 	body := capabilityBody(code, values)
-	if name, _ := body["name"].(string); name == "unknown" {
+	if name, _ := body[exabgpMemberName].(string); name == capNameUnknown {
 		// UnknownCapability.__str__: `Unknown`, `Unassigned` or `Reserved`,
 		// then str() of the code, which is CapabilityCode.name.
 		iana, _ := body["iana"].(string)
@@ -210,7 +210,7 @@ func appendCapabilityTextFromWire(buf []byte, code int, value string) []byte {
 // Graceful.FORWARDING_STATE`). The families are a dict: a family the peer sent
 // twice keeps its first place and its last flags. The layout is the diagram
 // above gracefulRestartBody.
-func appendGracefulRestartText(buf []byte, payload []byte) []byte {
+func appendGracefulRestartText(buf, payload []byte) []byte {
 	restart := uint16(payload[0])<<8 | uint16(payload[1])
 	type familyFlags struct {
 		family string

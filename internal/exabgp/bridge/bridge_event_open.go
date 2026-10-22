@@ -37,6 +37,22 @@ const asTwoOctetMax = 65535
 // capNameRouteRefresh is the name both route-refresh variants are shown by.
 const capNameRouteRefresh = "route-refresh"
 
+// The names ExaBGP shows a capability by, where the code table and the
+// capability's own `name` member spell it alike.
+const (
+	capNameASN4        = "asn4"
+	capNameNextHop     = "nexthop"
+	capNameOperational = "operational"
+	capNameRole        = "role"
+)
+
+// capNameMultisession is the `name` member of either multisession capability.
+// The code table spells the RFC one `multi-session`.
+const capNameMultisession = "multisession"
+
+// capNameUnknown is the `name` member of a capability ExaBGP has no class for.
+const capNameUnknown = "unknown"
+
 // ExaBGP's capability codes, as src/exabgp/bgp/message/open/capability/
 // capability.py (CapabilityCode) names them.
 const (
@@ -69,11 +85,11 @@ var exabgpCapabilityNames = map[int]string{
 	capRouteRefresh:         capNameRouteRefresh,
 	0x03:                    "outbound-route-filtering",
 	0x04:                    "multiple-routes",
-	capNextHop:              "nexthop",
+	capNextHop:              capNameNextHop,
 	capExtendedMessage:      "extended-message",
-	capRole:                 "role",
+	capRole:                 capNameRole,
 	capGracefulRestart:      "graceful-restart",
-	capASN4:                 "asn4",
+	capASN4:                 capNameASN4,
 	0x43:                    "dynamic-capability",
 	capMultisession:         "multi-session",
 	capAddPath:              "add-path",
@@ -81,7 +97,7 @@ var exabgpCapabilityNames = map[int]string{
 	capPathsLimit:           "paths-limit",
 	capMultipleLabels:       "multiple-labels",
 	capLinkLocalNextHop:     "link-local-nexthop",
-	capOperational:          "operational",
+	capOperational:          capNameOperational,
 	capRouteRefreshCisco:    "cisco-route-refresh",
 	capMultisessionCisco:    "cisco-multi-sesion",
 	capHostname:             "hostname",
@@ -184,27 +200,27 @@ func capabilityBody(code int, values []string) map[string]any {
 		for _, value := range values {
 			families = append(families, exabgpCapabilityFamily(value))
 		}
-		return map[string]any{"name": "multiprotocol", "families": families}
+		return map[string]any{exabgpMemberName: "multiprotocol", "families": families}
 	case capRouteRefresh:
-		return map[string]any{"name": capNameRouteRefresh, "variant": "RFC"}
+		return map[string]any{exabgpMemberName: capNameRouteRefresh, exabgpMemberVariant: "RFC"}
 	case capRouteRefreshCisco:
-		return map[string]any{"name": capNameRouteRefresh, "variant": "Cisco"}
+		return map[string]any{exabgpMemberName: capNameRouteRefresh, exabgpMemberVariant: "Cisco"}
 	case capEnhancedRouteRefresh:
-		return map[string]any{"name": "enhanced-route-refresh"}
+		return map[string]any{exabgpMemberName: "enhanced-route-refresh"}
 	case capLinkLocalNextHop:
-		return map[string]any{"name": "link-local-nexthop"}
+		return map[string]any{exabgpMemberName: "link-local-nexthop"}
 	case capOperational:
-		return map[string]any{"name": "operational"}
+		return map[string]any{exabgpMemberName: capNameOperational}
 	case capExtendedMessage:
 		// ExtendedMessage.EXTENDED_SIZE. RFC 8654 Section 2: "the maximum
 		// message size is 65535 octets".
-		return map[string]any{"name": "extended-message", "size": 65535}
+		return map[string]any{exabgpMemberName: "extended-message", "size": 65535}
 	case capASN4:
 		if number, err := asn.Parse(values[0]); err == nil {
-			return map[string]any{"name": "asn4", "asn4": number}
+			return map[string]any{exabgpMemberName: capNameASN4, "asn4": number}
 		}
 	case capNextHop:
-		return map[string]any{"name": "nexthop", "conversion": nextHopConversions(values)}
+		return map[string]any{exabgpMemberName: capNameNextHop, "conversion": nextHopConversions(values)}
 	case capAddPath:
 		return familyKeyedBody("addpath", values, addPathMode)
 	case capPathsLimit:
@@ -251,7 +267,7 @@ func unknownCapabilityBody(code int, payload []byte) map[string]any {
 		iana = "unassigned"
 	}
 	return map[string]any{
-		"name": "unknown", "iana": iana, "value": code,
+		exabgpMemberName: capNameUnknown, "iana": iana, "value": code,
 		"raw": strings.ToUpper(hex.EncodeToString(payload)),
 	}
 }
@@ -291,7 +307,7 @@ func nextHopConversions(values []string) []string {
 // familyKeyedBody is the body of AddPath.json and PathsLimit.json: the name,
 // then one member per family. ze writes each entry as `<family> <value>`.
 func familyKeyedBody(name string, values []string, member func(string) any) map[string]any {
-	body := map[string]any{"name": name}
+	body := map[string]any{exabgpMemberName: name}
 	for _, entry := range values {
 		zeFamily, value, _ := strings.Cut(entry, " ")
 		body[exabgpCapabilityFamily(zeFamily)] = member(value)
@@ -361,7 +377,7 @@ func gracefulRestartBody(payload []byte) map[string]any {
 		restartFlags = append(restartFlags, "restart")
 	}
 	return map[string]any{
-		"name":                 "graceful restart",
+		exabgpMemberName:       "graceful restart",
 		"time":                 restart & gracefulTimeMask,
 		"address-family-flags": families,
 		"restart-flags":        restartFlags,
@@ -428,7 +444,7 @@ func roleBody(payload []byte) map[string]any {
 	if int(payload[0]) < len(exabgpRoleNames) {
 		role = exabgpRoleNames[payload[0]]
 	}
-	return map[string]any{"name": "role", "role": role}
+	return map[string]any{exabgpMemberName: capNameRole, "role": role}
 }
 
 // multipleLabelsBody is MultipleLabels.json. RFC 8277 Section 2.1: AFI (2
@@ -437,7 +453,7 @@ func multipleLabelsBody(payload []byte) map[string]any {
 	if len(payload)%4 != 0 {
 		return nil
 	}
-	body := map[string]any{"name": "multiple-labels"}
+	body := map[string]any{exabgpMemberName: "multiple-labels"}
 	for offset := 0; offset < len(payload); offset += 4 {
 		afi := uint16(payload[offset])<<8 | uint16(payload[offset+1])
 		body[wireCapabilityFamily(afi, payload[offset+2])] = payload[offset+3]
@@ -459,5 +475,5 @@ func multisessionBody(code int, payload []byte) map[string]any {
 	for _, carried := range payload[1:] {
 		names = append(names, exabgpCapabilityName(int(carried)))
 	}
-	return map[string]any{"name": "multisession", "variant": variant, "capabilities": names}
+	return map[string]any{exabgpMemberName: capNameMultisession, exabgpMemberVariant: variant, "capabilities": names}
 }

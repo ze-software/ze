@@ -168,6 +168,21 @@ func TestPrefixMaskNotNumberRefused(t *testing.T) {
 	}
 }
 
+// TestRefuseMaskNotNumberOnlyJudgesAddresses holds refuseMaskNotNumber to its
+// one refusal: an address whose mask is no number.
+//
+// VALIDATES: a token whose part before the slash is no address, a numeric
+// mask and a bare address all pass; only `<address>/<word>` is refused.
+// PREVENTS: the X-29 refusal swallowing a token that is no prefix at all.
+func TestRefuseMaskNotNumberOnlyJudgesAddresses(t *testing.T) {
+	for _, token := range []string{"65000:1/x", "label/x", "10.0.0.0/24", "2001:db8::/64", "10.0.0.0", "10.0.0/x"} {
+		assert.NoError(t, refuseMaskNotNumber(token), token)
+	}
+	for _, token := range []string{"10.0.0.0/x", "2001:db8::/len"} {
+		assert.ErrorIs(t, refuseMaskNotNumber(token), errMaskNotNumber, token)
+	}
+}
+
 // TestOperationalRefusedByKind is X-30 (AC-36) and OD-1.
 //
 // VALIDATES: an unknown kind and a bare `announce operational` are refused

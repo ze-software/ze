@@ -32,6 +32,9 @@ const familyIPv6Unicast = "ipv6/unicast"
 // configTrue represents the string value "true" used in config trees.
 const configTrue = "true"
 
+// configFalse represents the string value "false" used in config trees.
+const configFalse = "false"
+
 // ExternalProcess describes an ExaBGP process that must be handled
 // by the exabgp wrapper (not convertible to a Ze plugin because
 // ExaBGP uses stdout text API, Ze uses YANG RPC over socket pairs).
@@ -752,7 +755,7 @@ func copySimpleFields(src, dst *config.Tree) {
 	// `neighbor <ip> enable` (ExaBGP peer.py, issue #1013). ze's peer shutdown
 	// container holds the peer the same way; `shutdown false` is the default and
 	// writes nothing.
-	if v, ok := src.Get("shutdown"); ok && v == "true" {
+	if v, ok := src.Get("shutdown"); ok && v == configTrue {
 		dst.GetOrCreateContainer("shutdown")
 	}
 
@@ -797,7 +800,7 @@ func copySimpleFields(src, dst *config.Tree) {
 			localContainer.Set("ip", localAddr)
 		}
 		if isPassive {
-			localContainer.Set("accept", "true")
+			localContainer.Set("accept", configTrue)
 		}
 	}
 
@@ -813,7 +816,7 @@ func copySimpleFields(src, dst *config.Tree) {
 			remoteContainer = config.NewTree()
 			connContainer.SetContainer("remote", remoteContainer)
 		}
-		remoteContainer.Set("connect", "false")
+		remoteContainer.Set("connect", configFalse)
 	}
 }
 
@@ -876,7 +879,7 @@ func migrateCapability(src, dst *config.Tree) {
 
 		// asn4 preserves disable value (ExaBGP allows "asn4 disable;").
 		if v, ok := srcCap.GetFlex("asn4"); ok {
-			if v == "disable" || v == "false" {
+			if v == "disable" || v == configFalse {
 				dstCap.Set("asn4", "disable")
 			} else {
 				dstCap.Set("asn4", "enable")
@@ -1313,7 +1316,7 @@ func injectUpdateGroupsDisabled(tree *config.Tree) {
 		env.SetContainer("reactor", reactor)
 	}
 
-	reactor.Set("update-groups", "false")
+	reactor.Set("update-groups", configFalse)
 }
 
 // copyOtherItems copies non-neighbor, non-process items.

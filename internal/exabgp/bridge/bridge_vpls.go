@@ -29,7 +29,7 @@ var bridgeVPLSFields = [...]struct{ exabgp, ze string }{
 	{"rd", "rd"},
 	{"endpoint", "ve-id"},
 	{"offset", "ve-block-offset"},
-	{"size", "ve-block-size"},
+	{exabgpVPLSSize, "ve-block-size"},
 	{"base", "label-base"},
 }
 

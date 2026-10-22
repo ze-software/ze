@@ -20,6 +20,26 @@ import (
 // its `string` or its `element`.
 const exabgpMemberValue = "value"
 
+// exabgpMemberName is the member ExaBGP names a capability under in an OPEN's
+// `capabilities` object.
+const exabgpMemberName = "name"
+
+// exabgpMemberVariant is the member ExaBGP states which form of a capability
+// was sent under: route-refresh's `RFC` or `Cisco`, multisession's code.
+const exabgpMemberVariant = "variant"
+
+// exabgpMemberTime is the envelope member holding the Unix time ExaBGP wrote
+// the line at.
+const exabgpMemberTime = "time"
+
+// exabgpMemberPeer is the member of a neighbor's `address` and `asn` objects
+// that states the remote side.
+const exabgpMemberPeer = "peer"
+
+// exabgpVPLSSize is ExaBGP's member for a VPLS NLRI's VE block size, which ze
+// writes as `ve-block-size`.
+const exabgpVPLSSize = "size"
+
 // overlayWire rewrites the members of an UPDATE line that ze's JSON states
 // lossily, from the UPDATE's own path attributes: the AS_PATH segments, the
 // numeric value beside each extended community, and the flag octet in the name

@@ -29,6 +29,9 @@ var (
 	errOperationalNotSent = errors.New("the OPERATIONAL message is not sent by Ze")
 )
 
+// operationalWord is the command word of `[announce] operational <kind> ...`.
+const operationalWord = "operational"
+
 // convertOperational refuses ExaBGP's `announce operational <kind> ...`, the
 // API 4 form, and `operational <kind> ...`, the API 6 form after its selector.
 // ok is false for a line that is neither, which the caller translates on.
@@ -40,9 +43,9 @@ func convertOperational(rest string) (ok bool, err error) {
 	words := strings.Fields(strings.ToLower(rest))
 	position := 1
 	switch {
-	case len(words) >= 2 && words[0] == announceVerb && words[1] == "operational":
+	case len(words) >= 2 && words[0] == announceVerb && words[1] == operationalWord:
 		position = 2
-	case len(words) >= 1 && words[0] == "operational":
+	case len(words) >= 1 && words[0] == operationalWord:
 	default:
 		return false, nil
 	}

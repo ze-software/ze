@@ -738,7 +738,7 @@ func shapePluginNLRI(family string, tokens []string) []string {
 // CheckExtendedCommunityList answers CheckExtendedCommunityItem for every item
 // of an extended-community value, one item or a bracketed list.
 func CheckExtendedCommunityList(value string) error {
-	for _, item := range strings.Fields(strings.Trim(value, "[] ")) {
+	for item := range strings.FieldsSeq(strings.Trim(value, "[] ")) {
 		if err := CheckExtendedCommunityItem(item); err != nil {
 			return err
 		}

@@ -14,7 +14,7 @@ import (
 // ExaBGP writes on every UPDATE line (Response.JSON.update).
 // PREVENTS: a block that outlives its session, or reaches another peer.
 func TestSessionsKeepTheBlockFromNegotiatedToDown(t *testing.T) {
-	event := func(document map[string]any) Event { return ReadEvent(document) }
+	event := ReadEvent
 	peer := func(address string) map[string]any {
 		return map[string]any{"remote": map[string]any{"address": address, "as": float64(65001)}}
 	}

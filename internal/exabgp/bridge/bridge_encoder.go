@@ -46,7 +46,7 @@ func (e Encoder) String() string {
 	case EncoderText:
 		return encoderNameText
 	case EncoderUnspecified:
-		return "unspecified"
+		return unspecifiedName
 	default:
 		panic("BUG: invalid bridge encoder")
 	}

@@ -172,15 +172,26 @@ func TestHeldVersionRefusesTheOther(t *testing.T) {
 //
 // VALIDATES: X-7, X-8; the boundary row `api version` 3, 4, 5, 6, 7.
 func TestParseAPIVersion(t *testing.T) {
-	good := map[string]APIVersion{"auto": APIVersionAuto, " AUTO ": APIVersionAuto, "0": APIVersionAuto, "4": APIV4, "6": APIV6}
-	for word, want := range good {
-		got, err := ParseAPIVersion(word)
+	// The padded, upper-case word is deliberate: the parser trims and folds case,
+	// as ExaBGP's api_version does.
+	good := []struct {
+		word string
+		want APIVersion
+	}{
+		{"auto", APIVersionAuto},
+		{" AUTO ", APIVersionAuto},
+		{"0", APIVersionAuto},
+		{"4", APIV4},
+		{"6", APIV6},
+	}
+	for _, tc := range good {
+		got, err := ParseAPIVersion(tc.word)
 		if err != nil {
-			t.Errorf("ParseAPIVersion(%q): %v", word, err)
+			t.Errorf("ParseAPIVersion(%q): %v", tc.word, err)
 			continue
 		}
-		if got != want {
-			t.Errorf("ParseAPIVersion(%q) = %v, want %v", word, got, want)
+		if got != tc.want {
+			t.Errorf("ParseAPIVersion(%q) = %v, want %v", tc.word, got, tc.want)
 		}
 	}
 	bad := map[string]string{

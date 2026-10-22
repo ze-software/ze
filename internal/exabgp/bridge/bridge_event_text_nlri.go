@@ -188,7 +188,7 @@ func appendVPLSExtensive(buf []byte, entry map[string]any, nextHop string) []byt
 	buf = append(buf, " offset "...)
 	buf = appendJSONNumber(buf, entry["offset"])
 	buf = append(buf, " size "...)
-	buf = appendJSONNumber(buf, entry["size"])
+	buf = appendJSONNumber(buf, entry[exabgpVPLSSize])
 	buf = append(buf, ' ')
 	if nextHop != "" {
 		buf = append(buf, "next-hop "...)
