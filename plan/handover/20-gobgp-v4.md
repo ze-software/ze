@@ -150,3 +150,28 @@ vrrp scenarios of `./le test integration interop`.
 `alpine:3.21` literals left for their owners: `kernelProbeImage`
 (`internal/le/interoplab/kernelcheck.go`), the rsvpte preflight, the docker
 test fixtures in `internal/le/interoplab`, `test/interop/Dockerfile.ze`.
+
+## Progress (source-built peers, freshness check)
+
+Agent of 2026-10-22, source-built-peer and pin-freshness slice of M14.
+
+| Item | Commit | Proof |
+|------|--------|-------|
+| One-month rule: `Docker.Build` calls `RequireFreshSource` (`internal/le/interoplab/sourcepin.go`). A `ZE_SOURCE_COMMIT` older than a month refuses the build and names `./le lab pin bump dockerfile <path>`. A `ZE_SOURCE_CHECKOUT` is fast-forwarded, or refused when dirty | 312f9b8b7e | `go test ./internal/le/interoplab/` green |
+| freeRtr RSVP-TE pinned to 96368b02da10 through `ZE_SOURCE_*`; the carrier reads the pin (`rsvpFreePinnedRevision`) | c6fbaa54d1 | image `ze-rsvpte-freertr:probe` built from that pin (REVISION 96368b02da10, patch applied, on Alpine 3.21.3); the carrier compiles with `-tags integration` |
+| `le lab pin check` and `le lab pin bump dockerfile <path>` (`internal/le/lab/pin`) | 8058cc6803 | `go test ./internal/le/lab/pin/` green |
+| Docs: the interop.md sections "Source-built peers" and "Lab pins against upstream" | ed4004b142 | carried another session's FreeRADIUS 3.2.10 and alpine hunks, which are true at HEAD |
+| Scan fix: official image literals in Go (`officialLiteral`, `officialContext`). The slash-only pattern had missed every `alpine:3.x` in Go | 9f47523615 | `TestCheckFindsEveryPinBehind` red, then green |
+| Fixtures: `kernelProbeImage` and the interoplab docker fixtures to alpine:3.24.3, the deployment L2TP peer from alpine:3.20 to 3.24.3, deployment vpp-base 24.02 to 25.10, labtest stayrtr latest to v0.6.4 | 541761990d | unit tests green; the docker-tagged fixtures were not run |
+
+Not committed. In the working tree, waiting for image proof:
+
+- The RSVP-TE lab to alpine:3.24.3: `test/interop-rsvpte/Dockerfile.freertr` (both stages), `test/interop-rsvpte/Dockerfile.ze`, `mplsPreflightContainer` in `internal/le/interoplab/rsvpte/rsvpte.go`, the interop.md lab-base sentence and the kernel probe example.
+- The perf freeRtr DUT `test/interop/Dockerfile.freertr`: eclipse-temurin 21 to 27 (jdk and jre), golang 1.26 to 1.27, native-builder alpine:3.24.3. It cannot be built on this host, which has no `../rtr` checkout.
+
+Owed:
+
+- The RSVP-TE scenario run (`RSVPTE_INTEROP_SCENARIO=transit-strict-hop-forwarded ./le test integration interop-rsvpte`). The first attempt failed in setup: the MPLS preflight `docker run` timed out at 2m. A bare `docker run --rm alpine:3.24.3` took 2m31s by hand, at load average 46 with no container running. The host was too loaded; the image was not the cause.
+- Build `ze-rsvpte-freertr` on Alpine 3.24.3, then commit the RSVP-TE alpine set above.
+- `le lab pin check` after these commits: 132 pins, 19 behind. Owned by sibling agents: `Dockerfile.gobgp` (golang 1.25, alpine 3.21), `frr_image_test.go` (FRR 10.4.1), and the `Dockerfile.rustbgpd` trixie-slim tag. Left alone because they are parser fixtures, not lab pins: `internal/le/go/versionpin/goversion_test.go`. freeRtr RSVP-TE is one upstream commit behind, which the one-month rule allows. `pinnedImage` in `labtest_test.go` (stayrtr 0.6 by digest) is unresolved, because upstream has no tag in that shape.
+- `le doc check verify` is red on the published wiki and gh-pages command catalogs (`clear bgp rib advertised`, `request peer *`). That is ze's command surface, not these commits.
