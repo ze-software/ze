@@ -19,30 +19,30 @@ func ospfSRAnycastCheckerBranches(t *testing.T) {
 
 	t.Run("pop toward the next hop", func(t *testing.T) {
 		const table = "15000 via inet 172.30.0.3 dev eth0\n16100 via inet 172.30.0.3 dev eth0\n"
-		if err := ospfSRAnycastPopVerdict(table, ospfSRAnycastInLabel, nextHop); err != nil {
+		if err := ospfSRAnycastPopVerdict(table, nextHop); err != nil {
 			t.Fatalf("a pop toward the next hop was refused: %v", err)
 		}
 	})
-	t.Run("swap is the pre-fix behaviour", func(t *testing.T) {
+	t.Run("swap is the pre-fix behavior", func(t *testing.T) {
 		const table = "16100 as to 17100 via inet 172.30.0.3 dev eth0\n"
-		if err := ospfSRAnycastPopVerdict(table, ospfSRAnycastInLabel, nextHop); err == nil {
+		if err := ospfSRAnycastPopVerdict(table, nextHop); err == nil {
 			t.Fatal("a swap toward the next hop, the Originator-only reading, was accepted")
 		}
 	})
 	t.Run("pop toward the other advertiser", func(t *testing.T) {
 		const table = "16100 via inet 172.30.0.15 dev eth0\n"
-		if err := ospfSRAnycastPopVerdict(table, ospfSRAnycastInLabel, nextHop); err == nil {
+		if err := ospfSRAnycastPopVerdict(table, nextHop); err == nil {
 			t.Fatal("a pop toward the Originator, which is not the SPF next hop, was accepted")
 		}
 	})
 	t.Run("another label popped", func(t *testing.T) {
 		const table = "116100 via inet 172.30.0.3 dev eth0\n15000 via inet 172.30.0.3 dev eth0\n"
-		if err := ospfSRAnycastPopVerdict(table, ospfSRAnycastInLabel, nextHop); err == nil {
+		if err := ospfSRAnycastPopVerdict(table, nextHop); err == nil {
 			t.Fatal("a table without in-label 16100 was accepted on a label that only contains it")
 		}
 	})
 	t.Run("empty table", func(t *testing.T) {
-		if err := ospfSRAnycastPopVerdict("", ospfSRAnycastInLabel, nextHop); err == nil {
+		if err := ospfSRAnycastPopVerdict("", nextHop); err == nil {
 			t.Fatal("an empty label table was accepted")
 		}
 	})

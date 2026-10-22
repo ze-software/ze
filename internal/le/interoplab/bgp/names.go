@@ -37,6 +37,8 @@ const (
 	cmdBirdc = "birdc"
 	cmdGoBGP = "gobgp"
 	cmdCat   = "cat"
+	// cmdMPLS lists the kernel label table inside a harness peer.
+	cmdMPLS = "mpls"
 	// leBinary is the entrypoint of a harness peer, and leTestWord the first
 	// word of its command: every harness command answers as `le test <name>`.
 	leBinary   = linuxle.Name
@@ -121,6 +123,7 @@ const (
 	containerInterface = "eth0"
 	ipActionSet        = "set"
 	ipFamilyInet       = "inet"
+	ipFamilyMPLS       = "mpls"
 	ipActionShow       = "show"
 	ipObjectAddr       = "addr"
 	ipObjectAddress    = "address"

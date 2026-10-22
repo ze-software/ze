@@ -17,7 +17,7 @@ import "time"
 // LSA, the LSA should be flushed from the routing domain by incrementing the
 // received LSA's LS age to MaxAge and reflooding (see Section 14.1)."
 //
-// The condition needs a neighbour that holds a NEWER instance than the MaxAge
+// The condition needs a neighbor that holds a NEWER instance than the MaxAge
 // copy Ze withdrew, and only a restart makes Ze's sequence number go backwards:
 //
 //  1. Ze originates its default AS-external-LSA (metric 4711). Two reloads
@@ -27,7 +27,7 @@ import "time"
 //  3. Ze stops and starts. It holds no record of its old instance and
 //     originates the default again at InitialSequenceNumber 0x80000001.
 //  4. ze-reload-withdraw.conf drops default-information. flushSelfLSA ages
-//     Ze's own copy to MaxAge at 0x80000002. With no neighbour, no
+//     Ze's own copy to MaxAge at 0x80000002. With no neighbor, no
 //     acknowledgement ever deletes it, so the MaxAge copy stays in Ze's LSDB.
 //  5. FRR's eth0 comes up. In the database exchange FRR's 0x80000003 is newer
 //     than Ze's 0x80000002, so Ze requests it and handleSelfReceived

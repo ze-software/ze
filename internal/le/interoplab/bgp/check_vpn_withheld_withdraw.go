@@ -113,7 +113,7 @@ func checkVPNWithheldWithdraw(ctx context.Context, check *interoplab.CheckContex
 	// ("rcvd UPDATE about 10.20.0.0/24 IPv4 unicast -- withdrawn", read in a
 	// live run), so this leg asserts the withdrawal, not the field's value;
 	// TestFwdWithdrawalLabelledCompatibility asserts the SAFI 4 bytes.
-	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithheldPrefix, 1); err != nil {
+	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithheldPrefix); err != nil {
 		return err
 	}
 	if err := waitFRRRoute(ctx, check.Lab, labeledWithheldSibling, frrFamilyIPv4Labeled, 10*time.Second, true); err != nil {

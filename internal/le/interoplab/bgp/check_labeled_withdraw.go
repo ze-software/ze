@@ -85,7 +85,7 @@ func checkLabeledWithdrawCompatibility(ctx context.Context, check *interoplab.Ch
 	if err := waitFRRRoute(ctx, check.Lab, labeledWithdrawPrefix, frrFamilyIPv4Labeled, 150*time.Second, false); err != nil {
 		return fmt.Errorf("FRR still holds %s after the injector withdrew it with Compatibility 0x800000: %w", labeledWithdrawPrefix, err)
 	}
-	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithdrawPrefix, 1); err != nil {
+	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithdrawPrefix); err != nil {
 		return err
 	}
 	if err := waitFRRRoute(ctx, check.Lab, labeledKeptPrefix, frrFamilyIPv4Labeled, 10*time.Second, true); err != nil {
@@ -123,10 +123,10 @@ func checkLabeledWithdrawCompatibility(ctx context.Context, check *interoplab.Ch
 	if err := requireVPNWithdrawalCounts(ctx, check.Lab, neighbor, true); err != nil {
 		return err
 	}
-	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledKeptPrefix, 1); err != nil {
+	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledKeptPrefix); err != nil {
 		return err
 	}
-	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithdrawPrefix, 1); err != nil {
+	if err := requireLabeledWithdrawals(ctx, check.Lab, neighbor, labeledWithdrawPrefix); err != nil {
 		return fmt.Errorf("after the injector stopped: %w", err)
 	}
 	return waitContains(ctx, check.Lab, peerFRR, frrNeighborCommand(neighbor), 30*time.Second, "BGP state = Established")
@@ -137,16 +137,16 @@ func frrNeighborCommand(neighbor string) []string {
 	return []string{cmdVtysh, "-c", command.Str("show bgp neighbor ").Str(neighbor).String()}
 }
 
-// requireLabeledWithdrawals reads FRR's log and requires exactly want decodes
+// requireLabeledWithdrawals reads FRR's log and requires exactly one decode
 // of an UPDATE from ze that withdrew prefix.
-func requireLabeledWithdrawals(ctx context.Context, lab interoplab.CheckerLab, neighbor, prefix string, want int) error {
+func requireLabeledWithdrawals(ctx context.Context, lab interoplab.CheckerLab, neighbor, prefix string) error {
 	log, err := lab.Query(ctx, peerFRR, []string{cmdCat, frrLogPath}, nil)
 	if err != nil {
 		return fmt.Errorf("read FRR log: %w", err)
 	}
 	got := frrWithdrawalDecodes(log, neighbor, prefix)
-	if got != want {
-		return fmt.Errorf("FRR logged %d withdrawals of %s from %s, want %d", got, prefix, neighbor, want)
+	if got != 1 {
+		return fmt.Errorf("FRR logged %d withdrawals of %s from %s, want 1", got, prefix, neighbor)
 	}
 	return nil
 }

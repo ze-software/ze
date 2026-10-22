@@ -231,7 +231,7 @@ func addPluginDir(path, dir string) (bool, error) {
 
 	config := map[string]json.RawMessage{}
 	mode := fs.FileMode(0o600)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is the invoking user's own docker config, from their DOCKER_CONFIG or HOME exactly as the docker CLI resolves it
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return false, err
 	}

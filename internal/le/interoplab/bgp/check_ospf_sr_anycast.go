@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -110,13 +111,13 @@ func waitOSPFSRAnycastOriginator(ctx context.Context, lab interoplab.CheckerLab)
 		return verdict == nil
 	})
 	if err != nil {
-		return fmt.Errorf("Ze's LSDB never held the condition the scenario tests: %w (last verdict: %s); last reply: %s", err, ospfSRAnycastVerdictText(verdict), last)
+		return fmt.Errorf("the Ze LSDB never held the condition the scenario tests: %w (last verdict: %s); last reply: %s", err, ospfSRAnycastVerdictText(verdict), last)
 	}
 	return nil
 }
 
 func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr) error {
-	command := []string{"ip", "-f", "mpls", "route", "show"}
+	command := []string{"ip", "-f", ipFamilyMPLS, "route", "show"}
 	var last string
 	var verdict error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
@@ -126,11 +127,11 @@ func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHo
 		last = output
 		return output, err
 	}, func(output string) bool {
-		verdict = ospfSRAnycastPopVerdict(output, ospfSRAnycastInLabel, nextHop)
+		verdict = ospfSRAnycastPopVerdict(output, nextHop)
 		return verdict == nil
 	})
 	if err != nil {
-		return fmt.Errorf("Ze did not apply the next hop's own NP-Flag (RFC 8665 Section 5): %w (last verdict: %s); last `ip -f mpls route show`: %s", err, ospfSRAnycastVerdictText(verdict), last)
+		return fmt.Errorf("the next hop's own NP-Flag (RFC 8665 Section 5) was not applied by Ze: %w (last verdict: %s); last `ip -f mpls route show`: %s", err, ospfSRAnycastVerdictText(verdict), last)
 	}
 	return nil
 }
@@ -182,7 +183,7 @@ func ospfSRAnycastOriginatorVerdict(output string) error {
 		return fmt.Errorf("want the Prefix-SID for %s from exactly two routers, Ze holds it from %v", ospfSRAnycastPrefix, advertisers)
 	}
 	if advertisers[0] != ospfSRAnycastOriginator {
-		return fmt.Errorf("Ze reads the Prefix-SID for %s from %s first, so that router is the Originator; the scenario needs %s first, because the next hop %s being the Originator passes whether or not Ze applies a non-originating next hop's flags (compare the two FRRs' Extended Prefix Opaque IDs)",
+		return fmt.Errorf("the Prefix-SID for %s is read by Ze from %s first, so that router is the Originator; the scenario needs %s first, because the next hop %s being the Originator passes whether or not Ze applies a non-originating next hop's flags (compare the two FRRs' Extended Prefix Opaque IDs)",
 			ospfSRAnycastPrefix, advertisers[0], ospfSRAnycastOriginator, ospfSRAnycastNextHop)
 	}
 	if advertisers[1] != ospfSRAnycastNextHop {
@@ -207,11 +208,12 @@ func ospfSRAnycastCarriesSID(lsa *ospfSRAnycastPrefixLSA) bool {
 }
 
 // ospfSRAnycastPopVerdict judges `ip -f mpls route show` in Ze's container: the route
-// for inLabel MUST be a pop toward nextHop. iproute2 prints a pop as
+// for Ze's own label ospfSRAnycastInLabel MUST be a pop toward nextHop. iproute2 prints a pop as
 // "16100 via inet 172.30.0.3 dev eth0" and a swap as "16100 as to 17100 via inet ...".
 // A Ze that treats the next hop as a transit router installs the swap, so the
 // assertion is on a route that is present in both builds and differs between them.
-func ospfSRAnycastPopVerdict(output, inLabel string, nextHop netip.Addr) error {
+func ospfSRAnycastPopVerdict(output string, nextHop netip.Addr) error {
+	inLabel := ospfSRAnycastInLabel
 	var route []string
 	for line := range strings.Lines(output) {
 		fields := strings.Fields(line)
@@ -229,10 +231,8 @@ func ospfSRAnycastPopVerdict(output, inLabel string, nextHop netip.Addr) error {
 	if route == nil {
 		return fmt.Errorf("no label route for in-label %s", inLabel)
 	}
-	for _, field := range route[1:] {
-		if field == "as" {
-			return fmt.Errorf("in-label %s is swapped, not popped: %s", inLabel, strings.Join(route, " "))
-		}
+	if slices.Contains(route[1:], "as") {
+		return fmt.Errorf("in-label %s is swapped, not popped: %s", inLabel, strings.Join(route, " "))
 	}
 	if len(route) < 4 {
 		return fmt.Errorf("in-label %s route names no next hop: %s", inLabel, strings.Join(route, " "))
