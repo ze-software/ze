@@ -85,21 +85,14 @@ Agent of 2026-10-22, BGP-peer slice of M14. Landed:
 | ExaBGP | 5.0.13 | 5.0.15 (`exaBGPPins`) | installs under uv, healthcheck keeps `--no-ack`, `--fast-interval` | dcd3cb5a35 |
 | pmacct pmbmpd | `:latest` | v1.8.0 (`defaultPMACCTImage`) | `pmbmpd -V` 1.8.0 | dcd3cb5a35 |
 | StayRTR live test | `:latest` | v0.6.4 (`stayrtrImage`) | `stayrtr -version` 0.6.4 | dcd3cb5a35 |
-| OpenBGPD, perf sender | 8.6 (Alpine 3.21); sender alpine:3.21 | 9.3 from the checksummed portable tarball (perf build context is the interop dir, `OPENBGPD_DIR` retired); sender alpine:3.24.3 | `bgpd -V` 9.3; `bgpd -n` on test/perf/configs/openbgpd.conf: OK; perfrunner tests pass | the commit that carries this section |
+| OpenBGPD, perf sender | 8.6 (Alpine 3.21); sender alpine:3.21 | 9.3 from the checksummed portable tarball (perf build context is the interop dir, `OPENBGPD_DIR` retired); sender alpine:3.24.3 | `bgpd -V` 9.3; `bgpd -n` on test/perf/configs/openbgpd.conf: OK; perfrunner tests pass | 6dc7d0124f |
+| rustbgpd (perf DUT) | v0.7.0, rust 1.88, bookworm | v0.79.0, rust:1.99.1-trixie, debian:trixie-slim | `rustbgpd --help` banner 0.79.0 | 23beacca0f |
+| RustyBGP (perf DUT) | master, rust 1.88, alpine 3.21 | v0.2.0 tag, rust:1.99.1-alpine3.24 (+`make` for jemalloc), alpine:3.24.3 | `rustybgpd --version` v0.2.0-97abd957f4 | 23beacca0f |
+| StayRTR image | golang:1.26-alpine, alpine:3.21 | golang:1.27-alpine3.24, alpine:3.24.3, still v0.6.4 | `stayrtr -version` 0.6.4 | 23beacca0f |
+| BGP lab Ze image | alpine:3.21 | alpine:3.24.3 | `bgp-ebgp-ipv4-bird` passes (1m2s) | 643e104f5e |
 
-NOT landed, left in the working tree for the continuation (edited, unproven):
-test/interop/Dockerfile.rustbgpd (v0.79.0, rust:1.99.1-trixie, debian
-trixie-slim; build was compiling at handoff), test/interop/Dockerfile.rustybgp
-(v0.2.0, rust:1.99.1-alpine3.24, alpine:3.24.3; first build failed because the
-jemalloc build script needs `make`, now added, not rebuilt),
-test/interop/Dockerfile.stayrtr (golang:1.27-alpine3.24, alpine:3.24.3) and
-test/interop/Dockerfile.ze (alpine:3.24.3), neither built yet, and
-docs/architecture/testing/interop.md (pmacct row 1.8.0, already true; StayRTR
-builder row; the Dockerfile.ze Alpine sentence, which also holds another
-session's hunk, rewritten so it is true at HEAD). The continuation builds each
-image one at a time, reads the version inside (`rustbgpd --version`,
-`rustybgpd --version`, `stayrtr -version`, `/etc/alpine-release`), commits
-them with interop.md, and only then runs scenarios.
+Scenario runs (continuation agent, one at a time under the session flock):
+`bgp-ebgp-ipv4-bird` pass. Results of the rest are in the table below as they land.
 
 Owed on a free host (scenario runs; only one at a time, under the session
 flock): every `*-frr` and `*-bird` scenario, rtr-stayrtr, vpn-frr, evpn-frr,
@@ -210,6 +203,7 @@ Not committed. In the working tree, waiting for image proof:
 Owed:
 
 - The RSVP-TE scenario run (`RSVPTE_INTEROP_SCENARIO=transit-strict-hop-forwarded ./le test integration interop-rsvpte`). The first attempt failed in setup: the MPLS preflight `docker run` timed out at 2m. A bare `docker run --rm alpine:3.24.3` took 2m31s by hand, at load average 46 with no container running. The host was too loaded; the image was not the cause.
-- Build `ze-rsvpte-freertr` on Alpine 3.24.3, then commit the RSVP-TE alpine set above.
+  A second attempt at 12:40 (load average 15) failed the same way: the preflight hit its 2m bound, then `docker rm -f` hit its 30s bound. The Docker daemon itself was answering slowly while other lab runs held it, so the scenario is still owed on a quiet daemon.
+- Done since: the Alpine 3.24.3 image built (`ze-rsvpte-freertr:m14-alpine324`, patch applied, REVISION 96368b02da10), and the RSVP-TE alpine set landed in 843f3bafa9.
 - `le lab pin check` after these commits: 132 pins, 19 behind. Owned by sibling agents: `Dockerfile.gobgp` (golang 1.25, alpine 3.21), `frr_image_test.go` (FRR 10.4.1), and the `Dockerfile.rustbgpd` trixie-slim tag. Left alone because they are parser fixtures, not lab pins: `internal/le/go/versionpin/goversion_test.go`. freeRtr RSVP-TE is one upstream commit behind, which the one-month rule allows. `pinnedImage` in `labtest_test.go` (stayrtr 0.6 by digest) is unresolved, because upstream has no tag in that shape.
 - `le doc check verify` is red on the published wiki and gh-pages command catalogs (`clear bgp rib advertised`, `request peer *`). That is ze's command surface, not these commits.
