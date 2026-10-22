@@ -1,7 +1,7 @@
 freeRouter independent RSVP-TE peer
 
 Upstream: https://github.com/mc36/freeRtr
-Revision: 6c295d8ae79c834ef631d3d21d373c335fb05328
+Revision: the commit in /peer/REVISION (ZE_SOURCE_COMMIT in Dockerfile.freertr)
 Project: http://www.freertr.org/
 License: https://creativecommons.org/licenses/by-sa/4.0/
 

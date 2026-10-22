@@ -1,5 +1,12 @@
 # Two products from one pinned build.
 #
+# freeRouter publishes no stable release, so the build follows a pinned master
+# commit (owner decision M14). Docker.Build refuses this file once the commit
+# is more than one month old (internal/le/interoplab/sourcepin.go), and
+# `./le lab pin bump dockerfile test/interop-rsvpte/Dockerfile.freertr` moves
+# ZE_SOURCE_COMMIT and ZE_SOURCE_DATE to upstream's latest master commit; the
+# build then proves freertr/ze-interop-resv.patch still applies.
+#
 # The default (last) stage is the peer image of the `rsvpte` interop suite
 # (internal/le/interoplab/rsvpte): Java 21, the jar, rawInt.bin bound to the
 # container's eth0, and tcpdump, which records the RSVP the peer receives.
@@ -8,10 +15,13 @@
 # interface helpers are CC BY-SA 4.0; retain /peer/NOTICE, /peer/source.tar.gz
 # and /peer/ze-interop-resv.patch when redistributing these artifacts.
 FROM alpine:3.21.3 AS build
+ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
+ARG ZE_SOURCE_COMMIT=96368b02da1030148d44fc1821e844deeba0a2f0
+ARG ZE_SOURCE_DATE=2026-10-22T08:41:13Z
 RUN apk add --no-cache ca-certificates curl openjdk21-jdk build-base linux-headers zip
 WORKDIR /src/freertr
 RUN curl --fail --location --output /tmp/source.tar.gz \
-    https://codeload.github.com/mc36/freeRtr/tar.gz/6c295d8ae79c834ef631d3d21d373c335fb05328 \
+    "https://codeload.github.com/${ZE_SOURCE_REPOSITORY}/tar.gz/${ZE_SOURCE_COMMIT}" \
     && tar -xzf /tmp/source.tar.gz --strip-components=1
 # The one source change: freertr/ze-interop-resv.patch adds three test knobs to
 # the RESV an egress originates, each off unless its environment variable is
@@ -36,7 +46,7 @@ RUN mkdir -p /peer \
     && cp /tmp/ze-interop-resv.patch /peer/ze-interop-resv.patch \
     && cp readme.md /peer/upstream-readme.md \
     && cp src/org/freertr/util/version.java /peer/upstream-version.java \
-    && printf '%s\n' 6c295d8ae79c834ef631d3d21d373c335fb05328 > /peer/REVISION
+    && printf '%s\n' "${ZE_SOURCE_COMMIT}" > /peer/REVISION
 COPY NOTICE /peer/NOTICE
 WORKDIR /peer
 RUN sha256sum rtr.jar tapInt.bin rawInt.bin > SHA256SUMS

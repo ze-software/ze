@@ -43,7 +43,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const rsvpFreeRevision = "6c295d8ae79c834ef631d3d21d373c335fb05328"
 const rsvpFreeLocal = "198.18.0.1"
 const rsvpFreePeer = "198.18.0.2"
 const rsvpFreeData = "198.18.1.1"
@@ -111,7 +110,7 @@ func TestRSVPFreeRouterInterop(t *testing.T) {
 	})
 	lab.pingWithdrawn(t)
 	lab.alive(t)
-	t.Logf("freeRouter %s -> Ze: PATH/RESV label %d; input-disabled reply blocked; three labeled replies delivered; matching PathTear removed label in %s", rsvpFreeRevision, label, time.Since(withdrawnAt))
+	t.Logf("freeRouter %s -> Ze: PATH/RESV label %d; input-disabled reply blocked; three labeled replies delivered; matching PathTear removed label in %s", rsvpFreePinnedRevision(t), label, time.Since(withdrawnAt))
 }
 
 type rsvpFreeLab struct {
@@ -285,11 +284,34 @@ rsvp-te {
 }
 `
 
+// rsvpFreeDockerfile is the build that pins the peer's source, from this
+// package's directory.
+const rsvpFreeDockerfile = "../../../test/interop-rsvpte/Dockerfile.freertr"
+
+// rsvpFreePinnedRevision answers the commit the Dockerfile pins in its
+// ZE_SOURCE_COMMIT build argument, the one declaration of the peer revision,
+// so a monthly bump of the pin (M14) needs no edit here.
+func rsvpFreePinnedRevision(t *testing.T) string {
+	t.Helper()
+	body, err := os.ReadFile(rsvpFreeDockerfile)
+	if err != nil {
+		t.Fatalf("read the peer pin from %s: %v", rsvpFreeDockerfile, err)
+	}
+	for line := range strings.SplitSeq(string(body), "\n") {
+		if commit, found := strings.CutPrefix(strings.TrimSpace(line), "ARG ZE_SOURCE_COMMIT="); found {
+			return commit
+		}
+	}
+	t.Fatalf("%s declares no ARG ZE_SOURCE_COMMIT", rsvpFreeDockerfile)
+	return ""
+}
+
 func rsvpFreeArtifacts(t *testing.T, dir string) {
 	t.Helper()
+	pinned := rsvpFreePinnedRevision(t)
 	revision, err := os.ReadFile(filepath.Join(dir, "REVISION"))
-	if err != nil || strings.TrimSpace(string(revision)) != rsvpFreeRevision {
-		t.Fatalf("peer REVISION must be %s: %q: %v", rsvpFreeRevision, revision, err)
+	if err != nil || strings.TrimSpace(string(revision)) != pinned {
+		t.Fatalf("peer REVISION must be %s, the commit %s pins: %q: %v", pinned, rsvpFreeDockerfile, revision, err)
 	}
 	manifest, err := os.ReadFile(filepath.Join(dir, "SHA256SUMS"))
 	if err != nil {
