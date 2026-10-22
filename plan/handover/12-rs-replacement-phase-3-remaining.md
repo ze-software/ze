@@ -4,6 +4,29 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-22, 3a finishing agent: stopped on a full disk, nothing changed
+
+- Stopped at once: the disk fell to 257 MB free (the stop line is 1.5 GB)
+  between two package-scoped runs, filled by other sessions. The 3a draft and
+  the Phase 4 hunks are untouched: `git diff --stat` of the six reactor files
+  equals the start of this run (a temporary debug log in `admit` was added and
+  removed again). The reactor package is still RED for every session.
+- Reproduced, `-race -run TestOwedKeyLookupChunked`: both subtests fail in
+  `lookupChunked`'s `ownershipLiveThrough` wait on the FIRST batch of A's
+  announcements (900 keys, each contesting B's uncontested entry at C, so each
+  is owed with an empty excluded set): C never shows A on 10.23.131.0/24
+  (key 899). So the owe happens and the round never writes A.
+- Read, not yet proven: the round's order (`snapshot` -> `recoverySources`
+  cut -> `drainRecoverySources` -> `DrainEventsApplied` -> lookup) looks
+  causally sound for a forwarded announcement on paper. The next step is the
+  instrumentation that was about to run: log, in `recoveryAdmission.admit`,
+  key 0's outcome, `candidate.source` / `candidate.message` and the entry's
+  owner. Outcome `recoveryKeyHeld` with candidate B means the RIB answered
+  before applying A (the suspect); outcome `recoveryKeyWrite` with candidate A
+  means the write is refused at the writer.
+- Lint seen on the draft: `godot` on the RFC 8277 quote comment of
+  `stageAnnouncementOwe` (`session_ownership.go`).
+
 ## STATE 2026-10-22 night, later: Phase 4 departure-label fix written, held behind the 3a draft
 
 - DEFECT (Phase 4, read and run at the producer): a departure of a labelled
