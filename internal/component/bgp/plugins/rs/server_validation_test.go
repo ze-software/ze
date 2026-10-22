@@ -34,11 +34,21 @@ func TestValidationReplayFollowsBufferedForward(t *testing.T) {
 		delivered = append(delivered, "announce")
 	}
 	rs.dispatchCommandHook = func(command string, args []string, _ string) (string, json.RawMessage, error) {
-		if command != "request bgp adj-rib-in replay-path" || !slices.Equal(args, []string{target, source, "ipv4/unicast", "192.0.2.0/24", "7"}) {
+		if command != ribevents.ReplayPathCommand || !slices.Equal(args, []string{target, source, "ipv4/unicast", "192.0.2.0/24", "7"}) {
 			t.Errorf("replayed the wrong retained path: %s %v", command, args)
 		}
+		return statusDone, json.RawMessage(`{"routes":[{"source-peer":"10.0.0.1","family":"ipv4/unicast",` +
+			`"nlri-hex":"18c00002","path-id":7,"withdraw":true}],"last-index":0,"more":false}`), nil
+	}
+	// Recorded at the relay, not the read: the store only answers the path,
+	// and the route server relays it under its own send grant, so a
+	// receive-only store still lets the change reach the target.
+	rs.relayStoredRouteHook = func(destination string, routes []rpc.StoredRoute) error {
+		if destination != target || len(routes) != 1 || !routes[0].Withdraw || routes[0].InitialUpdate {
+			t.Errorf("relayed the wrong revalidated path to %s: %+v", destination, routes)
+		}
 		delivered = append(delivered, "withdraw")
-		return statusDone, nil, nil
+		return nil
 	}
 	rs.validationChanged([]ribevents.ValidationRoute{{
 		Peer: netip.MustParseAddr(source), Family: family.IPv4Unicast,

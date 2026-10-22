@@ -35,6 +35,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -649,9 +650,15 @@ func recordedFamilyNames(families map[family.Family]bool) []string {
 	return names
 }
 
-// replayForPeer replays existing routes to a newly-connected peer via adj-rib-in,
-// then sends End-of-RIB markers per negotiated family. Runs in a per-peer
-// lifecycle goroutine (not blocking the event loop).
+// replayForPeer replays existing routes to a newly-connected peer, then sends
+// End-of-RIB markers per negotiated family. Runs in a per-peer lifecycle
+// goroutine (not blocking the event loop).
+//
+// The routes are held by the receive store (bgp-adj-rib-in), and this plugin
+// relays them itself: it reads them page by page
+// (ribevents.ReplayRoutesCommand) and relays each page under its own name. The
+// destination grants `send [ update ]` to this plugin, the replay owner, and
+// gives the store nothing, so a relay the store sent would be refused.
 //
 // The gen parameter guards against rapid reconnects: if the peer's ReplayGen
 // has changed by the time replay finishes, this goroutine is stale.
@@ -672,17 +679,15 @@ func (rr *routeReflector) replayForPeer(peerAddr string, gen, initialReplay uint
 		rr.signalSessionReady(peerAddr, gen, initialReplay)
 	}()
 
-	// Full replay from adj-rib-in index 0.
-	status, data, err := rr.dispatchCommand(ctx, "request bgp adj-rib-in replay", peerAddr, "0")
-	if err != nil || status != statusDone {
+	// Full replay from store index 0.
+	progress, err := ribevents.RelayReplay(ctx, rr.dispatchCommand, rr.plugin.RelayStoredRoute, peerAddr, 0, "")
+	replayed = progress.Replayed
+	if err != nil {
 		// Optional-store failure does not prevent mandatory FlowSpec replay.
-		logger().Warn("replay failed", "peer", peerAddr, "status", status, "error", err)
+		logger().Warn("replay failed", "peer", peerAddr, "replayed", progress.Replayed, "error", err)
 		return
 	}
-
-	// Parse last-index for convergent delta replay.
-	lastIndex, replayCount := parseReplayResponse(data)
-	replayed = replayCount
+	lastIndex := progress.LastIndex
 
 	// Convergent delta replay: catch routes adj-rib-in received after the
 	// full replay snapshot (race between event delivery and replay).
@@ -693,20 +698,18 @@ func (rr *routeReflector) replayForPeer(peerAddr string, gen, initialReplay uint
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		_, deltaData, deltaErr := rr.dispatchCommand(ctx, "request bgp adj-rib-in replay", peerAddr, textbuf.StringUint(lastIndex))
+		delta, deltaErr := ribevents.RelayReplay(ctx, rr.dispatchCommand, rr.plugin.RelayStoredRoute, peerAddr, lastIndex, "")
+		replayed += delta.Replayed
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
 			break
 		}
-		newLast, deltaReplayed := parseReplayResponse(deltaData)
-		if deltaReplayed == 0 {
+		if delta.Replayed == 0 {
 			break
 		}
-		replayed += deltaReplayed
-		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", deltaReplayed)
-		lastIndex = newLast
+		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", delta.Replayed)
+		lastIndex = delta.LastIndex
 	}
-
 }
 
 // dispatchCommand sends a command to the engine via the SDK.
@@ -765,18 +768,6 @@ func (rr *routeReflector) signalSessionReady(peerAddr string, gen, initialReplay
 		logger().Warn("plugin session ready failed; this peer's live forwards remain fenced",
 			"peer", peerAddr, "error", err)
 	}
-}
-
-// parseReplayResponse extracts last-index and replayed count from a replay response.
-func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) {
-	var resp struct {
-		LastIndex uint64 `json:"last-index"`
-		Replayed  int    `json:"replayed"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return 0, 0
-	}
-	return resp.LastIndex, resp.Replayed
 }
 
 func nlriDelCmd(fam, prefixes string) string {

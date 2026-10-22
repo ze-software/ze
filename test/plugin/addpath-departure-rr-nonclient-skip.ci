@@ -21,8 +21,8 @@
 # leave before B's route arrived, and the skip would go unexercised. B and C
 # announce only when the fixture sends them 198.18.0.0/24 (`release`), after
 # the receiver is up: C's route reaching ze while the receiver is still
-# connecting is reflected to no one, and nothing replays it later, because the
-# receiver does not attach bgp-adj-rib-in with `send [ update ]`.
+# connecting is reflected to no one, and nothing replays it later, because no peer
+# attaches bgp-adj-rib-in, so no store holds the route to replay.
 
 stdin=sourcea:terminator=EOF_SOURCEA
 option=tcp_connections:value=1

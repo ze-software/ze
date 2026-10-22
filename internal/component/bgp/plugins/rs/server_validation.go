@@ -64,17 +64,16 @@ func (rs *routeServer) replayValidation(key workerKey, route ribevents.Validatio
 		rs.relayFlowSpecValidation(key, route, targets, mayPark)
 		return
 	}
+	// The store answers each path and this route server relays it, under the
+	// `send [ update ]` grant the operator gave this route server and not the
+	// store (ribevents.ReplayPathCommand).
 	for _, target := range targets {
 		ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
-		status, _, err := rs.dispatchCommand(ctx, "request bgp adj-rib-in replay-path",
+		_, err := ribevents.RelayReplayPath(ctx, rs.dispatchCommand, rs.relayReplayRoutes,
 			target, key.sourcePeer, route.Family.String(), route.Prefix.String(), strconv.FormatUint(uint64(route.PathID), 10))
 		cancel()
 		if err != nil {
 			logger().Error("validation replay failed", "source", key.sourcePeer, "target", target, "prefix", route.Prefix, "error", err)
-			continue
-		}
-		if status == statusError {
-			logger().Error("validation replay refused", "source", key.sourcePeer, "target", target, "prefix", route.Prefix)
 		}
 	}
 }

@@ -18,8 +18,8 @@
 # releases each A action only after the receiver was sent the preceding UPDATE,
 # and releases B (`release 127.0.0.5`, sending it 198.18.0.0/24) only once the
 # receiver is up: B's route reaching ze while the receiver is still connecting
-# is reflected to no one, and nothing replays it later, because the receiver
-# does not attach bgp-adj-rib-in with `send [ update ]`.
+# is reflected to no one, and nothing replays it later, because no peer attaches
+# bgp-adj-rib-in, so no store holds the route to replay.
 
 stdin=sourcea:terminator=EOF_SOURCEA
 option=tcp_connections:value=1

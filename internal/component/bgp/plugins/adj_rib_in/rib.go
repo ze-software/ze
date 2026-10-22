@@ -290,9 +290,20 @@ func commandDecls() []sdk.CommandDecl {
 			Name:      "request bgp adj-rib-in replay",
 			ShortHelp: "Replay the stored routes of every other peer to one target peer.",
 		},
+		// Plugin-to-plugin plumbing: the replay owner (bgp-rr, bgp-rs) reads
+		// the routes a peer-up replay owes, page by page, and relays them under
+		// its own send grant (ribevents.ReplayRoutesCommand).
 		{
-			Name:      "request bgp adj-rib-in replay-path",
-			ShortHelp: "Reconcile one source path to one target after validation changes.",
+			Name:      ribevents.ReplayRoutesCommand,
+			ShortHelp: "Answer one page of the stored routes a peer-up replay owes one target peer.",
+			Hidden:    true,
+		},
+		// Plugin-to-plugin plumbing: bgp-rr and bgp-rs read one source path's
+		// state after its validation changed and relay it under their own send
+		// grant (ribevents.ReplayPathCommand).
+		{
+			Name:      ribevents.ReplayPathCommand,
+			ShortHelp: "Answer one source path's current state for one target after validation changes.",
 			Hidden:    true,
 		},
 		// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims
@@ -994,11 +1005,33 @@ func (r *AdjRIBInManager) ingestPosition() (msgID uint64, tracked bool) {
 // replayed route and a forwarded one diverged on the wire. That divergence was
 // spec-fixit-bgp-egress-rail-divergence, closed 2026-08-14.
 func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uint64, cut replayCut) ([]rpc.StoredRoute, uint64) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	var out []rpc.StoredRoute
 	var maxSeq uint64
+	r.walkReplayRoutes(targetPeer, fromIndex, cut, func(seq uint64, source string, rt *RawRoute) bool {
+		out = append(out, replayStoredRoute(source, rt))
+		if seq > maxSeq {
+			maxSeq = seq
+		}
+		return true
+	})
+	return out, maxSeq
+}
+
+// walkReplayRoutes calls visit for every stored route a replay to targetPeer
+// owes after fromIndex and inside cut, with the sequence it is stored at and
+// the source it was learned from. It walks one source at a time, in no
+// particular source order, and each source's routes in ascending sequence.
+// visit returns false to end the current source's walk; the walk then moves to
+// the next source.
+//
+// It holds the store's read lock for the whole walk, so visit MUST NOT call
+// back into the store. rt is the store's own route: visit MUST NOT modify it
+// or keep it past the call. visit gets the stored route rather than a built
+// rpc.StoredRoute so that the caller builds the value where it keeps it: a
+// pointer to a value built here escapes, one heap allocation per route.
+func (r *AdjRIBInManager) walkReplayRoutes(targetPeer netip.Addr, fromIndex uint64, cut replayCut, visit func(seq uint64, source string, rt *RawRoute) bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	for sourcePeer, routes := range r.ribIn {
 		if sourcePeer == targetPeer {
@@ -1030,27 +1063,27 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 			if cut.excludes(rt.MsgID) {
 				return true
 			}
-			out = append(out, rpc.StoredRoute{
-				SourcePeer:  sourceStr,
-				Family:      rt.Family.String(),
-				AttrHex:     rt.AttrHex,
-				NextHopHex:  rt.NHopHex,
-				NLRIHex:     rt.NLRIHex,
-				PathID:      rt.PathID,
-				NLRIFraming: rt.NLRIFraming,
-				// A replay is the destination's initial update: it passes the
-				// fence that holds the peer's live forwards behind it.
-				InitialUpdate: true,
-				MsgID:         rt.MsgID,
-			})
-			if seq > maxSeq {
-				maxSeq = seq
-			}
-			return true
+			return visit(seq, sourceStr, rt)
 		})
 	}
+}
 
-	return out, maxSeq
+// replayStoredRoute is the rpc.StoredRoute a replay sends for rt, learned from
+// source.
+func replayStoredRoute(source string, rt *RawRoute) rpc.StoredRoute {
+	return rpc.StoredRoute{
+		SourcePeer:  source,
+		Family:      rt.Family.String(),
+		AttrHex:     rt.AttrHex,
+		NextHopHex:  rt.NHopHex,
+		NLRIHex:     rt.NLRIHex,
+		PathID:      rt.PathID,
+		NLRIFraming: rt.NLRIFraming,
+		// A replay is the destination's initial update: it passes the
+		// fence that holds the peer's live forwards behind it.
+		InitialUpdate: true,
+		MsgID:         rt.MsgID,
+	}
 }
 
 // relayRoutes hands stored routes to the engine for relay through the forward

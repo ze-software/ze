@@ -264,21 +264,34 @@ func TestForwardCachedRailRefusesAnUnattachedProcess(t *testing.T) {
 // here for the reason TestForwardCachedRailRefusesAnUnattachedProcess states,
 // and pinned there by TestCachedRailsNameTheProcessAsTheSender.
 //
-// VALIDATES: a destination that does not attach the process is refused and no
+// VALIDATES: a destination that does not attach the process is refused, and so
+// is one that attaches it without `send [ update ]` (receive only, the binding
+// bgp-adj-rib-in holds beside a route server, or `send [ raw ]` only); no
 // stored route reaches the forward pool.
 // PREVENTS: a plugin replaying routes it supplies into a peer that never
 // attached it -- the destination and the route bytes both come from the caller
-// on this rail.
+// on this rail. It also prevents a receive-only store from relaying a peer-up
+// replay or a revalidated path on the strength of being attached at all, which
+// is why the replay owner relays instead (docs/architecture/api/architecture.md).
 func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
 	resetSendPermissionMetrics(t)
 	env := railFixture(t)
 
+	const receiveOnly, rawOnly = "adj-rib-in", "raw-builder"
 	dst := netip.MustParseAddr(railDest)
-	routes := []rpc.StoredRoute{storedIPv4Route(forwardSourceAddr)}
+	for key, peer := range env.api.r.peers {
+		if key.Addr() == dst {
+			peer.settings.ProcessBindings = append(peer.settings.ProcessBindings,
+				ProcessBinding{PluginName: receiveOnly, ReceiveAll: true}, sendRawOnly(rawOnly))
+		}
+	}
 
-	err := env.api.RelayStoredRoute(dst, routes, plugin.ProcessSender(railRefused))
-	require.ErrorIs(t, err, errSendNotPermitted)
-	assert.Contains(t, err.Error(), railRefused, "the refusal must name the process")
+	routes := []rpc.StoredRoute{storedIPv4Route(forwardSourceAddr)}
+	for _, process := range []string{railRefused, receiveOnly, rawOnly} {
+		err := env.api.RelayStoredRoute(dst, routes, plugin.ProcessSender(process))
+		require.ErrorIs(t, err, errSendNotPermitted, "process %s", process)
+		assert.Contains(t, err.Error(), process, "the refusal must name the process")
+	}
 	assert.Empty(t, env.items(), "a refused relay must put nothing on the destination's wire")
 
 	require.NoError(t, env.api.RelayStoredRoute(dst, routes, plugin.ProcessSender(railGranted)))

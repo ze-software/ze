@@ -255,6 +255,25 @@ and `relay-stored-route` plugin RPCs and `send bgp <selector> raw` name their
 destinations directly, as an address list, one address, or one peer. All ten
 share one filter, `filterPermittedPeers`.
 
+A relay is judged on the grant of the process that sends it, and on nothing
+else: no process lends its grant to another. bgp-rr and bgp-rs own the peer-up
+replay, and the engine treats them as owning it for a peer only when that peer
+grants them `send [ update ]`. The routes are held by bgp-adj-rib-in, which the
+operator attaches with `receive` only, so the owner reads them from the store
+(`request bgp adj-rib-in replay-routes`, one page per call, each page bounded to
+half the transport frame so the answer and the owner's relay of it each fit one
+frame) and sends each page with its own `relay-stored-route` call. A
+validation change takes the same route: the owner reads the path's current
+state (`request bgp adj-rib-in replay-path`, a one-route page) and relays it
+itself. A relay bgp-adj-rib-in sends itself (its own self-replay, or the operator's
+`request bgp adj-rib-in replay`) is judged on its own grant and refused toward a
+peer that does not grant it `send [ update ]`.
+<!-- source: internal/core/bgp/ribevents/replay.go -- ReplayRoutesCommand, RelayReplay, ReplayPathCommand, RelayReplayPath -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand, buildReplayPage -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- replayForPeer -->
+<!-- source: internal/component/bgp/reactor/send_permission.go -- maySend -->
+
 Raw is gated on `send [ raw ]`, a word of its own. It carries a whole BGP message
 the caller chose, so no other send type describes it and `send [ update ]` does
 not imply it. Until 2026-08-30 it was gated on ATTACHMENT alone, which left a

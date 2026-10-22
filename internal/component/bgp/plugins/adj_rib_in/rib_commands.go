@@ -33,6 +33,7 @@ const (
 
 var (
 	errAdjRibInReplayRequiresTarget         = errors.New("request bgp adj-rib-in replay requires target peer address")
+	errAdjRibInReplayRoutesArgs             = errors.New("request bgp adj-rib-in replay-routes requires <target> <from-index> [<max-msg-id>]")
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
@@ -49,7 +50,9 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 		return statusDone, r.show(showSelector(args, peer)), nil
 	case "request bgp adj-rib-in replay":
 		return r.replayCommand(args)
-	case "request bgp adj-rib-in replay-path":
+	case ribevents.ReplayRoutesCommand:
+		return r.replayRoutesCommand(args)
+	case ribevents.ReplayPathCommand:
 		return r.replayPathCommand(args)
 	case "request bgp adj-rib-in claim-replay":
 		return r.claimReplayCommand()

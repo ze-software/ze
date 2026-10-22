@@ -262,8 +262,9 @@ authorization, reflection and export policy.
 
 The route server splits the UPDATEs for a peer that comes up at a message-id
 cut. The replay delivers every UPDATE at or below the cut, and the live forward
-delivers every UPDATE above it. The two rails reach the peer through different
-processes, so the engine orders them for that peer alone. While a process that
+delivers every UPDATE above it. The two rails are separate calls into the
+engine, the replay a relay of stored routes and the live forward a forward of
+cached UPDATEs, so the engine orders them for that peer alone. While a process that
 reports the peer's initial update (the route server, the route reflector) has not
 yet reported it done, the engine holds the peer's live forwards and validation
 changes in the peer's forward queue. The replayed routes pass. The report comes
@@ -337,7 +338,16 @@ is waiting on.
 <!-- source: internal/component/bgp/plugins/rs/server.go -- SetStartupSubscriptions and the deadlock rationale -->
 
 The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
+It needs only `receive [ update-received state ]`. When a peer comes up, the
+route server or reflector reads the stored routes from it, page by page, and
+sends them to the peer itself, so the peer's `send [ update ]` for `rs` (or the
+reflector) is the grant that covers the replay. Grant `bgp-adj-rib-in`
+`send [ update ]` yourself only for a peer no route server or reflector serves,
+where it replays on its own and sends under its own name.
 <!-- source: internal/component/bgp/plugins/rs/ -- RunRouteServer; internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in for replay -->
+<!-- source: internal/core/bgp/ribevents/replay.go -- RelayReplay -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand -->
+<!-- source: internal/component/bgp/reactor/send_permission.go -- maySend -->
 
 ## Cache Commands
 

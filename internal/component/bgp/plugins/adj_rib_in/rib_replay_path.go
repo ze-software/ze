@@ -13,10 +13,17 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// replayPathCommand reconciles one source path to a destination after validation
-// changes. Unlike peer-up replay it includes ineligible paths: the reactor gate
-// converts them into withdrawals, and preserves eligible announcements. Missing
-// paths carry an explicit withdrawal. The relay runs after releasing mu.
+// replayPathCommand answers ribevents.ReplayPathCommand: the current state of
+// one source path for a destination after its validation changed, as a
+// ribevents.ReplayPage of at most one route. Unlike peer-up replay it includes
+// ineligible paths: the reactor gate converts them into withdrawals, and
+// preserves eligible announcements. Missing paths carry an explicit withdrawal.
+//
+// The store answers and relays nothing. The caller (bgp-rr, bgp-rs) relays the
+// route under its own name, because the destination's `send [ update ]` grant
+// is the caller's and the operator gives this store none: a relay sent here
+// would be judged on this store's grant and refused toward a peer that
+// attached only the caller (ribevents.ReplayRoutesCommand).
 func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) {
 	if len(args) != 5 {
 		return statusError, nil, fmt.Errorf("replay-path requires: destination source family prefix pathID")
@@ -42,7 +49,7 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		return statusError, nil, fmt.Errorf("replay-path pathID: %w", err)
 	}
 	if destination == source {
-		return statusDone, map[string]any{replayKeyReplayed: 0}, nil
+		return statusDone, ribevents.ReplayPage{Routes: []rpc.StoredRoute{}}, nil
 	}
 	key := compactRouteKey{Fam: fam, Prefix: prefix, PathID: uint32(pathID)}
 	route := rpc.StoredRoute{
@@ -66,10 +73,7 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		route.Withdraw = false
 	}
 	r.mu.RUnlock()
-	if err := r.relayRoutes(args[0], []rpc.StoredRoute{route}); err != nil {
-		return statusError, nil, err
-	}
-	return statusDone, map[string]any{replayKeyReplayed: 1}, nil
+	return statusDone, ribevents.ReplayPage{Routes: []rpc.StoredRoute{route}}, nil
 }
 
 // replayFlowSpecs supplies self-owned peer-up replay from the mandatory

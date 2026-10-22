@@ -79,15 +79,16 @@ func (rr *routeReflector) replayValidation(ctx context.Context, routes []ribeven
 		rr.mu.RUnlock()
 		for _, target := range targets {
 			if key.Prefix.IsValid() {
+				// The store answers the path and this reflector relays it, under
+				// the `send [ update ]` grant the operator gave this reflector
+				// and not the store (ribevents.ReplayPathCommand).
 				callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-				status, _, err := rr.dispatchCommand(callCtx, "request bgp adj-rib-in replay-path",
+				_, err := ribevents.RelayReplayPath(callCtx, rr.dispatchCommand, rr.plugin.RelayStoredRoute,
 					target, key.Peer.String(), key.Family.String(), key.Prefix.String(),
 					strconv.FormatUint(uint64(key.PathID), 10))
 				cancel()
 				if err != nil {
 					logger().Warn("reflection revalidation failed", "source", key.Peer, "target", target, "error", err)
-				} else if status == statusError {
-					logger().Warn("reflection revalidation refused", "source", key.Peer, "target", target)
 				}
 				continue
 			}

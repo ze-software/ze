@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -36,9 +38,12 @@ func newTestRouteServer(t *testing.T) *routeServer {
 		}
 	})
 	rs := &routeServer{
-		plugin:      p,
-		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry),
+		// The peer-up replay relays its pages here; a test that inspects them
+		// replaces the hook.
+		relayStoredRouteHook: func(string, []rpc.StoredRoute) error { return nil },
+		plugin:               p,
+		peers:                make(map[string]*PeerState),
+		withdrawals:          make(map[string]map[withdrawalKey]withdrawalEntry),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item)
@@ -1236,7 +1241,7 @@ func TestHandleStateUpReplay(t *testing.T) {
 		mu.Lock()
 		dispatchCmds = append(dispatchCmds, dispatchCall{command: cmd, args: slices.Clone(args), peer: peer})
 		mu.Unlock()
-		return statusDone, json.RawMessage(`{"last-index":5,"replayed":3}`), nil
+		return statusDone, testReplayPage(5, 3), nil
 	}
 	rs.updateRouteHook = func(peer, cmd string) {
 		mu.Lock()
@@ -1403,9 +1408,9 @@ func TestHandleStateUpDelta(t *testing.T) {
 		isFullReplay := len(args) >= 2 && args[1] == "0"
 		mu.Unlock()
 		if isFullReplay {
-			return statusDone, json.RawMessage(`{"last-index":5,"replayed":3}`), nil
+			return statusDone, testReplayPage(5, 3), nil
 		}
-		return statusDone, json.RawMessage(`{"last-index":7,"replayed":1}`), nil
+		return statusDone, testReplayPage(7, 1), nil
 	}
 
 	rs.mu.Lock()
@@ -2068,4 +2073,22 @@ func TestParseWorkerQueueSize(t *testing.T) {
 			}
 		})
 	}
+}
+
+// testReplayPage builds the answer bgp-adj-rib-in gives a replay-routes call
+// (ribevents.ReplayPage): n stub routes ending at sequence lastIndex, with no
+// further page.
+func testReplayPage(lastIndex uint64, n int) json.RawMessage {
+	var b strings.Builder
+	b.WriteString(`{"routes":[`)
+	for i := range n {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(`{"source-peer":"10.0.0.9","family":"ipv4/unicast","nlri-hex":"180a0000"}`)
+	}
+	b.WriteString(`],"last-index":`)
+	b.WriteString(strconv.FormatUint(lastIndex, 10))
+	b.WriteString(`,"more":false}`)
+	return json.RawMessage(b.String())
 }

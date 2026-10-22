@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // replayOrderFixture is a route server with a source, a destination whose
@@ -47,10 +48,16 @@ func newReplayOrderFixture(t *testing.T) *replayOrderFixture {
 		if len(args) >= 2 && args[1] == "0" {
 			enterOnce.Do(func() { close(entered) })
 			<-f.release
-			f.record(args[0] + " replay")
-			return statusDone, json.RawMessage(`{"last-index":1,"replayed":1}`), nil
+			return statusDone, testReplayPage(1, 1), nil
 		}
-		return statusDone, json.RawMessage(`{"last-index":1,"replayed":0}`), nil
+		// The delta pass past the first page: the store has nothing newer.
+		return statusDone, testReplayPage(0, 0), nil
+	}
+	// The replay is recorded where it leaves the plugin, at the owner's relay,
+	// not at the store read that only answers the routes.
+	f.rs.relayStoredRouteHook = func(destination string, _ []rpc.StoredRoute) error {
+		f.record(destination + " replay")
+		return nil
 	}
 	f.rs.updateRouteHook = func(peer, cmd string) {
 		switch {

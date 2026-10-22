@@ -1,0 +1,129 @@
+# Test: bgp-rr replays the routes it already holds to a client that comes up
+# AFTER them, with bgp-adj-rib-in attached the way the route-reflection guide
+# attaches it.
+# VALIDATES: the client's second session receives the reflected route. The
+#            reflector owns peer-up replay: it reads bgp-adj-rib-in's stored
+#            routes page by page and relays them itself (rr.go, replayForPeer;
+#            ribevents.ReplayRoutesCommand). The client grants
+#            `send [ update ]` to the reflector alone and gives adj-rib-in only
+#            `receive [ update-received state ]`, so the relay is judged on the
+#            reflector's grant and served.
+# PREVENTS: the replay going out under adj-rib-in's name, being refused with a
+#           `send refused` WARN only, and the late client silently never
+#           receiving the routes already held
+#           (plan/journal/silent-fall-through.md, 2026-10-21 replay row).
+#
+# NON-VACUITY. The client meets the route twice, once per session:
+#   conn=1 seq=1 -- the LIVE reflection, the control, and the event that tells
+#                   the client to drop its first session.
+#   conn=2 seq=1 -- the REPLAY, the subject. The source announces once and
+#                   never again, and no RIB plugin is loaded, so only the
+#                   peer-up replay can put the route on the second session.
+# With the replay judged on adj-rib-in's own grant (the defect), conn=2 seq=1
+# never arrives and the client fails with that expectation unmet.
+
+# The await fence below is the reflector's Info line for each End-of-RIB.
+option=env:var=ze.log.bgp.rr:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+# The source must outlive the replay: if it closes, ze withdraws its routes.
+option=linger:value=true
+# Announce only once ze holds the client Established, so conn=1 seq=1 is the
+# live reflection rather than a peer-up replay.
+option=await-file:path=client.up
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 100, NLRI 10.0.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C000020140050400000064180A0000
+EOF_SOURCE
+
+stdin=client:terminator=EOF_CLIENT
+option=tcp_connections:value=2
+option=timeout:value=60s
+option=asn:value=65000
+# Lingers so the runner's then=stop waits for its `successful`.
+option=linger:value=true
+option=established-file:path=client.up
+# conn=1 CONTROL: the live reflection of 10.0.0.0/24.
+expect=bgp:conn=1:seq=1:announced=180A0000
+# Drop the first session once the route is held: the route is stored, and the
+# second session comes up after it.
+action=close:conn=1:seq=2
+# conn=2 SUBJECT: the peer-up replay of the same route.
+expect=bgp:conn=2:seq=1:announced=180A0000
+EOF_CLIENT
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal relay {
+		use bgp-rr
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4
+			route-reflector-client true; cluster-id 10.0.0.1
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+
+		attach process relay {
+			receive [ update-received state open-received ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+
+	peer client {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4
+			route-reflector-client true; cluster-id 10.0.0.1
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		timer { connect-retry 5; }
+
+		attach process relay {
+			receive [ update-received state open-received ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=client
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
+# Both peers linger, so the runner stops ze itself. The fence is the
+# reflector's first End-of-RIB report; then=stop still waits for every check
+# peer to print `successful`, so the client's conn=2 replay is what ends the run
+# (docs/architecture/testing/ci-format.md, "Await").
+await=stderr:contains=sent EOR:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=send refused

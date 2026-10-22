@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -51,6 +52,11 @@ func retainedRelay(t *testing.T, r *AdjRIBInManager, command string, args ...str
 	}
 	_, result, err := r.handleCommand(command, args, "")
 	require.NoError(t, err)
+	// replay-path answers its route for the caller to relay (owner relay).
+	if page, isPage := result.(ribevents.ReplayPage); isPage {
+		require.Empty(t, relayed, "the store must answer the path, never relay it itself")
+		return page.Routes, nil
+	}
 	fields, ok := result.(map[string]any)
 	require.True(t, ok, "command result is %T", result)
 	return relayed, fields

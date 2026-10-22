@@ -86,8 +86,9 @@ and pool handles once.
 
 `validationChanged` enqueues route keys on the route server's existing source
 workers. Each worker flushes its buffered live UPDATEs before asking Adj-RIB-In
-for `replay-path`, which returns the current retained path or an explicit
-withdrawal for a removed path. This callback performs no RPC on the emitting
+for `replay-path`, which answers the current retained path or an explicit
+withdrawal for a removed path; the worker relays that answer itself, under the
+route server's own send grant. This callback performs no RPC on the emitting
 Adj-RIB-In command handler. Recovery therefore uses the stored bytes without
 requiring another UPDATE, and an event overtaken by another change still queries
 the current route. Every rebuilt update carries the `rebuilt` route-metadata key

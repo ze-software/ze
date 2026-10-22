@@ -3252,3 +3252,14 @@ Rejected delegation fix deleted first (sender.go OnBehalfOf/Delegators, plugin/s
 - Docs: route-reflection.md Plugin Bindings and api/architecture.md send paragraph rewritten; both late-destination .ci headers rewritten; journal row fixed; NEW journal row: revalidation `replay-path` has the same defect (open).
 Evidence: rr/rs/adj_rib_in/ribevents -race green; 13/13 related .ci green (rfc2545 skipped on darwin); red probe (owner relay disabled in RelayReplay) failed both late-destination .ci, restored.
 OWED (not run, budget): full reactor package `-race -tags ze_bgp`; plugin packages with the full feature tag set; `./le plugin boundary check`; then `./le commit create` for the files above (plus the two addpath-departure-rr .ci comment edits) and STOP for independent review.
+
+## 2026-10-22 peer-up replay review fixes and revalidation owner relay (subagent)
+
+Review findings fixed in the same uncommitted change, now in one commit script:
+- `walkReplayRoutes` hands `(seq, source, *RawRoute)` and callers build `replayStoredRoute` by value: `BenchmarkBuildReplayRoutes` 10023 -> 23 allocs/op at 10000 routes; `-gcflags=-m` shows no per-route escape.
+- `buildReplayPage` stops each source's walk once its routes pass the budget alone (`stopped` keeps More true for a lone oversize route), sorts only what it holds, copies only `held[:end]` (`chunkEnd` shared with `relayChunkEnd`): `BenchmarkBuildReplayPage` 124 ms / 266533 allocs -> 9.4 ms / 839 allocs.
+- `TestReplayRoutesInterleavedSourcesAcrossPages`: two interleaved sources, Delete and Put between pages; red with the sort disabled.
+- Revalidation (`replay-path`) now answer-only (`ribevents.ReplayPathCommand`, `RelayReplayPath`); rr and rs `replayValidation` relay under their own grant. rr/rs validation tests red with the owner relay disabled. Journal row in `plan/journal/silent-fall-through.md` marked fixed, end-to-end `.ci` still owed (needs an observer-released RTR fixture).
+- Reactor rail test pins receive-only and raw-only refusal; rs replay_order_test records at the relay hook; docs and stale comments fixed; `test/weakened/4d7ad031.md` (the commit tool's session) records the two renames; the untracked `test/weakened/8385ff13.md` is a superseded copy awaiting deletion (the hook asks the user).
+Evidence: reactor `-race -tags ze_bgp` ok (191 s); rr, rs, adj_rib_in, ribevents `-race` ok; vet ok; `./le plugin boundary check` OK.
+OWED: `./le test functional plugin-test` (replay and addpath-departure-rr .ci; not run, suite exceeds the agent window); lint; owner approval for the RFC-tagged ASPA retention test file (only its `retainedRelay` helper changed; committed under `rfc-change-ok`); end-to-end revalidation `.ci`.

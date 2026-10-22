@@ -231,6 +231,9 @@ type routeServer struct {
 	// dispatchCommandHook is called instead of SDK DispatchCommandArgs for test inspection.
 	// Nil in production (zero overhead).
 	dispatchCommandHook func(command string, args []string, peer string) (string, json.RawMessage, error)
+	// relayStoredRouteHook is called instead of SDK RelayStoredRoute by the
+	// peer-up replay (relayReplayRoutes), for test inspection.
+	relayStoredRouteHook func(destination string, routes []rpc.StoredRoute) error
 
 	// forwardCachedHook is called instead of Plugin.ForwardCached for tests that
 	// want to observe (ids, destinations) without a real engine connection.
@@ -506,6 +509,17 @@ func (rs *routeServer) dispatchCommand(ctx context.Context, command string, args
 		return rs.dispatchCommandHook(command, args, "")
 	}
 	return rs.plugin.DispatchCommandArgs(ctx, command, args, "")
+}
+
+// relayReplayRoutes relays one page of peer-up replay routes, or one
+// revalidated path, under this plugin's own name, which is the name the
+// destination's `send [ update ]` grant is checked against
+// (ribevents.ReplayRoutesCommand, ribevents.ReplayPathCommand).
+func (rs *routeServer) relayReplayRoutes(ctx context.Context, destination string, routes []rpc.StoredRoute) error {
+	if rs.relayStoredRouteHook != nil {
+		return rs.relayStoredRouteHook(destination, routes)
+	}
+	return rs.plugin.RelayStoredRoute(ctx, destination, routes)
 }
 
 // updateRouteWithMeta sends a route update command to matching peers via the

@@ -7,7 +7,6 @@ package rs
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
 	"net/netip"
@@ -18,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -34,9 +34,11 @@ import (
 // failing, which is the detection signal.
 const errUnknownCommandMarker = "unknown command"
 
-// cmdAdjRIBInReplay is the dispatch-command that asks bgp-adj-rib-in to replay a
-// peer's stored Adj-RIB-In. Args carry the peer address and cursor index.
-const cmdAdjRIBInReplay = "request bgp adj-rib-in replay"
+// cmdAdjRIBInReplay is the dispatch-command that reads, page by page, the
+// stored routes bgp-adj-rib-in holds for a peer-up replay. This plugin relays
+// each page itself (relayReplayRoutes), under its own send grant. Args carry the
+// peer address, the cursor index and the cut.
+const cmdAdjRIBInReplay = ribevents.ReplayRoutesCommand
 
 // ClaimPeerUpReplay is the exclusive-role token this plugin declares in its
 // registration (registry.Registration.Claims, see register.go). The engine
@@ -95,9 +97,10 @@ func (rs *routeServer) sleep(d time.Duration) {
 
 // isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
 // from the engine's ErrUnknownCommand -- i.e. no plugin handled the command.
-// Used as the soft-dep "adj-rib-in is not loaded" signal in replayForPeer.
-// Caller is responsible for knowing that the only command rs dispatches is
-// "request bgp adj-rib-in replay ..."; this helper does not re-verify the command text.
+// Used as the soft-dep "adj-rib-in is not loaded" signal by claimReplayOwnership
+// and replayForPeer. Every command rs dispatches is a bgp-adj-rib-in command
+// (claim-replay, replay-routes, replay-path), so an unknown command means that
+// plugin is absent; this helper does not re-verify the command text.
 func isDispatchUnknownCommand(err error) bool {
 	if err == nil {
 		return false
@@ -439,8 +442,8 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 	// "<peer> <from-index> <max-msg-id>": resume from the start, stop at the cut.
 	cutArg := textbuf.StringUint(cut)
 	replayArgs := []string{peerAddr, "0", cutArg}
-	status, data, err := rs.dispatchCommand(ctx, replayCommand, replayArgs...)
-	if err != nil || status != statusDone {
+	first, err := ribevents.RelayReplay(ctx, rs.dispatchCommand, rs.relayReplayRoutes, peerAddr, 0, cutArg)
+	if err != nil {
 		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
 		// OptionalDependencies entry that was not registered at build time,
 		// DispatchCommand returns ErrUnknownCommand ("unknown command ..."). Log
@@ -453,7 +456,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 				logger().Warn("bgp-adj-rib-in not loaded; peer-up replay limited to authorized FlowSpec routes")
 			})
 		} else {
-			logger().Error("replay failed", "peer", peerAddr, "command", replayCommand, "args", replayArgs, "status", status, "error", err)
+			logger().Error("replay failed", "peer", peerAddr, "command", replayCommand, "args", replayArgs, "replayed", first.Replayed, "error", err)
 		}
 		// Always send EOR when replay terminates -- the peer needs per-family
 		// end-of-RIB markers to finish its initial sync regardless of whether
@@ -465,8 +468,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay ui
 		return
 	}
 
-	// Parse last-index and adj-rib-in's ingest position from the replay response.
-	progress := parseReplayProgress(data)
+	progress := replayProgressOf(first, 0)
 
 	// A rapid reconnect made this goroutine stale: the newer one owns the
 	// peer's replay, and nothing more is sent from here.
@@ -628,44 +630,29 @@ func (p replayProgress) ingestedString() string {
 	return textbuf.StringUint(*p.ingested)
 }
 
-// parseReplayProgress decodes one replay call's answer, including the
-// responder's ingest position.
+// replayProgressOf folds one ribevents.RelayReplay walk into a progress. A
+// walk that relayed nothing keeps the previous cursor: LastIndex is the highest
+// sequence RELAYED, so an empty walk reports 0, and adopting that as the cursor
+// would rewind the next call to the start of the store.
 //
-// Format: {"last-index":N,"replayed":M[,"ingested-msg-id":P]}. The third field is
-// a POINTER so its absence is distinguishable from a value of 0 -- adj-rib-in
-// omits it when it tracks no position (a forked plugin on the text path, whose
-// stored routes carry no MessageID and are therefore never cut-excluded), while 0
-// is the real position of a plugin that has ingested nothing yet. Conflating the
-// two is what this whole signal exists to avoid.
-func parseReplayProgress(data json.RawMessage) replayProgress {
-	var resp struct {
-		LastIndex uint64  `json:"last-index"`
-		Replayed  int     `json:"replayed"`
-		Ingested  *uint64 `json:"ingested-msg-id"`
+// ingested stays a pointer so the store's "untracked" (nil) stays distinct from
+// the real position 0, the case this whole signal exists for (coversCut).
+func replayProgressOf(walk ribevents.ReplayProgress, prevCursor uint64) replayProgress {
+	cursor := walk.LastIndex
+	if walk.Replayed == 0 {
+		cursor = prevCursor
 	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return replayProgress{}
-	}
-	return replayProgress{cursor: resp.LastIndex, replayed: resp.Replayed, ingested: resp.Ingested}
+	return replayProgress{cursor: cursor, replayed: walk.Replayed, ingested: walk.IngestedMsgID}
 }
 
-// deltaReplay asks adj-rib-in for whatever it has stored since prev.cursor,
-// still bounded by the same cut, and folds the answer into a new progress.
-//
-// The cursor advances only on a call that delivered something: "last-index" is
-// the highest sequence DELIVERED, so an empty call reports 0, and adopting that
-// as the cursor would rewind the next call to the start of the store.
+// deltaReplay relays whatever adj-rib-in has stored since prev.cursor, still
+// bounded by the same cut, and folds the walk into a new progress.
 func (rs *routeServer) deltaReplay(ctx context.Context, peerAddr, cutArg string, prev replayProgress) (replayProgress, error) {
-	args := []string{peerAddr, textbuf.StringUint(prev.cursor), cutArg}
-	_, data, err := rs.dispatchCommand(ctx, cmdAdjRIBInReplay, args...)
+	walk, err := ribevents.RelayReplay(ctx, rs.dispatchCommand, rs.relayReplayRoutes, peerAddr, prev.cursor, cutArg)
 	if err != nil {
 		return prev, err
 	}
-	next := parseReplayProgress(data)
-	if next.replayed == 0 {
-		next.cursor = prev.cursor
-	}
-	return next, nil
+	return replayProgressOf(walk, prev.cursor), nil
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.

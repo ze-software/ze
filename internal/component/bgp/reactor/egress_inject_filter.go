@@ -6,9 +6,11 @@
 //
 // Forwarded (reflected) routes run their export filter chain in forwardUpdateCore
 // before the forward pool writes them via writeRawUpdateBody / writeUpdatePreFiltered.
-// The bgp-adj-rib-in replay takes that same rail. It calls RelayStoredRoute
-// (reactor_api_relay.go), which reconstructs the received wire and gives it to
-// forwardUpdateCore, so the replay is filtered there and never reaches this gate.
+// A peer-up replay takes that same rail. Its owner (bgp-rs or bgp-rr relaying
+// the pages bgp-adj-rib-in answers, or bgp-adj-rib-in replaying for itself)
+// calls RelayStoredRoute (reactor_api_relay.go), which reconstructs the received
+// wire and gives it to forwardUpdateCore, so the replay is filtered there and
+// never reaches this gate.
 // Every OTHER outbound route -- API/plugin injection, redistribute, configured
 // update{} blocks, static routes -- is written by the session via
 // writeUpdate or SendAnnounce, which historically bypassed export filters entirely.

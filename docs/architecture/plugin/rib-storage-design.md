@@ -930,15 +930,31 @@ event's `prefix` string, so a VPN key drops the RD, and it stores only the first
 NLRI of a section, under the whole raw section. That defect is an open row in
 `plan/journal/declared-format-contradicts-payload.md`.
 
-The peer-up replay (`buildReplayRoutes`) sends every stored route of every
+The peer-up replay (`walkReplayRoutes`) covers every stored route of every
 source peer other than the target, within the requested from-index and
 max-msg-id cut, except FlowSpec routes, whose snapshots come
 only from the selecting RIB, and routes a validation decision marked
-`Ineligible`.
+`Ineligible`. A replay owner (`bgp-rs`, `bgp-rr`) reads it page by page through
+the hidden `request bgp adj-rib-in replay-routes` (`buildReplayPage`) and relays
+each page under its own send grant; the store relays the whole walk itself
+(`buildReplayRoutes`) only for its own self-replay and the operator's
+`request bgp adj-rib-in replay`. A page is the lowest store sequences across all
+sources, cut at a byte budget. One bound holds across every source: the page
+keeps the lowest sequences seen so far that fit the budget together, drops its
+highest whenever a route pushes it over, and, once it has dropped one, ends a
+source's walk at the first route above its highest sequence. A page therefore
+holds and sorts at most one budget of routes, however many sources share the
+table. Its walk still visits each source's first route past the cursor, and the
+routes of a source that sit below the page boundary before that boundary is
+known, so its cost depends on the source order as well as on the page; it does
+not grow with the routes that sit above the boundary. A page's `more` is true
+when it left a route out, and can be true with nothing left when the routes it
+left out are deleted before the next read, which costs the owner one empty page.
 
 <!-- source: internal/component/bgp/plugins/adj_rib_in/compact_key.go -- compactRouteKey, routeKeyFromNLRI -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_complex.go -- installComplexNLRIs, removeComplexNLRIs -->
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleReceived, buildReplayRoutes -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleReceived, buildReplayRoutes, walkReplayRoutes -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- buildReplayPage -->
 
 ### Validation eligibility
 
@@ -981,12 +997,16 @@ removal releases that ownership. Eligibility and presence callbacks are register
 together, and both read the same receive-store lock without invoking the cache.
 
 The internal `replay-path` command takes destination, source, family, prefix and
-path identifier. It carries the current path, including pending or ineligible
-state, to the reactor's validation gate for reconciliation. An absent path uses
-`StoredRoute.Withdraw`; every retained path carries its original `MsgID`.
+path identifier. It answers the current path, including pending or ineligible
+state, as a one-route replay page, and relays nothing: the caller (`bgp-rs`,
+`bgp-rr`) relays it under its own send grant to the reactor's validation gate for
+reconciliation, because the operator gives the store no `send [ update ]`
+(`ribevents.RelayReplayPath`). An absent path uses `StoredRoute.Withdraw`; every
+retained path carries its original `MsgID`.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyDecision, applyToInstalled, promoteToInstalled -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible, unlockValidation -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayPathCommand -->
+<!-- source: internal/core/bgp/ribevents/replay.go -- ReplayPathCommand, RelayReplayPath -->
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- validationChanged, validationEligible -->
 <!-- source: internal/core/bgp/ribevents/validation.go -- RouteEligible, ValidationChange -->
 

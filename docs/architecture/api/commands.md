@@ -2577,7 +2577,8 @@ Two rules govern what such an entry carries.
 - A HIDDEN declaration is skipped by the two published catalogs, because the
   daemon already keeps one out of `VisibleCommandEntries` and out of completion.
   `./le cli list` keeps it, because that inventory answers what ze
-  REGISTERS. `request bgp adj-rib-in claim-replay` is the one such command.
+  REGISTERS. The plugin-to-plugin plumbing is hidden this way, for example
+  `request bgp adj-rib-in claim-replay`; `./le cli list` names every one.
 - The YANG node WINS wherever one exists. A plugin command can be modeled and
   still carry no wire method, `show vrrp interface` among them, so it arrives
   with an authored summary, long help and grammar already written. For a command

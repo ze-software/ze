@@ -559,9 +559,13 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 	}
 }
 
-// TestPeerReadyRRReplayErrorCompletion makes the real Adj-RIB-In replay reach
-// the reactor's send-permission refusal. RR must finish that failed attempt and
-// release only the event's Session; a stale receipt cannot credit its successor.
+// TestPeerReadyRRReplayErrorCompletion makes RR's real peer-up replay reach a
+// genuine relay refusal in the reactor. RR reads the route from the real
+// Adj-RIB-In and relays it under its own grant, which the destination gives; the
+// relay is refused because the route's source session is no longer established
+// (errRelayNoSource), the race of a source that drops before the late peer's
+// replay. RR must finish that failed attempt and release only the event's
+// Session; a stale receipt cannot credit its successor.
 func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 	for _, stale := range []bool{false, true} {
 		name := "current"
@@ -571,8 +575,9 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			const owner = "bgp-rr"
 			f := ownershipRailNew(t, nil)
-			// The RR can send; its optional replay store cannot. This is a real
-			// authority failure, not a substituted command or fabricated error.
+			// The RR can send, and it relays the replay itself, so the refusal
+			// below is the engine's own, not a substituted command or a
+			// fabricated error.
 			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
 			api, proc := readyProducerServer(t, f.r, owner)
 			adj := api.server.ProcessManager().GetProcess("bgp-adj-rib-in")
@@ -600,11 +605,17 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 			// A genuine live announcement proves completed error exits drain the
 			// fence, independently of the replay's deliberately refused route.
 			require.NoError(t, api.forwardUpdateCore(update, f.id, []*Peer{f.destination}, replayFenceSource(f.source, false)))
+			// The source session is down while the late peer's replay runs, so
+			// the replay of its stored route has no source to relay from and the
+			// reactor refuses it (resolveRelaySource). It is back once the
+			// refusal is seen, so the held live forward still drains.
+			f.source.state.Store(int32(PeerStateStopped))
 			awaitRelayError := func() {
 				t.Helper()
 				select {
 				case err := <-api.relayAttempts:
-					require.ErrorIs(t, err, errSendNotPermitted)
+					require.ErrorIs(t, err, errRelayNoSource)
+					f.source.state.Store(int32(PeerStateEstablished))
 				case <-time.After(5 * time.Second):
 					t.Fatal("RR replay never reached the actual relay consumer")
 				}
@@ -618,6 +629,7 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 				require.Empty(t, f.conn.written())
 				readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
 				token = f.destination.initialReplayToken()
+				f.source.state.Store(int32(PeerStateStopped))
 				readyProducerState(t, proc, f.destination, rpc.SessionStateUp, token)
 				awaitRelayError()
 				readyProducerAwait(t, api, owner, token, false)

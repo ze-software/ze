@@ -32,7 +32,9 @@ func (b *validationTestBus) Subscribe(_, _ string, handler func(any)) func() {
 
 // A unicast eligibility event must reconcile its ADD-PATH identity. An RPC can
 // itself trigger a burst of validation events; the synchronous publisher must
-// return so that this RPC and the coalesced recovery replay can finish.
+// return so that this RPC and the coalesced recovery replay can finish. The
+// store answers the path and the reflector relays it itself: a store with no
+// send grant (receive-only adj-rib-in) still lets the change reach the target.
 func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 	bridge := rpc.NewDirectBridge()
 	pluginEnd, engineEnd := net.Pipe()
@@ -56,7 +58,18 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 			}
 		}
 		calls <- replayDispatchCall{command: command, args: slices.Clone(args), peer: peer}
-		return &rpc.DispatchCommandOutput{Status: statusDone}, nil
+		return &rpc.DispatchCommandOutput{Status: statusDone, Data: json.RawMessage(
+			`{"routes":[{"source-peer":"192.0.2.1","family":"ipv4/unicast","nlri-hex":"18cb0071","path-id":7,"withdraw":true}],"last-index":0,"more":false}`)}, nil
+	})
+	// The store only answers the path: the reflector itself relays it, under
+	// the send grant the operator gave the reflector, not the store.
+	relays := make(chan string, 4)
+	bridge.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
+		if len(routes) != 1 || routes[0].SourcePeer != "192.0.2.1" || !routes[0].Withdraw || routes[0].InitialUpdate {
+			t.Errorf("relayed the wrong revalidated path to %s: %+v", destination, routes)
+		}
+		relays <- destination
+		return nil
 	})
 	bridge.SetReady()
 	rr := &routeReflector{plugin: plugin, peers: map[string]*peerState{
@@ -80,6 +93,14 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 			}
 		case <-ctx.Done():
 			t.Fatal("unicast eligibility change never reached the receive store")
+		}
+		select {
+		case destination := <-relays:
+			if destination != "192.0.2.2" {
+				t.Fatalf("revalidated path relayed to %s, want 192.0.2.2", destination)
+			}
+		case <-ctx.Done():
+			t.Fatal("the reflector never relayed the revalidated path the store answered")
 		}
 	}
 }
@@ -113,7 +134,7 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 			var delivered []string
 			done := make(chan struct{}, 2)
 			bridge.SetDispatchCommandArgs(func(_ context.Context, command string, _ []string, _ string) (*rpc.DispatchCommandOutput, error) {
-				if command != "request bgp adj-rib-in replay" {
+				if command != ribevents.ReplayRoutesCommand {
 					t.Errorf("unexpected replay command %q", command)
 				}
 				if optionalReplayFails {

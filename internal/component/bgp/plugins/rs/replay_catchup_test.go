@@ -6,6 +6,8 @@ package rs
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestReplayProgressCoversCut pins the convergence predicate that decides
@@ -84,41 +86,69 @@ func TestReplayProgressCoversCut(t *testing.T) {
 	}
 }
 
-// TestParseReplayProgressDistinguishesAbsentFromZero is the wire half of the
-// same invariant: the JSON decode must not turn an omitted ingest position into
-// a present zero.
+// TestDeltaReplayDistinguishesAbsentFromZero is the wire half of the same
+// invariant: decoding the store's page must not turn an omitted ingest position
+// into a present zero, and a page this plugin relays advances the cursor.
+// Method: answer one replay-routes call through dispatchCommandHook and read the
+// progress deltaReplay folds from it.
 //
-// VALIDATES: `ingested-msg-id` round-trips as presence + value.
+// VALIDATES: `ingested-msg-id` round-trips as presence + value; an empty page
+// keeps the previous cursor; an undecodable page is an error, not a position.
 //
 // PREVENTS: silently reintroducing the zero-value trap at the parse boundary --
 // a plain uint64 field would decode both "omitted" and "0" to 0, and the two
 // demand opposite behavior (proceed vs wait).
-func TestParseReplayProgressDistinguishesAbsentFromZero(t *testing.T) {
+func TestDeltaReplayDistinguishesAbsentFromZero(t *testing.T) {
+	answer := func(data string) *routeServer {
+		return &routeServer{
+			dispatchCommandHook: func(string, []string, string) (string, json.RawMessage, error) {
+				return statusDone, json.RawMessage(data), nil
+			},
+			relayStoredRouteHook: func(string, []rpc.StoredRoute) error { return nil },
+		}
+	}
+	prev := replayProgress{cursor: 2}
+
 	t.Run("omitted stays nil", func(t *testing.T) {
-		p := parseReplayProgress(json.RawMessage(`{"last-index":3,"replayed":2}`))
+		rs := answer(`{"routes":[{"source-peer":"10.0.0.9","family":"ipv4/unicast","nlri-hex":"180a0000"}],"last-index":3,"more":false}`)
+		p, err := rs.deltaReplay(t.Context(), "10.0.0.1", "0", prev)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if p.ingested != nil {
 			t.Fatalf("absent ingested-msg-id decoded to %v, want nil", *p.ingested)
 		}
-		if p.cursor != 3 || p.replayed != 2 {
-			t.Fatalf("cursor/replayed = %d/%d, want 3/2", p.cursor, p.replayed)
+		if p.cursor != 3 || p.replayed != 1 {
+			t.Fatalf("cursor/replayed = %d/%d, want 3/1", p.cursor, p.replayed)
 		}
 	})
 
 	t.Run("explicit zero is present and zero", func(t *testing.T) {
-		p := parseReplayProgress(json.RawMessage(`{"last-index":0,"replayed":0,"ingested-msg-id":0}`))
+		rs := answer(`{"routes":[],"last-index":0,"more":false,"ingested-msg-id":0}`)
+		p, err := rs.deltaReplay(t.Context(), "10.0.0.1", "8", prev)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if p.ingested == nil {
 			t.Fatal("explicit ingested-msg-id:0 decoded to nil; absent and zero must differ")
 		}
 		if *p.ingested != 0 {
 			t.Fatalf("ingested = %d, want 0", *p.ingested)
 		}
+		if p.cursor != prev.cursor {
+			t.Fatalf("an empty page moved the cursor to %d, want %d kept", p.cursor, prev.cursor)
+		}
 		if p.coversCut(8) {
 			t.Fatal("ingested 0 must not cover cut 8: this is the route-loss case")
 		}
 	})
 
-	t.Run("malformed payload yields no signal rather than a false position", func(t *testing.T) {
-		p := parseReplayProgress(json.RawMessage(`not json`))
+	t.Run("malformed payload is an error, not a position", func(t *testing.T) {
+		rs := answer(`not json`)
+		p, err := rs.deltaReplay(t.Context(), "10.0.0.1", "8", prev)
+		if err == nil {
+			t.Fatal("an undecodable page must fail the replay step")
+		}
 		if p.ingested != nil {
 			t.Fatal("malformed payload must not fabricate an ingest position")
 		}
