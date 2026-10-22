@@ -17,6 +17,7 @@
 package testqemu
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -345,7 +346,7 @@ func (r *Run) dockerLab(ctx context.Context, request dockerLabRequest) (DockerLa
 			return report, fmt.Errorf("docker-lab stopped by an interrupt or SIGTERM while the guest booted, before any check or lab ran;"+
 				" the VM is stopped. Rerun the same command to try again (guest console: %s)", vm.console)
 		}
-		return report, fmt.Errorf("%w; the guest console is %s", err, vm.console)
+		return report, dockerLabBootFailure(err, dir, vm.console)
 	}
 	stopForward, err := session.forward(socket)
 	if err != nil {
@@ -511,6 +512,29 @@ func (r *Run) dockerLabBoot(vm dockerLabVM, dir string) (func(), error) {
 		errorLog.Close()                                   //nolint:errcheck // the VM is stopped
 		fmt.Fprintln(os.Stderr, "docker-lab: VM stopped.") //nolint:errcheck // progress output
 	}, nil
+}
+
+// dockerLabBootFailure is the error for a guest that never answered: the
+// cause, what QEMU itself wrote to its error output, and the guest console.
+// The run directory holding qemu-errors.log is removed when dockerLab
+// returns, so the log's text travels in the error: without it, a QEMU that
+// could not bind its forwarded port (another VM holds it) reads only as
+// "sshd did not answer".
+func dockerLabBootFailure(cause error, dir, console string) error {
+	var b textbuf.Buffer
+	data, err := os.ReadFile(filepath.Join(dir, "qemu-errors.log")) //nolint:gosec // the run's own directory
+	switch {
+	case err != nil:
+		b.Str("QEMU's error output could not be read (").Err(err).Str("). ")
+	case len(bytes.TrimSpace(data)) == 0:
+		b.Str("QEMU wrote nothing to its error output. ")
+	default:
+		b.Str("QEMU's error output:\n").Str(string(bytes.TrimSpace(data))).Str("\n")
+	}
+	b.Str("The guest console is ").Str(console).
+		Str(". Fix: correct what QEMU or the console names (a forwarded port another VM holds frees when that VM stops),").
+		Str(" then rerun the same command")
+	return fmt.Errorf("%w. %s", cause, b.String())
 }
 
 // runHostLe runs argv, a host le, with environ, streaming its output, and

@@ -456,7 +456,11 @@ because a lab under TCG measures the emulator. It then:
    `tmp/qemu/docker-lab-console-<port>.log`; its first program line is
    `ze-docker-host: kernel ` and `/proc/version`;
 5. waits for the guest's sshd as `ze` on the forwarded port, up to the boot
-   timeout, then at most 120 seconds for `docker info` in the guest;
+   timeout, then at most 120 seconds for `docker info` in the guest. When
+   the guest never answers, the error carries what QEMU wrote to
+   `qemu-errors.log` (a forwarding rule it could not bind, for one) and names
+   the console, because the run directory holding that log is removed when the
+   run returns (`dockerLabBootFailure`);
 6. forwards the guest's `/var/run/docker.sock` with `ssh -N -L` to
    `tmp/qemu/docker-lab-<n>/docker.sock`, created mode 0600
    (`StreamLocalBindMask=0177`; any other mode refuses the run);

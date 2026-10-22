@@ -383,3 +383,66 @@ func TestDockerLabRunRefusesAShareBeforeQEMUStarts(t *testing.T) {
 		t.Errorf("the run reached the guest: events %q", events)
 	}
 }
+
+// fakeDockerLabQEMUForwardFails is a QEMU that reports a forwarding rule it
+// could not set up, then runs until it is stopped.
+const fakeDockerLabQEMUForwardFails = `#!/bin/sh
+echo "qemu-system-x86_64: Could not set up host forwarding rule 'tcp:127.0.0.1:2222-:22'" >&2
+trap 'exit 0' INT TERM
+while :; do sleep 0.1; done
+`
+
+// TestDockerLabBootFailureCarriesQEMUErrors proves a guest that never answers
+// is reported with what QEMU wrote, although the run directory holding
+// qemu-errors.log is removed when the run returns.
+//
+// VALIDATES: the 2026-10-11 row of
+// plan/journal/parallel-copies-collide-on-a-deterministic-port.md: a QEMU
+// that cannot bind its forwarded port no longer reads only as "sshd did not
+// answer"; its own error text reaches the operator.
+// METHOD: the fakes of TestDockerLabForwardsOneInterruptThenStopsTheVM, with a
+// QEMU that writes a forwarding error to stderr and a guest ssh that never
+// answers; the first ssh probe waits, bounded, until the error is in the log.
+// PREVENTS: the cause deleted with the run directory.
+func TestDockerLabBootFailureCarriesQEMUErrors(t *testing.T) {
+	run, tree, _ := fakeDockerLabRun(t)
+	qemu, err := exec.LookPath(runQEMUBinary("amd64"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(qemu, []byte(fakeDockerLabQEMUForwardFails), 0o700); err != nil { //nolint:gosec // an executable test fixture
+		t.Fatal(err)
+	}
+	run.Options.Boot = time.Millisecond
+	keygen := run.ops.Run
+	run.ops.Run = func(ctx context.Context, spec commandSpec) (commandResult, error) {
+		if spec.Name == "ssh-keygen" {
+			return keygen(ctx, spec)
+		}
+		pattern := filepath.Join(tree, "tmp", "qemu", "docker-lab-*", "qemu-errors.log")
+		for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline) && !qemuLogWritten(pattern); {
+			time.Sleep(20 * time.Millisecond)
+		}
+		return commandResult{Code: 255}, nil
+	}
+
+	_, err = run.dockerLab(t.Context(), dockerLabRequest{image: "/img", linuxZe: "/ze"})
+	if err == nil {
+		t.Fatal("dockerLab with a guest that never answers succeeded")
+	}
+	for _, want := range []string{"sshd did not answer", "Could not set up host forwarding rule", "guest console", "Fix:"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("boot failure lacks %q: %v", want, err)
+		}
+	}
+}
+
+// qemuLogWritten reports whether the one file pattern matches holds text.
+func qemuLogWritten(pattern string) bool {
+	logs, err := filepath.Glob(pattern)
+	if err != nil || len(logs) != 1 {
+		return false
+	}
+	data, err := os.ReadFile(logs[0]) //nolint:gosec // the run's own file
+	return err == nil && len(data) > 0
+}
