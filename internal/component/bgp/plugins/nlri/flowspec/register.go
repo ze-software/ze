@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -26,6 +28,16 @@ var (
 )
 
 func init() {
+	// RFC 8955 Section 4.2: the receive path judges every FlowSpec NLRI section
+	// through this rule (message.validateMPNLRISyntax), so a malformed NLRI
+	// resets the session rather than reaching a plugin (rfc8955_syntax.go).
+	for _, fam := range flowSpecFamilySet {
+		if err := nlrisyntax.Register(fam, flowSpecSyntaxRule(fam)); err != nil {
+			slog.Error("flowspec: NLRI syntax rule registration failed", "family", fam, "error", err)
+			os.Exit(1)
+		}
+	}
+
 	reg := registry.Registration{
 		Name:         "bgp-nlri-flowspec",
 		Description:  "FlowSpec NLRI encoding/decoding",

@@ -47,6 +47,23 @@ else:
     data = data[1:]
 ```
 
+### A malformed NLRI resets the session
+
+The receive path decodes every FlowSpec NLRI of an MP_REACH_NLRI or
+MP_UNREACH_NLRI before any plugin sees it, with the parser the plugin's decoder
+uses. One the parser refuses (an unknown or repeated component type, a prefix
+pattern of the wrong size, an operator list that runs past the NLRI) resets the
+session with UPDATE Message Error / Malformed Attribute List. RFC 8955 Section
+4.2 sends a malformed NLRI to RFC 7606 error handling, and RFC 7606 Section
+3 (j) allows treat-as-withdraw only for an NLRI that parsed. Ze implements no
+AFI/SAFI disable, so the session reset is the one choice left. ExaBGP 6.0
+raises a NOTIFICATION from the same decode, and BIRD does the same. Before
+this check, such an NLRI reached a script as the announce of a route named
+`wire[ipv6/flow](49 bytes)`, a route the peer never sent.
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go -- judgeFlowSpecSection -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- validateMPNLRISyntax -->
+
 ---
 
 ## Component Types
