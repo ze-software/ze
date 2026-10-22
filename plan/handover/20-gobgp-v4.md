@@ -158,6 +158,18 @@ guest (`./le test qemu ipsec-mobike-test kernel /boot/vmlinuz-7.2.9-ze`),
 natt-tunnel-inner-checksum, the rest of radius, radius-subscriber, l2tp, pppoe,
 the other dhcp and vrrp scenarios, then the rest of interop-ipsec.
 
+Second round (runner `run3.sh`, logs `scn3-<name>.log`):
+
+| Scenario | Verdict |
+|----------|---------|
+| `docker/Dockerfile.lab` build | built (alpine 3.24.3), image `ze-m14-lab:test` removed |
+| `dhcpv6-client-renew-kea` rerun | PASS with the fix, 66448f7699 |
+| `01-ppp-ipv4` rerun | FAIL on infrastructure again ("docker info did not finish within 15s"); a third try `01-ppp-ipv4-r3` is queued at the end |
+| `eap-mschapv2` (strongSwan certificate-authenticated responder) | PASS |
+| `eap-tls13` | FAIL, lab drift: strongSwan 6.0.2+ "Setting `remote.eap_id` now always initiates an EAP-Identity exchange" (NEWS), and `apply_eap_identity` refused the anonymous NAI ze sends under RFC 9190 Section 2.1.8 ("EAP identity 'ze-test-client' required, not matched by 'anonymous'"). Fix: drop `eap_id` in `eap-tls13` and `eap-tls` swanctl.conf, so charon keys the TLS client-certificate check on ze's IKE IDi `ze-test-client` (same certificate identity asserted). Committed unproven; rerun `eap-tls13-r2` queued at the end; `eap-tls` runs in the ipsec rest |
+| QEMU MOBIKE guest | not run: `tmp/qemu` is a dangling symlink into `~/.cache/ze-tmp/main/qemu`, whose tree was gone ("mkdir .../tmp/qemu: file exists"). Target recreated with `mkdir -p`; journal row in `plan/journal/error-names-no-fix-command.md`; rerun `qemu-mobike-r2` queued at the end |
+| `natt-tunnel-inner-checksum` | FAIL, cause OPEN: the IKE SA comes up over UDP 4500 ("faking NAT situation"), but the strongSwan log ends at "IKE_SA ze[1] established" with no CHILD_SA line and no IKE_AUTH response, and ze's Udp.NoPorts never moves for the good-checksum nping probe (`checkInnerChecksums`). psk-site-to-site (no forced encap) passes, so suspect the 6.1.0 CHILD_SA install with UDP encapsulation. Next: read the full charon log of `natt-tunnel-inner-checksum-r2` (queued) and `natt-transport-inner-checksum` from the ipsec rest |
+
 `docs/guide/ipsec.md` TLS claim re-read in the strongSwan 6.1.0 source: the
 default is still TLS 1.2 (`src/libtls/tls.c`) and libtls still implements no
 extended master secret. Corrected to name 6.1.0 in 679bbfa69a.
