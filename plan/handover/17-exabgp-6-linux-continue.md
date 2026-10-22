@@ -404,15 +404,60 @@ deleted with its test), new `bgp/format/session_events.go` (+_test),
 (receive table). Green: format, server, plugin, fixture packages whole (race);
 reactor `TestClosingNotification`, `TestSessionCloseFor`.
 
-OPEN DEFECT, blocks the goal, fix first: `fsm-connected-events.ci` is RED. The
-plugin gets OPENCONFIRM and ESTABLISHED, never `connected` nor OPENSENT.
-Cause: `Session.Connect` and `Session.Accept` fire Event 17 (the
-`fsm.EventTCPConnectionConfirmed` call in `session_connection.go`) and enter
-OpenSent BEFORE `Peer.runOnce` (or whichever function in `peer_run.go` holds
-it) installs `session.fsm.SetCallback`, which comes after the dial block. Fix:
-install the callback, and the `leave` record it closes over, before the
-accept/dial block; rerun `./le --name fsm test bgp plugin fsm-connected-events`,
-then `rm -rf bin/le-fsm`. Then commit the engine set above in one commit.
+DEFECT FIXED (continuation agent, 2026-10-22): `Peer.runOnce` (`peer_run.go`)
+now installs `session.fsm.SetCallback` and its `leave` record right after
+`start()`, before the accept and dial block, because
+`Session.connectionEstablished` fires Event 17 inside both. Red proof: with the
+old ordering restored, `./le --name fsm test bgp plugin fsm-connected-events`
+FAILED with `ZE-OBSERVER-FAIL: still waiting for [connected OPENSENT
+OPENCONFIRM ESTABLISHED] after [OPENCONFIRM ESTABLISHED]`; fix restored, PASS
+(twice). Reactor package race run (`-race -count=1 -timeout 1200s`) was started
+in the background; its verdict was not read before the handback (OWED).
+
+NOT COMMITTED: the main thread ruled that `bgp/format/json.go`,
+`bgp/server/events.go`, `bridge/bridge_event.go`, `bridge/old_responses_test.go`,
+`docs/architecture/api/json-format.md` and `docs/architecture/exabgp-bridge.md`
+go in one combined batch it commits. The engine set cannot land without
+`server/events.go` (it defines `onPeerConnected`, `onPeerFSMChange`,
+`onPeerSignal` that `event_dispatcher.go` calls, which the reactor calls), so
+the whole engine set goes with that batch.
+
+SIGNAL, done (uncommitted): new `internal/core/daemonevents/events.go`
+(`daemonevents.Signal`, `events.Register[Received]("daemon","signal")`); new
+`cmd/ze/hub/signal_announce.go` (`announceSignal`, `requestedStop`);
+`cmd/ze/hub/main.go` (`waitLoop` takes `announce`, calls it on stopCh and hupCh;
+`SetShutdownFunc` injects `requestedStop{}`), `main_system.go`
+(`monitorStdinEOF` injects `requestedStop{}`), `main_reload_test.go` (3 calls
+pass a no-op announce); `bgpevents.EventSignal` + `bgp/plugin/register.go`;
+new `bgp/reactor/reactor_signal_events.go` (`subscribeDaemonSignals`,
+`onDaemonSignal`, one event per configured peer), called beside
+`subscribeInterfaceEvents` in `reactor.go`; `EventDispatcher.OnPeerSignal`;
+`server/events.go` `onPeerSignal` (one hunk); `format.AppendSignal`
+(+`TestAppendSignal`); bridge `Event.writeSignal` in `bridge_event_fsm.go`
+(+`TestSignalIsExabgpSignal`) and one `case msgTypeSignal` hunk in
+`bridge_event.go` `ExabgpJSON`.
+
+SHUTDOWN, done (uncommitted): new `internal/exabgp/bridge/bridge_shutdown.go`
+(`ShutdownLine(format)`); `bridgerun/fleet.go` `Fleet.Shutdown`; `p.OnBye` in
+`internal/plugins/exabgp/main_sdk.go` and `bridgeplugin/internal.go`.
+
+Judge (`old_responses_test.go`: `signal` from `format.AppendSignal`, `shutdown`
+through `oldShutdown` -> `ShutdownLine`), with every agent's work in the tree:
+5.0 22666/23392, 4.2 20381/20930; no `signal`, `shutdown`, `fsm`, `connected`
+or `state` class remains. Pages: `json-format.md`, `exabgp-bridge.md`,
+`behavior/signals.md`, `config-reference.md` (receive table),
+`guide/bgp-peering.md`.
+
+STILL OWED: a functional proof through the real daemon for `signal` (SIGHUP
+to the daemon, a plugin subscribed to `signal` sees `signal 1 SIGHUP`) and for
+the bridge `shutdown` line (a `test/exabgp-compat` or `.ci` case whose script
+reads the shutdown line); the reactor race verdict; `./le arch tier check`
+(hub now imports `internal/core/daemonevents`, format and server import
+bgp/fsm), `./le go lint run`, `./le verify worktree`, `./le test functional
+exabgp-test`, independent review. Seen while running the hub package:
+`TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting` failed
+("accounting record did not arrive", RADIUS retries on the busy host); no
+signal path is on it.
 
 Bridge, uncommitted, in the held files (main thread's batch): new
 `internal/exabgp/bridge/bridge_event_fsm.go` and `bridge_event_fsm_test.go`
@@ -424,7 +469,7 @@ ReadEvent, `case msgTypeFSM` in ExabgpJSON, the down reason call passes
 from the format producers, `oldFSMStates`); pages `exabgp-bridge.md` and
 `exabgp-differences.md` ("The reason of a down").
 
-Not done, facts for the next agent:
+Superseded by the continuation paragraphs above; kept for the reasoning:
 - `signal`: in production the HUB owns signals (`cmd/ze/hub/main.go`, the
   `signal.Notify` for stopCh and hupCh, and `waitLoop`); the reactor's
   `SignalHandler` runs only standalone (`Reactor.externalServer`). ExaBGP fans a
