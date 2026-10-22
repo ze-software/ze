@@ -107,7 +107,7 @@ func (p *Peer) holdAdminDown() {
 // (e.g., the peer is not configured locally) after the speaker accepts a
 // transport protocol connection, then the BGP speaker SHOULD send a
 // NOTIFICATION message with the Error Code Cease and the Error Subcode
-// "Connection Rejected"".
+// "Connection Rejected"."
 func rejectAdminDownConnection(conn net.Conn) {
 	notif := &message.Notification{
 		ErrorCode:    message.NotifyCease,

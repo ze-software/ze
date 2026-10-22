@@ -298,7 +298,7 @@ func (m *MUP) parseBodyDSD(rest []byte) error {
 // endpoint address is short of a mandatory field: the TLV rule measures from
 // "the offset of the end of the Source Address", and a negative remainder
 // means "the mandatory fields exceed the declared Length; the NLRI is
-// malformed; MUST be treated as Treat-as-withdraw".
+// malformed; MUST be treated as Treat-as-withdraw."
 func (m *MUP) parseBodyT1ST(rest []byte) error {
 	addr, bits, used, err := m.parsePrefixField(rest)
 	if err != nil {

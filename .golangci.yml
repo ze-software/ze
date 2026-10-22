@@ -239,6 +239,18 @@ linters:
       # would be red in some flavor whatever the source says.
       allow-unused: true
 
+    godot:
+      # Owner decision M20 (ai/META-DECISIONS.md, 2026-10-22): an RFC sentence
+      # quoted in a comment stays byte-exact, its own full stop inside the
+      # closing quote mark included, and is never edited to satisfy this
+      # linter. godot matches each regexp against a comment line with the
+      # leading "//" removed and treats a match as already punctuated, so a
+      # comment whose last line ends on a closing double quote is not asked
+      # for a full stop after it. Only the closing quote at line end is
+      # exempt: a quote that ends mid-line still needs its sentence's stop.
+      exclude:
+        - '"$'
+
     misspell:
       # US spelling is the codebase convention (neighbor 1833:3, behavior 423:0, ...).
       locale: US

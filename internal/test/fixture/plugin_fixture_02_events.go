@@ -906,7 +906,7 @@ func addPathEntries02(body map[string]any) bool {
 			}
 		}
 		fmt.Fprintln(os.Stderr, line.String())
-		if action == "del" {
+		if action == eventActionDel {
 			withdrawn = true
 		}
 	}
@@ -936,7 +936,7 @@ func labeledEntries02(body map[string]any) bool {
 			line.WriteString(prefix)
 		}
 		fmt.Fprintln(os.Stderr, line.String())
-		if action == "del" {
+		if action == eventActionDel {
 			withdrawn = true
 		}
 	}

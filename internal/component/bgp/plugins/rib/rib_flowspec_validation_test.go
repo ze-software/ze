@@ -740,7 +740,7 @@ func TestFlowSpecUnmatchableReceivedRuleWithdraw(t *testing.T) {
 // with the flow-spec route) if the last AS in the AS_PATH or AS4_PATH
 // attribute of the longest prefix match for X does not match the AS of the
 // EBGP peer." and "It MUST be possible to disable this additional validation
-// check on a per-EBGP session basis".
+// check on a per-EBGP session basis."
 func TestFlowSpecRedirectToIPEBGPCheck(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	other := netip.MustParseAddr("192.0.2.2")
@@ -825,7 +825,7 @@ func TestFlowSpecRedirectToIPEBGPCheck(t *testing.T) {
 //
 // draft-simpson-idr-flowspec-redirect-02 Section 3: "if the last AS in the
 // AS_PATH or AS4_PATH attribute of the longest prefix match for X does not
-// match the AS of the EBGP peer".
+// match the AS of the EBGP peer."
 func TestFlowSpecRedirectVPNVerdictPerRule(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	redirect := []byte{0x08, 0, 0, 0, 0, 0, 0, 0}
@@ -911,7 +911,7 @@ func TestFlowSpecRedirectUnknownLocalASIsChecked(t *testing.T) {
 // verdict (reactor TestFlowSpecRedirectRefusedReplay).
 //
 // draft-simpson-idr-flowspec-redirect-02 Section 3: "It MUST be possible to
-// disable this additional validation check on a per-EBGP session basis".
+// disable this additional validation check on a per-EBGP session basis."
 func TestFlowSpecRedirectConfigSwitchRejudges(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	other := netip.MustParseAddr("192.0.2.2")

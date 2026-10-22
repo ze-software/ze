@@ -338,7 +338,7 @@ func (e kernelEvent) String() string {
 	var tb textbuf.Buffer
 	verb := argAdd
 	if e.deleted {
-		verb = "del"
+		verb = argDel
 	}
 	return tb.Str(verb).Byte(' ').Str(e.kind).Byte(' ').Str(e.target).Str(" dev ").Str(e.device).String()
 }
@@ -398,7 +398,7 @@ func awaitMonitorListening(ctx context.Context, monitor *netlinkMonitor, device 
 	if !Poll(ctx, 200, 50*time.Millisecond, seen) {
 		return errors.New("ip monitor never reported the probe address, so it was not listening")
 	}
-	if out, err := runIP(ctx, "addr", "del", monitorProbeAddress, "dev", device); err != nil {
+	if out, err := runIP(ctx, "addr", argDel, monitorProbeAddress, "dev", device); err != nil {
 		return fmt.Errorf("remove monitor probe address: %w: %s", err, out)
 	}
 	gone := func() bool { return !deviceHasAddress(ctx, device, monitorProbeAddress) }

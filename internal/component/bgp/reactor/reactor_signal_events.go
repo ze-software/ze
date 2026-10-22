@@ -23,8 +23,8 @@ func (r *Reactor) subscribeDaemonSignals() {
 
 // onDaemonSignal delivers one `signal` event per configured peer, which is
 // what ExaBGP does: its reactor walks every neighbor and calls
-// `processes.signal(neighbor, number)` for each (5.0.1 reactor/loop.py,
-// `_signalled`). A process that did not subscribe to `signal` for a peer is
+// `processes.signal(neighbor, number)` for each (5.0.1 reactor/loop.py, the
+// `signaled` branch of the main loop). A process that did not subscribe to `signal` for a peer is
 // told nothing (deliverPeerLine).
 //
 // It runs on the EventBus delivery path, synchronously with the hub's publish,

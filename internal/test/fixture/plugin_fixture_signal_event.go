@@ -38,7 +38,7 @@ func p12SignalEventJSON(plugin *sdk.Plugin) p12Scenario {
 		if json.Unmarshal([]byte(event), &decoded) != nil {
 			return false
 		}
-		if decoded.BGP.Message.Type != "signal" {
+		if decoded.BGP.Message.Type != eventSignal {
 			return false
 		}
 		if decoded.BGP.Signal.Code != int(syscall.SIGHUP) {

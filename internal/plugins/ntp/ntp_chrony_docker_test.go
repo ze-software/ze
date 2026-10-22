@@ -56,8 +56,8 @@ const chronySynchronised = "local stratum 7\nallow all\ncmdport 0"
 // chronyUnsynchronised has one source that never answers (192.0.2.1 is
 // TEST-NET-1) and no local reference, so chrony answers every client as
 // unsynchronized: leap indicator 3 (alarm) and stratum 0 on the wire, which is
-// how RFC 5905 Section 11.1 transmits MAXSTRAT (16), because "MAXSTRAT is
-// mapped to zero in the transmitted packet".
+// how RFC 5905 Section 11.1 transmits MAXSTRAT (16): "Remember that MAXSTRAT
+// is mapped to zero in the transmitted packet."
 const chronyUnsynchronised = "server 192.0.2.1\nallow all\ncmdport 0"
 
 // startChrony starts chrony with configuration and answers the

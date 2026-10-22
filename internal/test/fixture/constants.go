@@ -89,6 +89,8 @@ const (
 	directionReceived       = "received"
 	directionRemote         = "remote"
 	directionSent           = "sent"
+	eventActionDel          = "del"    // The action of an update event's NLRI entry that withdraws it.
+	eventSignal             = "signal" // The event kind a plugin subscribes to, and the message type it arrives as.
 	eventState              = "state"  // The event kind a plugin subscribes to.
 	eventUpdate             = "update" // The event kind a plugin subscribes to.
 	fieldASPath             = "as-path"
@@ -209,6 +211,7 @@ const (
 	argCommand                   = "command" // The command keyword.
 	argCommit                    = "commit"  // The git subcommand, and the `le` area of the same name.
 	argConfig                    = "config"  // The git subcommand.
+	argDel                       = "del"     // The ip subcommand verb that removes, beside argAdd.
 	argInit                      = "init"
 	argInterface                 = "interface"
 	argName                      = "name" // The command keyword.
