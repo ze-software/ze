@@ -6,3 +6,12 @@ const gnmic = "ghcr.io/openconfig/gnmic:0.42.1" +
 const vpp = "ligato/vpp-base:latest"
 
 const local = "ze-tacplusng:test"
+
+// An official image names no repository path: it is a pin all the same.
+const probeImage = "alpine:3.21"
+
+// A name and an address read like an official image; this line never says so.
+const peer = "router1:10.0.0.1"
+
+// An address with a port has the image shape and is not an image.
+const listen = "localhost:8080"

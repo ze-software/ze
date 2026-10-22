@@ -66,10 +66,15 @@ type Pin struct {
 // scenario `*-image` files carry image references in string literals.
 var (
 	imageLiteral = regexp.MustCompile(`"((?:[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)+):([A-Za-z0-9._-]+)(?:@sha256:[0-9a-f]{64})?"`)
-	imageBare    = regexp.MustCompile(`^((?:[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)*):([A-Za-z0-9._-]+)(?:@sha256:[0-9a-f]{64})?$`)
-	goInstall    = regexp.MustCompile(`go install\s+(?:-[^\s]+\s+)*([a-z0-9.-]+\.[a-z]+/[^\s@]+)@(v[0-9][^\s;&|]*)`)
-	gitBranch    = regexp.MustCompile(`git clone[^\n]*--branch[ =]+([^\s]+)[^\n]*?https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?(?:\s|$)`)
-	codeloadTag  = regexp.MustCompile(`https://(?:codeload\.)?github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:tar\.gz|archive)/(?:refs/tags/)?(v?[0-9]+\.[0-9][A-Za-z0-9._-]*?)(?:\.tar\.gz)?(?:["\s]|$)`)
+	// officialLiteral is a Docker Hub official image, which names no
+	// repository path ("alpine:3.21"). Its tag must be a dotted version, so a
+	// local `ze-*:test` tag and an address such as "localhost:8080" are not read,
+	// and literalPins reads it only on a line that says image (officialContext).
+	officialLiteral = regexp.MustCompile(`"([a-z][a-z0-9-]*):(\d+\.\d+[A-Za-z0-9._-]*)(?:@sha256:[0-9a-f]{64})?"`)
+	imageBare       = regexp.MustCompile(`^((?:[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)*):([A-Za-z0-9._-]+)(?:@sha256:[0-9a-f]{64})?$`)
+	goInstall       = regexp.MustCompile(`go install\s+(?:-[^\s]+\s+)*([a-z0-9.-]+\.[a-z]+/[^\s@]+)@(v[0-9][^\s;&|]*)`)
+	gitBranch       = regexp.MustCompile(`git clone[^\n]*--branch[ =]+([^\s]+)[^\n]*?https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?(?:\s|$)`)
+	codeloadTag     = regexp.MustCompile(`https://(?:codeload\.)?github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:tar\.gz|archive)/(?:refs/tags/)?(v?[0-9]+\.[0-9][A-Za-z0-9._-]*?)(?:\.tar\.gz)?(?:["\s]|$)`)
 )
 
 // skippedDirectories are never walked: vendored code pins nothing a lab runs,
@@ -179,8 +184,10 @@ func fromImage(words []string) string {
 	return ""
 }
 
-// literalPins reads image references out of Go string literals. A reference
-// needs a repository path (a slash), so a local `ze-*:test` tag is not read.
+// literalPins reads image references out of Go string literals: one with a
+// repository path (a slash), and an official image with a dotted version tag
+// on a line that names an image.
+// A local `ze-*:test` tag is neither, so it is not read.
 func literalPins(file, body string) []Pin {
 	var pins []Pin
 	for index, line := range strings.Split(body, "\n") {
@@ -190,8 +197,21 @@ func literalPins(file, body string) []Pin {
 			}
 			pins = append(pins, Pin{File: file, Line: index + 1, Kind: KindImage, Name: match[1], Version: match[2]})
 		}
+		if !officialContext(line) {
+			continue
+		}
+		for _, match := range officialLiteral.FindAllStringSubmatch(line, -1) {
+			pins = append(pins, Pin{File: file, Line: index + 1, Kind: KindImage, Name: match[1], Version: match[2]})
+		}
 	}
 	return pins
+}
+
+// officialContext reports whether a Go line names an image, as a field, a
+// variable or a constant whose name says Image. Without that, "router1:10.0.0.1"
+// (a peer and its address) has the shape of an official image and is not one.
+func officialContext(line string) bool {
+	return strings.Contains(strings.ToLower(line), "image")
 }
 
 // literalTag is the tag of an image a Go literal names: a version or latest.

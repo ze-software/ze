@@ -43,7 +43,7 @@ func upstreamFixture() recorded {
 		"https://registry-1.docker.io/v2/library/alpine/tags/list?n=1000": {Status: http.StatusOK,
 			Body:   []byte(`{"tags":["3.21.3","3.22.2","edge"]}`),
 			Header: http.Header{"Link": []string{`</v2/library/alpine/tags/list?last=edge&n=1000>; rel="next"`}}},
-		"https://registry-1.docker.io/v2/library/alpine/tags/list?last=edge&n=1000": ok(`{"tags":["3.24.3","3.24.0_rc1"]}`),
+		"https://registry-1.docker.io/v2/library/alpine/tags/list?last=edge&n=1000": ok(`{"tags":["3.24.3","3.24","3.24.0_rc1"]}`),
 		"https://registry-1.docker.io/v2/ligato/vpp-base/tags/list?n=1000":          ok(`{"tags":["latest","25.10-release","26.06-release","26.06","master"]}`),
 		"https://ghcr.io/v2/openconfig/gnmic/tags/list?n=1000":                      ok(`{"tags":["0.42.1","0.49.1","0.50.0-rc1"]}`),
 		"https://quay.io/v2/frrouting/frr/tags/list?n=1000":                         ok(`{"tags":["10.3.1","10.7.1"]}`),
@@ -59,7 +59,8 @@ func upstreamFixture() recorded {
 // names or scratch, go install, git --branch, a source commit, Go string
 // literals, a scenario image file), and each is judged against upstream's
 // latest stable release in the pin's own shape, including a Go major version
-// the pinned path's @latest never names.
+// the pinned path's @latest never names. An official image literal with no
+// repository path ("alpine:3.21") is read; an address with a port is not.
 // PREVENTS: a lab peer left on an old line because its pin was never compared
 // with upstream, as GoBGP stayed on v3 after v4 shipped.
 func TestCheckFindsEveryPinBehind(t *testing.T) {
@@ -75,6 +76,7 @@ func TestCheckFindsEveryPinBehind(t *testing.T) {
 		"lance0/rustbgpd v0.7.0":                     {"git-tag", "v0.79.0", StateBehind},
 		"alpine 3.21.3":                              {"image", "3.24.3", StateBehind},
 		"alpine 3.24.3":                              {"image", "3.24.3", StateCurrent},
+		"alpine 3.21":                                {"image", "3.24", StateBehind},
 		"mc36/freeRtr 6c295d8ae79c834ef631d3d21d373c335fb05328": {"source-commit", "96368b02da1030148d44fc1821e844deeba0a2f0", StateBehind},
 		"quay.io/frrouting/frr 10.7.1":                          {"image", "10.7.1", StateCurrent},
 		"ghcr.io/openconfig/gnmic 0.42.1":                       {"image", "0.49.1", StateBehind},
@@ -101,8 +103,8 @@ func TestCheckFindsEveryPinBehind(t *testing.T) {
 			t.Errorf("pin %s was not found", key)
 		}
 	}
-	if result.Behind != 6 {
-		t.Errorf("behind %d, want 6", result.Behind)
+	if result.Behind != 7 {
+		t.Errorf("behind %d, want 7", result.Behind)
 	}
 	text := result.Text()
 	if !strings.Contains(text, "[behind] test/interop/Dockerfile.gobgp:2 go-module") || !strings.Contains(text, "Fix: ") {
