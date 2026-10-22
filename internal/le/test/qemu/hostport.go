@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 	"syscall"
@@ -34,11 +35,16 @@ const (
 )
 
 // forwardReservations holds the lock on every port this process has handed a
-// QEMU, for the rest of the process. A VM never outlives its le (vmrecord.go),
-// so the process lifetime covers the VM's, and the kernel drops the locks when
-// le exits however it exits. Holding them to the end, rather than to the VM's
-// stop, costs one port for each forward an action boots, a few per action, and
-// needs no release on any of the stop paths. Safe for concurrent use.
+// QEMU, for the rest of the process, and the kernel drops the locks when le
+// exits however it exits. The lock covers the VM only while its le lives. A
+// run or docker-lab VM dies with its le on Linux (childProcAttr), and the next
+// run's reap stops it on macOS (vmrecord.go). The install-test, hugepages,
+// crash-capture and MPLS boot VMs carry neither, so a SIGKILLed le leaves them
+// running with their port and no lock: forwardPortFree finds that live
+// listener, which is why the probe runs after the lock is taken. Holding the
+// locks to the end, rather than to the VM's stop, costs one port for each
+// forward an action boots, a few per action, and needs no release on any of
+// the stop paths. Safe for concurrent use.
 var forwardReservations struct {
 	sync.Mutex
 	held []*runner.PortReservation
@@ -81,8 +87,16 @@ func reserveForwardPortIn(first, last int) (int, error) {
 	}
 	var b textbuf.Buffer
 	return 0, errors.New(b.Str("no free host port in ").Int(int64(first)).Str("..").Int(int64(last)).
-		Str(" for a QEMU forward: every one is held or reserved, most likely by other QEMU runs. ").
-		Str("Fix: stop a VM you no longer need, or set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) to a free port.").String())
+		Str(" for a QEMU forward: every one is bound by another program, or reserved by a live le process, ").
+		Str("each of which keeps the ports it reserved until it exits. ").
+		Str("`lsof +D /tmp/le-port-locks-").Int(int64(os.Geteuid())).
+		Str("` names the processes holding a reservation, and `lsof -nP -iTCP:").Int(int64(first)).
+		Str("-").Int(int64(last)).Str("` the programs bound in the band. ").
+		Str("Fix: stop a VM or le run you no longer need, or set a free port outside the band: ").
+		Str("ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run, docker-lab and the MPLS boot, ").
+		Str("ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for install-test, ").
+		Str("ze.vpp.hp.ssh.port (ZE_VPP_HP_SSH_PORT) for the hugepages proof. ").
+		Str("Crash capture has no fixed-port setting and needs free ports in the band.").String())
 }
 
 // forwardProbeHosts are the addresses the probe binds: the forward's own, and

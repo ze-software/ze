@@ -310,43 +310,62 @@ func (installer *Installer) sshLoginOK(ctx context.Context, port int) (bool, err
 	return true, nil
 }
 
+// targetPorts are the host ports of the installed appliance's forwards. web is
+// zero when the boot forwards no web listener.
+type targetPorts struct {
+	ssh int
+	web int
+}
+
+// targetForwards answers the -netdev value of the installed appliance's boot
+// and the host ports it forwards: SSH on the fixed ssh-port or a reserved one,
+// and with withWeb the web listener on another reserved port.
+func (installer *Installer) targetForwards(withWeb bool) (string, targetPorts, error) {
+	var ports targetPorts
+	ports.ssh = installer.Options.SSHPort
+	if ports.ssh == 0 {
+		var err error
+		ports.ssh, err = installer.ops.Port()
+		if err != nil {
+			return "", ports, err
+		}
+	}
+	var b textbuf.Buffer
+	b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(ports.ssh)).Str("-:22")
+	if !withWeb {
+		return b.String(), ports, nil
+	}
+	var err error
+	ports.web, err = installer.ops.Port()
+	if err != nil {
+		return "", ports, err
+	}
+	// A fixed ssh-port holds no reservation, so the web port can land on it.
+	// The answer just taken stays reserved, so asking again moves on.
+	if ports.web == ports.ssh {
+		ports.web, err = installer.ops.Port()
+		if err != nil {
+			return "", ports, err
+		}
+	}
+	b.Str(",hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(ports.web)).Str("-:8080")
+	return b.String(), ports, nil
+}
+
 func (installer *Installer) bootTargetSSH(
 	ctx context.Context,
 	work, disk string,
 	timeout time.Duration,
 	certificate []byte,
 ) (ok bool, serialPath string, resultErr error) {
-	port := installer.Options.SSHPort
-	if port == 0 {
-		var err error
-		port, err = installer.ops.Port()
-		if err != nil {
-			return false, "", err
-		}
+	forward, ports, err := installer.targetForwards(certificate != nil)
+	if err != nil {
+		return false, "", err
 	}
 	base := installer.qemuBase(true)
 	argv := slices.Clone(base)
 	var b textbuf.Buffer
 	drive := b.Str("file=").Str(disk).Str(",format=raw,if=virtio").String()
-	b.Reset()
-	forward := b.Str("user,id=net0,hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(port)).Str("-:22").String()
-	webPort := 0
-	if certificate != nil {
-		var err error
-		webPort, err = installer.ops.Port()
-		if err != nil {
-			return false, "", err
-		}
-		// A fixed ssh-port holds no reservation, so the web port can land on
-		// it. The answer just taken stays reserved, so asking again moves on.
-		if webPort == port {
-			webPort, err = installer.ops.Port()
-			if err != nil {
-				return false, "", err
-			}
-		}
-		forward = b.Reset().Str(forward).Str(",hostfwd=tcp:").Str(forwardHost).Byte(':').Int(int64(webPort)).Str("-:8080").String()
-	}
 	argv = append(argv,
 		"-drive", drive,
 		"-netdev", forward,
@@ -378,12 +397,12 @@ func (installer *Installer) bootTargetSSH(
 	deadline := time.Now().Add(timeout)
 	var loginErr error
 	for time.Now().Before(deadline) {
-		ok, attemptErr := installer.sshLoginOK(ctx, port)
+		ok, attemptErr := installer.sshLoginOK(ctx, ports.ssh)
 		if ok {
 			if certificate == nil {
 				return true, serialPath, nil
 			}
-			attemptErr = installSeedTLS(ctx, webPort, certificate)
+			attemptErr = installSeedTLS(ctx, ports.web, certificate)
 			if attemptErr == nil {
 				return true, serialPath, nil
 			}

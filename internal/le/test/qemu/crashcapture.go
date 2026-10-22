@@ -552,7 +552,7 @@ func (c *CrashCapture) qemuArgs(image string, ports crashPorts, plan HugepagesRe
 		}
 	}
 	var tb textbuf.Buffer
-	monitor := tb.Str("tcp:127.0.0.1:").Int(int64(ports.monitor)).Str(",server=on,wait=off").String()
+	monitor := tb.Str("tcp:").Str(forwardHost).Byte(':').Int(int64(ports.monitor)).Str(",server=on,wait=off").String()
 	return append(argv, "-monitor", monitor)
 }
 

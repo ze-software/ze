@@ -2,6 +2,7 @@ package testqemu
 
 import (
 	"net"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -17,7 +18,7 @@ import (
 // PREVENTS: the 2026-10-21 docker-lab collision, where a wildcard probe bound
 // beside another VM's 127.0.0.1 forward and the second run died with an sshd
 // timeout.
-func TestFreeSSHPortRefusesAHeldForward(t *testing.T) {
+func TestForwardPortRefusesAHeldForward(t *testing.T) {
 	for _, address := range []string{"127.0.0.1:0", "0.0.0.0:0"} {
 		t.Run(address, func(t *testing.T) {
 			var config net.ListenConfig
@@ -45,7 +46,7 @@ func TestFreeSSHPortRefusesAHeldForward(t *testing.T) {
 // keeps SO_REUSEADDR set binds beside it; this is the red Linux can show, the
 // listening case above being red on macOS.
 // PREVENTS: a probe whose own SO_REUSEADDR lets it share a forward's port.
-func TestFreeSSHPortRefusesABoundLoopbackForward(t *testing.T) {
+func TestForwardPortRefusesABoundLoopbackForward(t *testing.T) {
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		t.Fatalf("open a socket: %v", err)
@@ -73,7 +74,7 @@ func TestFreeSSHPortRefusesABoundLoopbackForward(t *testing.T) {
 // VALIDATES: the probe still answers a port nobody holds.
 // METHOD: take a free loopback port from the kernel, release it, then probe it.
 // PREVENTS: a probe so strict it refuses every port and stops every run.
-func TestFreeSSHPortAnswersAFreePort(t *testing.T) {
+func TestForwardPortAnswersAFreePort(t *testing.T) {
 	var config net.ListenConfig
 	listener, err := config.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -135,6 +136,41 @@ func TestForwardPortSkipsAReservedPort(t *testing.T) {
 	defer held.Release()
 	if got, err := reserveForwardPortIn(port, port); err == nil {
 		t.Fatalf("probe answered port %d while another run holds its reservation", got)
+	}
+}
+
+// VALIDATES: the error for an exhausted band names every fixed-port setting
+// that reaches it, says a live le keeps its reservations, and names the
+// command that shows the holders.
+// METHOD: reserve a free port through the runner's lock, ask for exactly that
+// port, and read the error.
+// PREVENTS: an install-test or hugepages operator told to set the run's key,
+// which their action never reads.
+func TestForwardPortExhaustionNamesEveryFix(t *testing.T) {
+	port := releasedLoopbackPort(t)
+	held, ok, err := runner.LockPort(port)
+	if err != nil {
+		t.Fatalf("reserve port %d: %v", port, err)
+	}
+	if !ok {
+		t.Fatalf("port %d is already reserved by another run; rerun the test", port)
+	}
+	defer held.Release()
+	_, err = reserveForwardPortIn(port, port)
+	if err == nil {
+		t.Fatalf("probe answered port %d while another run holds its reservation", port)
+	}
+	for _, want := range []string{
+		"live le process",
+		"lsof +D ",
+		"ze.qemu.ssh.port (ZE_QEMU_SSH_PORT)",
+		"ze.install.ssh.port (ZE_INSTALL_SSH_PORT)",
+		"ze.vpp.hp.ssh.port (ZE_VPP_HP_SSH_PORT)",
+		"Crash capture",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
 	}
 }
 

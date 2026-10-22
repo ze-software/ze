@@ -580,18 +580,29 @@ so a wildcard `run` would reach a `docker-lab` VM.
 A forward with no fixed port (`ssh-port`, `ze.qemu.ssh.port`,
 `ze.install.ssh.port`) takes the first port in 2222..2321 that two checks pass.
 The first is the per-port lock the functional runner leases test ports through
-(`le-port-locks-<uid>` under the system temporary directory). le takes the lock
-and holds it until the process exits, so a concurrent le run skips the port in
-the window before this run's QEMU binds it, and so does a second forward of the
-same run: the `install-test` SSH and web forwards once got the same port. A VM
-never outlives its le (below), so the lock lasts at least as long as the VM.
-The second check binds the port on `127.0.0.1` and on the wildcard, IPv4, with
-`SO_REUSEADDR` cleared. It finds a port another program holds on any address,
-or a VM whose le died and took its lock with it. With the option set, as Go
-sets it by default, macOS lets the probe bind beside a listening holder.
+(`/tmp/le-port-locks-<euid>`, a fixed path whatever `TMPDIR` says, so root's
+locks sit apart in `/tmp/le-port-locks-0`). le takes the lock and holds it
+until the process exits, so a concurrent le run skips the port in the window
+before this run's QEMU binds it, and so does a second forward of the same run:
+the `install-test` SSH and web forwards once got the same port. The lock
+covers the VM only while its le lives. A `run` or `docker-lab` VM dies with its
+le on Linux and is stopped by the next run's reap on macOS (below). The
+`install-test`, hugepages, crash-capture and MPLS boot VMs carry neither
+mechanism, so a le killed outright leaves them running on their port with no
+lock. The second check covers them: it binds the port on `127.0.0.1` and on the
+wildcard, IPv4, with `SO_REUSEADDR` cleared, and so finds a port another
+program holds on any address, including a VM whose le died and took its lock
+with it. With the option set, as Go sets it by default, macOS lets the probe
+bind beside a listening holder.
+
+When every port in the band fails a check, the error names the fixed-port
+setting of each action that reaches it (`ze.qemu.ssh.port` for `run`,
+`docker-lab` and MPLS boot, `ze.install.ssh.port` for `install-test`,
+`ze.vpp.hp.ssh.port` for hugepages; crash capture has none), and `lsof +D
+/tmp/le-port-locks-<euid>` to name the le processes holding reservations.
 <!-- source: internal/le/test/qemu/hostport.go -- forwardHost, reserveForwardPort, reserveForwardPortIn, forwardPortFree -->
 <!-- source: internal/test/runner/ports.go -- LockPort -->
-<!-- test: internal/le/test/qemu/run_port_test.go TestFreeSSHPortRefusesAHeldForward, TestFreeSSHPortRefusesABoundLoopbackForward, TestFreeSSHPortAnswersAFreePort, TestForwardPortsInOneRunAreDistinct, TestForwardPortSkipsAReservedPort -->
+<!-- test: internal/le/test/qemu/run_port_test.go TestForwardPortRefusesAHeldForward, TestForwardPortRefusesABoundLoopbackForward, TestForwardPortAnswersAFreePort, TestForwardPortsInOneRunAreDistinct, TestForwardPortSkipsAReservedPort -->
 
 ### A VM never outlives its le
 
@@ -614,8 +625,8 @@ guest ssh session survives, and the guest's teardown runs. Once the command ends
 that its output stream stopped accepting writes, when, and why, and that the
 run's captured output is intact: the same holds for an ENOSPC on a job log. A
 staged record a killed `le` left before its rename is removed by the reap once
-it is older than ten minutes. The VMs that `install-test`, the hugepages proof and crash capture start
-outside `Run` carry neither mechanism.
+it is older than ten minutes. The VMs that `install-test`, the hugepages proof,
+crash capture and the MPLS boot start outside `Run` carry neither mechanism.
 <!-- source: internal/le/test/qemu/vmrecord.go -- recordVM, reapOrphanVMs, reapOne, reapUnreadable, removeStaleStaged -->
 <!-- source: internal/le/test/qemu/run.go -- terminalWriter, runHostCommand -->
 <!-- source: internal/le/test/qemu/run_procattr_linux.go -- childProcAttr -->

@@ -776,3 +776,33 @@ func installTestInstaller(t *testing.T, kind InstallKind) *Installer {
 	installer.ops.Look = func(name string) (string, error) { return name, nil }
 	return installer
 }
+
+// VALIDATES: with a fixed ssh-port and a certificate, the installed
+// appliance's web forward never takes the SSH forward's port.
+// METHOD: fix ssh-port at 2222 and let ops.Port answer 2222 first, as the
+// reservation does when the fixed port is free and unreserved, then 2223;
+// read the ports and the -netdev value targetForwards answers.
+// PREVENTS: one host port named by both hostfwd entries, which QEMU refuses at
+// start, when the operator sets ze.install.ssh.port to a port in the band.
+func TestTargetForwardsWebPortSkipsAFixedSSHPort(t *testing.T) {
+	answers := []int{2222, 2223}
+	ops := productionInstallOps()
+	ops.Port = func() (int, error) {
+		port := answers[0]
+		answers = answers[1:]
+		return port, nil
+	}
+	installer := &Installer{ops: ops}
+	installer.Options.SSHPort = 2222
+	forward, ports, err := installer.targetForwards(true)
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if ports.ssh != 2222 || ports.web != 2223 {
+		t.Fatalf("ports ssh=%d web=%d, want ssh=2222 web=2223", ports.ssh, ports.web)
+	}
+	want := "user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=tcp:127.0.0.1:2223-:8080"
+	if forward != want {
+		t.Fatalf("forward=%q, want %q", forward, want)
+	}
+}
