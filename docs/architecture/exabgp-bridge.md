@@ -160,11 +160,18 @@ Ze's `connected` event is ExaBGP's state `connected` under `neighbor-changes`
 (`neighbor 192.0.2.1 connected` on the text line), and ze's `fsm` event is
 ExaBGP's `fsm` with the state entered, under the `fsm` key. Ze's `signal`
 event is ExaBGP's `signal`, `"code": "15", "name": "SIGTERM"` inside
-`neighbor`, under the `signal` key, and gets no text line, as in ExaBGP. On the
-engine's `bye`, before it stops the bridge, both runners write every script
+`neighbor`, under the `signal` key, and gets no text line, as in ExaBGP. When
+the engine stops the bridge, which it does by closing the plugin's connection
+with no `bye` (`ProcessManager.Stop`), both runners write every script
 ExaBGP's shutdown line in the script's own format, whatever its api block
 grants: `{"notification": "shutdown", "type": "notification"}` in JSON and
-`shutdown <pid> <ppid>` in text, the ids being the bridge's own.
+`shutdown <pid> <ppid>` in text, the ids being the bridge's own. The line
+goes behind whatever the script was already sent, then the script's stdin
+closes, and the runner waits for each script to read up to that EOF and exit
+before it kills the rest. The wait is one second for all the scripts together,
+and a script still running when it ends is logged and killed. ExaBGP gives a
+script the same chance: it writes the line, then sends SIGTERM and waits up to
+two seconds before it kills.
 <!-- source: internal/exabgp/bridge/bridge_event_fsm.go -- writeSignal -->
 <!-- source: internal/exabgp/bridge/bridge_shutdown.go -- ShutdownLine -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Shutdown -->
@@ -196,15 +203,39 @@ speaker's AS needs four octets, as on the JSON line.
 
 <!-- source: internal/exabgp/bridge/bridge_event_open_text.go -- appendCapabilitiesText, appendCapabilityText -->
 
-Two places diverge from ExaBGP. Each one does because the ze event carries
-less than ExaBGP's own objects do.
+The routes of a text UPDATE are written from the ExaBGP JSON document the bridge
+builds for a JSON script (`convertUpdateIPC2` plus the wire overlay), never from
+ze's own members, so the text and the JSON line of one UPDATE state the same
+route. Each route is the `extensive()` of the ExaBGP class its SAFI selects:
+
+| SAFI | Text |
+|---|---|
+| unicast, multicast, nlri-mpls, mpls-vpn | `<prefix>[ path-information <id>][ label <n>\| label [ <n> <m> ]] next-hop <nh>[ rd <rd>]`; a withdrawn route carries no label |
+| flow, flow-vpn | the route's `string` member, which Flow.json fills from `extensive()`: `flow <rules>[ rd <rd>][ next-hop <nh>]` |
+| vpls | `vpls rd <rd> endpoint <n> base <n> offset <n> size <n> next-hop <nh>` |
+| every other (mup, mcast-vpn, evpn, rtc, bgp-ls) | `afi <afi> safi <safi>`, Family.extensive, with no next hop, whatever the route type and whether ze decoded it |
+
+A community, large community or extended community list is written as
+Communities.__repr__ does: a list of one bare, a longer one inside `[ ]` and
+sorted by the community octets, read off the UPDATE's own bytes
+(`Event.Packet`). An extended community is named by the JSON document's
+`string`, so `0x0800` reads `redirect-to-nexthop` or `copy-to-nexthop` on both
+lines. MP_REACH_NLRI and MP_UNREACH_NLRI are never written as attributes:
+ExaBGP's attribute collection never holds them. A BGP Prefix-SID carrying a
+label index is `bgp-prefix-sid [ <index> ]`, or
+`bgp-prefix-sid [ <index>, [ ( <base>,<range> ), ... ] ]` with an SRGB.
+
+One place diverges from ExaBGP, because the ze event carries less than
+ExaBGP's own objects do.
 
 | What | ze writes | Why |
 |---|---|---|
 | An attribute with no registered JSON key | ` attribute [ 0xCC <value> ]` | the event carries no attribute flags on this path |
-| A structured NLRI | its `nlri` field, or compact JSON | `extensive()` is per family and is not reachable from the object ze sends |
 
 <!-- source: internal/exabgp/bridge/bridge_event_text.go -- appendUpdateText, appendOneline, textAttributes -->
+<!-- source: internal/exabgp/bridge/bridge_event_text_nlri.go -- appendExtensive, textRoutes -->
+<!-- source: internal/exabgp/bridge/bridge_event_text_community.go -- textAttributeWire.communities -->
+<!-- source: internal/exabgp/bridge/bridge_event_text_prefixsid.go -- appendPrefixSIDText -->
 
 ## A line that names no neighbor goes to the peers that feed the script
 
