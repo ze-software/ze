@@ -3263,3 +3263,42 @@ Review findings fixed in the same uncommitted change, now in one commit script:
 - Reactor rail test pins receive-only and raw-only refusal; rs replay_order_test records at the relay hook; docs and stale comments fixed; `test/weakened/4d7ad031.md` (the commit tool's session) records the two renames; the untracked `test/weakened/8385ff13.md` is a superseded copy awaiting deletion (the hook asks the user).
 Evidence: reactor `-race -tags ze_bgp` ok (191 s); rr, rs, adj_rib_in, ribevents `-race` ok; vet ok; `./le plugin boundary check` OK.
 OWED: `./le test functional plugin-test` (replay and addpath-departure-rr .ci; not run, suite exceeds the agent window); lint; owner approval for the RFC-tagged ASPA retention test file (only its `retainedRelay` helper changed; committed under `rfc-change-ok`); end-to-end revalidation `.ci`.
+
+## 2026-10-22 Phase 7 item E, exa17 agent (generic attribute; stopped at budget)
+
+Measured at start: 5.0 3935/4250, 4.2 2430/2541 (unchanged).
+
+PREPARED, NOT RUN, owes independent review: `tmp/commit-e0f20648-a-e5100b.sh`
+(machine-local; message tmp/commit-msg-e0f20648-a-d04696.txt; recreate from the
+file list below if moved). Generic attribute class (58 per 5.0 run):
+- Update text gains `attribute [ 0x<code> 0x<flags> 0x<value> ]`
+  (update/update_text_attribute.go: parseRawAttributeText, withRawAttrs,
+  rawAttributeMadeElsewhere; textparse.KWAttribute; parsedAttrs.Raw merged after
+  snapshot in ParseUpdateText and cursor.go, deepCopyAttrs clones it, clearAttr
+  clears it). Flags written as given (pin's GenericAttribute.pack_attribute);
+  codes 3, 14, 15, 17, 18 refused (14-18 = pin GENERATED_ATTRIBUTES); a code
+  given twice refused (RFC 4271 Section 6.3).
+- Bridge: `attribute` forwarded as written; bridgeRouteAttr gains Code; a generic
+  and a keyword (or two generics) of one code keep the first with a warning (pin
+  add_attribute, "attribute.GENERIC or existing.GENERIC").
+- Tests: update TestUpdateTextGenericAttribute/Refused (red before: unknown
+  token), bridge TestGenericAttributeTranslated; exabgp-compat
+  api-generic-attribute-v4 PASS on ze and on the pin 685f772e. Daemon-level red
+  with the fix reverted NOT run (HEAD refused the line with "cannot encode this
+  route attribute", seen in the baseline corpus run).
+- Pages edited: update-syntax.md (grammar, attribute row, paragraph, type
+  table), exabgp-bridge.md (pass-through paragraph, case list).
+- Counts after: 5.0 4043/4250, 4.2 2478/2541. update and bridge packages green
+  except TestOldCommands50/42.
+- Script carries structural-red-ok (carried lint/staticcheck part 2 reds from
+  ee108f4731); gates owed: `./le go lint run`, `./le arch compound-guard check`,
+  `./le verify current`.
+
+Remaining classes (5.0 run after the fix): IPv6 flow `/N/M` offsets (~24
+refusals, e.g. `::1/128/120`, also given to ipv4/flow); flow components with
+no value (~24, `"port" states no value`) and `mark`/`action` with no update-text
+spelling; mpls-vpn `split /N` (ze sends the prefix whole, 5.0 split it: new
+class); mcast-vpn (28); ipv6 multicast (64 differ lines); ipv6 mup (19);
+unicast withdraw; extended community `target4`/`origin4`/type 0; route-refresh
+and operational judge branch; `eor l2vpn vpls`, `route-refresh l2vpn evpn`,
+`bgp-ls`; then AC-38 TestOldResponses50/42.
