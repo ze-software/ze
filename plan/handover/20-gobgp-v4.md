@@ -217,6 +217,41 @@ timed out; unlock the agent and run that script. `rfc/audit/rfc3948.json`
 still names `nping --badsum` in its RFC3948-3.1.2-1 note (an audit record,
 not edited).
 
+Fourth round (agent of 2026-10-22 evening), verdicts from
+`04-radius-acct-attrs` on:
+
+| Scenario | Verdict |
+|----------|---------|
+| `04-radius-acct-attrs`, `02-ze-ac-pppd-client` | PASS |
+| `pppoe-empty-service-name`, `pppoe-padr-replay`, `pppoe-pap-ze-ac`, `pppoe-pap-ze-client` | PASS (pppd 2.5.4) |
+| `ipv6cp-missing-option` | FAIL, known Ze gap, not drift: `errIPv6CPNeverEngaged`, Ze sends no IPv6CP frame because `poolPlugin.handle` declines every non-IPv4 `EventIPRequest`. Owned by `plan/spec-l2tp-ipv6-subscriber.md`, whose AC already names this scenario |
+| `ipv6cp-zero-identifier` | FAIL, test defect, FIXED in 80c7139095. The checker dialled pppd with `ipv6 ::,`, which pppd refuses at option parsing ("Illegal interface identifier (local): ::", `setifaceid`/`VALIDID` in `pppd/ipv6cp.c`, identical in 2.5.1 and 2.5.4), so it never reached Ze. The checker now replays pppd's own request with the zero identifier, wants a Configure-Nak from Ze's MAC with a usable suggestion, then replays that suggestion and wants a Configure-Ack (same facts). It will still fail on the same Ze gap as `ipv6cp-missing-option`; rerun `ipv6cp-zero-identifier-r2` queued to prove it now reaches `errIPv6CPNeverEngaged` |
+| `dhcpv4-rebind-two-servers-dnsmasq` | PASS (dnsmasq 2.93) |
+| `dhcpv6-client-confirm-kea` | PASS (Kea 3.2.1) |
+| `vrrp-v2-owner-keepalived` | PASS (keepalived 2.4.3) |
+| `childless-ike-sa-ze-initiator` | FAIL on infrastructure: the shared tree did not cross-compile (`internal/exabgp/bridge/bridge_lines.go`: undefined `watchdogAddCommand`, another session's uncommitted bridge work). Requeued in the clone runner |
+| QEMU MOBIKE guest | cause FIXED in 2d3ffe8782, boot not yet proven: `Run.qemuArgs` appended `console=ttyAMA0` on x86, and Alpine's init spawns the login getty on the `console=` device, so no getty ran on ttyS0. The boot wait now keeps `tmp/qemu/serial-*.log` and names the timeout, not QEMU's hvf warning, as the cause (`bootFailure`). The journal row edit in `plan/journal/error-names-no-fix-command.md` (row closed) is in the working tree; commit it with this handover. `qemu-mobike-r2` in the clone runner is the boot proof |
+
+`rfc/audit/rfc3948.json` RFC3948-3.1.2-1 note: left as is.
+`docs/contributing/rfc-conformance-gates.md` defines `rfc/audit/<stem>.json`
+as a recorded `/ze-rfc-audit` verdict with fingerprints, changed only by
+`./le rfc audit-stamp stem rfc3948 from <pending> mode rejudge` after a judge
+re-makes the verdict. No hand edit is documented. The verdict (enforced)
+still holds in substance, because rawprobe sends the same bad-checksum TCP
+and UDP probes; the note's tool name is stale. Owed: a `/ze-rfc-audit`
+rejudge of RFC3948-3.1.2-1 by an independent judge.
+
+Runner now: `run4.sh` over `batch4.txt` (session scratchpad `scripts/`),
+running from `clone-m14`, a `git clone --shared` of committed main at
+eda7420752, because the shared tree does not compile. Same lock, logs
+`scn3-<name>.log` in the session scratch, `scn4-DONE` at the end. Queue: the
+46 ipsec scenarios from `childless-ike-sa-ze-initiator`, then
+`01-ppp-ipv4-r3`, `eap-tls13-r2`, `qemu-mobike-r2`,
+`natt-tunnel-inner-checksum-r2`, `ipv6cp-zero-identifier-r2`. `run3.sh` was
+stopped. Its last scenario, `childless-ike-sa-ze-responder`, was still
+building in the shared tree, and its log has no `EXIT=` line. The clone
+runner runs it again.
+
 `docs/guide/ipsec.md` TLS claim re-read in the strongSwan 6.1.0 source: the
 default is still TLS 1.2 (`src/libtls/tls.c`) and libtls still implements no
 extended master secret. Corrected to name 6.1.0 in 679bbfa69a.
