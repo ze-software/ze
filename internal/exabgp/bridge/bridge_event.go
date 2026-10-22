@@ -128,7 +128,7 @@ type Event struct {
 // for that subtype (src/exabgp/bgp/message/refresh.py, Reserved.__str__).
 //
 // RFC 7313 Section 3.2: "0 - Normal route refresh request [RFC2918] with/without
-// ORF [RFC5291]", "1 - Demarcation of the beginning of a route refresh (BoRR)
+// Outbound Route Filtering (ORF) [RFC5291]", "1 - Demarcation of the beginning of a route refresh (BoRR)
 // operation", "2 - Demarcation of the ending of a route refresh (EoRR)
 // operation".
 //

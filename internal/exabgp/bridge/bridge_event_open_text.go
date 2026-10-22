@@ -71,7 +71,7 @@ func appendCapabilityText(buf []byte, code int, values []string) []byte {
 		return append(buf, "operational"...)
 	case capExtendedMessage:
 		// ExtendedMessage.__str__ writes EXTENDED_SIZE. RFC 8654 Section 2:
-		// "the maximum message size is 65535 octets".
+		// "BGP Extended Messages have a maximum message size of 65,535 octets."
 		return append(buf, "extended message(65535)"...)
 	case capASN4:
 		// ASN4.__str__: `ASN4(<asn>)`. capabilityBody parsed ze's decimal

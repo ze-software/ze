@@ -605,7 +605,7 @@ func parseRawAttributeInto(attrs *ParsedRouteAttributes, src *StaticRouteConfig,
 // does the keyword's. A path holding an AS_SET or AS_CONFED_SET has no typed
 // form, because a static route's as-path is one sequence, so it stays raw: the
 // send guard then writes the route as a withdrawal, and nothing of it reaches
-// the wire. RFC 9774 Section 3: "BGP speakers: MUST NOT advertise BGP UPDATE
+// the wire. RFC 9774 Section 3: BGP speakers "MUST NOT advertise BGP UPDATE
 // messages containing AS_SETs or AS_CONFED_SETs".
 func rawASPathInto(attrs *ParsedRouteAttributes, raw textparse.RawAttribute, path *attribute.ASPath) error {
 	var values []uint32

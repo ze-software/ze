@@ -55,7 +55,7 @@ func TestDecodeOpenOpaqueCapabilityValues(t *testing.T) {
 // is caught too.
 //
 // RFC 9072 Section 2: "the Parameter Length field is extended to be a
-// two-octet unsigned integer".
+// two-octet unsigned integer."
 func TestDecodeOpenExtendedParams(t *testing.T) {
 	body, err := hex.DecodeString("04" + "0001" + "005a" + "c0000201" + "ff" + "ff" + "0012" +
 		"020006" + "010400010001" + // Multiprotocol ipv4/unicast
