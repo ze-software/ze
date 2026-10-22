@@ -30,10 +30,9 @@ const (
 	// Action is the native action identity served by this callable runner.
 	Action = "test integration/interop-ipsec"
 
-	defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
-	zeImage         = "ze-ipsec-interop"
-	swanImage       = "ze-ipsec-strongswan"
-	natImage        = "ze-ipsec-nat"
+	zeImage   = "ze-ipsec-interop"
+	swanImage = "ze-ipsec-strongswan"
+	natImage  = "ze-ipsec-nat"
 
 	// capabilityNetAdmin is the one capability beyond Docker's default set every
 	// peer of this lab needs: XFRM state and policy, addresses, routes, rules and
@@ -136,7 +135,7 @@ func RunAt(ctx context.Context, root, selector string) (Report, int) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
 		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_IPSEC_INTEROP_SUFFIX",
-		DefaultImage:     defaultFRRImage,
+		DefaultImage:     interoplab.FRRImage,
 		DefaultSuffix:    strconv.Itoa(os.Getpid()),
 	})
 	if selector != "" {
@@ -344,8 +343,8 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 				{Source: filepath.Join(root, "test", "interop-ipsec", "vtysh.conf"), Target: "/etc/frr/vtysh.conf", ReadOnly: true},
 			},
 			// FRR's zebra and bgpd put CAP_SYS_ADMIN in their permitted set at start
-			// (read at frr-10.5.3 and at frr-10.3.1, the tag of the
-			// quay.io/frrouting/frr:10.3.1 image the labs pin: zebra/main.c and
+			// (read at frr-10.5.3, at frr-10.3.1 and at frr-10.7.1, the tag of the
+			// interoplab.FRRImage image the labs pin: zebra/main.c and
 			// bgpd/bgp_main.c _caps_p: "ZCAP_NET_ADMIN,
 			// ZCAP_SYS_ADMIN"), and lib/privs.c zprivs_caps_init exits when
 			// cap_set_proc cannot raise it ("privs_init: initial cap_set_proc

@@ -17,6 +17,13 @@ import (
 
 const defaultSessionTimeout = 90 * time.Second
 
+// FRRImage is the one FRR release every lab family and the perf runner start
+// when FRR_IMAGE does not name another: FRR's latest stable release (owner
+// decision M14), pinned by the digest of its multi-arch index so the payload
+// cannot change under a tag. Bump the tag and the digest together, read with
+// `docker buildx imagetools inspect quay.io/frrouting/frr:<tag>`.
+const FRRImage = "quay.io/frrouting/frr:10.7.1@sha256:e995beaa50fdc9edb35eadcfefa29b7f062cc06f2b812613789b68fa541554d2"
+
 // Checker is the protocol leaf's typed assertion entry point.
 type Checker func(context.Context, *CheckContext) error
 

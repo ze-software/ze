@@ -77,7 +77,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 
 | Daemon | Version | Image | Query Method | What It Validates |
 |--------|---------|-------|--------------|-------------------|
-| FRR | 10.3.1 | `quay.io/frrouting/frr:10.3.1` | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
+| FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
 | BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name | eBGP, route injection and verification |
 | StayRTR | 0.6.4 | Go builder | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
@@ -1253,11 +1253,15 @@ one, the shared `test/interop/daemons` is mounted.
 It may also carry an `frr-image` file holding one image reference. Its FRR
 containers then start from that release instead of the suite's FRR (and
 `FRR_IMAGE` does not replace it), and the suite pulls each pinned release once.
-A scenario needs this when the behavior under test exists only in a later FRR:
-`bgp-linklocal-only-multihop-withdraw-frr` pins FRR 10.4.1, the first release
-here that negotiates the Link-Local Next Hop capability (77), because without it
-a different gate withholds the route and the scenario cannot go red. A file
-naming no image, or two, is an error.
+A scenario needs this when the behavior under test exists only in a later FRR
+than the suite's, or when the scenario must not follow an `FRR_IMAGE` override:
+`bgp-linklocal-only-multihop-withdraw-frr` needs FRR 10.4.1 or later, the first
+release here that negotiates the Link-Local Next Hop capability (77), because
+without it a different gate withholds the route and the scenario cannot go red.
+The five scenarios that carry one pin the same release as the suite,
+`interoplab.FRRImage` (owner decision M14), so a run with `FRR_IMAGE` naming an
+older FRR still starts them from 10.7.1. A file naming no image, or two, is an
+error.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
 <!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
 
@@ -2520,8 +2524,8 @@ is not packet-forwarding evidence.
 | 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
 | 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver |
 | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
-| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.4.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
-| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
+| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.7.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
+| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.7.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
 | 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's RIB, read through `gobgp-paths` (`Dockerfile.gobgp`, a gRPC ListPath reader, because no gobgp CLI release names an SR Policy family), holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red |
 | 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
 | 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |

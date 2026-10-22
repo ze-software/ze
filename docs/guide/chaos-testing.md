@@ -119,7 +119,7 @@ flag shares the host network so `le chaos run` simulators can connect directly
   --config-out chaos-frr.conf
 docker run --rm --network host \
   -v ./chaos-frr.conf:/etc/frr/bgpd.conf:ro \
-  quay.io/frrouting/frr:10.3.1 \
+  quay.io/frrouting/frr:10.7.1 \
   /usr/lib/frr/bgpd -f /etc/frr/bgpd.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
 
 # In another terminal: run le chaos run against the FRR instance
@@ -143,7 +143,7 @@ Validate generated configs without running a full session:
 # FRR: -C flag checks config and exits
 ./le chaos run --config-only --application frr > frr.conf
 docker run --rm -v ./frr.conf:/etc/frr/bgpd.conf:ro \
-  quay.io/frrouting/frr:10.3.1 \
+  quay.io/frrouting/frr:10.7.1 \
   /usr/lib/frr/bgpd -C -f /etc/frr/bgpd.conf -n -Z -S -p 0 -P 0
 
 # BIRD: -p flag parses config and exits

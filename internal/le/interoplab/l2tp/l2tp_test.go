@@ -534,5 +534,5 @@ func containsCall(calls []recordedCall, want recordedCall) bool {
 }
 
 func testEnvironment() interoplab.Environment {
-	return interoplab.Environment{SessionTimeout: 90 * time.Second, Suffix: "test", Image: "quay.io/frrouting/frr:10.3.1"}
+	return interoplab.Environment{SessionTimeout: 90 * time.Second, Suffix: "test", Image: interoplab.FRRImage}
 }

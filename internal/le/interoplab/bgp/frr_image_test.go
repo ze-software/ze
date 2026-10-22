@@ -15,7 +15,12 @@ import (
 // PREVENTS: a pin read by nothing, so the scenario runs the suite's FRR and a
 // capability only the pinned release speaks is never negotiated.
 func TestScenarioFRRImagePinsItsRelease(t *testing.T) {
+	// A release other than interoplab.FRRImage, the suite's FRR, so a pin
+	// that nothing reads cannot pass by naming the image the suite runs anyway.
 	const reference = "quay.io/frrouting/frr:10.4.1"
+	if reference == interoplab.FRRImage {
+		t.Fatalf("fixture pin %s is the suite's FRR; pick another release", reference)
+	}
 	producer := t.TempDir()
 	pinned := t.TempDir()
 	plain := t.TempDir()

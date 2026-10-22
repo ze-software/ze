@@ -39,8 +39,8 @@ const (
 
 	// serverImage is pinned to an exact tag. A moving tag changes what these
 	// scenarios mean with no ze change, and the failure then looks like a ze
-	// regression (R-3). quay.io/frrouting/frr:10.3.1 is pinned for the same
-	// reason in the BGP and L2TP suites.
+	// regression (R-3). interoplab.FRRImage is pinned by digest for the same
+	// reason in the BGP, IPsec and L2TP suites.
 	serverImage = "docker.io/freeradius/freeradius-server:3.2.7"
 	zeImage     = "ze-radius-interop"
 

@@ -466,11 +466,8 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			return nil, err
 		}
 		// FRR's zebra and bgpd put CAP_SYS_ADMIN in their permitted set at start,
-		// at every tag a BGP scenario runs: frr-10.3.1 (defaultFRRImage, the
-		// suite's image), frr-10.4.1 (bgp-linklocal-only-multihop-withdraw-frr)
-		// and frr-10.7.1 (the two bgp-srv6-next-hop-identity scenarios); the
-		// last two are pinned by those scenarios' frr-image files. Also read at
-		// frr-10.5.3. zebra/main.c
+		// at frr-10.7.1, the tag of interoplab.FRRImage (the suite's FRR), and at
+		// frr-10.3.1, frr-10.4.1 and frr-10.5.3 before it. zebra/main.c
 		// and bgpd/bgp_main.c _caps_p name "ZCAP_NET_ADMIN, ZCAP_SYS_ADMIN" at
 		// each of those tags, and lib/privs.c zprivs_caps_init exits when
 		// cap_set_proc cannot raise it ("privs_init: initial cap_set_proc
@@ -669,8 +666,8 @@ const (
 
 // linkLocalOwners is every link-local placeholder and its owner. Ze's image
 // runs `tini -- ze` and the wrapper execs ze directly, as the RFC 2545
-// scenario always has. FRR's pinned image (quay.io/frrouting/frr:10.3.1, read
-// with `docker image inspect` on 2026-10-15) has Entrypoint ["/sbin/tini","--"]
+// scenario always has. FRR's pinned image (interoplab.FRRImage, read at 10.3.1
+// on 2026-10-15 and at 10.7.1 on 2026-10-22 with `docker image inspect`) has Entrypoint ["/sbin/tini","--"]
 // and Cmd ["/usr/lib/frr/docker-start"]; Docker drops that Cmd once
 // --entrypoint replaces the entrypoint, so the wrapper passes it back.
 var linkLocalOwners = [...]linkLocalOwner{

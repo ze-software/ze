@@ -560,7 +560,7 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	environment := interoplab.Environment{
-		Image:          defaultFRRImage,
+		Image:          interoplab.FRRImage,
 		SessionTimeout: 90 * time.Second,
 		Suffix:         "plan-test",
 	}
@@ -1045,7 +1045,7 @@ func TestEveryStrongSwanPeerMountsTheSharedLabDropIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	environment := interoplab.Environment{
-		Image:          defaultFRRImage,
+		Image:          interoplab.FRRImage,
 		SessionTimeout: 90 * time.Second,
 		Suffix:         "lab-dropin-test",
 	}

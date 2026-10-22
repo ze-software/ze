@@ -32,7 +32,7 @@ func preparedIPsecScenarios(t *testing.T) map[string]interoplab.PreparedScenario
 	if err != nil {
 		t.Fatal(err)
 	}
-	environment := interoplab.Environment{Image: defaultFRRImage, SessionTimeout: 90 * time.Second, Suffix: "privilege-test"}
+	environment := interoplab.Environment{Image: interoplab.FRRImage, SessionTimeout: 90 * time.Second, Suffix: "privilege-test"}
 	sources, err := interoplab.Discover(filepath.Join(root, "test", "interop-ipsec", "scenarios"), "", checkerAdapters())
 	if err != nil {
 		t.Fatal(err)

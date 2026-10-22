@@ -80,7 +80,7 @@ type Steps struct {
 }
 
 func DUTs() []DUT {
-	frr := envOr("FRR_IMAGE", "quay.io/frrouting/frr:10.3.1")
+	frr := envOr("FRR_IMAGE", interoplab.FRRImage)
 	rust := envOr("RUSTBGPD_IMAGE", "rustbgpd-interop")
 	return []DUT{
 		{Name: dutZE, Image: "ze-interop", IP: netip.MustParseAddr("172.31.0.2"), Port: 179, SenderPort: 1790, ReceiverPort: 1791},

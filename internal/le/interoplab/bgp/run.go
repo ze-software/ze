@@ -13,8 +13,6 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
-const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
-
 // defaultPMACCTImage is the third-party BMP collector the RFC 9069 Loc-RIB
 // scenario reads ze's stream with. pmacct decodes the Loc-RIB Instance Peer
 // type, the Peer Up Information TLVs and the Peer Down reason itself, so what
@@ -77,7 +75,7 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
 		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_INTEROP_SUFFIX",
-		DefaultImage:     defaultFRRImage,
+		DefaultImage:     interoplab.FRRImage,
 		DefaultSuffix:    options.Suffix,
 	})
 	if options.Scenario == "" {
