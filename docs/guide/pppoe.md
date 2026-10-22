@@ -127,7 +127,7 @@ Two Docker lab scenarios run Ze in each PPPoE role.
 | Scenario | Ze role | Peer | Proves |
 |----------|---------|------|--------|
 | `01-pppoe-chap-ipv4` | client | accel-ppp | Discovery, LCP, CHAP-MD5, the IPCP address on a kernel `pppN` interface, a ping to the AC gateway through the session, and a clean teardown |
-| `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.1 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
+| `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.4 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
 
 `./le test qemu pppoe-accel-test` runs the client half in QEMU, and
 `./le test qemu pppoe-test` runs the access concentrator's `test/pppoe/` suite on

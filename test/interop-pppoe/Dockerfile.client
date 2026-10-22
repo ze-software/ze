@@ -29,7 +29,7 @@ RUN curl -fsSL -o /src/ppp.tar.gz "https://download.samba.org/pub/ppp/ppp-${PPP_
     && make install DESTDIR=/out \
     && rm -rf /out/usr/include /out/usr/share \
     && scanelf --needed --nobanner --format '%n#p' --recursive /out \
-        | tr ',' '\n' | sort -u | sed 's/^/so:/' > /out/.ppp-rundeps
+        | tr ',' '\n' | sort -u | sed -n 's/^./so:&/p' > /out/.ppp-rundeps
 
 FROM alpine:3.24.3
 

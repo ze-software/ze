@@ -17,7 +17,7 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > [RFC status](../features/rfc-status.md#first-hop-redundancy).
 
 The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
-(`./le test integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(`./le test integration interop`). Ze at priority 200 and keepalived 2.4.3 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads

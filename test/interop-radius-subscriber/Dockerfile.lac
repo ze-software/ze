@@ -36,7 +36,7 @@ RUN curl -fsSL -o /src/xl2tpd.tar.gz \
     && make install PREFIX=/usr DESTDIR=/out \
     && rm -rf /out/usr/include /out/usr/share \
     && scanelf --needed --nobanner --format '%n#p' --recursive /out \
-        | tr ',' '\n' | sort -u | sed 's/^/so:/' > /out/.lac-rundeps
+        | tr ',' '\n' | sort -u | sed -n 's/^./so:&/p' > /out/.lac-rundeps
 
 FROM alpine:3.24.3
 
