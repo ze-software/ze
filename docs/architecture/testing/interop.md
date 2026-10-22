@@ -78,7 +78,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 | Daemon | Version | Image | Query Method | What It Validates |
 |--------|---------|-------|--------------|-------------------|
 | FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
-| BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
+| BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Alpine 3.24.3 (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (owner decision M14); Alpine 3.24 packages 3.2.4 | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name | eBGP, route injection and verification |
 | StayRTR | 0.6.4 | Go builder | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | pmacct `pmbmpd` | latest | `pmacct/pmbmpd:latest` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
@@ -2862,7 +2862,7 @@ ExaBGP compat covers wire encoding for all supported address families.
 | Vendor | Limitation | Affected Scenario | Workaround |
 |--------|-----------|-------------------|------------|
 | GoBGP 3.31 (not seen in 4.10.0 source) | 3.31 was recorded deduplicating Multiprotocol capabilities by AFI: of two families sharing an AFI (ipv4-unicast and l3vpn-ipv4-unicast, both AFI 1) it kept one. GoBGP 4.10.0, the version `Dockerfile.gobgp` installs, keeps every received Multiprotocol capability (`capMap` holds a list per code) and negotiates by the full AFI/SAFI pair (`pkg/server/fsm.go`, the `remote` and `negotiated` family maps). Whether the limitation is gone is unconfirmed until `bgp-vpn-gobgp` runs on 4.10.0 | bgp-vpn-gobgp | None from Ze side. Ze's OPEN is correct per RFC 4760. |
-| BIRD 2.15 | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | bgp-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
+| BIRD (observed at 2.15; unverified at 3.4.0 until `bgp-ipv6-ebgp-bird` runs) | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | bgp-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
 
 <!-- source: test/interop/scenarios/bgp-vpn-gobgp -- GoBGP same-AFI dedup -->
 <!-- source: test/interop/scenarios/bgp-ipv6-ebgp-bird -- BIRD next-hop reachability -->

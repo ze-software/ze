@@ -1,9 +1,33 @@
-# BIRD2 BGP daemon for interoperability testing.
-# Alpine ships bird2 in its community repository.
+# BIRD 3 BGP daemon for interoperability testing.
+#
+# Owner decision M14: the lab runs BIRD's latest stable release on the BIRD 3
+# line only. Alpine 3.24 packages bird 3.2.4, behind upstream, so this image
+# builds the release tag from source. bird.network.cz refuses scripted
+# downloads (HTTP 403), so the source is the upstream Git repository at the tag,
+# and the build refuses a tag that no longer points at the commit read when the
+# pin was set.
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS builder
 
-RUN apk add --no-cache bird iproute2 tini
+ARG BIRD_VERSION=3.4.0
+ARG BIRD_COMMIT=c3669497e3949b942d86d07e343092cc439b4659
+
+RUN apk add --no-cache build-base autoconf flex bison ncurses-dev readline-dev linux-headers git
+
+WORKDIR /src
+RUN git clone --depth 1 --branch "v${BIRD_VERSION}" https://gitlab.nic.cz/labs/bird.git . && \
+    test "$(git rev-parse HEAD)" = "${BIRD_COMMIT}" && \
+    autoreconf -i && \
+    ./configure --prefix=/usr --sysconfdir=/etc/bird --localstatedir=/var --runstatedir=/run/bird --disable-libssh && \
+    make -j"$(nproc)" && \
+    make install DESTDIR=/out
+
+FROM alpine:3.24.3
+
+RUN apk add --no-cache iproute2 tini ncurses-libs readline && \
+    mkdir -p /run/bird /etc/bird
+
+COPY --from=builder /out/usr/sbin/ /usr/sbin/
 
 ENTRYPOINT ["tini", "--", "bird"]
 CMD ["-f", "-c", "/etc/bird/bird.conf"]
