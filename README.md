@@ -1,14 +1,15 @@
 # Ze
 
 Ze is an open-source configuration and protocol engine written in Go. The network
-operating system built on it speaks BGP, manages Linux network interfaces, and
-programs the forwarding table. Operators use a shared configuration model through
-an SSH CLI or a web editor.
+operating system built on it combines programmable routing with control of the
+Linux system around it. It speaks BGP, manages interfaces, and programs the
+forwarding table. Operators use a shared configuration model through an SSH CLI
+or a web editor.
 
 [![Ze's live BGP dashboard, opened over SSH](docs/demos/cli-dashboard.svg)](https://ze-software.net/demos/terminal/#live-bgp-dashboard)
 
-The recording above connects to Ze over SSH, enters the configuration editor, and
-opens the live BGP dashboard. More recordings, with their transcripts, are on the
+The recording above shows the configuration editor and live BGP dashboard in one
+SSH session. More recordings, with their transcripts, are on the
 [demonstrations page](https://ze-software.net/demos/terminal/).
 
 > **Pre-release.** Ze has not been released yet. Some features are incomplete or
@@ -32,16 +33,20 @@ and the system they run on.
 
 ## What Ze Includes
 
-Features depend on the build and configuration. The guides describe how to use
-each area, and the [feature inventory](https://ze-software.net/reference/feature-status/) distinguishes supported,
-experimental, and partial implementations.
+Features depend on the build and configuration. The
+[feature inventory](https://ze-software.net/reference/feature-status/) distinguishes
+supported, experimental, and partial implementations.
 
-| Area | Guides |
-|------|--------|
-| Routing | [BGP](docs/features/bgp-protocol.md), [route injection](docs/guide/route-injection.md), [OSPF](docs/guide/ospf.md), and [RPKI validation](docs/guide/rpki.md) |
-| Linux networking | [Interfaces](docs/features/interfaces.md), [static routes](docs/guide/static-routes.md), [firewall](docs/guide/firewall.md), and [IPsec](docs/guide/ipsec.md) |
-| Configuration and operations | [Configuration](docs/guide/configuration.md), [CLI](docs/guide/cli.md), [command reference](docs/guide/command-reference.md), and [operations](docs/guide/operations.md) |
-| Automation and visibility | [Plugins](docs/plugin-development/), [MCP](docs/guide/mcp/overview.md), [monitoring](docs/guide/monitoring.md), and [looking glass](docs/guide/looking-glass.md) |
+| Area | What you can do | Guides |
+|------|-----------------|--------|
+| Routing | Exchange and inject routes, and check BGP route origins with RPKI. | [BGP](docs/features/bgp-protocol.md), [route injection](docs/guide/route-injection.md), [OSPF](docs/guide/ospf.md), and [RPKI validation](docs/guide/rpki.md) |
+| Linux networking | Configure interfaces, routes, firewall rules, and IPsec. | [Interfaces](docs/features/interfaces.md), [static routes](docs/guide/static-routes.md), [firewall](docs/guide/firewall.md), and [IPsec](docs/guide/ipsec.md) |
+| Configuration and operations | Edit configuration and inspect the running system. | [Configuration](docs/guide/configuration.md), [CLI](docs/guide/cli.md), [command reference](docs/guide/command-reference.md), and [operations](docs/guide/operations.md) |
+| Automation and visibility | Extend Ze and observe its routing state. | [Plugins](docs/plugin-development/), [MCP](docs/guide/mcp/overview.md), [monitoring](docs/guide/monitoring.md), and [looking glass](docs/guide/looking-glass.md) |
+
+In the [configuration editor](docs/guide/config-editor.md), you can edit a value,
+review the changes with `show | compare`, validate them with `commit verify`,
+and apply them with `commit now`.
 
 ## Build from Source
 
@@ -64,32 +69,6 @@ configuration, and commands to start Ze and inspect its peers. The
 [Ubuntu installation guide](docs/guide/ubuntu-build-install.md) covers a
 systemd installation.
 
-### Build Only What You Run
-
-Subsystems have `ze_<feature>` build tags. A custom build can omit BGP or an
-operator interface along with its registered schema. The
-[architecture guide](docs/architecture.md) explains the component boundaries,
-and the feature manifest names the packages behind each tag.
-
-## Architecture and Plugins
-
-The core is a protocol-independent supervisor. It manages subsystem lifecycles
-through a message bus, a configuration provider, and a plugin manager. Protocols
-and system features register themselves and contribute their own YANG modules.
-
-Those modules form a shared configuration schema for validation and the editors.
-The Model Context Protocol (MCP) server derives tools from the running daemon's
-command catalog, so AI clients can discover its available commands.
-
-Plugins can be compiled Go modules or separate processes. Compiled plugins
-contribute their YANG to the daemon's configuration validator. External plugins
-can expose a model through `ze schema`, but that model does not automatically
-extend the daemon's validator.
-
-The [architecture overview](docs/architecture.md) describes the runtime and BGP
-wire design. The [plugin development guide](docs/plugin-development/) covers
-the SDK and process protocol.
-
 ## From ExaBGP
 
 `ze exabgp migrate` converts ExaBGP configuration files, and `ze exabgp plugin`
@@ -102,6 +81,33 @@ process scripts. A report that shows what failed and what ExaBGP did with the
 same input gives me something concrete to fix. You can use the
 [issue tracker](https://github.com/ze-software/ze/issues) or
 [Discord](https://discord.gg/T8s7CjPDne).
+
+## Architecture and Plugins
+
+The SSH CLI and web editor use a shared configuration schema for validation.
+Protocols and system features register themselves and contribute their own YANG
+modules to that schema.
+
+The protocol-independent core manages subsystem lifecycles through a message
+bus, a configuration provider, and a plugin manager. The Model Context Protocol
+(MCP) server derives tools from the running daemon's command catalog, so AI
+clients can discover its available commands.
+
+Plugins can be compiled Go modules or separate processes. Compiled plugins
+contribute their YANG to the daemon's configuration validator. External plugins
+can expose a model through `ze schema`, but that model does not automatically
+extend the daemon's validator.
+
+The [architecture overview](docs/architecture.md) describes the runtime and BGP
+wire design. The [plugin development guide](docs/plugin-development/) covers
+the SDK and process protocol.
+
+### Build Only What You Run
+
+Subsystems have `ze_<feature>` build tags. A custom build can omit BGP or an
+operator interface along with its registered schema. The
+[architecture guide](docs/architecture.md) explains the component boundaries,
+and the feature manifest names the packages behind each tag.
 
 ## Testing and Project Status
 
