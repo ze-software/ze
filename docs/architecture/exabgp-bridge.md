@@ -150,11 +150,25 @@ A `down` states why the session ended in the words ExaBGP's reactor hands its
 encoders, on the text line and as the JSON `reason` member: ze's `tcp-failure`
 and `local-close` are `closing connection`, a peer removed from the
 configuration is `stop, message [removed]`, and a session a NOTIFICATION ended
-is `notification`. One table keyed by the reactor's reason maps them, and a
-reason it does not name is written as ze stated it. ExaBGP names the
-NOTIFICATION's direction and codes in the reason; ze's down event carries
-neither, so a script reads them from the NOTIFICATION event before it
-(`docs/exabgp/exabgp-differences.md`, "The reason of a down").
+is `notification sent (6,4)` or `notification received (4,0)`, from the
+direction and codes ze's down event carries. One table keyed by the reactor's
+reason maps the others, a NOTIFICATION down that names no direction is
+`notification`, and a reason the table does not name is written as ze stated
+it (`docs/exabgp/exabgp-differences.md`, "The reason of a down").
+
+Ze's `connected` event is ExaBGP's state `connected` under `neighbor-changes`
+(`neighbor 192.0.2.1 connected` on the text line), and ze's `fsm` event is
+ExaBGP's `fsm` with the state entered, under the `fsm` key. Ze's `signal`
+event is ExaBGP's `signal`, `"code": "15", "name": "SIGTERM"` inside
+`neighbor`, under the `signal` key, and gets no text line, as in ExaBGP. On the
+engine's `bye`, before it stops the bridge, both runners write every script
+ExaBGP's shutdown line in the script's own format, whatever its api block
+grants: `{"notification": "shutdown", "type": "notification"}` in JSON and
+`shutdown <pid> <ppid>` in text, the ids being the bridge's own.
+<!-- source: internal/exabgp/bridge/bridge_event_fsm.go -- writeSignal -->
+<!-- source: internal/exabgp/bridge/bridge_shutdown.go -- ShutdownLine -->
+<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Shutdown -->
+<!-- source: internal/exabgp/bridge/bridge_event_fsm.go -- readConnected -->
 
 <!-- source: internal/exabgp/bridge/bridge_event_state.go -- exabgpDownReasons -->
 
@@ -669,7 +683,8 @@ every UPDATE JSON line, for a process the neighbor grants `negotiated`
 (`src/exabgp/reactor/protocol.py`, `read_message`; `Response.JSON.update`). Ze
 states it once, in its own `negotiated` event, so each runner keeps it per peer
 in a `bridge.Sessions`, from that event to the peer's `down`, and hands it to
-every UPDATE of the peer. The internal runner leaves it off the line of a script
+every message of the peer: an UPDATE line and a packet line write it, the other
+decoded lines do not. The internal runner leaves it off the line of a script
 whose feed does not grant `negotiated`; the external runner has no per-peer feed,
 so every line carries it. The `negotiated` event writes the same block inside
 `neighbor` too.
@@ -682,6 +697,53 @@ per RFC 8950 tuple) and `add_path` with both lists always written.
 
 <!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
+
+## A message as its packet: `packets`, `consolidate`, `parsed`
+
+An ExaBGP direction block says how its messages are written as well as which:
+`parsed` asks for the decoded line, `packets` for the packet line, and
+`consolidate` for the decoded line carrying the packet. ExaBGP links each word
+to the process the way it links a message kind (`Configuration._link` at the
+pin), so `ze exabgp migrate` writes them into the feed as `receive-packets`,
+`receive-consolidate`, `send-packets` and their siblings. It writes `parsed`
+only beside one of the other two, because a direction that names no form is
+written the decoded line.
+
+`bridge.FormsFor` reads them back as the pin's `Protocol._tell_api_received`
+and `Protocol._to_api` decide:
+
+| Granted | Received message | Sent message |
+|---|---|---|
+| `consolidate` | the decoded line with `header` and `body` | the decoded line |
+| `consolidate` and `packets` | the decoded line with `header` and `body` | the decoded line with `header` and `body` |
+| `packets` | the packet line | the packet line |
+| `packets` and `parsed` | the packet line, then the decoded line | the same |
+| `parsed`, or no form word | the decoded line | the decoded line |
+
+The packet line is `Response.packets`: in text `neighbor <peer> <direction>
+<type code> header 0x<hex> body 0x<hex>`, in JSON a `message` object of
+`category`, `header` and `body`, with the session's negotiated block, typed
+`route-refresh` for a ROUTE-REFRESH. A consolidated JSON line carries `header`
+and `body` at its top; a consolidated text UPDATE writes ` header .. body ..` on
+a line of its own before `update end`. An empty body is left out everywhere but
+the packet JSON, which writes `0x`, as ExaBGP does.
+
+The bytes come from the engine: both runners subscribe with the `full` format,
+which carries each message's body beside its parsed form (`raw.update`,
+`raw.message`, `docs/architecture/api/json-format.md`). The bridge derives the
+header from the body length and the type. An OPERATIONAL message has no
+producer (M15), so neither form is written for one.
+
+Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
+the neighbor, from any process that asked, and ze reads them per script, which
+differs only when two processes of one neighbor ask different forms. A direction
+that grants a message and names no form word is written nothing by ExaBGP and
+the decoded line by ze, so a feed written by hand need not name one. The
+external runner has no feed, so its script is written the decoded line.
+
+<!-- source: internal/exabgp/bridge/bridge_event_packets.go -- FormsFor, Event.Lines -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.forms -->
+<!-- source: internal/exabgp/migration/migrate_api_events.go -- appendFormGrants -->
 
 ## `feed` is the relation ExaBGP models on the neighbor
 

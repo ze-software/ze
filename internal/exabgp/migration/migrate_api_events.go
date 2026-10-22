@@ -26,12 +26,25 @@ var apiFlagEvents = []string{"neighbor-changes", "negotiated", "fsm", "signal"}
 // short_names). Ze spells its event kinds the same way, which is what lets the
 // grant be compared against bridge.Event.APIKey with no second table.
 //
-// `parsed`, `packets` and `consolidate` are absent on purpose: they say how a
-// message is RENDERED and name no message, so ExaBGP's dispatcher never looks a
-// process up under one of them.
+// `parsed`, `packets` and `consolidate` are not here: they say how a message is
+// RENDERED and name no message (apiFormWords).
 var apiMessageEvents = []string{
 	"open", "update", "notification", "keepalive", "refresh", "operational",
 }
+
+// apiFormWords are the words a direction block writes its messages' forms with:
+// the decoded line, the packet, or both in one line. ExaBGP links each to the
+// process as it links a message (src/exabgp/configuration/configuration.py,
+// Configuration._link, `for name in ('parsed', 'packets', 'consolidate')`), so
+// the grant carries them as `receive-packets` and its siblings, and the bridge
+// reads them back (bridge.FormsFor).
+//
+// `parsed` is written only beside one of the other two: alone it asks for the
+// decoded line, which is what the bridge writes a direction that names no form.
+var apiFormWords = []string{"packets", "consolidate"}
+
+// apiFormParsed is the word that asks for the decoded line.
+const apiFormParsed = "parsed"
 
 // apiDirections are the two blocks a grant can sit in. The event name carries
 // the direction, so `receive { update; }` grants `receive-update` alone.
@@ -66,10 +79,33 @@ func apiBlockEvents(api *config.Tree) []string {
 			var tb textbuf.Buffer
 			events = append(events, tb.Str(direction).Byte('-').Str(message).String())
 		}
+		events = appendFormGrants(events, block, direction)
 	}
 
 	slices.Sort(events)
 	return events
+}
+
+// appendFormGrants appends the form words one direction block grants
+// (apiFormWords), `parsed` included when another form is granted beside it.
+func appendFormGrants(events []string, block *config.Tree, direction string) []string {
+	other := false
+	for _, form := range apiFormWords {
+		if !apiGranted(block, form) {
+			continue
+		}
+		other = true
+		var tb textbuf.Buffer
+		events = append(events, tb.Str(direction).Byte('-').Str(form).String())
+	}
+	if !other {
+		return events
+	}
+	if !apiGranted(block, apiFormParsed) {
+		return events
+	}
+	var tb textbuf.Buffer
+	return append(events, tb.Str(direction).Byte('-').Str(apiFormParsed).String())
 }
 
 // apiGranted reports whether one bare word in an api block is a grant.

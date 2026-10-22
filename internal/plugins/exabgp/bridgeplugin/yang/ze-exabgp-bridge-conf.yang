@@ -113,7 +113,9 @@ one neighbor means.";
                         ze:syntax "bracket";
                         description "ExaBGP's own event names: 'receive-update', 'send-update',
 'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational'
-and their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal'. An EMPTY list
+and their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal', and the forms a
+direction's messages are written in: 'receive-packets', 'receive-consolidate', 'receive-parsed'
+and their 'send-' siblings, as ExaBGP's 'packets', 'consolidate' and 'parsed'. An EMPTY list
 feeds no event from this peer, which is what an ExaBGP api block that names a process and no
 message kind does.";
                         ze:help "Events this peer feeds this script.";

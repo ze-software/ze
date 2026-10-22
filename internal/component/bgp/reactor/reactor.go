@@ -1323,6 +1323,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// addr changes, etc.). Must happen before listeners start so handlers are
 	// active when events arrive.
 	r.subscribeInterfaceEvents()
+	r.subscribeDaemonSignals()
 
 	// Start global listener if ListenAddr is configured.
 	if r.config.ListenAddr != "" {

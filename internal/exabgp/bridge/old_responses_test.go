@@ -17,9 +17,10 @@
 // counter, and the `exabgp` field is reported once; a text line is compared
 // as it is. This is the pin's qa/bin/test_old_responses, judge for judge.
 //
-// An event ze has no producer for (an FSM change, a signal, an OPERATIONAL
-// message, the daemon's shutdown, the `packets` and `consolidate` renderings)
-// is ze writing no line, and it is compared as that: a helper the release told
+// A `packets` or `consolidate` event is the message as the bridge's `full`
+// subscription delivers it, its bytes beside its parsed form, written in that
+// one form (Event.Lines). An event ze has no producer for (an FSM change, a
+// signal, an OPERATIONAL message, the daemon's shutdown) is ze writing no line, and it is compared as that: a helper the release told
 // something is told nothing.
 
 package bridge
@@ -38,9 +39,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -108,10 +113,14 @@ var oldResponsesAllowed = []oldResponseRow{
 	oldResponseAllow("4.2", "text", `^update \S+ \S*800E[0-9A-F]{2}000285`, `announced flow `,
 		"the IPv6 flow route of 4.2, as in JSON"),
 	// End of the rows copied from the pin. Ze's own rows follow.
-	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b`, `/negotiated/multisession$`,
+	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b|^(open|notification|keepalive|refresh) packets `, `/negotiated/multisession$`,
 		"a session the release negotiated multi-session on: ze does not support BGP multi-session, every ze session is the one ExaBGP names `family-allowed in-open`, so its block says false (META-DECISIONS M16, \"we do not support multisession in ze\")"),
-	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b`, `/negotiated/operational$`,
+	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b|^(open|notification|keepalive|refresh) packets `, `/negotiated/operational$`,
 		"a session the release negotiated OPERATIONAL on: ze neither originates nor implements the OPERATIONAL message, so its block says false (META-DECISIONS M15, \"we do not support operational on ze\")"),
+	oldResponseAllow("4.2 5.0", "json", `^operational `, `^`,
+		"an OPERATIONAL message the peer sent, in any form: ze neither originates nor implements the OPERATIONAL message, so its engine delivers no event for one and a helper is told nothing (META-DECISIONS M15, \"we do not support operational on ze\")"),
+	oldResponseAllow("4.2 5.0", "text", `^operational `, `^`,
+		"the OPERATIONAL message, as in JSON (META-DECISIONS M15, \"we do not support operational on ze\")"),
 	oldResponseAllow("4.2 5.0", "json", `^down$`, `^/neighbor/reason$`,
 		`the recorder hands the encoder the reason "peer reset" (qa/bin/test_old_responses, render: `+
 			`"safe(encoder.down, neighbor, 'peer reset')"), which no reactor writes: Peer._close passes its own message `+
@@ -532,6 +541,11 @@ func (s *oldSession) render(encoder, event string) (line any) {
 			line = "ze panicked: " + oldJSONText(caught)
 		}
 	}()
+	if event == "shutdown" {
+		// No engine event: the bridge writes it on the engine's `bye`
+		// (bridgerun.Fleet.Shutdown).
+		return oldShutdown(encoder)
+	}
 	document := s.zeDocument(strings.Fields(event))
 	if document == "" {
 		return nil
@@ -541,19 +555,20 @@ func (s *oldSession) render(encoder, event string) (line any) {
 		return "the ze document does not parse: " + err.Error()
 	}
 	read := ReadEvent(zebgp)
-	if read.Kind == msgTypeUpdate {
+	if read.Kind != msgTypeState {
 		// Each recorded event is judged alone, on the established session,
 		// so a recorded `down` must not end the session the next one is on.
 		s.sessions.Note(&read)
 	}
+	forms := oldForms(strings.Fields(event))
 	if encoder == "text" {
-		written := read.Line(FormatV4Text, oldDiscard)
+		written := read.Lines(FormatV4Text, forms, oldDiscard)
 		if written == nil {
 			return nil
 		}
 		return string(written)
 	}
-	written := read.Line(FormatV4JSON, oldDiscard)
+	written := read.Lines(FormatV4JSON, forms, oldDiscard)
 	if written == nil {
 		return nil
 	}
@@ -565,6 +580,36 @@ func (s *oldSession) render(encoder, event string) (line any) {
 		delete(found, key)
 	}
 	return found
+}
+
+// oldShutdown is the bridge's shutdown line in the recorded encoder, compared
+// as render compares every other line.
+func oldShutdown(encoder string) any {
+	format := FormatV4JSON
+	if encoder == "text" {
+		format = FormatV4Text
+	}
+	written, err := ShutdownLine(format)
+	if err != nil {
+		return "the shutdown line does not render: " + err.Error()
+	}
+	if format == FormatV4Text {
+		return string(written)
+	}
+	var found map[string]any
+	if err := json.Unmarshal(written, &found); err != nil {
+		return map[string]any{"invalid-json": string(written)}
+	}
+	for _, key := range oldResponseVolatile {
+		delete(found, key)
+	}
+	return found
+}
+
+// oldFSMStates reads the state a recorded `fsm` event names.
+var oldFSMStates = map[string]fsm.State{
+	"IDLE": fsm.StateIdle, "ACTIVE": fsm.StateActive, "CONNECT": fsm.StateConnect,
+	"OPENSENT": fsm.StateOpenSent, "OPENCONFIRM": fsm.StateOpenConfirm, "ESTABLISHED": fsm.StateEstablished,
 }
 
 // zeDocument is the event ze's engine hands a JSON subscriber for the
@@ -579,13 +624,24 @@ func (s *oldSession) zeDocument(words []string) string {
 		return string(format.AppendStateChange(nil, &s.peer, rpc.SessionStateDown, rpc.ReasonTCPFailure, nil, plugin.EncodingJSON))
 	case "negotiated":
 		return s.encoder.Negotiated(&s.peer, s.negotiated)
-	case "connected", "shutdown", "fsm", "signal":
-		// Ze has no producer for these events.
-		return ""
-	}
-	if words[1] == "packets" || words[1] == "consolidate" {
-		// Ze has no rendering of a message as its packet.
-		return ""
+	case "connected":
+		return string(format.AppendConnected(nil, &s.peer, plugin.EncodingJSON))
+	case "fsm":
+		// The recorded event names the state moved to, and the judge has no
+		// state it moved from: ExaBGP writes the new state alone.
+		to, known := oldFSMStates[words[1]]
+		if !known {
+			return ""
+		}
+		return string(format.AppendFSM(nil, &s.peer, fsm.StateIdle, to, plugin.EncodingJSON))
+	case "signal":
+		// The hub publishes the signal and the reactor tells each peer's
+		// processes (reactor.onDaemonSignal); ExaBGP's recorder names it by number.
+		number, err := strconv.Atoi(words[1])
+		if err != nil {
+			return ""
+		}
+		return string(format.AppendSignal(nil, &s.peer, number, unix.SignalName(syscall.Signal(number)), plugin.EncodingJSON))
 	}
 	raw, err := hex.DecodeString(words[len(words)-1])
 	if err != nil || len(raw) < message.HeaderLen {
@@ -599,7 +655,7 @@ func (s *oldSession) zeDocument(words []string) string {
 }
 
 // messageDocument is formatMessageForSubscription for a JSON subscriber of
-// the parsed format, the one the bridge's `*` subscription reads.
+// the `full` format, the one the bridge's `*` subscription reads.
 func (s *oldSession) messageDocument(kind msgtype.MessageType, body []byte, direction rpc.MessageDirection) string {
 	switch kind {
 	case msgtype.TypeUPDATE:
@@ -621,20 +677,30 @@ func (s *oldSession) messageDocument(kind msgtype.MessageType, body []byte, dire
 			Type: msgtype.TypeUPDATE, RawBytes: body, Direction: direction,
 			WireUpdate: &wire, AttrsWire: attrs,
 		}
-		content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatParsed}
+		content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatFull}
 		if direction == rpc.DirectionSent {
 			return string(format.AppendSentMessage(nil, &s.peer, raw, content))
 		}
 		return string(format.AppendMessage(nil, &s.peer, raw, content))
-	case msgtype.TypeOPEN:
-		return s.encoder.Open(&s.peer, format.DecodeOpen(body), direction, 0)
-	case msgtype.TypeNOTIFICATION:
-		return s.encoder.Notification(&s.peer, format.DecodeNotification(body), direction, 0)
-	case msgtype.TypeKEEPALIVE:
-		return s.encoder.Keepalive(&s.peer, direction, 0)
-	case msgtype.TypeROUTEREFRESH:
-		return s.encoder.RouteRefresh(&s.peer, format.DecodeRouteRefresh(body), direction, 0)
+	case msgtype.TypeOPEN, msgtype.TypeNOTIFICATION, msgtype.TypeKEEPALIVE, msgtype.TypeROUTEREFRESH:
+		raw := bgptypes.RawMessage{Type: kind, RawBytes: body, Direction: direction}
+		return s.encoder.Message(&s.peer, raw, plugin.FormatFull)
 	}
 	// OPERATIONAL (type 6) and any other code: ze delivers no event for it.
 	return ""
+}
+
+// oldForms is the form the recorder wrote an event in: `packets` and
+// `consolidate` name theirs, `receive` and `send` the decoded line.
+func oldForms(words []string) Forms {
+	if len(words) < 2 {
+		return FormParsed
+	}
+	switch words[1] {
+	case "packets":
+		return FormPackets
+	case "consolidate":
+		return FormConsolidated
+	}
+	return FormParsed
 }

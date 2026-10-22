@@ -195,18 +195,20 @@ func (f *Fleet) Broadcast(event string) {
 
 	// rendered[0] holds the lines with the session's negotiated block and
 	// rendered[1] those without, for a script the peer does not grant
-	// `negotiated` (bridge.Sessions).
-	var rendered [2][bridge.FormatCount][]byte
+	// `negotiated` (bridge.Sessions). Each is cached per set of forms the
+	// scripts asked a message in (bridge.Forms).
+	var rendered [2][bridge.FormsCount][bridge.FormatCount][]byte
 	bare := read.WithoutNegotiated()
 	for _, s := range f.scripts {
 		if !s.receives(read.Peer, apiKey) {
 			continue
 		}
-		variant, cache := read, &rendered[0]
+		forms := s.forms(read.Peer, read.Direction)
+		variant, cache := read, &rendered[0][forms]
 		if read.Negotiated != nil && !s.receives(read.Peer, bridge.APIKeyNegotiated) {
-			variant, cache = bare, &rendered[1]
+			variant, cache = bare, &rendered[1][forms]
 		}
-		line, ok := f.render(cache, s.api.Format(), variant)
+		line, ok := f.render(cache, s.api.Format(), forms, variant)
 		if !ok {
 			continue
 		}
@@ -223,13 +225,13 @@ func (f *Fleet) Broadcast(event string) {
 //
 // The format is the script's API version and encoder together (bridge.FormatFor),
 // so a fan-out renders at most bridge.FormatCount lines for one event.
-func (f *Fleet) render(cache *[bridge.FormatCount][]byte, format bridge.Format, event bridge.Event) ([]byte, bool) {
+func (f *Fleet) render(cache *[bridge.FormatCount][]byte, format bridge.Format, forms bridge.Forms, event bridge.Event) ([]byte, bool) {
 	slot := format.Slot()
 	if cache[slot] != nil {
 		return cache[slot], len(cache[slot]) > 0
 	}
 
-	line := event.Line(format, f.log)
+	line := event.Lines(format, forms, f.log)
 
 	// An empty slice is not nil, so a format that wrote nothing is cached as
 	// "asked and answered" rather than rendered again for the next script.
@@ -238,6 +240,22 @@ func (f *Fleet) render(cache *[bridge.FormatCount][]byte, format bridge.Format, 
 	}
 	cache[slot] = line
 	return line, len(line) > 0
+}
+
+// Shutdown writes every script ExaBGP's shutdown line (bridge.ShutdownLine),
+// in its own format, whatever its api block grants: ExaBGP writes it to every
+// process before it terminates them (Processes.terminate). Each runner calls it
+// from the engine's `bye` (sdk.Plugin.OnBye), before Stop closes the scripts'
+// stdin, so the line is queued ahead of the EOF.
+func (f *Fleet) Shutdown() {
+	for _, s := range f.scripts {
+		line, err := bridge.ShutdownLine(s.api.Format())
+		if err != nil {
+			f.log.Warn("exabgp-bridge: the shutdown line could not be written", "script", s.name, "error", err)
+			continue
+		}
+		s.send(line)
+	}
 }
 
 // Stop closes every script's stdin, which gives each child an EOF, and waits

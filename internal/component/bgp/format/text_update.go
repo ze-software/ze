@@ -84,13 +84,16 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	// its peer the completion of the initial routing update after the session
 	// is established."
 	//
-	// Only the parsed JSON rendering is answered here. `raw`, `hex` and `full`
-	// each carry the marker's own wire bytes, from which the family is read
-	// back, so none of them loses it. The text encoding states the marker
-	// through AppendEOR, which already names the family.
-	if isParsedJSONUpdate(msg, content) {
+	// The parsed and the `full` JSON renderings are answered here. `full`
+	// carries the marker's wire bytes beside its parsed form, and until
+	// 2026-10-22 that parsed form was the empty UPDATE, so the ExaBGP bridge,
+	// which subscribes `full`, wrote an End-of-RIB as an UPDATE of nothing
+	// (TestOldResponses50). `raw` and `hex` carry the bytes alone, from which
+	// the family is read back. The text encoding states the marker through
+	// AppendEOR, which already names the family.
+	if isEORJSONUpdate(msg, content) {
 		if fam, isEOR := msg.WireUpdate.IsEOR(); isEOR {
-			return appendEORUpdateJSON(buf, peer, msg, fam, direction, messageType)
+			return appendEORUpdateJSON(buf, peer, msg, fam, direction, messageType, content.Format == plugin.FormatFull)
 		}
 	}
 
@@ -139,14 +142,18 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	return appendNonUpdate(buf, peer, msg, content, direction)
 }
 
-// isParsedJSONUpdate reports whether msg is an UPDATE this call renders as
-// parsed ze-bgp JSON off its wire sections. A message whose WireUpdate is nil
-// is not one: nothing can be read back from it.
-func isParsedJSONUpdate(msg bgptypes.RawMessage, content bgptypes.ContentConfig) bool {
+// isEORJSONUpdate reports whether msg is an UPDATE this call renders as ze-bgp
+// JSON with a parsed form off its wire sections, the `parsed` and the `full`
+// formats, where an End-of-RIB marker is written as its `eor` member. A message
+// whose WireUpdate is nil is not one: nothing can be read back from it.
+func isEORJSONUpdate(msg bgptypes.RawMessage, content bgptypes.ContentConfig) bool {
 	if msg.Type != msgtype.TypeUPDATE || msg.WireUpdate == nil {
 		return false
 	}
-	return content.Encoding == plugin.EncodingJSON && content.Format == plugin.FormatParsed
+	if content.Encoding != plugin.EncodingJSON {
+		return false
+	}
+	return content.Format == plugin.FormatParsed || content.Format == plugin.FormatFull
 }
 
 // appendEORUpdateJSON appends an End-of-RIB marker to buf, in the ze-bgp JSON
@@ -158,7 +165,10 @@ func isParsedJSONUpdate(msg bgptypes.RawMessage, content bgptypes.ContentConfig)
 //
 //	{"type":"bgp","bgp":{"message":{"type":"sent","id":6,"direction":"sent"},
 //	 "peer":{...},"update":{"eor":{"family":"ipv4/unicast"}}}}
-func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, fam family.Family, direction rpc.MessageDirection, messageType string) []byte {
+//
+// A `full` subscriber's marker also carries its bytes, as every UPDATE does
+// (appendFullFromResult): `,"raw":{"update":"<hex>"}` beside `update`.
+func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, fam family.Family, direction rpc.MessageDirection, messageType string, full bool) []byte {
 	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
 	buf = append(buf, messageType...)
 	buf = append(buf, '"')
@@ -175,7 +185,13 @@ func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = appendPeerJSON(buf, peer)
 	buf = append(buf, `,"update":{"eor":{"family":"`...)
 	buf = fam.AppendTo(buf)
-	buf = append(buf, `"}}}}`...)
+	buf = append(buf, `"}}`...)
+	if full {
+		buf = append(buf, `,"raw":{"update":"`...)
+		buf = hex.AppendEncode(buf, msg.RawBytes)
+		buf = append(buf, `"}`...)
+	}
+	buf = append(buf, `}}`...)
 	return append(buf, '\n')
 }
 

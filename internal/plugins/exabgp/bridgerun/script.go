@@ -164,6 +164,20 @@ func (s *script) receives(peer, apiKey string) bool {
 	return ok
 }
 
+// forms answers the forms one peer's messages in one direction are written to
+// this script in, from the `parsed`, `packets` and `consolidate` words its api
+// block granted (bridge.FormsFor).
+//
+// A script with no feed list is written the decoded line, which is what it was
+// written before the forms existed: receives answers true for every key of such
+// a script, so asking it for the words would grant all three.
+func (s *script) forms(peer, direction string) bridge.Forms {
+	if s.grants == nil {
+		return bridge.FormParsed
+	}
+	return bridge.FormsFor(direction, func(apiKey string) bool { return s.receives(peer, apiKey) })
+}
+
 // feedPeers answers the addresses of the peers a script is fed by, which is the
 // set an ExaBGP line that names no neighbor is sent to.
 //

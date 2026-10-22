@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -416,41 +417,37 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	// never a sync.Pool. See docs/architecture/api/process-protocol.md,
 	// "Text Event Formatting: the scratch discipline".
 	var scratchArr [512]byte
-	switch msg.Type {
-	case msgtype.TypeUPDATE:
+	if msg.Type == msgtype.TypeUPDATE {
 		content := bgptypes.ContentConfig{
 			Encoding: encoding,
 			Format:   fmtMode,
 		}
 		var updateScratch [4096]byte
 		return string(format.AppendMessage(updateScratch[:0], peer, msg, content))
+	}
+	if encoding != plugin.EncodingText {
+		// One JSON path for the four kinds, which also writes a `full`
+		// subscriber the message's bytes (JSONEncoder.Message).
+		return encoder.Message(peer, msg, fmtMode)
+	}
+	switch msg.Type {
+	case msgtype.TypeUPDATE:
+		panic("BUG: an UPDATE is formatted above")
 
 	case msgtype.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
-		if encoding == plugin.EncodingText {
-			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
-		}
-		return encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
+		return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 
 	case msgtype.TypeNOTIFICATION:
 		decoded := format.DecodeNotification(msg.RawBytes)
-		if encoding == plugin.EncodingText {
-			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
-		}
-		return encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
+		return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 
 	case msgtype.TypeKEEPALIVE:
-		if encoding == plugin.EncodingText {
-			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction, msg.MessageID))
-		}
-		return encoder.Keepalive(peer, msg.Direction, msg.MessageID)
+		return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction, msg.MessageID))
 
 	case msgtype.TypeROUTEREFRESH:
 		decoded := format.DecodeRouteRefresh(msg.RawBytes)
-		if encoding == plugin.EncodingText {
-			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
-		}
-		return encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
+		return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 
 	default:
 		// Raw message types are open; unsupported types have no subscription rendering.
@@ -1038,26 +1035,63 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 
 // onPeerCongestionChange handles forward-path congestion state transitions.
 // eventType is bgpevents.EventCongested or bgpevents.EventResumed.
-// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, eventType string) {
+	deliverPeerLine(s, peer, eventType, func(buf []byte, encoding string) []byte {
+		return format.AppendCongestion(buf, peer, eventType, encoding)
+	})
+}
+
+// onPeerConnected delivers the `connected` event: the peer's TCP connection
+// is established, before any OPEN.
+func onPeerConnected(s *pluginserver.Server, peer *plugin.PeerInfo) {
+	deliverPeerLine(s, peer, bgpevents.EventConnected, func(buf []byte, encoding string) []byte {
+		return format.AppendConnected(buf, peer, encoding)
+	})
+}
+
+// onPeerFSMChange delivers the `fsm` event: the peer's FSM moved from one
+// RFC 4271 Section 8.2.2 state to another.
+func onPeerFSMChange(s *pluginserver.Server, peer *plugin.PeerInfo, from, to fsm.State) {
+	deliverPeerLine(s, peer, bgpevents.EventFSM, func(buf []byte, encoding string) []byte {
+		return format.AppendFSM(buf, peer, from, to, encoding)
+	})
+}
+
+// onPeerSignal delivers the `signal` event for one peer to the processes that
+// subscribed to it (EventDispatcher.OnPeerSignal).
+func onPeerSignal(s *pluginserver.Server, peer *plugin.PeerInfo, number int, name string) {
+	deliverPeerLine(s, peer, bgpevents.EventSignal, func(buf []byte, encoding string) []byte {
+		return format.AppendSignal(buf, peer, number, name, encoding)
+	})
+}
+
+// deliverPeerLine delivers one per-peer event of eventType to the processes
+// subscribed to it for this peer, and to the CLI monitors. render writes the
+// event in one encoding into the buffer it is given. Every process takes the
+// same line, a structured consumer included, as the congestion events always
+// did: none of these events carries a structured form.
+//
+// Delivery is parallel via long-lived per-process goroutines (see
+// rules/goroutine-lifecycle.md), and it returns once every write finished.
+func deliverPeerLine(s *pluginserver.Server, peer *plugin.PeerInfo, eventType string, render func(buf []byte, encoding string) []byte) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
 
 	peerAddr := peer.AddrStr()
-	congETID := events.LookupEventTypeID(eventType)
-	procs := s.PeerScopedProcs(bgpNS(), congETID, events.DirUnspecified, peerAddr, peer.Name)
+	typeID := events.LookupEventTypeID(eventType)
+	procs := s.PeerScopedProcs(bgpNS(), typeID, events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
 
-	logger().Debug("OnPeerCongestionChange", "peer", peerAddr, "event", eventType, "count", len(procs))
+	logger().Debug("deliverPeerLine", "peer", peerAddr, "event", eventType, "count", len(procs))
 
 	// Pre-format once per distinct encoding. Stack-local scratch; one
 	// string(scratch) conversion at the cache edge, which is the boundary.
-	// Size rationale: congestion line is "peer X remote as N <eventType>"
-	// or the JSON envelope; always under 256B.
+	// Size rationale: each of these lines is "peer X remote as N <event> ..."
+	// or the JSON envelope with the peer object; always under 256B.
 	// See docs/architecture/api/process-protocol.md,
 	// "Text Event Formatting: the scratch discipline".
 	var fmtCache formatCache
@@ -1065,8 +1099,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	for _, proc := range procs {
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
-			scratch := format.AppendCongestion(scratchArr[:0], peer, eventType, enc)
-			fmtCache.set(enc, string(scratch))
+			fmtCache.set(enc, string(render(scratchArr[:0], enc)))
 		}
 	}
 
@@ -1085,15 +1118,15 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	for range sent {
 		r := <-results
 		if r.Err != nil && s.Context().Err() == nil {
-			logger().Warn("OnPeerCongestionChange write failed", "proc", r.ProcName, "err", r.Err)
+			logger().Warn("per-peer event write failed", "event", eventType, "proc", r.ProcName, "err", r.Err)
 		}
 	}
 
 	// Deliver to CLI monitors lazily.
-	monitorDeliverLazyTyped(s, congETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
-		if jsonOutput, ok := fmtCache.get("json"); ok {
+	monitorDeliverLazyTyped(s, typeID, events.DirUnspecified, peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get(plugin.EncodingJSON); ok {
 			return jsonOutput
 		}
-		return string(format.AppendCongestion(scratchArr[:0], peer, eventType, "json"))
+		return string(render(scratchArr[:0], plugin.EncodingJSON))
 	})
 }

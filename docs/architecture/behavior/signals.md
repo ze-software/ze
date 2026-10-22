@@ -204,6 +204,12 @@ When signal received for neighbor:
 }
 ```
 
+In ze the hub owns the signals and publishes each one it takes on the EventBus
+(`daemonevents.Signal`); the BGP reactor tells every peer's `signal`
+subscribers (`docs/architecture/api/json-format.md`). The ExaBGP bridge writes
+the shutdown line on the engine's `bye` (`docs/architecture/exabgp-bridge.md`).
+<!-- source: cmd/ze/hub/signal_announce.go -- announceSignal -->
+
 ---
 
 ## Graceful Shutdown

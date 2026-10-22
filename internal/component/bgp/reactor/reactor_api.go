@@ -124,6 +124,10 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		// The FSM event travels beside the reason so a plugin that has to
 		// name it (BMP Peer Down reason 2) reads what closed the session.
 		CloseFSMEvent: closed.fsmEvent,
+		// The NOTIFICATION's direction and codes travel too, so a plugin that
+		// names the close (`notification sent (6,4)`) needs no NOTIFICATION
+		// event of its own.
+		CloseNotification: closed.notification,
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, closed.reason)
 }

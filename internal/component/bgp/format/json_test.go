@@ -144,33 +144,6 @@ func TestJSONEncoderStateDown(t *testing.T) {
 	assert.Equal(t, "hold timer expired", payload["reason"])
 }
 
-// TestJSONEncoderStateConnected verifies JSON output for "connected" state.
-//
-// VALIDATES: ze-bgp JSON format with connected state in event payload.
-// PREVENTS: Missing TCP connection events in event stream.
-func TestJSONEncoderStateConnected(t *testing.T) {
-	enc := NewJSONEncoder("6.0.0")
-
-	peer := plugin.PeerInfo{
-		Address:      netip.MustParseAddr("10.0.0.1"),
-		LocalAddress: netip.MustParseAddr("10.0.0.2"),
-		LocalAS:      65000,
-		PeerAS:       65001,
-	}
-
-	msg := enc.stateConnected(&peer)
-
-	var result map[string]any
-	err := json.Unmarshal([]byte(msg), &result)
-	require.NoError(t, err)
-
-	// ze-bgp JSON: get event payload
-	payload := getEventPayload(t, result)
-
-	// State in payload
-	assert.Equal(t, "connected", payload["state"])
-}
-
 // TestJSONEncoderValidJSON verifies output is always valid JSON.
 //
 // VALIDATES: All encoder methods produce valid JSON.
@@ -189,7 +162,6 @@ func TestJSONEncoderValidJSON(t *testing.T) {
 	messages := []string{
 		enc.StateUp(&peer),
 		enc.StateDown(&peer, "test reason"),
-		enc.stateConnected(&peer),
 		enc.StateDown(&peer, `reason with "quotes" and \backslashes`),
 	}
 
@@ -2160,7 +2132,7 @@ func TestJSONEncoderRouterIDOnEveryMessage(t *testing.T) {
 	if err := json.Unmarshal([]byte(NewJSONEncoder("").Keepalive(peer, rpc.DirectionReceived, 0)), &event); err != nil {
 		t.Fatalf("keepalive JSON does not parse: %v", err)
 	}
-	bgp, _ := event["bgp"].(map[string]any)    //nolint:errcheck // nil fails the lookups below
+	bgp, _ := event["bgp"].(map[string]any)     //nolint:errcheck // nil fails the lookups below
 	peerJSON, _ := bgp["peer"].(map[string]any) //nolint:errcheck // as above
 	if got := peerJSON["router-id"]; got != "10.0.0.17" {
 		t.Errorf("peer router-id = %v, want 10.0.0.17", got)

@@ -17,6 +17,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
@@ -139,12 +140,24 @@ func runInternalBridge(conn net.Conn) int {
 	defer cancel()
 
 	// Subscribe to all events so the bridge can translate them for the scripts.
-	// Config-independent, so set before Run (Stage 5 reads it after this).
-	p.SetStartupSubscriptions([]string{"*"}, nil, "")
+	// Config-independent, so set before Run (Stage 5 reads it after this). The
+	// `full` format carries each message's bytes beside its parsed form, which
+	// ExaBGP's `packets` and `consolidate` renderings write (bridge.Forms).
+	p.SetStartupSubscriptions([]string{"*"}, nil, plugin.FormatFull)
 
 	// ze events -> external JSON on every subprocess stdin. Registered before Run
 	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
 	p.OnEvent(r.onEvent)
+
+	// The engine's `bye` comes before it stops this plugin: every script is
+	// told as ExaBGP tells it (bridgerun.Fleet.Shutdown). No fleet before
+	// OnConfigure means no script to tell.
+	p.OnBye(func(string) error {
+		if fleet := r.scripts(); fleet != nil {
+			fleet.Shutdown()
+		}
+		return nil
+	})
 
 	p.DeclareCapabilitiesFrom(bridgeCapabilities, bridgeCapabilityLeaves)
 	r.registerReloadHandlers(p)

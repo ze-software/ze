@@ -307,6 +307,22 @@ func (p *Peer) recordNotification(code, subcode uint8, direction plugin.NotifDir
 	p.counters.lastNotifTime.Store(p.clock.Now().UnixNano())
 }
 
+// closingNotification answers the NOTIFICATION that closed this session: the
+// last one recorded, when it crossed the wire. A NOTIFICATION ze built and
+// could not send (NotifSendFailed) told the peer nothing, so it answers
+// NotifNone rather than a direction the peer never saw.
+func (p *Peer) closingNotification() plugin.CloseNotification {
+	direction := plugin.NotifDirection(p.counters.lastNotifDirection.Load())
+	if direction != plugin.NotifSent && direction != plugin.NotifReceived {
+		return plugin.CloseNotification{Direction: plugin.NotifNone}
+	}
+	return plugin.CloseNotification{
+		Direction: direction,
+		Code:      uint8(p.counters.lastNotifCode.Load()),
+		Subcode:   uint8(p.counters.lastNotifSubcode.Load()),
+	}
+}
+
 // recordNotificationSend is the session's onNotifSent hook. The session calls
 // it after every NOTIFICATION write, delivered or not, and the two outcomes
 // are different states rather than one state and a silence.

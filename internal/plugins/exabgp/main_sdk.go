@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -77,8 +78,10 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// joins has nothing for it to apply.
 	p.DeclareAppliesNothing("takes its config from the command line, not from the config tree")
 
-	// Subscribe to all events using text encoding (the bridge translates text events).
-	p.SetStartupSubscriptions([]string{"*"}, nil, "")
+	// Subscribe to all events, each message with its bytes beside its parsed
+	// form (the `full` format), which ExaBGP's `packets` and `consolidate`
+	// renderings write (bridge.Forms).
+	p.SetStartupSubscriptions([]string{"*"}, nil, plugin.FormatFull)
 
 	// The script is NOT started here: the OnAllPluginsReady registration below
 	// starts it, and says what an early start cost.
@@ -104,6 +107,13 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// ze events -> ExaBGP JSON on the script's stdin.
 	p.OnEvent(func(event string) error {
 		fleet.Broadcast(event)
+		return nil
+	})
+
+	// The engine's `bye` comes before it stops this process: the script is told
+	// as ExaBGP tells it (bridgerun.Fleet.Shutdown).
+	p.OnBye(func(string) error {
+		fleet.Shutdown()
 		return nil
 	})
 

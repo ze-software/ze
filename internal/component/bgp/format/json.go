@@ -148,19 +148,6 @@ func (e *JSONEncoder) StateDown(peer *plugin.PeerInfo, reason string) string {
 	return e.marshal(payload)
 }
 
-// stateConnected returns JSON for a peer "connected" event.
-// ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"connected"}.
-func (e *JSONEncoder) stateConnected(peer *plugin.PeerInfo) string {
-	payload := map[string]any{
-		jsonKeyMessage: map[string]any{
-			jsonKeyType: msgTypeState,
-		},
-		jsonKeyPeer:  peerMap(peer),
-		jsonKeyState: "connected",
-	}
-	return e.marshal(payload)
-}
-
 // EOR returns JSON for an End-of-RIB marker.
 // EOR is an empty UPDATE message for a specific family.
 func (e *JSONEncoder) EOR(peer *plugin.PeerInfo, family string) string {
@@ -175,6 +162,12 @@ func (e *JSONEncoder) EOR(peer *plugin.PeerInfo, family string) string {
 // Notification returns JSON for a NOTIFICATION message.
 // Fields in inner payload: code, subcode, data, code-name, subcode-name.
 func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotification, direction rpc.MessageDirection, msgID uint64) string {
+	return e.marshal(e.notificationPayload(peer, notify, direction, msgID))
+}
+
+// notificationPayload is the payload Notification marshals, which Message extends for a `full`
+// subscriber.
+func (e *JSONEncoder) notificationPayload(peer *plugin.PeerInfo, notify DecodedNotification, direction rpc.MessageDirection, msgID uint64) map[string]any {
 	outer, inner := e.message(peer, "notification")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -193,12 +186,18 @@ func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotifica
 		inner["subcode-name"] = notify.ErrorSubcodeName
 	}
 
-	return e.marshal(outer)
+	return outer
 }
 
 // Open returns JSON for an OPEN message.
 // Fields in inner payload: asn, router-id, timer { hold-time }, capabilities.
 func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction rpc.MessageDirection, msgID uint64) string {
+	return e.marshal(e.openPayload(peer, open, direction, msgID))
+}
+
+// openPayload is the payload Open marshals, which Message extends for a `full`
+// subscriber.
+func (e *JSONEncoder) openPayload(peer *plugin.PeerInfo, open DecodedOpen, direction rpc.MessageDirection, msgID uint64) map[string]any {
 	outer, inner := e.message(peer, "open")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -222,20 +221,32 @@ func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction rp
 	inner["timer"] = map[string]any{"hold-time": open.HoldTime}
 	inner["capabilities"] = caps
 
-	return e.marshal(outer)
+	return outer
 }
 
 // Keepalive returns JSON for a KEEPALIVE message.
 func (e *JSONEncoder) Keepalive(peer *plugin.PeerInfo, direction rpc.MessageDirection, msgID uint64) string {
+	return e.marshal(e.keepalivePayload(peer, direction, msgID))
+}
+
+// keepalivePayload is the payload Keepalive marshals, which Message extends for a `full`
+// subscriber.
+func (e *JSONEncoder) keepalivePayload(peer *plugin.PeerInfo, direction rpc.MessageDirection, msgID uint64) map[string]any {
 	outer, _ := e.message(peer, "keepalive")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
-	return e.marshal(outer)
+	return outer
 }
 
 // RouteRefresh returns JSON for a ROUTE-REFRESH message.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
 func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction rpc.MessageDirection, msgID uint64) string {
+	return e.marshal(e.routeRefreshPayload(peer, decoded, direction, msgID))
+}
+
+// routeRefreshPayload is the payload RouteRefresh marshals, which Message extends for a `full`
+// subscriber.
+func (e *JSONEncoder) routeRefreshPayload(peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction rpc.MessageDirection, msgID uint64) map[string]any {
 	// Use subtype name as event type for proper dispatch
 	outer, inner := e.message(peer, decoded.SubtypeName)
 	setMessageDirection(outer, direction)
@@ -245,7 +256,7 @@ func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRe
 	// methods (fallback to "afi-N" / "safi-N" for unregistered values).
 	inner["afi"] = decoded.Family.AFI.String()
 	inner["safi"] = decoded.Family.SAFI.String()
-	return e.marshal(outer)
+	return outer
 }
 
 // Negotiated returns JSON for negotiated capabilities after OPEN exchange.

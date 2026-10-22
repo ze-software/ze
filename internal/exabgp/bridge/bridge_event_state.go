@@ -4,7 +4,11 @@
 
 package bridge
 
-import "github.com/ze-software/ze/pkg/plugin/rpc"
+import (
+	"strconv"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
 
 // exabgpDownReasons maps the reason ze closes a session for (the rpc.Reason*
 // set the reactor derives, internal/component/bgp/reactor/peer_close.go,
@@ -24,9 +28,12 @@ import "github.com/ze-software/ze/pkg/plugin/rpc"
 //     same transport close to the helper: ExaBGP reports a connection it drops
 //     without a NOTIFICATION through the NetworkError branch too.
 //   - A NOTIFICATION is `notification sent (code,subcode)` or `notification
-//     received (code,subcode)` in ExaBGP. Ze's down states neither the
-//     direction nor the codes, which the NOTIFICATION event before it carries,
-//     so the reason names the NOTIFICATION alone.
+//     received (code,subcode)` in ExaBGP (`self._reset(f'notification sent
+//     ({notify.code},{notify.subcode})', notify)` in Peer._run). Ze's down
+//     carries the closing NOTIFICATION's direction and codes under
+//     `notification` (format.appendCloseNotificationJSON), and
+//     exabgpDownReason writes them. The table's word stands only for a down
+//     that names no direction.
 //
 // It was absent until 2026-10-22: the bridge wrote ze's own word
 // (`tcp-failure`) on the text line, and no reason at all on the JSON line.
@@ -38,12 +45,49 @@ var exabgpDownReasons = map[string]string{
 }
 
 // exabgpDownReason answers ExaBGP's words for the reason ze closed a session.
+// closing is the down event's `notification` member, which ze writes only for
+// a session a NOTIFICATION closed: `{"direction":"sent","code":6,"subcode":4}`.
 // The reason set is open (a plugin API value), so a reason this table does not
 // name is written as ze stated it rather than dropped: the helper still reads
 // why the session went down.
-func exabgpDownReason(reason string) string {
+func exabgpDownReason(reason string, closing any) string {
+	if words, named := closingNotificationWords(closing); named {
+		return words
+	}
 	if words, known := exabgpDownReasons[reason]; known {
 		return words
 	}
 	return reason
+}
+
+// closingNotificationWords writes `notification sent (6,4)` or
+// `notification received (4,0)` from the down event's `notification` member,
+// and answers false when the member is absent or names no direction ExaBGP
+// writes.
+func closingNotificationWords(closing any) (string, bool) {
+	fields, isObject := closing.(map[string]any)
+	if !isObject {
+		return "", false
+	}
+	direction, _ := fields["direction"].(string)
+	if direction != "sent" && direction != "received" {
+		return "", false
+	}
+	code, hasCode := fields["code"].(float64)
+	if !hasCode {
+		return "", false
+	}
+	subcode, hasSubcode := fields["subcode"].(float64)
+	if !hasSubcode {
+		return "", false
+	}
+	buf := make([]byte, 0, 32)
+	buf = append(buf, "notification "...)
+	buf = append(buf, direction...)
+	buf = append(buf, " ("...)
+	buf = strconv.AppendUint(buf, uint64(code), 10)
+	buf = append(buf, ',')
+	buf = strconv.AppendUint(buf, uint64(subcode), 10)
+	buf = append(buf, ')')
+	return string(buf), true
 }

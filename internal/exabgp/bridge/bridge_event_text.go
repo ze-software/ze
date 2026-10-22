@@ -106,7 +106,7 @@ func (e Event) appendStateText(buf []byte) ([]byte, TextForm) {
 		reason, _ := e.Payload["reason"].(string)
 		buf = e.appendPrefix(buf, false)
 		buf = append(buf, " down - "...)
-		buf = appendOneline(buf, exabgpDownReason(reason))
+		buf = appendOneline(buf, exabgpDownReason(reason, e.Payload[msgTypeNotification]))
 		return append(buf, '\n'), TextWritten
 	default:
 		// json-format.md declares three state values. A fourth is a ze change

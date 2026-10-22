@@ -510,15 +510,15 @@ func TestFleetRenderOncePerFormat(t *testing.T) {
 	fleet := New(slogutil.DiscardLogger(), testFamilies, nil)
 	event := bridge.Event{Kind: "state", Peer: "127.0.0.1", Payload: map[string]any{"state": "up"}}
 	var cache [bridge.FormatCount][]byte
-	v6, ok := fleet.render(&cache, bridge.FormatV6JSON, event)
+	v6, ok := fleet.render(&cache, bridge.FormatV6JSON, bridge.FormParsed, event)
 	if !ok || !json.Valid(v6) || !bytes.Contains(v6, []byte(`"exabgp": "6.0.0"`)) {
 		t.Fatalf("v6 render = %q, %v; want a 6.0.0 JSON event", v6, ok)
 	}
-	v4, ok := fleet.render(&cache, bridge.FormatV4JSON, event)
+	v4, ok := fleet.render(&cache, bridge.FormatV4JSON, bridge.FormParsed, event)
 	if !ok || !json.Valid(v4) || !bytes.Contains(v4, []byte(`"exabgp": "4.0.1"`)) {
 		t.Fatalf("v4 render = %q, %v; want a 4.0.1 JSON event", v4, ok)
 	}
-	again, ok := fleet.render(&cache, bridge.FormatV6JSON, event)
+	again, ok := fleet.render(&cache, bridge.FormatV6JSON, bridge.FormParsed, event)
 	if !ok || &again[0] != &v6[0] {
 		t.Fatalf("second v6 render was rendered again rather than reused")
 	}
@@ -531,7 +531,7 @@ func TestFleetRenderUnknownTextEvent(t *testing.T) {
 	event := bridge.Event{Kind: "future-event"}
 	var cache [bridge.FormatCount][]byte
 	for range 2 {
-		line, ok := fleet.render(&cache, bridge.FormatV4Text, event)
+		line, ok := fleet.render(&cache, bridge.FormatV4Text, bridge.FormParsed, event)
 		if ok || len(line) != 0 {
 			t.Fatalf("unknown text event = %q, %v; want no line", line, ok)
 		}

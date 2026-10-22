@@ -492,6 +492,7 @@ func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = append(buf, reason...)
 	}
 	buf = append(buf, '"')
+	buf = appendCloseNotificationJSON(buf, peer.CloseNotification)
 	if peer.InitialReplay != 0 {
 		buf = append(buf, `,"initial-replay":"`...)
 		buf = strconv.AppendUint(buf, peer.InitialReplay, 10)

@@ -22,6 +22,9 @@ const (
 	EventRPKI               = "rpki"
 	EventListenerReady      = "listener-ready"      // BGP reactor: TCP listener bound and accepting
 	EventUpdateNotification = "update-notification" // Lightweight observability notification for UPDATE arrivals
+	EventConnected          = "connected"           // BGP reactor: a peer's TCP connection is established, before any OPEN
+	EventFSM                = "fsm"                 // BGP reactor: a peer's FSM moved from one RFC 4271 state to another
+	EventSignal             = "signal"              // BGP reactor: the daemon took an operating-system signal, told per peer
 )
 
 // Built-in send types. A send type names a message kind a process may generate

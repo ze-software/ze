@@ -1,0 +1,58 @@
+# Test: a plugin subscribed to `connected` and `fsm` receives both through the daemon
+# VALIDATES: the `connected` event reaches the plugin when the TCP connection is
+#            established, before the FSM change into OPENSENT
+#            (Peer.emitFSMEvents, internal/component/bgp/reactor/peer_fsm_events.go)
+# VALIDATES: one `fsm` event per FSM change, in order: OPENSENT, OPENCONFIRM, ESTABLISHED
+# PREVENTS: the engine's FSM changes and TCP establishment never reaching a plugin
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external fsm-test {
+		run "le test fixture plugin/fsm-connected-events"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		attach process fsm-test {
+			receive [ connected fsm ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

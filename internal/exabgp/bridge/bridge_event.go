@@ -108,6 +108,10 @@ type Event struct {
 	// is granted `negotiated`. ReadEvent leaves it nil: only the runner holds
 	// the session, so Sessions.Note sets it (bridge_negotiated.go).
 	Negotiated map[string]any
+	// Packet is the message's bytes, which a `full` event carries beside the
+	// parsed message, and the zero Packet for any other event
+	// (bridge_event_packets.go).
+	Packet Packet
 }
 
 // exabgpRefreshSubtypes maps the kind ze names a ROUTE-REFRESH event by, its
@@ -204,6 +208,10 @@ func ReadEvent(zebgp map[string]any) Event {
 			event.Data = nested
 		}
 	}
+	if zeKind == zeKindConnected {
+		event.readConnected()
+	}
+	event.Packet = readPacket(event.Payload, event.Kind)
 	return event
 }
 
@@ -264,33 +272,7 @@ func zebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 // format is FormatV4JSON or FormatV6JSON, and it decides the envelope: a v4
 // helper reads ExaBGP's frozen `4.0.1`, a v6 helper `6.0.0`.
 func (e Event) ExabgpJSON(format Format) map[string]any {
-	envelope := Version
-	switch format {
-	case FormatV4JSON:
-		envelope = JSONVersionV4
-	case FormatV6JSON:
-	case FormatV4Text, FormatUnspecified:
-		panic("BUG: ExabgpJSON asked for a format that is not JSON")
-	default:
-		panic("BUG: invalid bridge format")
-	}
-	result := map[string]any{
-		"exabgp": envelope,
-		"time":   float64(time.Now().Unix()),
-		"host":   hostname(),
-		"pid":    os.Getpid(),
-		"ppid":   os.Getppid(),
-		"type":   e.Kind,
-	}
-
-	neighbor := map[string]any{
-		"address":   map[string]any{"local": e.Local, "peer": e.Peer},
-		"asn":       map[string]any{"local": e.LocalASN, "peer": e.PeerASN},
-		"direction": e.Direction,
-	}
-	if e.RouterID != "" {
-		neighbor["router-id"] = e.RouterID
-	}
+	result, neighbor := e.exabgpEnvelope(format)
 
 	switch e.Kind {
 	case msgTypeState:
@@ -301,8 +283,14 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 		// src/exabgp/reactor/api/response/json.py), in ExaBGP's words.
 		if state == "down" {
 			reason, _ := e.Payload["reason"].(string)
-			neighbor["reason"] = exabgpDownReason(reason)
+			neighbor["reason"] = exabgpDownReason(reason, e.Payload[msgTypeNotification])
 		}
+
+	case msgTypeFSM:
+		neighbor["state"] = e.fsmState()
+
+	case msgTypeSignal:
+		e.writeSignal(neighbor)
 
 	case msgTypeUpdate:
 		neighbor["message"] = updateMessageJSON(e.Data, format, e.Peer)
@@ -332,6 +320,40 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 
 	result["neighbor"] = neighbor
 	return result
+}
+
+// exabgpEnvelope is what every ExaBGP JSON line opens with: the envelope
+// version, time, host and process ids, the type, and the `neighbor` object that
+// states both halves of the session. The caller fills the line's own members.
+func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
+	envelope := Version
+	switch format {
+	case FormatV4JSON:
+		envelope = JSONVersionV4
+	case FormatV6JSON:
+	case FormatV4Text, FormatUnspecified:
+		panic("BUG: ExabgpJSON asked for a format that is not JSON")
+	default:
+		panic("BUG: invalid bridge format")
+	}
+	result = map[string]any{
+		"exabgp": envelope,
+		"time":   float64(time.Now().Unix()),
+		"host":   hostname(),
+		"pid":    os.Getpid(),
+		"ppid":   os.Getppid(),
+		"type":   e.Kind,
+	}
+
+	neighbor = map[string]any{
+		"address":   map[string]any{"local": e.Local, "peer": e.Peer},
+		"asn":       map[string]any{"local": e.LocalASN, "peer": e.PeerASN},
+		"direction": e.Direction,
+	}
+	if e.RouterID != "" {
+		neighbor["router-id"] = e.RouterID
+	}
+	return result, neighbor
 }
 
 func hostname() string {

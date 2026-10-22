@@ -956,7 +956,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	sdk.HostOwnsSignals()
 	apiServer.SetShutdownFunc(func() {
 		select {
-		case stopCh <- syscall.SIGTERM:
+		case stopCh <- requestedStop{}:
 		default:
 		}
 	})
@@ -1577,7 +1577,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// A reload can remove every plugin without ending this daemon lifecycle.
 	doneCh := make(chan struct{})
 	go waitForServerDone(apiServer, doneCh)
-	waitLoop(stopCh, hupCh, reloadCh, doneCh)
+	waitLoop(stopCh, hupCh, reloadCh, doneCh, func(sig os.Signal) { announceSignal(apiServer, sig) })
 	// The stop starts here: the drain ceiling is counted from this instant,
 	// so the config fence below spends from it.
 	stopStart := time.Now()
@@ -1669,7 +1669,9 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 
 // waitLoop dispatches signals: a SIGHUP from hupCh to reloadCh, and any signal
 // from stopCh returns so the caller shuts down. It also returns when doneCh
-// closes (server exit); a nil doneCh never fires.
+// closes (server exit); a nil doneCh never fires. Each signal goes to announce
+// first (announceSignal), so a process told of it reads the line before the
+// reload or the stop it causes.
 //
 // It MUST NOT block on reloadCh, because it is the only reader of stopCh: a loop
 // parked on a full reloadCh reads no SIGTERM until the reload worker takes the
@@ -1677,12 +1679,14 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 // per queued signal. A SIGHUP that finds one already queued is coalesced into
 // it: the queued reload reads the config source when it runs
 // (handleSIGHUPReload), so it applies every edit the dropped signal announced.
-func waitLoop(stopCh, hupCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}) {
+func waitLoop(stopCh, hupCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}, announce func(os.Signal)) {
 	for {
 		select {
-		case <-stopCh:
+		case sig := <-stopCh:
+			announce(sig)
 			return
 		case sig := <-hupCh:
+			announce(sig)
 			select {
 			case reloadCh <- sig:
 			default: // A reload is already queued and covers this signal.

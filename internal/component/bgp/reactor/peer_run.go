@@ -426,79 +426,11 @@ func (p *Peer) runOnce() error {
 		return err
 	}
 
-	// Consume the Peer-owned inbound slot before dialing. A collision winner
-	// has already supplied its OPEN and MUST keep this exact socket and wire.
-	if p.settings.Connection.IsPassive() {
-		inbound := p.takeInboundConnection()
-		if inbound.conn != nil {
-			var err error
-			if inbound.open != nil {
-				err = session.acceptWithOpen(inbound.conn, inbound.open, inbound.wire)
-				// The selected socket owns this session before ordinary arrivals
-				// may reach it. Taking the slot alone does not end that ownership.
-				p.mu.Lock()
-				p.collisionHandoff = false
-				p.mu.Unlock()
-			} else {
-				err = session.Accept(inbound.conn)
-			}
-			if err != nil {
-				closeConnQuietly(inbound.conn)
-				if !errors.Is(err, ErrAlreadyConnected) {
-					return fmt.Errorf("accepting buffered connection: %w", err)
-				}
-			}
-		}
-	}
-
-	peerLogger().Debug("timing: session created, dialing",
-		"peer", p.settings.Address,
-		"port", p.settings.Port,
-		"elapsed_since_runOnce", p.clock.Now().Sub(runOnceStart),
-	)
-
-	// A retained collision winner takes precedence in ConnectionBoth too.
-	if p.settings.Connection.IsActive() && session.Conn() == nil {
-		dialLabel := p.peerAddrLabel()
-		dialStart := p.clock.Now()
-		if err := session.Connect(p.ctx); err != nil {
-			dialElapsed := p.clock.Now().Sub(dialStart)
-
-			// Race: an inbound connection was accepted between Start() and Connect(),
-			// setting s.conn before we could dial. The inbound won; proceed to Run().
-			inboundWon := errors.Is(err, ErrAlreadyConnected) && session.Conn() != nil
-			if !inboundWon {
-				peerLogger().Debug("timing: dial failed",
-					"peer", p.settings.Address,
-					"port", p.settings.Port,
-					"elapsed_dial", dialElapsed,
-					"error", err,
-				)
-				if p.reactor != nil && p.reactor.rmetrics != nil {
-					p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "fail").Observe(dialElapsed.Seconds())
-				}
-				return err
-			}
-
-			peerLogger().Info("inbound connection accepted during dial, using inbound",
-				"peer", p.settings.Address,
-			)
-			if p.reactor != nil && p.reactor.rmetrics != nil {
-				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
-			}
-		} else {
-			dialElapsed := p.clock.Now().Sub(dialStart)
-			peerLogger().Debug("timing: dial succeeded",
-				"peer", p.settings.Address,
-				"port", p.settings.Port,
-				"elapsed_dial", dialElapsed,
-			)
-			if p.reactor != nil && p.reactor.rmetrics != nil {
-				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
-			}
-		}
-	}
-
+	// The callback is installed before the accept and dial below, because
+	// both fire Event 17 and enter OpenSent inside the call
+	// (Session.connectionEstablished, session_connection.go): installed after
+	// them, the `connected` event and the CONNECT -> OPENSENT `fsm` event
+	// would be lost.
 	// The leave-Established arm fills this record and closes its signal; the
 	// down defer below waits on it (sessionDown).
 	leave := &sessionLeave{signal: make(chan struct{})}
@@ -507,6 +439,9 @@ func (p *Peer) runOnce() error {
 	session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
 		addr := p.settings.Address.String()
 		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
+		// The engine's own facts first, so a process reads the transition
+		// before any event the new state produces (peer_fsm_events.go).
+		p.emitFSMEvents(from, to, event)
 
 		transitionReason := from.String() + " -> " + to.String()
 
@@ -602,6 +537,79 @@ func (p *Peer) runOnce() error {
 			Reason:    transitionReason,
 		})
 	})
+
+	// Consume the Peer-owned inbound slot before dialing. A collision winner
+	// has already supplied its OPEN and MUST keep this exact socket and wire.
+	if p.settings.Connection.IsPassive() {
+		inbound := p.takeInboundConnection()
+		if inbound.conn != nil {
+			var err error
+			if inbound.open != nil {
+				err = session.acceptWithOpen(inbound.conn, inbound.open, inbound.wire)
+				// The selected socket owns this session before ordinary arrivals
+				// may reach it. Taking the slot alone does not end that ownership.
+				p.mu.Lock()
+				p.collisionHandoff = false
+				p.mu.Unlock()
+			} else {
+				err = session.Accept(inbound.conn)
+			}
+			if err != nil {
+				closeConnQuietly(inbound.conn)
+				if !errors.Is(err, ErrAlreadyConnected) {
+					return fmt.Errorf("accepting buffered connection: %w", err)
+				}
+			}
+		}
+	}
+
+	peerLogger().Debug("timing: session created, dialing",
+		"peer", p.settings.Address,
+		"port", p.settings.Port,
+		"elapsed_since_runOnce", p.clock.Now().Sub(runOnceStart),
+	)
+
+	// A retained collision winner takes precedence in ConnectionBoth too.
+	if p.settings.Connection.IsActive() && session.Conn() == nil {
+		dialLabel := p.peerAddrLabel()
+		dialStart := p.clock.Now()
+		if err := session.Connect(p.ctx); err != nil {
+			dialElapsed := p.clock.Now().Sub(dialStart)
+
+			// Race: an inbound connection was accepted between Start() and Connect(),
+			// setting s.conn before we could dial. The inbound won; proceed to Run().
+			inboundWon := errors.Is(err, ErrAlreadyConnected) && session.Conn() != nil
+			if !inboundWon {
+				peerLogger().Debug("timing: dial failed",
+					"peer", p.settings.Address,
+					"port", p.settings.Port,
+					"elapsed_dial", dialElapsed,
+					"error", err,
+				)
+				if p.reactor != nil && p.reactor.rmetrics != nil {
+					p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "fail").Observe(dialElapsed.Seconds())
+				}
+				return err
+			}
+
+			peerLogger().Info("inbound connection accepted during dial, using inbound",
+				"peer", p.settings.Address,
+			)
+			if p.reactor != nil && p.reactor.rmetrics != nil {
+				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
+			}
+		} else {
+			dialElapsed := p.clock.Now().Sub(dialStart)
+			peerLogger().Debug("timing: dial succeeded",
+				"peer", p.settings.Address,
+				"port", p.settings.Port,
+				"elapsed_dial", dialElapsed,
+			)
+			if p.reactor != nil && p.reactor.rmetrics != nil {
+				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
+			}
+		}
+	}
 
 	// Set up per-peer async delivery channel for received UPDATEs.
 	// The delivery goroutine drains batches and calls receiver.OnMessageBatchReceived,

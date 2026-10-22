@@ -29,6 +29,7 @@ func init() {
 	Register("plugin/prefixsid-ebgp-discard-single-walk", p12SubscribedDriver("shutdown-after-up", []string{eventUpdate}, p12RouteServerReplay))
 	Register("plugin/quiesce-barrier", p12ObserveDriver("quiesce-barrier", p12QuiesceBarrier))
 	Register("plugin/rbac-web-config-deny", p12WebRBAC)
+	Register("plugin/fsm-connected-events", p12SubscribedDriver("fsm-test", []string{"connected", "fsm"}, p12FSMConnectedEvents))
 	Register("plugin/reactor-bus-subscribe", p12SubscribedDriver("bus-test", []string{eventState}, p12BusSubscribe))
 
 	Register("plugin/redistribute-as112-announce", p12ObserveDriver("as112-announce-test", p12AS112Announce))

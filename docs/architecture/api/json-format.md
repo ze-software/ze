@@ -152,7 +152,9 @@ State events have the state value at `bgp` level:
 }
 ```
 
-State values: `"up"`, `"down"`, `"connected"`
+State values: `"up"`, `"down"`. A TCP connection that is established before
+any OPEN is the `connected` event below, not a third state value, so a plugin
+that reads every state other than `up` as a down never meets it.
 <!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
 
 When a Session receipt exists, `initial-replay` is its opaque nonzero uint64
@@ -178,6 +180,57 @@ For `"down"` events, a `reason` field is included:
   }
 }
 ```
+
+When the reason is `notification`, the down also names the NOTIFICATION that
+closed the session: which way it went (`sent` or `received`) and its code and
+subcode. A NOTIFICATION ze built and could not write told the peer nothing, so
+it is not named. Every other down carries no `notification` member.
+
+```json
+{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"down","reason":"notification",
+ "notification":{"direction":"sent","code":6,"subcode":4}}}
+```
+
+The text form appends ` notification <direction> <code> <subcode>` after the
+reason: `peer 192.0.2.1 remote as 65001 state down reason notification notification sent 6 4`.
+<!-- source: internal/component/bgp/format/session_events.go -- appendCloseNotificationJSON -->
+
+### Connected and FSM Events
+
+A process subscribed to `connected` hears that a peer's TCP connection is
+established, before any OPEN is read on it (RFC 4271 Section 8.2.2, Event 17
+into OpenSent). A process subscribed to `fsm` hears every FSM state change,
+with the state it left and the state it entered, named IDLE, CONNECT, ACTIVE,
+OPENSENT, OPENCONFIRM or ESTABLISHED. The `connected` event comes before the
+`fsm` event of the same change.
+
+```json
+{"type":"bgp","bgp":{"message":{"type":"connected"},"peer":{...}}}
+{"type":"bgp","bgp":{"message":{"type":"fsm"},"peer":{...},"fsm":{"from":"CONNECT","to":"OPENSENT"}}}
+```
+
+Text: `peer 192.0.2.1 remote as 65001 connected` and
+`peer 192.0.2.1 remote as 65001 fsm CONNECT OPENSENT`. Neither has a
+structured (DirectBridge) form: every process takes the line.
+<!-- source: internal/component/bgp/format/session_events.go -- AppendConnected -->
+<!-- source: internal/component/bgp/format/session_events.go -- AppendFSM -->
+<!-- source: internal/component/bgp/reactor/peer_fsm_events.go -- emitFSMEvents -->
+
+A process subscribed to `signal` hears each operating-system signal the daemon
+takes (SIGHUP, SIGINT, SIGTERM), once for every configured peer, before the
+daemon reloads or stops. The hub publishes it on the EventBus
+(`daemonevents.Signal`, namespace `daemon`) and the BGP reactor tells each
+peer's processes. A stop asked for by `daemon shutdown` or by the end of stdin
+is not a signal and is not told.
+
+```json
+{"type":"bgp","bgp":{"message":{"type":"signal"},"peer":{...},"signal":{"code":15,"name":"SIGTERM"}}}
+```
+
+The text line is `peer 192.0.2.1 remote as 65001 signal 15 SIGTERM`.
+<!-- source: internal/component/bgp/format/session_events.go -- AppendSignal -->
+<!-- source: internal/component/bgp/reactor/reactor_signal_events.go -- onDaemonSignal -->
+<!-- source: cmd/ze/hub/signal_announce.go -- announceSignal -->
 
 ---
 
@@ -232,6 +285,20 @@ Attributes and NLRIs are at the `bgp` level (flat structure):
   }
 }
 ```
+
+The OPEN, NOTIFICATION, KEEPALIVE and ROUTE-REFRESH events of a `full`
+subscriber carry their bytes too, beside the parsed object, under the name the
+`raw` format gives them: `"raw": {"message": "<hex>"}`, the body after the
+19-octet header. A KEEPALIVE has no body, so its member is the empty string; a
+subscriber of any other format is written no `raw` member. An End-of-RIB marker
+of a `full` subscriber is the `eor` object, as for a `parsed` one, with
+`"raw": {"update": "<hex>"}` beside it. The header is not delivered: RFC 4271
+Section 4.1 fixes it as the Marker, the Length and the Type, which the body and
+the event state. The ExaBGP bridge subscribes `full` and writes ExaBGP's
+`packets` and `consolidate` lines from these members.
+
+<!-- source: internal/component/bgp/format/json_message.go -- JSONEncoder.Message -->
+<!-- source: internal/component/bgp/format/text_update.go -- appendEORUpdateJSON -->
 
 ### Operation Format
 
@@ -298,6 +365,9 @@ Attributes appear under the `attr` object:
 | as-path | `"as-path": [65001, 65002]` |
 | med | `"med": 100` |
 | local-preference | `"local-preference": 100` |
+| atomic-aggregate | `"atomic-aggregate": true` (the attribute has no value; its presence is the statement) |
+| aggregator | `"aggregator": "65001:192.0.2.1"` (`<asn>:<address>`, asplain; a two-octet AGGREGATOR is widened at ingest, so the AS number is the aggregating node's whichever width the peer sent) |
+| as4-aggregator | `"as4-aggregator": "4200000000:192.0.2.1"` (same form; a received UPDATE never carries it, because ingest folds a received AS4_AGGREGATOR into `aggregator`, RFC 6793 Section 4.2.3) |
 | communities | `"communities": ["65001:100", "65001:200"]` |
 | large-communities | `"large-communities": ["65001:0:100"]` |
 | extended-communities | `"extended-communities": ["target:65000:1", "rate-limit:0"]` (named; a subtype the vocabulary does not name keeps its octets as `0x<type><subtype>:<hex>`) |

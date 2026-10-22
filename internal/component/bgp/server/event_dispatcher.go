@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -82,6 +83,35 @@ func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.Ses
 		return
 	}
 	onPeerStateChange(d.server, peer, state, reason)
+}
+
+// OnPeerConnected delivers the `connected` event: the peer's TCP connection is
+// established, before any OPEN. Called from the FSM transition that the
+// connection's success drives (RFC 4271 Section 8.1.4, Events 16 and 17).
+func (d *EventDispatcher) OnPeerConnected(peer *plugin.PeerInfo) {
+	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+		return
+	}
+	onPeerConnected(d.server, peer)
+}
+
+// OnPeerFSMChange delivers the `fsm` event for one FSM state change. Called
+// from the peer's FSM callback (fsm.FSM.SetCallback), once per transition.
+func (d *EventDispatcher) OnPeerFSMChange(peer *plugin.PeerInfo, from, to fsm.State) {
+	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+		return
+	}
+	onPeerFSMChange(d.server, peer, from, to)
+}
+
+// OnPeerSignal delivers the `signal` event: the daemon took the
+// operating-system signal number (named name, "SIGHUP"). The reactor calls it
+// once per configured peer for each signal the hub publishes.
+func (d *EventDispatcher) OnPeerSignal(peer *plugin.PeerInfo, number int, name string) {
+	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+		return
+	}
+	onPeerSignal(d.server, peer, number, name)
 }
 
 // OnPeerUnbound tells the named processes that a live peer stopped feeding

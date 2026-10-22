@@ -80,6 +80,16 @@ const (
 	NotifSendFailed
 )
 
+// CloseNotification is the NOTIFICATION that closed a session, as a down
+// state event carries it (PeerInfo.CloseNotification).
+type CloseNotification struct {
+	// Direction is NotifSent or NotifReceived for a NOTIFICATION that
+	// crossed the wire, and NotifNone when none closed the session.
+	Direction NotifDirection
+	Code      uint8
+	Subcode   uint8
+}
+
 func (d NotifDirection) String() string {
 	switch d {
 	case NotifNone:
@@ -141,6 +151,12 @@ type PeerInfo struct {
 	// the value RFC 7854 Section 4.9 itself gives "no relevant Event code",
 	// which is what every other state change carries.
 	CloseFSMEvent uint16
+	// CloseNotification is, on a session-down state change whose reason is a
+	// NOTIFICATION, the message that closed the session: which way it went
+	// and its code and subcode, so a plugin can name it without having kept
+	// the NOTIFICATION event. Its Direction is NotifNone on every other state
+	// change, so a down that no NOTIFICATION closed never reads as one.
+	CloseNotification CloseNotification
 
 	// BFDSubState is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
 	// sub-state, empty where the session is not waiting for BFD. Section 11

@@ -116,6 +116,9 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 	// (peer_close.go).
 	leave.notified = p.notificationExchanged.Load()
 	leave.closed = sessionCloseFor(leave.notified, event, closeCause(session))
+	if leave.notified {
+		leave.closed.notification = p.closingNotification()
+	}
 
 	p.mu.RLock()
 	reactor := p.reactor

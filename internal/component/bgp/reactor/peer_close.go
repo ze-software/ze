@@ -10,6 +10,7 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -22,6 +23,9 @@ import (
 type sessionClose struct {
 	reason   string
 	fsmEvent uint16
+	// notification is the NOTIFICATION that closed the session, set only when
+	// reason is rpc.ReasonNotification (Peer.closingNotification).
+	notification plugin.CloseNotification
 }
 
 // closeCause returns the first close reason recorded on session

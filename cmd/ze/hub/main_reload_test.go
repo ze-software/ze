@@ -428,7 +428,7 @@ func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
 
 	loopDone := make(chan struct{})
 	go func() {
-		waitLoop(stopCh, hupCh, reloadCh, nil)
+		waitLoop(stopCh, hupCh, reloadCh, nil, func(os.Signal) {})
 		close(loopDone)
 	}()
 
@@ -566,7 +566,7 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, &sync.Mutex{}, server, nil, nil, store, configPath, load, nil, nil)
 		loopDone := make(chan struct{})
 		go func() {
-			waitLoop(stopCh, hupCh, reloadCh, nil)
+			waitLoop(stopCh, hupCh, reloadCh, nil, func(os.Signal) {})
 			close(loopDone)
 		}()
 		// The worker reads and writes store, so it MUST have exited before
@@ -779,7 +779,7 @@ func TestWaitLoopStopQueuedBehindStartupSIGHUP(t *testing.T) {
 
 	loopDone := make(chan struct{})
 	go func() {
-		waitLoop(stopCh, hupCh, reloadCh, nil)
+		waitLoop(stopCh, hupCh, reloadCh, nil, func(os.Signal) {})
 		close(loopDone)
 	}()
 

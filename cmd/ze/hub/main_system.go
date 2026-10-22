@@ -12,7 +12,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -55,7 +54,8 @@ func dropPrivileges() error {
 }
 
 // monitorStdinEOF blocks until stdin is closed (EOF or error), then sends
-// SIGTERM to sigCh to trigger reactor shutdown.
+// a requested stop to sigCh to trigger reactor shutdown. It is no signal, so
+// waitLoop announces nothing for it (requestedStop).
 func monitorStdinEOF(sigCh chan<- os.Signal) {
 	b := make([]byte, 1)
 	if _, err := os.Stdin.Read(b); err != nil {
@@ -64,7 +64,7 @@ func monitorStdinEOF(sigCh chan<- os.Signal) {
 		fmt.Fprintln(os.Stderr, "\nUpstream pipe closed, shutting down...")
 	}
 	select {
-	case sigCh <- syscall.SIGTERM:
+	case sigCh <- requestedStop{}:
 	default:
 	}
 }

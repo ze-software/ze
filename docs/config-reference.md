@@ -371,19 +371,30 @@ bgp {
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 701 3356 ];
-            nth 2    { asn [ 3491 ]; }
+            nth 2 {
+                asn [ 3491 ];
+            }
             regex    [ "^3356 174 " ];
         }
     }
     peer transit-a {
-        role   { import peer; }
+        role {
+            import peer;
+        }
         filter {
-            import [ NO-TRANSIT ];
-            export [ NO-TRANSIT ];
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 | Keyword | Type | The listed ASN is |
 |---------|------|-------------------|
@@ -564,6 +575,9 @@ line: `attach process <name> { ... }`.
 | `rpki` | RPKI validation results |
 | `listener-ready` | The TCP listener is bound and accepting |
 | `update-notification` | Lightweight arrival notice for an UPDATE |
+| `connected` | The peer's TCP connection is established, before any OPEN |
+| `fsm` | The peer's FSM changed state |
+| `signal` | The daemon took an operating-system signal (SIGHUP, SIGINT, SIGTERM) |
 | `*` | Every registered type, in both directions |
 
 A plain type is fed in both directions. Add `-received` or `-sent` to name one:

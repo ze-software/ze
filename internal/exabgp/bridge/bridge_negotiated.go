@@ -57,7 +57,10 @@ func (s *Sessions) Note(e *Event) {
 			delete(s.negotiated, e.Peer)
 			s.mu.Unlock()
 		}
-	case msgTypeUpdate:
+	case msgTypeUpdate, msgTypeOpen, msgTypeNotification, msgTypeKeepalive, msgTypeRefresh:
+		// An UPDATE line carries the block, and so does the packet line of
+		// every message (Response.JSON.packets); the other parsed lines do not
+		// write it.
 		s.mu.Lock()
 		e.Negotiated = s.negotiated[e.Peer]
 		s.mu.Unlock()
