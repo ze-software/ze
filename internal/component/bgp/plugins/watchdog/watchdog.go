@@ -77,12 +77,10 @@ func runWatchdogPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-watchdog", conn)
 	defer func() { _ = p.Close() }()
 
-	srv := newWatchdogServer(func(peer, cmd string) {
+	srv := newWatchdogServer(func(peer, cmd string) error {
 		ctx := context.Background()
 		_, _, err := p.UpdateRoute(ctx, peer, cmd)
-		if err != nil {
-			logger().Warn("update-route failed", "peer", peer, "error", err)
-		}
+		return err
 	}, func(peer string, initialReplay uint64) {
 		// Report the exact session whose peer-up routes have completed.
 		var tb textbuf.Buffer
@@ -205,5 +203,7 @@ func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{Name: commandRequestWatchdogAnnounce, ShortHelp: "Announce routes in watchdog group"},
 		{Name: commandRequestWatchdogWithdraw, ShortHelp: "Withdraw routes in watchdog group"},
+		{Name: commandRequestWatchdogGive, ShortHelp: "Give a route to a watchdog group, sent now or held"},
+		{Name: commandRequestWatchdogForget, ShortHelp: "Withdraw and forget the routes an owner gave watchdog groups"},
 	}
 }

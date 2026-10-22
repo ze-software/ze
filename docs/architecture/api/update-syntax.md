@@ -1270,12 +1270,17 @@ operation cannot retire a replacement connection.
 |---------|---------|
 | `request bgp watchdog announce <name>` | Send all routes in pool to peers |
 | `request bgp watchdog withdraw <name>` | Withdraw all routes in pool from peers |
+| `request bgp watchdog give <name> owner <owner> selector <peer> [withdraw] announce <n> <update text> withdrawal <update text>` | Give the watchdog one route at runtime: sent now, or held until `announce <name>` with `withdraw`. `<n>` counts the words of the announce |
+| `request bgp watchdog forget <owner>` | Withdraw the given routes `<owner>` holds announced, and forget all it gave |
 
-A watchdog group holds only routes from the config (`watchdog { name <name>; }`
-in a peer's update block, read by the `bgp-watchdog` plugin). `update text` reads
-`watchdog <name>` and `watchdog set <name>` and refuses the command, naming that
-fix, because no group would hold an API route and sending it at once would
-ignore the word. This is ExaBGP's rule too: its API routes never join a
-watchdog, and the ExaBGP bridge sends such a route at once with a warning
-(`docs/architecture/exabgp-bridge.md`).
+A watchdog group holds the routes from the config (`watchdog { name <name>; }`
+in a peer's update block, read by the `bgp-watchdog` plugin) and the routes a
+process gives it with `request bgp watchdog give`. The ExaBGP bridge gives an
+API route that names a watchdog this way, as ExaBGP 6.0 holds such a route
+under its watchdog (`docs/architecture/exabgp-bridge.md`). A given route the
+engine refuses to send answers `give`, `announce`, `withdraw` or `forget` with
+the refusal, never `done`. `update text` reads `watchdog <name>` and `watchdog
+set <name>` and refuses the command, naming both fixes, because it sends at once
+and would ignore the word.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseSendableUpdateText, errUpdateTextWatchdog -->
+<!-- source: internal/component/bgp/plugins/watchdog/given.go -- handleGive, givenAction, handleForget -->

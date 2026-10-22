@@ -39,10 +39,11 @@ type commandRecorder struct {
 	sent []string
 }
 
-func (r *commandRecorder) send(_, command string) {
+func (r *commandRecorder) send(_, command string) error {
 	r.mu.Lock()
 	r.sent = append(r.sent, command)
 	r.mu.Unlock()
+	return nil
 }
 
 // take returns the commands sent since the last take.

@@ -27,7 +27,7 @@ func TestWatchdogSkipsResendOnAttachedUp(t *testing.T) {
 		t.Run(event, func(t *testing.T) {
 			sent, ready := 0, 0
 			mgr := newWatchdogServer(
-				func(string, string) { sent++ },
+				func(string, string) error { sent++; return nil },
 				func(string, uint64) { ready++ },
 			)
 			mgr.peerPools[peer] = newPoolSet()

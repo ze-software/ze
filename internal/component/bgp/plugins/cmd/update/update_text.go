@@ -1177,13 +1177,16 @@ var updateEncodings = map[string]func(*pluginserver.CommandContext, []string) (*
 
 // errUpdateTextWatchdog refuses `watchdog <name>` and `watchdog set <name>` in
 // update text, and `watchdog <name>` in the hex and b64 wire modes
-// (handleUpdateWire). The grammar reads the word, but nothing holds an API route under
-// a watchdog: the bgp-watchdog plugin builds its groups from the config only
-// (parseConfig, internal/component/bgp/plugins/watchdog/config.go). Sending the
-// route at once would ignore what the operator asked for, so it is refused.
+// (handleUpdateWire). The grammar reads the word, but this handler sends at
+// once: a route waits for its group only when the bgp-watchdog plugin holds it,
+// from the config or given at runtime with `request bgp watchdog give`
+// (internal/component/bgp/plugins/watchdog/given.go). Sending the route here
+// would ignore what the operator asked for, so it is refused.
 var errUpdateTextWatchdog = errors.New("an update command cannot place a route under a watchdog: " +
-	"a watchdog group holds only routes from the config, so this route would not wait for its group.\n" +
-	"Send the route without watchdog, or configure it in the peer's update block with watchdog { name <name>; }, then run:\n" +
+	"the update command sends the route at once, so it would not wait for its group.\n" +
+	"Give the route to the watchdog, which holds it until the group is announced:\n" +
+	"request bgp watchdog give <name> owner <owner> selector <peer> [withdraw] announce <n> <update text> withdrawal <update text>\n" +
+	"or configure it in the peer's update block with watchdog { name <name>; }, then run:\n" +
 	"request bgp watchdog announce <name>")
 
 // ParseSendableUpdateText parses update text the way the `update text` handler

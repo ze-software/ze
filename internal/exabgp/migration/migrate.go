@@ -421,6 +421,15 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 		}
 		scriptFeeds.record(addr, bound)
 
+		// Any route an API process announces can name a watchdog
+		// (`announce route ... watchdog <name>`, ExaBGP c43f90f79), and the
+		// bridge hands such a route to bgp-watchdog, which sends it. A peer an
+		// API process serves therefore needs the plugin bound with the send
+		// permission, whether or not its config holds a watchdog route.
+		if len(bound) > 0 {
+			bindWatchdogProcess(result.Tree, peer)
+		}
+
 		// Get or create group tree.
 		groupTree, ok := groups[groupName]
 		if !ok {
@@ -1133,7 +1142,9 @@ func peerHasWatchdogRoute(peer *config.Tree) bool {
 }
 
 // bindWatchdogProcess attaches bgp-watchdog to a peer whose migrated config
-// carries a watchdog-controlled route, and declares the plugin once.
+// carries a watchdog-controlled route, or that an API process serves (whose
+// routes can name a watchdog), and declares the plugin once. A second call for
+// the same peer adds nothing.
 //
 // The plugin announces and withdraws those routes on the operator's command,
 // and it can only do that for a session it has been told about: it defers an

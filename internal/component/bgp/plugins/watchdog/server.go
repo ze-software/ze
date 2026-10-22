@@ -26,9 +26,11 @@ type watchdogServer struct {
 	// peerUp tracks which peers currently have an established session.
 	peerUp map[string]bool
 
-	// sendRoute sends a text command to a peer via the engine.
-	// In production this calls plugin.UpdateRoute; in tests it's a hook.
-	sendRoute func(peer, cmd string)
+	// send sends a text command to a peer via the engine, and answers the
+	// engine's refusal. In production this calls plugin.UpdateRoute; in tests
+	// it's a hook. The configured pools send through sendRoute, which logs a
+	// refusal; a given route's command answers it to the process (given.go).
+	send func(peer, cmd string) error
 
 	// sessionReady tells the engine this plugin has finished its initial
 	// contribution for one peer. In production it dispatches
@@ -37,17 +39,33 @@ type watchdogServer struct {
 	// credits completion only to the session whose initial routes were replayed.
 	sessionReady func(peer string, initialReplay uint64)
 
+	// given holds the routes processes gave each watchdog at runtime
+	// (`request bgp watchdog give`), keyed by watchdog name then givenKey.
+	// givenCount is their total, bounded by givenRoutesMax (given.go).
+	given      map[string]map[string]*givenRoute
+	givenCount int
+
 	mu sync.RWMutex
 }
 
 // newWatchdogServer creates a watchdog server with the given route sender and
 // readiness signal. Either hook may be nil in a test that asserts neither.
-func newWatchdogServer(sendRoute func(peer, cmd string), sessionReady func(peer string, initialReplay uint64)) *watchdogServer {
+func newWatchdogServer(send func(peer, cmd string) error, sessionReady func(peer string, initialReplay uint64)) *watchdogServer {
 	return &watchdogServer{
 		peerPools:    make(map[string]*poolSet),
 		peerUp:       make(map[string]bool),
-		sendRoute:    sendRoute,
+		send:         send,
 		sessionReady: sessionReady,
+		given:        make(map[string]map[string]*givenRoute),
+	}
+}
+
+// sendRoute sends one command of a configured pool, and logs the engine's
+// refusal: the pools move on peer events no caller waits on, so the log is
+// where an operator reads it.
+func (s *watchdogServer) sendRoute(peer, cmd string) {
+	if err := s.send(peer, cmd); err != nil {
+		logger().Warn("update-route failed", "peer", peer, "error", err)
 	}
 }
 
@@ -57,6 +75,10 @@ const (
 
 	statusDone  = "done"
 	statusError = "error"
+
+	// medKeyword is the announce argument that overrides the MED, so it is
+	// no watchdog's name.
+	medKeyword = "med"
 )
 
 // ErrWatchdogNotFound is returned when a watchdog group doesn't exist for a peer.
@@ -88,6 +110,12 @@ func (s *watchdogServer) handleCommand(command string, args []string, peer strin
 	if command == commandRequestWatchdogWithdraw {
 		return s.handlePoolAction(args, peer, false)
 	}
+	if command == commandRequestWatchdogGive {
+		return s.handleGive(args)
+	}
+	if command == commandRequestWatchdogForget {
+		return s.handleForget(args)
+	}
 	return statusError, nil, fmt.Errorf("unknown watchdog command: %s", command)
 }
 
@@ -104,14 +132,14 @@ func (s *watchdogServer) handlePoolAction(args []string, peer string, announce b
 	name := args[0]
 
 	// Reject "med" as a group name -- ambiguous with the med keyword.
-	if name == "med" {
+	if name == medKeyword {
 		return statusError, nil, errors.New("'med' is not allowed as a watchdog group name (ambiguous with med <N> argument)")
 	}
 
 	// Parse optional "med <N>" for announce commands.
 	var medOverride *uint32
 	remaining := args[1:]
-	if announce && len(remaining) >= 1 && remaining[0] == "med" {
+	if announce && len(remaining) >= 1 && remaining[0] == medKeyword {
 		if len(remaining) < 2 {
 			return statusError, nil, errors.New("missing MED value after 'med' keyword")
 		}
@@ -129,12 +157,34 @@ func (s *watchdogServer) handlePoolAction(args []string, peer string, announce b
 		peer = remaining[0]
 	}
 
+	// The routes a process gave this watchdog move with the configured ones
+	// (given.go). Their update text is the process's own, so a MED override
+	// cannot be written into it: refused rather than announced without it.
+	if medOverride != nil && s.givenHolds(name) {
+		return statusError, nil, fmt.Errorf("watchdog %s holds routes a process gave it, whose MED the med argument cannot change; "+
+			"write request bgp watchdog announce %s without med", name, name)
+	}
+	// A given route the engine refused to send is the answer, after the
+	// configured pools have moved: the command did not do all it said.
+	given, givenErr := s.givenAction(name, peer, announce)
+
 	// Wildcard: dispatch to all peers with this pool.
 	if peer == "*" {
-		return s.handlePoolActionAll(name, announce, medOverride)
+		status, data, err := s.handlePoolActionAll(name, announce, medOverride)
+		if givenErr != nil {
+			return statusError, nil, givenErr
+		}
+		return status, data, err
 	}
 
-	return s.handlePoolActionSingle(name, peer, announce, medOverride)
+	status, data, err := s.handlePoolActionSingle(name, peer, announce, medOverride)
+	if givenErr != nil {
+		return statusError, nil, givenErr
+	}
+	if given > 0 && errors.Is(err, ErrWatchdogNotFound) {
+		return statusDone, watchdogPeerResult{Peer: peer, Watchdog: name, Count: given}, nil
+	}
+	return status, data, err
 }
 
 // handlePoolActionAll dispatches a watchdog action to all peers that have the named pool.
