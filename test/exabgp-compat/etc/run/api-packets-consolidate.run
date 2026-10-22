@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+
+from exabgp_packets import run
+
+# What ExaBGP 6.0 (685f772e) writes to this script on this case, with the
+# empty lines dropped and, in json, the members that change between runs.
+EXPECTED: dict[str, list[str]] = {
+    'text': [
+        'neighbor 127.0.0.1 receive open version 4 asn 1 hold_time 180 router_id 10.0.0.1 capabilities [multiprotocol(ipv4 unicast), extended message(65535), asn4(1)] header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01 body 0x04000100B40A00000110020E0104000100014104000000010600',
+        'neighbor 127.0.0.1 receive keepalive header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304',
+        'neighbor 127.0.0.1 receive update start',
+        'neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 192.0.2.1 origin igp local-preference 100',
+        ' header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102 body 0x0000001540010100400200400304C0000201400504000000642000000000',
+        'neighbor 127.0.0.1 receive update end',
+        'neighbor 127.0.0.1 receive notification code 6 subcode 2 data 0x53687574646F776E20436F6D6D756E69636174696F6E3A2022636C6F73696E672073657373696F6E20746F206A7564676520746865206C696E657322 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003803 body 0x060222636C6F73696E672073657373696F6E20746F206A7564676520746865206C696E6573',
+    ],
+    'json': [
+        '{"body":"0x04000100B40A00000110020E0104000100014104000000010600","exabgp":"6.0.0","header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"receive","open":{"asn":1,"capabilities":{"asn4":{"asn4":1,"code":65,"name":"asn4"},"extended-message":{"code":6,"name":"extended-message","size":65535},"multiprotocol":{"code":1,"families":["ipv4/unicast"],"name":"multiprotocol"}},"hold_time":180,"router_id":"10.0.0.1","version":4},"router-id":"1.2.3.4"},"type":"open"}',
+        '{"exabgp":"6.0.0","header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"receive","router-id":"1.2.3.4"},"type":"keepalive"}',
+        '{"body":"0x0000001540010100400200400304C0000201400504000000642000000000","exabgp":"6.0.0","header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"receive","message":{"update":{"announce":{"ipv4 unicast":{"192.0.2.1":[{"nlri":"0.0.0.0/32"}]}},"attribute":{"local-preference":100,"origin":"igp"}}},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"update"}',
+        '{"body":"0x060222636C6F73696E672073657373696F6E20746F206A7564676520746865206C696E6573","exabgp":"6.0.0","header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003803","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"receive","notification":{"code":6,"data":"0x22636C6F73696E672073657373696F6E20746F206A7564676520746865206C696E6573","message":"Shutdown Communication: \\"closing session to judge the lines\\"","subcode":2},"router-id":"1.2.3.4"},"type":"notification"}',
+    ],
+}
+
+if __name__ == '__main__':
+    run(EXPECTED, ('notification',))

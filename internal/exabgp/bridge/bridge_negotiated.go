@@ -21,12 +21,16 @@ const sessionStateDown = "down"
 // rendered with what an earlier event of the same session said.
 //
 // ExaBGP writes the session's negotiated block inside every UPDATE line, and
-// inside every `packets` line, of a process the neighbor grants `negotiated`
-// (src/exabgp/reactor/protocol.py, read_message: "negotiated =
-// self.negotiated if self.neighbor.api.get('negotiated', False) else None";
-// Response.JSON.update: "if negotiated: message.update(self._negotiated(...))").
-// Ze states the block once, in its own `negotiated` event, so the runner keeps
-// it per peer and hands it to each UPDATE of that peer.
+// inside every `packets` line. 5.0.1 writes it only for a process the neighbor
+// grants `negotiated` (src/exabgp/reactor/protocol.py, read_message:
+// "negotiated = self.negotiated if self.neighbor.api.get('negotiated', False)
+// else None"), and the 6.0 pin 685f772e for every process ("neg: Negotiated =
+// self.negotiated"; Response.JSON.packets: "if negotiated is not
+// Negotiated.UNSET: message.update(self._negotiated(negotiated))"), so a
+// runner gives an API 6 script ForAPI6 and an API 4 script the grant's answer
+// (WithoutNegotiated). Ze states the block once, in its own `negotiated`
+// event, so the runner keeps it per peer and hands it to each UPDATE of that
+// peer.
 //
 // The zero value is ready to use. Safe for concurrent use. An entry lives from
 // the peer's `negotiated` event to its `down`, so there is at most one per
@@ -69,7 +73,7 @@ func (s *Sessions) Note(e *Event) {
 	case msgTypeUpdate, msgTypeOpen, msgTypeNotification, msgTypeKeepalive, msgTypeRefresh:
 		// An UPDATE line carries the block, and so does the packet line of
 		// every message (Response.JSON.packets); the other parsed lines do not
-		// write it.
+		// write it. carriesNegotiated names the same kinds.
 		s.mu.Lock()
 		e.Negotiated = s.negotiated[e.Peer]
 		e.attrContext = s.contexts[e.Peer]
@@ -113,6 +117,41 @@ const APIKeyNegotiated = apiKeyNegotiated
 // its line then carries no block.
 func (e Event) WithoutNegotiated() Event {
 	e.Negotiated = nil
+	return e
+}
+
+// carriesNegotiated reports whether a line of the kind can carry the
+// negotiated block: the kinds Sessions.Note gives one.
+func carriesNegotiated(kind string) bool {
+	switch kind {
+	case msgTypeUpdate, msgTypeOpen, msgTypeNotification, msgTypeKeepalive, msgTypeRefresh:
+		return true
+	}
+	return false
+}
+
+// unsetNegotiated is the 6.0 pin's block for a session whose OPENs are not
+// exchanged yet, Negotiated.UNSET as Response.JSON._negotiated writes it: no
+// family, no hold time, and RFC 4271's 4096-octet message maximum
+// (src/exabgp/bgp/message/open/capability/negotiated.py). A fresh map on
+// every call, because a caller's line owns it.
+func unsetNegotiated() map[string]any {
+	return map[string]any{
+		"message_size": float64(4096), "hold_time": float64(0), "asn4": false,
+		"multisession": false, "operational": false, "refresh": "absent",
+		"families": []string{}, "nexthop": []string{},
+		"add_path": map[string]any{"send": []string{}, "receive": []string{}},
+	}
+}
+
+// ForAPI6 answers the event as the 6.0 pin hands it to every process: with
+// the session's negotiated block, and with the UNSET block on a line that
+// carries one while the runner holds no block for the session, such as the
+// packet line of an OPEN before the OPENs are exchanged.
+func (e Event) ForAPI6() Event {
+	if e.Negotiated == nil && carriesNegotiated(e.Kind) {
+		e.Negotiated = unsetNegotiated()
+	}
 	return e
 }
 

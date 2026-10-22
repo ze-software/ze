@@ -683,6 +683,9 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 	// This runner has no per-peer feed, so every script is granted
 	// `negotiated` and every UPDATE line carries the block.
 	b.sessions.Note(&read)
+	if b.api.Format() == FormatV6JSON {
+		read = read.ForAPI6()
+	}
 	line := read.Line(b.api.Format(), slog.Default())
 	if len(line) == 0 {
 		return

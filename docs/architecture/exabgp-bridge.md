@@ -679,15 +679,24 @@ and the three ported compatibility tests that name two processes
 ## The negotiated block rides on every UPDATE line
 
 ExaBGP writes the session's `negotiated` block inside the `neighbor` object of
-every UPDATE JSON line, for a process the neighbor grants `negotiated`
-(`src/exabgp/reactor/protocol.py`, `read_message`; `Response.JSON.update`). Ze
-states it once, in its own `negotiated` event, so each runner keeps it per peer
-in a `bridge.Sessions`, from that event to the peer's `down`, and hands it to
-every message of the peer: an UPDATE line and a packet line write it, the other
-decoded lines do not. The internal runner leaves it off the line of a script
-whose feed does not grant `negotiated`; the external runner has no per-peer feed,
-so every line carries it. The `negotiated` event writes the same block inside
-`neighbor` too.
+every UPDATE JSON line and every packet line. ExaBGP 5.0.1 writes it only for a
+process the neighbor grants `negotiated` (`src/exabgp/reactor/protocol.py`,
+`read_message`: "negotiated = self.negotiated if
+self.neighbor.api.get('negotiated', False) else None"). The 6.0 pin writes it
+for every process ("neg: Negotiated = self.negotiated"), and `Response.JSON.packets`
+writes it whenever it is not `Negotiated.UNSET`, so a packet line of an OPEN
+before the OPENs are exchanged carries the UNSET block: no family, hold time 0,
+message size 4096, `asn4` false, `refresh` absent.
+
+Ze states the block once, in its own `negotiated` event, so each runner keeps it
+per peer in a `bridge.Sessions`, from that event to the peer's `down`, and hands
+it to every message of the peer: an UPDATE line and a packet line write it, the
+other decoded lines do not. Which scripts get it follows the script's API
+version. An API 6 script gets it always, and the UNSET block where the runner
+holds none for the session yet (`Event.ForAPI6`). An API 4 script gets it only
+when its feed grants `negotiated`, as 5.0.1 decides. The external runner has no
+per-peer feed, so an API 4 script there gets it on every line. The `negotiated`
+event writes the same block inside `neighbor` too.
 
 The block is ExaBGP's: `message_size`, `hold_time`, `asn4`, `refresh`,
 `families` in AFI then SAFI order, `nexthop` (one `<afi> <safi> <next-hop afi>`
@@ -695,7 +704,7 @@ per RFC 8950 tuple) and `add_path` with both lists always written.
 `multisession` and `operational` are false on every ze session (M16, M15), so a
 4.2 or 5.0 line that said true is an ALLOWED difference in `TestOldResponses50`.
 
-<!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated -->
+<!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated, Event.ForAPI6, unsetNegotiated -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
 
 ## A message as its packet: `packets`, `consolidate`, `parsed`

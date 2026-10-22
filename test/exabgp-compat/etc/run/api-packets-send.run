@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+
+from exabgp_packets import encoder_of, run
+
+# What ExaBGP 6.0 (685f772e) writes to this script on this case, with the
+# empty lines dropped and, in json, the members that change between runs.
+EXPECTED: dict[str, list[str]] = {
+    'text': [
+        'neighbor 127.0.0.1 send 1 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01 body 0x04000100B40102030410020E0104000100014104000000010600',
+        'neighbor 127.0.0.1 send 4 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304',
+        'neighbor 127.0.0.1 send 2 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001702 body 0x00000000',
+        'neighbor 127.0.0.1 send 2 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002 body 0x00000015400101004002004003040101010140050400000064180A0003',
+        'neighbor 127.0.0.1 send 3 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503 body 0x0604',
+    ],
+    'json': [
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x04000100B40102030410020E0104000100014104000000010600","category":1,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":false,"families":[],"hold_time":0,"message_size":4096,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"open"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x","category":4,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"keepalive"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x00000000","category":2,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001702"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"update"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x00000015400101004002004003040101010140050400000064180A0003","category":2,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"update"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x0604","category":3,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"notification"}',
+    ],
+}
+
+# the text script drives the session and the json script only reads: two
+# drivers would send the teardown twice, and the second would close the
+# session the verdict travels on
+updates = 0
+driving = None
+
+
+def on_line(api, line: str) -> None:
+    global driving, updates
+    if driving is None:
+        driving = encoder_of(line) == 'text'
+    # a packet line names its message by type code, 2 for an UPDATE
+    if 'update' not in line and ' 2 header ' not in line:
+        return
+    updates += 1
+    if not driving:
+        return
+    # the End-of-RIB went first: now the route, so the two always come in this
+    # order, then a NOTIFICATION once the route was sent
+    if updates == 1:
+        api.send('announce route 10.0.3.0/24 next-hop 1.1.1.1')
+    if updates == 2:
+        api.send('neighbor 127.0.0.1 teardown 4')
+
+
+if __name__ == '__main__':
+    # a packet line alone names the NOTIFICATION by its type code, 3
+    run(EXPECTED, ('notification', ' 3 header '), on_line=on_line)

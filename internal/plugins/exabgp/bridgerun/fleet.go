@@ -193,19 +193,24 @@ func (f *Fleet) Broadcast(event string) {
 	f.sessions.Note(&read)
 	apiKey := read.APIKey()
 
-	// rendered[0] holds the lines with the session's negotiated block and
-	// rendered[1] those without, for a script the peer does not grant
-	// `negotiated` (bridge.Sessions). Each is cached per set of forms the
-	// scripts asked a message in (bridge.Forms).
-	var rendered [2][bridge.FormsCount][bridge.FormatCount][]byte
+	// rendered[0] holds the lines with the session's negotiated block,
+	// rendered[1] those without, for an API 4 script the peer does not grant
+	// `negotiated`, and rendered[2] an API 6 script's, which always carry a
+	// block (bridge.Sessions, Event.ForAPI6). Each is cached per set of forms
+	// the scripts asked a message in (bridge.Forms).
+	var rendered [3][bridge.FormsCount][bridge.FormatCount][]byte
 	bare := read.WithoutNegotiated()
+	api6 := read.ForAPI6()
 	for _, s := range f.scripts {
 		if !s.receives(read.Peer, apiKey) {
 			continue
 		}
 		forms := s.forms(read.Peer, read.Direction)
 		variant, cache := read, &rendered[0][forms]
-		if read.Negotiated != nil && !s.receives(read.Peer, bridge.APIKeyNegotiated) {
+		switch {
+		case s.api.Format() == bridge.FormatV6JSON:
+			variant, cache = api6, &rendered[2][forms]
+		case read.Negotiated != nil && !s.receives(read.Peer, bridge.APIKeyNegotiated):
 			variant, cache = bare, &rendered[1][forms]
 		}
 		line, ok := f.render(cache, s.api.Format(), forms, variant)

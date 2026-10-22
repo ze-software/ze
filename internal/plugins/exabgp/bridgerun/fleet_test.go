@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -756,15 +757,18 @@ func TestFleetAnswersStatusFromZesPeerList(t *testing.T) {
 	fleet.Stop()
 }
 
-// TestFleetPutsTheNegotiatedBlockOnlyWhereGranted checks that an UPDATE line
-// carries the session's negotiated block for a script the peer grants
-// `negotiated`, and none for a script it does not: ExaBGP hands such a process
-// None (src/exabgp/reactor/protocol.py, read_message).
+// TestFleetPutsTheNegotiatedBlockOnlyWhereGranted checks that, for an API 4
+// script, an UPDATE line carries the session's negotiated block when the peer
+// grants `negotiated`, and none when it does not: ExaBGP 5.0.1 hands such a
+// process None (src/exabgp/reactor/protocol.py, read_message).
 //
 // VALIDATES: bridge.Sessions through the internal runner, per script grant.
 // PREVENTS: the block missing from a 5.0 helper's UPDATE, or reaching a
 // process whose api block never asked for it.
 func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
+	t.Setenv("exabgp.api.version", "4")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	dir := t.TempDir()
 	grantedOut := filepath.Join(dir, "granted.events")
 	plainOut := filepath.Join(dir, "plain.events")
@@ -810,6 +814,78 @@ func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	}
 	if got := readFile(t, plainOut); strings.Contains(got, `"negotiated"`) {
 		t.Errorf("a script not granted negotiated received the block: %q", got)
+	}
+}
+
+// TestFleetGivesAnAPI6ScriptTheBlockAlways checks that an API 6 script gets
+// the negotiated block whether or not the peer grants `negotiated`, and the
+// UNSET block on a line before the session's negotiated event: the 6.0 pin
+// writes it for every process (protocol.py, "neg: Negotiated =
+// self.negotiated"; Response.JSON.packets, "if negotiated is not
+// Negotiated.UNSET").
+//
+// VALIDATES: Event.ForAPI6 through the internal runner.
+// PREVENTS: the 5.0 grant gate applied to a 6.0 helper.
+func TestFleetGivesAnAPI6ScriptTheBlockAlways(t *testing.T) {
+	t.Setenv("exabgp.api.version", "6")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	dir := t.TempDir()
+	out := filepath.Join(dir, "plain.events")
+	script := writeScript(t, dir, "plain.sh", "cat > "+out+"\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "plain", Argv: []string{script}, Encoder: bridge.EncoderJSON,
+			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update"}}}},
+	})
+	if err := fleet.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	peer := `"peer":{"remote":{"address":"127.0.0.1","as":65001}}`
+	update := `{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},` + peer +
+		`,"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
+	fleet.Broadcast(update)
+	waitFor(t, "the UPDATE before the session's negotiated event", func() bool {
+		return strings.Contains(readFile(t, out), "10.0.0.0/24")
+	})
+	unset := negotiatedOfUpdate(t, readFile(t, out))
+
+	fleet.Broadcast(`{"type":"bgp","bgp":{"message":{"type":"negotiated"},` + peer +
+		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv4/unicast"]}}}`)
+	fleet.Broadcast(strings.Replace(update, "10.0.0.0/24", "10.0.1.0/24", 1))
+	waitFor(t, "the UPDATE after it", func() bool {
+		return strings.Contains(readFile(t, out), "10.0.1.0/24")
+	})
+	cancel()
+	fleet.Stop()
+
+	wantUnset := map[string]any{
+		"add_path": map[string]any{"receive": []any{}, "send": []any{}},
+		"asn4":     false, "families": []any{},
+		"hold_time": float64(0), "message_size": float64(4096), "multisession": false,
+		"nexthop": []any{}, "operational": false, "refresh": "absent",
+	}
+	if !reflect.DeepEqual(unset, wantUnset) {
+		t.Errorf("the block before the OPENs:\n got %v\nwant %v", unset, wantUnset)
+	}
+	var session any
+	for line := range strings.SplitSeq(readFile(t, out), "\n") {
+		if !strings.Contains(line, "10.0.1.0/24") {
+			continue
+		}
+		var document map[string]any
+		if err := json.Unmarshal([]byte(line), &document); err != nil {
+			t.Fatalf("the UPDATE line does not parse: %v", err)
+		}
+		neighbor, _ := document["neighbor"].(map[string]any)
+		session = neighbor["negotiated"]
+	}
+	block, _ := session.(map[string]any)
+	if block["hold_time"] != float64(90) {
+		t.Errorf("an API 6 script not granted negotiated got no session block: %v", session)
 	}
 }
 
