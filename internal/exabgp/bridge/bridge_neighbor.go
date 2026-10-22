@@ -221,10 +221,12 @@ func convertTeardown(selector, rest string) (Translation, bool, error) {
 // 'backslashreplace')`: an ASCII character as it is, and any other character
 // as \xNN, \uNNNN or \UNNNNNNNN by its code point, lowercase hex.
 //
-// The pin reads a script's output as ASCII (processes.py, str(..., 'ascii')),
-// so its _wire_text never meets an octet that is not UTF-8. The bridge does:
-// such an octet is escaped \xNN under every other pair, and dropped from a
-// Shutdown Communication, as the pin's decode('utf-8', 'ignore') drops it.
+// The pin reads a script's output as UTF-8, an octet that is not UTF-8 read as
+// U+FFFD (2f909aa14, Processes._decoded), and so does the bridge
+// (scriptLineText), so text holds whole characters only: a U+FFFD is its
+// three UTF-8 octets in a Shutdown Communication and � under every other
+// pair, as the pin sends it. backslashReplace still escapes a raw octet \xNN
+// for a caller that hands it one.
 func teardownWireData(code, subcode uint8, text string) []byte {
 	var data []byte
 	// RFC 9003 Section 2.

@@ -38,6 +38,45 @@ func (r *writeReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// TestBridgeBatchReadsUTF8 verifies that a script's output is read as UTF-8,
+// as ExaBGP reads it since 2f909aa14.
+//
+// VALIDATES: a character cut across two reads is joined; an octet that is not
+// UTF-8 becomes U+FFFD, one per maximal subpart as Python's `replace` writes
+// it; the line holding it and the other lines of the read are all kept.
+// PREVENTS: a teardown text whose character straddles a read reaching ze as
+// two broken halves, or an invalid octet reaching update text or the RFC 9003
+// Shutdown Communication raw.
+func TestBridgeBatchReadsUTF8(t *testing.T) {
+	// "é" is C3 A9; the first read ends after C3.
+	reader := NewBatchReader(&writeReader{writes: []string{
+		"neighbor 10.0.0.1 teardown 2 caf\xc3", "\xa9\nannounce route 10.0.0.0/24 next-hop 1.2.3.4\n",
+	}})
+	first, err := reader.Next()
+	require.NoError(t, err)
+	assert.Empty(t, first, "a read that ends inside a character completes no line")
+	second, err := reader.Next()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"neighbor 10.0.0.1 teardown 2 café", "announce route 10.0.0.0/24 next-hop 1.2.3.4"}, second)
+
+	for _, tc := range []struct {
+		name, line, want string
+	}{
+		{"a lone invalid octet", "teardown 2 a\xffb", "teardown 2 a�b"},
+		{"two invalid octets", "a\xff\xfeb", "a��b"},
+		{"a truncated three octet sequence is one subpart", "a\xe2\x82b", "a�b"},
+		{"a surrogate lead is three subparts", "a\xed\xa0\x80b", "a���b"},
+		{"an overlong lead is one octet each", "a\xc0\xafb", "a��b"},
+		{"a truncated four octet sequence is one subpart", "a\xf0\x9f\x98b", "a�b"},
+		{"a lead octet ends the line", "a\xe2", "a�"},
+		{"valid text is kept", "café ☕", "café ☕"},
+	} {
+		got, err := NewBatchReader(&writeReader{writes: []string{tc.line + "\nnext\n"}}).Next()
+		require.NoError(t, err, tc.name)
+		assert.Equal(t, []string{tc.want, "next"}, got, tc.name)
+	}
+}
+
 // batchOf translates the lines of one batch, as both runners do before netting.
 func batchOf(t *testing.T, lines ...string) []BatchLine {
 	t.Helper()

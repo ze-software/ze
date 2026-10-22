@@ -95,16 +95,6 @@ keeps"). Four differences remain.
   the values reaches Ze as `update text`, which Ze refuses
   (`docs/architecture/wire/nlri-flowspec.md`, "Combinations that match no
   packet").
-- **A teardown text that is not ASCII.** ExaBGP 6.0 decodes a script's
-  stdout as ASCII (`buf = str(os.read(stdout.fileno(), 16384), 'ascii')`,
-  `src/exabgp/reactor/api/processes.py` line 810). A line holding any other
-  octet raises `UnicodeDecodeError`, a `ValueError`, which line 854 hands to
-  `_handle_problem`, so ExaBGP drops the process and no NOTIFICATION is sent.
-  The bridge reads the line as UTF-8 and sends a NOTIFICATION: under Cease 2
-  and 4 the text's UTF-8 octets, under every other pair the escaped octets
-  `encode('ascii', 'backslashreplace')` writes (`\xNN`, `\uNNNN`). The octets
-  are those ExaBGP would build if its reader let the text through; ExaBGP
-  itself never sends them.
 - **The warning goes to Ze's log.** A repeated attribute that is not a list
   keeps its first value, and a `split` shorter than the prefix sends the prefix
   whole. ExaBGP logs each; Ze logs `exabgp-bridge route line` with the dropped

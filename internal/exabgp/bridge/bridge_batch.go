@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // batchReadSize is the byte count one read of a script's pipe takes.
@@ -106,7 +107,7 @@ func (b *BatchReader) Next() ([]string, error) {
 		// The stream ended. A trailing line with no newline is still a command
 		// the script wrote, so it is answered before the EOF is.
 		if len(b.tail) > 0 && !b.dropping {
-			last := string(b.tail)
+			last := scriptLineText(b.tail)
 			b.tail = b.tail[:0]
 			return []string{last}, nil
 		}
@@ -135,7 +136,7 @@ func (b *BatchReader) cut(chunk []byte) []string {
 			// iteration and this newline is then already the one that ends it.
 			b.dropping = false
 		} else {
-			lines = append(lines, string(b.tail))
+			lines = append(lines, scriptLineText(b.tail))
 			b.tail = b.tail[:0]
 		}
 		chunk = chunk[nl+1:]
@@ -156,6 +157,88 @@ func (b *BatchReader) carry(part []byte) {
 		return
 	}
 	b.tail = append(b.tail, part...)
+}
+
+// scriptLineText is the text of one line a script wrote, read as UTF-8 as
+// ExaBGP reads it: "Each helper gets an incremental UTF-8 decoder, so a
+// character cut by a read is completed by the next, and an octet which is not
+// UTF-8 reads as U+FFFD rather than stopping the helper" (2f909aa14,
+// Processes._decoded, reactor/api/processes.py at f9bfb853b, which decodes with
+// `codecs.getincrementaldecoder('utf-8')('replace')`).
+//
+// A character cut by a read is completed already: the line is cut at a newline
+// octet, which no multi-octet UTF-8 character holds, so its octets are joined
+// in the tail before the line is decoded. An octet that is not UTF-8 becomes
+// U+FFFD, one for each maximal subpart of an ill-formed sequence, as Python's
+// `replace` handler writes it (Unicode Standard, Section 3.9, "U+FFFD
+// Substitution of Maximal Subparts"); Go's utf8 package substitutes one per
+// octet, which a truncated sequence would turn into two replacements.
+//
+// The line is otherwise kept, so the script is not stopped and the other
+// commands of its read still run.
+func scriptLineText(line []byte) string {
+	if utf8.Valid(line) {
+		return string(line)
+	}
+	var text strings.Builder
+	text.Grow(len(line) + 2*utf8.UTFMax)
+	// Bounded by len(line): each pass consumes at least one octet.
+	for len(line) > 0 {
+		character, width := utf8.DecodeRune(line)
+		if character == utf8.RuneError && width <= 1 {
+			width = maximalSubpart(line)
+		}
+		text.WriteRune(character)
+		line = line[width:]
+	}
+	return text.String()
+}
+
+// maximalSubpart answers the octet count of the ill-formed UTF-8 sequence that
+// starts line: the lead octet and the continuation octets that still match a
+// well-formed sequence (Unicode Standard, Table 3-7), at least one.
+func maximalSubpart(line []byte) int {
+	second, length := utf8SecondOctetRange(line[0])
+	if length == 0 {
+		return 1
+	}
+	if len(line) < 2 {
+		return 1
+	}
+	if line[1] < second[0] {
+		return 1
+	}
+	if line[1] > second[1] {
+		return 1
+	}
+	count := 2
+	for count < length && count < len(line) && line[count] >= 0x80 && line[count] <= 0xBF {
+		count++
+	}
+	return count
+}
+
+// utf8SecondOctetRange answers, for a lead octet, the range its second octet
+// takes in a well-formed sequence and the sequence's octet count, or a count
+// of zero for an octet that starts none (Unicode Standard, Table 3-7).
+func utf8SecondOctetRange(lead byte) ([2]byte, int) {
+	switch {
+	case lead >= 0xC2 && lead <= 0xDF:
+		return [2]byte{0x80, 0xBF}, 2
+	case lead == 0xE0:
+		return [2]byte{0xA0, 0xBF}, 3
+	case lead == 0xED:
+		return [2]byte{0x80, 0x9F}, 3
+	case lead >= 0xE1 && lead <= 0xEF:
+		return [2]byte{0x80, 0xBF}, 3
+	case lead == 0xF0:
+		return [2]byte{0x90, 0xBF}, 4
+	case lead >= 0xF1 && lead <= 0xF3:
+		return [2]byte{0x80, 0xBF}, 4
+	case lead == 0xF4:
+		return [2]byte{0x80, 0x8F}, 4
+	}
+	return [2]byte{}, 0
 }
 
 // BatchLine is one line a script wrote and what the translator made of it.
