@@ -362,11 +362,19 @@ func TestMigrateIPv6RouteIPv4NextHopIsMapped(t *testing.T) {
 		route DEAD:BEEF::1/128 next-hop 170.170.170.170
 		route DEAD:BEEF::2/128 next-hop BAD:CAFE::1
 		route DEAD:BEEF::3 next-hop 170.170.170.171
+		route DEAD:BEEF::4/128 rd 65000:1 label 100 next-hop 170.170.170.172
 		route 10.0.0.0/8 next-hop 192.0.2.1
 	}
 }
 `
 	output, _ := migrateText(t, input)
+
+	// A VPN route maps too: RFC 4659 Section 3.2.1.2, and ExaBGP's encoder
+	// (NLRICollection, collection.py at f9bfb853b) writes the zero RD and the
+	// mapped address, where 4.2 and 5.0 sent four octets.
+	if !strings.Contains(output, "next-hop ::ffff:170.170.170.172") {
+		t.Errorf("the IPv6 VPN route's IPv4 next hop is not written IPv4-mapped:\n%s", output)
+	}
 
 	if !strings.Contains(output, "next-hop ::ffff:170.170.170.170") {
 		t.Errorf("the IPv6 route's IPv4 next hop is not written IPv4-mapped:\n%s", output)

@@ -102,7 +102,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) error {
 						attrBlock.Set(field, v)
 					}
 				}
-				mapIPv6RouteIPv4NextHop(prefix, attrTree, attrBlock)
+				mapIPv6RouteIPv4NextHop(prefix, attrBlock)
 
 				update.SetContainer("attribute", attrBlock)
 
@@ -427,7 +427,7 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) error {
 			attrBlock.Set(field, v)
 		}
 	}
-	mapIPv6RouteIPv4NextHop(prefix, attrTree, attrBlock)
+	mapIPv6RouteIPv4NextHop(prefix, attrBlock)
 
 	// BGP Prefix-SID (RFC 8669) — inline-list parser stores bracketed values via Set().
 	if v, ok := attrTree.Get("bgp-prefix-sid"); ok {
@@ -501,21 +501,23 @@ func checkExtCommunityAttr(attrTree *config.Tree) error {
 	return bridge.CheckExtendedCommunityList(value)
 }
 
-// mapIPv6RouteIPv4NextHop rewrites the IPv4 next hop of an IPv6 route without
-// a route distinguisher as its IPv4-mapped IPv6 address, as ExaBGP 6.0 sends it
-// (685f772e4, qa/encoding/extended-nexthop.ci: `next-hop 170.170.170.170` on an
-// IPv6 route goes out as ::ffff:170.170.170.170). ze refuses a 4-octet next hop
-// for IPv6 NLRI, so without this the route would never be sent.
+// mapIPv6RouteIPv4NextHop rewrites the IPv4 next hop of an IPv6 route as its
+// IPv4-mapped IPv6 address, as ExaBGP sends it (qa/encoding/extended-nexthop.ci:
+// `next-hop 170.170.170.170` on an IPv6 route goes out as
+// ::ffff:170.170.170.170; NLRICollection, bgp/message/update/nlri/collection.py
+// at f9bfb853b, maps it on every IPv6 family whose next hop has no four octet
+// form, VPN included). ze refuses a 4-octet next hop for IPv6 NLRI, so without
+// this the route would never be sent; 4.2 and 5.0 sent the four octets, a
+// malformed UPDATE (qa/bin/test_old_configs MALFORMED at f9bfb853b).
 // RFC 2545 Section 3: the Length of Next Hop Network Address field "shall be
 // set to 16, when only a global address is present, or 32 if a link-local
 // address is also included in the Next Hop field". RFC 4798 Section 2: "The
 // IPv4 address of the egress 6PE router MUST be encoded as an IPv4-mapped IPv6
-// address in the BGP Next Hop field."
-// A VPN route (rd set) is left alone: RFC 4659 carries its own next-hop form.
-func mapIPv6RouteIPv4NextHop(prefix string, route, attrBlock *config.Tree) {
-	if _, hasRD := route.Get("rd"); hasRD {
-		return
-	}
+// address in the BGP Next Hop field." A VPN route (rd set) is mapped too, the
+// engine writing the zero RD before it: RFC 4659 Section 3.2.1.2, a VPN-IPv6
+// address "whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6
+// address [V6ADDR] containing the IPv4 address of the advertising BGP speaker".
+func mapIPv6RouteIPv4NextHop(prefix string, attrBlock *config.Tree) {
 	// ExaBGP takes a bare address as a host route (the upstream
 	// extended-nexthop.conf writes `route DEAD:BEEF:...:BEEF next-hop ...`),
 	// so only the address part decides the family.
