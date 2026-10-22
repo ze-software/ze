@@ -74,6 +74,11 @@ type ExitRunner interface {
 type OwnerLedger struct {
 	mu     sync.Mutex
 	routes map[ownedKey]ownedRoute
+	// givers are the scripts that gave a watchdog a route. The bgp-watchdog
+	// plugin holds those routes, so an exit asks it to forget them
+	// (watchdogForgetCommand) rather than withdrawing them from here. Bounded
+	// by the scripts the runner runs: an exit removes its script.
+	givers map[string]bool
 }
 
 // ownedKey is one route on the selector it was sent to.
@@ -93,7 +98,7 @@ type ownedRoute struct {
 // NewOwnerLedger answers an empty ledger. A runner holds one for every script
 // it runs, because ownership passes between scripts.
 func NewOwnerLedger() *OwnerLedger {
-	return &OwnerLedger{routes: make(map[ownedKey]ownedRoute)}
+	return &OwnerLedger{routes: make(map[ownedKey]ownedRoute), givers: make(map[string]bool)}
 }
 
 // Note records one command the runner dispatched for script on selector. An
@@ -110,6 +115,14 @@ func (l *OwnerLedger) Note(script, selector string, command Command) {
 
 	if command.Key.Withdraw {
 		delete(l.routes, key)
+		return
+	}
+	if command.Watchdog != "" {
+		// The route is the watchdog's now, held for script by the plugin, as
+		// ExaBGP's add_to_rib_watchdog records its owner (rib/outgoing.py at
+		// the pin): the exit asks the plugin, and this ledger forgets it.
+		delete(l.routes, key)
+		l.givers[script] = true
 		return
 	}
 	if command.Withdrawal == "" {
@@ -155,12 +168,24 @@ func (l *OwnerLedger) release(script string) []ownedRoute {
 	return owned
 }
 
+// releaseGiver forgets that script gave a watchdog a route, and answers
+// whether it had.
+func (l *OwnerLedger) releaseGiver(script string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	gave := l.givers[script]
+	delete(l.givers, script)
+	return gave
+}
+
 // Exited settles the routes of a script whose child has exited, as ExaBGP's
 // Processes._queue_exit does: the `on-exit` leaf, or the API version the
 // child was held to, decides whether they are withdrawn (exitPolicy), the
 // decision is logged with its reason, and a withdrawal sends each route the
 // script owns its own withdrawal command through runner, then flushes each
-// selector they addressed.
+// selector they addressed. A script that gave a watchdog a route has the
+// bgp-watchdog plugin withdraw and forget those first (watchdogForgetCommand).
 //
 // The caller MUST call it after the child's last batch is dispatched and
 // before another child of the script starts, with the version that child was
@@ -176,6 +201,15 @@ func (l *OwnerLedger) Exited(ctx context.Context, log *slog.Logger, script strin
 		return
 	}
 
+	// The routes the script gave a watchdog go first, as ExaBGP's
+	// withdraw_owner calls _forget_watchdog_owner before it withdraws the
+	// rest: the plugin withdraws those announced and forgets them all.
+	if l.releaseGiver(script) {
+		forget := watchdogForgetCommand(script)
+		if err := runner.Dispatch(ctx, forget); err != nil {
+			log.Warn("exabgp-bridge exit watchdog release failed", "script", script, "error", err, "cmd", forget)
+		}
+	}
 	var selectors []string
 	for _, route := range l.release(script) {
 		if err := runner.Dispatch(ctx, route.withdrawal); err != nil {

@@ -4,7 +4,7 @@
 // Overview: old_commands_test.go -- the judge these rows exempt commands from
 //
 // The rows of oldAllowed up to the marker are copied, reason and pattern, from
-// the ALLOWED table of the pin's qa/bin/test_old_commands (ExaBGP 685f772e):
+// the ALLOWED table of the pin's qa/bin/test_old_commands (ExaBGP f9bfb853b):
 // each is a change ExaBGP 6.0 made on purpose, so ExaBGP 6.0 compatibility is
 // the new behavior (M3). The Python pattern
 // `(?!.*\blabel\b)` has no RE2 form, so that row carries it as `unless`.
@@ -42,7 +42,7 @@ var oldAllowed = []oldAllowedRow{
 	oldAllow("4.2", `^announce route 2(2[4-9]|3\d)\.`, "",
 		"a prefix in 224.0.0.0/4 is announced as SAFI 2 multicast since 5.0; 4.2 sent it as unicast"),
 	oldAllow("4.2", `\bbgp-prefix-sid-srv6 \( (ipv6|vpn|l3vpn) `, "",
-		"4.2's SRv6 SID (`( ipv6|vpn|l3vpn <sid> )`) followed an early draft; 5.0 replaced it with RFC 9252's `( l3-service|l2-service ... )`, and refuses it as this tree does"),
+		"4.2's SRv6 SID (`( ipv6|vpn|l3vpn <sid> )`) followed an early draft, the SID straight after the reserved octet with no SRv6 SID Information Sub-TLV around it: an RFC 9252 receiver finds a malformed SRv6 Service TLV and treats the route as withdrawn (RFC 9252 7). 5.0 replaced it with `( l3-service|l2-service ... )`, and refuses it as this tree does"),
 	oldAllow("4.2", `^(announce|withdraw) attributes? .*\bsplit\b`, "",
 		"4.2 took `split` in `announce attribute(s)` and ignored it, sending each prefix whole; this tree announces the more specifics, as `announce route ... split` always did"),
 	oldAllow("4.2", `\bextended-community .*\bextended-community\b`, "",
@@ -78,18 +78,63 @@ var oldAllowed = []oldAllowedRow{
 		"a generic attribute of the unknown code 0x99 sent with the Optional bit clear, as a well-known attribute, and flags 0x60 or 0x70 setting the Partial bit too: RFC 4271 Section 4.3, \"For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.\" 4.2 and 5.0 sent it, this tree refuses it (textparse.CheckRawAttributeFlags)"),
 	oldAllow("4.2", `^(announce|withdraw) flow route .*\b(source|destination)(-ipv6)? [0-9A-Fa-f:]*:[0-9A-Fa-f:]*/\d+/0*[1-9]\d*\b`, "",
 		"an IPv6 flow prefix with a non-zero offset: 4.2 wrote the whole 16-octet address as its pattern (`source ::1/128/120` went out as 02 80 78 and 16 octets), which no decoder reads back; RFC 8956 Section 3.1, \"The encoded pattern contains enough octets for the bits used in matching (length minus offset bits).\" 5.0 and this tree send the one octet"),
-	oldAllow("5.0", `^(announce|withdraw) ipv[46] mup mup-t1st `, `\bsource\b`,
-		"a Type 1 ST route with no source: draft-ietf-bess-mup-safi Section 3.1.3.1, \"The Source Address Length has a fixed length of 1 octet.  Source Address Length is 0 bytes then the Source address is not carried within the NLRI.\" 5.0 (the -02 encoding) left the octet out, which ze reads as the mandatory fields exceeding the declared Length (Treat-as-withdraw); ze sends the octet as 0, as the pin does (\"the Source Address Length is always sent, 0 when there is no source\", bgp/message/update/nlri/mup/t1st.py at 685f772e)"),
 	oldAllow("4.2 5.0", `\bas-path \[[^\]]*(\] *)?\(`, "",
 		"an AS_PATH carrying an AS_SET, written `( ... )`: RFC 9774 Section 3, BGP speakers \"MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs\". 4.2 and 5.0 sent the set, this tree refuses the line"),
 	oldAllow("4.2 5.0", `^announce operational `, "",
 		"an OPERATIONAL message (draft-ietf-idr-operational-message): 5.0 sent it, Ze does not support OPERATIONAL and the bridge refuses the line with its reason (owner decision M15, ai/META-DECISIONS.md)"),
 }
 
+// oldMalformed is the MALFORMED table of the pin's qa/bin/test_old_commands
+// (ExaBGP f9bfb853b), reason and pattern as written there: each names a
+// command the release answered with an UPDATE no peer should accept, so the
+// recording is wrong and is not compared. A recording no peer can decode that
+// no row here explains is a failure, not a skip (check, test_old_commands).
+var oldMalformed = []oldAllowedRow{
+	oldAllow("4.2 5.0", `^announce (route|ipv6 \S+) [0-9a-fA-F]*:[0-9a-fA-F:.]*/\d+ .*\bnext-hop self\b`, "",
+		"an IPv6 route with `next-hop self` on an IPv4 session: the release sent the four octet local address as the next hop of an AFI 2 MP_REACH_NLRI, which RFC 2545 3 does not allow and on which RFC 7606 7.11 resets the session; this tree answers the helper an error"),
+	oldAllow("5.0", `^announce ipv6 \S+ [0-9a-fA-F:]+/\d+ .*\bnext-hop \d+\.\d+\.\d+\.\d+`, "",
+		"an IPv6 route given an IPv4 next hop: 5.0 sent its four octets in an AFI 2 MP_REACH_NLRI (RFC 2545 3, RFC 7606 7.11); this tree sends it IPv4-mapped, ::ffff:a.b.c.d"),
+	oldAllow("4.2 5.0", `^announce route \d+\.\d+\.\d+\.\d+/\d+ .*\bnext-hop [0-9a-fA-F]*:[0-9a-fA-F:]*`, "",
+		"an IPv4 route given an IPv6 next hop: the release sent it with no extended next hop capability, without which RFC 8950 gives it no encoding"),
+	oldAllow("4.2", `^(announce|withdraw) flow route .*\b(source|destination) [0-9a-fA-F]*:[0-9a-fA-F:]*/\d+/[1-9]`, "",
+		"an IPv6 flow prefix with an offset: 4.2 sent all sixteen octets of the address, where RFC 8956 3.1 has only those of the bits from the offset to the length; 5.0 and this tree send those"),
+}
+
+// oldMalformedRecorded is ze's own MALFORMED row, matched on the recorded
+// UPDATE in hex rather than on the command: a recording ze reads as malformed
+// that the pin's decoder reads as an UPDATE with no route, so the pin counts
+// the command NOTHING_SENT and names no row for it.
+var oldMalformedRecorded = []oldAllowedRow{
+	oldAllow("4.2 5.0", `(?i)(800e06000[12]8[56]000000|800f04000[12]8[56]00)$`, "",
+		"a flow route with no component: the release sent a FlowSpec NLRI of length 0 in MP_REACH_NLRI or MP_UNREACH_NLRI. RFC 8955 Section 4.2: \"Encoding: <[component]+>\" and \"An NLRI value not encoded as specified here, including an NLRI that contains an unknown component type, is considered malformed and error handling according to Section 10 is performed.\" The pin's decoder reads it as no route"),
+}
+
+// oldRecordingMalformed reports whether ze's own row names a recorded
+// message of the command as malformed.
+func oldRecordingMalformed(release string, messages []string) bool {
+	for _, message := range messages {
+		if oldRowsMatch(oldMalformedRecorded, release, message) {
+			return true
+		}
+	}
+	return false
+}
+
 // oldCommandAllowed reports whether a row exempts the command for the release.
 func oldCommandAllowed(release, command string) bool {
-	for i := range oldAllowed {
-		row := &oldAllowed[i]
+	return oldRowsMatch(oldAllowed, release, command)
+}
+
+// oldCommandMalformed reports whether a MALFORMED row names the command's
+// recording for the release as malformed.
+func oldCommandMalformed(release, command string) bool {
+	return oldRowsMatch(oldMalformed, release, command)
+}
+
+// oldRowsMatch reports whether a row of rows holds for the command.
+func oldRowsMatch(rows []oldAllowedRow, release, command string) bool {
+	for i := range rows {
+		row := &rows[i]
 		if !slices.Contains(strings.Fields(row.releases), release) {
 			continue
 		}

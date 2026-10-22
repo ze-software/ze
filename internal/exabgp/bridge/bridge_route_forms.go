@@ -156,6 +156,13 @@ func convertAttributesForm(selector, rest, verb string) ([]Command, bool, error)
 	// naming them all. Whether they share an UPDATE on the wire is the
 	// destination peer's `behavior { group-updates }` leaf, not the bridge's.
 	family := familyForAttributes(attrs, prefixes[0])
+	// The family is known only once the attributes are read, and it decides
+	// how an IPv4 next hop is sent on an IPv6 route (familyNextHop), so the
+	// attributes are read again under it.
+	attrs, err = parseFamilyRouteAttributes(family, body[:cut])
+	if err != nil {
+		return nil, true, err
+	}
 	prefixes, err = defaultPrefixLengths(family, prefixes)
 	if err != nil {
 		return nil, true, err

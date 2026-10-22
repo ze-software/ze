@@ -680,12 +680,12 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 		slog.Debug("zebgp->plugin: event carries no BGP message", "event", truncate(eventStr, 100))
 		return
 	}
-	// This runner has no per-peer feed, so every script is granted
-	// `negotiated` and every UPDATE line carries the block.
+	// This runner has no per-peer feed: its one script is written every event
+	// of every peer, the `negotiated` event among them (sendDeclarations), so
+	// every peer grants it `negotiated` and every message line carries the
+	// block, whatever the script's API version (Event.ForGrant).
 	b.sessions.Note(&read)
-	if b.api.Format() == FormatV6JSON {
-		read = read.ForAPI6()
-	}
+	read = read.ForGrant(true)
 	line := read.Line(b.api.Format(), slog.Default())
 	if len(line) == 0 {
 		return

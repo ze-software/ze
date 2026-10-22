@@ -106,8 +106,8 @@ type Event struct {
 	// `query`, `begin` or `end`, and empty for every other kind.
 	RefreshSubtype string
 	// Negotiated is the session's `negotiated` block in ExaBGP's JSON form,
-	// which ExaBGP writes inside every UPDATE line of a session whose process
-	// is granted `negotiated`. ReadEvent leaves it nil: only the runner holds
+	// which ExaBGP writes inside every message line of a session whose process
+	// is granted `negotiated` (Event.ForGrant). ReadEvent leaves it nil: only the runner holds
 	// the session, so Sessions.Note sets it (bridge_negotiated.go).
 	Negotiated map[string]any
 	// Packet is the message's bytes, which a `full` event carries beside the

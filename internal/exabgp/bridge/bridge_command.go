@@ -126,6 +126,14 @@ type Command struct {
 	// route commands written for that selector earlier in the batch and keeps
 	// every command written after it after it (bridge_batch.go).
 	WithdrawsAdjRIBOut bool
+	// Watchdog is the watchdog an announce gives its route to, or empty. The
+	// route is then the watchdog's: the runner hands Text and Withdrawal to the
+	// bgp-watchdog plugin with the script that gave it (watchdogGiveCommand),
+	// which sends Text now or, with Held, at `announce watchdog <name>`.
+	Watchdog string
+	// Held says the route given to Watchdog starts withdrawn (ExaBGP's
+	// `withdraw` flag). It means nothing without Watchdog.
+	Held bool
 }
 
 // RouteKey names the routes one command carries.
@@ -421,7 +429,7 @@ func (t Translator) Line(line string) (Translation, error) {
 	// resolved, so a `\n` a script wrote ends a word as a newline would.
 	// ExaBGP resolves them only on the lines its configuration lexer reads
 	// (route, flow, vpls and attribute commands: lex_command and read_command,
-	// configuration/grammar/lexer.py at 685f772e; Tokeniser.set_api in 4.2 and
+	// configuration/grammar/lexer.py at f9bfb853b; Tokeniser.set_api in 4.2 and
 	// 5.0). Its neighbor control, refresh and operational lines read the raw
 	// text, so the converters above see the backslashes as written.
 	resolved, err := resolveLineEscapes(rest)
@@ -659,6 +667,10 @@ func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlr
 		command := write(tokens, verb)
 		if verb == nlriAdd {
 			command.Withdrawal = write(tokens, nlriDel).Text
+			// A withdrawal ignores the watchdog it names, as ExaBGP's
+			// withdraw_route does: only an announce is given to one.
+			command.Watchdog = attrs.Watchdog
+			command.Held = attrs.Held
 		}
 		return command
 	}
@@ -805,7 +817,7 @@ func familyOfRoute(routeStr string) string {
 // ExaBGP reads it off the address, IP.tosafi: "if int(ip.split('.')[0]) in
 // IP._multicast_range: return SAFI.multicast", the range being 224 to 239, and
 // for an IPv4-mapped IPv6 address the same test on its IPv4 part
-// (protocol/ip/address.py at 685f772e; 5.0.1 tested IPv4 alone). 5.0 sent
+// (protocol/ip/address.py at f9bfb853b; 5.0.1 tested IPv4 alone). 5.0 sent
 // `announce route 239.1.1.0/24 next-hop self` as SAFI 2 (qa/old/commands-5.0.json),
 // 4.2 as unicast (the pin's ALLOWED table). A prefix that does not parse is
 // answered unicast, and ze's parser then refuses it by name.

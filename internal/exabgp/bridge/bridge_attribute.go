@@ -64,9 +64,10 @@ type bridgeRouteAttr struct {
 	// Arity is how many tokens follow the keyword.
 	Arity bridgeAttrArity
 	// WireSilent marks an attribute that changes nothing a peer receives, so
-	// consuming it and writing nothing is the whole translation. `name` labels
-	// the route for ExaBGP's own `show` output, and `watchdog` on an API route
-	// is held by no group (bridgeWatchdogWarning).
+	// consuming it and writing nothing into update text is the whole
+	// translation. `name` labels the route for ExaBGP's own `show` output, and
+	// `watchdog` names the group the route is given to, which the bridge
+	// carries out as routeAttributes.Watchdog rather than as a keyword.
 	WireSilent bool
 	// EmptyAtEnd marks an attribute ExaBGP reads with the empty word when the
 	// line ends at its keyword: the pin's Words.take answers the empty token at
@@ -116,7 +117,7 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 
 	// ExaBGP's generic `attribute [ 0x<code> 0x<flag> 0x<data> ]`, one
 	// attribute given as its wire octets (HexAttribute,
-	// configuration/grammar/types/bgp.py at 685f772e), which ze's update text
+	// configuration/grammar/types/bgp.py at f9bfb853b), which ze's update text
 	// reads under the same name and spelling. Its code is in the value, so it
 	// is keyed by that code rather than by keyword (genericAsKeyword).
 	bridgeAttrGeneric: {Ze: bridgeAttrGeneric, Arity: arityList},
@@ -130,7 +131,7 @@ const bridgeAttrGeneric = "attribute"
 // ExaBGP's generic `attribute`. A typed keyword given twice is left to the
 // per-keyword rules. ExaBGP's API keeps the first of two attributes of one code
 // when either is generic (add_attribute, "attribute.GENERIC or
-// existing.GENERIC", configuration/grammar/tree/static.py at 685f772e).
+// existing.GENERIC", configuration/grammar/tree/static.py at f9bfb853b).
 func genericRepeat(generic bool, holder string) bool {
 	if generic {
 		return true
@@ -187,6 +188,17 @@ type routeAttributes struct {
 	// X-27); a configuration file refuses them, which is not the bridge's to
 	// judge. warnRouteLine logs them.
 	Warnings []string
+	// Watchdog is the watchdog the line gives its route to, or empty when it
+	// names none. An announce under a watchdog is the watchdog's, as a
+	// configured route is (c43f90f79, add_to_rib_watchdog from announce_route
+	// at the pin), so the runner hands it to the bgp-watchdog plugin
+	// (watchdogGiveCommand) rather than to the peers.
+	Watchdog string
+	// Held is ExaBGP's `withdraw` flag (INTERNAL_WITHDRAW): a route given to a
+	// watchdog starts withdrawn, and waits for `announce watchdog <name>`. A
+	// route under no watchdog is announced whatever the flag says
+	// (add_to_rib_watchdog reads it only beside a watchdog).
+	Held bool
 	// written records each ze keyword the line carried, so a caller can ask
 	// what was present without re-reading the token stream it produced.
 	written map[string]bool
@@ -223,21 +235,12 @@ func (a routeAttributes) nextHopKeyword() string { return bridgeRouteAttrs[bridg
 // rather than the ExaBGP one, so `rd` answers for `route-distinguisher` too.
 func (a routeAttributes) Has(zeKeyword string) bool { return a.written[zeKeyword] }
 
-// bridgeWatchdogWarning is logged for an API route line that names a watchdog.
-//
-// ExaBGP holds a route under a watchdog only when the route comes from the
-// configuration: the neighbor's routes go through add_to_rib_watchdog
-// (configuration/neighbor/__init__.py in 5.0.1, configuration/grammar/install.py
-// at the 6.0 pin), while an API route goes through add_to_rib (inject_change,
-// configuration/configuration.py in 5.0.1; announce_route at the pin), which
-// never reads the watchdog. So 4.2, 5.0 and 6.0 send such a route at once, and
-// `announce watchdog <name>` and `withdraw watchdog <name>` never move it
-// (qa/old/commands-5.0.json records the UPDATE for each such line). The bridge
-// does the same, and says so, because the operator who wrote the name may
-// expect the route to wait for its group.
-const bridgeWatchdogWarning = "a watchdog on an API route holds nothing, so the route is sent now, as ExaBGP sends it. " +
-	"Only a route from the configuration waits for announce watchdog <name>: " +
-	"to hold this route, configure it in the neighbor with watchdog <name>"
+// bridgeWatchdogUnnamed is logged for a route line that ends at `watchdog`.
+// ExaBGP reads the empty word as the name (EmptyAtEnd), and no `announce
+// watchdog <name>` can name the empty watchdog, so the route is given to none
+// and sent now. The operator most likely left the name out.
+const bridgeWatchdogUnnamed = "the line names watchdog with no name, so the route is given to no watchdog and sent now: " +
+	"write watchdog <name> to have the route wait for announce watchdog <name>"
 
 // parseRouteAttributes reads the attribute tail of one ExaBGP route line: every
 // token after the NLRI that the line begins with.
@@ -258,15 +261,14 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 	for i := 0; i < len(parts); {
 		key := strings.ToLower(parts[i])
 
-		// ExaBGP's `withdraw` flag changes nothing an API route sends. It is the
-		// INTERNAL_WITHDRAW attribute, which only the configuration's watchdog
-		// pool reads (add_to_rib_watchdog, rib/outgoing.py in 4.2.25, 5.0.1 and
-		// the 6.0 pin). An API route reaches the RIB through add_to_rib, never
-		// add_to_rib_watchdog, whether or not it names a watchdog (inject_change,
-		// configuration/configuration.py in 5.0.1; line 146 at the pin), and
-		// pack skips internal attributes, so 4.2 and 5.0 ANNOUNCE every
-		// `announce ... withdraw` line (qa/old/commands-*.json).
+		// ExaBGP's `withdraw` flag is the INTERNAL_WITHDRAW attribute, which
+		// add_to_rib_watchdog reads beside a watchdog alone (rib/outgoing.py at
+		// the pin): an API route reaches it since c43f90f79, so a route given to
+		// a watchdog with the flag starts withdrawn, and one under no watchdog is
+		// announced. pack skips internal attributes, so the flag never reaches
+		// the wire.
 		if key == withdrawVerb {
+			out.Held = true
 			i++
 			continue
 		}
@@ -277,8 +279,8 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 				ErrLineNotTranslated, parts[i], textbuf.Join(bridgeAttrNames(), ", "))
 		}
 
-		if key == bridgeAttrWatchdog {
-			out.Warnings = append(out.Warnings, bridgeWatchdogWarning)
+		if key == bridgeAttrWatchdog && i+1 == len(parts) {
+			out.Warnings = append(out.Warnings, bridgeWatchdogUnnamed)
 		}
 		if attr.EmptyAtEnd && i+1 == len(parts) {
 			break
@@ -290,9 +292,17 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 		}
 		i = next
 		if attr.Ze == out.nextHopKeyword() {
-			value = mupNextHop(family, value)
+			value = familyNextHop(family, value)
 		}
 
+		// `watchdog <name>` gives the route to a group rather than adding an
+		// attribute, so it is carried out to the runner, which knows the script
+		// that gives it (watchdogGiveCommand). The last one written wins, as a
+		// repeated attribute keyword does in ExaBGP's collection.
+		if key == bridgeAttrWatchdog {
+			out.Watchdog = value
+			continue
+		}
 		// `split /<n>` cuts the NLRI rather than adding an attribute, so it is
 		// carried out to the caller that owns the prefix.
 		if key == "split" {
@@ -369,7 +379,7 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 
 		// A community list given again is merged into the first: ExaBGP
 		// merges "a list one given twice" for an API command as for a file
-		// (add_attribute, configuration/grammar/tree/static.py at 685f772e).
+		// (add_attribute, configuration/grammar/tree/static.py at f9bfb853b).
 		if at, listed := out.valueAt[attr.Ze]; listed && bridgeListAttrs[attr.Ze] {
 			out.Tokens[at] = mergedListValue(out.Tokens[at], value)
 			continue
@@ -378,7 +388,7 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 		// replaces the first: each is a field of the NLRI, which ExaBGP sets
 		// as it reads it (Collected.apply, `self.settings.set(spec.field,
 		// value)` for Target.NLRI, configuration/grammar/tree/static.py at
-		// 685f772e), so the last one read is the route's.
+		// f9bfb853b), so the last one read is the route's.
 		if at, field := out.valueAt[attr.Ze]; field && bridgeNLRIFields[attr.Ze] {
 			out.Tokens[at] = value
 			continue
@@ -415,21 +425,47 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 // first on a route of the family. ExaBGP reads a mup and an mcast-vpn route
 // through SelectLine, whose _apply sets the next hop each time it reads one
 // (`route = route.with_nexthop(ip)`, configuration/grammar/tree/select.py at
-// 685f772e), as 5.0's mup and mvpn_route did (`change.nlri.nexthop =
+// f9bfb853b), as 5.0's mup and mvpn_route did (`change.nlri.nexthop =
 // nexthop`); every other family keeps the first (static.first_next_hop). These
 // two are the families whose NLRI is a field list, bridgePluginNLRIFamily.
 func bridgeNextHopLastFamily(family string) bool {
 	return bridgePluginNLRIFamily(family)
 }
 
-// mupNextHop answers the next-hop of a route of the family as ExaBGP sends it:
-// an IPv4 address on an IPv6 mup route is mapped into IPv6, `::ffff:<ipv4>`
-// (MupNextHop, "an IPv4 address is mapped into IPv6 for an IPv6 route",
-// configuration/grammar/tree/select.py at 685f772e; 5.0 sent `next-hop
-// 1.2.3.4` on `announce ipv6 mup` as ::ffff:1.2.3.4, qa/old/commands-5.0.json).
-// Every other value, `self` included, is answered as written.
-func mupNextHop(family, value string) string {
-	if family != bridgeAFIv6+"/"+bridgeMUPSAFI {
+// bridgeMappedNextHopFamilies are the IPv6 families on which ExaBGP sends an
+// IPv4 next hop IPv4-mapped, `::ffff:<ipv4>`, in 16 octets: the AFI 2 rows of
+// Family.size whose next-hop lengths hold no 4 (protocol/family.py at
+// f9bfb853b), which the encoder maps ("an IPv6 family without a four octet
+// next hop of its own carries an IPv4 one as an IPv4-mapped IPv6 address",
+// NLRICollection, bgp/message/update/nlri/collection.py at f9bfb853b), and mup,
+// whose grammar maps it before the encoder sees it (MupNextHop, "an IPv4
+// address is mapped into IPv6 for an IPv6 route", configuration/grammar/tree/
+// select.py at f9bfb853b). The AFI 2 families that keep four octets are
+// mcast-vpn and sr-policy, whose next hop is either family by its length.
+//
+// RFC 2545 Section 3 gives an IPv6 next hop no four octet form: "the global
+// IPv6 address of the next hop, potentially followed by the link-local IPv6
+// address of the next hop". 5.0 sent the four octets, which a peer resets the
+// session on (RFC 7606 Section 7.11), so this is a change a 5.0 script meets.
+var bridgeMappedNextHopFamilies = map[string]bool{
+	bridgeAFIv6 + "/" + bridgeUnicastSAFI:   true,
+	bridgeAFIv6 + "/" + bridgeMulticastSAFI: true,
+	bridgeAFIv6 + "/" + zeLabeledSAFI:       true,
+	bridgeAFIv6 + "/" + bridgeVPNSAFI:       true,
+	bridgeAFIv6 + "/" + bridgeFlowSAFI:      true,
+	bridgeAFIv6 + "/" + bridgeFlowVPNSAFI:   true,
+	bridgeAFIv6 + "/" + bridgeMUPSAFI:       true,
+}
+
+// familyNextHop answers the next-hop of a route of the family as ExaBGP sends
+// it: an IPv4 address on a bridgeMappedNextHopFamilies route is mapped into
+// IPv6. Every other value, `self` included, is answered as written: `self`
+// resolves against the session, and the engine refuses an IPv4 session's
+// address for an IPv6 route (resolveNextHop), as ExaBGP answers the script
+// "the route (ipv6) does not have the same family as the BGP tcp session"
+// (Session.ip_self, bgp/neighbor/session.py at f9bfb853b).
+func familyNextHop(family, value string) string {
+	if !bridgeMappedNextHopFamilies[family] {
 		return value
 	}
 	address, err := netip.ParseAddr(value)
@@ -444,7 +480,7 @@ func mupNextHop(family, value string) string {
 
 // bridgeListAttrs are the attributes ExaBGP merges when a line gives one
 // twice, its LIST_ATTRIBUTES (configuration/grammar/tree/static.py at
-// 685f772e). 5.0 merged the extended communities alone (Attributes.add), and
+// f9bfb853b). 5.0 merged the extended communities alone (Attributes.add), and
 // 4.2 none; the pin's merge is what a 4.2 or 5.0 script meets on upgrade.
 var bridgeListAttrs = map[string]bool{
 	bridgeAttrCommunity:      true,
@@ -454,7 +490,7 @@ var bridgeListAttrs = map[string]bool{
 
 // bridgeNLRIFields are the ze keywords of the values ExaBGP writes into the
 // NLRI rather than into an attribute: RouteValue with Target.NLRI
-// (configuration/grammar/tree/static.py at 685f772e).
+// (configuration/grammar/tree/static.py at f9bfb853b).
 var bridgeNLRIFields = map[string]bool{
 	bridgeAttrLabel:           true,
 	"rd":                      true,
@@ -639,7 +675,7 @@ func attrValueName(key string) string {
 //
 // ExaBGP reads an AGGREGATOR "in brackets or not: `( 65000:10.0.0.1 )`,
 // `(65000:10.0.0.1)`" (AggregatorType.parse, configuration/grammar/types/bgp.py
-// at 685f772e), and refuses anything but one word, bare or bracketed. ze's
+// at f9bfb853b), and refuses anything but one word, bare or bracketed. ze's
 // update text reads the bare word. A group of several words would otherwise
 // become extra ze tokens past the repeated-attribute check, so it is refused.
 func aggregatorValue(written string) (string, error) {

@@ -149,6 +149,11 @@ func (s ScriptLines) dispatch(ctx context.Context, r LineRunner, batch []BatchLi
 			continue
 		}
 		head, mergeable := mergeHead(dispatch.Command)
+		// A route given to a watchdog is one command to bgp-watchdog, never
+		// part of a merged UPDATE.
+		if dispatch.Command.Watchdog != "" {
+			mergeable = false
+		}
 		if grouped && mergeable {
 			if set, ok := heads[head]; ok {
 				set.parts = append(set.parts, dispatch)
@@ -162,8 +167,11 @@ func (s ScriptLines) dispatch(ctx context.Context, r LineRunner, batch []BatchLi
 		}
 	}
 	for _, set := range sets {
-		text := set.text()
-		if err := r.Dispatch(ctx, text); err != nil {
+		text, err := s.setText(batch, set)
+		if err == nil {
+			err = r.Dispatch(ctx, text)
+		}
+		if err != nil {
 			s.Log.Warn("exabgp-bridge dispatch failed", "script", s.Name, "error", err, "cmd", text)
 			for _, part := range set.parts {
 				answers[part.Line] = BatchAnswer{Failed: true, Error: err.Error()}
@@ -190,6 +198,17 @@ func (s ScriptLines) dispatch(ctx context.Context, r LineRunner, batch []BatchLi
 		s.Log.Warn("exabgp-bridge flush failed", "script", s.Name, "error", err, "selector", selector)
 		failSelectorLines(batch, netted, answers, selector, err)
 	}
+}
+
+// setText is the command ze is handed for one set: the set's own text, or,
+// for a route given to a watchdog, the bgp-watchdog command that gives it,
+// naming this script as its owner (watchdogGiveCommand).
+func (s ScriptLines) setText(batch []BatchLine, set *dispatchSet) (string, error) {
+	part := set.parts[0]
+	if part.Command.Watchdog == "" {
+		return set.text(), nil
+	}
+	return watchdogGiveCommand(s.Name, batch[part.Line].Translation.Selector, part.Command)
 }
 
 // failSelectorLines records err against every route line of the run that

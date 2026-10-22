@@ -79,7 +79,7 @@ every other word goes to the attribute parser. All five are required: a line
 missing one is refused by name, never sent with a zero in its place. A trailing
 `withdraw` flag on an announce is read and dropped, and the route is announced,
 as it is for every family: in ExaBGP the flag is the internal INTERNAL_WITHDRAW
-attribute, which only a configured watchdog reads and which is never packed, so
+attribute, which only a watchdog reads and which is never packed, so
 4.2 and 5.0 announce every `announce ... withdraw` line an API script writes.
 
 <!-- source: internal/exabgp/bridge/bridge_vpls.go -- convertVPLSRoute -->
@@ -574,7 +574,13 @@ therefore puts the frames of ONE netted set on the wire, not four.
 
 The bridge is the same unit for ze. Its reader takes the complete lines of one
 read, carries any partial line into the next batch, and hands the batch to a
-dispatcher. Five rules then decide what leaves.
+dispatcher. A line is read as UTF-8, as ExaBGP reads a helper's output since
+2f909aa14: a character cut by a read is joined with the rest of its line, and
+an octet that is not UTF-8 becomes U+FFFD, one for each maximal subpart as
+Python's `replace` writes it (`scriptLineText`). The script is not stopped and
+the line and the rest of its read are kept, so a teardown text that is not
+ASCII is sent as its RFC 9003 Shutdown Communication. Five rules then decide
+what leaves.
 
 Each row states what the batch DISPATCHES. What a dispatched withdrawal then
 puts on the wire is the reactor's answer, not the netting's: a session that has
@@ -717,27 +723,29 @@ That is the silently-wrong answer `ai/rules/principles.md` exists to prevent,
 and the three ported compatibility tests that name two processes
 (`api-no-respawn`, `api-multiple-api`, `api-api`) are what measured it.
 
-## The negotiated block rides on every UPDATE line
+## The negotiated block rides on a granted script's message lines
 
 ExaBGP writes the session's `negotiated` block inside the `neighbor` object of
-every UPDATE JSON line and every packet line. ExaBGP 5.0.1 writes it only for a
-process the neighbor grants `negotiated` (`src/exabgp/reactor/protocol.py`,
-`read_message`: "negotiated = self.negotiated if
-self.neighbor.api.get('negotiated', False) else None"). The 6.0 pin writes it
-for every process ("neg: Negotiated = self.negotiated"), and `Response.JSON.packets`
-writes it whenever it is not `Negotiated.UNSET`, so a packet line of an OPEN
-before the OPENs are exchanged carries the UNSET block: no family, hold time 0,
-message size 4096, `asn4` false, `refresh` absent.
+a message line (decoded, packet or consolidated, sent and received) only for a
+process the neighbor grants `negotiated`, whatever the API version. ExaBGP
+5.0.1 decided so (`src/exabgp/reactor/protocol.py`, `read_message`:
+"negotiated = self.negotiated if self.neighbor.api.get('negotiated', False)
+else None"), and the pin f9bfb853b decides so again (`Protocol._api_negotiated`:
+"return self.negotiated if self._api.get('negotiated', False) else
+Negotiated.UNSET", which `Response.JSON` writes as no block). A granted process
+is handed the Protocol's own session even before the OPENs are exchanged, so
+the packet line of an OPEN then carries the empty session: no family, hold time
+0, message size 4096, `asn4` false, `refresh` absent.
 
 Ze states the block once, in its own `negotiated` event, so each runner keeps it
 per peer in a `bridge.Sessions`, from that event to the peer's `down`, and hands
-it to every message of the peer: an UPDATE line and a packet line write it, the
-other decoded lines do not. Which scripts get it follows the script's API
-version. An API 6 script gets it always, and the UNSET block where the runner
-holds none for the session yet (`Event.ForAPI6`). An API 4 script gets it only
-when its feed grants `negotiated`, as 5.0.1 decides. The external runner has no
-per-peer feed, so an API 4 script there gets it on every line. The `negotiated`
-event writes the same block inside `neighbor` too.
+it to every message of the peer. `Event.ForGrant` then follows the script's
+grant for that peer, for both API versions: granted, every line that carries the
+block carries it, the empty session where the runner holds none for the peer
+yet; not granted, no line carries it. The external runner has no per-peer feed:
+its one script is written every event of every peer, the `negotiated` event
+among them, so every peer grants it and every line carries the block. The
+`negotiated` event writes the same block inside `neighbor` too.
 
 The block is ExaBGP's: `message_size`, `hold_time`, `asn4`, `refresh`,
 `families` in AFI then SAFI order, `nexthop` (one `<afi> <safi> <next-hop afi>`
@@ -745,7 +753,7 @@ per RFC 8950 tuple) and `add_path` with both lists always written.
 `multisession` and `operational` are false on every ze session (M16, M15), so a
 4.2 or 5.0 line that said true is an ALLOWED difference in `TestOldResponses50`.
 
-<!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated, Event.ForAPI6, unsetNegotiated -->
+<!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated, Event.ForGrant, unexchangedNegotiated -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
 
 ## A message as its packet: `packets`, `consolidate`, `parsed`
@@ -924,8 +932,9 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | `label`, `rd` or `path-information` written twice | the last is sent, the line is done, no warning |
 | A route line holding a `\u` escape without four hexadecimal digits | refused, naming the escape and the two ways to write it |
 | `split /<n>` shorter than the prefix | the prefix is sent whole, the line is done, a warning says so |
-| `watchdog` or `name` as the last word of a route line | the route is sent with neither, as ExaBGP reads the empty word there; for `watchdog` the warning of the next row is logged |
-| `watchdog <name>` on an API route, with or without the `withdraw` flag | the route is sent at once with no watchdog, and a warning says so and names the fix: configure the route with `watchdog <name>`. ExaBGP holds only a configured route under a watchdog (`add_to_rib_watchdog`); an API route goes through `add_to_rib` (`inject_change` in 5.0.1, `announce_route` at the 6.0 pin), which reads neither word, so `announce watchdog <name>` and `withdraw watchdog <name>` never move it |
+| `watchdog` or `name` as the last word of a route line | the route is sent with neither, as ExaBGP reads the empty word there; for `watchdog` a warning says the route went to no watchdog and names the fix, `watchdog <name>` |
+| `watchdog <name>` on an API route | the route is the watchdog's, as at the 6.0 pin (`announce_route` gives it to `add_to_rib_watchdog` with its owner, ExaBGP c43f90f79): the bridge hands it to the `bgp-watchdog` plugin with `request bgp watchdog give`, which sends it now, or, with the `withdraw` flag, holds it until `announce watchdog <name>`. `announce watchdog <name>` and `withdraw watchdog <name>` move it with the watchdog's configured routes. A withdrawal of the route ignores the watchdog, as `withdraw_route` does. A refused send (the peer does not attach `bgp-watchdog` with `send [ update ]`) is answered `error`, never `done`. 5.0.1 and 4.2 sent such a route at once (`inject_change`); a script written for them that names a watchdog now waits on it |
+| The script that gave a watchdog routes exits, with `on-exit withdraw` | before the exit's own withdrawals, the bridge sends `request bgp watchdog forget <script>`: the plugin withdraws the given routes it holds announced, restoring a configured route of the same prefix, and forgets them all, so a later `announce watchdog <name>` does not bring them back (`_forget_watchdog_owner`, `withdraw_owner`, `rib/outgoing.py` at the pin) |
 
 The route with no carrying peer is refused by Ze itself, as ExaBGP refuses it:
 `update text` asks the reactor whether any selected peer is configured for each
@@ -952,10 +961,25 @@ them, so the last one written is the route's. So is the next-hop of a mup or
 an mcast-vpn route: ExaBGP reads those two families through `SelectLine`,
 which sets the next hop each time it reads one
 (`configuration/grammar/tree/select.py`), as 5.0 did, while every other family
-keeps the first. On an IPv6 mup route an IPv4 next-hop is sent mapped into
-IPv6, `::ffff:<ipv4>`, as ExaBGP's `MupNextHop` maps it. ExaBGP 4.2 merged no
+keeps the first. ExaBGP 4.2 merged no
 list and 5.0 merged only the extended communities. The bridge follows 6.0, so a 4.2 or
 5.0 script meets what it would meet on upgrading ExaBGP.
+
+A next hop of the other address family follows ExaBGP's three rules
+(`familyNextHop`, `bridge_attribute.go`):
+
+| Route | Next hop | What is sent |
+|-------|----------|--------------|
+| IPv6 unicast, multicast, labeled, VPN, flow, mup | an IPv4 address | the address IPv4-mapped, `::ffff:<ipv4>`, 16 octets (VPN: behind its zero RD), as ExaBGP's encoder and its `MupNextHop` map it. RFC 2545 Section 3 gives an IPv6 next hop no four octet form |
+| IPv6 mcast-vpn, sr-policy | an IPv4 address | the four octets, which these families' next hop allows |
+| IPv6 | `self` on an IPv4 session | nothing: the engine refuses the session's address for the route's family (`next-hop incompatible with family`, `resolveNextHop` in `reactor/peer.go`), and the script is answered an error, as ExaBGP answers it one |
+| IPv4 | an IPv6 address | the route, only to a peer that negotiated the Extended Next Hop capability for the family (RFC 8950 Section 4); otherwise the script is answered an error |
+
+ExaBGP 4.2 and 5.0 sent the four octets of an IPv4 next hop in an AFI 2
+MP_REACH_NLRI, a malformed UPDATE a peer resets the session on (RFC 7606
+Section 7.11), so a 4.2 or 5.0 script meets the mapped form on upgrade. `ze
+exabgp migrate` writes the same mapped next hop into a migrated configuration
+(`mapIPv6RouteIPv4NextHop`, `internal/exabgp/migration/migrate_routes.go`).
 
 A route line's backslash escapes are resolved before it is split into words,
 as every ExaBGP release reads a route command (`unescape` in

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""An API route that names a watchdog is sent at once, as ExaBGP 4.2, 5.0 and the 6.0 pin send it.
+"""An API route that names a watchdog is the watchdog's, as a configured one is (ExaBGP c43f90f79).
 
-ExaBGP holds a route under a watchdog only when the route comes from the configuration
-(add_to_rib_watchdog). An API route goes through add_to_rib, which never reads the watchdog
-or the `withdraw` flag, so `withdraw watchdog <name>` and `announce watchdog <name>` do not
-move it. Each route below is on the wire once, and the watchdog commands between them send
-nothing: a frame the case does not name fails it."""
+announce_route gives the route to add_to_rib_watchdog with its owner: without `withdraw` it is
+sent now, with `withdraw` it is held until `announce watchdog <name>`, and `withdraw watchdog
+<name>` withdraws it. A route with `withdraw` and no watchdog is announced. The route stays the
+helper's: when the helper exits, its routes are withdrawn and taken off the watchdog, so the
+route still held under `gone` is never sent. Every frame the case names is checked, and a frame
+it does not name fails it."""
 
 
 import sys
@@ -44,17 +45,26 @@ def expect_done(command: str) -> None:
 
 def main() -> None:
     time.sleep(0.2)  # let the EOR pass
-    # The wire carries 10.0.4.0/24 now: the watchdog holds an API route back from nothing.
+    # Given to dnsr and sent now: the wire carries 10.0.4.0/24.
     expect_done('announce route 10.0.4.0/24 next-hop 1.1.1.1 watchdog dnsr')
-    # Neither command moves the API route, so the wire carries nothing for them.
+    # The watchdog withdraws it, then announces it again.
     expect_done('withdraw watchdog dnsr')
+    # sleep: ExaBGP answers done once the RIB holds the change, before the wire does, and
+    # its outgoing RIB folds a withdrawal and a re-announce of one prefix that meet in one
+    # flush into nothing (1 run in 2 at f9bfb853b). No answer tells the helper the
+    # withdrawal left, so the helper waits one flush before it announces again.
+    time.sleep(0.2)
     expect_done('announce watchdog dnsr')
-    # The wire carries 10.0.5.0/24 now: the `withdraw` flag is read by the configuration's
-    # watchdog alone.
+    # Given to dnsr held: nothing on the wire until the watchdog is announced, which sends
+    # 10.0.5.0/24 alone, 10.0.4.0/24 being announced already.
     expect_done('announce route 10.0.5.0/24 next-hop 1.1.1.1 watchdog dnsr withdraw')
+    expect_done('announce watchdog dnsr')
+    # `withdraw` under no watchdog holds nothing: the wire carries 10.0.6.0/24.
+    expect_done('announce route 10.0.6.0/24 next-hop 1.1.1.1 withdraw')
+    # Held under gone, which is never announced: the exit takes it off the watchdog unsent.
+    expect_done('announce route 10.0.7.0/24 next-hop 1.1.1.1 watchdog gone withdraw')
+    time.sleep(0.5)  # let the last frames leave before the exit withdraws them
     sys.stderr.write('SUCCESS\n')
-    while sys.stdin.readline():
-        pass
 
 
 if __name__ == '__main__':

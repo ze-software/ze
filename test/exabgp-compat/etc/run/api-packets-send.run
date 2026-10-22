@@ -2,7 +2,7 @@
 
 from exabgp_packets import encoder_of, run
 
-# What ExaBGP 6.0 (685f772e) writes to this script on this case, with the
+# What ExaBGP 6.0 (f9bfb853b) writes to this script on this case, with the
 # empty lines dropped and, in json, the members that change between runs.
 EXPECTED: dict[str, list[str]] = {
     'text': [
@@ -13,11 +13,11 @@ EXPECTED: dict[str, list[str]] = {
         'neighbor 127.0.0.1 send 3 header 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503 body 0x0604',
     ],
     'json': [
-        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x04000100B40102030410020E0104000100014104000000010600","category":1,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":false,"families":[],"hold_time":0,"message_size":4096,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"open"}',
-        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x","category":4,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"keepalive"}',
-        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x00000000","category":2,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001702"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"update"}',
-        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x00000015400101004002004003040101010140050400000064180A0003","category":2,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"update"}',
-        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x0604","category":3,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503"},"negotiated":{"add_path":{"receive":[],"send":[]},"asn4":true,"families":["ipv4 unicast"],"hold_time":180,"message_size":65535,"multisession":false,"nexthop":[],"operational":false,"refresh":"absent"},"router-id":"1.2.3.4"},"type":"notification"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x04000100B40102030410020E0104000100014104000000010600","category":1,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01"},"router-id":"1.2.3.4"},"type":"open"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x","category":4,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"},"router-id":"1.2.3.4"},"type":"keepalive"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x00000000","category":2,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001702"},"router-id":"1.2.3.4"},"type":"update"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x00000015400101004002004003040101010140050400000064180A0003","category":2,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002"},"router-id":"1.2.3.4"},"type":"update"}',
+        '{"exabgp":"6.0.0","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"send","message":{"body":"0x0604","category":3,"header":"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503"},"router-id":"1.2.3.4"},"type":"notification"}',
     ],
 }
 

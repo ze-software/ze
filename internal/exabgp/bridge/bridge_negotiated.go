@@ -1,4 +1,4 @@
-// Design: docs/architecture/exabgp-bridge.md — the negotiated block on every UPDATE line
+// Design: docs/architecture/exabgp-bridge.md — the negotiated block on a granted script's message lines
 // Overview: bridge_event.go — ZeBGP to ExaBGP JSON event translation
 // Related: bridge.go — the external runner, which notes every event it renders
 // Related: ../../plugins/exabgp/bridgerun/fleet.go — the internal runner, which does the same
@@ -20,17 +20,19 @@ const sessionStateDown = "down"
 // Sessions is what a runner keeps of each peer's session, so an event can be
 // rendered with what an earlier event of the same session said.
 //
-// ExaBGP writes the session's negotiated block inside every UPDATE line, and
-// inside every `packets` line. 5.0.1 writes it only for a process the neighbor
-// grants `negotiated` (src/exabgp/reactor/protocol.py, read_message:
-// "negotiated = self.negotiated if self.neighbor.api.get('negotiated', False)
-// else None"), and the 6.0 pin 685f772e for every process ("neg: Negotiated =
-// self.negotiated"; Response.JSON.packets: "if negotiated is not
-// Negotiated.UNSET: message.update(self._negotiated(negotiated))"), so a
-// runner gives an API 6 script ForAPI6 and an API 4 script the grant's answer
-// (WithoutNegotiated). Ze states the block once, in its own `negotiated`
-// event, so the runner keeps it per peer and hands it to each UPDATE of that
-// peer.
+// ExaBGP writes the session's negotiated block inside the message lines of a
+// process the neighbor grants `negotiated`, and inside none of a process it
+// does not, whatever the API version: the decoded UPDATE, OPEN, NOTIFICATION,
+// KEEPALIVE and ROUTE-REFRESH lines and every `packets` and `consolidate` line,
+// sent and received. 5.0.1 decided so (src/exabgp/reactor/protocol.py,
+// read_message: "negotiated = self.negotiated if
+// self.neighbor.api.get('negotiated', False) else None"), and the pin
+// f9bfb853b decides so again (Protocol._api_negotiated: "return
+// self.negotiated if self._api.get('negotiated', False) else
+// Negotiated.UNSET", which Response.JSON writes as nothing). A runner hands
+// each script Event.ForGrant with the script's grant for the event's peer. Ze
+// states the block once, in its own `negotiated` event, so the runner keeps it
+// per peer and hands it to each message of that peer.
 //
 // The zero value is ready to use. Safe for concurrent use. An entry lives from
 // the peer's `negotiated` event to its `down`, so there is at most one per
@@ -109,14 +111,23 @@ func (e Event) negotiatedData() map[string]any {
 }
 
 // APIKeyNegotiated is the grant that puts the negotiated block on a script's
-// UPDATE lines, the same key that grants it the `negotiated` event.
+// message lines, the same key that grants it the `negotiated` event.
 const APIKeyNegotiated = apiKeyNegotiated
 
-// WithoutNegotiated answers the event with no negotiated block, for a script
-// the peer does not grant `negotiated`: ExaBGP passes such a process None, and
-// its line then carries no block.
-func (e Event) WithoutNegotiated() Event {
-	e.Negotiated = nil
+// ForGrant answers the event as the pin hands it to a process, for every API
+// version (Protocol._api_negotiated at f9bfb853b). Granted `negotiated`, a line
+// that carries the block carries it always: the session's, or the session
+// before its OPENs are exchanged (unexchangedNegotiated) while the runner holds
+// none for the peer, such as on the packet line of an OPEN. Not granted, no
+// line carries it, even once the session is up.
+func (e Event) ForGrant(granted bool) Event {
+	if !granted {
+		e.Negotiated = nil
+		return e
+	}
+	if e.Negotiated == nil && carriesNegotiated(e.Kind) {
+		e.Negotiated = unexchangedNegotiated()
+	}
 	return e
 }
 
@@ -139,29 +150,21 @@ const (
 	negotiatedOperational  = "operational"
 )
 
-// unsetNegotiated is the 6.0 pin's block for a session whose OPENs are not
-// exchanged yet, Negotiated.UNSET as Response.JSON._negotiated writes it: no
-// family, no hold time, and RFC 4271's 4096-octet message maximum
-// (src/exabgp/bgp/message/open/capability/negotiated.py). A fresh map on
-// every call, because a caller's line owns it.
-func unsetNegotiated() map[string]any {
+// unexchangedNegotiated is the pin's block for a session whose OPENs are not
+// exchanged yet, the Protocol's own Negotiated before the exchange as
+// Response.JSON._negotiated writes it to a granted process: no family, no hold
+// time, and RFC 4271's 4096-octet message maximum
+// (src/exabgp/bgp/message/open/capability/negotiated.py). It is not
+// Negotiated.UNSET, which the pin hands a process not granted `negotiated` and
+// writes as no block at all. A fresh map on every call, because a caller's
+// line owns it.
+func unexchangedNegotiated() map[string]any {
 	return map[string]any{
 		"message_size": float64(4096), "hold_time": float64(0), negotiatedASN4: false,
 		negotiatedMultisession: false, negotiatedOperational: false, "refresh": "absent",
 		"families": []string{}, negotiatedNextHop: []string{},
 		"add_path": map[string]any{modeSend: []string{}, modeReceive: []string{}},
 	}
-}
-
-// ForAPI6 answers the event as the 6.0 pin hands it to every process: with
-// the session's negotiated block, and with the UNSET block on a line that
-// carries one while the runner holds no block for the session, such as the
-// packet line of an OPEN before the OPENs are exchanged.
-func (e Event) ForAPI6() Event {
-	if e.Negotiated == nil && carriesNegotiated(e.Kind) {
-		e.Negotiated = unsetNegotiated()
-	}
-	return e
 }
 
 // convertNegotiated renders ze's negotiated block as ExaBGP's

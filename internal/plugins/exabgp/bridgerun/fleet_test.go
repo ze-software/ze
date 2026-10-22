@@ -817,27 +817,38 @@ func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	}
 }
 
-// TestFleetGivesAnAPI6ScriptTheBlockAlways checks that an API 6 script gets
-// the negotiated block whether or not the peer grants `negotiated`, and the
-// UNSET block on a line before the session's negotiated event: the 6.0 pin
-// writes it for every process (protocol.py, "neg: Negotiated =
-// self.negotiated"; Response.JSON.packets, "if negotiated is not
-// Negotiated.UNSET").
+// TestFleetGivesTheBlockOnlyWhereGranted checks, for an API 4 script and an
+// API 6 one, that a script the peer grants `negotiated` gets the block on
+// every UPDATE line, the empty session before the session's negotiated event
+// and the session's after it, and that a script it does not grant gets none,
+// even once the session is up: the pin f9bfb853b decides so for every API
+// version (Protocol._api_negotiated: "return self.negotiated if
+// self._api.get('negotiated', False) else Negotiated.UNSET").
 //
-// VALIDATES: Event.ForAPI6 through the internal runner.
-// PREVENTS: the 5.0 grant gate applied to a 6.0 helper.
-func TestFleetGivesAnAPI6ScriptTheBlockAlways(t *testing.T) {
-	t.Setenv("exabgp.api.version", "6")
+// VALIDATES: Event.ForGrant through the internal runner, per script grant.
+// PREVENTS: the block gated on the API version rather than on the grant.
+func TestFleetGivesTheBlockOnlyWhereGranted(t *testing.T) {
+	for _, version := range []string{"4", "6"} {
+		t.Run("api "+version, func(t *testing.T) { fleetGivesTheBlockOnlyWhereGranted(t, version) })
+	}
+}
+
+func fleetGivesTheBlockOnlyWhereGranted(t *testing.T, version string) {
+	t.Setenv("exabgp.api.version", version)
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 	dir := t.TempDir()
-	out := filepath.Join(dir, "plain.events")
-	script := writeScript(t, dir, "plain.sh", "cat > "+out+"\n")
+	out := filepath.Join(dir, "granted.events")
+	plainOut := filepath.Join(dir, "plain.events")
+	script := writeScript(t, dir, "granted.sh", "cat > "+out+"\n")
+	plainScript := writeScript(t, dir, "plain.sh", "cat > "+plainOut+"\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "plain", Argv: []string{script}, Encoder: bridge.EncoderJSON,
+		{Name: "granted", Argv: []string{script}, Encoder: bridge.EncoderJSON,
+			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update", "negotiated"}}}},
+		{Name: "plain", Argv: []string{plainScript}, Encoder: bridge.EncoderJSON,
 			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update"}}}},
 	})
 	if err := fleet.Start(ctx, &recorder{}); err != nil {
@@ -857,11 +868,15 @@ func TestFleetGivesAnAPI6ScriptTheBlockAlways(t *testing.T) {
 		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv4/unicast"]}}}`)
 	fleet.Broadcast(strings.Replace(update, "10.0.0.0/24", "10.0.1.0/24", 1))
 	waitFor(t, "the UPDATE after it", func() bool {
-		return strings.Contains(readFile(t, out), "10.0.1.0/24")
+		return strings.Contains(readFile(t, out), "10.0.1.0/24") &&
+			strings.Contains(readFile(t, plainOut), "10.0.1.0/24")
 	})
 	cancel()
 	fleet.Stop()
 
+	if got := readFile(t, plainOut); strings.Contains(got, `"negotiated"`) {
+		t.Errorf("an API %s script not granted negotiated received the block: %q", version, got)
+	}
 	wantUnset := map[string]any{
 		"add_path": map[string]any{"receive": []any{}, "send": []any{}},
 		"asn4":     false, "families": []any{},
@@ -885,7 +900,7 @@ func TestFleetGivesAnAPI6ScriptTheBlockAlways(t *testing.T) {
 	}
 	block, _ := session.(map[string]any)
 	if block["hold_time"] != float64(90) {
-		t.Errorf("an API 6 script not granted negotiated got no session block: %v", session)
+		t.Errorf("an API %s script granted negotiated got no session block: %v", version, session)
 	}
 }
 

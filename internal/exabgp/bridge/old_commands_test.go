@@ -73,9 +73,9 @@ const (
 	_ oldVerdict = iota
 	// oldSame means ze announces and withdraws what the release did.
 	oldSame
-	// oldUnreadable: the release sent nothing a peer can decode, so refusing
-	// it or sending something else loses nobody a route (test_old_commands,
-	// UNREADABLE).
+	// oldUnreadable: the release sent nothing a peer can decode. The pin
+	// counts it a failure unless a MALFORMED row names the command
+	// (test_old_commands, UNREADABLE, check), and so does runOldCommands.
 	oldUnreadable
 	// oldNothingSent: an announce or withdraw the release took and sent no
 	// route for (test_old_commands, NOTHING_SENT).
@@ -110,25 +110,31 @@ func runOldCommands(t *testing.T, release string) {
 	slices.Sort(commands)
 
 	counts := map[oldVerdict]int{}
-	allowedCount := 0
+	allowedCount, malformedCount := 0, 0
 	var failures []string
 	for _, command := range commands {
 		if oldCommandAllowed(release, command) {
 			allowedCount++
 			continue
 		}
+		if oldCommandMalformed(release, command) || oldRecordingMalformed(release, recorded[command].Messages) {
+			malformedCount++
+			continue
+		}
 		verdict, why := judge.judge(command, recorded[command])
 		counts[verdict]++
-		if verdict == oldDiffers {
+		switch verdict {
+		case oldDiffers:
 			failures = append(failures, command+"\n    "+why)
-		}
-		if verdict == oldUnreadable && os.Getenv("ZE_OLD_VERBOSE") != "" {
-			t.Logf("%s: unreadable: %s\n    %s", release, command, why)
+		case oldUnreadable:
+			failures = append(failures, command+"\n    "+release+
+				" sent an UPDATE no peer can decode, which MALFORMED does not explain: "+why)
+		case oldSame, oldNothingSent:
 		}
 	}
-	t.Logf("%s: %d/%d commands behave as on %s (%d allowed, %d unreadable, %d nothing sent)",
+	t.Logf("%s: %d/%d commands behave as on %s (%d allowed, %d where %s sent a malformed UPDATE, %d nothing sent)",
 		release, len(commands)-len(failures), len(commands), release,
-		allowedCount, counts[oldUnreadable], counts[oldNothingSent])
+		allowedCount, malformedCount, release, counts[oldNothingSent])
 	for i, failure := range failures {
 		if i == 40 && os.Getenv("ZE_OLD_VERBOSE") == "" {
 			t.Logf("... %d more", len(failures)-i)
@@ -318,7 +324,11 @@ func decodeOldUpdate(body []byte, facts SessionFacts) (rows []string, ok bool) {
 	if eor := findMember(update, "eor"); eor != nil {
 		rows = append(rows, canonicalJSON(map[string]any{"eor": eor}))
 	}
-	return rows, len(rows) > 0
+	// An UPDATE that decodes and carries no route is read, with no row: the
+	// pin's content keeps any message its decoder unpacks, and routes gives it
+	// none (test_old_commands), so the command is NOTHING_SENT there rather than
+	// UNREADABLE.
+	return rows, true
 }
 
 // oldSessionReset reports whether ze, receiving the UPDATE body, resets the
