@@ -667,9 +667,9 @@ Added at closure (2026-10-21): the design phase left this table and the next one
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/bgp-update-propagation-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md` (91 files, verdict clean) |
-| `./le spec review check` | OK (59 code files, clean, hashes match), 2026-10-21. Round 3: 0 BLOCKER, 0 ISSUE, 3 NOTE. The D4 injector fix 0bd7a50667 came after round 3; it was found and proven red/green by a separate diagnosing agent and changes no Go |
-| Rounds | 3: round 1 over every D1 to D5 commit, rounds 2 and 3 over the fixes, each a product defect |
+| Artifact | `tmp/review/bgp-update-propagation-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md`, re-recorded 2026-10-21 with `rounds 5` (109 files, verdict clean). Four reviewed files are left out of the re-record because other specs' commits changed them after round 5 (reviewed at 5af84be2ea): `docs/architecture/testing/interop.md` (bde7ee3a09 and others), `message/rfc7606_withdraw.go` (c972e77416), `interoplab/bgp/checkers.go` and `names.go` (c379d157b1) |
+| `./le spec review check` | OK, 2026-10-21. Round 5: 0 BLOCKER, 0 ISSUE. No code changed after round 5 (aadfe7bc07 is the handover only) |
+| Rounds | 5: round 1 over every D1 to D5 commit, rounds 2 and 3 over the fixes, round 4 over 0bd7a50667 and 05ea9ac55d (1 ISSUE), round 5 over its fix 5af84be2ea; each finding a product defect |
 | Reviewer lenses used | protocol and wire, guards and security, performance (allocations, message size), proof and wiring |
 
 #### Findings fixed
@@ -680,6 +680,7 @@ Added at closure (2026-10-21): the design phase left this table and the next one
 | R1-I2 | ISSUE | hold per Session, lost across a GR reconnect (RFC 4724 Section 4.2) | `Session.typedNLRIHeld` | 897ac54217: `typedNLRIHeldRoutes` on the Peer, `beginSession`, `endOfRIB` |
 | R2-I1 | ISSUE | a withdrawal of a key the same UPDATE announces withdrew it (RFC 4271 Section 4.3) | `typedNLRIRelayEdit`, `typedNLRIWalk.withdrawal` | 2b6976ddd2: per-UPDATE stamp |
 | R2-I2 | ISSUE | no test drove the Peer hold wiring from its entry points | `newSession`, `negotiateWith`, `notifyMessageReceiver` | 2b6976ddd2: `TestMUPHeldGenerationWiredThroughThePeer` |
+| R4-I1 | ISSUE | the D2 speaker oracle `no-repeated-large-community` passed when no LARGE_COMMUNITY arrived at all | `internal/le/interoplab/bgp/speaker.go`, `checkers.go` | 5af84be2ea: the speaker counts `large-community-updates` and `large-community-distinct`; the checker requires 1 and 3 |
 
 NOTEs, recorded: round 1 N3 (no RFC defect in D1, D2, D4, D5 producers), N4 (commit audit rows carry trailers); round 2 N4 (GR keyed on the capability, not per-family F bit: memory and accuracy only, writer filters).
 
@@ -804,6 +805,7 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 
 ### Deviations from Plan
 - D3 relays the withdrawal of a malformed NLRI by the held generation rather than by its own bytes (the design text said "a withdrawal built from the malformed NLRI's bytes removes the earlier well-formed generation"): true for Ze's own RIB, false for a receiver that decodes every field (Design Insights, D3 withdrawal bytes).
+- D2's interop receiver is Ze's native speaker (oracle `no-repeated-large-community`) beside GoBGP, because GoBGP removes repeats on receipt (A-3 broken).
 - The key scratch goes to `Retain` only (Design Insights, implementation agent 3).
 - Test names differ from the TDD plan: `TestMUPMalformedT1STTreatedAsWithdrawnAtIngress` and `TestMUPWellFormedSiblingSurvivesMalformedT1ST` landed as `TestMUPMalformedT1STTreatAsWithdraw` with its negative subtest; `TestRetainReportsWithdrawnSeparately` as `TestRetainSplitsWithdrawnFromUnkeyable`.
 
@@ -814,6 +816,7 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 | assumption | the design said a withdrawal built from the malformed NLRI's bytes removes the earlier generation | every receiver decodes the whole withdrawn NLRI; GoBGP panics on the malformed bytes and Ze's own recognizer refuses them | first D3 interop run, 2026-10-21 | 27b0796cea; RECORDED in Design Insights |
 | approach | interop scenario configs written without `bgp-adj-rib-in` | bgp-rs needs it for the peer-up replay of routes that arrived first | first D5 interop run | bba92170c4 |
 | approach | the D4 injector listed three KEEPALIVE expects to hold its session | Ze sends that RS-Client its own static route, a mismatch that closed the session and purged the route | D4 runs 1 and 2, local functional reproduction | 0bd7a50667: `option=linger` |
+| assumption | A-3: GoBGP keeps repeated large communities on receipt | GoBGP removes them on receipt (RFC 8092 Section 3), so it cannot show a repeat Ze sent | D2 red run, 2026-10-21, passed | 05ea9ac55d native speaker oracle, 5af84be2ea count checks |
 | approach | 27b0796cea substituted the held generation in place and kept it per Session | a longer generation can push an UPDATE past 65535, and RFC 4724 retains routes across sessions | closure review round 1 (B1, I2) | 897ac54217 |
 
 ## Implementation Audit
@@ -863,11 +866,11 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| bits that must be zero are not sent | interop + functional | `bgp-attr-flags-low-nibble-gobgp` INTEROP-D1; `rfc4271-attr-flags-low-nibble-relay.ci` hex on both rails |
-| duplicates that must not be sent are not sent | interop + functional | `bgp-large-community-no-repeat-gobgp` INTEROP-D2; `rfc8092-large-community-no-repeat-egress.ci` |
-| a malformed MUP route is withdrawn, not kept | interop + functional | `bgp-mup-malformed-t1st-withdraw-gobgp` INTEROP-D3; `.ci` red with the substitution off (Ze sent K'), green on |
-| RS-Client-learned routes stay off upward sessions | interop + functional | `bgp-role-rs-client-learned-not-upward-frr` INTEROP-D4; `rfc9234-rs-client-learned-not-upward.ci` |
-| BLACKHOLE reaches only agreed peers | interop + functional | `bgp-rfc7999-blackhole-readvertise-frr` INTEROP-D5; `rfc7999-blackhole-readvertise-agreement.ci` |
+| bits that must be zero are not sent | interop + functional | `bgp-attr-flags-low-nibble-gobgp` green `interop: [1/5] bgp-attr-flags-low-nibble-gobgp: pass (2s)` (INTEROP-RUN), red INTEROP-RED-D1; `rfc4271-attr-flags-low-nibble-relay.ci` hex on both rails |
+| duplicates that must not be sent are not sent | interop + functional | `bgp-large-community-no-repeat-gobgp` green `[2/5] ... pass (40s)`, red INTEROP-RED-D2; `rfc8092-large-community-no-repeat-egress.ci` |
+| a malformed MUP route is withdrawn, not kept | interop + functional | `bgp-mup-malformed-t1st-withdraw-gobgp` green `[3/5] ... pass (57s)`, red INTEROP-RED-D3; `.ci` red with the substitution off (Ze sent K'), green on |
+| RS-Client-learned routes stay off upward sessions | interop + functional | `bgp-role-rs-client-learned-not-upward-frr` green `[5/5] ... pass (4s)`, red INTEROP-RED-D4; `rfc9234-rs-client-learned-not-upward.ci` |
+| BLACKHOLE reaches only agreed peers | interop + functional | `bgp-rfc7999-blackhole-readvertise-frr` green `[4/5] ... pass (8s)`, red INTEROP-RED-D5; `rfc7999-blackhole-readvertise-agreement.ci` |
 | verdicts reach `enforced` | audit | eight IDs `enforced` in `rfc/audit/` (independent rejudge) |
 
 ## Work Not Done
@@ -902,7 +905,7 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 |----|--------------|----------|
 | A-1 | confirmed | `session_write.go`: every `bufWriter.Write` of an UPDATE body follows `normalizeTransmittedUpdate` (line 679); the others carry non-UPDATE types (read 2026-10-21) |
 | A-2 | confirmed | first D1 run: GoBGP prints `"flags":224` |
-| A-3 | confirmed | first D2 run: GoBGP prints each value once in brackets |
+| A-3 | broken | GoBGP removes LARGE_COMMUNITY repeats on receipt, so the D2 red run at 897ac54217 trees passed against GoBGP. Substitution recorded per the A-3 row: the native speaker with oracle `no-repeated-large-community` (05ea9ac55d, 5af84be2ea) reads Ze's wire |
 | A-4 | confirmed | first D3 run: GoBGP negotiated ipv4-mup and held the T1ST |
 | A-5 | confirmed | unchanged; `parseBodyT1ST` tolerates the absent octet |
 | A-6 | confirmed | D6 withdrawal on both rails; the RS replacement spec owns the survivor |
