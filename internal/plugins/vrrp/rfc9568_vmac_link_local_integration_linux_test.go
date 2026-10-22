@@ -37,9 +37,10 @@ func TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC(t *testing.T) {
 	parent := w.parent.Attrs().Name
 
 	controlMAC := packet.VirtualMAC(packet.V6, 24)
-	control := &netlink.Macvlan{LinkAttrs: netlink.LinkAttrs{
+	control := &netlink.Macvlan{
 		Name: "zk6", ParentIndex: w.parent.Attrs().Index, HardwareAddr: net.HardwareAddr(controlMAC[:]),
-	}, Mode: netlink.MACVLAN_MODE_PRIVATE}
+		Mode: netlink.MACVLAN_MODE_PRIVATE,
+	}
 	if err := netlink.LinkAdd(control); err != nil {
 		t.Fatal(err)
 	}
@@ -102,9 +103,10 @@ func TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal(t *testing.T) {
 	gatewayNeighbor(t, w.parent, host, w.peer.Attrs().HardwareAddr)
 
 	controlMAC := packet.VirtualMAC(packet.V6, 26)
-	control := &netlink.Macvlan{LinkAttrs: netlink.LinkAttrs{
+	control := &netlink.Macvlan{
 		Name: "zk6r", ParentIndex: w.parent.Attrs().Index, HardwareAddr: net.HardwareAddr(controlMAC[:]),
-	}, Mode: netlink.MACVLAN_MODE_PRIVATE}
+		Mode: netlink.MACVLAN_MODE_PRIVATE,
+	}
 	if err := netlink.LinkAdd(control); err != nil {
 		t.Fatal(err)
 	}

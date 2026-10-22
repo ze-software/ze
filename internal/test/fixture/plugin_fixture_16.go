@@ -758,8 +758,9 @@ func plugin16WellknownWithdrawReceipts(ctx context.Context) error {
 	return nil
 }
 
-func plugin16UpdateAndQuiesce(ctx context.Context, p *sdk.Plugin, selector, command string) error {
-	if _, _, err := p.UpdateRoute(ctx, selector, command); err != nil {
+// plugin16UpdateAndQuiesce sends command to every peer, then waits for quiesce.
+func plugin16UpdateAndQuiesce(ctx context.Context, p *sdk.Plugin, command string) error {
+	if _, _, err := p.UpdateRoute(ctx, "*", command); err != nil {
 		return err
 	}
 	q := plugin16Dispatch(ctx, p, "request quiesce")
@@ -770,7 +771,7 @@ func plugin16UpdateAndQuiesce(ctx context.Context, p *sdk.Plugin, selector, comm
 }
 
 func plugin16TeardownCmd(ctx context.Context, p *sdk.Plugin) error {
-	if err := plugin16UpdateAndQuiesce(ctx, p, "*", "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
+	if err := plugin16UpdateAndQuiesce(ctx, p, "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
 		return err
 	}
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 teardown 4")
@@ -781,7 +782,7 @@ func plugin16TeardownCmd(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func plugin16TeardownMsg(ctx context.Context, p *sdk.Plugin) error {
-	if err := plugin16UpdateAndQuiesce(ctx, p, "*", "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
+	if err := plugin16UpdateAndQuiesce(ctx, p, "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
 		return err
 	}
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 teardown 2 test")
@@ -796,7 +797,7 @@ func plugin16TeardownMsg(ctx context.Context, p *sdk.Plugin) error {
 // UTF-8 octets as Data, as ExaBGP 6 does for teardown 3 1 bad code. The word
 // code names a leaf of notify and stays text (ze:rest-of-line).
 func plugin16NotifyCmd(ctx context.Context, p *sdk.Plugin) error {
-	if err := plugin16UpdateAndQuiesce(ctx, p, "*", "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
+	if err := plugin16UpdateAndQuiesce(ctx, p, "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
 		return err
 	}
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 notify 3 1 bad code")
@@ -810,7 +811,7 @@ func plugin16NotifyCmd(ctx context.Context, p *sdk.Plugin) error {
 // field holds an octet that is not UTF-8, so the .ci proves the octets go on
 // the wire as typed: the form the ExaBGP bridge sends for teardown.
 func plugin16NotifyHexCmd(ctx context.Context, p *sdk.Plugin) error {
-	if err := plugin16UpdateAndQuiesce(ctx, p, "*", "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
+	if err := plugin16UpdateAndQuiesce(ctx, p, "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
 		return err
 	}
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 notify 3 1 hex 5c78e9ff")
@@ -843,5 +844,5 @@ func plugin16WatchdogMED(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func plugin16WireEditOriginOrder(ctx context.Context, p *sdk.Plugin) error {
-	return plugin16UpdateAndQuiesce(ctx, p, "*", "update text origin igp community [65000:100] large-community [65000:1:2] nhop 10.0.0.9 nlri add 10.0.0.7/32")
+	return plugin16UpdateAndQuiesce(ctx, p, "update text origin igp community [65000:100] large-community [65000:1:2] nhop 10.0.0.9 nlri add 10.0.0.7/32")
 }

@@ -629,8 +629,11 @@ func plugin14RPKIAsSet(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	status, value, err := plugin14Dispatch(ctx, plugin, plugin14AdjRIBInCommand)
-	if err != nil || status != rpc.StatusDone {
-		return fmt.Errorf("%s failed after the sentinel was validated: status=%q err=%v", plugin14AdjRIBInCommand, status, err)
+	if err != nil {
+		return fmt.Errorf("%s failed after the sentinel was validated: %w", plugin14AdjRIBInCommand, err)
+	}
+	if status != rpc.StatusDone {
+		return fmt.Errorf("%s failed after the sentinel was validated: status=%q", plugin14AdjRIBInCommand, status)
 	}
 	if route := plugin14FindRoute(value, "10.0.1.0/24"); route != nil {
 		return fmt.Errorf("AS_SET route 10.0.1.0/24 retained in adj-rib-in; RFC 9774 Section 3 requires treat-as-withdraw: %v", route)

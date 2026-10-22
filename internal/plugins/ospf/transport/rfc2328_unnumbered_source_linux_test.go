@@ -115,7 +115,7 @@ func TestOSPFRefusesDeviceWithoutRouterAddress(t *testing.T) {
 func addDonorDevice(t *testing.T, cidr string) {
 	t.Helper()
 	name := "zeospd" + strconv.Itoa(osPidSuffix())
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: name}); err != nil {
 		t.Skipf("add dummy (needs CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {

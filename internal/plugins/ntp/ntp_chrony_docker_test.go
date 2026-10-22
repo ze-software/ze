@@ -22,7 +22,7 @@ import (
 const (
 	// chronyImage is the real NTP server, pinned to one chrony release.
 	chronyImage = "dockurr/chrony:4.9@sha256:f584829f268b26b26b351000b60aa7c3507933873b6a6d77ffe9dcabcfdc7025"
-	// chronyLocalStratum is the stratum the synchronised server is configured
+	// chronyLocalStratum is the stratum the synchronized server is configured
 	// to serve (`local stratum 7`). Seven is neither chrony's default local
 	// stratum (10) nor a value Ze could produce on its own.
 	chronyLocalStratum = 7
@@ -55,9 +55,9 @@ const chronySynchronised = "local stratum 7\nallow all\ncmdport 0"
 
 // chronyUnsynchronised has one source that never answers (192.0.2.1 is
 // TEST-NET-1) and no local reference, so chrony answers every client as
-// unsynchronised: leap indicator 3 (alarm) and stratum 0 on the wire, which is
-// how RFC 5905 Section 11.1 transmits MAXSTRAT (16): "Remember that MAXSTRAT
-// is mapped to zero in the transmitted packet."
+// unsynchronized: leap indicator 3 (alarm) and stratum 0 on the wire, which is
+// how RFC 5905 Section 11.1 transmits MAXSTRAT (16), because "MAXSTRAT is
+// mapped to zero in the transmitted packet".
 const chronyUnsynchronised = "server 192.0.2.1\nallow all\ncmdport 0"
 
 // startChrony starts chrony with configuration and answers the
@@ -83,15 +83,15 @@ func queryDirect(address string) (*ntp.Response, error) {
 	return ntp.QueryWithOptions(address, ntp.QueryOptions{Timeout: probeTimeout})
 }
 
-// synchronisedReply is ready once the server answers as synchronised: chrony
-// answers unsynchronised until its local reference takes over.
+// synchronisedReply is ready once the server answers as synchronized: chrony
+// answers unsynchronized until its local reference takes over.
 func synchronisedReply(_ context.Context, address netip.AddrPort) error {
 	response, err := queryDirect(address.String())
 	if err != nil {
 		return err
 	}
 	if response.Leap == ntp.LeapNotInSync {
-		return errors.New("chrony still answers unsynchronised")
+		return errors.New("chrony still answers unsynchronized")
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func serverNamed(t *testing.T, state *syncState, address string) serverState {
 }
 
 // VALIDATES: AC-20, S-2: Ze's NTP client, querying a real chrony over UDP,
-// accepts a synchronised reply and reports what the server serves: the
+// accepts a synchronized reply and reports what the server serves: the
 // configured stratum, an offset and round trip within the bounds a
 // same-kernel clock allows, reach bit 0 set, the server as its source, and
 // one clock step to that offset.
@@ -209,7 +209,7 @@ func TestNTPClientSyncsFromChrony(t *testing.T) {
 }
 
 // VALIDATES: AC-20, S-2: Ze's NTP client, querying a real chrony that has no
-// synchronised source, rejects the reply (stratum 16, leap alarm) rather than
+// synchronized source, rejects the reply (stratum 16, leap alarm) rather than
 // accepting it: no clock step, not synced, no source, reach bit 0 clear, and
 // a reason in the server's last error.
 // PREVENTS: a client that sets the router's clock from a server that says
@@ -224,19 +224,19 @@ func TestNTPClientRejectsUnsynchronisedChrony(t *testing.T) {
 		t.Fatalf("direct query of %s: %v", address, err)
 	}
 	if served.Stratum != 0 {
-		t.Fatalf("premise: unsynchronised chrony serves stratum %d, want 0 (MAXSTRAT on the wire)", served.Stratum)
+		t.Fatalf("premise: unsynchronized chrony serves stratum %d, want 0 (MAXSTRAT on the wire)", served.Stratum)
 	}
 	if served.Leap != ntp.LeapNotInSync {
-		t.Fatalf("premise: unsynchronised chrony serves leap indicator %d, want %d (alarm)",
+		t.Fatalf("premise: unsynchronized chrony serves leap indicator %d, want %d (alarm)",
 			served.Leap, ntp.LeapNotInSync)
 	}
 
 	synced, stepped, state := syncFrom(t, address)
 	if synced {
-		t.Error("doSync synced from an unsynchronised server")
+		t.Error("doSync synced from an unsynchronized server")
 	}
 	if len(stepped) != 0 {
-		t.Errorf("clock steps = %v, want none from an unsynchronised server", stepped)
+		t.Errorf("clock steps = %v, want none from an unsynchronized server", stepped)
 	}
 	if state.Synced {
 		t.Error("published state is synced")

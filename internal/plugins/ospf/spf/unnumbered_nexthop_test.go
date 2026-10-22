@@ -46,9 +46,11 @@ func (f *fakeLinkAdjacency) NextHopOnLink(area types.AreaID, root types.RouterID
 	return netip.Addr{}, "", false
 }
 
-func unnumberedLink(t *testing.T, router string, ifIndex byte, cost uint16) packet.RouterLink {
+// unnumberedLink is an unnumbered point-to-point link of cost 10 toward router
+// on the interface ifIndex.
+func unnumberedLink(t *testing.T, router string, ifIndex byte) packet.RouterLink {
 	t.Helper()
-	return packet.RouterLink{LinkID: testLSID(t, router), LinkData: [4]byte{0, 0, 0, ifIndex}, Type: packet.RouterLinkTypeP2P, Metric: metric(t, cost)}
+	return packet.RouterLink{LinkID: testLSID(t, router), LinkData: [4]byte{0, 0, 0, ifIndex}, Type: packet.RouterLinkTypeP2P, Metric: metric(t, 10)}
 }
 
 // unnumberedTriangleSource is the LFA triangle with both of the root's links
@@ -57,9 +59,9 @@ func unnumberedLink(t *testing.T, router string, ifIndex byte, cost uint16) pack
 func unnumberedTriangleSource(t *testing.T) Source {
 	t.Helper()
 	return testSource(t, testArea(),
-		routerLSA(t, "1.1.1.1", unnumberedLink(t, "2.2.2.2", 12, 10), unnumberedLink(t, "3.3.3.3", 13, 10)),
-		routerLSA(t, "2.2.2.2", unnumberedLink(t, "1.1.1.1", 21, 10), p2pLink(t, "3.3.3.3", "10.0.23.2", 10), stubLink(t, "192.0.2.0", 1)),
-		routerLSA(t, "3.3.3.3", unnumberedLink(t, "1.1.1.1", 31, 10), p2pLink(t, "2.2.2.2", "10.0.23.3", 10)),
+		routerLSA(t, "1.1.1.1", unnumberedLink(t, "2.2.2.2", 12), unnumberedLink(t, "3.3.3.3", 13)),
+		routerLSA(t, "2.2.2.2", unnumberedLink(t, "1.1.1.1", 21), p2pLink(t, "3.3.3.3", "10.0.23.2", 10), stubLink(t, "192.0.2.0", 1)),
+		routerLSA(t, "3.3.3.3", unnumberedLink(t, "1.1.1.1", 31), p2pLink(t, "2.2.2.2", "10.0.23.3", 10)),
 	)
 }
 
