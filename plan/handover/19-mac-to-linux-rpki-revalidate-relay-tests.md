@@ -33,15 +33,13 @@ relay call in `rr/validation.go` `replayValidation` and in
 `rs/server_validation.go`, rebuild, expect the destination's conn=2 seq=2 UPDATE
 to be missing), restore, and note the result here.
 
-## Not committed, on purpose
+## Closure text committed ahead of closure
 
 The IKE-EAP closure text (`plan/learned/032-ike-eap-rfc-defects.md`, the
 "Status: built" line in `docs/contributing/patching-the-standard-library.md`,
 the repoints in `plan/pre-release/spec-rfc-verdict-fix-ike-eap.md` and
 `spec-rfc-verdict-test-fix-pass.md`) and the four update-propagation repoints in
 `plan/immediate/` say their specs closed on 2026-10-21. Both specs are open.
-That text is already in the repository as
-`18-mac-to-linux-ike-eap-rfc-defects.patch` and
-`18-mac-to-linux-bgp-update-propagation-rfc-defects.patch` (checked identical
-with `git apply --check -R` on 2026-10-22); apply each in its spec's closing
-commit, as handover 18 says. On the Mac they stay uncommitted in the tree.
+Thomas ordered it committed anyway ("the plans and docs are not commited"): it
+landed in `db31d2bdb9`, which removed handover 18's two patches. At each spec's
+close there is nothing to apply; the closing commit only has to make the text true.
