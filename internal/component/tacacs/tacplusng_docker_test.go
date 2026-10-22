@@ -26,10 +26,12 @@ import (
 
 const (
 	// tacPlusNGImage is tac_plus-ng from Marc Huber's event-driven-servers,
-	// packaged on Alpine by christian-becker/tac_plus-ng (MIT). Pinned by
-	// digest, so the server under the test cannot change between two runs.
-	tacPlusNGImage = "docker.io/christianbecker/tac_plus-ng" +
-		"@sha256:f17972cf0471ec32d4947a4152c8bd6a383b205f0dd0b48602fa6fa243fa393c"
+	// built by this test from the upstream commit tacPlusNGDockerfile pins.
+	// Upstream publishes no stable release, so the pin follows master and the
+	// build refuses it once it is more than one month old (M14).
+	tacPlusNGImage = "ze-tacplusng:test"
+	// tacPlusNGDockerfile builds tacPlusNGImage, from the module root.
+	tacPlusNGDockerfile = "test/interop-tacacs/Dockerfile.tacplusng"
 	// tacPlusNGConfigPath is where the container's shell writes the config.
 	tacPlusNGConfigPath = "/tmp/ze-interop.cfg"
 	// tacPlusNGKey is the shared secret the server's device block holds.
@@ -109,6 +111,7 @@ func startTacPlusNG(t *testing.T) netip.AddrPort {
 	return labtest.Start(t, labtest.Spec{
 		Name:         "tacacs-tac-plus-ng",
 		Image:        tacPlusNGImage,
+		Dockerfile:   tacPlusNGDockerfile,
 		Command:      []string{"/bin/sh", "-c", script},
 		Port:         interoplab.TCPPort(49),
 		Ready:        tacPlusNGReady,

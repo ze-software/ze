@@ -1,0 +1,30 @@
+# tac_plus-ng, the TACACS+ server of Marc Huber's event-driven-servers, built
+# from upstream source for the TACACS+ interop test
+# (internal/component/tacacs/tacplusng_docker_test.go, labtest Spec.Dockerfile).
+#
+# Upstream publishes no stable release, so the build follows a pinned master
+# commit (owner decision M14). Docker.Build refuses this file once the commit
+# is more than one month old (internal/le/interoplab/sourcepin.go), and
+# `./le lab pin bump dockerfile test/interop-tacacs/Dockerfile.tacplusng`
+# moves the ZE_SOURCE_COMMIT and ZE_SOURCE_DATE lines to upstream's latest
+# master commit.
+FROM alpine:3.24.3 AS build
+ARG ZE_SOURCE_REPOSITORY=MarcJHuber/event-driven-servers
+ARG ZE_SOURCE_COMMIT=ed3c66a89d5cb71db04d514a330081fbb2595139
+ARG ZE_SOURCE_DATE=2026-10-19T14:39:08Z
+RUN apk add --no-cache build-base curl perl linux-headers pcre2-dev openssl-dev c-ares-dev
+WORKDIR /src/event-driven-servers
+RUN curl --fail --location --output /src/source.tar.gz \
+    "https://codeload.github.com/${ZE_SOURCE_REPOSITORY}/tar.gz/${ZE_SOURCE_COMMIT}" \
+    && tar -xzf /src/source.tar.gz --strip-components=1
+RUN ./configure --prefix=/usr/local tac_plus-ng \
+    && make \
+    && make install \
+    && printf '%s\n' "${ZE_SOURCE_COMMIT}" > /usr/local/REVISION
+
+FROM alpine:3.24.3
+RUN apk add --no-cache pcre2 libssl3 libcrypto3 c-ares
+COPY --from=build /usr/local /usr/local
+# The test passes its own start command, which writes the config and execs
+# /usr/local/sbin/tac_plus-ng, as the container command.
+CMD ["/usr/local/sbin/tac_plus-ng", "-v"]
