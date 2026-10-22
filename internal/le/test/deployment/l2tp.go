@@ -45,7 +45,7 @@ const (
 // from its package index: a floating tag changes the peer under the test, and a
 // red run then says nothing about ze.
 const (
-	L2TPImage    = "alpine:3.20"
+	L2TPImage    = "alpine:3.24.3"
 	L2TPPlatform = "linux/amd64"
 	L2TPGoarch   = "amd64"
 )

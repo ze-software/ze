@@ -608,7 +608,7 @@ throwaway container and reads its answer:
 
 ```bash
 docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
-  -v <staged ze>:/ze:ro alpine:3.21 /ze doctor --json kernel-capabilities
+  -v <staged ze>:/ze:ro alpine:3.24.3 /ze doctor --json kernel-capabilities
 ```
 
 `ze doctor kernel-capabilities` probes every capability a package enrolls in

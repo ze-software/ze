@@ -56,7 +56,7 @@ func execArgv(t *testing.T, spec interoplab.ContainerExec) []string {
 // deploymentPullTimeout, the 15 minutes a multi-gigabyte VPP image needs.
 // PREVENTS: the pull falling back to the wrapper's shorter default (D-3).
 func TestEnsureImagePullsUnderTheDeploymentBound(t *testing.T) {
-	const image = "ligato/vpp-base:24.02"
+	const image = "ligato/vpp-base:25.10"
 	recorder := &argvRecorder{answer: func(argv []string) (interoplab.ProcessResult, error) {
 		if len(argv) > 2 && argv[1] == "image" {
 			return interoplab.ProcessResult{ExitCode: 1, Stderr: "Error: No such image: " + image}, nil

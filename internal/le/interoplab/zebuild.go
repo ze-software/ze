@@ -124,7 +124,7 @@ func stageBinaries(ctx context.Context, runner ProcessRunner, root, architecture
 	}
 	// CGO stays off, which gotoolchain answers by default. A static Go binary
 	// references no libc, which is what lets a binary built on a glibc host run
-	// on the musl alpine:3.21 base every lab image uses.
+	// on the musl alpine:3.24.3 base every lab image uses.
 	environment := toolchain.Environment(gotoolchain.EnvOptions{
 		GOOS:   labBuildGOOS,
 		GOARCH: architecture,

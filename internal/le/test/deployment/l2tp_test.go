@@ -33,7 +33,7 @@ func fixtureL2TP(t *testing.T) *L2TP {
 	t.Helper()
 
 	run := NewL2TP(tree(t))
-	run.Image = "alpine:3.20"
+	run.Image = "alpine:3.24.3"
 	run.Platform = "linux/amd64"
 	run.Goarch = "amd64"
 	return run
@@ -102,7 +102,7 @@ func TestTheContainerMountsTheTreeAndTheScratch(t *testing.T) {
 		"-v " + run.Tree + ":/src",
 		"-v " + work + ":/run/l2tp",
 		"-w /src",
-		"alpine:3.20 sleep infinity",
+		"alpine:3.24.3 sleep infinity",
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the container argv does not carry %q:\n%s", want, line)
@@ -212,7 +212,7 @@ func TestTheCollectorIsBoundedAndAnswersWhatItSaw(t *testing.T) {
 // PREVENTS: a tool that answers finished text, which no operator can pipe.
 func TestTheL2TPReportIsStructuredData(t *testing.T) {
 	report := L2TPReport{
-		Peer: "xl2tpd", Image: "alpine:3.20", Container: "ze-l2tp-evidence-1",
+		Peer: "xl2tpd", Image: "alpine:3.24.3", Container: "ze-l2tp-evidence-1",
 		Established: false, LogTail: []string{"one", "two"},
 	}
 

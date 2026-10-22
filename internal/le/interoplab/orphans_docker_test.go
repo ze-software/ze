@@ -22,7 +22,7 @@ import (
 const orphanChildVariable = "ZE_ORPHAN_TEST_CHILD"
 
 // orphanTestImage is the base the child's container and build use.
-const orphanTestImage = "alpine:3.21"
+const orphanTestImage = "alpine:3.24.3"
 
 // VALIDATES: the wiring row "a lab run SIGKILLed, then any lab start ->
 // labels on create + Docker.CleanupOrphans", against the real daemon: a run

@@ -27,7 +27,7 @@ func TestContainerRemovalNamesTheFixOnce(t *testing.T) {
 	const name = "ze-vpp-evidence-1"
 	refusal := "docker: Error response from daemon: error gathering device information while adding custom device \"/dev/vhost-net\": no such file or directory"
 	busy := "Error response from daemon: device or resource busy"
-	spec := interoplab.DetachedContainer{Name: name, Image: "ligato/vpp-base:24.02", Command: []string{"sleep", "infinity"}}
+	spec := interoplab.DetachedContainer{Name: name, Image: "ligato/vpp-base:25.10", Command: []string{"sleep", "infinity"}}
 
 	for _, row := range []struct {
 		name     string

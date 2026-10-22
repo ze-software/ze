@@ -18,7 +18,7 @@ import (
 )
 
 // proofImage is the server image; the orphan test uses the same one.
-const proofImage = "alpine:3.21"
+const proofImage = "alpine:3.24.3"
 
 // proofGreeting is what the proof server writes to each connection.
 const proofGreeting = "labtest-ready"

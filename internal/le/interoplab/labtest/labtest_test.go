@@ -130,7 +130,7 @@ func fixtureHost(runner *scriptedRunner, docker bool, environment map[string]str
 
 func fixtureSpec() Spec {
 	return Spec{
-		Name: "stayrtr", Image: "rpki/stayrtr:latest", Command: []string{"-bind", ":3323"},
+		Name: "stayrtr", Image: "rpki/stayrtr:v0.6.4", Command: []string{"-bind", ":3323"},
 		Port: interoplab.TCPPort(3323), Ready: func(context.Context, netip.AddrPort) error { return nil },
 		ReadyTimeout: time.Second, LogLines: 50,
 	}
@@ -525,7 +525,7 @@ func TestLabtestPullsAPinnedImageOnlyWhenAbsent(t *testing.T) {
 			want: []string{"info", "image", "pull", "run", "port", "rm"}},
 		{name: "pinned absent unpullable", image: pinnedImage, absent: true, pullFails: true,
 			want: []string{"info", "image", "pull"}, wantFatal: "pull refused by the fixture"},
-		{name: "tag", image: "rpki/stayrtr:latest", want: []string{"info", "pull", "run", "port", "rm"}},
+		{name: "tag", image: "rpki/stayrtr:v0.6.4", want: []string{"info", "pull", "run", "port", "rm"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

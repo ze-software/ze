@@ -30,7 +30,7 @@ func TestDockerAnswersTheEndpointRefusalBeforeAnyCommand(t *testing.T) {
 	if _, err := docker.Build(ctx, ImageBuild{Tag: "ze-test:latest", Context: "/ctx", Dockerfile: "/ctx/Dockerfile"}); !errors.Is(err, refusal) {
 		t.Errorf("build: %v, want the endpoint refusal", err)
 	}
-	if _, err := docker.RunOneShot(ctx, OneShotContainer{Image: "alpine:3.21", Timeout: time.Second}); !errors.Is(err, refusal) {
+	if _, err := docker.RunOneShot(ctx, OneShotContainer{Image: "alpine:3.24.3", Timeout: time.Second}); !errors.Is(err, refusal) {
 		t.Errorf("one-shot: %v, want the endpoint refusal", err)
 	}
 	if len(runner.commands) != 0 {

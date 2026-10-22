@@ -47,7 +47,7 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 	dockerfile := filepath.Join(directory, "Dockerfile")
 	var images []ImageResult
 	for _, marker := range []string{"first", "second"} {
-		content := "FROM alpine:3.21\nCMD [\"echo\", \"" + marker + "\"]\n"
+		content := "FROM alpine:3.24.3\nCMD [\"echo\", \"" + marker + "\"]\n"
 		if err := os.WriteFile(dockerfile, []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
