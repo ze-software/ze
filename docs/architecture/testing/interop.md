@@ -1747,11 +1747,13 @@ ESP in both directions, so the agreement on the Transform ID and the verificatio
 of the encrypted ICV are separate observations.
 
 The lab image carries that transform although `/usr/lib/ipsec/plugins` holds no
-`libstrongswan-ccm.so`. Alpine 3.21 builds strongSwan 5.9.14 with no
-`--enable-ccm`, so the standalone ccm plugin is absent, and charon's openssl
-plugin registers the algorithm instead: `swanctl --list-algs` in
-`ze-ipsec-strongswan` answers `AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and
-`AES_CCM_8[openssl]` (measured 2026-09-14). The absent FILE is not an absent
+`libstrongswan-ccm.so`. `test/interop-ipsec/Dockerfile.strongswan` builds
+strongSwan 6.1.0 from source with no `--enable-ccm`, so the standalone ccm
+plugin is absent, and two other plugins register the algorithm instead: on an
+x86-64 host `swanctl --list-algs` in the image answers `AES_CCM_16[aesni]`,
+`AES_CCM_12[aesni]` and `AES_CCM_8[aesni]`, and with aesni not loaded it answers
+`AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and `AES_CCM_8[openssl]` (measured
+2026-10-22). The absent FILE is not an absent
 capability, and a source build of the ccm plugin would add a second provider of
 one algorithm and nothing else.
 <!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->

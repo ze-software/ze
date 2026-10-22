@@ -1,23 +1,61 @@
 # strongSwan/charon peer for IPsec interop lab.
 # Runs charon directly in foreground (no systemd, no ipsec starter).
 #
+# strongSwan is built from the upstream 6.1.0 release, because owner decision M14
+# (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
+# Alpine 3.24 packages 6.0.7. The configure line keeps the layout and the plugin
+# set of the Alpine package the lab ran before: charon at
+# /usr/lib/strongswan/charon, plugins under /usr/lib/ipsec/plugins, one
+# /etc/strongswan.d/charon/<plugin>.conf per plugin, and no eap-dynamic (scenario
+# eap-nak-method-negotiation depends on its absence). stroke and starter are not
+# built: the lab drives charon through swanctl and vici only.
+#
 # nmap-nping crafts one IPv4 datagram at a time through a raw IP socket, so the
 # packet leaves this container through the kernel routing and XFRM path and is
 # protected by the negotiated Child SA. Its --badsum flag writes a deliberately
 # wrong TCP/UDP checksum, which is what a NAT produces on a transport-mode flow
 # and what RFC 3948 Section 3.1.2 tells the decapsulator to deal with.
 #
-# AES CCM needs no plugin build here, although the file that usually carries it is
-# absent. Alpine 3.21 builds strongSwan 5.9.14 with no --enable-ccm, so
-# /usr/lib/ipsec/plugins holds no libstrongswan-ccm.so, and charon's openssl plugin
-# registers the algorithm anyway: `swanctl --list-algs` in this image answers
-# AES_CCM_16[openssl], AES_CCM_12[openssl] and AES_CCM_8[openssl] (measured
-# 2026-09-14). That is what lets ike-aes-ccm16 negotiate the transform of RFC 5282
-# Section 7.2 against this peer. Read the absent file as one provider missing, never
-# as the capability missing, and check `swanctl --list-algs` before building one.
+# AES CCM needs no ccm plugin here. This build carries no --enable-ccm, so
+# /usr/lib/ipsec/plugins holds no libstrongswan-ccm.so, and two other plugins
+# register the algorithm anyway. Measured 2026-10-22 on an x86-64 host:
+# `swanctl --list-algs` answers AES_CCM_16[aesni], AES_CCM_12[aesni] and
+# AES_CCM_8[aesni], and with aesni not loaded (a host without AES-NI) it answers
+# AES_CCM_16[openssl], AES_CCM_12[openssl] and AES_CCM_8[openssl]. That is what lets ike-aes-ccm16
+# negotiate the transform of RFC 5282 Section 7.2 against this peer. Read the
+# absent file as one provider missing, never as the capability missing, and check
+# `swanctl --list-algs` before building one.
 
-FROM alpine:3.21
+FROM alpine:3.24.3 AS build
 
-RUN apk add --no-cache strongswan iproute2 iptables tini nmap-nping
+# sha256 of the upstream release tarball, taken 2026-10-22.
+ARG STRONGSWAN_VERSION=6.1.0
+ARG STRONGSWAN_SHA256=fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4
+
+RUN apk add --no-cache build-base curl curl-dev gmp-dev linux-headers openssl-dev sqlite-dev
+
+WORKDIR /src
+RUN curl -fsSL -o strongswan.tar.bz2 \
+        "https://download.strongswan.org/strongswan-${STRONGSWAN_VERSION}.tar.bz2" \
+    && echo "${STRONGSWAN_SHA256}  strongswan.tar.bz2" | sha256sum -c - \
+    && tar -xjf strongswan.tar.bz2 --strip-components=1 \
+    && ./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/lib \
+        --with-ipsecdir=/usr/lib/strongswan --disable-static --enable-shared \
+        --disable-stroke \
+        --enable-aesni --enable-attr-sql --enable-cmd --enable-counters \
+        --enable-curl --enable-curve25519 --enable-dhcp --enable-eap-aka \
+        --enable-eap-aka-3gpp2 --enable-eap-identity --enable-eap-md5 \
+        --enable-eap-mschapv2 --enable-eap-radius --enable-eap-sim \
+        --enable-eap-sim-file --enable-eap-simaka-pseudonym \
+        --enable-eap-simaka-reauth --enable-eap-tls --enable-farp --enable-ha \
+        --enable-openssl --enable-sqlite --enable-unity --enable-xauth-eap \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/out
+
+FROM alpine:3.24.3
+
+RUN apk add --no-cache gmp iproute2 iptables libcurl nmap-nping openssl sqlite-libs tini
+
+COPY --from=build /out/ /
 
 ENTRYPOINT ["tini", "--", "/usr/lib/strongswan/charon"]

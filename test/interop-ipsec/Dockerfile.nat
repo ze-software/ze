@@ -19,7 +19,7 @@
 # runs to flush the box's UDP entries after it replaces the port rule: NAT rules apply
 # to a flow's first packet only, and keepalives keep the old entry alive.
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 RUN apk add --no-cache conntrack-tools iproute2 iptables tini
 

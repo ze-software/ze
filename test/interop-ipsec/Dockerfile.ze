@@ -3,7 +3,7 @@
 # `./le test integration interop-ipsec` cross-compiles before it builds this image
 # (internal/le/interoplab/zebuild.go, StageBinaries).
 
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 # iputils replaces busybox ping: the sizing checker sends a sized probe with Don't
 # Fragment (`ping -M do -s`), which busybox ping cannot express.
