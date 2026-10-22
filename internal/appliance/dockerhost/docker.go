@@ -61,8 +61,8 @@ var dockerdFixedArgv = []string{
 func DockerUnits() []BuiltinUnit {
 	return []BuiltinUnit{
 		FixedUnit(UnitSpec{
-			Name:    "containerd.service",
-			Argv:    []string{"/usr/bin/containerd", "--config", containerdConfig, "--root", containerdRoot, "--state", "/run/containerd"},
+			Name:      "containerd.service",
+			Argv:      []string{"/usr/bin/containerd", "--config", containerdConfig, "--root", containerdRoot, "--state", "/run/containerd"},
 			Restart:   RestartAlways,
 			StopGrace: stopGraceDefault,
 		}),

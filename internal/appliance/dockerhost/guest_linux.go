@@ -127,7 +127,7 @@ func RunGuest() int {
 // never returns: the supervisor lives as long as the guest.
 func serveForever(console io.Writer, c *Cidata) int {
 	sup, err := NewSupervisor("/", 0, append([]BuiltinUnit{FixedUnit(UnitSpec{
-		Name:    "sshd.service",
+		Name:      "sshd.service",
 		Argv:      []string{shippedDir + "/sshd", "-D", "-e", "-f", "/etc/ssh/sshd_config"},
 		Restart:   RestartAlways,
 		StopGrace: stopGraceDefault,

@@ -119,7 +119,7 @@ func TestContainerdConfigSeeded(t *testing.T) {
 // VALIDATES: review R1-1: stop sets stopping under svc.mu and launch checks
 // it under the same lock, so a stop during the backoff cannot leave a new
 // process running that nobody signals.
-// PREVENTS: Stop signalling the dead process, then blocking forever on done
+// PREVENTS: Stop signaling the dead process, then blocking forever on done
 // while the restarted process runs.
 func TestServiceLaunchRefusedOnceStopping(t *testing.T) {
 	svc := &service{

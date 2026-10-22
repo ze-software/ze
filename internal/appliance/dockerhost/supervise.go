@@ -243,8 +243,8 @@ var errServiceStopping = errors.New("the service is stopping")
 // launch starts one process of the service and records it. It holds svc.mu
 // across the start, and stop sets stopping under the same lock, so either
 // stop sees the new process and signals it, or launch sees stopping and
-// starts nothing. Without that, a stop during the restart backoff signalled
-// the dead process and then waited forever on a new one nobody signalled.
+// starts nothing. Without that, a stop during the restart backoff signaled
+// the dead process and then waited forever on a new one nobody signaled.
 func (svc *service) launch() (*exec.Cmd, error) {
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
