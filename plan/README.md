@@ -20,6 +20,19 @@ correctness, a crash, and a CLI surface that answers wrongly. `pre-release/` is
 packaging, appliance boot, onboarding documentation, release audit, and the RFC
 evidence Ze owes a reader outside this repository. Everything else sits here.
 
+For RFC work, apply owner decision M30 in `ai/META-DECISIONS.md`: classify
+incorrect implemented behavior separately from absent features. Full RFC
+coverage is not a first-release prerequisite. An absent feature does not excuse
+a missing requirement needed for a shipped capability to behave correctly.
+Public support claims must distinguish partial implementation from full support.
+Split mixed fix-and-feature specs when needed for this classification (M32).
+Each acceptance criterion and dependency stays assigned to its owning spec;
+separating future features does not close or weaken a required fix.
+
+The directories below describe the current layout, not the target organization.
+Owner decision M31 requires plan files to live only in human-readable subfolders;
+the root backlog is to be relocated when that reorganization is implemented.
+
 **Moving a defect out of `immediate/` to shrink its count is banned.** The count
 measures the release, and a defect that moves still ships. `ai/rules/completion.md`
 governs it: recording a problem is never addressing it.
