@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -387,7 +388,10 @@ func TestRefusalCountsProcessesInEnglish(t *testing.T) {
 }
 
 // VALIDATES: the JSON keys of a cache row are kebab-case, as the le command
-// grammar requires of every JSON answer.
+// grammar requires of every JSON answer (ai/rules/cli.md).
+// PREVENTS: a key the spot checks below do not name going out snake_case, as
+// free_before and free_after did until 2026-10-22: every tagged field of the
+// row and of the report is checked.
 func TestCacheCleanJSONKeysAreKebabCase(t *testing.T) {
 	encoded, err := json.Marshal(CacheClean{Name: "n", EntriesRemoved: 2, KeptYoung: 3, Removed: 4})
 	if err != nil {
@@ -396,6 +400,17 @@ func TestCacheCleanJSONKeysAreKebabCase(t *testing.T) {
 	for _, want := range []string{`"entries-removed":2`, `"kept-young":3`, `"removed":4`} {
 		if !strings.Contains(string(encoded), want) {
 			t.Errorf("json = %s, want it to contain %s", encoded, want)
+		}
+	}
+	for _, kind := range []reflect.Type{reflect.TypeFor[CacheClean](), reflect.TypeFor[CleanReport]()} {
+		for field := range kind.Fields() {
+			name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+			if name == "" || name == "-" {
+				continue
+			}
+			if name != strings.ToLower(name) || strings.Contains(name, "_") {
+				t.Errorf("%s.%s has JSON key %q, want lowercase kebab-case", kind.Name(), field.Name, name)
+			}
 		}
 	}
 }

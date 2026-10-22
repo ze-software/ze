@@ -153,8 +153,8 @@ func (mode cleanMode) String() string {
 type CacheClean struct {
 	Name           string `json:"name"`
 	Path           string `json:"path"`
-	FreeBefore     uint64 `json:"free_before"`
-	FreeAfter      uint64 `json:"free_after"`
+	FreeBefore     uint64 `json:"free-before"`
+	FreeAfter      uint64 `json:"free-after"`
 	Freed          int64  `json:"freed"`
 	Removed        int64  `json:"removed,omitempty"`
 	EntriesRemoved int    `json:"entries-removed,omitempty"`
