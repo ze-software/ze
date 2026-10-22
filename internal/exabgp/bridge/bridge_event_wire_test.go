@@ -98,7 +98,7 @@ func TestUpdateFormsOfTheReleases(t *testing.T) {
 	}
 	text := string(appendTextAttributes(nil, map[string]any{bridgeUpdateAttr: map[string]any{
 		"aggregator": "18144:219.118.225.189", "as4-aggregator": "4200000000:192.0.2.1",
-	}}))
+	}}, textAttributeWire{}))
 	if !strings.Contains(text, " aggregator ( 18144:219.118.225.189 ) aggregator ( 4200000000:192.0.2.1 )") {
 		t.Errorf("text aggregators = %q", text)
 	}

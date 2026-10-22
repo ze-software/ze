@@ -24,6 +24,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -140,7 +141,14 @@ func (e Event) appendUpdateText(buf []byte) []byte {
 		return append(buf, " end\n"...)
 	}
 
-	attributes := appendTextAttributes(nil, e.Data)
+	// The ExaBGP document a JSON helper reads for this UPDATE, wire overlay
+	// included. Its routes and community texts are already ExaBGP's, so the
+	// text line is written from the same facts and the two encoders cannot
+	// state one route two ways.
+	message := updateMessageJSON(e.Data, FormatV4JSON, e.Peer)
+	e.overlayWire(message)
+	attributes := appendTextAttributes(nil, e.Data, e.textWire(message))
+	routes := newTextRoutes(message)
 
 	nlri, _ := e.Data[bridgeUpdateNLRI].(map[string]any)
 	for _, family := range sortedKeys(nlri) {
@@ -156,7 +164,7 @@ func (e Event) appendUpdateText(buf []byte) []byte {
 			if unsplitOperation(bridgeLog(), e.Peer, family, operation) {
 				continue
 			}
-			buf = appendUpdateOperation(buf, prefix, operation, attributes)
+			buf = appendUpdateOperation(buf, prefix, exabgpFamilyName(family), operation, attributes, routes)
 		}
 	}
 
@@ -187,150 +195,54 @@ func appendEORText(buf []byte, prefix, afi, safi, peer string) []byte {
 	return append(buf, ")\n"...)
 }
 
-// appendUpdateOperation writes one announce or withdraw group of an UPDATE.
-func appendUpdateOperation(buf []byte, prefix string, operation map[string]any, attributes []byte) []byte {
+// appendUpdateOperation writes one announce or withdraw group of an UPDATE,
+// one line per route: `announced <extensive><attributes>` or
+// `withdrawn <extensive>` (Text.update). family is ExaBGP's `<afi> <safi>`.
+//
+// Each route is written from its entry in the ExaBGP document. An entry the
+// document does not hold, or an operation that is neither an announce nor a
+// withdrawal, has no ExaBGP form to write: the line is left out and logged, so
+// the script is not told something wrong.
+func appendUpdateOperation(buf []byte, prefix, family string, operation map[string]any, attributes []byte, routes textRoutes) []byte {
 	action, _ := operation["action"].(string)
 	nextHop, _ := operation["next-hop"].(string)
 	values, _ := operation[bridgeUpdateNLRI].([]any)
 
-	for _, value := range values {
-		buf = append(buf, prefix...)
+	for range values {
+		var announced bool
 		switch action {
 		case "add":
-			buf = append(buf, " announced "...)
-			labeled, isLabeled := labeledRoute(value)
-			if !isLabeled {
-				buf = appendNLRIText(buf, value)
-			}
-			if isLabeled {
-				buf = labeled.appendAnnounced(buf)
-			}
-			if nextHop != "" {
-				buf = append(buf, " next-hop "...)
-				buf = appendOneline(buf, nextHop)
-			}
-			if isLabeled {
-				buf = labeled.appendQualifier(buf)
-			}
-			buf = append(buf, attributes...)
+			announced = true
 		case "del":
-			buf = append(buf, " withdrawn "...)
-			labeled, isLabeled := labeledRoute(value)
-			if !isLabeled {
-				buf = appendNLRIText(buf, value)
-			}
-			if isLabeled {
-				buf = labeled.appendWithdrawn(buf)
-			}
+			announced = false
 		default:
-			// Neither action: write the NLRI on a route line, which is the
-			// shape ExaBGP uses for an End-of-RIB.
-			buf = append(buf, " route "...)
-			buf = appendNLRIText(buf, value)
+			bridgeLog().Warn("exabgp-bridge: UPDATE operation is neither an announce nor a withdrawal; the text line leaves it out",
+				"family", family, "action", action)
+			continue
+		}
+		hop := nextHop
+		if !announced {
+			hop = ""
+		}
+		entry, found := routes.next(family, hop, announced)
+		if !found {
+			bridgeLog().Warn("exabgp-bridge: route has no ExaBGP document entry; the text line leaves it out",
+				"family", family, "action", action)
+			continue
+		}
+		buf = append(buf, prefix...)
+		if announced {
+			buf = append(buf, " announced "...)
+			buf = appendExtensive(buf, family, entry, hop, true)
+			buf = append(buf, attributes...)
+		}
+		if !announced {
+			buf = append(buf, " withdrawn "...)
+			buf = appendExtensive(buf, family, entry, "", false)
 		}
 		buf = append(buf, '\n')
 	}
 	return buf
-}
-
-// labeledText is a labeled-unicast or VPN route (RFC 8277, RFC 4364) as ze's
-// event states it: `prefix`, `labels` as `[label, entry]` pairs, and an `rd`
-// for VPN.
-type labeledText struct {
-	prefix string
-	labels []any
-	rd     any
-}
-
-// labeledRoute reads an NLRI object as a labeled route, and answers false for
-// any other NLRI.
-func labeledRoute(value any) (labeledText, bool) {
-	object, ok := value.(map[string]any)
-	if !ok {
-		return labeledText{}, false
-	}
-	prefix, ok := object["prefix"].(string)
-	if !ok {
-		return labeledText{}, false
-	}
-	labels, _ := object[bridgeNLRILabels].([]any)
-	return labeledText{prefix: prefix, labels: labels, rd: object[bridgeNLRIRD]}, true
-}
-
-// appendAnnounced writes the head of LabelBase.v4_text, as 5.x wrote it: the
-// prefix and the labels without their raw value (Labels.text(raw=False),
-// ` label 100`, or ` label [ 100 200 ]` for a stack). The next hop follows,
-// then appendQualifier.
-func (l labeledText) appendAnnounced(buf []byte) []byte {
-	buf = appendOneline(buf, l.prefix)
-	values := labelValuesOnly(l.labels).([]any) //nolint:forcetypeassert // labelValuesOnly answers []any for a []any
-	if len(values) == 0 {
-		return buf
-	}
-	buf = append(buf, " label "...)
-	if len(values) > 1 {
-		buf = append(buf, "[ "...)
-	}
-	for index, entry := range values {
-		if index > 0 {
-			buf = append(buf, ' ')
-		}
-		pair, _ := entry.([]any)
-		if len(pair) == 0 {
-			continue
-		}
-		buf = appendJSONNumber(buf, pair[0])
-	}
-	if len(values) > 1 {
-		buf = append(buf, " ]"...)
-	}
-	return buf
-}
-
-// appendQualifier writes what LabelBase.v4_qualifier puts after the next hop:
-// the route distinguisher of a VPN route (IPVPN.v4_qualifier, str(rd)), and
-// nothing for labeled unicast.
-func (l labeledText) appendQualifier(buf []byte) []byte {
-	if l.rd == nil {
-		return buf
-	}
-	rd, ok := exabgpRD(l.rd).(string)
-	if !ok {
-		return buf
-	}
-	buf = append(buf, " rd "...)
-	return appendOneline(buf, rd)
-}
-
-// appendWithdrawn writes the route as extensive() does on a withdrawn line:
-// the prefix (Label.extensive), and the route distinguisher of a VPN route
-// (IPVPN.extensive). No label: a withdrawal names the route.
-func (l labeledText) appendWithdrawn(buf []byte) []byte {
-	buf = appendOneline(buf, l.prefix)
-	return l.appendQualifier(buf)
-}
-
-// appendNLRIText writes one NLRI as ExaBGP's `extensive()` writes it.
-//
-// ze reports a prefix family as a string and a structured family (mvpn, evpn,
-// flow) as an object. ExaBGP's extensive() is per family and is not reachable
-// from the object ze sends, so an object is written as its own `nlri` field
-// when it has one and as compact JSON when it does not. A reader then still
-// sees what arrived, on one line.
-func appendNLRIText(buf []byte, value any) []byte {
-	switch typed := value.(type) {
-	case string:
-		return appendOneline(buf, typed)
-	case map[string]any:
-		if text, ok := typed[bridgeUpdateNLRI].(string); ok {
-			return appendOneline(buf, text)
-		}
-	}
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return append(buf, "unrenderable"...)
-	}
-	return appendOneline(buf, string(encoded))
 }
 
 // textAttribute is one path attribute in ExaBGP's text rendering: the code it
@@ -363,14 +275,15 @@ var textAttributes = map[string]textAttribute{
 	bridgeAttrAggregator:      {Code: 7, Name: bridgeAttrAggregator},
 	// RFC 6793's AS4_AGGREGATOR. ExaBGP names codes 7 and 18 both
 	// `aggregator` (AttributeCollection.representation).
-	"as4-aggregator":            {Code: 18, Name: bridgeAttrAggregator},
-	"communities":               {Code: 8, Name: bridgeAttrCommunity},
-	bridgeAttrOriginatorID:      {Code: 9, Name: bridgeAttrOriginatorID},
-	bridgeAttrClusterList:       {Code: 10, Name: bridgeAttrClusterList},
-	"extended-communities":      {Code: 16, Name: bridgeAttrExtCommunity},
-	"ipv6-extended-communities": {Code: 25, Name: bridgeAttrExtCommunityIPv6},
-	bridgeAttrAIGP:              {Code: 26, Name: bridgeAttrAIGP},
-	"large-communities":         {Code: 32, Name: bridgeAttrLargeCommunity},
+	"as4-aggregator":         {Code: 18, Name: bridgeAttrAggregator},
+	zeAttrCommunities:        {Code: 8, Name: bridgeAttrCommunity},
+	bridgeAttrOriginatorID:   {Code: 9, Name: bridgeAttrOriginatorID},
+	bridgeAttrClusterList:    {Code: 10, Name: bridgeAttrClusterList},
+	zeAttrExtCommunities:     {Code: 16, Name: bridgeAttrExtCommunity},
+	zeAttrIPv6ExtCommunities: {Code: 25, Name: bridgeAttrExtCommunityIPv6},
+	bridgeAttrAIGP:           {Code: 26, Name: bridgeAttrAIGP},
+	zeAttrLargeCommunities:   {Code: 32, Name: bridgeAttrLargeCommunity},
+	bridgeAttrPrefixSID:      {Code: 40, Name: bridgeAttrPrefixSID},
 }
 
 // appendTextAttributes renders an UPDATE's attributes as ExaBGP writes them:
@@ -396,7 +309,15 @@ var textAttributes = map[string]textAttribute{
 // byte between the code and the value; the ze event carries no flags on this
 // path, so the bridge writes the code and the value alone. That is the one
 // place where a text line is narrower than ExaBGP's.
-func appendTextAttributes(buf []byte, data map[string]any) []byte {
+//
+// MP_REACH_NLRI and MP_UNREACH_NLRI are never written: ExaBGP turns both into
+// the UPDATE's routes while it parses, so its attribute collection never holds
+// them, and ze reports one it decoded as `attr-14` beside the routes it read
+// out of it.
+//
+// The community lists come from wire (textAttributeWire): ExaBGP sorts them by
+// their octets and writes a list of one bare (bridge_event_text_community.go).
+func appendTextAttributes(buf []byte, data map[string]any, wire textAttributeWire) []byte {
 	attributes, ok := data[bridgeUpdateAttr].(map[string]any)
 	if !ok || len(attributes) == 0 {
 		return buf
@@ -412,6 +333,29 @@ func appendTextAttributes(buf []byte, data map[string]any) []byte {
 			continue
 		}
 		if emptyAttributeList(attributes[key]) {
+			continue
+		}
+		switch textAttributeCode(key) {
+		case uint8(attribute.AttrMPReachNLRI), uint8(attribute.AttrMPUnreachNLRI):
+			continue
+		}
+		if kind, isCommunity := textCommunityKinds[key]; isCommunity {
+			buf = append(buf, ' ')
+			buf = append(buf, textAttributes[key].Name...)
+			buf = append(buf, ' ')
+			members, read := wire.communities(kind)
+			if read {
+				buf = appendCommunityListText(buf, members)
+				continue
+			}
+			// No octets to sort by: ze's own list, in the order the peer
+			// sent it, under the same one-bare rule.
+			buf = appendBareSingleText(buf, attributes[key])
+			continue
+		}
+		if key == bridgeAttrPrefixSID {
+			buf = append(buf, " bgp-prefix-sid "...)
+			buf = appendPrefixSIDText(buf, attributes[key])
 			continue
 		}
 		named, known := textAttributes[key]

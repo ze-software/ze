@@ -311,6 +311,9 @@ func exabgpInterfaceSet(text string) (folded string, transitive, states bool) {
 // exabgpCommunityText restates one rendered extended community in ExaBGP's
 // words, and answers the text unchanged when both projects already agree.
 func exabgpCommunityText(text string) string {
+	if word, isSimpson := exabgpSimpsonNextHop(text); isSimpson {
+		return word
+	}
 	for _, spelling := range exabgpCommunitySpellings {
 		if rest, found := strings.CutPrefix(text, spelling[0]); found {
 			var folded textbuf.Buffer
@@ -318,6 +321,37 @@ func exabgpCommunityText(text string) string {
 		}
 	}
 	return text
+}
+
+// exabgpSimpsonNextHop answers ExaBGP's word for the 0x0800 redirect-to-next-hop
+// community of draft-simpson-idr-flowspec-redirect, and false for any other.
+//
+// ze has no name for type 0x08 subtype 0x00 and writes it as its octets,
+// `0x0800:` and the six value octets in hex. ExaBGP decodes it as
+// TrafficNextHopSimpson (community/extended/traffic.py, 5.0.1):
+//
+//	(bit,) = unpack('!B', data[7:8])
+//	return TrafficNextHopSimpson(bool(bit & 0x01), data[:8])
+//	...
+//	return 'copy-to-nexthop' if self.copy else 'redirect-to-nexthop'
+//
+// so the copy flag is the low bit of the last octet, the last hex digit here.
+func exabgpSimpsonNextHop(text string) (string, bool) {
+	value, isSimpson := strings.CutPrefix(text, "0x0800:")
+	if !isSimpson {
+		return "", false
+	}
+	if len(value) != 12 {
+		return "", false
+	}
+	last, err := strconv.ParseUint(value[11:], 16, 8)
+	if err != nil {
+		return "", false
+	}
+	if last&0x01 == 0x01 {
+		return "copy-to-nexthop", true
+	}
+	return "redirect-to-nexthop", true
 }
 
 // attributeOf answers an update's attribute object, creating it when the update

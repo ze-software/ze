@@ -91,9 +91,11 @@ func TestTextEncoderOrdersAttributesByCode(t *testing.T) {
 
 	got, _ := readTextEvent(t, event)
 
+	// A list of one community is written bare: Communities.__repr__ answers
+	// repr(self.communities[0]) when lc == 1 (community/initial/communities.py).
 	want := "neighbor 10.0.0.1 send update announced 1.0.0.0/24 next-hop 1.1.1.1" +
 		" origin igp as-path [ 65001 65002 ] med 200 local-preference 100" +
-		" community [ 2:1 ] large-community [ 1:2:3 ]\n"
+		" community 2:1 large-community 1:2:3\n"
 	if !strings.Contains(got, want) {
 		t.Errorf("text event:\n%q\ndoes not carry:\n%q", got, want)
 	}
