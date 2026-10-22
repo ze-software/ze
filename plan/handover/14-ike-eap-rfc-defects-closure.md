@@ -160,7 +160,7 @@ shared index pointing at pre-`9d60c1d841` content for its paths; the repair is i
   IKE_AUTH (RFC 4555 Section 3.3). Fixed: `mobike = no` in
   `real-nat-port-translated-eap-ze-responder/swanctl.conf`. Green 23:25, walk M3 red 23:26
   (Ze refuses the IKE_AUTH Child SA: no authenticated IKE endpoint), committed with this entry.
-  Runs used an export of `09333fb1a1` (ike and interop code identical to HEAD) because HEAD's
+  Runs used an export of `09333fb1a1` (ike engine, EAP and ipsec interop code identical to HEAD; other `internal/le/interoplab` harness files differ) because HEAD's
   docker-host image needs a gokrazy module the cache lacks (`GOPROXY=off`, another session's
   `2b98d538dc`/`a02b362081` change).
 - The matching `interop.md` rewording is in the working tree, NOT committed: the file holds
@@ -168,3 +168,31 @@ shared index pointing at pre-`9d60c1d841` content for its paths; the repair is i
   commit or with the closure.
 - Round 9 needs Thomas. Then the full verify (disk was 24 GB at 23:20), then `/ze-close`
   (`rounds 9`), with the closure prep listed above.
+
+## Round 9 clean; closure blocked by rfc/check, 2026-10-22 01:50
+
+- Round 9 (Thomas: "ok") over `b2ff0fbbfc`: CLEAN, 0 BLOCKER, 0 ISSUE, 4 NOTEs. Artifact
+  recorded: `./le spec review record ... rounds 9` with the rekey retry storm as rounds-reason and
+  Thomas's words for rounds 6 to 9; `./le spec review check` OK over 10 code files. The artifact
+  lives in `tmp/review/` (machine-local); re-record it if the closure runs elsewhere.
+- Full `./le verify worktree` over `40e5a5ea23` (log
+  `tmp/verify-worktree-logs/20261021T232548.747872000Z-p71703-r1-40e5a5ea239c`): stopped at stage
+  49 of 55 when the disk fell to 2.9 GB. Its reds are attributed in the spec (Pre-Commit
+  Verification, "all unit ACs"). Most are other sessions' work. **`rfc/check` is red on 42 rows
+  this spec caused**: 39 discrimination records under `rfc/discrimination/rfc{3948,4301,4303,7296}.json`
+  no longer verify (`producer-changed`, because this spec changed `respondChildRekey`,
+  `applyChildRekeyResponse`, `rebindChildSAs`, `installChildSA`, `newChildSA`,
+  `handleCreateChildSAOwned`). Also `rfc7296_child_rekey_transport_test.go` is named for rfc7296
+  but carries no tag (`./le rfc rename`, a tag, or `// RFC naming: untagged -- <reason>`),
+  RFC3948-2.1-2 has a SHIFTED audit verdict (`./le rfc reseal`), and RFC7296-1.4.1-1 has a STALE
+  one (re-judge with `ze-rfc-audit`, `inbound.go::handleCreateChildSAOwned`). The full list is in
+  the verify log's rfc/check stage.
+- ai/rules/rfc-compliance.md says a tagged unit whose producer a change alters owes a fresh
+  discrimination record in the same change, so these are inside this spec. They are not done,
+  and the spec stays open.
+- Next: free disk, then re-record each with `./le rfc discriminate-record` (one at a time), fix
+  the file-name refusal and the two verdicts, rerun `./le rfc check`, then `/ze-close`. If the
+  re-recorded code changes, a review round covers it (round 10 is pre-authorised: "If not, I run
+  round 10."). The closure prep (`plan/learned/032-ike-eap-rfc-defects.md`, the citer repoints in
+  `docs/contributing/patching-the-standard-library.md`, `ai/INDEX.md` and two `plan/pre-release/`
+  specs) is still uncommitted in the working tree.

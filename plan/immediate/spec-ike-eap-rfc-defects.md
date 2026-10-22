@@ -1209,9 +1209,10 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 
 | Field | Value |
 |-------|-------|
-| Artifact | REVIEW-ARTIFACT |
-| `./le spec review check` | REVIEW-CHECK |
-| Rounds | 7 (round 6 authorised by Thomas, 2026-10-21: "ok to both"; round 7: "and you can continue with what you're suggesting") |
+| Artifact | `tmp/review/ike-eap-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md`, verdict clean, 13 files, `rounds-reason` the rekey retry storm round 5 found |
+| `./le spec review check` | `review_gate: OK (10 code files, clean, hashes match ...)` |
+| Rounds | 9 (Thomas authorised each past five on 2026-10-21: round 6 "ok to both"; round 7 "and you can continue with what you're suggesting"; round 8 "Review round 8 for IKE EAP"; round 9 "ok"). Round 9: CLEAN, 0 BLOCKER, 0 ISSUE, 4 NOTEs (the handover's "identical to HEAD" should say the ike, eap and ipsec interop code; three `sa.peerEndpoint` comments miss the MOBIKE write, journaled in `comment-describes-superseded-behaviour.md`; the checker does not assert MOBIKE stayed off; step 0 pre-checks not run by the reviewer) |
+| Round 9 scope | authorised by Thomas, 2026-10-21 ("ok" to "Review round 9 for IKE EAP, over the MOBIKE fix?"). The round-8 fix in `b2ff0fbbfc`: `mobike = no` in `real-nat-port-translated-eap-ze-responder/swanctl.conf`, its `ze.conf` comment, the spec's M3 rows, rows 13 and 14, the A-8 cell, handover 14's round 8 section; and the uncommitted `interop.md` rewording of the EAP port scenario's red |
 | Round 8 scope | authorised by Thomas, 2026-10-21: "Review round 8 for IKE EAP". The round-7 fixes: `ee07c2b2da` (the spec's scenario row 838, the 22:07 runs row, the survey wording of the AC-2 goal row, findings rows 12 and 13, the round 6 and 7 paragraphs, handover 14) and the uncommitted `interop.md` rewording of the EAP port scenario's red and the RFC 7627 survey sentence |
 | Round 7 scope | the round-6 fix in `09333fb1a1`: `checkResponderEAPTLS12` and `responderEAPTLS12RefusalFacts` (`natport.go`), the scenario's `strongswan.conf`, the `responder-eap-tls12` row and the two paragraphs in `docs/architecture/testing/interop.md`, and the spec rows that state the scenario's runs |
 | Round 6 scope | the round-5 fixes in `a1cbd95e05` (`create_child.go`, `inbound.go`, `rfc7296_child_rekey_transport_test.go`, `ipsec-8-ikev2-child-xfrm.md`) and the sibling call sites they touch (`rekeyRefusedWait` and every rekey-refusal branch of `handleOwnedInbound`, `initiateChildRekey`); the `responder-eap-tls12` re-scope (`checkResponderEAPTLS12` in `internal/le/interoplab/ipsec/natport.go`, the scenario's `strongswan.conf`, its rows in `docs/architecture/testing/interop.md`) |
@@ -1249,7 +1250,7 @@ Round 4: 0 BLOCKER, 0 ISSUE, three NOTEs (the "ze defect" refusal in `installChi
 |-------|-------|----------------|
 | AC-1, AC-5, AC-6, AC-11, AC-14, AC-2 | whole stack against strongSwan 5.9.14 | "Interop Tests", "Runs of 2026-10-21": every scenario green (AC-5's three real-nat scenarios 18:56 to 18:59), walks recorded |
 | AC-1 | Linux XFRM state read back | `TestRFC3948InstalledStateCarriesTheIKEPeerPort` PASS 19:31, runtime kernel `7.2.9-runtime-arm64-runtime-docker-387d6b76` |
-| all unit ACs | unit suites green | FULL-VERIFY |
+| all unit ACs | unit suites green | `./le verify worktree` over `40e5a5ea23` (2026-10-22 00:25, log `tmp/verify-worktree-logs/20261021T232548.747872000Z-p71703-r1-40e5a5ea239c`): stopped at stage 49 of 55 when the disk fell to 2.9 GB, no verdict. In what ran, `ike/cmd`, `ike/dataplane`, `ike/ipsec`, `ike/transport`, `ike/wire`, `ike/yang`, `stdpatch/gen` and `test/interop-ipsec` passed. The reds are other sessions' packages: `bgp/configjson`, `le/job`, `le/repo`, `le/test/sensitivity`, `test/runner`, `test/interop-l2tp`, `exabgp/bridge`, `le/ai/rules`, `plugins/signal`, plus the repo tree, sensitivity, doc links (5 dead paths in `ai/doors/api-surfaces.md`, `linux-limitations.md`, `running-commands.md`), site facts, vulnerability, rfc check, doc wiring, retired-commands and exabgp stages. `ike/engine` and `core/eap` were not reached in this run; they last passed on 2026-10-21 (handover 14), and their code has not changed since `a1cbd95e05` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -1277,4 +1278,4 @@ Round 4: 0 BLOCKER, 0 ISSUE, three NOTEs (the "ze defect" refusal in `installChi
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | ipsec-9 rebind: charon's `update_hosts` reading | `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` line naming `update_hosts`, against A-7 | yes |
-| pages and anchors | `./le doc check verify` in the full verify | FULL-VERIFY |
+| pages and anchors | `./le doc check verify` in the full verify | doc check/links red on five dead paths, none on a page this spec edited; doc wiring red, not attributed to this spec's pages in the log |
