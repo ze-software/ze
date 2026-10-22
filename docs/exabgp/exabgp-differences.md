@@ -260,16 +260,27 @@ communities, because Ze's config parser already read those spellings and its
 renderer wrote something the parser refuses. `update text` reads the redirect-to-IP
 spellings too, so a received community can be sent back as written.
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpRD, exabgpPathInformation, exabgpFlowComponentName -->
-<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- exabgpCommunitySpellings, exabgpInterfaceSet -->
+<!-- source: internal/exabgp/bridge/bridge_event_wire.go -- exabgpCommunitySpellings, exabgpInterfaceSet -->
 
 ---
 
-## The live bridge writes less than a fixture checks
+## Three UPDATE members come from the wire bytes
 
-`WireUpdateToExabgpJSON` renders an UPDATE from its WIRE BYTES, so it can state
-three members Ze's own JSON does not carry: the AS_PATH's segments and their
+Ze's own JSON states three members lossily: the AS_PATH flattened to its AS
+numbers, each extended community as its text alone, and an attribute Ze has no
+parser for as `attr-<code>`. ExaBGP writes the AS_PATH's segments and their
 types, the numeric value beside each extended community, and the flag octet in
-an unknown attribute's `attribute-0xCC-0xFF` name.
+the unknown attribute's `attribute-0xCC-0xFF` name. The bridge subscribes at
+`FormatFull`, so every UPDATE event carries `raw.update` beside its parsed body,
+and the one UPDATE renderer, `Event.ExabgpJSON`, reads those three members off
+the UPDATE's own path attributes. `WireUpdateToExabgpJSON`, which the ExaBGP
+compatibility fixtures go through, hands its bytes to the same renderer, so a
+fixture checks what a live process receives.
+
+The AS_PATH is read with the session's AS number width, which the runner takes
+from the session's `negotiated` event (RFC 6793). An UPDATE that reaches the
+renderer before any `negotiated` event of its session keeps Ze's flattened path;
+a running session always states one first.
 
 The community value is read for both widths, RFC 4360's 8 octets and RFC 5701's
 20, and it is built exactly and rounded once. RFC 5701's community is 160 bits
@@ -283,17 +294,9 @@ the interface set and beside nothing else, because that community
 and non-transitive, differing by one bit of the type octet. Ze states that bit
 in the text instead, since it carries every extended community in one flat list
 and has no `scope` block to put it in.
-
-The live bridge cannot. `translateAndForward` receives Ze's JSON event as text
-and has no wire to read, so an ExaBGP process attached to a running Ze gets Ze's
-flattened AS_PATH and no community values. The ExaBGP compatibility fixtures go
-through the wire path, so they check more than a live process receives.
-
-Closing it means the bridge subscribing at `FormatFull`, which carries
-`raw.update` beside the parsed body, and rendering from those bytes. Until then
-this page is the only statement of what the fixtures do not prove.
-<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- WireUpdateToExabgpJSON, overlayASPath, overlayExtendedCommunities, overlayUnknownAttributes -->
-<!-- source: internal/exabgp/bridge/bridge.go -- translateAndForward -->
+<!-- source: internal/exabgp/bridge/bridge_event_wire.go -- overlayWire, overlayASPath, overlayCommunityWidth, overlayUnknownAttributes -->
+<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- WireUpdateToExabgpJSON -->
+<!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, sessionAttrContext -->
 
 ---
 

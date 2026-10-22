@@ -129,7 +129,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 		// If nil, we can only extract NLRI from body structure
 		result, err := filter.ApplyToUpdate(msg.AttrsWire, msg.RawBytes, *nlriFilter)
 		if err != nil {
-			return appendEmptyUpdate(buf, peer, content, messageType)
+			return appendEmptyUpdate(buf, peer, msg, content, direction, messageType)
 		}
 
 		// RFC 7911 Section 3: the ADD-PATH state comes from the UPDATE itself,
@@ -195,15 +195,34 @@ func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	return append(buf, '\n')
 }
 
-// appendEmptyUpdate appends an empty UPDATE message to buf.
-// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},...}}.
-func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, content bgptypes.ContentConfig, messageType string) []byte {
+// appendEmptyUpdate appends an UPDATE whose attributes did not parse, as an
+// UPDATE that states no route.
+//
+// The message's direction is still written, and so are its bytes for a
+// subscriber of a format that carries them (`full`, `raw`, `hex`): a reader of
+// the packet is owed the packet whether or not ze could read a route from it.
+// Until 2026-10-22 both were dropped, so the ExaBGP bridge wrote no `packets`
+// line and a `consolidate` line with no header or body for such an UPDATE
+// (TestOldResponses42), and a sent one read as received.
+func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding == plugin.EncodingJSON {
 		buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
 		buf = append(buf, messageType...)
-		buf = append(buf, `"},`...)
+		buf = append(buf, '"')
+		if direction != rpc.DirectionUnspecified {
+			buf = append(buf, `,"direction":"`...)
+			buf = direction.AppendTo(buf)
+			buf = append(buf, '"')
+		}
+		buf = append(buf, `},`...)
 		buf = appendPeerJSON(buf, peer)
-		buf = append(buf, `,"nlri":{}}}`...)
+		buf = append(buf, `,"nlri":{}`...)
+		if content.Format == plugin.FormatFull || content.Format == plugin.FormatRaw || content.Format == plugin.FormatHex {
+			buf = append(buf, `,"raw":{"update":"`...)
+			buf = hex.AppendEncode(buf, msg.RawBytes)
+			buf = append(buf, '"', '}')
+		}
+		buf = append(buf, `}}`...)
 		buf = append(buf, '\n')
 		return buf
 	}

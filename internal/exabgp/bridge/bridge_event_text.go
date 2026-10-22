@@ -355,12 +355,15 @@ type textAttribute struct {
 // NEXT_HOP is absent on purpose: ExaBGP marks it NO_GENERATION and writes it
 // beside the NLRI instead of among the attributes.
 var textAttributes = map[string]textAttribute{
-	bridgeAttrOrigin:            {Code: 1, Name: bridgeAttrOrigin},
-	bridgeAttrASPath:            {Code: 2, Name: bridgeAttrASPath},
-	bridgeAttrMED:               {Code: 4, Name: bridgeAttrMED},
-	bridgeAttrLocalPreference:   {Code: 5, Name: bridgeAttrLocalPreference},
-	bridgeAttrAtomicAggregate:   {Code: 6, Name: bridgeAttrAtomicAggregate},
-	bridgeAttrAggregator:        {Code: 7, Name: bridgeAttrAggregator},
+	bridgeAttrOrigin:          {Code: 1, Name: bridgeAttrOrigin},
+	bridgeAttrASPath:          {Code: 2, Name: bridgeAttrASPath},
+	bridgeAttrMED:             {Code: 4, Name: bridgeAttrMED},
+	bridgeAttrLocalPreference: {Code: 5, Name: bridgeAttrLocalPreference},
+	bridgeAttrAtomicAggregate: {Code: 6, Name: bridgeAttrAtomicAggregate},
+	bridgeAttrAggregator:      {Code: 7, Name: bridgeAttrAggregator},
+	// RFC 6793's AS4_AGGREGATOR. ExaBGP names codes 7 and 18 both
+	// `aggregator` (AttributeCollection.representation).
+	"as4-aggregator":            {Code: 18, Name: bridgeAttrAggregator},
 	"communities":               {Code: 8, Name: bridgeAttrCommunity},
 	bridgeAttrOriginatorID:      {Code: 9, Name: bridgeAttrOriginatorID},
 	bridgeAttrClusterList:       {Code: 10, Name: bridgeAttrClusterList},
@@ -429,6 +432,14 @@ func appendTextAttributes(buf []byte, data map[string]any) []byte {
 		buf = append(buf, ' ')
 		buf = append(buf, named.Name...)
 		buf = append(buf, ' ')
+		if named.Name == bridgeAttrAggregator {
+			// ExaBGP's text form of an aggregator is `( %s )`
+			// (AttributeCollection.representation): `( 18144:219.118.225.189 )`.
+			buf = append(buf, "( "...)
+			buf = appendAttributeValueText(buf, attributes[key])
+			buf = append(buf, " )"...)
+			continue
+		}
 		buf = appendAttributeValueText(buf, attributes[key])
 	}
 	return buf

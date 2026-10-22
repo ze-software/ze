@@ -9,6 +9,7 @@ import (
 	"slices"
 	"sync"
 
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -36,6 +37,10 @@ type Sessions struct {
 	// A block is never changed once stored, so every line of the session
 	// shares it.
 	negotiated map[string]map[string]any
+	// contexts is each peer's attribute encoding context, by remote address,
+	// kept whether or not a script is granted the block: every UPDATE line
+	// reads its AS_PATH with it (Event.overlayWire).
+	contexts map[string]bgpctx.ContextID
 }
 
 // Note reads one event into the sessions and gives the event what its
@@ -45,16 +50,20 @@ func (s *Sessions) Note(e *Event) {
 	switch e.Kind {
 	case msgTypeNegotiated:
 		block := convertNegotiated(e.negotiatedData())
+		contextID := sessionAttrContext(block)
 		s.mu.Lock()
 		if s.negotiated == nil {
 			s.negotiated = make(map[string]map[string]any)
+			s.contexts = make(map[string]bgpctx.ContextID)
 		}
 		s.negotiated[e.Peer] = block
+		s.contexts[e.Peer] = contextID
 		s.mu.Unlock()
 	case msgTypeState:
 		if state, _ := e.Payload["state"].(string); state == sessionStateDown {
 			s.mu.Lock()
 			delete(s.negotiated, e.Peer)
+			delete(s.contexts, e.Peer)
 			s.mu.Unlock()
 		}
 	case msgTypeUpdate, msgTypeOpen, msgTypeNotification, msgTypeKeepalive, msgTypeRefresh:
@@ -63,8 +72,27 @@ func (s *Sessions) Note(e *Event) {
 		// write it.
 		s.mu.Lock()
 		e.Negotiated = s.negotiated[e.Peer]
+		e.attrContext = s.contexts[e.Peer]
 		s.mu.Unlock()
 	}
+}
+
+// sessionAttrContext answers the encoding context a session's attributes are
+// read with, from its negotiated block: four-octet AS numbers or two (RFC 6793
+// Section 4), and the zero ContextID, which overlayWire reads as unknown, for
+// a block that states neither or a registry that is full.
+func sessionAttrContext(block map[string]any) bgpctx.ContextID {
+	asn4, stated := block["asn4"].(bool)
+	if !stated {
+		return 0
+	}
+	contextID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
+	if err != nil {
+		bridgeLog().Warn("exabgp-bridge: no encoding context for the session, so its UPDATE lines state the AS path as ze flattens it",
+			"error", err)
+		return 0
+	}
+	return contextID
 }
 
 // negotiatedData is the event's `negotiated` object, or nil when it carries

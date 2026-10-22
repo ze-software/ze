@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -112,6 +114,13 @@ type Event struct {
 	// parsed message, and the zero Packet for any other event
 	// (bridge_event_packets.go).
 	Packet Packet
+	// attrContext is the registered encoding context the session's UPDATE
+	// attributes are read with, which fixes the AS number width. The zero
+	// ContextID is no registered context (bgpctx.ContextRegistry numbers from
+	// 1), and it is a guard: overlayWire leaves the AS_PATH as ze wrote it
+	// while the runner has not seen the session's `negotiated` event.
+	// Sessions.Note sets it.
+	attrContext bgpctx.ContextID
 }
 
 // exabgpRefreshSubtypes maps the kind ze names a ROUTE-REFRESH event by, its
@@ -293,7 +302,9 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 		e.writeSignal(neighbor)
 
 	case msgTypeUpdate:
-		neighbor["message"] = updateMessageJSON(e.Data, format, e.Peer)
+		message := updateMessageJSON(e.Data, format, e.Peer)
+		e.overlayWire(message)
+		neighbor["message"] = message
 		if e.Negotiated != nil {
 			neighbor[msgTypeNegotiated] = e.Negotiated
 		}
@@ -686,6 +697,10 @@ func appendFlowStringNextHop(flow any, nextHop string) {
 	if nextHop == "" {
 		return
 	}
+	// Flow.v4_json states the next hop twice: as a member of its own, then at
+	// the end of the string ("next-hop": "<ip>"), and neither for a route with
+	// none.
+	object[bridgeAttrNextHop] = nextHop
 	var tb textbuf.Buffer
 	object["string"] = tb.Str(text).Str(" next-hop ").Str(nextHop).String()
 }
@@ -916,9 +931,11 @@ func flowComponentString(flat map[string]any) string {
 			continue
 		}
 		tb.Byte(' ').Str(key)
-		// ExaBGP brackets a component that states more than one match and
-		// writes a single one bare, which is how an operator writes it back.
-		if len(values) > 1 {
+		// ExaBGP brackets a component that holds more than one RULE and writes
+		// a single one bare (Flow._rules: `if len(r_str) > 1`). An AND group is
+		// several rules in one value, `>=80&<=90`, so it is bracketed too.
+		bracketed := flowComponentRules(values) > 1
+		if bracketed {
 			tb.Str(" [")
 		}
 		for _, value := range values {
@@ -928,7 +945,7 @@ func flowComponentString(flat map[string]any) string {
 			}
 			tb.Byte(' ').Str(text)
 		}
-		if len(values) > 1 {
+		if bracketed {
 			tb.Str(" ]")
 		}
 		wrote = true
@@ -942,6 +959,19 @@ func flowComponentString(flat map[string]any) string {
 		tb.Str(" rd ").Str(rd)
 	}
 	return tb.String()
+}
+
+// flowComponentRules counts the rules of one flow component as Flow._rules
+// does: one per value, plus one for each `&` that joins an AND group inside a
+// value.
+func flowComponentRules(values []any) int {
+	rules := len(values)
+	for _, value := range values {
+		if text, isText := value.(string); isText {
+			rules += strings.Count(text, "&")
+		}
+	}
+	return rules
 }
 
 // exabgpAttributeNames maps ze's name for an attribute to ExaBGP's, for the
@@ -962,6 +992,9 @@ var exabgpAttributeNames = map[string]string{
 	// first nowhere else (attribute.py, Attribute.CODE names), so the two
 	// spellings differ by more than ze's plural.
 	"ipv6-extended-communities": "extended-community-ipv6",
+	// RFC 6793's AS4_AGGREGATOR: ExaBGP names codes 7 and 18 both
+	// `aggregator` (AttributeCollection.representation).
+	"as4-aggregator": bridgeAttrAggregator,
 	// attr-9 is gone: bgp-rr now registers a real originator-id formatter, so
 	// ze names it the same as ExaBGP does and there is nothing to translate.
 }
@@ -1061,6 +1094,18 @@ func splitColonCommunities(value any, parts int) []any {
 		text, isText := member.(string)
 		if !isText {
 			return nil
+		}
+		if parts == 2 {
+			// A community is always its two halves (Community.json:
+			// `'[ %d, %d ]' % unpack('!HH', packed)`), the well-known ones
+			// included: ze writes `blackhole` where ExaBGP writes
+			// `[65535, 666]`.
+			value, err := attribute.ParseCommunity(text)
+			if err != nil {
+				return nil
+			}
+			converted = append(converted, []any{float64(value >> 16), float64(value & 0xFFFF)})
+			continue
 		}
 		fields := strings.Split(text, ":")
 		if len(fields) != parts {
