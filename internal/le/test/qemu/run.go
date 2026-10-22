@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	AlpineVersion = "3.21"
+	AlpineVersion = "3.24"
 	AlpineMinor   = "3"
 )
 

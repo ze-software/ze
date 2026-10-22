@@ -49,7 +49,7 @@ RUN . ./feature-tags && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
     -o /ze ./cmd/ze
 
 # Runtime stage
-FROM alpine:3.21
+FROM alpine:3.24.3
 
 # tini forwards SIGTERM and SIGHUP to ze, which is the config-push contract: a
 # lab tool rewrites the file and signals the node (cmd/ze/hub/main_reload.go,

@@ -11,11 +11,11 @@ Ze builds two container images. They carry the same binary and differ in the bas
 | Image | Recipe | Target | Base | Size |
 |-------|--------|--------|------|------|
 | `ze:latest` | `docker/Dockerfile` | Deployment | `scratch`: no shell, no libc, no package manager | 119 MB |
-| `netlab/ze:latest` | `docker/Dockerfile.lab` | Labs under netlab and containerlab | `alpine:3.21` with `tini` and `iproute2` | 137 MB |
+| `netlab/ze:latest` | `docker/Dockerfile.lab` | Labs under netlab and containerlab | `alpine:3.24.3` with `tini` and `iproute2` | 137 MB |
 
 The sizes are `docker image ls` values measured on 2026-08-14. Use the deployment image everywhere except a lab. The lab image carries a shell and `ip` because containerlab and netlab drive a node from the outside. They run `sh` and `ip` inside the container to assign the addresses the topology declares, and a scratch base has neither. For the lab image see [netlab](netlab.md).
 <!-- source: docker/Dockerfile -- FROM scratch, ENTRYPOINT ["/ze"] -->
-<!-- source: docker/Dockerfile.lab -- FROM alpine:3.21, apk add tini iproute2, ENTRYPOINT ["tini", "--", "ze"] -->
+<!-- source: docker/Dockerfile.lab -- FROM alpine:3.24.3, apk add tini iproute2, ENTRYPOINT ["tini", "--", "ze"] -->
 <!-- source: docker/Dockerfile -- default feature-tag derivation and deployment image -->
 
 ## Build the deployment image
