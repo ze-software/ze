@@ -188,3 +188,63 @@ Owed gates, not run because of the host rule: `./le verify worktree`, `./le go
 lint run`, `./le test functional exabgp-test`, any `.ci` that pins exact OPEN,
 KEEPALIVE, NOTIFICATION or refresh JSON (router-id is now present, and borr and
 eorr now arrive as `refresh`), and independent review.
+
+## Agent event producers (2026-10-22 Linux)
+
+Classes 3, 6 and 7 of the list above. Counts with the parallel agents' work in
+the tree: 5.0 from 8091 to 8747 of 23392, 4.2 from 8583 to 9151 of 20930.
+
+Class 7, landed in 4d60f7db2d. The 40 UPDATEs: 32 were the judge, which
+answered ADD-PATH yes for every family (`oldSessionReset`), so an IPv6
+MP_REACH prefix lost four octets to a Path Identifier. It now asks the receive
+context per family, as `validateRFC7606Attrs` does. The other 8 carry type 153
+with the Optional bit clear (flags 0x60 and 0x70). Ze resets on RFC 4271
+Section 6.3 ("If any of the well-known mandatory attributes are not recognized,
+then the Error Subcode MUST be set to Unrecognized Well-known Attribute.").
+Two ALLOWED rows quote it.
+
+Class 6, done, NOT committed. `bridge_event_state.go` maps ze's down reason to
+the words ExaBGP's reactor hands Processes.down (pin `reactor/peer/peer.py`):
+tcp-failure and local-close are `closing connection`, removed is `stop,
+message [removed]`, notification is `notification`. A reason the table does not
+name passes through. The JSON down line now carries `reason`, and before this it
+carried none. Tests: `bridge_event_state_test.go`. Pages:
+`docs/architecture/exabgp-bridge.md` and `docs/exabgp/exabgp-differences.md`
+("The reason of a down"). The pin's recorder feeds `peer reset`, which no
+reactor writes, so two ALLOWED rows in `old_responses_test.go` quote it. The
+commit is held because `bridge_event.go`, `bridge_event_text.go` and
+`old_responses_test.go` carry the OPEN/negotiated agents' in-flight hunks:
+`convertNegotiated` moved out to `bridge_negotiated.go`, which is untracked, so
+a commit now would break HEAD. Commit these together with the files of that
+agent once it lands: `bridge_event_state.go`, `bridge_event_state_test.go`, the
+`reason` hunk in `ExabgpJSON`, the `exabgpDownReason` line in
+`appendStateText`, the four ALLOWED rows, and the two pages. Still owed: ExaBGP
+writes `notification sent (c,s)` or `notification received (c,s)`, and ze's
+down event carries neither the direction nor the codes. Deliver them on the
+down event (reactor `sessionCloseFor` knows `notified` only), then extend the
+table.
+
+Class 3, NOT started: an engine feature. Ze has no producer for any of the
+four events.
+- `connected`: `format.JSONEncoder.stateConnected` exists and nothing calls
+  it, and `rpc.SessionState` has only Up and Down. ExaBGP sends it on TCP
+  establishment under `neighbor-changes`.
+- `fsm`: one event per FSM transition, with the state named IDLE, ACTIVE,
+  CONNECT, OPENSENT, OPENCONFIRM or ESTABLISHED (JSON `type: fsm`,
+  `neighbor.state`). The hook is `fsm.FSM.SetCallback`
+  (`internal/component/bgp/fsm/fsm.go`).
+- `signal`: SIGHUP and SIGTERM, per neighbor, `code` and `name`, from
+  `reactor/signal.go` `handleSignal`.
+- `shutdown`: `{"notification":"shutdown","type":"notification"}`, with text
+  `shutdown <pid> <ppid>`, written to each process on daemon stop (pin
+  `processes.py:408`).
+Each one needs an event type registered, delivered as `onPeerStateChange`
+(`bgp/server/events.go`) delivers its events, a bridge renderer, and an
+`APIKey` grant. The bridge already names `fsm` and `signal`. Text writes no
+line for either, so the text halves already pass. The judge's `zeDocument`
+must then build each document from the new format producers. OPERATIONAL
+remains owed as ALLOWED rows quoting M15.
+
+Housekeeping: `tmp/commit-005e4774-a-687a42.sh` is a duplicate script from a
+refused `create`. Never run it. Owed gates: `./le go lint run`, `./le verify
+worktree`, `./le test functional exabgp-test`, and independent review.
