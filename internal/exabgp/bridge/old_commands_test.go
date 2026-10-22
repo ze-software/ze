@@ -34,6 +34,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"     // blank import: the daemon links every NLRI plugin
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec" // blank import: as above
@@ -406,7 +407,13 @@ func (j *oldJudge) zeRoutes(command string) ([]string, string) {
 	for _, written := range translation.Commands {
 		_, args, found := strings.Cut(written.Text, " update text")
 		if !found {
-			return nil, "not an update text command: " + written.Text
+			refresh, refusal := oldRefreshMessage(written.Text)
+			if refusal != "" {
+				return nil, refusal
+			}
+			sent, _ := j.recordedRoutes([]string{refresh})
+			rows = append(rows, sent...)
+			continue
 		}
 		result, err := update.ParseUpdateText(strings.Fields(args))
 		if err != nil {
@@ -422,6 +429,35 @@ func (j *oldJudge) zeRoutes(command string) ([]string, string) {
 	}
 	slices.Sort(rows)
 	return rows, ""
+}
+
+// oldRefreshMessage is the ROUTE-REFRESH ze's reactor sends for the bridge's
+// `request peer <selector> refresh <family>`, as hex the way the corpus holds
+// a message. The family is read as the refresh handler reads it
+// (family.LookupFamily, route_refresh/handler handleRefreshMarker), and the
+// message is built as sendRouteRefresh builds it (reactor_api_forward.go): a
+// normal refresh, subtype 0. The pin's judge packs the RouteRefresh its
+// handler hands the reactor the same way (`packed`, qa/bin/test_old_commands).
+// neighbor.conf carries every family, so the session takes a refresh for any.
+//
+// RFC 2918 Section 3: "The ROUTE-REFRESH message is a new BGP message type
+// defined as follows: Type: 5 - ROUTE-REFRESH Message Format: One <AFI, SAFI>
+// encoded as".
+// RFC 7313 Section 3.2: "0 - Normal route refresh request [RFC2918]
+// with/without Outbound Route Filtering (ORF) [RFC5291]".
+//
+// The refusal is why ze sends nothing, empty when it sends the message.
+func oldRefreshMessage(text string) (string, string) {
+	words := strings.Fields(text)
+	if len(words) != 5 || words[0] != "request" || words[1] != "peer" || words[3] != "refresh" {
+		return "", "not an update text command, nor a refresh: " + text
+	}
+	f, ok := family.LookupFamily(words[4])
+	if !ok {
+		return "", "the refresh handler knows no family " + words[4] + ": " + text
+	}
+	refresh := &message.RouteRefresh{AFI: f.AFI, SAFI: f.SAFI, Subtype: message.RouteRefreshNormal}
+	return hex.EncodeToString(message.PackTo(refresh, nil)), ""
 }
 
 // packOldResult packs one parsed command as the UPDATE bodies a peer would
