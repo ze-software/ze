@@ -1400,8 +1400,11 @@ one JSON value, or whose path field spells the old path with an escape such as
 ran. The suffix is judged by
 `go/build` itself: the rename is refused when the source and the target names
 build on different sets of the platforms `go tool dist list` names, so a suffix
-`go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too. `propose` writes a plan of one pair per misnamed file the naming
-rule finds, each target being the rename the finding names. Each pair is
+`go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too.
+
+`propose` plans a prefix addition only when a file's tags cite one RFC but its
+name cites none. An untagged RFC-named file offers a choice of tag, marker or
+rename, so it produces no automatic pair. Each proposed pair is
 judged by `pairRefusals`, the predicate the rename applies to a pair, so a
 source that is untracked or differs from HEAD, and a target that already
 exists, moves the build suffix or fails the naming rule, is left out and named
