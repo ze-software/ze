@@ -80,7 +80,9 @@ var actions = leaction.New(area,
 			// rule, which a flat keyword table cannot state.
 			{Keyword: keyProducer, Value: keyProducer, Requirement: leaction.Optional},
 			{Keyword: keyReport, Value: keyPath, Requirement: leaction.Optional},
-			{Keyword: keyMutant, Value: "file:line:column#n", Requirement: leaction.Optional},
+			// Repeat: every mutant named is applied to the one broken run, for
+			// a property two checks guard on the same path (PairedBreak).
+			{Keyword: keyMutant, Value: "file:line:column#n", Requirement: leaction.Optional, Repeat: true},
 			{Keyword: keyCitation, Value: keyCitation, Requirement: leaction.Optional},
 			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Optional},
 			// Required only for a unit whose build constraints hold in the

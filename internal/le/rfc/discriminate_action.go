@@ -108,8 +108,11 @@ func (r discriminationRecordReport) Text() string {
 		Str(" at ").Str(r.Record.Unit).Str(" by ").Str(r.Record.Route).Byte('\n')
 	tb.Str("Evidence unit: tag claim; a partial annotation scopes this record, never the whole requirement.\n")
 	if r.Record.Proves() {
-		tb.Str("break: ").Str(r.Record.Break).Str(" in ").Str(r.Record.Producer).Byte('\n').
-			Str("command: ").Str(r.Observed.Command).Byte('\n').
+		tb.Str("break: ").Str(r.Record.Break).Str(" in ").Str(r.Record.Producer).Byte('\n')
+		for _, paired := range r.Record.Paired {
+			tb.Str("paired break: ").Str(paired.Break).Str(" in ").Str(paired.Producer).Byte('\n')
+		}
+		tb.Str("command: ").Str(r.Observed.Command).Byte('\n').
 			Str("observed red in ").Int(int64(r.Observed.Seconds)).Str("s:\n").
 			Str(r.Observed.Red).Byte('\n')
 	}
@@ -127,7 +130,10 @@ type ObservedRed struct {
 type recordRequest struct {
 	rid, polarity, unit, route string
 	producer, citation, reason string
-	report, mutant             string
+	report                     string
+	// mutants are the selectors the mutant route applies, all in the one broken
+	// run: the first is the record's producer and every further one is paired.
+	mutants []string
 	// kernel is the runtime kernel a unit that compiles only in the Linux
 	// guest boots, empty for every other unit.
 	kernel string
@@ -149,7 +155,7 @@ func discriminateRecordAnswer(args leaction.Arguments) (any, int) {
 		rid: args.One(keyID), polarity: args.One(keyPolarity), unit: args.One(keyUnit),
 		route: args.One(keyRoute), producer: args.One(keyProducer),
 		citation: args.One(keyCitation), reason: args.One(keyReason),
-		report: args.One(keyReport), mutant: args.One(keyMutant),
+		report: args.One(keyReport), mutants: args.Values(keyMutant),
 		kernel: args.One(keyKernel),
 	})
 	if err != nil {
@@ -357,17 +363,22 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	if err := runner.requireCleanGreen(); err != nil {
 		return ObservedRed{}, err
 	}
-	return runner.requireRed(broken)
+	return runner.requireRed(broken...)
 }
 
-// brokenSource answers the file content one break produces, and fills the
-// record's producer and break text from what was actually applied.
+// brokenSource answers the file contents the breaks produce, one per touched
+// file, and fills the record's producer, paired breaks and break text from what
+// was actually applied.
 func brokenSource(tree string, reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord, request recordRequest) (overlayFile, error) {
+	record *DiscriminationRecord, request recordRequest) ([]overlayFile, error) {
 	if record.Route == RouteMutant {
 		return mutantBreak(tree, reader, index, record, request)
 	}
-	return revertBreak(reader, index, record)
+	broken, err := revertBreak(reader, index, record)
+	if err != nil {
+		return nil, err
+	}
+	return []overlayFile{broken}, nil
 }
 
 // overlayFile is one file replaced for the length of one observation.
@@ -376,54 +387,90 @@ type overlayFile struct {
 	content string
 }
 
-// mutantBreak answers the source one gomu mutant produces.
+// mutantBreak answers the source the named gomu mutants produce together.
 //
-// The mutant is selected by position rather than by gomu's id, because that id
+// A mutant is selected by position rather than by gomu's id, because that id
 // is not unique: one report carries `config.go_2` twice, at two columns. File,
 // line and column name exactly one operator, and an ambiguous selector is
 // refused with the count named rather than resolved by order.
+//
+// More than one selector applies every mutant to the ONE broken run, for a
+// property two checks guard on the same path. The first names the record's
+// producer and every further one is recorded as paired. Two mutants of one file
+// land in that file's single replacement, applied in the order named, so the
+// overlay never selects a copy holding only one of them.
 func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord, request recordRequest) (overlayFile, error) {
+	record *DiscriminationRecord, request recordRequest) ([]overlayFile, error) {
 	var tb textbuf.Buffer
-	if request.report == "" || request.mutant == "" {
-		return overlayFile{}, parseErr(tb.Str("the ").Str(RouteMutant).
+	if request.report == "" || len(request.mutants) == 0 {
+		return nil, parseErr(tb.Str("the ").Str(RouteMutant).
 			Str(" route needs report <path> and mutant <file:line:column#n>, which name the ").
 			Str("generated break to apply. `./le rfc discriminate ... report <path>` proposes them"))
 	}
 	mutants, err := loadGomuReport(tree, request.report)
 	if err != nil {
-		return overlayFile{}, err
+		return nil, err
 	}
+	var files []overlayFile
+	named := map[string]bool{}
+	for position, selector := range request.mutants {
+		if named[selector] {
+			return nil, parseErr(tb.Str("mutant ").Str(selector).Str(" is named twice. ").
+				Str("Each break of a set is applied once, so a repeat names nothing new"))
+		}
+		named[selector] = true
+		mutant, err := selectMutant(mutants, request.report, selector)
+		if err != nil {
+			return nil, err
+		}
+		slot := slices.IndexFunc(files, func(file overlayFile) bool { return file.rel == mutant.FilePath })
+		if slot < 0 {
+			content := reader.read(mutant.FilePath)
+			if content == nil {
+				return nil, parseErr(tb.Str(mutant.FilePath).
+					Str(": the report names a file this tree does not hold"))
+			}
+			files = append(files, overlayFile{rel: mutant.FilePath, content: *content})
+			slot = len(files) - 1
+		}
+		broken, err := replaceOnLine(files[slot].content, mutant)
+		if err != nil {
+			return nil, err
+		}
+		files[slot].content = broken
+		// The producer is read from the tree, never from the copy being broken,
+		// so an earlier mutant of the same file cannot move the function lookup.
+		producer := functionAtLine(index, *reader.read(mutant.FilePath), mutant.Line)
+		if producer == "" {
+			return nil, parseErr(tb.Str(selector).
+				Str(" sits in no function, and a record names the FUNCTION a break was applied to"))
+		}
+		key := tb.Reset().Str(mutant.FilePath).Str("::").Str(producer).String()
+		if position == 0 {
+			record.Producer, record.Break = key, mutant.text()
+			continue
+		}
+		record.Paired = append(record.Paired, PairedBreak{Producer: key, Break: mutant.text()})
+	}
+	return files, nil
+}
+
+// selectMutant answers the one mutant a selector names in a report.
+func selectMutant(mutants []reportMutant, report, selector string) (reportMutant, error) {
 	var found []reportMutant
 	for position := range mutants {
-		if mutants[position].selector() == request.mutant {
+		if mutants[position].selector() == selector {
 			found = append(found, mutants[position])
 		}
 	}
-	if len(found) != 1 {
-		return overlayFile{}, parseErr(tb.Str(request.report).Str(" holds ").Int(int64(len(found))).
-			Str(" mutant(s) at ").Str(request.mutant).
-			Str(", and a break is applied to exactly one. `./le rfc discriminate ... report <path>` ").
-			Str("prints the selector of every candidate, ordinal included"))
+	if len(found) == 1 {
+		return found[0], nil
 	}
-	mutant := found[0]
-	content := reader.read(mutant.FilePath)
-	if content == nil {
-		return overlayFile{}, parseErr(tb.Str(mutant.FilePath).
-			Str(": the report names a file this tree does not hold"))
-	}
-	broken, err := replaceOnLine(*content, mutant)
-	if err != nil {
-		return overlayFile{}, err
-	}
-	producer := functionAtLine(index, *content, mutant.Line)
-	if producer == "" {
-		return overlayFile{}, parseErr(tb.Str(request.mutant).
-			Str(" sits in no function, and a record names the FUNCTION a break was applied to"))
-	}
-	record.Producer = tb.Reset().Str(mutant.FilePath).Str("::").Str(producer).String()
-	record.Break = mutant.text()
-	return overlayFile{rel: mutant.FilePath, content: broken}, nil
+	var tb textbuf.Buffer
+	return reportMutant{}, parseErr(tb.Str(report).Str(" holds ").Int(int64(len(found))).
+		Str(" mutant(s) at ").Str(selector).
+		Str(", and a selector names exactly one. `./le rfc discriminate ... report <path>` ").
+		Str("prints the selector of every candidate, ordinal included"))
 }
 
 // replaceOnLine answers the file with one mutant's text substituted.

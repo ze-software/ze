@@ -872,7 +872,11 @@ func baselineRecordBlobs(tree string, records []DiscriminationRecord) (map[strin
 	seen := map[string]bool{}
 	var paths []string
 	for position := range records {
-		for _, key := range [...]string{records[position].Unit, records[position].Producer} {
+		keys := []string{records[position].Unit, records[position].Producer}
+		for _, paired := range records[position].Paired {
+			keys = append(keys, paired.Producer)
+		}
+		for _, key := range keys {
 			rel := keyFile(key)
 			if rel == "" || seen[rel] {
 				continue

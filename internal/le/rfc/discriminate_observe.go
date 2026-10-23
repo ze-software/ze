@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -230,14 +231,37 @@ func (o *observationRunner) requireProducerReachedIn(module, profile string) err
 	if err != nil {
 		return err
 	}
-	rel, symbol, err := fingerprintKey(o.record.Producer, o.record.Source)
+	// Every producer of a paired break is held to it: a pair whose second break
+	// sits in code the unit never runs is one break wearing the name of two.
+	for _, key := range o.producerKeys() {
+		if err := o.requireKeyReached(covered, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// producerKeys answers every function one broken run breaks: the record's
+// producer, then each paired producer.
+func (o *observationRunner) producerKeys() []string {
+	keys := []string{o.record.Producer}
+	for _, paired := range o.record.Paired {
+		keys = append(keys, paired.Producer)
+	}
+	return keys
+}
+
+// requireKeyReached refuses one producer no statement of which the profile
+// shows as executed.
+func (o *observationRunner) requireKeyReached(covered coverageSet, key string) error {
+	rel, symbol, err := fingerprintKey(key, o.record.Source)
 	if err != nil {
 		return err
 	}
 	lines, held := producerLineSpan(o.tree, rel, symbol)
 	if !held {
 		var tb textbuf.Buffer
-		return parseErr(tb.Str(o.record.Producer).Str(" does not resolve in this tree. An ").
+		return parseErr(tb.Str(key).Str(" does not resolve in this tree. An ").
 			Str("unresolvable producer is the defect, never a proof of one"))
 	}
 	for line := lines.first; line <= lines.last; line++ {
@@ -246,7 +270,7 @@ func (o *observationRunner) requireProducerReachedIn(module, profile string) err
 		}
 	}
 	var tb textbuf.Buffer
-	return parseErr(tb.Str(o.record.Unit).Str(" never executes ").Str(o.record.Producer).
+	return parseErr(tb.Str(o.record.Unit).Str(" never executes ").Str(key).
 		Str(": no statement of that function appears as covered in the profile the clean run ").
 		Str("wrote. A claim that rests on code its own test never reaches is the over-claim ").
 		Str("this gate exists to catch, not a proof of one (R-10)"))
@@ -257,8 +281,8 @@ func (o *observationRunner) requireProducerReachedIn(module, profile string) err
 // Naming is what makes the red this unit's. A build error, a sibling test and a
 // flake each turn a run red, and none of them says the break was discriminated
 // by the claim's own test.
-func (o *observationRunner) requireRed(broken overlayFile) (ObservedRed, error) {
-	overlay, err := writeOverlay(o.tree, broken)
+func (o *observationRunner) requireRed(broken ...overlayFile) (ObservedRed, error) {
+	overlay, err := writeOverlay(o.tree, broken...)
 	if err != nil {
 		return ObservedRed{}, err
 	}
@@ -444,16 +468,17 @@ func (o *observationRunner) carrierArgv() []string {
 }
 
 // coverPackages answers the -coverpkg patterns one clean run instruments: the
-// tagged unit's package and the producer's.
+// tagged unit's package and the package of every producer the run breaks.
 func (o *observationRunner) coverPackages() string {
 	var tb textbuf.Buffer
-	unit := tb.Str("./").Str(filepath.ToSlash(filepath.Dir(o.tag.File))).String()
-	producer := tb.Reset().Str("./").
-		Str(filepath.ToSlash(filepath.Dir(keyFile(o.record.Producer)))).String()
-	if producer == unit {
-		return unit
+	patterns := []string{tb.Str("./").Str(filepath.ToSlash(filepath.Dir(o.tag.File))).String()}
+	for _, key := range o.producerKeys() {
+		pattern := tb.Reset().Str("./").Str(filepath.ToSlash(filepath.Dir(keyFile(key)))).String()
+		if !slices.Contains(patterns, pattern) {
+			patterns = append(patterns, pattern)
+		}
 	}
-	return tb.Reset().Str(unit).Byte(',').Str(producer).String()
+	return strings.Join(patterns, ",")
 }
 
 // run executes one observation under its deadline.
@@ -620,7 +645,7 @@ func (o *observationRunner) environment(overlay string) []string {
 // shared by every subagent of the session, and a replacement keyed on the
 // producer's basename alone let one agent's break of register.go compile
 // against a sibling's (plan/journal/concurrent-session-corruption.md).
-func writeOverlay(tree string, broken overlayFile) (string, error) {
+func writeOverlay(tree string, broken ...overlayFile) (string, error) {
 	shared, err := observationScratch(tree)
 	if err != nil {
 		return "", err
@@ -630,13 +655,20 @@ func writeOverlay(tree string, broken overlayFile) (string, error) {
 	if err != nil {
 		return "", parseErr(tb.Str("cannot create this run's break directory: ").Err(err))
 	}
-	replacement := filepath.Join(scratch, tb.Str("broken-").Str(filepath.Base(broken.rel)).String())
-	if err := os.WriteFile(replacement, []byte(broken.content), 0o600); err != nil {
-		return "", parseErr(tb.Reset().Str("cannot write the broken source: ").Err(err))
+	// One replacement per file of a paired break, numbered so two producers
+	// sharing a basename never overwrite each other's copy.
+	replace := make(map[string]string, len(broken))
+	for position, file := range broken {
+		replacement := filepath.Join(scratch, tb.Reset().Str("broken-").Int(int64(position)).
+			Byte('-').Str(filepath.Base(file.rel)).String())
+		if err := os.WriteFile(replacement, []byte(file.content), 0o600); err != nil {
+			return "", parseErr(tb.Reset().Str("cannot write the broken source: ").Err(err))
+		}
+		replace[treePath(tree, file.rel)] = replacement
 	}
 	raw, err := json.Marshal(struct {
 		Replace map[string]string `json:"Replace"`
-	}{Replace: map[string]string{treePath(tree, broken.rel): replacement}})
+	}{Replace: replace})
 	if err != nil {
 		return "", parseErr(tb.Reset().Str("cannot render the overlay: ").Err(err))
 	}

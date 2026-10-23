@@ -788,11 +788,16 @@ func discriminationStaleError(verdict *DiscriminationVerdict) string {
 
 // driftedKey answers which fingerprint key of a non-verifying record moved.
 //
-// The producer for a record whose PRODUCER moved, and the tagged unit for
+// The paired producer that moved when one did (DiscriminationVerdict.Moved), the
+// producer for a record whose PRODUCER moved, and the tagged unit for
 // everything else. An escape that names no producer -- foreign-producer, whose
 // facts are the carrier kind and the citation -- is judged over its unit for the
 // same reason: that is the text its check reads.
-func driftedKey(record *DiscriminationRecord, state string) string {
+func driftedKey(verdict *DiscriminationVerdict) string {
+	record, state := &verdict.Record, verdict.State
+	if verdict.Moved != "" {
+		return verdict.Moved
+	}
 	if state == ProofProducerGone || state == ProofProducerChanged {
 		return record.Producer
 	}
@@ -828,7 +833,7 @@ func driftIsCommitted(in discriminationInput, verdict *DiscriminationVerdict) bo
 		return false
 	}
 	record := &verdict.Record
-	key := driftedKey(record, verdict.State)
+	key := driftedKey(verdict)
 	rel := keyFile(key)
 	was, atHead, err := resolveKeyText(in.HeadSources.read, in.Index, key, record.Source)
 	if err != nil {

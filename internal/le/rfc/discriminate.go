@@ -95,12 +95,27 @@ type DiscriminationRecord struct {
 	// citation is what ties the recorded red to a named assertion rather than
 	// to the suite as a whole.
 	Citation string `json:"citation,omitempty"`
+	// Paired names the breaks applied TOGETHER with Producer's in the one
+	// broken run, for a property two checks guard on the same path: breaking
+	// either alone leaves the unit green, so no single break can be the red.
+	// Each is fingerprinted and re-verified exactly as Producer is, and a record
+	// with none is the single-break record every earlier record is.
+	Paired []PairedBreak `json:"paired,omitempty"`
 	// Reason is why no break exists, for the escape only. A closed vocabulary,
 	// and each reason's precondition is checked against the tree.
 	Reason string `json:"reason,omitempty"`
 	// Source is the artifact file this record was read from. Derived from the
 	// path at load time, never authored, so it is not part of the schema.
 	Source string `json:"-"`
+}
+
+// PairedBreak is one further break a record applied in the same broken run as
+// its producer's. The fields mean what the record's own producer, producer-sha
+// and break fields mean.
+type PairedBreak struct {
+	Producer    string `json:"producer"`
+	ProducerSHA string `json:"producer-sha"`
+	Break       string `json:"break"`
 }
 
 // Proves answers whether this record claims a proof rather than the escape.
@@ -327,6 +342,10 @@ func validateDiscrimination(record DiscriminationRecord, rel string, position in
 			Str(", want one of: ").Join(DiscriminationRoutes(), ", "))
 	}
 	if !record.Proves() {
+		if len(record.Paired) > 0 {
+			return parseErr(tb.Reset().Str(where).Str(" takes the ").Str(RouteNoBreak).
+				Str(" route and carries paired breaks. The escape states that NO break exists"))
+		}
 		return validateEscapeShape(record, where)
 	}
 	if record.Reason != "" {
@@ -350,6 +369,33 @@ func validateDiscrimination(record DiscriminationRecord, rel string, position in
 		return parseErr(tb.Reset().Str(where).Str(" takes the ").Str(record.Route).
 			Str(" route and states no break. The record exists so a reviewer can read what ").
 			Str("was done to the producer; a proof nobody can read is a claim"))
+	}
+	for index := range record.Paired {
+		if err := validatePairedBreak(record.Paired[index], where, record.Route); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validatePairedBreak holds one paired break to the rules the record's own
+// producer, fingerprint and break text are held to.
+func validatePairedBreak(paired PairedBreak, where, route string) error {
+	symbol, err := producerSymbol(paired.Producer, where, route)
+	if err != nil {
+		return err
+	}
+	var tb textbuf.Buffer
+	if symbol == "" {
+		return parseErr(tb.Str(where).Str(" has the paired producer ").Quoted(paired.Producer).
+			Str(", which names a whole file. A break is applied to a FUNCTION"))
+	}
+	if err := validateBehaviorSHA(paired.ProducerSHA, where, "paired producer-sha"); err != nil {
+		return err
+	}
+	if strings.TrimSpace(paired.Break) == "" {
+		return parseErr(tb.Str(where).Str(" pairs ").Str(paired.Producer).
+			Str(" and states no break for it. A reviewer reads what was done to each producer"))
 	}
 	return nil
 }
@@ -513,6 +559,22 @@ func sealDiscrimination(tree string, covers map[Cover][]Tag,
 		return record, unresolvedKeyErr(record, record.Producer, "producer")
 	}
 	record.ProducerSHA = behaviorSHA(keyFile(record.Producer), producer)
+	// A fresh slice, so sealing never writes through to the caller's record.
+	paired := make([]PairedBreak, len(record.Paired))
+	for position, one := range record.Paired {
+		text, held, err := resolveKeyText(reader.read, index, one.Producer, record.Source)
+		if err != nil {
+			return record, err
+		}
+		if !held {
+			return record, unresolvedKeyErr(record, one.Producer, "paired producer")
+		}
+		one.ProducerSHA = behaviorSHA(keyFile(one.Producer), text)
+		paired[position] = one
+	}
+	if len(paired) > 0 {
+		record.Paired = paired
+	}
 	return record, nil
 }
 
@@ -531,6 +593,10 @@ type DiscriminationVerdict struct {
 	State  string               `json:"state"`
 	// Detail names what moved, for the violation a reader has to act on.
 	Detail string `json:"detail,omitempty"`
+	// Moved is the paired producer whose fingerprint moved, empty for every
+	// other state: the record's own keys say which of them a state is about,
+	// and a paired producer is the one key they cannot name.
+	Moved string `json:"moved,omitempty"`
 }
 
 // Verified answers whether the tree still holds the code the red was observed
@@ -633,6 +699,23 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 	if behaviorSHA(keyFile(record.Producer), producer) != record.ProducerSHA {
 		return DiscriminationVerdict{Record: record, State: ProofProducerChanged,
 			Detail: "the producer's behavior changed since the break was applied to it"}, nil
+	}
+	for _, paired := range record.Paired {
+		text, held, err := resolveKeyText(reader.read, index, paired.Producer, record.Source)
+		if err != nil {
+			return DiscriminationVerdict{}, err
+		}
+		var tb textbuf.Buffer
+		if !held {
+			return DiscriminationVerdict{Record: record, State: ProofProducerGone,
+				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
+					Str(" is no longer in the tree").String()}, nil
+		}
+		if behaviorSHA(keyFile(paired.Producer), text) != paired.ProducerSHA {
+			return DiscriminationVerdict{Record: record, State: ProofProducerChanged,
+				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
+					Str("'s behavior changed since the break was applied to it").String()}, nil
+		}
 	}
 	if state, detail := citationState(carrier, carried, record, unit); state != ProofVerified {
 		return DiscriminationVerdict{Record: record, State: state, Detail: detail}, nil

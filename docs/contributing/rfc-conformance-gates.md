@@ -1035,6 +1035,7 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `producer` | the code the break was applied to, in the same key form. Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
 | `producer-sha` | that function's behavior hash when the break was applied |
 | `break` | what was done to the producer, derived from what was applied. No gate parses it; a reviewer reads it |
+| `paired` | the further breaks applied together with `producer`'s in the one broken run, each a `producer`, `producer-sha` and `break` of its own. Absent on a single-break record. A paired producer that is gone or changed stales the record exactly as `producer` does |
 | `citation` | the assertion a proof or a `foreign-producer` escape rests on: a numbered `fail(N, ...)` site for an interop checker, a directive line for a `.ci`. Required for a functional or interop proof and for the `foreign-producer` escape, refused for a unit record and for the two escapes that name a producer |
 | `reason` | why no break exists, for the escape only, out of the closed vocabulary below |
 
@@ -1190,6 +1191,30 @@ use the mutant route inside the value that the initializer returns
 | `mutant` | one gomu mutant, substituted into its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
 | `revert` on a `.ci` | the producing function's body replaced by a halt | ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay: `le test <suite> <name>` for ordinary suites, `le test exabgp <suite> <absolute-ci-path>` for `test/exabgp-compat/` |
 | `revert` on an interop checker | the same | the `Action` of the suite whose catalog `Package` holds the checker (`./le test integration interop-ipsec` for `internal/le/interoplab/ipsec/`), with that catalog's `SelectorVariable` (`IPSEC_INTEROP_SCENARIO`) set to the scenario the checker's own `const name` declares, confirmed under the catalog's `ScenarioRoot` |
+
+One record may rest on a SET of breaks applied together. Some properties are
+guarded twice on the same path, by design ("Pair the check",
+`docs/contributing/ze-go-style.md`): the RFC 4271 Section 5.1.2 rule that a
+withdrawal carries no created AS_PATH is held both by the dispatch in
+`ASPathEdit.Record` (`wireu/aspath_slot.go`) and by `planAttr`'s advertise gate
+(`reactor/forward_build.go`), so breaking either alone leaves the scenario green
+and neither alone is the red. The mutant route takes `mutant` more than once:
+every named mutant is applied to the one broken run (two in one file land in that
+file's single replacement), the clean run stays untouched, the first selector
+becomes the record's `producer` and every further one a `paired` entry. Each
+paired producer is held to what the record's producer is held to: on a unit
+carrier the clean run's coverage must show the unit executing it, and the gate
+re-checks its fingerprint against HEAD. A selector named twice is refused. The
+recorder does not check that every break of the set was needed. The author
+shows that each break alone leaves the unit green and names those runs in the
+commit, because a break the red did not need makes the record claim more than
+was observed.
+<!-- source: internal/le/rfc/discriminate_action.go -- mutantBreak, selectMutant -->
+<!-- source: internal/le/rfc/discriminate.go -- PairedBreak, validatePairedBreak -->
+
+    ./le rfc discriminate-record id <ID> polarity negative unit <file>::<Func> \
+      route mutant report <report.json> mutant <file:line:column#n> \
+      mutant <file:line:column#n> citation <N>
 
 The suite comes from the interoplab catalog each lab registers in its
 `register_catalog.go`, the same registry that maps an interop tag to its

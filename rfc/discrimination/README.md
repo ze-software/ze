@@ -70,6 +70,7 @@ away.
 | `producer` | authored | the code the break was applied to, in the same key form. Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
 | `producer-sha` | derived | that function's behavior hash when the break was applied |
 | `break` | derived | what was done to the producer: the mutant's substitution, or the disabled body. No gate parses it; a reviewer reads it |
+| `paired` | derived | the further breaks applied in the SAME broken run, each with its own `producer`, `producer-sha` and `break`, for a property two checks guard on one path so that neither break alone reddens the unit. Absent on a single-break record. Each paired producer is resolved, fingerprinted and judged for drift exactly as `producer` is |
 | `citation` | authored | the assertion a proof, or a `foreign-producer` escape, rests on: a `fail(N, ...)` number an interop checker writes out, a directive line for a `.ci`. Required for a functional or interop proof and for `foreign-producer`, refused for a unit record and for the two escapes that name a producer. An assertion numbered by expression cannot be cited |
 | `reason` | authored | why no break exists, for the escape only. One of the closed vocabulary below |
 
