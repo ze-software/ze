@@ -409,6 +409,32 @@ Owed next, in order:
 2. The three earlier reds are fixed: a445d8bf56, 2d08a20a55, 8bb41e3b62, each re-run green. The best-path replay may also omit the labels kept beside the record (`sh.store.labels`); unverified, no row yet. Gates owed over those three: `./le test weakened check` (the default-localpref control assertion changed from absent to exactly 100), lint, verify.
 3. Not started: bgp-cluster-list-length-bird, bgp-ecmp-frr, bgp-nexthop-self-local-auto-frr, bgp-remove-private-as-frr, ospfv3-nssa-redist-frr, ospfv3-redist-frr. Skip any the FRR/BIRD agent already recorded in "Progress (BGP peers)"; none were there on 2026-10-22 evening.
 
+### Every GoBGP scenario on the Mac, 2026-10-23 (supersedes the rows above)
+
+The set is every scenario directory holding `gobgp.toml` (`scenarioPeers`,
+`internal/le/interoplab/bgp/prepare.go`): 32. The aigp-source-cost checker
+reads GoBGP too; it serves bgp-nexthop-self-local-auto-frr, already in the
+set. Lab: the `ze` Colima profile (7.2.9-ze), GoBGP v4.10.0 image with
+440ee43f73's gobgp-paths, FRR 10.7.1, BIRD 3.4.0. One run at a time under
+`flock tmp/interop-lab.lock`, from `git clone --shared` clones; the commit
+column is the clone's HEAD.
+
+| Scenario | Verdict | Ran on | Cause and fix |
+|----------|---------|--------|---------------|
+| bgp-role-gobgp | pass | 171296d35b | fd8f341b6a. v4 drift twice: GoBGP v4.10.0 has no RFC 9234 Role (no role key in `pkg/config/oc`, no code 9 in `pkg/packet/bgp`) and refused the v3 `local-role` table; v4 prints the detail state as `BGP state = SESSION_STATE_ESTABLISHED`, so the old check on `Established` could never pass. Now asserts that line and `UnknownCapability(9):\treceived` (cmd/gobgp/neighbor.go default case). Red with Ze's `role` block removed: missing `UnknownCapability(9):\treceived` |
+| bgp-routes-gobgp | pass | 171296d35b | 171296d35b. Stale scenario: no `attach process rib`, so bgp-rib saw nothing (routes-in 0, the earlier red) |
+| bgp-med-increment-gobgp | pass | 171296d35b | none (the earlier red was a docker timeout) |
+| bgp-remove-private-as-frr | pass | 110ed77106 + fix | stale scenario: rs loaded, no peer attached it ("no peer attaches it" warning, FRR never got 10.99.0.0/24). Both peers attach rs; committed with this table |
+| bgp-nexthop-self-local-auto-frr | RED, Ze or check, not finished | 110ed77106 + fix | Stale check fixed: since 010e649057 Ze no longer withdraws the never-advertised recovery route 10.10.3.0/24, so `requireAIGPWire` now wants no frame for it in the unknown state and four transitions after (unit test pins the never-advertised withdrawal as a refusal). The run then passes that step and goes red at the first recovery: FRR never shows 10.10.3.0/24 with AIGP 111 after distance 11 is installed. Suspect: 010e649057's adj-out gate also blocks the later announcement of a route first withheld for AIGP. Undiagnosed |
+| bgp-as-migration-local-as | RED, BIRD 3 drift, not fixed | 171296d35b | BIRD 3.4.0 prints `bgp_path: 65020`, the checks read BIRD 2's `BGP.as_path:`. BIRD 3.4.0 `proto/bgp/attrs.c` names: bgp_origin, bgp_path, bgp_next_hop, bgp_med, bgp_local_pref, bgp_community, bgp_large_community, bgp_cluster_list, bgp_originator_id. Owed: rename every `BGP.<attr>` literal in internal/le/interoplab/bgp (11 files, tests included) and bgp-vpn-frr/bird.conf comments. The bulk rewrite was refused by the agent's permission classifier, so it is not done; it hits every BIRD scenario |
+| bgp-cluster-list-length-bird | RED, BIRD 3 drift, not fixed | 171296d35b | the same: `clusterListAttributeLabel` is `BGP.cluster_list: `, so BIRD "reports 0 CLUSTER_LIST attributes" |
+| ospfv3-nssa-redist-frr | RED, not diagnosed | 171296d35b and 110ed77106 | assertion 5: FRR 10.7.1 lists 2001:db8:7e5::/48 as `*N E2`, never with `NSSA`. Either Ze originates a type-5 instead of a type-7 into the NSSA (a Ze defect, RFC 3101 Section 2.3) or FRR 10.7.1 prints a type-7 route differently from 10.3.1; read FRR's ospf6 route printer first |
+| the other 24 | pass | 171296d35b | bgp-addpath-best-path-pmacct, bgp-addpath-rail-agreement-speaker, bgp-addpath-readvertise-collision-frr, bgp-attr-flags-low-nibble-gobgp, bgp-attribute-default-localpref-gobgp, bgp-ebgp-gobgp, bgp-ecmp-frr, bgp-evpn-gobgp, bgp-exabgp-bridge-rtc-gobgp, bgp-exabgp-bridge-sr-policy-gobgp, bgp-flowspec-gobgp, bgp-flowspec-sctp-gobgp, bgp-ipv6-ebgp-gobgp, bgp-large-community-no-repeat-gobgp, bgp-local-pref-strip-gobgp, bgp-med-across-as-gobgp, bgp-med-ibgp-post-selection-removal-gobgp, bgp-med-remove-configured-gobgp, bgp-multihop-ebgp-gobgp, bgp-mup-malformed-t1st-withdraw-gobgp, bgp-sr-policy-gobgp, bgp-sr-policy-malformed-receive-gobgp, bgp-vpn-gobgp, ospfv3-redist-frr |
+
+Owed next: the BIRD 3 attribute rename (then rerun both BIRD reds and the
+BIRD suite), the AIGP recovery red, the NSSA red. Gates owed over this
+session's Go: lint and verify (not run, five-minute agent window).
+
 ## State at stop (2026-10-23, owner: "Stop all running out of tokens")
 
 Every agent, runner and verify run of this session was stopped mid-work. No
