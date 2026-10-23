@@ -805,6 +805,9 @@ func TestCreateJudgesAnAppendedClosureAgainstItsEarlierBlocks(t *testing.T) {
 		refused bool
 	}{
 		{name: "commit A fixes the row", blockA: map[string]string{journalPath: fixedRow, specPath: noTable}},
+		// The spec stays as HEAD holds it, so only the class-file overlay can
+		// clear B: without it the row reads open and B removes its only owner.
+		{name: "commit A fixes the row and leaves the spec", blockA: map[string]string{journalPath: fixedRow}},
 		{name: "commit A moves the entry to another spec", blockA: map[string]string{
 			specPath: noTable, otherPath: ownedRowsSpec("2026-08-04"),
 		}},

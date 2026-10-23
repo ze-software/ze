@@ -161,55 +161,84 @@ func appendBase(root, session string, options *Options) (specjournal.Base, error
 	if !options.Append {
 		return specjournal.Base{}, nil
 	}
-	_, existing, err := targetScript(root, session, "", options)
+	scriptPath, existing, err := targetScript(root, session, "", options)
 	if err != nil {
 		return specjournal.Base{}, err
 	}
-	return scriptBase(root, existing)
+	return scriptBase(root, scriptPath, existing)
 }
+
+// privateIndexUpdate starts every line a block writes to its private index with
+// update-index. renderPrivateIndex writes exactly two such lines, indexInfoOpen
+// and privateRemovalPrefix, so any other line with this start is a script
+// scriptBase cannot read.
+const privateIndexUpdate = `GIT_INDEX_FILE="$_ze_index" git update-index`
 
 // scriptBase reads back what the blocks of a prepared script commit under
 // plan/: each snapshot entry's content, from the blob it names, and each path a
 // block removes. A later block's entry for a path replaces an earlier one's, as
-// the script's commits do.
-func scriptBase(root, script string) (specjournal.Base, error) {
+// the script's commits do. A script it cannot read is an error naming the
+// script and the line, never a base that silently falls back to HEAD: a
+// snapshot heredoc with no closing delimiter, a private-index update-index line
+// in neither rendered form, or a snapshot line that is not an index entry.
+func scriptBase(root, scriptPath, script string) (specjournal.Base, error) {
 	base := specjournal.Base{Files: map[string]string{}, Removed: map[string]bool{}}
-	snapshot := false
-	for line := range strings.SplitSeq(script, "\n") {
-		if snapshot {
+	opened := 0
+	for index, line := range strings.Split(script, "\n") {
+		number := index + 1
+		if opened != 0 {
 			if line == indexInfoDelimiter {
-				snapshot = false
+				opened = 0
 				continue
 			}
 			if err := laySnapshotEntry(root, line, &base); err != nil {
-				return specjournal.Base{}, err
+				return specjournal.Base{}, scriptLineError(scriptPath, number, err)
 			}
 			continue
 		}
 		if line == indexInfoOpen {
-			snapshot = true
+			opened = number
 			continue
 		}
 		raw, found := strings.CutPrefix(line, privateRemovalPrefix)
-		if !found {
+		if found {
+			for _, path := range parseShellWords(raw) {
+				delete(base.Files, path)
+				base.Removed[path] = true
+			}
 			continue
 		}
-		for _, path := range parseShellWords(raw) {
-			delete(base.Files, path)
-			base.Removed[path] = true
+		if strings.HasPrefix(line, privateIndexUpdate) {
+			return specjournal.Base{}, scriptLineError(scriptPath, number,
+				errors.New("a private-index update-index line that is neither the snapshot heredoc nor the removal"))
 		}
+	}
+	if opened != 0 {
+		return specjournal.Base{}, scriptLineError(scriptPath, opened,
+			errors.New("a snapshot heredoc with no closing "+indexInfoDelimiter+" line"))
 	}
 	return base, nil
 }
 
+// scriptLineError names the script and line scriptBase could not read, and the
+// command that writes a script it can.
+func scriptLineError(scriptPath string, number int, err error) error {
+	return fmt.Errorf("cannot read what the earlier blocks of %s commit, line %d: %w; "+
+		"prepare the whole commit again with ./le commit create replace", scriptPath, number, err)
+}
+
 // laySnapshotEntry lays one `git ls-files -s` line of an earlier block over the
 // base, `<mode> <object> <stage>\t<path>`, when it names a plan/ markdown file:
-// the only files that hold journal rows or owned tables.
+// the only files that hold journal rows or owned tables. Every line is checked
+// for that shape first, so a malformed line is refused whatever path it names.
 func laySnapshotEntry(root, entry string, base *specjournal.Base) error {
 	fields, path, found := strings.Cut(entry, "\t")
 	if !found {
-		return fmt.Errorf("the prepared script holds a snapshot line with no path, %q: "+
-			"prepare it again with ./le commit create replace", entry)
+		return fmt.Errorf("a snapshot line with no path, %q", entry)
+	}
+	parts := strings.Fields(fields)
+	if len(parts) != 3 {
+		return fmt.Errorf("a snapshot line for %s that is not mode, object and stage, %q", path, entry)
 	}
 	if !strings.HasPrefix(path, "plan/") {
 		return nil
@@ -217,14 +246,9 @@ func laySnapshotEntry(root, entry string, base *specjournal.Base) error {
 	if !strings.HasSuffix(path, ".md") {
 		return nil
 	}
-	parts := strings.Fields(fields)
-	if len(parts) != 3 {
-		return fmt.Errorf("the prepared script holds a snapshot line for %s that is not mode, object and stage, %q: "+
-			"prepare it again with ./le commit create replace", path, entry)
-	}
 	content, err := gitOutput(root, "cat-file", "blob", parts[1])
 	if err != nil {
-		return fmt.Errorf("read %s as an earlier block of the prepared script commits it: %w", path, err)
+		return fmt.Errorf("read %s from the object the snapshot names: %w", path, err)
 	}
 	base.Files[path] = content
 	delete(base.Removed, path)
