@@ -422,7 +422,8 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, plan Pla
 		// runner refuses it as interrupted): that status is no verdict, so the
 		// stage is marked and the failure index writes it as never judged. A
 		// context done after the stage answered stops the run but keeps the
-		// stage's answer, because the stage finished judging first.
+		// stage's answer, because the stage finished judging first, unless
+		// that answer is the interrupt status itself (below).
 		if stageReport.Failure != nil && stageReport.Failure.Kind == "interrupted" {
 			report.Stages[len(report.Stages)-1].Interrupted = true
 			report.Code = Interrupted
@@ -432,6 +433,16 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, plan Pla
 		if err := ctx.Err(); err != nil {
 			report.Code = Interrupted
 			report.Failure = failure("interrupted", current.Identity.Name, err.Error())
+			// Ctrl-C reaches the whole foreground process group, so a stage
+			// that handles SIGINT itself exits 130 before the cancel reaches
+			// it, and its runner reads that as a completed answer. With the
+			// interrupt landed, 130 is the interrupt status, not a verdict:
+			// the stage is marked like one the cancel cut short. Any other
+			// exit was answered before the interrupt and stays a verdict.
+			if stageReport.Code == Interrupted {
+				report.Stages[len(report.Stages)-1].Interrupted = true
+				report.Stages[len(report.Stages)-1].Failure = report.Failure
+			}
 			break
 		}
 		// A stage that failed or crashed is red and the next stage still runs; any

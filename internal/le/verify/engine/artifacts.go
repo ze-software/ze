@@ -435,10 +435,39 @@ func PublishFailureIndex(source, target, logs string) error {
 			}
 		}
 	}
+	// The published index is written in the current format, merged with the
+	// target's: keeping a legacy source's missing format would make a reader
+	// take every exit-130 red carried from the target for an interruption.
+	// The source's own legacy exit-130 entries are interruptions, so they are
+	// rewritten as such first, and the merge treats them as any stage the run
+	// did not finish.
+	if index.Format < FailureIndexFormat {
+		index.Stages = markLegacyInterrupted(index.Stages)
+	}
+	index.Format = FailureIndexFormat
 	if err := writeFailureIndex(target, index); err != nil {
 		return fmt.Errorf("publish %s: %w", FailuresJSONPath, err)
 	}
 	return nil
+}
+
+// markLegacyInterrupted answers the stages of an index written before
+// FailureIndexFormat with each entry that writer gave the run's interrupt
+// status (interruptedEntry) rewritten as the current writer writes a stage an
+// interrupt cut short: not reached, outside the run, no exit, no group, and
+// the command that judges it.
+func markLegacyInterrupted(stages []artifactStage) []artifactStage {
+	for index := range stages {
+		stage := stages[index]
+		if !interruptedEntry(stage, true) {
+			continue
+		}
+		stages[index] = artifactStage{
+			Stage: stage.Stage, OutsideRun: true, Interrupted: true,
+			DetailLog: stage.DetailLog, Rerun: interruptedRerun(stage),
+		}
+	}
+	return stages
 }
 
 // movedLogPath answers path with its tmp/verify prefix replaced by logs, and
