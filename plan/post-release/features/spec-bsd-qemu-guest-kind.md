@@ -41,7 +41,7 @@ that says how BSD runtime tests run.
   → Constraint: the BSD rule mirrors its structure; the two rules must not contradict on where `.ci` tests run
 - [ ] `docs/architecture/testing/ci-workflows.md` - current workflows
   → Constraint: every job is `ubuntu-latest` today
-- [ ] `.claude/rules/sudo.md` - root only for the stress harness
+- [ ] `ai/META-DECISIONS.md` - root only for the stress harness
   → Constraint: guest setup needs root inside the guest only, never on the host
 
 **Key insights:**

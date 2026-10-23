@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Own the required release-evidence slice of this programme. The release population is requirement-level: behavior of a shipped capability, accepted configuration, a public support claim, and evidence used to justify any of them. A partially implemented RFC does not exempt its shipped subset. Missing optional capabilities and systematic expansion beyond that population belong only to the companion. Preserve every permanent requirement id, existing tag, disposition, evidence record and historical count; reconcile the dated populations before execution. No defect in a shipped producer, known unsound proof, or missing required proof may be assigned to the optional slice merely because it was found during a corpus walk. This planning split changes no RFC verdict or permission to weaken a claim. The targeted-ratchet and owed-boundary-proof children remain release prerequisites where their output supports the release. D-7’s 424 untouched BGP tags retain their owner-approved scheduled-proof status under M2 here in the optional programme; the two changed-unit interop tags remain with the BGP verdict child and are not transferred. D-1 declined features and D-6 later walks remain later work. All recorded D-1–D-8 decisions survive.
+Own the required release-evidence slice of this programme. The release population is requirement-level: behavior of a shipped capability, accepted configuration, a public support claim, and evidence used to justify any of them. A partially implemented RFC does not exempt its shipped subset. Missing optional capabilities and systematic expansion beyond that population belong only to the companion. Preserve every permanent requirement id, existing tag, disposition, evidence record and historical count; reconcile the dated populations before execution. No defect in a shipped producer, known unsound proof, or missing required proof may be assigned to the optional slice merely because it was found during a corpus walk. This planning split changes no RFC verdict or permission to weaken a claim. The targeted-ratchet and owed-boundary-proof children remain release prerequisites where their output supports the release. D-7’s 424 untouched BGP tags retain their owner-approved scheduled-proof status as owed RFC coverage here in the optional programme; the two changed-unit interop tags remain with the BGP verdict child and are not transferred. D-1 declined features and D-6 later walks remain later work. All recorded D-1–D-8 decisions survive.
 
 ## Acceptance Criteria
 
@@ -33,7 +33,7 @@ Reconcile the source programme by permanent requirement id and record which rele
 
 ## Work Not Done
 
-M30–M33 approve this scope separation, not completion or additional product implementation. Original dependencies, design decisions and evidence requirements remain binding within each slice.
+The release-scope and spec-split rules in `ai/META-DECISIONS.md` approve this scope separation, not completion or additional product implementation. Original dependencies, design decisions and evidence requirements remain binding within each slice.
 
 | Original obligation | Implementation owner | Boundary |
 |---------------------|----------------------|----------|
@@ -165,7 +165,7 @@ owner called them later phases and the release can go out without them.
 D-7, BGP transfer (owner ruling, Thomas, 2026-10-21, answering "b": "B. Close
 after the 54, move the 424 to D-7: every test this spec touched is proven; the
 424 tags on untouched tests become scheduled proof work under M2"). This is owned
-work, scheduled under M2, not a backlog left grandfathered. Measured 2026-10-21 at
+work, scheduled as owed RFC coverage, not a backlog left grandfathered. Measured 2026-10-21 at
 `3444b9d8f2` over the 60 BGP stems of `spec-rfc-verdict-fix-bgp`'s 2026-09-28
 population (360 ids rebuilt from `git show cb4801b4cc:rfc/audit/*.json` with that
 spec's "Derived listing" filter plus the pre-rename paths
@@ -390,7 +390,7 @@ measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
 ### Known Limitations
 
 - D-6 is open, and so is D-7 outside the BGP group. If the owner rules them in, each becomes its own spec in `plan/pre-release/`.
-- D-7 for the BGP group is decided, not open: the 424 tags transferred from `spec-rfc-verdict-fix-bgp` (owner ruling 2026-10-21, under D-7 above) are owned work scheduled under M2.
+- D-7 for the BGP group is decided, not open: the 424 tags transferred from `spec-rfc-verdict-fix-bgp` (owner ruling 2026-10-21, under D-7 above) are owned work scheduled as owed RFC coverage.
 
 ### Checklist
 

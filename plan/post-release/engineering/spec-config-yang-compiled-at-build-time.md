@@ -79,7 +79,7 @@ Symptoms this removes:
 - [ ] `internal/component/config/schema/cli/main.go` - `ze schema`: `loadAPIRPCs` builds a loader; `registerInternalYANG` calls `ParseYANGMetadata(text)` (a goyang parse); `ze schema show` prints the module text
 - [ ] `internal/exabgp/migration/schema.go` - `exaBGPSchema` embeds `exabgp.yang` outside any `yang/` package and resolves it at runtime; answers nil on error
 - [ ] `internal/le/yang/glue/*.go` - `./le yang glue write|check` derives `embed.go` and `register.go` (blank imports from YANG `import`/`include`, `imports.go`) for every `yang/` package; `check` is the "yang glue" stage in `internal/le/verify/engine/stages.go` and a row of `generationActions` and `generationChecks` in `internal/le/repo/generate.go`
-- [ ] goyang, upstream with the patches under `internal/le/vendorpatch/patches/goyang-*.patch` applied to `vendor/` (no fork, M11), `pkg/yang/entry.go`, `types.go`, `types_builtin.go` - `Entry`, `YangType`, `EnumType`, `Statement` shapes
+- [ ] goyang, upstream with the patches under `internal/le/vendorpatch/patches/goyang-*.patch` applied to `vendor/` (no fork), `pkg/yang/entry.go`, `types.go`, `types_builtin.go` - `Entry`, `YangType`, `EnumType`, `Statement` shapes
 
 **Runtime functions that build a loader today (non-test):**
 

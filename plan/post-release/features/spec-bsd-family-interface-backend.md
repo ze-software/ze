@@ -187,7 +187,7 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 | R-6 | A non-default metric silently ignored on FreeBSD/macOS | AddRoute test with metric 100 | Named refusal error, per Q3 recommendation; OpenBSD maps to `rtm_priority` |
 | R-7 | `in6_aliasreq` hand-defined with the wrong size corrupts the ioctl | Golden-byte size test fails, or `EINVAL` from the kernel | Size and field-offset tests per GOOS against the minimum version headers |
 | R-8 | IPv6 address lifetimes (`ReplaceAddressWithLifetime`) differ from Linux semantics | Lifetime test reads back `ia6t_vltime`/`ia6t_pltime` | Map to `in6_addrlifetime`; refuse what cannot be expressed |
-| R-9 | Tests that need root run unattended on a developer Mac | A darwin test that writes routes runs outside CI | Root-needing darwin tests gated by an explicit tag and the CI job only; `.claude/rules/sudo.md` forbids agent `sudo` outside the stress harness |
+| R-9 | Tests that need root run unattended on a developer Mac | A darwin test that writes routes runs outside CI | Root-needing darwin tests gated by an explicit tag and the CI job only; `ai/META-DECISIONS.md` forbids agent `sudo` outside the stress harness |
 
 ## Blast Radius
 

@@ -69,7 +69,7 @@ so G-1's labels plus the next-start sweep stand in for it.
   → Constraint: unaffected; grep of the page for docker, deployment and terminal demo finds no statement about how those callers start containers, so routing them through `interoplab.Docker` makes nothing on it false. No package boundary or registration moves.
 - [ ] `docs/architecture/testing/ci-format.md` - declared by `internal/le/verify/evidence/evidence.go`
   → Constraint: unaffected; the page describes the `.ci` format and failure blocks, not how the evidence container is started, so moving `Runner.dockerArgs` onto `RunOneShot` changes nothing it states.
-- [ ] `ai/rules/user-facing-errors.md`, `.claude/rules/docker.md`, `ai/rules/no-layering.md`, `ai/rules/simplicity.md`, `ai/rules/testing.md`, `ai/rules/architecture.md`
+- [ ] `ai/rules/user-facing-errors.md`, `ai/META-DECISIONS.md` (shared Docker daemon rule), `ai/rules/no-layering.md`, `ai/rules/simplicity.md`, `ai/rules/testing.md`, `ai/rules/architecture.md`
   → Constraint (docker.md): never a host-wide prune; remove only what a Ze lab run created, by identity. Here identity is the label set plus the exact resource id, never a name pattern.
   → Constraint (user-facing-errors): every skip and refusal the sweep prints names the resource, why it was not removed, and the exact command that resolves it.
 

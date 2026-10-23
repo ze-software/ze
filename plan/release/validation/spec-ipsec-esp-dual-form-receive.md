@@ -26,7 +26,7 @@ It owns the shipped XFRM remainder: Stories 1 and 3 and the re-presented
 form's throughput, alongside the existing evidence. Phase 5/5 records the
 implementation sequence, not completion or release evidence.
 
-### Release ownership split (M30-M33)
+### Release ownership split
 
 | Obligation | Sole owner |
 |------------|------------|

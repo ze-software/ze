@@ -54,7 +54,7 @@ Execute the inherited package/bootstrap/lifecycle, direct-artifact authenticity 
 
 ## Work Not Done
 
-M30–M33 approve this scope separation, not completion or additional product implementation. Original dependencies, design decisions and evidence requirements remain binding within each slice.
+The release-scope and spec-split rules in `ai/META-DECISIONS.md` approve this scope separation, not completion or additional product implementation. Original dependencies, design decisions and evidence requirements remain binding within each slice.
 
 | Original obligation | Implementation owner | Boundary |
 |---------------------|----------------------|----------|

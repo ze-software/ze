@@ -15,8 +15,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Owner decision O-1, recorded here because it approves this feature (it was row
-M22 of `ai/META-DECISIONS.md` until 2026-10-22, when that file was kept to meta
+Owner decision O-1, recorded here because it approves this feature (it was a row
+of `ai/META-DECISIONS.md` until 2026-10-22, when that file was kept to meta
 decisions only):
 
 | Id | Date | Decision | Thomas's words |

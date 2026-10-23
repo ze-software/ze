@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Priority | P3 |
-| Release reason | Full YANG expansion remains after release under M12; required behavior of already accepted configuration is not waived. |
+| Release reason | Full YANG expansion remains after the first release; required behavior of already accepted configuration is not waived. |
 | Scope | config |
 | Depends | - |
 | Phase | - |

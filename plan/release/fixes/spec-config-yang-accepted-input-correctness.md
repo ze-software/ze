@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Priority | P1 |
-| Release reason | M12 does not permit silently wrong accepted configuration; separate shipped reference/action correctness from full YANG expansion. |
+| Release reason | Deferring full YANG coverage does not permit silently wrong accepted configuration; separate shipped reference/action correctness from full YANG expansion. |
 | Scope | config |
 | Depends | - |
 | Phase | - |
@@ -13,7 +13,7 @@
 
 ## Task
 
-Complete review round 10 of a639bb22e9 for already accepted grouped actions and validate the traffic-control default-class reference path. Determine whether the 2026-10-21 action-without-input augment refusal and silently ignored uses augment are reachable through accepted release schema/config. Repair and prove reachable accepted-config failures; explicitly retain unsupported-form expansion with the M12 parent. The journal reports are evidence leads, not proof every shipped module uses them.
+Complete review round 10 of a639bb22e9 for already accepted grouped actions and validate the traffic-control default-class reference path. Determine whether the 2026-10-21 action-without-input augment refusal and silently ignored uses augment are reachable through accepted release schema/config. Repair and prove reachable accepted-config failures; explicitly retain unsupported-form expansion with the post-release full-YANG parent. The journal reports are evidence leads, not proof every shipped module uses them.
 
 This ownership split preserves the original obligations and evidence. Migration alone neither admits implementation nor closes any criterion; original owner pauses and dependency ordering still apply.
 
@@ -29,7 +29,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 
 | Scope | Current owner |
 |---|---|
-| M12 full coverage, new unsupported forms, whole-RFC judgment/enrollment; historical AC-1..7,9 beyond the accepted release surface. | `plan/post-release/features/spec-config-yang-reference-types.md` |
+| Full YANG coverage, new unsupported forms, whole-RFC judgment/enrollment; historical AC-1..7,9 beyond the accepted release surface. | `plan/post-release/features/spec-config-yang-reference-types.md` |
 | Accepted reference/action correctness, AC-8, remaining landed-fix review and applicability/repair of the two goyang journal rows. | `plan/release/fixes/spec-config-yang-accepted-input-correctness.md` |
 
 ## Files to Modify
@@ -47,7 +47,7 @@ with the feature sibling.
 
 | Scope | Current owner |
 |---|---|
-| M12 full coverage, new unsupported forms, whole-RFC judgment/enrollment; historical AC-1..7,9 beyond the accepted release surface. | `plan/post-release/features/spec-config-yang-reference-types.md` |
+| Full YANG coverage, new unsupported forms, whole-RFC judgment/enrollment; historical AC-1..7,9 beyond the accepted release surface. | `plan/post-release/features/spec-config-yang-reference-types.md` |
 
 ## Provenance and retained evidence
 

@@ -2,9 +2,9 @@
 
 Owner goals, in order: (1) every test passes, local full verify AND GitHub CI;
 (2) then move RFC MUST requirements forward. Commit namespace `b2ec5abb`.
-Rules this session added: `.claude/rules/known-reds-first.md` (targeted reruns,
-full verify last on a quiet machine) and `.claude/rules/handover-in-repo.md`
-(this file is the handover; machine-local notes are not). Up to 5 dev agents.
+Rules this session added: known reds first (targeted reruns, full verify last on
+a quiet machine, now in `ai/rules/pre-release.md`) and the handover-in-repo rule, now in
+`ai/META-DECISIONS.md` (this file is the handover; machine-local notes are not). Up to 5 dev agents.
 Agents test through a private launcher `./le --name <x> ...` (the shared
 `bin/le` is often older than the tree) and delete `bin/le-<x>` after.
 

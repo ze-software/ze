@@ -1635,7 +1635,7 @@ stand and are the brief for the next agent:
   conf-vpn, conf-addpath; observed allowances on old-4.2 and old-5.0. The five 6.0 cases pass on the pin and
   ze, red with HEAD producers overlaid. Owed: interop bgp-exabgp-bridge-vpnv4-frr; plugin
   vpn-withdrawal-inventory-* and encode rfc4659 (need the Mac loopback aliases, `./le setup install`).
-- MUP, MCAST-VPN and labeled unicast still add NEXT_HOP beside MP_REACH: under M2 they follow RFC 4760
+- MUP, MCAST-VPN and labeled unicast still add NEXT_HOP beside MP_REACH: as full RFC coverage requires, they follow RFC 4760
   Section 3 too (journal row in conflicting-feature-contracts.md); 6.0 conf-srv6-mup-v3 red on the pin.
 - C (RFC8955-4-3): `test/encode/flow-encode.ci` seqs 2, 8, 9 carry the redirect next hop, claim rewritten
   as the owner-approved deviation. The discrimination record did NOT run: the Mac lacks loopback aliases
@@ -1783,7 +1783,7 @@ without these edits (`TestDocCommand`: unknown command: show bgp peer list), fro
 ## Closing spec-rfc-verdict-fix-bgp (2026-10-21, agent a887f9b6, stopped at budget)
 
 Done and committed: 25938997c9 (five waiting specs to `blocked`, phase lines of
-daemon-drain and rs-replacement, M1 pointer in docker-hosts), and the commit after it
+daemon-drain and rs-replacement, Ze-system guest pointer in docker-hosts), and the commit after it
 (reseal of the four SHIFTED verdicts RFC4659-3.2-2, RFC4659-3.2.1.1-1, RFC7999-3.1-2,
 RFC8654-4-2, resealed in a `git archive HEAD` export so no foreign working-tree edit
 leaked in; MUP-SAFI-3.1-1 added to "Blocked by" and to update-propagation AC-5;
@@ -2033,7 +2033,7 @@ Owed:
 5. Config package redistribute/ospf tests fail "unknown top-level keyword: ospf" (likely a
    missing build tag); not yet investigated.
 6. Watchdog: `internal/component/bgp/plugins/watchdog/config.go` ignores a parse error on
-   extended-community (silent fall-through); fix with a refusal (M4) or journal it.
+   extended-community (silent fall-through); fix with a refusal or journal it.
 
 Later the same day: `048e8f33c7` refuses an `interface-set:` item inside extended-community
 (bridge flow, route/attributes and family flow forms; migration flow then, announce, static,
@@ -2465,7 +2465,7 @@ Owed by the main thread:
 
 ## 2026-10-21 fsr5 agent: FlowSpec double send fixed, interop not started (budget)
 
-Race (M4): the live forward gate (`flowSpecSection`,
+Race: the live forward gate (`flowSpecSection`,
 `reactor/forward_validation.go`) asked `RouteEligible(key, msgID)` while the RIB
 judges the same generation from its own UPDATE event and then ALWAYS emits a
 ValidationChange for it (`emitFlowSpecChanges`: the verdict carries msgID), which
@@ -2735,7 +2735,7 @@ Spec `plan/immediate/spec-exabgp-6-api-compatibility.md`. The exa7 agent ran
 out of budget with AC-41 written and green but NOTHING COMMITTED.
 
 Done, uncommitted at the time of writing, tests green:
-- Design (M3): peer presence container `shutdown { message "<text>" }`
+- Design: peer presence container `shutdown { message "<text>" }`
   (ze-bgp-conf.yang, peer-fields, revision 2026-10-21), the FRR
   `neighbor X shutdown [message MSG]` shape (bgpd.c
   peer_flag_modify_action: PEER_FLAG_SHUTDOWN sends CEASE_ADMIN_SHUTDOWN with
@@ -2845,7 +2845,7 @@ Uncommitted, in progress (AC-39 / X-37):
 - Owed with it: docs/architecture/exabgp-migration.md section "extended next
   hop for an IPv4 route", exabgp-differences.md if any; commit.
 
-Main-thread decision for this run (M3): replace 6fafa673af's refusal of
+Main-thread decision for this run (ExaBGP compatibility is agreed): replace 6fafa673af's refusal of
 `teardown <code> <subcode>` with code other than 6 by widening ze so the bridge
 sends exactly what the pin sends. Then X-35, AC-37/AC-38, the old-4.2 and
 old-5.0 population runs, and the spec "Phase 7 state" line.
@@ -2912,7 +2912,7 @@ Open on C: old-4.2 and old-5.0 api-teardown go red with C (expected
 `002A 030604 14 "Administrative Reset"`, ze now sends `0015 030604`). exa10
 claimed the bridge cannot tell a 5.0 script from a 6.0 one; the main thread
 rejected that (bridge_script_version.go holds a per-script API version) and
-ruled under M3: a script held to the v4 API gets the subcode name as the
+ruled under the agreed ExaBGP compatibility: a script held to the v4 API gets the subcode name as the
 shutdown communication, v6 keeps the empty Data field.
 
 Old populations on ze (with C in tree): old-5.0 49/51 pass, 21 skip, FAIL 34
@@ -3220,7 +3220,7 @@ replaces the departed best; RFC 4456 Section 6 non-client to non-client
 skipped), docs rib-storage-design.md and graceful-restart.md, journal row,
 then re-review.
 
-## 2026-10-21 rr departure subagent handoff (copied from the session state file, M9)
+## 2026-10-21 rr departure subagent handoff (copied from the session state file)
 
 Done, uncommitted:
 1. addpath-departure-rr-gr-retained.ci green rerun (1/1).

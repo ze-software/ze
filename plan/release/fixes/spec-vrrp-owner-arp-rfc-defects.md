@@ -187,7 +187,7 @@ writes is unverified and read in the implementation audit.
 - [ ] `docs/architecture/core-design.md` - declared by `internal/component/firewall/registry.go`, `backend.go`, `engine.go`, `internal/component/iface/backend.go`
   → Constraint: components reach backends through registries; the per-owner verification looks up the active backend's registered verifier by name and spells no backend; VRRP reaches the kernel neighbour table only through `iface`, never through a netlink import of its own
 - [ ] `docs/architecture/testing/qemu-integration.md` - the `vrrp-keepalived` guest lab
-  → Constraint: kernel ARP and ND behaviour is proven in the QEMU guest, never in a host namespace (root in agent sessions is limited to the stress harness, `.claude/rules/sudo.md`)
+  → Constraint: kernel ARP and ND behaviour is proven in the QEMU guest, never in a host namespace (root in agent sessions is limited to the stress harness, `ai/META-DECISIONS.md`)
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc9568.md` - rows 8.1.2-1 to -6 and 8.2.2-1 to -8

@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Priority | P3 |
-| Release reason | Full YANG expansion remains after release under M12; required behavior of already accepted configuration is not waived. |
+| Release reason | Full YANG expansion remains after the first release; required behavior of already accepted configuration is not waived. |
 | Scope | config |
 | Depends | - |
 | Phase | - |
@@ -13,7 +13,7 @@
 
 ## Release placement
 
-M12 keeps submodule and mixed-version expansion after release. The historical Task claim about modules already using 1.1 constructs is not current runtime evidence. Any demonstrated already-accepted schema/config error is owned by plan/release/fixes/spec-config-yang-accepted-input-correctness.md, not deferred with full YANG expansion.
+Submodule and mixed-version expansion stays after the first release, with full YANG coverage. The historical Task claim about modules already using 1.1 constructs is not current runtime evidence. Any demonstrated already-accepted schema/config error is owned by plan/release/fixes/spec-config-yang-accepted-input-correctness.md, not deferred with full YANG expansion.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

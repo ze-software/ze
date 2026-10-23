@@ -89,7 +89,7 @@ I2, I4, I5, N1 and N2 below are applied as decided, not as readings.
   → Constraint: `AGENTS.md` is generated, a copy of `ai/INSTRUCTIONS.md` written by `./le ai sync write` (`internal/le/ai/sync/ai.go` lines 11-12, action `write` in `internal/le/ai/sync/actions.go`). Edit `ai/INSTRUCTIONS.md`, then run `./le ai sync write`.
 - [ ] `internal/le/verify/actions.go`, `internal/le/verify/deps/actions.go`
   → Constraint: `./le verify worktree` takes only `commit <revision>` and `keep` today (`optionsFrom` builds `Options{Commit, Keep}`); `Options.Part`/`Parts` are reachable only through `debt-clear` (`debtVerifyOptions`). The cut grammar is therefore new on `verify worktree`. The precedent grammar is `partFrom` in `verify/deps/actions.go` (both keywords or neither, counting numbers, `Part.Valid`).
-- [ ] `.claude/rules/handover-in-repo.md`
+- [ ] `ai/META-DECISIONS.md` (handovers live in the repository)
   → Constraint: verification state is machine-local (`tmp/`); work moves between Linux and Mac. D-2 settles it: each machine re-verifies.
 
 ### RFC Summaries (Scope: protocol)

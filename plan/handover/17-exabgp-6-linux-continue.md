@@ -4,27 +4,36 @@ Written on the Mac at the end of session 8385ff13 for the next session on the
 Linux host. The long running log is `03-session-2026-10-18-linux-continue.md`
 (its later sections carry per-agent detail); this file is the entry point.
 
-Claimed spec: `plan/immediate/spec-exabgp-6-api-compatibility.md` (Phase 7 in
-progress). Claim it again on Linux with `./le spec claim spec <file>`.
+Claimed spec: `plan/release/fixes/spec-exabgp-6-api-compatibility.md` (Phase 7
+in progress). Claim it with `./le spec claim spec <file>`.
 
-## STOPPED 2026-10-23 (owner: "Stop all, we are running out of tokens")
+## START HERE: Mac session eaf85631 (2026-10-23)
 
-Two agents were stopped mid-work and may have left uncommitted edits: the
-FlowSpec IPv6 route-target redirect send (owner: "we must be able to send";
-journal row in `plan/journal/unwired-feature.md`), and the wiki review (wiki
-checkout, 1 unpushed commit 351aba8; pages such as
-`exabgp-migration-walkthrough.md`, `bgp-nlri-flowspec.md` unchecked). Run
-`git status` in main and in `../wiki` before resuming either. Checked at stop:
-the wiki agent left no edits (wiki clean, only 351aba8 unpushed). The redirect
-agent left uncommitted, untested edits in `internal/core/bgp/attribute/flowspec_encode.go`,
-`extcomm_decoded.go`, `internal/exabgp/bridge/bridge_flow.go`,
-`bridge_flow_test.go` and `docs/architecture/api/update-syntax.md`; the
-dirty `reactor/flowspec_*_test.go` and `rfc8955_flowspec_forward_mixed_test.go`
-are most likely the explicit-final-policy session's (check their diff before
-touching them). Resume the redirect from those edits: tests, `.ci` wire proof,
-docs, journal row close. Held fixes still
-wait on the explicit-final-policy session; the final suites/interop run is
-owed after everything lands; the website waits for the weekly release.
+Done and committed:
+- FlowSpec IPv6 route-target redirect sent from config, `update text` and the
+  ExaBGP bridge (2ad0b56c6b); the config tokenizer keeps `redirect:[<IPv6>]:<nn>`
+  as one word. Proof: `test/encode/flow-redirect-ipv6.ci`, a fifth case in
+  `test/exabgp-compat/api/api-flow-redirect.ci`. Journal row closed.
+- The negotiated-before-KEEPALIVE page text restored (the reactor fix had
+  landed in afbfe6b42f); the held page file is deleted.
+- Gate repair a47edcaa21: core-only and cgo-free builds compile again
+  (staticcheck part 2 of 6 green). Orphan `api-keep-first-v4.ci` removed.
+- `ai/META-DECISIONS.md` rewritten as plain rules, labels removed tree-wide
+  (ecf2804fc1 and the plan/ commit after it).
+
+Open, for the next session:
+- `exabgp-test` replay of the 4.2/5.0 recordings is red on `api-multisession`:
+  an intended difference with no allowed entry (journal row in
+  `test-against-broken-path.md`).
+- Scoped lint reports two findings in committed
+  `internal/component/config/parser_diagnostics.go` (errorlint line 29,
+  gocritic ifElseChain line 50).
+- Four other sessions' `test/weakened/` shards hold uncommitted label removals
+  that only their sessions can commit.
+- Full verification of this session's commits is owed; the Linux host takes no
+  full runs, so it runs on the Mac. Push stays refused until the debt clears.
+- Next for the spec: items 4, 5 and 8 below, then Phase 8, review, close.
+  The wiki review is unchecked (`../wiki`, 351aba8 unpushed).
 
 ## START HERE: state at the end of Linux session ed4b8d60 (2026-10-22)
 
@@ -33,9 +42,9 @@ below, which describe the start of that session.
 
 Done: AC-37 (`TestOldCommands50/42` 4250/4250, 2541/2541) and AC-38
 (`TestOldResponses50/42` 23392/23392, 20930/20930), scoped runs. Owner
-decisions taken: M15 no OPERATIONAL, M16 no multi-session, M20 byte-exact RFC
-quotes, the build-cache cap and the shared launcher (rows M21 and M22 until
-2026-10-22, now O-1 in `plan/spec-le-build-cache-cap.md` and
+decisions taken: Ze does not support OPERATIONAL, Ze does not support
+multi-session, RFC quotes in comments stay byte-exact, the build-cache cap and
+the shared launcher (owner decision rows until 2026-10-22, now O-1 in `plan/spec-le-build-cache-cap.md` and
 `plan/spec-le-shared-build-launcher.md`); the strict AC-38 judge is in
 the spec's Key Design Decisions. Handover items 1, 2, 6 done; item 3 finished by
 another session (handover 19).
@@ -46,7 +55,7 @@ explicit-final-policy session's uncommitted rename (spec
 against HEAD. Land each with or after that session's commit:
 - negotiated before the OpenConfirm KEEPALIVE: `reactor/{peer_derived_bindings,peer_derived_bindings_test,peer_run,peer_settings_apply,reactor_notify}.go` and its `docs/architecture/api/json-format.md` hunk; restore the page paragraph kept in `plan/handover/17-negotiated-before-keepalive-page.md` in the same commit and delete that file. Proven: api-packets-receive/consolidate/send 3/3 against ze and the pin.
 - lint: `plugins/cmd/peer/peer.go` (goconst, misspell), `reactor/peer_forward_facts.go` (exhaustive), `reactor/rs_withdrawal_convergence_test.go` (ineffassign).
-- M20: `reactor/session_ownership.go` lines 147, 176 (full stop inside the RFC 7911 quotes).
+- byte-exact RFC quotes: `reactor/session_ownership.go` lines 147, 176 (full stop inside the RFC 7911 quotes).
 
 Owed, off this host (owner: "do not run full testing on this host"):
 `./le verify worktree`; `./le test functional exabgp-test`, `plugin`, `decode`,
@@ -55,7 +64,7 @@ NLRI now resets, 61bc0cfa63); `./le repo generate` for new source files; an
 independent review of the session's commits. Push stays refused until the
 verification debt clears.
 
-Waiting on the owner: approval of the M20 comment edits in four RFC-tagged
+Waiting on the owner: approval of the byte-exact RFC quote comment edits in four RFC-tagged
 tests (rib.TestFlowSpecRedirectToIPEBGPCheck, ...VPNVerdictPerRule,
 ...ConfigSwitchRejudges, rs.TestWithdrawOnePathKeepsTheOther; row in
 `plan/verification-debt/42ff67c4.md`); the open questions and approval of
@@ -78,9 +87,9 @@ Journal rows written: `unwired-feature.md` (auto-flush), `zero-value-as-valid-an
 Rows 1 and 2 were decided on 2026-10-22, "yes" to each: O-1 in
 `plan/spec-le-build-cache-cap.md` and in `plan/spec-le-shared-build-launcher.md`.
 
-Owner decisions taken this session are in `ai/META-DECISIONS.md`: M11 (third-party
-module changes are local diffs, never a fork) and M12 (full YANG coverage runs
-after the initial release).
+Owner decisions taken this session are in `ai/META-DECISIONS.md`: a change Ze needs in a
+third-party module is kept as a local diff against the upstream release, never
+a fork, and full YANG coverage runs after the initial release.
 
 ## Landed this session (main, not pushed by this session; origin moved once)
 
@@ -96,9 +105,9 @@ after the initial release).
 | rr departure as recovery (ze's Path Identifier, GR retention, interop `bgp-addpath-departure-reflector-frr`) | c379d157b1 |
 | rr/rs relay peer-up replay and revalidation themselves (owner-relayed pages, no grant borrowing) | cb65125a65 |
 | Generic `attribute [ code flags value ]` in update text, config, bridge, migration (RFC 4271 4.3 flags, typed decode) | 6399061087 |
-| goyang fork replaced by upstream + vendor patches (M11); grouped-action fix | c07197a98a, a639bb22e9 |
+| goyang fork replaced by upstream + vendor patches (local module diffs, not forks); grouped-action fix | c07197a98a, a639bb22e9 |
 | Safe `cache-clean` (age floor; `all` refuses under builds) | 803356e056 |
-| config-yang-reference-types deferred (M12) | 1577888acb |
+| config-yang-reference-types deferred (full YANG after the first release) | 1577888acb |
 
 ## Remaining work, in order
 
@@ -246,7 +255,7 @@ Classes left, largest first (5.0 counts):
    UPDATE whose Attrs() errors or that `oldSessionReset` resets. Read each one.
 
 Next step: class 2, which is bridge-only and worth 2000 lines, then 4, then 5.
-Classes 1 and 3 are absent features that the pin's corpus exercises (M3). They
+Classes 1 and 3 are absent features that the pin's corpus exercises (ExaBGP compatibility is agreed). They
 are owed, and the main thread decides whether they run in this spec or in their own.
 Owed gates, not run because of the host rule: `./le verify worktree`, `./le go
 lint run`, `./le test functional exabgp-test`, any `.ci` that pins exact OPEN,
@@ -307,7 +316,7 @@ Each one needs an event type registered, delivered as `onPeerStateChange`
 `APIKey` grant. The bridge already names `fsm` and `signal`. Text writes no
 line for either, so the text halves already pass. The judge's `zeDocument`
 must then build each document from the new format producers. OPERATIONAL
-remains owed as ALLOWED rows quoting M15.
+remains owed as ALLOWED rows quoting the owner decision that Ze does not support OPERATIONAL.
 
 Housekeeping: `tmp/commit-005e4774-a-687a42.sh` is a duplicate script from a
 refused `create`. Never run it. Owed gates: `./le go lint run`, `./le verify
@@ -403,7 +412,7 @@ My files and hunks:
   `TestFleetPutsTheNegotiatedBlockOnlyWhereGranted` in `fleet_test.go`.
 - `bridge_test.go`: the three negotiated tests read the block from `neighbor`.
 - Judge: the session takes `HoldTime` from the OPEN and notes its negotiated
-  event; two ze ALLOWED rows, M16 (multisession) and M15 (operational).
+  event; two ze ALLOWED rows, no multi-session and no OPERATIONAL.
 - `docs/architecture/exabgp-bridge.md`: the section "The negotiated block rides
   on every UPDATE line".
 
@@ -565,7 +574,7 @@ independent review.
 
 Class 1 (`packets`, `consolidate`, `parsed`) is DONE in the working tree.
 Judge counts with every agent's work in the tree: 5.0 10931 -> 22090 of 23392,
-4.2 11255 -> 19881 of 20930 (before the M15 row: 20938 and 19636). Every
+4.2 11255 -> 19881 of 20930 (before the no-OPERATIONAL row: 20938 and 19636). Every
 `packets` and `consolidate` class is at 0 except what the parsed line already
 carries (class 5: extended-community, as-path, flow next-hop, aggregator,
 labeled text) and 3+3 4.2 `update packets` the reactor resets the session on
@@ -595,8 +604,9 @@ Design:
   send-update ]` of TestMigrateCarriesTheEventsEachNeighborGrants).
 - Judge: zeDocument renders packets/consolidate through messageDocument with
   `FormatFull` and `encoder.Message`; `oldForms`; Note on every non-state
-  event; M15/M16 negotiated rows widened to `^(open|notification|keepalive|
-  refresh) packets `; new M15 rows `^operational ` (json, text).
+  event; no-OPERATIONAL and no-multi-session negotiated rows widened to
+  `^(open|notification|keepalive|refresh) packets `; new no-OPERATIONAL rows
+  `^operational ` (json, text).
 - Pages: `json-format.md` (after "With Raw Wire Bytes"), `exabgp-bridge.md`
   (new section "A message as its packet", negotiated paragraph), YANG `event`
   description.
@@ -978,7 +988,7 @@ independent review.
 
 ## Agent f9bfb853b AS_SET (2026-10-22 Linux)
 
-M25 AS_SET item: NOT implemented, no code edited. Blocked by files the
+ExaBGP f9bfb853b alignment, AS_SET bridge exemption item: NOT implemented, no code edited. Blocked by files the
 explicit-final-policy session (644a4e78, state file written 17:52 the same
 day) holds uncommitted, with hunks whose referents are not in HEAD.
 
@@ -1007,7 +1017,7 @@ The change owed, with the file that blocks each part:
 | Receive leaf | DECIDED (owner, 2026-10-22: "lgtm" to the same rule on receive): `as-set accept` only for ExaBGP compatibility, on a peer `ze exabgp migrate` wrote from an ExaBGP config, not an ordinary ze peer option. Shape: `as-set` enum `withdraw`/`accept` (default withdraw) in the peer session container of `ze-bgp-conf.yang`, read in `reactor/config.go` beside `applyAIGPSettings`, stored on `PeerSettings` | `yang/ze-bgp-conf.yang`, `reactor/peer_settings.go` (held, foreign `ImportPolicy` hunks) |
 | Receive verdict | thread the accept flag into the `ValidateUpdateRFC7606AddPath` call in `Session` receive validation (`session_validation_receive.go`, clean) so `validateASPath` and `validateAS4PathAttr` skip `ASPathSetSegment` under accept, the other AS_PATH checks still run | needs the PeerSettings field |
 | Send text | update text has no set grammar: `attribute.ParseASPathText` (`core/bgp/attribute/text.go`) reads one flat sequence, and the route carries `[]uint32`. Add `( ... )` set segments (and confed forms) and carry segments to the encoder, accepted ONLY on a route the ExaBGP bridge sends (owner, below) | clean, but useless without the guard change |
-| Send exemption | DECIDED (owner, 2026-10-22: "as_set allow it via the bridge but not directly from the plugin, so only exabgp compat can make it"; M25): an AS_SET is sent only on a route an ExaBGP script sent through the bridge. The provenance travels with the route from the bridge to `writeUpdateBody`; ze's own API, `update text` from any other plugin, and config stay refused. Deleting the guard is ruled out | `reactor/session_write.go`, `reactor/session.go` (held, `egressFinalAccepts` hunks) |
+| Send exemption | DECIDED (owner, 2026-10-22: "as_set allow it via the bridge but not directly from the plugin, so only exabgp compat can make it"): an AS_SET is sent only on a route an ExaBGP script sent through the bridge. The provenance travels with the route from the bridge to `writeUpdateBody`; ze's own API, `update text` from any other plugin, and config stay refused. Deleting the guard is ruled out | `reactor/session_write.go`, `reactor/session.go` (held, `egressFinalAccepts` hunks) |
 | Migration | `ze exabgp migrate` knows no `as-set` (nor `tunnel-encapsulation`): add to `internal/exabgp/migration/exabgp.yang` and map to the ze leaf | needs the ze leaf |
 | Bridge | delete the AS_SET row of `oldAllowed` in `internal/exabgp/bridge/old_allowed_test.go` and the AS_SET paragraph in `docs/exabgp/exabgp-differences.md` once the line is sent | needs send |
 | RFC records | `rfc/short/rfc9774.md` "No operator override" becomes the Section 3 exemption, default unchanged; RFC9774-3-1 and 3-2 tests gain the exempt polarity and fresh discrimination records (`rfc-change-ok "owner M25 2026-10-22: match ExaBGP f9bfb853b"`); `TestRFC9774Send*` and `TestRFC9774Receive*` stay as the default-path proof | follows the code |
@@ -1016,12 +1026,12 @@ Resume when 644a4e78 has committed `session_write.go`, `session.go`,
 `peer_settings.go`, `ze-bgp-conf.yang` and `config/peers.go`, or once the
 owner says to carry them.
 
-## M25 alignment state (2026-10-22, main session ed4b8d60)
+## ExaBGP f9bfb853b alignment state (2026-10-22, main session ed4b8d60)
 
 UPDATE, end of session: everything below that was "uncommitted" has landed:
 bgp-watchdog give/forget and the migration send grant af1bc41c96; the bridge
 batch (watchdog hand-off, negotiated grant gate, next-hop rules, MALFORMED
-judges) 9c3f7c3330; pin references eda7420752. M25 items left: AS_SET only
+judges) 9c3f7c3330; pin references eda7420752. Alignment items left: AS_SET only
 (blocked on the explicit-final-policy session's files, see the AS_SET section
 above), and the MUP raw-relay gap. Gates owed off this host as in START HERE,
 plus `./le cli dispatch check` and `./le arch enumeration check`, which were
@@ -1166,12 +1176,12 @@ packets, traffic-action, rt-redirect 0x80/0x81/0x82, traffic-marking,
 redirect-to-IP, Simpson 0x0800, interface-set. Ze lacks one: it decodes the RFC
 8956 Section 6.1 IPv6 route-target redirect (0x000d) but has no `update text`
 or config word to send it (`attribute.FlowSpecRedirect` refuses IPv6; the
-bridge refuses `redirect [<ipv6>]:<nn>`). That is owed RFC 8956 work (M2), not
+bridge refuses `redirect [<ipv6>]:<nn>`). That is owed RFC 8956 work (full RFC coverage), not
 yet a spec or journal row. The same report's "Missing Features in ZeBGP" list
 and its action items are still stale outside FlowSpec (GR, BMP, config
 parsing, RFC 5701 "not implemented").
 
-Landed 1994b7c89a: MUP -02 relay gap closed (M25 MUP item done). Design:
+Landed 1994b7c89a: MUP -02 relay gap closed (ExaBGP alignment MUP item done). Design:
 `nlritype.RegisterCanonical` (a family's send form, Grow/WriteTo); the receive
 path's `RetainUpdate` writes kept routes in it, so the Adj-RIB-In, relays and
 events hold the octet; only a section holding such a route is rebuilt.
@@ -1180,4 +1190,4 @@ with `TestMUPT1ST02RelayedWithSourceLength`. Gates owed off this host: full
 `./le verify`, `./le test functional`, interop. The reactor package run here
 was red on 14 tests in the explicit-final-policy session's uncommitted files
 (`policy_replay_identity_test.go`, `rs_withdrawal_*`, owed-key recovery); none
-carries MUP. M25 left: AS_SET only.
+carries MUP. Alignment left: AS_SET only.

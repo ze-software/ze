@@ -1,6 +1,6 @@
 # 20 GoBGP interop lab on v4.10.0, and the move of every lab peer to latest stable
 
-Owner decision M14 (`ai/META-DECISIONS.md`, 2026-10-22): every third-party lab
+Owner decision (`ai/META-DECISIONS.md`): every third-party lab
 peer runs its latest stable upstream release. The GoBGP lab ran v3.31.0 because
 its first install named the v3 module path with `@latest` (2026-03-20), which
 resolves to the newest v3 although v4.0.0 shipped 2025-11-03; the review pin
@@ -34,7 +34,7 @@ under `./le job run`, on a host that is not busy:
 | bgp-addpath-best-path-pmacct, bgp-addpath-rail-agreement-speaker | setup timed out under load; cross-compile failed on another session's uncommitted bridge work |
 | bgp-attribute-default-localpref-gobgp, bgp-cluster-list-length-bird, bgp-ebgp-gobgp, bgp-ecmp-frr, bgp-evpn-gobgp, bgp-exabgp-bridge-sr-policy-gobgp, bgp-ipv6-ebgp-gobgp, bgp-local-pref-strip-gobgp, bgp-med-across-as-gobgp, bgp-med-ibgp-post-selection-removal-gobgp, bgp-med-increment-gobgp, bgp-med-remove-configured-gobgp, bgp-multihop-ebgp-gobgp, bgp-mup-malformed-t1st-withdraw-gobgp, bgp-nexthop-self-local-auto-frr, bgp-remove-private-as-frr, bgp-role-gobgp, bgp-routes-gobgp, bgp-sr-policy-gobgp, ospfv3-nssa-redist-frr, ospfv3-redist-frr | plain regression on v4 |
 
-## Owed: every other lab peer to latest stable (M14)
+## Owed: every other lab peer to latest stable
 
 Inventory taken 2026-10-22. Alpine 3.21, the base of nearly every lab image,
 reaches end of life 2026-11-01.
@@ -65,7 +65,7 @@ reaches end of life 2026-11-01.
 
 Where Alpine 3.24 still lags upstream, build the peer from source. tac_plus-ng
 and freeRtr (no stable releases): before a build, when the source is more than
-a month old, update it to upstream latest first (M14), enforced in the image
+a month old, update it to upstream latest first, enforced in the image
 build. Add a check that reports any pin behind upstream latest stable:
 `le go version-pin check` only compares Go builder tags with go.mod and never
 looks upstream.
@@ -76,7 +76,7 @@ this host, it is too busy").
 
 ## Progress (BGP peers)
 
-Agent of 2026-10-22, BGP-peer slice of M14. Landed:
+Agent of 2026-10-22, BGP-peer slice of the latest-stable move. Landed:
 
 | Peer | Old | New | Proof on this host | Commit |
 |------|-----|-----|--------------------|--------|
@@ -183,7 +183,7 @@ took over two minutes), which is why several proofs are still open.
 
 QEMU guest peers still behind upstream after the bump, from Alpine 3.24
 packages: strongSwan 6.0.7 (6.1.0 upstream, the mobike guest) and keepalived
-2.3.4 (2.4.3). accel-ppp 1.14.0 is current. M1 moves the guests to Ze's own
+2.3.4 (2.4.3). accel-ppp 1.14.0 is current. The Ze-system guest rule moves the guests to Ze's own
 system, which closes that gap; not done here.
 
 Scenarios, one at a time under the session's shared lock. The continuation
@@ -346,7 +346,7 @@ by a source edit; run a fix with `./le --name <x>` as the scn5 run did.
 
 ## Progress (source-built peers, freshness check)
 
-Agent of 2026-10-22, source-built-peer and pin-freshness slice of M14.
+Agent of 2026-10-22, source-built-peer and pin-freshness slice of the latest-stable move.
 
 | Item | Commit | Proof |
 |------|--------|-------|

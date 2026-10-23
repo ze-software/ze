@@ -16,7 +16,7 @@ Implement per-peer and per-group inherit/strip/propagate selection with neighbor
 
 ## Source and Evidence
 
-Split from `plan/release/fixes/spec-tombstone-forwarding-policy.md` under owner decisions M30-M33. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in `plan/release/fixes/spec-tombstone-forwarding-policy.md`. Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
+Split from `plan/release/fixes/spec-tombstone-forwarding-policy.md` under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in `plan/release/fixes/spec-tombstone-forwarding-policy.md`. Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
 
 ## Acceptance Criteria
 

@@ -49,7 +49,7 @@ The 2026-08-29 withdrawal leaves AC-5 unresolved. The 2026-09-05 ruling is
 MEASURE IT, not a choice between measurement and refusal. The 2026-10-09
 owner set-aside ("Set aside the 7 specs waiting on something else") and
 owner defer-heavy-testing instruction remain effective. This child is blocked,
-not newly commissioned or ready. M30-M33 change release placement only.
+not newly commissioned or ready. The release-scope rules in `ai/META-DECISIONS.md` change release placement only.
 
 The parent's original Phase 4 refusal-only test proposals and all checklist
 references to VPP are governed by that September ruling. No RFC artifact,

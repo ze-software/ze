@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Priority | P3 |
-| Release reason | Full YANG expansion remains after release under M12; required behavior of already accepted configuration is not waived. |
+| Release reason | Full YANG expansion remains after the first release; required behavior of already accepted configuration is not waived. |
 | Scope | config |
 | Depends | - |
 | Phase | - |
@@ -13,7 +13,7 @@
 
 ## Release placement
 
-This older type skeleton is superseded for implementation ownership by spec-config-yang-reference-types. Preserve its original acceptance and history, reconcile closure there, and do not commission duplicate identityref work. M12 still defers full coverage.
+This older type skeleton is superseded for implementation ownership by spec-config-yang-reference-types. Preserve its original acceptance and history, reconcile closure there, and do not commission duplicate identityref work. Full YANG coverage still runs after the first release.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

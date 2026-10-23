@@ -36,7 +36,7 @@ Implement original Phase 2 only after its own design and scheduling; retain the 
 
 ## Work Not Done
 
-M30–M33 approve this scope separation, not completion or additional product implementation. Original dependencies, design decisions and evidence requirements remain binding within each slice.
+The release-scope and spec-split rules in `ai/META-DECISIONS.md` approve this scope separation, not completion or additional product implementation. Original dependencies, design decisions and evidence requirements remain binding within each slice.
 
 | Original obligation | Implementation owner | Boundary |
 |---------------------|----------------------|----------|

@@ -1,7 +1,7 @@
 # Handover: spec-rfc-verdict-fix-ospf (2026-10-21)
 
 Spec: `plan/pre-release/spec-rfc-verdict-fix-ospf.md` (in-progress). Written so the
-work survives a machine move (M9). Delete this file in the spec's closing commit.
+work survives a machine move. Delete this file in the spec's closing commit.
 
 ## Landed
 
