@@ -338,6 +338,12 @@ const (
 	// sessionUpUnspecified: nothing told the plugins this session is up. The
 	// FSM up has not started, so it will read a graph published from here on.
 	sessionUpUnspecified sessionUpPhase = iota
+	// sessionUpNegotiated: the OPENs are exchanged and the negotiated event is
+	// being delivered, or was, while the FSM up has not started. That event
+	// read the graph at a point no reader can place, so a process attached
+	// now may or may not have it, and the reload restarts the session as it
+	// does for sessionUpDelivering.
+	sessionUpNegotiated
 	// sessionUpDelivering: the FSM up is being delivered, and it reads the graph
 	// at a point no reader can place, so it may or may not see an edge
 	// published now.
@@ -381,15 +387,30 @@ func (p *Peer) markSessionUp(r *Reactor, session *Session, phase sessionUpPhase)
 	r.mu.Unlock()
 }
 
-// announceEstablished tells the plugins that session reached Established: the
-// state up and the negotiated capabilities, each to the processes the delivery
-// graph feeds when it is read. The phase marks around the two deliveries are
-// what lets a reload racing them give each attached process exactly one up.
+// announceNegotiated tells the plugins that session exchanged its OPENs: the
+// negotiated capabilities, to the processes the delivery graph feeds when it
+// is read. It runs on entry to OpenConfirm, before the KEEPALIVE that answers
+// the peer's OPEN is sent, so every message of the session after the OPENs
+// reaches a process after the negotiated event that describes it: ExaBGP
+// states that block on the packet line of the OpenConfirm KEEPALIVEs too
+// (docs/architecture/exabgp-bridge.md). The mark comes first, so a reload
+// racing the delivery restarts the session rather than leave an attached
+// process without the event (Peer.applyHotSwappableSettings).
 // The caller MUST hold neither r.mu nor p.mu.
-func (p *Peer) announceEstablished(r *Reactor, session *Session, neg *capability.Negotiated) {
+func (p *Peer) announceNegotiated(r *Reactor, session *Session, neg *capability.Negotiated) {
+	p.markSessionUp(r, session, sessionUpNegotiated)
+	r.notifyPeerNegotiated(p, neg)
+}
+
+// announceEstablished tells the plugins that session reached Established: the
+// state up, to the processes the delivery graph feeds when it is read. The
+// negotiated event went out on entry to OpenConfirm (announceNegotiated). The
+// phase marks around the delivery are what lets a reload racing it give each
+// attached process exactly one up.
+// The caller MUST hold neither r.mu nor p.mu.
+func (p *Peer) announceEstablished(r *Reactor, session *Session) {
 	p.markSessionUp(r, session, sessionUpDelivering)
 	r.notifyPeerEstablished(p)
-	r.notifyPeerNegotiated(p, neg)
 	p.markSessionUp(r, session, sessionUpDelivered)
 }
 

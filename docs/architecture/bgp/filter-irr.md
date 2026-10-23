@@ -65,7 +65,8 @@ so the plugin fails closed. The withdrawals are lost with the rejected UPDATE.
 <!-- source: internal/component/bgp/plugins/filter_irr/match.go -- partitionUpdate, rewritable, buildModifyDelta -->
 <!-- source: internal/component/bgp/filtertext/cidr.go -- CIDRFamily -->
 
-**The operator writes `import bgp-filter-irr:$remote_as`. Nothing is
+**The operator writes
+`import { filters [ bgp-filter-irr:$remote_as ]; final accept; }`. Nothing is
 auto-injected.** The reactor has no dynamic filter injection API, and
 `$remote_as` already resolves through the existing filter variable mechanism.
 
