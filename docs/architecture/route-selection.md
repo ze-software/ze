@@ -222,13 +222,15 @@ and withdraws it instead of silently removing AIGP. The withdrawal reaches the
 wire only where the recipient was advertised the route (RFC 4271 Section 3.1),
 but every recipient it was withheld from is retained with the received
 generation, and is announced the route once a distance becomes available. A
-failed write discards that record, as it does for an announcement. A resolved
+failed write discards that record, as it does for an announcement, and a
+withdrawal that decides nothing about AIGP, such as a relay recovery's
+withdrawal of an obsolete owner, leaves it in place. A resolved
 recursive sum may be zero; it remains an announcement with the computed AIGP. A source withdrawal, replacement or
 disconnect still invalidates the generation. A recursive BGP next hop with no
 AIGP is different: RFC 7311 Section 3.4.3 explicitly requires removal of the
 attribute in that case.
 <!-- source: internal/component/bgp/reactor/forward_aigp.go -- applyFactsAIGP -->
-<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, replayAIGP -->
+<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, commitAIGPWrites, replayAIGP -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 
 The received metric is retained separately from MED in best-path events and the

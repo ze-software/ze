@@ -144,3 +144,62 @@ func TestAIGPReplayNotQueuedTwiceForOneOutcome(t *testing.T) {
 		t.Fatalf("re-advertised metric=%d, want 111", metric)
 	}
 }
+
+// TestAIGPRecoveryWithdrawalKeepsCostWithheldRecord pins the AIGP write
+// receipt for a write that decides nothing about AIGP. A route withheld for an
+// unknown cost stays owed to the recipient (RFC 7311 Section 3.4.3), and a
+// later known distance re-advertises it. A relay recovery withdraws an obsolete
+// owner with a bare withdrawal that carries no AIGP origin
+// (queueRecoveryWithdrawal); the receipt once read it as an ordinary
+// withdrawal and dropped the recovery record, so the route never came back.
+// Method: advertise at distance 7, withdraw by replay at 0, take the write
+// receipt of the recovery withdrawal of the same prefix, then install 7 and
+// assert one announcement with AIGP 107.
+func TestAIGPRecoveryWithdrawalKeepsCostWithheldRecord(t *testing.T) {
+	prefix := []byte{24, 10, 20, 0}
+	f := newAIGPReplayFixture(t, nil)
+	f.metric(7)
+	f.forward(t, f.receive(t, f.body(t, 100)))
+	forwardSocketBarrier(t, f.r)
+	f.metric(0)
+	f.r.readvertiseAIGP()
+	forwardSocketBarrier(t, f.r)
+	bodies := aigpSocketBodies(t, f.conn)
+	if len(bodies) != 2 {
+		t.Fatalf("UPDATE count=%d after distance 0, want the announcement and its withdrawal", len(bodies))
+	}
+	if sections, err := wire.ParseUpdateSections(bodies[1]); err != nil || !bytes.Equal(sections.Withdrawn(bodies[1]), prefix) {
+		t.Fatalf("distance 0 did not withdraw 10.20.0.0/24: %x", bodies[1])
+	}
+	// The receipt of the body queueRecoveryWithdrawal stages: destination
+	// framing, no AIGP origin, revision or cost reason. It reaches the wire
+	// only while the destination's Adj-RIB-Out still holds the key, as when
+	// the replay's withdrawal was owed to the recovery worker, so the receipt
+	// is driven as writeUpdateBody and flushWrites drive it.
+	withdrawal := append([]byte{0, byte(len(prefix))}, prefix...)
+	withdrawal = append(withdrawal, 0, 0)
+	session := f.destination.session
+	session.writeMu.Lock()
+	session.noteAIGPWrite(withdrawal, false)
+	session.commitAIGPWrites(true)
+	session.writeMu.Unlock()
+	seen := len(bodies)
+	f.metric(7)
+	f.r.readvertiseAIGP()
+	forwardSocketBarrier(t, f.r)
+	bodies = aigpSocketBodies(t, f.conn)
+	if len(bodies) != seen+1 {
+		t.Fatalf("recovery UPDATE count=%d, want %d; the recovery withdrawal dropped the cost-withheld record", len(bodies), seen+1)
+	}
+	last := bodies[len(bodies)-1]
+	sections, err := wire.ParseUpdateSections(last)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(sections.NLRI(last), prefix) {
+		t.Fatalf("recovery did not announce 10.20.0.0/24: %x", last)
+	}
+	if metric, present := aigpReceivedMetric(t, last); !present || metric != 107 {
+		t.Fatalf("recovered metric=%d present=%v, want 107", metric, present)
+	}
+}

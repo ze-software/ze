@@ -61,6 +61,11 @@ type aigpAdvertisement struct {
 	// for this record, guarded by aigpState.mu. Commit replaces the record, so
 	// it lives until the replay is written or the session ends.
 	queued aigpOutcome
+	// undecided marks a pending withdrawal written with no AIGP origin, such
+	// as a relay recovery's withdrawal of an obsolete owner. It decides
+	// nothing about the route's cost, so it never removes a cost-withheld
+	// record: that recipient already holds nothing and stays owed the route.
+	undecided bool
 }
 
 // aigpOutcome is what one replay computes for a recipient. set is false until
@@ -212,7 +217,9 @@ func aigpRevision() uint64 {
 // noteAIGPWrite records the final, policy-filtered body. With withheldOnly it
 // records a cost-withheld withdrawal before the adj-out filter drops the keys
 // this recipient was never advertised, and keeps only the entries that retain a
-// route, so a key that never reaches the wire never removes a record. The pending entries MUST be committed only after flush succeeds;
+// route, so a key that never reaches the wire never removes a record. A
+// withdrawal written with no AIGP origin never removes a cost-withheld record
+// either (aigpAdvertisement.undecided). The pending entries MUST be committed only after flush succeeds;
 // failed flushes MUST discard them.
 func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 	if s.aigpReactor == nil || s.aigpPeer == nil {
@@ -282,6 +289,7 @@ func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 		if withheldOnly && entry.route == nil {
 			return
 		}
+		entry.undecided = withdrawn && !s.sentAIGPOrigin.sender.IsSet()
 		s.aigpPending = append(s.aigpPending, entry)
 	})
 }
@@ -294,6 +302,11 @@ func (s *Session) commitAIGPWrites(ok bool) {
 	state.mu.Lock()
 	if ok && s.State() == fsm.StateEstablished {
 		for _, sent := range s.aigpPending {
+			// RFC 7311 Section 3.4.3: the withheld route stays owed until a
+			// write that decides its AIGP replaces the record.
+			if current := state.advertised[sent.key]; sent.undecided && current != nil && current.costWithheld && state.routes[current.route.key] == current.route {
+				continue
+			}
 			delete(state.advertised, sent.key)
 			if sent.route != nil && state.routes[sent.route.key] == sent.route {
 				entry := sent
