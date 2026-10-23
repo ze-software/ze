@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Priority | P1 |
 | Release reason | Finish the approved routing drain lifecycle before protocol teardown. |
 | Scope | protocol |

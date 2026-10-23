@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Priority | P1 |
 | Release reason | RS and RR clients must receive the elected surviving route on announcements and withdrawals. |
 | Scope | protocol |
