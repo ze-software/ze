@@ -359,6 +359,13 @@ with the reason, instead of being matched or missed by a pattern.
 | hook-existing-patterns-false-positive | 2026-09-02 | `gitVerbRun` and `bashBranchMove` (`internal/le/hookruntime/bash.go`) |
 | claim-outlives-the-evidence-it-cites | 2026-09-02 | `interopCarriers` in `internal/le/rfc/carriers.go` (tier derived from a workflow naming the action) |
 | gate-red-where-nothing-blocks-on-it | 2026-10-09 | `internal/component/bgp/config` tests red in an untagged export |
+| guard-message-teaches-the-violation | 2026-08-31 | `validateID` blocks the whole index write on one section mismatch |
+| guard-message-teaches-the-violation | 2026-08-31 | `checkAnnotatedButTested` names the remedy for one of its two causes |
+| guard-message-teaches-the-violation | 2026-08-31 | `rfc/extraction/README.md` over `createExtraction` overwriting a first walk |
+| plugin-list-hardcoded | 2026-09-09 | `netnsSelections[netnsPPPoE]` hand list against `test/pppoe/*.ci` |
+| test-against-broken-path | 2026-08-17 | `internal/component/config/infra` bare-core tests parse optional schemas |
+| test-against-broken-path | 2026-09-04 | `TestFlowSpecConfigToPlugin`, `...VPN`, `TestReservedPeerNamesSyncWithRPCs` red together |
+| test-against-broken-path | 2026-09-23 | `TestBootstrapDistancesMatchTheDeclaration` source scanner |
 
 ## Rows found already fixed
 

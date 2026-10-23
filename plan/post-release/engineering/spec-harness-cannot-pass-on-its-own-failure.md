@@ -215,6 +215,24 @@ Each case MUST go red, and the corpus runs with the runner's own package tests.
 | `green-that-could-not-have-been-red.md` | 2026-10-21 | `interopCitationState` checks the cited assertion exists, not that it failed |
 | `green-that-could-not-have-been-red.md` | 2026-10-23 | `observationRunner.attribution` accepts a build failure as proof |
 | `test-against-broken-path.md` | 2026-08-15 | ze-peer `action=send:conn=2` under `conn_map` writes to the first session (not re-read today) |
+| `green-that-could-not-have-been-red.md` | 2026-10-04 | `SelectBest` RFC4271-9.1.2.2-1 tag: two-candidate cases miss three-route MED order |
+| `green-that-could-not-have-been-red.md` | 2026-10-05 | RFC8654-5-4 over-length test checks no Adj-RIB-In cleanup |
+| `green-that-could-not-have-been-red.md` | 2026-10-05 | `TestRFC4271CollisionClosesExactlyOneConnection` checks decision flags only |
+| `green-that-could-not-have-been-red.md` | 2026-10-05 | `teCarryBody` carries RFC 9830 claims on IPv4 unicast |
+| `green-that-could-not-have-been-red.md` | 2026-10-05 | `stressrepro.run` claims 80 runs it did not execute |
+| `guard-added-to-one-half-of-a-pair.md` | 2026-09-07 | ze-peer `generateOpen` overrides My AS but not the mirrored AS4 capability |
+| `mirrored-field-asserts-the-wrong-sender.md` | 2026-09-08 | ze-peer `buildOpen` mirrors capabilities 64, 70/71, 75, 76 and Hold Time |
+| `premature-closure.md` | 2026-08-26 | `rfc/short/rfc9552.md` keeps `./le test-health check` red |
+| `rfc-discrimination-schema-refusal.md` | 2026-09-22 | `rfc discriminate-record` refuses the RFC2205-3-37 fingerprint key |
+| `rfc-discrimination-schema-refusal.md` | 2026-09-30 | `disableBody` finds no brace after a `//nolint` signature |
+| `test-against-broken-path.md` | 2026-09-02 | `TestRunExpandsEnvironmentInDriverArguments` hands a quoted argument |
+| `test-against-broken-path.md` | 2026-09-02 | `TestRunConvertsPanicToObserverFailure` fails after the process-global `ReportFailure` flag |
+| `test-against-broken-path.md` | 2026-09-06 | BMP sender `.ci` family opened with the wrong peer AS (stopped reproducing, cause unknown) |
+| `test-against-broken-path.md` | 2026-09-07 | `generateOpen` measured over the whole gating set |
+| `test-against-broken-path.md` | 2026-09-07 | `test/encode/ebgp-encode.ci` refused at the reactor OPEN check |
+| `test-against-broken-path.md` | 2026-10-04 | RFC9494-4.2-2 discrimination panic re-enters the mutex |
+| `zero-value-as-valid-answer.md` | 2026-08-31 | `seq02` BFD auth-persistence probe returns 0 for four failures |
+| `zero-value-as-valid-answer.md` | 2026-09-02 | `./le rfc check` publishes zero `discrimination-*` figures over a populated corpus |
 
 ## Rows found already fixed
 

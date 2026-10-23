@@ -121,6 +121,10 @@ The verification-debt shards, the session directory, the hook registry.
 | AC-14 | lint `unused` on l2tp, `go mod vendor` reverting patches, YANG resolution in test binaries | Lint is green on `internal/component/l2tp/...`; vendoring re-applies owned patches or refuses; schema-dependent CLI tests link the modules they resolve |
 | AC-15 | `ZE_VERIFY_MODE`, spec WIP cap, `./le test functional --pattern` | One variable carries one meaning; the WIP cap is enforced by the Go successor; the documented `--pattern` works or the doc is corrected |
 | AC-16 | test-type backfill x3, process rows x3 (AC written as an absence, `git mv` by a subagent, mutation of a live guard x2) | Each is routed to the rule or gate that governs it (`ai/rules/testing.md`, `ai/rules/git-safety.md`), with a hook or fixture where a check is possible; a row with no checkable form is closed with the owning rule named |
+| AC-17 | runner tmpfs on `Record`, activity widget dark theme, `checkSnapshot` quoted paths, GoBGP export reconcile, codeql `paths-ignore` | The `.ci` path carries `*tmpfs.Tmpfs` with its mode; the widget follows the page theme; a path git quotes commits (`ls-files -s -z`); the GoBGP lab peer re-advertises on export change or the scenario says why; the CodeQL Go job skips `gokrazy/modcache` |
+| AC-18 | le stop x4 (`runDocker`, `installStopped`, `installCommand`, unrooted verbs) | A stop ends the container or child it started, reports truthfully what changed, and a second Ctrl-C reaches le |
+| AC-19 | le test rows x5 (`demos/terminal/web-config` validator, `go run` of a non-main file, committed `zz` probes, `requireEveryJobAdvisory`, `le-discovery-answers` changed list) | Each test drives the path it claims, or is deleted with its probe; the workflow test and the workflow agree |
+| AC-20 | zero answers x3 (feature tag set, perf comparison table, `listStdlib`) | An empty feature tag set, a duplicate `dut-name` and an empty `go list std` each refuse with the cause rather than read as data |
 
 ## 🧪 TDD Test Plan
 
@@ -225,6 +229,23 @@ The verification-debt shards, the session directory, the hook registry.
 | `test-type-not-backfilled` | 2026-10-06 | RFC filename/tag convention |
 | `test-type-not-backfilled` | 2026-06-14 | new test type, existing code |
 | `test-type-not-backfilled` | 2026-06-14 | fuzz target backfill |
+| `helper-bypassed-by-an-open-coded-copy` | 2026-08-14 | functional runner `Record.TmpfsFiles` flattens the tmpfs block |
+| `helper-bypassed-by-an-open-coded-copy` | 2026-08-31 | `activityStyle` light literals under the dark theme |
+| `parser-refuses-a-form-its-producer-emits` | 2026-10-14 | `checkSnapshot` reads `git ls-files -s` without `-z` |
+| `policy-change-never-re-evaluates-what-it-admitted` | 2026-10-22 | GoBGP `UpdateConfig` export change not re-advertised (lab peer) |
+| `stop-leaves-the-work-running` | 2026-10-11 | `runDocker` kernel container survives a stop |
+| `stop-leaves-the-work-running` | 2026-10-20 | `installStopped` always says "only partly made" |
+| `stop-leaves-the-work-running` | 2026-10-20 | `installCommand` root step waited out with no WaitDelay |
+| `stop-leaves-the-work-running` | 2026-10-20 | unrooted le verbs leave the compile or docker child running |
+| `test-against-broken-path` | 2026-08-18 | `demos/terminal/web-config/` validator and recording drive different paths |
+| `test-against-broken-path` | 2026-08-29 | `TestGeneratedPluginImportsCurrent`, `TestYANGGlueCurrent` `go run` a non-main file |
+| `test-against-broken-path` | 2026-09-01 | `TestProbeUnclaimedRoutes`, `TestScratchProducerCensus` never deleted |
+| `test-against-broken-path` | 2026-09-05 | `requireEveryJobAdvisory` against `evidence-nightly.yml` |
+| `test-against-broken-path` | 2026-09-28 | `le-discovery-answers.ci` `gitChangedFiles` compares the working tree |
+| `unwired-feature` | 2026-09-02 | `.github/workflows/codeql.yml` `paths-ignore` ignored for Go |
+| `zero-value-as-valid-answer` | 2026-08-26 | le toolchain derived feature tag set answers empty |
+| `zero-value-as-valid-answer` | 2026-09-21 | `latestComparisonResults` keeps one of two `ze` results |
+| `zero-value-as-valid-answer` | 2026-10-15 | `listStdlib` empty listing read as no stdlib |
 
 ## Rows found already fixed
 

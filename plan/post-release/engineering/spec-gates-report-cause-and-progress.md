@@ -257,6 +257,7 @@ renders no cause.
 | `lint-contract-not-applied.md` | 2026-08-30 | rpki `writeResetQuery` unparam, capability flavor |
 | `lint-contract-not-applied.md` | 2026-08-29 | host flavor, 16 findings |
 | `lint-contract-not-applied.md` | 2026-08-19 | ci-dispatch call-site gate |
+| `lint-contract-not-applied.md` | 2026-08-19 | l2tp diag tools: 8 findings at HEAD |
 
 ## Rows found already fixed
 

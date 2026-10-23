@@ -261,6 +261,12 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | gate-verdict-depends-on-the-machine.md | 2026-10-03 | internal/plugins/geodns/rfc2181_clarifications_test.go TestRFC2181ReplySour |
 | gate-verdict-depends-on-the-machine.md | 2026-10-10 | test/plugin/redistribute-as112-announce.ci |
 | gate-verdict-depends-on-the-machine.md | 2026-10-21 | ensureCache (internal/core/env/env.go) |
+| registry-contamination.md | 2026-09-13 | TestRegisteredLocalCommandsStayReachable empties every registration via registry.ResetForTest |
+| registry-contamination.md | 2026-10-15 | internal/component/plugin/server tests: 31 fail, bgp namespace unregistered |
+| suite-shares-one-persistent-store.md | 2026-08-20 | functional runner setupBinShims shares one config dir |
+| suite-shares-one-persistent-store.md | 2026-08-22 | DefaultConfigDir under the functional runner reaches the developer's store |
+| test-against-broken-path.md | 2026-10-22 | TestNativeImplementationFixture GOCACHE against GoCache(root) |
+| zero-value-as-valid-answer.md | 2026-10-21 | processIdentity over readHostIdentity writes empty lab identity labels |
 
 ## Rows found already fixed
 

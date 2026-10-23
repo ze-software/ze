@@ -268,6 +268,12 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | gate-verdict-depends-on-the-machine.md | 2026-08-31 | ./le verify worktree, and every gate stage it runs |
 | gate-verdict-depends-on-the-machine.md | 2026-10-14 | ./le repo arch-map check, run by test/ui/le-dev-tools-answers.ci |
 | assertion-reads-state-the-scheduler-owns.md | 2026-09-19 | TestConcurrentRunsDoNotShareArtifactPaths (internal/le/verify) against the |
+| stale-artifact-reused.md | 2026-08-12 | ipsec interop PKI fixtures not regenerated |
+| stale-artifact-reused.md | 2026-08-21 | site generate stamps demo definition hashes, ignoring the exit |
+| stale-artifact-reused.md | 2026-08-31 | `renderEngine` and `(*demoCatalog).assetRoot` disagree on the demo media root |
+| stale-artifact-reused.md | 2026-09-01 | `trackedAndUntrackedSourceFiles` and `assetRoot`, second occurrence |
+| tree-state-claim-published-unverified.md | 2026-09-06 | carrying a peer's hunk out of a shared file |
+| tree-state-claim-published-unverified.md | 2026-09-12 | no gate builds `cmd/ze` from HEAD content |
 
 ## Rows found already fixed
 

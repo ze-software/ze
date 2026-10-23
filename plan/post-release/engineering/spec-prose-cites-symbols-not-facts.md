@@ -374,6 +374,19 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | stale-artifact-reused | 2026-09-06 | `internal/component/web/testdata/handler/*.txt`, four captures |
 | stale-artifact-reused | 2026-08-31 | `./le doc check templ-output` over `internal/component/web/page_snapshot_templ.go` |
 | stale-artifact-reused | 2026-08-30 | `rfc/short/rfc4301.md` checklist annotations |
+| hardcoded-count-in-test | 2026-08-15 | assert-nothing ratchet floor |
+| hardcoded-count-in-test | 2026-08-23 | `docs/guide/ipsec.md` "Sixteen scenarios" |
+| plugin-list-hardcoded | 2026-08-31 | `internal/le/docvalid/register.go` `Description` lists three gates |
+| plugin-list-hardcoded | 2026-09-08 | `vrrp-keepalived-test` `Why` and placeholder list three of four scenarios |
+| reference-checked-claim-unchecked | 2026-08-09 | doc gates: 82 source anchors name an absent symbol |
+| reference-checked-claim-unchecked | 2026-08-16 | hook mapping prose still describes the removed `updatedInput` check |
+| reference-checked-claim-unchecked | 2026-08-23 | a peer's correction adopted before anybody opened the file |
+| stale-artifact-reused | 2026-09-30 | RFC2473-4.1.1 and RFC4213-3.6 `{not-applicable}` markers |
+| stale-artifact-reused | 2026-10-11 | `normalizeRequest` comment in `kernelbuilder/recipe.go` |
+| stale-spec-claims-done | 2026-08-29 | `plan/` spec `in-progress` after its deliverables landed |
+| tree-state-claim-published-unverified | 2026-08-31 | a YANG description collision reported across sessions |
+| unwired-feature | 2026-08-28 | `functional` area Description advertises Docker-exec analysis |
+| zero-value-as-valid-answer | 2026-09-03 | a grep offered to a peer as an all-clear on a rename |
 
 ## Rows found already fixed
 

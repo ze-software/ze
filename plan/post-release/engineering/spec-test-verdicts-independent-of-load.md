@@ -305,6 +305,8 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-16 | test/plugin under high -p |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-15 | test/plugin under high -p |
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-17 | the ipsec functional suite under the retired scripts/evidence/qemu-all-test |
+| reload-rolls-back-instead-of-applying.md | 2026-08-25 | test/traffic/traffic-reload-apply.ci fails one run in eight |
+| test-against-broken-path.md | 2026-09-17 | audit-config-commit fixture exceeds its 5-second HTTP deadline |
 
 ## Rows found already fixed
 
