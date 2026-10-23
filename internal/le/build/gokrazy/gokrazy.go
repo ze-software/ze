@@ -190,9 +190,11 @@ func imageArch() string {
 const name = "build gokrazy"
 
 // Run runs gok with args and answers the exit code. It sets GOMODCACHE,
-// CGO_ENABLED, GOFLAGS, GOPROXY and GOTOOLCHAIN in this process's environment
-// for the Go subprocesses gok spawns, so the caller MUST be a process that runs one gok
-// command and exits, as le does.
+// CGO_ENABLED, GOFLAGS and GOPROXY in this process's environment for the Go
+// subprocesses gok spawns, and gok applies the instance's Environment there
+// too, so the caller MUST either exit after one gok command, as `le build
+// gokrazy` does, or restore the environment afterwards, as
+// dockerhost.runGokWith does.
 func Run(args []string) int {
 	modcache := os.Getenv("GOMODCACHE")
 	if modcache == "" {

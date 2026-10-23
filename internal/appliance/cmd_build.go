@@ -298,9 +298,10 @@ func ensureModcacheRW() error {
 }
 
 // SetGokGoEnv sets, in this process's environment, what the go build and list
-// subprocesses gok spawns inherit. The caller MUST be a process that runs one
-// gok build, because the settings outlive the call. Both gok entry points use
-// it: runGokInProcess here and buildgokrazy.Run (internal/le/build/gokrazy).
+// subprocesses gok spawns inherit. The settings outlive the call, so the
+// caller MUST either run one gok build and exit, or restore the environment
+// afterwards (dockerhost.runGokWith). Both gok entry points use it:
+// runGokInProcess here and buildgokrazy.Run (internal/le/build/gokrazy).
 //
 //   - GOMODCACHE is the checked-in gokrazy/modcache at modcache.
 //   - GOFLAGS gains -modcacherw (ensureModcacheRW).

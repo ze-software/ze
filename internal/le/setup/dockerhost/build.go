@@ -186,17 +186,67 @@ func gokArgs(repo, image string, sizeGiB int) []string {
 }
 
 // runGok builds through `le build gokrazy`'s Run, which prepares the instance
-// with the arch's runtime kernel and the checked-in module cache. GOARCH is
-// set in this process's environment because Run and the Go builds gok spawns
-// read the image arch from it; le runs one command and exits, so the change
-// reaches nothing else.
+// with the arch's runtime kernel and the checked-in module cache.
 func runGok(arch string, args []string) error {
+	return runGokWith(buildgokrazy.Run, arch, args)
+}
+
+// runGokWith is runGok with the gok entry point as a parameter, so a test
+// drives it with a runner that changes the environment the way gok does.
+//
+// The build has to change this process's environment: Run and the Go builds
+// gok spawns read the image arch from GOARCH, Run sets CGO_ENABLED, GOMODCACHE,
+// GOFLAGS and GOPROXY, and gok applies the instance's Environment (GOOS=linux)
+// with os.Setenv. le does not exit after the build: `./le test qemu docker-lab`
+// and `./le setup docker-host start` go on to run commands that inherit
+// os.Environ(), and a GOOS=linux reaching the host le makes its launcher build
+// a linux binary. So the environment is restored to the snapshot taken here
+// before runGokWith returns, whether Run answered success or failure. A failed
+// image pack exits the process from inside gok (packer.Main), so that path never returns.
+func runGokWith(run func(args []string) int, arch string, args []string) (err error) {
+	saved := os.Environ()
+	defer func() {
+		if restoreErr := restoreEnviron(saved); restoreErr != nil && err == nil {
+			err = restoreErr
+		}
+	}()
+
 	if err := os.Setenv("GOARCH", arch); err != nil {
 		return fmt.Errorf("set GOARCH for gok: %w", err)
 	}
-	if code := buildgokrazy.Run(args); code != 0 {
+	if code := run(args); code != 0 {
 		return fmt.Errorf("gok exited %d building the docker-host image (its output is above). "+
 			"Fix: correct what gok names, then run `./le setup docker-host build` again", code)
+	}
+	return nil
+}
+
+// restoreEnviron makes the process environment equal saved, an os.Environ()
+// snapshot: it unsets every variable the snapshot does not hold and sets every
+// one whose value differs. Variables already equal are left untouched, so the
+// environment is never cleared, even for a moment.
+func restoreEnviron(saved []string) error {
+	want := make(map[string]string, len(saved))
+	for _, entry := range saved {
+		name, value, _ := strings.Cut(entry, "=")
+		want[name] = value
+	}
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if _, kept := want[name]; kept {
+			continue
+		}
+		if err := os.Unsetenv(name); err != nil {
+			return fmt.Errorf("unset %s after the gok build: %w", name, err)
+		}
+	}
+	for name, value := range want {
+		if current, ok := os.LookupEnv(name); ok && current == value {
+			continue
+		}
+		if err := os.Setenv(name, value); err != nil {
+			return fmt.Errorf("restore %s after the gok build: %w", name, err)
+		}
 	}
 	return nil
 }
