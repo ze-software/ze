@@ -1,0 +1,63 @@
+# Test: clear bgp rib advertised withdraws what the Adj-RIB-Out holds
+# VALIDATES: clear bgp rib advertised * sends the peer a withdrawal for every route ze advertised to it (RFC 4271 Section 9.2), answers the count, leaves the Adj-RIB-Out empty (a second clear withdraws 0), and refuses the bare command with no selector
+# PREVENTS: the clear answering done while the peer keeps the route, as the replay `clear bgp rib out` would (ExaBGP `clear adj-rib out` is mapped to this command by the bridge)
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# ZE's own initial-sync End-of-RIB is not asserted: it races the fixture's
+# announce, as in ipv4-announce-withdraw.ci, which explains why.
+cmd=api:conn=1:seq=1:text=update text origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
+cmd=api:conn=1:seq=2:text=clear bgp rib advertised *
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00010000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rib-clear-advertised {
+		run "le test fixture plugin/rib-clear-advertised"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process rib-clear-advertised {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# runtime_fail emits this sentinel on the observer's stderr; without the reject the
+# observer's assertion failures would be invisible to the runner.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

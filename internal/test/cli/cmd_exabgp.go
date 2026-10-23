@@ -1099,9 +1099,10 @@ func absoluteBridgeRun(migrated, configDir string) string {
 		}
 		command = strings.Trim(command, `"`)
 		// Only an EXPLICITLY relative command is rooted at the config. A bare
-		// name is resolved through PATH, and conf-watchdog runs `le test fixture
-		// ...`: absolutising that turned it into a path under the fixture
-		// directory and the bridge forked a file that does not exist.
+		// name is resolved through PATH: conf-watchdog's api-watchdog.conf runs
+		// `le test interop-bgp exabgp-api watchdog`, unquoted argv words, and
+		// absolutising its first word would make it a path under the config
+		// directory, so the bridge would fork a file that does not exist.
 		if !strings.HasPrefix(command, "./") && !strings.HasPrefix(command, "../") {
 			continue
 		}
