@@ -35,9 +35,12 @@ const (
 	leStoreTrimOldestHours   = 30
 	leStoreTrimGoBudgetKey   = "ze.le.store.go-cache-budget"
 	leStoreTrimLintBudgetKey = "ze.le.store.lint-cache-budget"
-	leStoreTrimSwitchKey     = "ze.le.store.trim"
-	leStoreTrimCompletePolls = 300
-	leStoreTrimBlockBytes    = 512
+	// leStoreTrimStaticcheckBudgetKey is held at the same small budget, so
+	// no store in the throwaway tree trims under a default.
+	leStoreTrimStaticcheckBudgetKey = "ze.le.store.staticcheck-cache-budget"
+	leStoreTrimSwitchKey            = "ze.le.store.trim"
+	leStoreTrimCompletePolls        = 300
+	leStoreTrimBlockBytes           = 512
 )
 
 // leStoreTrimEntry is one seeded Go cache entry: where it lives and how old it
@@ -101,11 +104,12 @@ func leStoreTrimAnswers(ctx context.Context) error {
 		return err
 	}
 	environment := childEnvironment(envRootedAt(checkout), map[string]string{
-		leStoreTrimGoBudgetKey:   leStoreTrimBudget,
-		leStoreTrimLintBudgetKey: leStoreTrimBudget,
-		leStoreTrimSwitchKey:     "on",
-		"XDG_CACHE_HOME":         perUser,
-		"CLAUDE_CONFIG_DIR":      filepath.Join(work, "claude"),
+		leStoreTrimGoBudgetKey:          leStoreTrimBudget,
+		leStoreTrimLintBudgetKey:        leStoreTrimBudget,
+		leStoreTrimStaticcheckBudgetKey: leStoreTrimBudget,
+		leStoreTrimSwitchKey:            "on",
+		"XDG_CACHE_HOME":                perUser,
+		"CLAUDE_CONFIG_DIR":             filepath.Join(work, "claude"),
 	})
 	le := func(args ...string) (leStoreTrimResult, error) {
 		return leStoreTrimRun(ctx, lePath, checkout, environment, args...)

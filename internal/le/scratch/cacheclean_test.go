@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	gostaticcheck "github.com/ze-software/ze/internal/le/go/staticcheck"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
@@ -66,6 +67,8 @@ func TestCacheTargetsCoverTheLintCache(t *testing.T) {
 		{ambientCache, "/machine/default"},
 		{bootstrapCache, gotoolchain.BootstrapCache(root)},
 		{lintCache, gotoolchain.LintCache(root)},
+		{staticcheckCache, gostaticcheck.CacheDir(root)},
+		{sharedStaticcheckCache, filepath.Join(perUser, "staticcheck-matrix")},
 	}
 	if len(targets) != len(want) {
 		t.Fatalf("targets = %d, want %d", len(targets), len(want))
@@ -296,11 +299,13 @@ func TestCleanTargetsNamesSharedCache(t *testing.T) {
 		kind   cacheKind
 		budget budgetGroup
 	}{
-		checkoutCache:  {goBuildCache, goCachesBudget},
-		sharedCache:    {goBuildCache, goCachesBudget},
-		ambientCache:   {goBuildCache, notTrimmed},
-		bootstrapCache: {goBuildCache, goCachesBudget},
-		lintCache:      {lintFormatCache, lintCacheBudget},
+		checkoutCache:          {goBuildCache, goCachesBudget},
+		sharedCache:            {goBuildCache, goCachesBudget},
+		ambientCache:           {goBuildCache, notTrimmed},
+		bootstrapCache:         {goBuildCache, goCachesBudget},
+		lintCache:              {copiedFormatCache, lintCacheBudget},
+		staticcheckCache:       {copiedFormatCache, staticcheckCacheBudget},
+		sharedStaticcheckCache: {copiedFormatCache, staticcheckCacheBudget},
 	}
 	unlinked := cleanTargets(root, "/machine/default", perUser)
 	if len(unlinked) != len(want) {
@@ -331,8 +336,44 @@ func TestCleanTargetsNamesSharedCache(t *testing.T) {
 		if target.name == sharedCache && !strings.Contains(target.skipped, "checkout cache") {
 			t.Errorf("linked shared row skipped = %q, want it named as the checkout cache", target.skipped)
 		}
-		if target.name != sharedCache && target.skipped != "" {
+		if target.name == sharedStaticcheckCache && !strings.Contains(target.skipped, "checkout's staticcheck cache") {
+			t.Errorf("linked shared staticcheck row skipped = %q, want it named as the checkout's", target.skipped)
+		}
+		if target.name != sharedCache && target.name != sharedStaticcheckCache && target.skipped != "" {
 			t.Errorf("linked: the %s row was skipped: %s", target.name, target.skipped)
 		}
+	}
+}
+
+// VALIDATES: `all` empties both Staticcheck matrix caches by deleting them,
+// because no `go clean` owns another tool's copy of Go's layout.
+// PREVENTS: a full empty that leaves the matrix cache, which Staticcheck trims
+// only daily, as the one cache still full.
+// Method: seed each matrix cache row cleanTargets answers, run its emptier.
+func TestStaticcheckCachesEmptiedByDeletion(t *testing.T) {
+	root := t.TempDir()
+	perUser := t.TempDir()
+	emptied := 0
+	for _, target := range cleanTargets(root, "/machine/default", perUser) {
+		if target.budget != staticcheckCacheBudget {
+			continue
+		}
+		entry := filepath.Join(target.path, "ab", "ab01-a")
+		if err := os.MkdirAll(filepath.Dir(entry), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(entry, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := target.emptier(t.Context())(); err != nil {
+			t.Fatalf("%s: %v", target.name, err)
+		}
+		if _, err := os.Lstat(target.path); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("%s: %s still exists after the full empty (%v)", target.name, target.path, err)
+		}
+		emptied++
+	}
+	if emptied != 2 {
+		t.Errorf("emptied %d staticcheck caches, want the checkout's and the shared one", emptied)
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	gostaticcheck "github.com/ze-software/ze/internal/le/go/staticcheck"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
@@ -301,18 +302,22 @@ func TestBudgetParse(t *testing.T) {
 	for _, entry := range []struct{ key, value string }{
 		{goCacheBudgetEntry.Key, goCacheBudgetEntry.Default},
 		{lintCacheBudgetEntry.Key, lintCacheBudgetEntry.Default},
+		{staticcheckCacheBudgetEntry.Key, staticcheckCacheBudgetEntry.Default},
 	} {
 		if _, err := parseBudget(entry.key, entry.value); err != nil {
 			t.Errorf("the registered default %s=%q does not parse: %v", entry.key, entry.value, err)
 		}
 	}
-	if got, want := goCacheBudgetEntry.Default, "40G"; got != want {
-		t.Errorf("%s default = %q, want %q (owner decision D-1)", goCacheBudgetKey, got, want)
+	if got, want := goCacheBudgetEntry.Default, "20G"; got != want {
+		t.Errorf("%s default = %q, want %q (owner decision, 2026-10-23)", goCacheBudgetKey, got, want)
+	}
+	if got, want := staticcheckCacheBudgetEntry.Default, "5G"; got != want {
+		t.Errorf("%s default = %q, want %q (owner decision, 2026-10-23)", staticcheckCacheBudgetKey, got, want)
 	}
 	if got, want := lintCacheBudgetEntry.Default, "10G"; got != want {
 		t.Errorf("%s default = %q, want %q (owner decision D-2)", lintCacheBudgetKey, got, want)
 	}
-	if !goCacheBudgetEntry.Private || !lintCacheBudgetEntry.Private {
+	if !goCacheBudgetEntry.Private || !lintCacheBudgetEntry.Private || !staticcheckCacheBudgetEntry.Private {
 		t.Error("a store budget is a build-host knob and must stay out of `ze env list`")
 	}
 }
@@ -373,13 +378,15 @@ func exists(t *testing.T, path string) bool {
 
 // budgetsOf answers a budget seam holding fixed byte counts, zero included,
 // which no env value can spell (AC-18).
-func budgetsOf(goBytes, lintBytes int64) func(budgetGroup) (int64, error) {
+func budgetsOf(goBytes, lintBytes, staticcheckBytes int64) func(budgetGroup) (int64, error) {
 	return func(group budgetGroup) (int64, error) {
 		switch group {
 		case goCachesBudget:
 			return goBytes, nil
 		case lintCacheBudget:
 			return lintBytes, nil
+		case staticcheckCacheBudget:
+			return staticcheckBytes, nil
 		case notTrimmed, unspecifiedBudget:
 			return 0, errors.New("no budget for this group")
 		default:
@@ -476,7 +483,7 @@ func TestTrimGoCacheOldestFirst(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			targets, entries, foreign := seed(t)
-			budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(tc.budget, 1<<40), testPass(cacheEntryAgeFloor))
+			budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(tc.budget, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 			for index, path := range entries {
 				if got, want := exists(t, path), index >= tc.removed; got != want {
 					t.Errorf("entry %d (%s) exists=%v, want %v: the oldest %d go first", index, filepath.Base(path), got, want, tc.removed)
@@ -530,7 +537,7 @@ func TestTrimGoCacheRespectsAgeFloor(t *testing.T) {
 		seedEntry(t, cache, "c0young-d", 2*time.Hour+59*time.Minute),
 	}
 
-	budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(unit, 1<<40), testPass(cacheEntryAgeFloor))
+	budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(unit, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 	if exists(t, old) {
 		t.Error("the entry older than the floor was kept although the cache is over budget")
 	}
@@ -579,7 +586,7 @@ func TestTrimLintCache(t *testing.T) {
 			lintNew := seedEntry(t, gotoolchain.LintCache(root), "b1lint-d", 6*time.Hour)
 			lintYoung := seedEntry(t, gotoolchain.LintCache(root), "b2lint-a", time.Hour)
 
-			budgets, _ := trimCaches(t.Context(), targets, nil, budgetsOf(tc.goBudget, tc.lintBudget), testPass(cacheEntryAgeFloor))
+			budgets, _ := trimCaches(t.Context(), targets, nil, budgetsOf(tc.goBudget, tc.lintBudget, tc.lintBudget), testPass(cacheEntryAgeFloor))
 			if got := !exists(t, goOld); got != tc.goRemoved {
 				t.Errorf("oldest go entry removed=%v, want %v", got, tc.goRemoved)
 			}
@@ -594,6 +601,83 @@ func TestTrimLintCache(t *testing.T) {
 			}
 			if got := budgetKeyed(t, budgets, goCacheBudgetKey).SizeBefore; got != 2*unit {
 				t.Errorf("go budget line counts %d bytes, want %d: lint entries never count toward it", got, 2*unit)
+			}
+		})
+	}
+}
+
+// TestTrimStaticcheckCache proves the Staticcheck matrix caches are trimmed in
+// a pass of their own, against their own budget: the checkout's and the
+// per-user one as ONE union, oldest entry first across both, no entry younger
+// than the floor removed whatever the budget, and no Go or lint entry counted
+// toward it or removed by it.
+//
+// Method: the checkout matrix cache holds entries aged 9h and 5h and one of
+// 1h, the shared one an entry aged 7h; a Go and a lint entry sit far over
+// their own budgets of zero but younger than the floor. A budget of two
+// entries removes the 9h entry in the checkout and the 7h one in the shared
+// cache. A budget of zero removes the 5h entry too and stops at the 1h one,
+// with the budget line unmet and naming the floor. A budget of four entries
+// removes nothing.
+func TestTrimStaticcheckCache(t *testing.T) {
+	unit := seededUnit(t)
+	cases := []struct {
+		name    string
+		budget  int64
+		removed int
+		unmet   bool
+	}{
+		{"over budget, oldest two go", 2 * unit, 2, false},
+		{"zero budget, stopped by the floor", 0, 3, true},
+		{"at budget", 4 * unit, 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			perUser := t.TempDir()
+			targets := cleanTargets(root, "", perUser)
+			checkout := gostaticcheck.CacheDir(root)
+			shared := filepath.Join(perUser, filepath.Base(checkout))
+			oldest := seedEntry(t, checkout, "c0matrix-a", 9*time.Hour)
+			second := seedEntry(t, shared, "d0matrix-d", 7*time.Hour)
+			third := seedEntry(t, checkout, "c1matrix-d", 5*time.Hour)
+			young := seedEntry(t, checkout, "c2matrix-a", time.Hour)
+			goEntry := seedEntry(t, gotoolchain.GoCache(root), "a0go-a", 2*time.Hour)
+			lintEntry := seedEntry(t, gotoolchain.LintCache(root), "b0lint-a", 2*time.Hour)
+
+			budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(0, 0, tc.budget), testPass(cacheEntryAgeFloor))
+
+			line := budgetKeyed(t, budgets, staticcheckCacheBudgetKey)
+			if line.SizeBefore != 4*unit {
+				t.Errorf("staticcheck budget line counts %d bytes, want %d: only the two matrix caches count", line.SizeBefore, 4*unit)
+			}
+			if line.EntriesRemoved != tc.removed {
+				t.Errorf("removed %d entries, want %d", line.EntriesRemoved, tc.removed)
+			}
+			gone := 0
+			for index, path := range []string{oldest, second, third} {
+				if exists(t, path) {
+					continue
+				}
+				if index != gone {
+					t.Errorf("entry %d went before an older one: the trim is oldest first across both caches", index)
+				}
+				gone++
+			}
+			if gone != tc.removed {
+				t.Errorf("%d of the three old entries went, want %d", gone, tc.removed)
+			}
+			if !exists(t, young) {
+				t.Error("an entry younger than the floor was removed")
+			}
+			if got := strings.Contains(line.Unmet, "floor"); got != tc.unmet {
+				t.Errorf("budget unmet line = %q, want it to name the floor: %v", line.Unmet, tc.unmet)
+			}
+			if !exists(t, goEntry) || !exists(t, lintEntry) {
+				t.Error("the staticcheck pass removed a Go or lint entry")
+			}
+			if got := rowNamed(t, rows, sharedStaticcheckCache).SizeBefore; got != unit {
+				t.Errorf("shared staticcheck row counts %d bytes, want %d", got, unit)
 			}
 		})
 	}
@@ -634,7 +718,7 @@ func TestTrimGoCachesAsOneUnion(t *testing.T) {
 
 	t.Run("each under, union over", func(t *testing.T) {
 		targets, oldest := seed(t)
-		budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(8*unit, 1<<40), testPass(cacheEntryAgeFloor))
+		budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(8*unit, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 		if exists(t, oldest[bootstrapCache]) {
 			t.Error("the globally oldest entry, in the bootstrap cache, was kept: a per-cache reading removes nothing here")
 		}
@@ -652,7 +736,7 @@ func TestTrimGoCachesAsOneUnion(t *testing.T) {
 
 	t.Run("one global mtime order", func(t *testing.T) {
 		targets, oldest := seed(t)
-		_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(6*unit, 1<<40), testPass(cacheEntryAgeFloor))
+		_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(6*unit, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 		for name, path := range oldest {
 			if exists(t, path) {
 				t.Errorf("the %s cache's oldest entry was kept: removals follow one order across the three", name)
@@ -670,7 +754,7 @@ func TestTrimGoCachesAsOneUnion(t *testing.T) {
 		}
 		seedEntry(t, gotoolchain.GoCache(root), "c0once-a", 10*time.Hour)
 		seedEntry(t, gotoolchain.GoCache(root), "c1once-a", 9*time.Hour)
-		budgets, rows := trimCaches(t.Context(), cleanTargets(root, "", perUser), nil, budgetsOf(1<<40, 1<<40), testPass(cacheEntryAgeFloor))
+		budgets, rows := trimCaches(t.Context(), cleanTargets(root, "", perUser), nil, budgetsOf(1<<40, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 		if got := budgetKeyed(t, budgets, goCacheBudgetKey).SizeBefore; got != 2*unit {
 			t.Errorf("the union counts %d bytes, want %d: one cache reached twice is counted once", got, 2*unit)
 		}
@@ -691,7 +775,7 @@ func TestTrimGoCachesAsOneUnion(t *testing.T) {
 		}
 		// perUser "" is what trimStores holds when cacheTarget fails, which
 		// makes the shared path the relative "go-cache".
-		_, rows := trimCaches(t.Context(), cleanTargets(root, "", ""), nil, budgetsOf(0, 0), testPass(0))
+		_, rows := trimCaches(t.Context(), cleanTargets(root, "", ""), nil, budgetsOf(0, 0, 0), testPass(0))
 		if !exists(t, victim) {
 			t.Error("an entry behind a symlinked store root was removed")
 		}
@@ -757,7 +841,7 @@ func TestTrimWriterRace(t *testing.T) {
 		}
 		return removeCacheEntry(path, directory)
 	}
-	budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(retainedBytes, 1<<40), pass)
+	budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(retainedBytes, 1<<40, 1<<40), pass)
 	row := rowNamed(t, rows, checkoutCache)
 	if row.Contended == "" || row.Error != "" || row.Refused != "" {
 		t.Errorf("checkout row = %+v, want contention recorded and no error", row)
@@ -842,7 +926,7 @@ func TestTrimmedEntryIsAMiss(t *testing.T) {
 
 	targets := []cleanTarget{{name: checkoutCache, path: cache, kind: goBuildCache, budget: goCachesBudget}}
 	pass := cachePass{now: time.Now(), floor: 0, remove: removeCacheEntry}
-	_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(0, 0), pass)
+	_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(0, 0, 0), pass)
 	// A zero budget is met once the entries left allocate nothing: Go writes
 	// empty outputs, which take no block, and the budget counts blocks.
 	for _, path := range entries() {
@@ -917,7 +1001,8 @@ func TestTrimReportJSON(t *testing.T) {
 		}
 	}
 	text := report.Text()
-	for _, name := range []string{checkoutCache, sharedCache, ambientCache, bootstrapCache, lintCache, goCacheBudgetKey} {
+	for _, name := range []string{checkoutCache, sharedCache, ambientCache, bootstrapCache, lintCache,
+		staticcheckCache, sharedStaticcheckCache, goCacheBudgetKey} {
 		if !strings.Contains(text, name) {
 			t.Errorf("text report does not name %s:\n%s", name, text)
 		}

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	gostaticcheck "github.com/ze-software/ze/internal/le/go/staticcheck"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
@@ -171,6 +172,10 @@ func TestCleanCachesDefaultKeepsYoungEntriesInEveryTarget(t *testing.T) {
 		ambientCache:   ambient,
 		bootstrapCache: gotoolchain.BootstrapCache(manager.Root),
 		lintCache:      gotoolchain.LintCache(manager.Root),
+		// The two Staticcheck matrix caches: the checkout's, and the per-user
+		// one beside the shared Go cache.
+		staticcheckCache:       gostaticcheck.CacheDir(manager.Root),
+		sharedStaticcheckCache: filepath.Join(filepath.Dir(shared), "staticcheck-matrix"),
 	}
 	seeded := map[string]seededCache{}
 	for name, dir := range caches {

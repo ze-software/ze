@@ -100,7 +100,7 @@ func TestTrimSkipsATargetHoldingTheKernelCache(t *testing.T) {
 	targets := cleanTargets(root, "", t.TempDir())
 	old := seedEntry(t, checkout, "a0old-a", 5*time.Hour)
 
-	_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(0, 1<<40), testPass(cacheEntryAgeFloor))
+	_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(0, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 	if !exists(t, old) {
 		t.Error("the trim removed an entry from a store that holds the kernel cache")
 	}

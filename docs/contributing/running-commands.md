@@ -608,22 +608,26 @@ nothing. The GNU filesystem mode exists only on Linux, and even there APFS-style
 purgeable accounting is what made one reading report terabytes free on a volume
 at 98 percent.
 
-Five caches fill, and emptying one leaves the others full. Four are Go caches,
+Seven caches fill, and emptying one leaves the others full. Four are Go caches,
 on as many as three filesystems. The fifth is golangci-lint's, which no
 `go clean` reaches and which the scratch relocation leaves on the checkout's own
 device; it held 9.5G on 2026-09-13, more than the two Go caches measured beside
-it.
+it. The last two are the Staticcheck matrix's (`gostaticcheck.CacheDir`): the
+checkout's `cache/staticcheck-matrix`, and the per-user
+`~/.cache/ze/staticcheck-matrix` that every verify worktree fills through its
+`cache/` link. Staticcheck trims its own cache only once a day and keeps five
+days of entries, so the checkout's held 9.3G on 2026-10-23.
 
 Reach for the safe tools first, in this order, because other sessions are
 building against these caches while you read this:
 
 1. `./le scratch store-trim` trims the caches to their budgets now (see below).
-2. `./le scratch cache-clean` cleans all five caches. By default it removes every
+2. `./le scratch cache-clean` cleans all seven caches. By default it removes every
    cache entry older than 3h, the store trim's floor, and keeps the younger
    ones. It is safe while other sessions build: an entry is safe for 2h after Go
    last looked it up (Go refreshes an entry's mtime at most hourly; the floor is
    3h), and a build that later misses an older entry recompiles it.
-3. `./le scratch cache-clean all` empties all five outright. Use it only when no
+3. `./le scratch cache-clean all` empties all seven outright. Use it only when no
    build runs: it refuses, and exits 1, while it sees any `go`, `compile`,
    `link`, `vet`, `asm`, `cgo`, `cover`, `staticcheck`, `golangci-lint` or
    compiled test binary (`*.test`) process, or any process holding a slot in
@@ -641,11 +645,13 @@ The default prints one row for each cache, in this shape:
 
 ```
 $ ./le scratch cache-clean
-checkout  /path/to/checkout/cache/go-cache                 removed 81.3G (402118 entries), kept 7.7G younger than 3h0m0s, freed 81.2G, free 115.4G
-shared    /Users/thomas/.cache/ze/go-cache                 removed 12.1G (60321 entries), kept 0.9G younger than 3h0m0s, freed 12.1G, free 127.5G
-ambient   /Users/thomas/Library/Caches/go-build            removed 1.2G (8812 entries), kept 0.0G younger than 3h0m0s, freed 1.2G, free 128.7G
-bootstrap /path/to/checkout/tmp/go-cache                   removed 1.1G (5410 entries), kept 0.2G younger than 3h0m0s, freed 1.1G, free 129.8G
-lint      /path/to/checkout/tmp/golangci-lint-cache        removed 8.8G (90214 entries), kept 0.7G younger than 3h0m0s, freed 8.8G, free 138.6G
+checkout           /path/to/checkout/cache/go-cache                 removed 81.3G (402118 entries), kept 7.7G younger than 3h0m0s, freed 81.2G, free 115.4G
+shared             /Users/thomas/.cache/ze/go-cache                 removed 12.1G (60321 entries), kept 0.9G younger than 3h0m0s, freed 12.1G, free 127.5G
+ambient            /Users/thomas/Library/Caches/go-build            removed 1.2G (8812 entries), kept 0.0G younger than 3h0m0s, freed 1.2G, free 128.7G
+bootstrap          /path/to/checkout/tmp/go-cache                   removed 1.1G (5410 entries), kept 0.2G younger than 3h0m0s, freed 1.1G, free 129.8G
+lint               /path/to/checkout/tmp/golangci-lint-cache        removed 8.8G (90214 entries), kept 0.7G younger than 3h0m0s, freed 8.8G, free 138.6G
+staticcheck        /path/to/checkout/cache/staticcheck-matrix       removed 8.1G (51022 entries), kept 1.2G younger than 3h0m0s, freed 8.1G, free 146.7G
+staticcheck-shared /Users/thomas/.cache/ze/staticcheck-matrix       removed 0.4G (2210 entries), kept 0.1G younger than 3h0m0s, freed 0.4G, free 147.1G
 ```
 
 `removed` is the size of the entries past the floor that are gone after the run:
@@ -660,7 +666,8 @@ skip, not a refusal. `| json` renders each row with the keys `removed`,
 With `cache/` linked to the per-user target, the shared row reads instead:
 
 ```
-shared    SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already cleaned
+shared             SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already cleaned
+staticcheck-shared SKIP     /Users/thomas/.cache/ze/staticcheck-matrix: cache/ links here, so this is the checkout's staticcheck cache, which this run already cleaned
 ```
 
 The patched GOROOT trees under `cache/stdpatch/` (or `tmp/stdpatch/` where
@@ -674,8 +681,8 @@ more than three hours old, which a killed tree build left
 (`patching-the-standard-library.md`):
 
 ```
-stdpatch  KEEP     /path/to/checkout/cache/stdpatch/94a7…             27.0M, a patched GOROOT a running build may use
-stdpatch  DROP     /path/to/checkout/cache/stdpatch/398f…             26.8M, its toolchain links name nothing on this machine, so no build can use it
+stdpatch           KEEP     /path/to/checkout/cache/stdpatch/94a7…             27.0M, a patched GOROOT a running build may use
+stdpatch           DROP     /path/to/checkout/cache/stdpatch/398f…             26.8M, its toolchain links name nothing on this machine, so no build can use it
 ```
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
@@ -695,7 +702,12 @@ it with the same age rule; `all` empties it by deleting the directory, because
 no `go clean` owns it. A verify worktree's `tmp/golangci-lint-cache` is a link to
 the checkout's, so a worktree lint reuses what the last one cached and the
 worktree removal deletes only the link (`sharedLintCacheLink`,
-`internal/le/verify/lifecycle.go`). `all` is the equivalent of this by hand,
+`internal/le/verify/lifecycle.go`). The two STATICCHECK caches keep the same
+layout, written by Staticcheck's copy of Go's cache code
+(`honnef.co/go/tools/lintcmd/cache`, `DiskCache.fileName`), so the default mode
+walks them the same way and `all` deletes them. The shared one is the
+checkout's own when `cache/` links to the per-user target, and its row is then
+a SKIP. `all` is the equivalent of this by hand,
 which carries the same hazard and none of the refusal, so do not type it while
 a build runs:
 
@@ -705,13 +717,15 @@ env GOCACHE="$PWD/cache/go-cache" go clean -cache   # the checkout cache
 env GOCACHE="$HOME/.cache/ze/go-cache" go clean -cache  # the shared cache, unless cache/ links to it
 env GOCACHE="$PWD/tmp/go-cache" go clean -cache     # the bootstrap cache
 rm -rf tmp/golangci-lint-cache                     # the lint cache
+rm -rf cache/staticcheck-matrix                    # the checkout's staticcheck cache
+rm -rf "$HOME/.cache/ze/staticcheck-matrix"        # the shared staticcheck cache, unless cache/ links to it
 ```
 <!-- source: internal/le/scratch/cacheclean.go -- CleanCaches, cleanOldCacheEntries, patchedTrees -->
 <!-- source: internal/le/scratch/cacheuse.go -- refuseFullEmpty, cacheUsers, cacheReaders -->
 <!-- source: internal/le/job/holders.go -- Holders -->
 
 The clean costs recompilation, which makes the next run slow once, so le also
-bounds four of the five caches by itself, a little at a time. Every le
+bounds six of the seven caches by itself, a little at a time. Every le
 invocation reads `tmp/store-trim/stamp`. When the stamp is an hour old, one
 invocation takes `tmp/store-trim/stamp.lock`, rewrites the stamp and starts
 `le scratch store-trim background` as a detached child, so no command, hook
@@ -719,13 +733,16 @@ calls included, waits for the walk. The child trims:
 
 | Caches | Budget | Default |
 |--------|--------|---------|
-| checkout, shared and bootstrap, as ONE union | `ze.le.store.go-cache-budget` | `40G`, one total across the three |
+| checkout, shared and bootstrap, as ONE union | `ze.le.store.go-cache-budget` | `20G`, one total across the three |
 | lint | `ze.le.store.lint-cache-budget` | `10G` |
+| staticcheck and staticcheck-shared, as ONE union | `ze.le.store.staticcheck-cache-budget` | `5G`, one total across the two |
 
 Each pass removes `-a` and `-d` entries from the 256 two-hex-digit
 subdirectories, oldest mtime first, until the total is at or under the budget.
 In the Go pass that order runs across all three caches at once, so a cache that
-is under 40G on its own can still lose its coldest entries to the others' use.
+is under 20G on its own can still lose its coldest entries to the others' use.
+The Staticcheck pass does the same across its two caches, and its own daily
+trim, which keeps five days, still runs when a matrix run closes the cache.
 Nothing else in a cache directory is touched, and no `go clean` runs. No entry
 younger than three hours is removed, whatever the budget: when that is what
 stands between the cache and its budget, the report says the budget is unmet

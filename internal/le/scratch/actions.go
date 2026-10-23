@@ -25,7 +25,9 @@ var actions = leaction.New(area,
 		" action writes, the shared per-user Go cache at ~/.cache/ze/go-cache that" +
 		" every verify worktree writes (a SKIP row when cache/ links to it), the" +
 		" ambient Go cache a bare `go` command writes, the bootstrap Go cache at" +
-		" tmp/go-cache, and the golangci-lint cache at tmp/golangci-lint-cache." +
+		" tmp/go-cache, the golangci-lint cache at tmp/golangci-lint-cache, and the Staticcheck" +
+		" matrix caches at cache/staticcheck-matrix and ~/.cache/ze/staticcheck-matrix (a SKIP" +
+		" row when cache/ links there)." +
 		" By default it removes only the entries older than the store trim's 3h floor, so it is safe" +
 		" while other sessions build: an entry is safe for 2h after Go last looked it up (Go refreshes" +
 		" an entry's mtime at most hourly; the floor is 3h), and a build that later misses an older" +

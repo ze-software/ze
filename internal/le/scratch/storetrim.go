@@ -56,7 +56,7 @@ const (
 	storeTrimOff = "off"
 )
 
-// The two store budgets. Each is a whole count of mebibytes or gibibytes with
+// The three store budgets. Each is a whole count of mebibytes or gibibytes with
 // its unit, M or G, from 1M to 1048576G (parseBudget).
 const (
 	// goCacheBudgetKey is ONE total across the checkout, shared and bootstrap
@@ -64,12 +64,15 @@ const (
 	goCacheBudgetKey = "ze.le.store.go-cache-budget"
 	// lintCacheBudgetKey is the golangci-lint cache's own budget (D-2).
 	lintCacheBudgetKey = "ze.le.store.lint-cache-budget"
+	// staticcheckCacheBudgetKey is ONE total across the checkout and shared
+	// Staticcheck matrix caches, never mixed with the Go or lint budget.
+	staticcheckCacheBudgetKey = "ze.le.store.staticcheck-cache-budget"
 )
 
 var goCacheBudgetEntry = env.MustRegister(env.EnvEntry{
 	Key:         goCacheBudgetKey,
 	Type:        envTypeString,
-	Default:     "40G",
+	Default:     "20G",
 	Description: "the one total the checkout, shared and bootstrap Go build caches are trimmed to, oldest entry first: a whole number with M or G",
 	// Private for the reason storeTrimEntry gives.
 	Private: true,
@@ -84,6 +87,15 @@ var lintCacheBudgetEntry = env.MustRegister(env.EnvEntry{
 	Private: true,
 })
 
+var staticcheckCacheBudgetEntry = env.MustRegister(env.EnvEntry{
+	Key:         staticcheckCacheBudgetKey,
+	Type:        envTypeString,
+	Default:     "5G",
+	Description: "the one total the checkout and shared Staticcheck matrix caches are trimmed to, oldest entry first, apart from the Go and lint budgets: a whole number with M or G",
+	// Private for the reason storeTrimEntry gives.
+	Private: true,
+})
+
 // budgetEntry answers the env entry that holds a group's budget, and false
 // for a group the trim does not bound.
 func budgetEntry(group budgetGroup) (env.EnvEntry, bool) {
@@ -92,6 +104,8 @@ func budgetEntry(group budgetGroup) (env.EnvEntry, bool) {
 		return goCacheBudgetEntry, true
 	case lintCacheBudget:
 		return lintCacheBudgetEntry, true
+	case staticcheckCacheBudget:
+		return staticcheckCacheBudgetEntry, true
 	case notTrimmed, unspecifiedBudget:
 		return env.EnvEntry{}, false
 	default:
@@ -639,18 +653,21 @@ func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process,
 	defer cancel()
 
 	// The per-user target is the one trimmed store path that can fail to
-	// resolve, and its failure refuses the shared row alone. The ambient cache
+	// resolve, and its failure refuses the rows under it alone. The ambient cache
 	// is not le's to trim (owner decision D-6), so its row is a skip either
 	// way; its path is still resolved, with the one `go env` run cache-clean
 	// makes, so the row names the cache it leaves alone, or says why it cannot.
 	refused := map[string]string{}
 	perUser, perUserErr := New(root, os.Environ()).cacheTarget()
-	if perUserErr != nil {
-		refused[sharedCache] = perUserErr.Error()
-	}
 	ambient, ambientErr := ambientGoCache(ctx)
+	targets := cleanTargets(root, ambient, perUser)
+	for _, target := range targets {
+		if target.perUser && perUserErr != nil {
+			refused[target.name] = perUserErr.Error()
+		}
+	}
 	pass := cachePass{now: time.Now(), floor: cacheEntryAgeFloor, remove: removeCacheEntry, run: storeTrimRun}
-	report.Budgets, report.Stores = trimCaches(ctx, cleanTargets(root, ambient, perUser), refused, readBudget, pass)
+	report.Budgets, report.Stores = trimCaches(ctx, targets, refused, readBudget, pass)
 	if ambientErr != nil {
 		for index := range report.Stores {
 			if report.Stores[index].Name == ambientCache {

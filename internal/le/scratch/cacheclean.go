@@ -3,7 +3,7 @@
 // Related: cacheuse.go -- who may be using the caches, which a full empty refuses on
 // Related: cachetrim.go -- the entry walk, the age floor and the removal both share
 //
-// This file cleans the five build caches a Ze checkout fills, and reports the
+// This file cleans the seven build caches a Ze checkout fills, and reports the
 // disk space each one returned. By default it removes only the entries older
 // than cacheEntryAgeFloor (3h), the floor the store trim keeps: other sessions
 // build against these caches all the time, and an entry is safe for 2h after
@@ -43,6 +43,16 @@
 // caches left it growing unbounded: it was measured at 9.5G on 2026-09-13,
 // larger than both Go caches together, on a volume that had 1G left.
 //
+// The last two are the Staticcheck matrix's, at gostaticcheck.CacheDir of the
+// tree that ran it: the checkout's, and the per-user one every verify worktree
+// fills through its cache/ link, which is the checkout's own only when the
+// checkout's cache/ links there too. Staticcheck trims its cache itself only
+// once a day and keeps five days of entries (honnef.co/go/tools/lintcmd/cache,
+// DiskCache.Trim), so on 2026-10-23 the checkout's held 9.3G with no cleaner
+// reaching it. Its layout is Go's, written by a copy of Go's cache code:
+// DiskCache.fileName puts an entry at "%02x"/<hex id>-a or -d, and its own
+// trimSubdir removes only those names.
+//
 // The cost of not having this action is recorded in
 // plan/journal/full-disk-false-red.md, one row for each time a full cache disk
 // was read as a code defect. That file is the count, because a copy of it here
@@ -72,6 +82,7 @@ import (
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	gostaticcheck "github.com/ze-software/ze/internal/le/go/staticcheck"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
@@ -88,18 +99,21 @@ const goCacheKey = "GOCACHE"
 
 // The caches, named as a person reads them in the report.
 const (
-	checkoutCache  = "checkout"
-	sharedCache    = "shared"
-	ambientCache   = "ambient"
-	lintCache      = "lint"
-	bootstrapCache = "bootstrap"
+	checkoutCache    = "checkout"
+	sharedCache      = "shared"
+	ambientCache     = "ambient"
+	lintCache        = "lint"
+	bootstrapCache   = "bootstrap"
+	staticcheckCache = "staticcheck"
+	// sharedStaticcheckCache is the per-user matrix cache verify worktrees fill.
+	sharedStaticcheckCache = "staticcheck-shared"
 	// stdpatchTrees names the patched GOROOT rows, which are kept, not emptied.
 	stdpatchTrees = "stdpatch"
 )
 
 // cacheNameWidth is the report's name column: the longest name and one space,
 // so no name runs into its path.
-const cacheNameWidth = len(bootstrapCache) + 1
+const cacheNameWidth = len(sharedStaticcheckCache) + 1
 
 // bytesPerGiB converts a byte count to the unit the report prints.
 const bytesPerGiB = 1 << 30
@@ -412,7 +426,7 @@ func (m *Manager) cleanCaches(mode cleanMode, pass cleanPass) (CleanReport, int)
 		switch {
 		case target.name == ambientCache && ambientErr != nil:
 			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: ambientErr.Error()})
-		case target.name == sharedCache && perUserErr != nil:
+		case target.perUser && perUserErr != nil:
 			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: perUserErr.Error()})
 		case target.skipped != "":
 			report.Caches = append(report.Caches, CacheClean{
@@ -438,9 +452,9 @@ const (
 	unspecifiedCache cacheKind = iota
 	// goBuildCache is a Go toolchain build cache, emptied with `go clean -cache`.
 	goBuildCache
-	// lintFormatCache is golangci-lint's copy of that layout, which no
-	// `go clean` owns, so it is emptied by deleting it.
-	lintFormatCache
+	// copiedFormatCache is another tool's copy of that layout, golangci-lint's
+	// or Staticcheck's, which no `go clean` owns, so it is emptied by deleting it.
+	copiedFormatCache
 )
 
 // budgetGroup names the budget the store trim holds a cache to.
@@ -456,6 +470,10 @@ const (
 	// lintCacheBudget is the lint cache's own budget,
 	// ze.le.store.lint-cache-budget, never mixed with the Go total (D-2).
 	lintCacheBudget
+	// staticcheckCacheBudget is ONE total across the checkout and shared
+	// Staticcheck matrix caches, ze.le.store.staticcheck-cache-budget, never
+	// mixed with the Go or lint budget.
+	staticcheckCacheBudget
 	// notTrimmed is a cache the trim leaves alone. The ambient cache is the
 	// machine's rather than le's, and Go's own five-day trim covers it (D-6).
 	notTrimmed
@@ -472,6 +490,9 @@ type cleanTarget struct {
 	budget      budgetGroup
 	skipped     string
 	holdsKernel bool
+	// perUser marks a row under the per-user target, whose path cannot be
+	// trusted when that target failed to resolve.
+	perUser bool
 }
 
 // emptier answers what emptying this target takes, derived from its kind.
@@ -479,7 +500,7 @@ func (target cleanTarget) emptier(ctx context.Context) func() error {
 	switch target.kind {
 	case goBuildCache:
 		return func() error { return goCleanCache(ctx, target.path) }
-	case lintFormatCache:
+	case copiedFormatCache:
 		return func() error { return removeCache(target.path) }
 	case unspecifiedCache:
 		return func() error { return fmt.Errorf("BUG: cache %s was declared with no kind", target.name) }
@@ -497,18 +518,22 @@ func (target cleanTarget) emptier(ctx context.Context) func() error {
 // caller that failed to resolve one still gets the other rows.
 func cleanTargets(root, ambient, perUser string) []cleanTarget {
 	checkout := gotoolchain.GoCache(root)
+	matrix := gostaticcheck.CacheDir(root)
 
 	targets := []cleanTarget{
 		{name: checkoutCache, path: checkout, kind: goBuildCache, budget: goCachesBudget},
-		{name: sharedCache, path: filepath.Join(perUser, filepath.Base(checkout)), kind: goBuildCache, budget: goCachesBudget},
+		{name: sharedCache, path: filepath.Join(perUser, filepath.Base(checkout)), kind: goBuildCache, budget: goCachesBudget, perUser: true},
 		{name: ambientCache, path: ambient, kind: goBuildCache, budget: notTrimmed},
 		{name: bootstrapCache, path: gotoolchain.BootstrapCache(root), kind: goBuildCache, budget: goCachesBudget},
-		{name: lintCache, path: gotoolchain.LintCache(root), kind: lintFormatCache, budget: lintCacheBudget},
+		{name: lintCache, path: gotoolchain.LintCache(root), kind: copiedFormatCache, budget: lintCacheBudget},
+		{name: staticcheckCache, path: matrix, kind: copiedFormatCache, budget: staticcheckCacheBudget},
+		{name: sharedStaticcheckCache, path: filepath.Join(perUser, filepath.Base(matrix)), kind: copiedFormatCache, budget: staticcheckCacheBudget, perUser: true},
 	}
 	// The checkout's cache/ is linked to the per-user target only after
 	// links-ensure or migrate ran, so the two are compared on disk, not assumed.
 	if sameDirectory(filepath.Dir(checkout), perUser) {
 		targets[1].skipped = "cache/ links here, so this is the checkout cache, which this run already cleaned"
+		targets[6].skipped = "cache/ links here, so this is the checkout's staticcheck cache, which this run already cleaned"
 	}
 	if ambient == checkout {
 		targets[2].skipped = "the machine default is the checkout cache, which this run already cleaned"

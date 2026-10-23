@@ -110,7 +110,9 @@ func (e *badDeadlineError) Error() string {
 const cacheKey = "STATICCHECK_CACHE"
 
 // CacheDir answers the Staticcheck cache the matrix over tree uses:
-// cache/staticcheck-matrix, owned by this gate and never shared.
+// cache/staticcheck-matrix, owned by this gate and never shared with an ad-hoc
+// Staticcheck run. A verify worktree's cache/ links to the per-user target, so
+// every worktree's matrix shares that one directory.
 //
 // Staticcheck trims its cache in DiskCache.Close, after the verdict exists, at
 // most once a day, and records the trim in trim.txt only when the trim ends.
@@ -122,6 +124,12 @@ const cacheKey = "STATICCHECK_CACHE"
 // day and the disk (plan/journal/gate-verdict-depends-on-the-machine.md). A cache
 // only this gate fills holds only the matrix's own entries, so the trim walks a
 // bounded population and the deadline measures the type check.
+//
+// Staticcheck's trim keeps five days of entries, so the population is bounded
+// only by le: the store trim holds both matrix caches to
+// ze.le.store.staticcheck-cache-budget and `le scratch cache-clean` cleans
+// them (internal/le/scratch, cleanTargets), each sparing entries younger than
+// three hours.
 func CacheDir(tree string) string {
 	return filepath.Join(tree, "cache", "staticcheck-matrix")
 }
