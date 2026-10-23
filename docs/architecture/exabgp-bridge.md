@@ -739,7 +739,11 @@ the packet line of an OPEN then carries the empty session: no family, hold time
 
 Ze states the block once, in its own `negotiated` event, so each runner keeps it
 per peer in a `bridge.Sessions`, from that event to the peer's `down`, and hands
-it to every message of the peer. `Event.ForGrant` then follows the script's
+it to every message of the peer. The engine emits `negotiated` on entry to
+OpenConfirm, before the KEEPALIVE that answers the peer's OPEN
+(`Peer.announceNegotiated`), so both OpenConfirm KEEPALIVE lines carry the
+session's block, as the pin writes them, and the OPEN lines of a first session
+carry the empty session. `Event.ForGrant` then follows the script's
 grant for that peer, for both API versions: granted, every line that carries the
 block carries it, the empty session where the runner holds none for the peer
 yet; not granted, no line carries it. The external runner has no per-peer feed:
@@ -755,6 +759,7 @@ per RFC 8950 tuple) and `add_path` with both lists always written.
 
 <!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated, Event.ForGrant, unexchangedNegotiated -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceNegotiated -->
 
 ## A message as its packet: `packets`, `consolidate`, `parsed`
 
@@ -899,7 +904,10 @@ hop is left alone; `redirect-simpson <ip>` and `copy-simpson <ip>` set the next 
 and send the 0x0800 `redirect-to-nexthop-draft` or `copy-to-nexthop`; a bare
 `redirect-to-nexthop` and `redirect-to-nexthop-simpson` send
 `redirect-to-nexthop-draft`. An IPv6 address goes in IPV6_EXTENDED_COMMUNITIES
-(`docs/architecture/api/update-syntax.md`).
+(`docs/architecture/api/update-syntax.md`). `redirect [<ipv6>]:<nn>` is the RFC
+8956 Section 6.1 IPv6 route-target redirect (ExaBGP's `TrafficRedirectIPv6`) and
+is sent as `redirect:[<ipv6>]:<nn>`, the 20-octet type 0x000D community in
+IPV6_EXTENDED_COMMUNITIES.
 `test/exabgp-compat/api/api-flow-redirect.ci` holds `redirect <ipv4>`,
 `copy <ipv4>`, `redirect [<ipv6>]` and `redirect-simpson <ipv4>` to the octets
 the ExaBGP pin sends.
@@ -916,7 +924,6 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | A selector that names no peer this process feeds | refused, nothing dispatched |
 | `flow route` with no `match` | refused |
 | A flow route, braced or flat, announce or withdraw, matching an ICMP type or code and a port | refused before ze sees it, answered `error` as ExaBGP 6.0 answers it (its `propagated` drops the route as the line is parsed, so `api_flow` returns none), with a warning naming the route: RFC 8955 Section 4.2 says no packet matches it and it SHOULD NOT be propagated |
-| `flow route` with `redirect [<ipv6>]:<nn>` (the IPv6 route-target redirect) | refused, naming the word: `update text` has no spelling for it |
 | `flow route` with `mark` given anything but decimal digits, or `action` given a value holding neither `sample` nor `terminal` | refused, naming the value, as ExaBGP refuses it. A valid `mark <dscp>` is sent as `mark:<dscp>` and `action <words>` as `traffic-action:<sample\|terminal\|sample-terminal>` |
 | `flow route` whose last word is a condition keyword with no value (`... discard destination-port`) | sent without that component, as ExaBGP 4.2, 5.0 and 6.0 send it: their condition reader yields no rule for an empty value. A prefix keyword with no value is refused |
 | `copy`, `redirect-simpson`, `copy-simpson` or `redirect-to-nexthop-ietf` given something that is not an address | refused, naming the value |

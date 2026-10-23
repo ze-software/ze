@@ -218,6 +218,18 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 			continue
 		}
 
+		// "redirect:[IPv6]:VALUE", the rt-redirect-ipv6 of RFC 8956 Section 6.1:
+		// 20 octets, so attribute 25. Read before parseOneExtCommunity, whose
+		// colon split would cut the address. `update text` reads the same
+		// parser (route/route_community.go ParseExtendedCommunityAttributes).
+		if ec6, matched, err := attribute.ParseFlowSpecRedirectIPv6(p); matched {
+			if err != nil {
+				return ExtendedCommunity{}, err
+			}
+			allIPv6Bytes = append(allIPv6Bytes, ec6[:]...)
+			continue
+		}
+
 		// Single-word extended community
 		b, err := parseOneExtCommunity(p)
 		if err != nil {

@@ -18,7 +18,7 @@ var (
 	errRedirectRequiresAsnTarget       = errors.New("redirect requires <asn> <target>")
 	errTrafficMarkingRequiresDscp      = errors.New("traffic-marking requires <dscp>")
 	errEmptyExtendedCommunity          = errors.New("empty extended community")
-	errIPv6ExtendedCommunityNotCarried = errors.New("a redirect-to-IP action with an IPv6 target needs IPV6_EXTENDED_COMMUNITIES (attribute 25), which this command does not carry: use an IPv4 target here")
+	errIPv6ExtendedCommunityNotCarried = errors.New("an IPv6 redirect (redirect-to-nexthop <IPv6> or redirect:[<IPv6>]:<value>) needs IPV6_EXTENDED_COMMUNITIES (attribute 25), which this command does not carry: use an IPv4 target or an AS route-target here")
 )
 
 // parseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
@@ -85,6 +85,8 @@ func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 //   - origin:ASN:IP (Type 0x00, Subtype 0x03) - 2-byte ASN + IPv4
 //   - origin:IP:ASN (Type 0x01, Subtype 0x03) - IPv4 + 2-byte ASN
 //   - redirect:ADMIN:value (Sub-type 0x08) - Traffic redirect to a route-target
+//   - redirect:[IPv6]:value (Type 0x000d, RFC 8956 Section 6.1) - the same
+//     redirect naming an IPv6-address-specific route-target, 20 octets
 //   - rate-limit:bps (Type 0x80, Subtype 0x06) - Traffic rate limit in bytes/sec
 //   - rate-limit:bps:packets (Type 0x80, Subtype 0x0c) - Traffic rate limit in packets/sec
 //
@@ -98,8 +100,9 @@ func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 //
 // The 8-octet communities ride EXTENDED_COMMUNITIES (attribute 16). The second
 // list holds the 20-octet IPv6-address-specific ones, which ride
-// IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2): only the
-// redirect-to-IP action with an IPv6 target writes one. A caller with no
+// IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2): the
+// redirect-to-IP action with an IPv6 target and the rt-redirect-ipv6 of RFC 8956
+// Section 6.1 write one. A caller with no
 // attribute 25 to fill calls ParseExtendedCommunities, which refuses one.
 func ParseExtendedCommunityAttributes(args []string) ([]attribute.ExtendedCommunity, []attribute.IPv6ExtendedCommunity, int, error) {
 	if len(args) == 0 {
@@ -149,6 +152,17 @@ func ParseExtendedCommunityAttributes(args []string) ([]attribute.ExtendedCommun
 				return nil, nil, consumed, err
 			}
 			i++ // the address
+			continue
+		}
+		// RFC 8956 Section 6.1: the rt-redirect-ipv6 community, read by the
+		// parser the config reads too, before the 8-octet `redirect:` form
+		// below can split its address on a colon.
+		ec6, matched, err := attribute.ParseFlowSpecRedirectIPv6(tokens[i])
+		if err != nil {
+			return nil, nil, consumed, err
+		}
+		if matched {
+			comms6 = append(comms6, ec6)
 			continue
 		}
 		ec, err := parseExtendedCommunity(tokens[i])

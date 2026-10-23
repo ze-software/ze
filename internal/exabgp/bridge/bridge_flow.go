@@ -460,11 +460,14 @@ func (r *flowRoute) readAction(tokens []string, i int) (int, error) {
 //
 // ExaBGP 6.0 reads one value three ways (configuration/grammar/types/flow.py,
 // _redirect). An address, bare or in brackets, is the IETF redirect-to-IP
-// community holding that address, and the next hop is left alone. A bracketed
-// IPv6 address followed by `:<nn>` is the RFC 5701 IPv6 route-target redirect,
-// which `update text` has no word for, so it is refused by name. Any other
-// value is a route target, and ze spells that `redirect:<administrator>:<value>`
-// (route/route_community.go parseRedirectExtCommunity).
+// community holding that address, and the next hop is left alone. Any other
+// value is a route target, and ze spells that `redirect:<target>`. That covers
+// both route-target forms: `<administrator>:<value>`, the 8-octet RFC 8955
+// Section 7.4 redirect (route/route_community.go parseRedirectExtCommunity),
+// and `[<IPv6>]:<nn>`, the 20-octet RFC 8956 Section 6.1 rt-redirect-ipv6 that
+// ExaBGP builds as TrafficRedirectIPv6 (attribute.ParseFlowSpecRedirectIPv6).
+// The bracketed form is ExaBGP's spelling and ze's alike, so it passes through
+// unchanged, and ze refuses a malformed one with the reason.
 func (r *flowRoute) readRedirect(tokens []string, i int) (int, error) {
 	target, next, ok := flowRouteScalar(tokens, i)
 	if !ok {
@@ -474,9 +477,6 @@ func (r *flowRoute) readRedirect(tokens []string, i int) (int, error) {
 	if addr, isAddr := flowRouteAddress(target); isAddr {
 		r.actions = append(r.actions, flowRouteRedirectToIP(flowRouteIETFRedirect, addr))
 		return next, nil
-	}
-	if strings.HasPrefix(target, "[") {
-		return 0, fmt.Errorf("exabgp flow route: redirect %s, the IPv6 route-target redirect, has no ze update-text spelling", target)
 	}
 
 	var tb textbuf.Buffer

@@ -539,9 +539,13 @@ The separate IPv6 extended-community attribute (code 25, RFC 5701) carries
 20-octet values. RFC 8956 Section 6.1 assigns the complete type `0x000d` to
 IPv6 route-target redirect. Its named form is `redirect:[IPv6-address]:number`,
 so the FlowSpec firewall can refuse the unsupported action rather than mistake
-it for an unknown community. Subtype `0x0c` instead names redirect or copy to
+it for an unknown community. The same form is what config and `update text`
+send it with (`attribute.ParseFlowSpecRedirectIPv6`), so a received one
+round-trips: octets `00 0D`, the 16-octet address at offsets 2 to 17, the
+2-octet value at 18 and 19. Subtype `0x0c` instead names redirect or copy to
 an IPv6 next hop. Unrecognized types retain their raw hex form.
 <!-- source: internal/core/bgp/attribute/extcomm_decoded.go -- IPv6ExtendedCommunity.AppendDecoded -->
+<!-- source: internal/core/bgp/attribute/flowspec_encode.go -- FlowSpecRedirectIPv6 -->
 
 ---
 

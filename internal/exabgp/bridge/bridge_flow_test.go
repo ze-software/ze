@@ -181,6 +181,16 @@ func TestConvertFlowRouteGrammar(t *testing.T) {
 				"mp ipv6/flow add source-ipv6 2001:db8::/32",
 		},
 		{
+			// ExaBGP's TrafficRedirectIPv6 (configuration/grammar/types/flow.py,
+			// _redirect_ipv6): the RFC 8956 Section 6.1 rt-redirect-ipv6, which ze
+			// spells the same way inside `redirect:`.
+			name:   "a redirect naming a bracketed IPv6 address and a value is the IPv6 route-target redirect",
+			family: "ipv6/flow",
+			body:   "flow route { match { source 2001:db8::/32; } then { redirect [2001:db8::1]:100; } }",
+			want: "send bgp 10.0.0.1 update text extended-community [redirect:[2001:db8::1]:100] " +
+				"mp ipv6/flow add source-ipv6 2001:db8::/32",
+		},
+		{
 			name:   "copy is the IETF redirect-to-IP with the copy bit",
 			family: "ipv4/flow",
 			body:   "flow route { match { source 10.0.0.1/32; } then { copy 1.2.3.4; } }",
@@ -354,11 +364,6 @@ func TestConvertFlowRouteRefusesAndNames(t *testing.T) {
 			name:  "redirect-simpson naming a route target",
 			body:  "flow route { match { source 1.2.3.4/32; } then { redirect-simpson 65000:1; } }",
 			names: "redirect-simpson",
-		},
-		{
-			name:  "the IPv6 route-target redirect ze has no update-text spelling for",
-			body:  "flow route { match { source 2001:db8::/32; } then { redirect [2001:db8::1]:100; } }",
-			names: "[2001:db8::1]:100",
 		},
 		{
 			name:  "a keyword whose value is missing at the end of its block",

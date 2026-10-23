@@ -268,10 +268,14 @@ func flowSpecRedirect2ByteAS(asn uint16, value string) (ExtendedCommunity, error
 //
 // An IPv6 address has no rt-redirect encoding in RFC 8955 Section 7.4, whose
 // three types are all 8 octets. RFC 8956 Section 6.1 gives IPv6 its own 20-octet
-// community, which is a different action and a different attribute.
+// community, which is a different action and a different attribute: it is
+// written `redirect:[<IPv6>]:<value>` and built by FlowSpecRedirectIPv6, so
+// the refusal here names that spelling.
 func flowSpecRedirectIPv4(addr netip.Addr, value string) (ExtendedCommunity, error) {
 	if !addr.Is4() {
-		return ExtendedCommunity{}, fmt.Errorf("redirect administrator %s is not an IPv4 address", addr)
+		return ExtendedCommunity{}, fmt.Errorf(
+			"redirect administrator %s is an IPv6 address, whose route-target redirect (RFC 8956 Section 6.1) "+
+				"is written in brackets: redirect:[%s]:<0-65535>", addr, addr)
 	}
 	local, err := strconv.ParseUint(value, 10, 16)
 	if err != nil {
@@ -385,5 +389,94 @@ func FlowSpecRedirectToIPv6(addr netip.Addr, copyTraffic bool) (IPv6ExtendedComm
 	copy(ec[2:18], ip[:])
 	ec[18] = 0x00
 	ec[19] = flowSpecRedirectToIPFlags(copyTraffic)
+	return ec, nil
+}
+
+// flowSpecRedirectIPv6Prefix opens the text form of the rt-redirect-ipv6
+// community: `redirect:[<IPv6>]:<value>`. It is the form
+// IPv6ExtendedCommunity.AppendDecoded writes for type 0x000d (extcomm_decoded.go,
+// appendExtCommIPv6Specific), so a community ze printed is one ze can send. The
+// bracket is what tells it from the 8-octet `redirect:<administrator>:<value>`
+// of RFC 8955 Section 7.4, whose administrator is never bracketed.
+const flowSpecRedirectIPv6Prefix = "redirect:["
+
+// ParseFlowSpecRedirectIPv6 reads one `redirect:[<IPv6>]:<value>` token into
+// the rt-redirect-ipv6 community of RFC 8956 Section 6.1.
+//
+// matched is false when token does not open with `redirect:[`, and the caller
+// then reads it as any other community. Once it does, every fault is refused by
+// name, because the bracket already said which action the operator meant.
+//
+// The one table the config parser (config/routeattr_community.go
+// ParseExtendedCommunity) and the `update text` parser
+// (route/route_community.go ParseExtendedCommunityAttributes) both read, so the
+// two cannot accept different spellings.
+func ParseFlowSpecRedirectIPv6(token string) (IPv6ExtendedCommunity, bool, error) {
+	rest, ok := strings.CutPrefix(token, flowSpecRedirectIPv6Prefix)
+	if !ok {
+		return IPv6ExtendedCommunity{}, false, nil
+	}
+	address, value, ok := strings.Cut(rest, "]:")
+	if !ok {
+		return IPv6ExtendedCommunity{}, true, fmt.Errorf(
+			"invalid IPv6 redirect %q: write redirect:[<IPv6 address>]:<0-65535>", token)
+	}
+	addr, err := netip.ParseAddr(address)
+	if err != nil {
+		return IPv6ExtendedCommunity{}, true, fmt.Errorf(
+			"invalid IPv6 redirect %q: %q is not an IPv6 address: write redirect:[<IPv6 address>]:<0-65535>",
+			token, address)
+	}
+	ec, err := FlowSpecRedirectIPv6(addr, value)
+	if err != nil {
+		return IPv6ExtendedCommunity{}, true, fmt.Errorf("invalid IPv6 redirect %q: %w", token, err)
+	}
+	return ec, true, nil
+}
+
+// FlowSpecRedirectIPv6 returns the rt-redirect-ipv6 community: a redirect to
+// the VRF that imports the IPv6-address-specific route-target addr:value.
+//
+// RFC 8956 Section 6.1: "This IPv6-Address-Specific Extended Community uses the
+// same encoding as the IPv6-Address-Specific Route-Target Extended Community
+// (Section 2 of [RFC5701]) with the Type value always 0x000d."
+//
+// It is 20 octets, so it rides IPV6_EXTENDED_COMMUNITIES (attribute 25), not
+// the 8-octet EXTENDED_COMMUNITIES of the three RFC 8955 Section 7.4 forms
+// FlowSpecRedirect writes.
+//
+//	octet 0      1      2 .. 17                         18 .. 19
+//	+------+------+-------------------------------+----------------------+
+//	| 0x00 | 0x0d | Global Administrator: IPv6    | Local Administrator  |
+//	|      |      | address (16 octets)           | (2 octets)           |
+//	+------+------+-------------------------------+----------------------+
+//
+// RFC 5701 Section 2: "Global Administrator field: 16 octets" and "Local
+// Administrator field: 2 octets". A value wider than two octets is refused
+// rather than truncated, because a truncated route-target names a different
+// VRF.
+func FlowSpecRedirectIPv6(addr netip.Addr, value string) (IPv6ExtendedCommunity, error) {
+	var ec IPv6ExtendedCommunity
+	if !addr.Is6() {
+		return ec, fmt.Errorf(
+			"redirect administrator %s is not an IPv6 address: an IPv4 one is written without brackets, redirect:%s:<value>",
+			addr, addr)
+	}
+	if addr.Zone() != "" {
+		return ec, fmt.Errorf(
+			"redirect administrator %s carries a zone, which a route-target cannot hold: write the address without %%%s",
+			addr, addr.Zone())
+	}
+	local, err := strconv.ParseUint(value, 10, 16)
+	if err != nil {
+		return ec, fmt.Errorf("invalid redirect value %q: the IPv6 form's local administrator holds 0-65535", value)
+	}
+	ip := addr.As16()
+	// RFC 8956 Section 6.1: "with the Type value always 0x000d".
+	ec[0] = byte(extCommRedirectIPv6 >> 8)
+	ec[1] = byte(extCommRedirectIPv6)
+	copy(ec[2:18], ip[:])
+	ec[18] = byte(local >> 8)
+	ec[19] = byte(local)
 	return ec, nil
 }

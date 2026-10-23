@@ -1,0 +1,57 @@
+# Test: the config path sends the RFC 8956 Section 6.1 IPv6 route-target
+#       redirect (rt-redirect-ipv6, type 0x000d).
+# VALIDATES: `extended-community [redirect:[2001:db8::1]:100]` encodes the 20-octet
+#            RFC 5701 Section 2 community 000D 20010DB8000000000000000000000001 0064
+#            in IPV6_EXTENDED_COMMUNITIES (attribute 25, 0xC019), the octets ExaBGP's
+#            TrafficRedirectIPv6 sends for `redirect [2001:db8::1]:100`.
+# PREVENTS: the IPv6 administrator being refused by the 8-octet rt-redirect
+#           parser, and the community landing in attribute 16 or with the
+#           route-target type 0x0002 instead of 0x000d.
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0051020000003A800E1200018500000C0120C0A8000502200A0000014001010040020040050400000064C01914000D20010DB80000000000000000000000010064
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65500
+				remote 65500
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# The IPv6 route-target redirect: a bracketed IPv6 administrator and a
+		# 2-octet local administrator, so attribute 25 rather than 16.
+		update {
+			attribute {
+				extended-community [redirect:[2001:db8::1]:100]
+			}
+			nlri {
+				ipv4/flow add destination-ipv4 192.168.0.5/32 source-ipv4 10.0.0.1/32
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+# flowspec plugin auto-loaded because ipv4/flow family is configured
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

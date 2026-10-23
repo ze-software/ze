@@ -596,19 +596,20 @@ keyword and answers with the flat form to use.
 | `community` | `[ <comm>... ]` | COMMUNITY (8) | RFC 1997 |
 | `originator-id` | `<ipv4>` | ORIGINATOR_ID (9) | RFC 4456 Section 8 |
 | `cluster-list` | `[ <ipv4>... ]` | CLUSTER_LIST (10) | RFC 4456 Section 8 |
-| `extended-community` | `[ <ec>... ]` | EXTENDED_COMMUNITIES (16), and IPV6_EXTENDED_COMMUNITIES (25) for an IPv6 redirect-to-IP target | RFC 4360, RFC 5701 |
+| `extended-community` | `[ <ec>... ]` | EXTENDED_COMMUNITIES (16), and IPV6_EXTENDED_COMMUNITIES (25) for an IPv6 redirect-to-IP target or an IPv6 route-target redirect | RFC 4360, RFC 5701, RFC 8956 |
 | `aigp` | `<uint64>` | AIGP (26) | RFC 7311 Section 3 |
 | `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
 | `bgp-prefix-sid` | `[ <index> ]` or `[ <index>, [ ( <base>,<range> ) ... ] ]` | BGP Prefix-SID (40) | RFC 8669 Sections 3.1 and 3.2 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 | `attribute` | `[ 0x<code> 0x<flags> 0x<value> ]` | any type code, given as its wire octets | RFC 4271 Section 4.3 |
 
-An `<ec>` in `extended-community` takes one of six forms.
+An `<ec>` in `extended-community` takes one of seven forms.
 
 | Form | Example | Meaning |
 |------|---------|---------|
 | named | `target:65000:1`, `origin:65000:1.2.3.4`, `origin:2345:101124105`, `origin:70500:5000`, `mup:10:10` | the type keyword picks the encoding (`target`, `origin`, `mup`). The administrator picks the type: an IPv4 address is 0x01, an AS above 65535 or written with `L` is 0x02 (RFC 5668 Section 2) with a 2-octet value, any other AS is 0x00 with a 4-octet value written as a number or a dotted quad (RFC 4360 Sections 3.1 and 5). `mup:<2-octet>:<4-octet>` is type 0x0C sub-type 0x00 (draft-ietf-bess-mup-safi Section 3.2) |
 | FlowSpec action | `discard`, `copy-to-nexthop`, `rate-limit:1000` | RFC 8955 Section 7 |
+| FlowSpec IPv6 route-target redirect | `redirect:[2001:db8::1]:100` | RFC 8956 Section 6.1: the rt-redirect-ipv6 action, a redirect to the VRF importing the IPv6-address-specific route-target `[<IPv6>]:<0-65535>`. A 20-octet community of type 0x000D (RFC 5701 Section 2: 16-octet address, 2-octet value) in IPV6_EXTENDED_COMMUNITIES (attribute 25). The brackets tell it from the 8-octet `redirect:<administrator>:<value>`; it is the form ze prints for a received one, so it round-trips. An IPv4 address in brackets, a zone, or a value above 65535 is refused |
 | FlowSpec redirect to IP | `redirect-to-nexthop 192.0.2.1`, `copy-to-nexthop 2001:db8::1` | draft-ietf-idr-flowspec-redirect-ip-16 Section 2: two words, the redirect-to-IP community holding the address, with the C (copy) bit for `copy-to-nexthop`. An IPv4 address is an 8-octet community (type 0x010C) in EXTENDED_COMMUNITIES; an IPv6 address is a 20-octet one (0x000C) in IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2). Written alone, `copy-to-nexthop` is the one-word 0x0800 copy action of draft-simpson-idr-flowspec-redirect-02, which copies to the route's next hop; `redirect-to-nexthop-draft` is its redirect. `redirect-to-nexthop` with no address is refused. It works as the first word (`extended-community redirect-to-nexthop 192.0.2.1`) and inside a list |
 | FlowSpec traffic marking and action | `mark:46`, `traffic-action:sample-terminal` | RFC 8955 Sections 7.5 and 7.3: `mark:<dscp>` is type 0x8009 with the DSCP (0 to 63, a larger value is refused) in the low six bits; `traffic-action:` takes `sample`, `terminal`, `sample-terminal` or `none` and is type 0x8007 with the S and T bits. Both are the spelling ze writes when it decodes the community |
 | FlowSpec interface set | `interface-set:transitive:input:1234:10`, `interface-set:non-transitive:output:65000:3` | draft-ietf-idr-flowspec-interfaceset Section 5: apply the filter on interface group 3 (0 to 16383) of AS 65000, inbound, outbound or both (`input-output`). Type 0x07, or 0x47 non-transitive; `interface-set:input:1234:10` is transitive |

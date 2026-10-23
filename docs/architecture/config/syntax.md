@@ -25,6 +25,13 @@
 Ze configuration uses a JUNOS-like hierarchy of sections, keywords, and values. A value statement can use an explicit semicolon. The tokenizer automatically inserts a semicolon after a value-ending token at a newline, at end of file (EOF), or before `}`.
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 
+A `[` opens a list, except straight after a `:` inside a word, where it
+brackets an address and stays in the word through its `]`. That is how the
+IPv6 route-target redirect is written, `extended-community
+[redirect:[2001:db8::1]:100]`, the same form ze prints for a received one. A
+`[` glued to any other character, such as `0x48[64,24]`, still opens a list.
+<!-- source: internal/component/config/tokenizer.go -- tokenizer.readWord, tokenizer.wordAddressEnd -->
+
 The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- module ze-bgp-conf structure -->
 

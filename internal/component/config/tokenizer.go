@@ -244,18 +244,55 @@ func (t *tokenizer) readString(quote byte, startLine, startCol int) token {
 }
 
 // readWord reads an unquoted word.
+//
+// A `[` straight after a `:` inside a word opens an address, not a list, and
+// stays in the word through its `]`: `redirect:[2001:db8::1]:100` is the RFC
+// 8956 Section 6.1 IPv6 route-target redirect, the form ze prints for a received
+// one (attribute.IPv6ExtendedCommunity.AppendDecoded), and splitting it would
+// refuse the spelling ze writes. Only the colon opens one, because an ExaBGP
+// config read by migration glues a list to a word elsewhere: the SRv6 SID
+// structure `0x48[64,24,16,0,0,0]` is still a word and a list.
 func (t *tokenizer) readWord(startLine, startCol int) token {
 	start := t.pos
 
 	for t.pos < len(t.input) {
 		ch := t.input[t.pos]
-		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||
-			ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ';' ||
-			ch == '"' || ch == '\'' || ch == '#' {
+		if ch == '[' && t.pos > start && t.input[t.pos-1] == ':' {
+			if end, closed := t.wordAddressEnd(); closed {
+				for t.pos < end {
+					t.advance()
+				}
+				continue
+			}
+		}
+		if endsWord(ch) {
 			break
 		}
 		t.advance()
 	}
 
 	return token{kind: tokenWord, value: t.input[start:t.pos], line: startLine, col: startCol}
+}
+
+// wordAddressEnd answers the offset just past the `]` that closes the `[` at
+// t.pos, when the bracket holds at least one character and none that ends a
+// word. closed is false otherwise, and the `[` is then a list as before.
+func (t *tokenizer) wordAddressEnd() (end int, closed bool) {
+	for i := t.pos + 1; i < len(t.input); i++ {
+		ch := t.input[i]
+		if ch == ']' {
+			return i + 1, i > t.pos+1
+		}
+		if endsWord(ch) {
+			return 0, false
+		}
+	}
+	return 0, false
+}
+
+// endsWord reports whether ch ends an unquoted word.
+func endsWord(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||
+		ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ';' ||
+		ch == '"' || ch == '\'' || ch == '#'
 }

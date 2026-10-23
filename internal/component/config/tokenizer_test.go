@@ -235,6 +235,42 @@ func TestTokenizerArray(t *testing.T) {
 	require.Equal(t, tokenSemicolon, tokens[5].kind)
 }
 
+// TestTokenizerBracketedAddressInWord checks that a `[` straight after a `:`
+// stays inside the word, so the IPv6 route-target redirect ze prints
+// (`redirect:[2001:db8::1]:100`, RFC 8956 Section 6.1) reads back as one list
+// member, while every other glued or spaced `[` still opens a list.
+//
+// VALIDATES: the colon-bracket address is one word; `0x48[64,24]` (an ExaBGP
+// SRv6 structure read by migration), `a:[ b ]` and `a:[]` are a word then a list.
+//
+// PREVENTS: config refusing `extended-community [redirect:[<IPv6>]:<nn>]` with
+// "expected item or ']'", and the fix swallowing a list glued to a word.
+func TestTokenizerBracketedAddressInWord(t *testing.T) {
+	kinds := func(input string) ([]tokenType, []string) {
+		var types []tokenType
+		var values []string
+		for _, tok := range newTokenizer(input).all() {
+			types = append(types, tok.kind)
+			values = append(values, tok.value)
+		}
+		return types, values
+	}
+
+	types, values := kinds(`extended-community [redirect:[2001:db8::1]:100 target:65000:1];`)
+	require.Equal(t, []tokenType{tokenWord, tokenLBracket, tokenWord, tokenWord, tokenRBracket, tokenSemicolon, tokenEOF}, types)
+	require.Equal(t, "redirect:[2001:db8::1]:100", values[2])
+
+	types, values = kinds(`sid 0x48[64,24];`)
+	require.Equal(t, []tokenType{tokenWord, tokenWord, tokenLBracket, tokenWord, tokenRBracket, tokenSemicolon, tokenEOF}, types)
+	require.Equal(t, "0x48", values[1])
+
+	types, _ = kinds(`x a:[ b ];`)
+	require.Equal(t, []tokenType{tokenWord, tokenWord, tokenLBracket, tokenWord, tokenRBracket, tokenSemicolon, tokenEOF}, types)
+
+	types, _ = kinds(`x a:[];`)
+	require.Equal(t, []tokenType{tokenWord, tokenWord, tokenLBracket, tokenRBracket, tokenSemicolon, tokenEOF}, types)
+}
+
 // TestTokenizerAutoSemicolon verifies newlines act as implicit semicolons.
 //
 // VALIDATES: Newlines after value tokens insert automatic semicolons.

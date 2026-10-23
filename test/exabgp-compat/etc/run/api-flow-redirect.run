@@ -2,8 +2,10 @@
 """ExaBGP 6.0 flow redirect and copy forms (draft-ietf-idr-flowspec-redirect-ip).
 
 `redirect <v4>` and `copy <v4>` are the IETF community with the address in it,
-`redirect [<v6>]` the IPv6 one in attribute 25, and `redirect-simpson <v4>` the
-0x0800 community with the address as the route's next hop.
+`redirect [<v6>]` the IPv6 one in attribute 25, `redirect-simpson <v4>` the
+0x0800 community with the address as the route's next hop, and
+`redirect [<v6>]:<nn>` the RFC 8956 Section 6.1 IPv6 route-target redirect,
+type 0x000D in attribute 25.
 """
 
 import sys
@@ -18,6 +20,7 @@ def main() -> None:
         'announce flow route { match { destination 10.0.0.2/32; } then { copy 192.0.2.2; } }',
         'announce flow route { match { destination 10.0.0.3/32; } then { redirect [2001:db8::3]; } }',
         'announce flow route { match { destination 10.0.0.4/32; } then { redirect-simpson 192.0.2.4; } }',
+        'announce flow route { match { destination 10.0.0.5/32; } then { redirect [2001:db8::5]:100; } }',
     ]
 
     time.sleep(0.2)  # let the EOR pass

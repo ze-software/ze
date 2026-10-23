@@ -190,7 +190,7 @@ lists it; how Ze accepts ExaBGP commands and emits ExaBGP JSON is in
 | IPv4/IPv6 Multicast | Full | Full |
 | IPVPN | Full | Full |
 | EVPN (5 types) | Full (route types 1 to 5) | Full |
-| FlowSpec (`ipv4/flow`, `ipv6/flow`, `ipv4/flow-vpn`, `ipv6/flow-vpn`) | Yes: component types 1 to 13 (RFC 8955, RFC 8956), every RFC 8955 Section 7 action, redirect-to-IP, the Simpson redirect, interface-set. It decodes the RFC 8956 Section 6.1 IPv6 route-target redirect but has no word to send one | Yes: the same components and actions, and it sends the IPv6 route-target redirect (`redirect [<ipv6>]:<nn>`) |
+| FlowSpec (`ipv4/flow`, `ipv6/flow`, `ipv4/flow-vpn`, `ipv6/flow-vpn`) | Yes: component types 1 to 13 (RFC 8955, RFC 8956), every RFC 8955 Section 7 action, redirect-to-IP, the Simpson redirect, interface-set, and the RFC 8956 Section 6.1 IPv6 route-target redirect, sent as `redirect:[<ipv6>]:<nn>` and translated from ExaBGP's `redirect [<ipv6>]:<nn>` | Yes: the same components and actions, and the IPv6 route-target redirect (`redirect [<ipv6>]:<nn>`) |
 | BGP-LS | Full | Full |
 | VPLS (`l2vpn/vpls`) | Yes | Yes |
 | RTC | Yes (update text, ExaBGP bridge) | Yes |

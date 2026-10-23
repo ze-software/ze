@@ -442,10 +442,10 @@ func (e IPv6ExtendedCommunity) AppendDecoded(buf []byte) []byte {
 // address ends. The brackets are the same answer RFC 3986 Section 3.2.2 gives
 // for an address followed by a port.
 //
-// Nothing in the tree reads this form BACK. A code-25 community is originated
-// from octets (PathAttributes.IPv6ExtCommunityBytes, update_build_flowspec.go)
-// and never from a named string, so this makes no round-trip claim. A text
-// parser would owe one, and the brackets are what would let it split.
+// The `redirect:` form is read BACK by ParseFlowSpecRedirectIPv6
+// (flowspec_encode.go), which splits on the brackets, so a received
+// rt-redirect-ipv6 round-trips through `update text` and config. The `target:`
+// and `origin:` forms have no parser yet and make no round-trip claim.
 func appendExtCommIPv6Specific(buf []byte, name string, e IPv6ExtendedCommunity) []byte {
 	buf = append(buf, name...)
 	buf = append(buf, '[')
