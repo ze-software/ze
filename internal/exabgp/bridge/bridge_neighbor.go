@@ -167,7 +167,7 @@ func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 // refuse a backslash: what the script wrote is what the peer receives.
 func convertTeardown(selector, rest string) (Translation, bool, error) {
 	_, after, _ := strings.Cut(strings.TrimSpace(rest), " ")
-	words, err := shlexSplit(after)
+	words, err := SplitCommandLine(after)
 	if err != nil {
 		return Translation{}, true, err
 	}
@@ -369,7 +369,7 @@ var errUnclosedQuote = errors.New("No closing quotation") //nolint:staticcheck /
 // so the communication on the wire is the one ExaBGP would send.
 func convertDisable(selector, rest string) (Translation, bool, error) {
 	_, after, _ := strings.Cut(strings.TrimSpace(rest), " ")
-	words, err := shlexSplit(after)
+	words, err := SplitCommandLine(after)
 	if err != nil {
 		return Translation{}, true, err
 	}
@@ -394,7 +394,7 @@ func convertEnable(selector string, fields []string) (Translation, bool, error) 
 	}, true, nil
 }
 
-// shlexSplit splits text as Python's shlex.split does in POSIX mode, for the
+// SplitCommandLine splits text as Python's shlex.split does in POSIX mode, for the
 // forms an ExaBGP script writes: words separated by blanks, a single-quoted
 // run taken as written, a double-quoted run where a backslash escapes `"` or
 // `\` and before any other character stays a backslash, and a backslash
@@ -405,7 +405,7 @@ func convertEnable(selector string, fields []string) (Translation, bool, error) 
 // character itself when, inside quotes, the next character is neither the
 // quote nor the escape character, so `"a\tb"` is the four characters a, \, t,
 // b, which ExaBGP 6 then sends as its teardown text.
-func shlexSplit(text string) ([]string, error) {
+func SplitCommandLine(text string) ([]string, error) {
 	var words []string
 	var word strings.Builder
 	inWord := false

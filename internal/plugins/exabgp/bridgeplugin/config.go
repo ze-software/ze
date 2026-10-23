@@ -174,9 +174,9 @@ func parseScripts(blk map[string]any) ([]bridgerun.Script, error) {
 			return nil, fmt.Errorf("exabgp bridge: process %q is not a block", name)
 		}
 		run, _ := asString(entry, "run")
-		argv := splitCommand(run)
-		if len(argv) == 0 {
-			return nil, fmt.Errorf("exabgp bridge: process %q has no run command", name)
+		argv, err := runArgv(name, run)
+		if err != nil {
+			return nil, err
 		}
 		// ExaBGP respawns a process that exits unless the config says
 		// otherwise, so an absent leaf is true
@@ -283,9 +283,18 @@ func parseOnExit(name string, entry map[string]any) (bridge.OnExit, error) {
 	return bridge.OnExitByVersion, fmt.Errorf("exabgp bridge: process %q: on-exit %q invalid (keep|withdraw)", name, value)
 }
 
-// splitCommand splits an operator run string into argv on whitespace. The
-// external mode receives argv already split by the shell/flag parser; internal
-// mode receives one config string per script, so it splits here.
-func splitCommand(cmd string) []string {
-	return strings.Fields(cmd)
+// runArgv splits an operator run string into argv. The external mode receives
+// argv already split by the shell; internal mode receives one config string per
+// script, so it splits here, the way a POSIX shell would and with no expansion:
+// quotes group words, so `ze exabgp migrate`'s quoted ExaBGP arguments
+// (bridge.JoinCommandLine) reach the script as the argv ExaBGP would have run.
+func runArgv(name, run string) ([]string, error) {
+	argv, err := bridge.SplitCommandLine(run)
+	if err != nil {
+		return nil, fmt.Errorf("exabgp bridge: process %q: run %q: %w", name, run, err)
+	}
+	if len(argv) == 0 {
+		return nil, fmt.Errorf("exabgp bridge: process %q has no run command", name)
+	}
+	return argv, nil
 }

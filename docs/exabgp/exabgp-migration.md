@@ -140,6 +140,13 @@ the rest of the config is converted. Ze supports neither BGP multi-session nor
 the OPERATIONAL message (`ai/META-DECISIONS.md`).
 <!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilities, untranslatedCapabilityWarning -->
 
+A process block's `run` line keeps the program and every argument after it, as
+ExaBGP runs them. A quoted argument stays one argument: `run python3
+/opt/inject.py "two words";` migrates to `run "python3 /opt/inject.py 'two
+words'"`, which the bridge splits back into the same argv
+(`docs/architecture/exabgp-bridge.md`).
+<!-- source: internal/exabgp/migration/migrate.go -- migrateProcesses -->
+
 A process block's `on-exit` leaf (`keep` or `withdraw`) is carried as written,
 and left unset when the ExaBGP block leaves it unset. The bridge then decides
 what becomes of an exited script's routes as ExaBGP 6.0 does

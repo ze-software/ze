@@ -245,7 +245,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 // store instead of being joined.
 //
 // MultiLeafNode is deliberately absent. It is spelled `name word word;` and
-// parseMultiLeaf writes ONE joined string with Tree.Set, so it is a single-valued
+// parseMultiLeaf replaces the whole value with SetSlice, so it is a single-valued
 // leaf that happens to be written in several words. BracketLeafListNode and
 // ValueOrArrayNode are the two kinds whose block-form parse ends in
 // AppendSlice/AppendSequence, which is what makes GetSlice answer.
@@ -332,6 +332,11 @@ func (p *Parser) invalidListKeyError(tok token, name string, err error) error {
 }
 
 // parseMultiLeaf parses multiple words until semicolon: `name word word;`.
+//
+// The words are stored with SetSlice, so GetSlice answers them with their token
+// boundaries: a quoted word that holds a space stays one word. Get answers the
+// joined mirror, which quotes such a word, so it reads back the same. SetSlice
+// replaces, so the leaf stays single-valued and a repeated statement wins.
 func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) error {
 	var words []string
 
@@ -349,11 +354,16 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 		p.tok.next()
 	}
 
+	// SetSlice with no words would delete the leaf, so a statement that names
+	// no value would read as one that was never written.
+	if len(words) == 0 {
+		return p.errorf(token{line: p.tok.line}, "expected value for %s, got ';'", name)
+	}
 	joined := textbuf.Join(words, " ")
 	if err := validateValuePatterns(node.Type, node.Patterns, joined); err != nil {
 		return p.errorf(token{line: p.tok.line}, "invalid value for %s: %v", name, err)
 	}
-	tree.Set(name, joined)
+	tree.SetSlice(name, words)
 	return nil
 }
 

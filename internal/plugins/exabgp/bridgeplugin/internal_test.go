@@ -2,6 +2,7 @@ package bridgeplugin
 
 import (
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -161,20 +162,32 @@ func TestFamilyDeclsDefault(t *testing.T) {
 	}
 }
 
-// TestSplitCommand verifies whitespace argv splitting.
-func TestSplitCommand(t *testing.T) {
-	got := splitCommand("  python3   /opt/plugin.py  --flag ")
-	want := []string{"python3", "/opt/plugin.py", "--flag"}
-	if len(got) != len(want) {
-		t.Fatalf("splitCommand = %v, want %v", got, want)
+// TestRunArgv verifies the run string splits into argv the way a POSIX shell
+// splits it: blanks separate words, quotes group them, and the migrated form
+// of an ExaBGP argument holding a space or an apostrophe comes back whole.
+func TestRunArgv(t *testing.T) {
+	cases := []struct {
+		run  string
+		want []string
+	}{
+		{"  python3   /opt/plugin.py  --flag ", []string{"python3", "/opt/plugin.py", "--flag"}},
+		{`python3 /opt/inject.py --label 'two words' 'it'\''s'`, []string{"python3", "/opt/inject.py", "--label", "two words", "it's"}},
+		{`/bin/cat "with space"`, []string{"/bin/cat", "with space"}},
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("splitCommand[%d] = %q, want %q", i, got[i], want[i])
+	for _, c := range cases {
+		got, err := runArgv("p", c.run)
+		if err != nil {
+			t.Fatalf("runArgv(%q): %v", c.run, err)
+		}
+		if !slices.Equal(got, c.want) {
+			t.Errorf("runArgv(%q) = %q, want %q", c.run, got, c.want)
 		}
 	}
-	if len(splitCommand("   ")) != 0 {
-		t.Errorf("splitCommand(blank) should be empty")
+	if _, err := runArgv("p", "   "); err == nil {
+		t.Errorf("runArgv(blank) accepted a run with no command")
+	}
+	if _, err := runArgv("p", `python3 'open`); err == nil {
+		t.Errorf("runArgv(unclosed quote) accepted it")
 	}
 }
 

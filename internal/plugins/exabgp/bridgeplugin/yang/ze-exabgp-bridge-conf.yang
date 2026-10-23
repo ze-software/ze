@@ -70,8 +70,10 @@ name the ExaBGP configuration used.";
                         length "1..4096";
                     }
                     description "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
-splits the line on whitespace. The first token is the executable, and the rest are its
-arguments. A block with no run command is refused.";
+splits the line into words as a POSIX shell does, with no expansion: blanks separate
+words, and single or double quotes group them, so a quoted argument holding a space
+reaches the script as one argument. The first word is the executable, and the rest are
+its arguments. A block with no run command, or with an unclosed quote, is refused.";
                     ze:help "Command line of the script.";
                 }
 

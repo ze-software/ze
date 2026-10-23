@@ -608,6 +608,12 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 ## Known Limitations
 - OPERATIONAL: Ze does not support it (OD-1). The bridge refuses `announce operational`.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `multi-valued-leaf-read-as-single-valued.md` | 2026-10-23 | `ze exabgp migrate` refused a multi-word ExaBGP `run` line (fixed) |
+
 ## RFC Documentation (Scope: protocol)
 
 Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code. The RTC encoder

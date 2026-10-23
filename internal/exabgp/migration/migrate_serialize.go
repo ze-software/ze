@@ -24,6 +24,36 @@ func SerializeTree(tree *config.Tree) string {
 	return buf.String()
 }
 
+// needsQuotedValue reports whether v must be written as a quoted string for
+// ze's tokenizer to read it back as one value: it holds a blank, a quote, a
+// backslash or a character that ends a statement. A value the migration wrote
+// already bracketed or quoted is written as it is.
+func needsQuotedValue(v string) bool {
+	if strings.HasPrefix(v, "[") {
+		return false
+	}
+	if strings.HasPrefix(v, "\"") {
+		return false
+	}
+	return strings.ContainsAny(v, " \t'\"\\;{}#")
+}
+
+// writeQuotedValue writes v in double quotes, escaping the two characters ze's
+// tokenizer reads as escapes there: a backslash and a double quote. A migrated
+// `run` line carries backslashes (bridge.JoinCommandLine writes an apostrophe
+// as `'\''`), and ze would read an unescaped one as an escape and drop it.
+func writeQuotedValue(buf *textbuf.Buffer, v string) {
+	buf.Byte('"')
+	for i := range len(v) {
+		c := v[i]
+		if c == '\\' || c == '"' {
+			buf.Byte('\\')
+		}
+		buf.Byte(c)
+	}
+	buf.Byte('"')
+}
+
 func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, isRoot bool) {
 	// Write simple values (sorted for deterministic output).
 	keys := tree.Values()
@@ -38,12 +68,12 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 			buf.WriteString(indent)
 			buf.WriteString(key)
 			buf.WriteString("\n")
-		case strings.Contains(v, " ") && !strings.HasPrefix(v, "[") && !strings.HasPrefix(v, "\""):
+		case needsQuotedValue(v):
 			buf.WriteString(indent)
 			buf.WriteString(key)
-			buf.WriteString(" \"")
-			buf.WriteString(v)
-			buf.WriteString("\"\n")
+			buf.WriteString(" ")
+			writeQuotedValue(buf, v)
+			buf.WriteString("\n")
 		default: // single word or already bracketed/quoted
 			buf.WriteString(indent)
 			buf.WriteString(key)

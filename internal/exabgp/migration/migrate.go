@@ -205,18 +205,21 @@ const bridgePluginName = bridge.PluginName
 // read by nothing.
 //
 // Every leaf of the ExaBGP process block that changes what ze does is carried:
-// `run`, `respawn`, `encoder` and `on-exit`. `encoder` was read by nothing until
+// `run` (the program and all its arguments), `respawn`, `encoder` and `on-exit`. `encoder` was read by nothing until
 // 2026-09-06, so a config asking for the text event format was migrated into a
 // bridge that answered JSON, with no error and no log line.
 func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
 	processMap := make(map[string]string)
 	processes := make([]bridgeProcess, 0, 2)
 	for _, entry := range tree.GetListOrdered("process") {
-		runCmd, ok := entry.Value.Get("run")
-		if !ok {
+		// ExaBGP runs the program with every word after it as its argv, with no
+		// shell; the bridge `run` leaf is one string, so the argv is written as
+		// a command line the bridge splits back into the same words.
+		argv := entry.Value.GetSlice("run")
+		if len(argv) == 0 {
 			continue
 		}
-		runCmd = strings.Trim(runCmd, `"'`)
+		runCmd := bridge.JoinCommandLine(argv)
 		result.Processes = append(result.Processes, ExternalProcess{
 			Name:   entry.Key,
 			RunCmd: runCmd,
