@@ -87,7 +87,16 @@ type carriedOrigin struct {
 	GeneratedAt string `json:"generated-at"`
 }
 
+// FailureIndexFormat is the failure index format this writer produces. Format
+// 2 marks a stage an interrupt cut short with Interrupted and gives it no
+// exit, so an exit of 130 in such an index is the stage's own answer. An index
+// with no format came from the writer before it, which wrote an interrupted
+// stage as reached with the run's interrupt status (Interrupted, 130) as its
+// exit; only there is 130 read as an interruption.
+const FailureIndexFormat = 2
+
 type artifactIndex struct {
+	Format      int    `json:"format,omitempty"`
 	Mode        string `json:"mode"`
 	ExitCode    int    `json:"exit-code"`
 	RunDir      string `json:"run-dir"`
@@ -107,7 +116,7 @@ type artifactIndex struct {
 func writeRunArtifacts(root string, report Report, at time.Time) error {
 	combinedLog := filepath.ToSlash(filepath.Join(report.LogDir, "ze-verify.log"))
 	index := artifactIndex{
-		Mode: report.Mode, ExitCode: report.Code, RunDir: report.LogDir,
+		Format: FailureIndexFormat, Mode: report.Mode, ExitCode: report.Code, RunDir: report.LogDir,
 		CombinedLog: combinedLog, GeneratedAt: at.UTC().Format(time.RFC3339),
 		Commit: report.Commit, StoppedAt: report.StoppedAt,
 		Stages: make([]artifactStage, 0, len(report.Stages)+len(report.Unreached)),
@@ -303,6 +312,7 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 		earlier[prior.Stages[index].Stage] = prior.Stages[index]
 	}
 	origin := carriedOrigin{Commit: prior.Commit, RunDir: prior.RunDir, GeneratedAt: prior.GeneratedAt}
+	legacy := prior.Format < FailureIndexFormat
 	for _, stage := range StagesForMode(Mode) {
 		name := stage.Identity.Name
 		if held[name] {
@@ -310,11 +320,10 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 		}
 		entry := artifactStage{Stage: name, OutsideRun: true}
 		was, found := earlier[name]
-		// Every population a run holds (full, fast, a piece) is a subset of
-		// the full one, so each interrupted stage is met here.
 		cut, cutShort := interrupted[name]
+		delete(interrupted, name)
 		switch {
-		case found && judged(was):
+		case found && judged(was, legacy):
 			entry = was
 			entry.Reached = true
 			entry.OutsideRun = true
@@ -323,7 +332,7 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 			}
 		case cutShort:
 			entry = cut
-		case found && interruptedEntry(was):
+		case found && interruptedEntry(was, legacy):
 			// No run has judged the stage since an interrupt cut it short,
 			// so it stays reported as interrupted rather than silently
 			// unjudged.
@@ -334,13 +343,23 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 		}
 		result = append(result, entry)
 	}
+	// An interrupted stage the full population does not name is still written,
+	// in run order, rather than dropped: a renamed or ad hoc stage must not
+	// vanish from the index.
+	for index := range stages {
+		if cut, cutShort := interrupted[stages[index].Stage]; cutShort {
+			result = append(result, cut)
+			delete(interrupted, stages[index].Stage)
+		}
+	}
 	return result
 }
 
 // judged reports whether an earlier index entry holds a verdict to carry. A
 // stage an interrupt cut short holds none, whichever way it was written.
-func judged(stage artifactStage) bool {
-	if interruptedEntry(stage) {
+// legacy says the entry comes from an index with no format (FailureIndexFormat).
+func judged(stage artifactStage, legacy bool) bool {
+	if interruptedEntry(stage, legacy) {
 		return false
 	}
 	if stage.Reached {
@@ -350,13 +369,17 @@ func judged(stage artifactStage) bool {
 }
 
 // interruptedEntry reports whether an index entry records a stage an
-// interrupt cut short: the Interrupted marker, or, in an index written before
-// the marker existed, the run's interrupt status (Interrupted, 130) as the
-// stage's exit. The engine assigns that status to an interrupt, so it never
-// stands for a verdict on the tree.
-func interruptedEntry(stage artifactStage) bool {
+// interrupt cut short: the Interrupted marker, or, only in an index the
+// writer before FailureIndexFormat produced (legacy), the run's interrupt
+// status (Interrupted, 130) as the stage's exit. The current writer never
+// gives an interrupted stage an exit, so in its index 130 is the stage's own
+// answer, a red like any other.
+func interruptedEntry(stage artifactStage, legacy bool) bool {
 	if stage.Interrupted {
 		return true
+	}
+	if !legacy {
+		return false
 	}
 	return stage.ExitCode == Interrupted
 }

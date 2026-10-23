@@ -62,6 +62,9 @@ type structuralReds struct {
 }
 
 type failureIndex struct {
+	// Format is absent from an index the writer before
+	// verifyengine.FailureIndexFormat produced.
+	Format    int               `json:"format"`
 	StoppedAt string            `json:"stopped-at"`
 	Stages    []json.RawMessage `json:"stages"`
 }
@@ -130,9 +133,12 @@ func structuralGateReds(root string, paths []string) structuralReds {
 		var groups []failureGroup
 		groupsReadable := json.Unmarshal(stage.Groups, &groups) == nil
 		// An interrupted stage holds no verdict, so it is reported as never
-		// judged and not charged. An index written before the writer marked
-		// interruption records the run's interrupt status as the stage's exit.
-		if stage.Interrupted || stage.ExitCode == verifyengine.Interrupted {
+		// judged and not charged. Only an index written before the writer
+		// marked interruption (no format) records the run's interrupt status
+		// as the stage's exit; in a current index 130 is the stage's own red.
+		legacy130 := index.Format < verifyengine.FailureIndexFormat &&
+			stage.ExitCode == verifyengine.Interrupted
+		if stage.Interrupted || legacy130 {
 			result.Unjudged = append(result.Unjudged, stage.Stage)
 			result.UnjudgedCauses = append(result.UnjudgedCauses, unjudgedCause(stage, groups))
 			continue

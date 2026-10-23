@@ -418,18 +418,20 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, plan Pla
 		}
 		// An interrupt is read before the stage's own verdict: a stage cut short
 		// answers whatever its process died with, and the run's answer is 130.
-		// That status is no verdict on the tree, so the stage is marked
-		// interrupted and the failure index writes it as never judged.
-		if err := ctx.Err(); err != nil {
-			report.Stages[len(report.Stages)-1].Interrupted = true
-			report.Code = Interrupted
-			report.Failure = failure("interrupted", current.Identity.Name, err.Error())
-			break
-		}
+		// Only the stage's own result can say the interrupt cut it short (the
+		// runner refuses it as interrupted): that status is no verdict, so the
+		// stage is marked and the failure index writes it as never judged. A
+		// context done after the stage answered stops the run but keeps the
+		// stage's answer, because the stage finished judging first.
 		if stageReport.Failure != nil && stageReport.Failure.Kind == "interrupted" {
 			report.Stages[len(report.Stages)-1].Interrupted = true
 			report.Code = Interrupted
 			report.Failure = stageReport.Failure
+			break
+		}
+		if err := ctx.Err(); err != nil {
+			report.Code = Interrupted
+			report.Failure = failure("interrupted", current.Identity.Name, err.Error())
 			break
 		}
 		// A stage that failed or crashed is red and the next stage still runs; any

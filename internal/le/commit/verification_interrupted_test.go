@@ -9,8 +9,11 @@ package commit
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // TestAnInterruptedStructuralStageIsNeverJudgedNotCharged holds the reader
@@ -52,6 +55,26 @@ func TestAnInterruptedStructuralStageIsNeverJudgedNotCharged(t *testing.T) {
 				t.Errorf("verification state %#v does not report the unjudged stage", state)
 			}
 		})
+	}
+}
+
+// TestACurrentFormatExit130IsCharged holds that the exit-130 reading is only
+// for an index the old writer produced: the current writer never gives an
+// interrupted stage an exit, so 130 in its index is the stage's own red (a
+// child SIGINTed under a shell, say) and is charged. Method: the legacy
+// record's stage, in an index that carries the current format.
+func TestACurrentFormatExit130IsCharged(t *testing.T) {
+	root := t.TempDir()
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"format":`+
+		strconv.Itoa(verifyengine.FailureIndexFormat)+`,"stages":[{"stage":"doc wiring",
+		"reached":true,"exit-code":130,"groups":[{"group-id":"stage:doc wiring","kind":"generic",
+		"related":[],"summary":"action exited 130","rerun":"le doc wiring"}]}]}`)
+
+	reds := structuralGateReds(root, []string{"mine.txt"})
+
+	if !slices.Equal(reds.Charged, []string{"doc wiring"}) || len(reds.Unjudged) != 0 {
+		t.Fatalf("structuralGateReds = %#v, want doc wiring charged and nothing unjudged", reds)
 	}
 }
 

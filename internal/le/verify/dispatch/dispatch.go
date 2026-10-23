@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -143,7 +144,13 @@ func dispatch(
 	// this process group on purpose: the job registry's stall breaker kills
 	// verify's whole group and Ctrl-C reaches the whole foreground group, and a
 	// group of its own would let a stage outlive both.
-	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	// exec calls Cancel only when the context is done while the process still
+	// runs, so cutShort records that the cancel, not the stage, ended it.
+	var cutShort atomic.Bool
+	cmd.Cancel = func() error {
+		cutShort.Store(true)
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
 	cmd.WaitDelay = outputDrainMax
 	// The Go runtime in the stage writes a crash to this file and to nothing
 	// else (armStageCrashOutput), so a crash is told from a stage that only
@@ -164,8 +171,12 @@ func dispatch(
 			Str(outputDrainMax.String()).Str(" after the stage exited; what it wrote later is not in this log\n")
 	}
 	result.Output = output.String()
-	if err := ctx.Err(); err != nil {
-		return refused(result, "interrupted", verifyengine.Interrupted, err.Error())
+	// Only a stage the cancel cut short is interrupted. One that exited on its
+	// own before the context was done answered, and its exit is a verdict even
+	// when the interrupt has landed by now (the run loop stops after it).
+	if cutShort.Load() {
+		return refused(result, "interrupted", verifyengine.Interrupted,
+			"the run was interrupted while the stage process ran: "+context.Cause(ctx).Error())
 	}
 	var exitErr *exec.ExitError
 	if runErr != nil && !errors.As(runErr, &exitErr) && !errors.Is(runErr, exec.ErrWaitDelay) {

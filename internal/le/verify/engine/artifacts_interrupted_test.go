@@ -12,21 +12,45 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
+// TestAnInterruptedStageOutsideTheFullPopulationIsKept holds that carryForward
+// never drops an interrupted stage the full population does not name: it is
+// still written once, as interrupted. Method: carry one such stage over an
+// empty earlier index.
+func TestAnInterruptedStageOutsideTheFullPopulationIsKept(t *testing.T) {
+	cut := artifactStage{Stage: "not in any population", OutsideRun: true, Interrupted: true, Rerun: "le x"}
+	found := 0
+	for _, stage := range carryForward([]artifactStage{cut}, artifactIndex{}) {
+		if stage.Stage == cut.Stage {
+			found++
+			if !stage.Interrupted || stage.Reached || stage.ExitCode != 0 {
+				t.Fatalf("stage = %#v, want it written as interrupted", stage)
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("the interrupted stage appears %d times, want once", found)
+	}
+}
+
 // TestAStageCutShortByAnInterruptIsMarkedInterrupted holds that the run marks
-// the stage it was running when the interrupt landed, whether the run's
-// context saw it or only the runner did, and marks no stage that judged the
-// tree. Method: a runner that answers a red exit 1 after canceling, one that
-// refuses as interrupted, and one that answers a plain red.
+// a stage interrupted only when the stage's own result says the interrupt cut
+// it short, and never a stage that answered: a red that returned before the
+// run's context was canceled stays a red. Method: a runner that answers a red
+// exit 1 and then cancels, one that refuses as interrupted, and one that
+// answers a plain red.
 func TestAStageCutShortByAnInterruptIsMarkedInterrupted(t *testing.T) {
 	for name, tc := range map[string]struct {
 		cancel bool
 		result func(Identity) ActionResult
 		want   bool
 	}{
-		"context canceled": {cancel: true, want: true, result: func(identity Identity) ActionResult {
+		// The stage answered before the interrupt landed, so its red is a
+		// verdict: only the stage's own result can say it was cut short.
+		"canceled after the stage answered": {cancel: true, want: false, result: func(identity Identity) ActionResult {
 			return ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
 		}},
 		"runner refused": {want: true, result: func(identity Identity) ActionResult {
@@ -52,6 +76,9 @@ func TestAStageCutShortByAnInterruptIsMarkedInterrupted(t *testing.T) {
 			}
 			if got := report.Stages[0].Interrupted; got != tc.want {
 				t.Fatalf("first stage Interrupted = %v, want %v (%#v)", got, tc.want, report.Stages[0])
+			}
+			if tc.cancel && report.Stages[0].Code != 1 {
+				t.Fatalf("the red the stage answered was lost: %#v", report.Stages[0])
 			}
 			for _, later := range report.Stages[1:] {
 				if later.Interrupted {
@@ -82,6 +109,11 @@ func TestAnInterruptedStageIsWrittenAsNeverJudged(t *testing.T) {
 		"earlier red": {wantExit: 1, earlier: `{"commit":"old","run-dir":"tmp/old","stages":[
 			{"stage":"` + name + `","reached":true,"exit-code":1}]}`},
 		"earlier exit 130": {wantMark: true, earlier: `{"commit":"old","run-dir":"tmp/old","stages":[
+			{"stage":"` + name + `","reached":true,"exit-code":130}]}`},
+		// The current writer never gives an interrupted stage an exit, so 130
+		// in an index it wrote is the stage's own red, and it carries.
+		"earlier current-format exit 130": {wantExit: Interrupted, earlier: `{"format":` +
+			strconv.Itoa(FailureIndexFormat) + `,"commit":"old","run-dir":"tmp/old","stages":[
 			{"stage":"` + name + `","reached":true,"exit-code":130}]}`},
 		"earlier marked": {wantMark: true, earlier: `{"commit":"old","run-dir":"tmp/old","stages":[
 			{"stage":"` + name + `","reached":false,"interrupted":true,"outside-run":true}]}`},
@@ -114,6 +146,9 @@ func TestAnInterruptedStageIsWrittenAsNeverJudged(t *testing.T) {
 			var index artifactIndex
 			if err := json.Unmarshal(body, &index); err != nil {
 				t.Fatalf("parse the failure index: %v", err)
+			}
+			if index.Format != FailureIndexFormat {
+				t.Fatalf("index format = %d, want %d", index.Format, FailureIndexFormat)
 			}
 			found := 0
 			for _, stage := range index.Stages {
