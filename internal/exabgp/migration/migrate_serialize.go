@@ -225,7 +225,7 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
-	// Write behavior container (behavior > group-updates, manual-eor, auto-flush).
+	// Write behavior container (behavior > group-updates, manual-eor).
 	if behavior := tree.GetContainer("behavior"); behavior != nil {
 		buf.WriteString(indent)
 		buf.WriteString("behavior {\n")

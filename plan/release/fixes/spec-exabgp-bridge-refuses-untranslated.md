@@ -21,7 +21,7 @@ mechanism: the bridge (`internal/exabgp/bridge/`, `internal/plugins/exabgp/`), t
 the subset of ExaBGP input they know and treat the rest as nothing. Nothing records which
 input was consumed, so what was not consumed disappears: a family list that was never
 written becomes `ipv4/unicast`, a flush becomes a Warn, an explicit `announce eor` is
-swallowed by a claim, a migrated `auto-flush false` lands in a leaf nobody reads, the
+swallowed by a claim, a migrated `auto-flush false` landed in a leaf nobody read (fixed 2026-10-23: the migration drops it, as ExaBGP ignores it, and the leaf is gone), the
 dead-capability warnings look at the output tree where the capability can never be, and the
 test runner drops `option=` lines it does not know.
 
@@ -123,7 +123,7 @@ already does.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | ExaBGP sends an EOR for every `announce eor`, including after initial sync | ExaBGP `api_eor` at the pin; read before Phase 3 | the bypass is wrong; refuse with the error answer instead | read ExaBGP source at the pin and quote the function | unvalidated |
 | A-2 | The ExaBGP neighbor families are known at migration time | ExaBGP neighbor `family` block, defaults per ExaBGP | the bridge family list must follow ExaBGP's own default | migrate corpus test over `test/exabgp-compat/etc` | unvalidated |
-| A-3 | ExaBGP `auto-flush false` holds announcements until the script's `flush` | ExaBGP source at the pin | the leaf maps to another behaviour | read ExaBGP source and quote it | unvalidated |
+| A-3 | ExaBGP `auto-flush false` holds announcements until the script's `flush` | ExaBGP source at the pin | the leaf maps to another behaviour | read ExaBGP source and quote it | WRONG (2026-10-23): the only reader, `self._have_routes = self.neighbor.flush if update is None else update` in `peer.py`, was deleted by d337e1519 ("always check for new routes in outgoing RIB", first in 4.0.4). 4.2.25, 5.0.1 and f9bfb853b only parse, compare and print it, and send every route at once. `flush adj-rib out` resends the Adj-RIB-Out (`neighbor_rib_resend`), it releases nothing held. Resolved: the migration accepts `auto-flush` and writes nothing, and ze's unwired leaf is deleted |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -155,7 +155,7 @@ already does.
 | AC-3 | ExaBGP neighbor with families, migrated | the bridge block carries those families; an `exabgp { bridge }` with no family is refused at verify, naming the leaf and the fix |
 | AC-4 | `ze config migrate` on an ExaBGP config with `capability multi-session`, `capability operational` or a neighbor `operational` block | the warning fires, read from the input tree |
 | AC-5 | Script `flush` with `auto-flush false` | the flush reaches the peer through the registered `ze-bgp:peer-flush`; when it fails, the script receives the error answer |
-| AC-6 | Migrated `auto-flush false` | announcements are held until the script's flush, as ExaBGP does (A-3), proven on the wire |
+| AC-6 | Migrated `auto-flush false` | accepted, and changes nothing: the migrated peer sends announcements at once, matching ExaBGP since 4.0.4 (A-3). Done 2026-10-23: `TestMigrateAutoFlushAcceptedAndDropped` |
 | AC-7 | Script `announce eor` after the family's initial-sync marker | the marker is sent (ExaBGP behaviour, A-1); the `claimInitialSyncEOR` comment no longer cites a limit RFC 4724 Section 2 does not set |
 | AC-8 | Bridge over ExaBGP's API command corpus (the `qa/api` lines and the 4.2 and 5.0 corpora the exabgp-6 spec adopts) | every line yields a Ze command or the error answer; the test fails on a line that yields neither |
 | AC-9 | A `.ci` case with `option=update:send-default-route` or any unread `option=` | the runner refuses the case, naming the line and the fix |
@@ -165,7 +165,7 @@ already does.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | migrates an ExaBGP config with an IPv6 family | migrate, bridge family list, script announce | `test/exabgp-compat/encoding/` case for an IPv6 neighbor |
-| 2 | runs a helper using `auto-flush false` and `flush` | bridge batch, peer-flush, wire | new `test/exabgp-compat/api/api-auto-flush.ci` |
+| 2 | migrates a config with `auto-flush false` and runs a helper that announces | migration drops the keyword; bridge, wire | new `test/exabgp-compat/api/api-auto-flush.ci`: announcements leave at once, as ExaBGP sends them |
 | 3 | runs a helper that sends `announce eor` twice | bridge, `AnnounceEOR`, wire | `test/exabgp-compat/api/api-eor.ci` |
 
 ## 🧪 TDD Test Plan
@@ -192,7 +192,7 @@ already does.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `api-eor` | `test/exabgp-compat/api/` | second explicit EOR reaches the peer | |
-| `api-auto-flush` | `test/exabgp-compat/api/` | held announcements leave on flush | |
+| `api-auto-flush` | `test/exabgp-compat/api/` | with `auto-flush false`, announcements leave at once (ExaBGP since 4.0.4) | |
 | `api-check` | `test/exabgp-compat/api/` | runs once the mock reads `send-default-route`, or is refused by the runner until it does | |
 | `cli-exabgp-migrate-untranslated-refused` | `test/parse/` | migrate refuses an untranslated node with its fix | |
 
@@ -204,7 +204,7 @@ already does.
 ## Files to Modify
 - `internal/exabgp/migration/migrate.go`, `migrate_serialize.go` - consumption ledger, bridge families, refusals
 - `internal/plugins/exabgp/bridgeplugin/config.go` - remove the family fallback, refuse empty
-- `internal/exabgp/bridge/bridge_muxconn.go`, `bridge_batch.go` - flush through the registered RPC; auto-flush hold
+- `internal/exabgp/bridge/bridge_muxconn.go`, `bridge_batch.go` - flush through the registered RPC (no auto-flush hold: A-3 was wrong)
 - `internal/component/bgp/reactor/reactor_api_forward.go`, `peer.go` - explicit EOR bypass, corrected comment
 - `internal/component/config/cli/cmd_migrate.go` - warnings from the input tree
 - `internal/test/cli/cmd_exabgp.go` - refuse unknown `option=`

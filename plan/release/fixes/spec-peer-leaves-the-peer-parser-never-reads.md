@@ -87,10 +87,11 @@ landed table below. These changes remain relevant context for resuming design:
 |--------|-------|------------------|
 | `behavior { manual-eor }` reaches the wire | `parsePeerSettings` writes `PeerSettings.ManualEOR` (`internal/component/bgp/reactor/config.go`); `sendInitialRoutes` withholds the automatic End-of-RIB through `sendEORFamilies` (`internal/component/bgp/reactor/peer_initial_sync.go`) | The `api-manual-eor` ExaBGP compatibility scenario (`internal/le/interoplab/bgp/exabgp_helpers.go`). NO reactor unit test exists for it |
 | `Reactor.AddDynamicPeer` reads the tree it is given | The remote and local addresses are written under `connection`, where `parsePeerFromTree` reads them; they were written at the top of the tree, so every call failed with "missing required connection > remote > ip" | `TestAddDynamicPeerReadsTheTreeItWasGiven` (`internal/component/bgp/reactor/reactor_peers_dynamic_test.go`) |
+| `behavior/auto-flush` decided: refuse the leaf (2026-10-23) | The leaf is deleted from `ze-bgp-conf.yang`. ExaBGP has ignored `auto-flush` since d337e1519 (4.0.4) removed its only reader, so `ze exabgp migrate` accepts it and writes nothing (`copySimpleFields`, `internal/exabgp/migration/migrate.go`), and a ze config naming it is refused as an unknown field | `TestMigrateAutoFlushAcceptedAndDropped`, `TestZeConfigRefusesRemovedAutoFlush` (`internal/exabgp/migration/migrate_auto_flush_test.go`) |
 | `ze.test.bgp.port` has one declaration | `envKeyTestPort` and `PortOverrideFromEnv` moved from `internal/component/bgp/config/loader_create.go` to `internal/component/bgp/reactor/reactor_peers.go`, so the config loader and the runtime create path read one key (`ai/rules/principles.md`) | Covered by the existing test harness, which sets the key |
 
-**What did NOT land.** All ten leaves this spec names remained untouched in the
-recorded 2026-09-06 pass: `behavior/auto-flush`,
+**What did NOT land.** Nine of the ten leaves this spec names remain untouched
+(`behavior/auto-flush` was decided and removed on 2026-10-23, row above):
 `connection/link-local`, `attach/process/processes`,
 `attach/process/processes-match`, `attach/process/content/attribute`,
 `rib/adj/in`, `rib/adj/out`, `rib/out/group-updates` (the peer-level one),

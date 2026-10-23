@@ -169,6 +169,15 @@ carried as it is.
 <!-- source: internal/exabgp/migration/migrate_defaults.go -- exabgpHoldTimeDefault, exabgpGracefulRestartTime, migratedCapabilityValue -->
 <!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields, migrateCapability -->
 
+#### auto-flush
+
+ExaBGP still parses a neighbor's `auto-flush`, and has ignored it since 4.0.4:
+commit d337e1519 removed the only line that read it, so ExaBGP 4.2, 5.0 and 6.0
+send every route at once whatever it says. The migration accepts the keyword and
+writes nothing for it, so the migrated peer also sends routes at once. Ze has no
+`auto-flush` leaf, and a Ze config that names one is refused as an unknown field.
+<!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields -->
+
 #### Extended next hop for an IPv4 route
 
 ExaBGP 4.2 and 5.0 sent an IPv4 route with an IPv6 next hop without asking the

@@ -41,7 +41,6 @@ bgp {
 		}
 		behavior {
 			group-updates enable
-			auto-flush enable
 		}
 
 

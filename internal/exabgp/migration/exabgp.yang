@@ -74,6 +74,8 @@ module exabgp {
         leaf hold-time { type uint16; default 180; }
         leaf passive { type boolean; default false; }
         leaf group-updates { type boolean; default true; }
+        // Accepted and dropped: ExaBGP has not read it since 4.0.4 (migrate.go,
+        // copySimpleFields).
         leaf auto-flush { type boolean; default true; }
         leaf manual-eor { type boolean; default false; }
         // ExaBGP peer.py: `Notify(6, 2) if neighbor.shutdown`, the peer starts disabled.

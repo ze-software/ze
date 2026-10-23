@@ -735,7 +735,6 @@ bgp {
             behavior {
                 group-updates <bool>;
                 manual-eor <bool>;
-                auto-flush <bool>;
             }
 
             # Other
@@ -788,7 +787,6 @@ Peer configuration is organized into nested containers by concern.
 |---------|------|-------------|
 | `behavior { group-updates; }` | bool | Group UPDATE messages for efficiency (default: true) |
 | `behavior { manual-eor; }` | bool | Manual End-of-RIB control |
-| `behavior { auto-flush; }` | bool | Auto-flush routes |
 
 ### Other peer-level keywords
 

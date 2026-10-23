@@ -1163,13 +1163,6 @@ module ze-bgp-conf {
                     the leaf when an external controller manages the convergence signaling.";
                 ze:help "Do not send End-of-RIB automatically after the initial route advertisement.";
             }
-
-            leaf auto-flush {
-                type boolean;
-                description "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer
-                    expires. This is a legacy ExaBGP option, kept for migration.";
-                ze:help "Withdraw every route advertised to this peer when the session goes down.";
-            }
         }
 
         container shutdown {

@@ -611,7 +611,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	leafFields := []string{
 		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
 		"hold-time", "passive", "listen", "connect", "ttl-security",
-		"md5-password", "md5-base64", "group-updates", "auto-flush", "manual-eor", "shutdown",
+		"md5-password", "md5-base64", "group-updates", "manual-eor", "shutdown",
 	}
 	for _, key := range leafFields {
 		if v, ok := neighbor.Get(key); ok {
@@ -680,7 +680,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 //   - ttl-security -> connection > ttl > max
 //   - md5-password -> connection > md5 > password
 //   - group-updates -> behavior > group-updates
-//   - auto-flush -> behavior > auto-flush
+//   - manual-eor -> behavior > manual-eor
 //   - local-link-local -> session > link-local <addr>
 func copySimpleFields(src, dst *config.Tree) {
 	// Fields that remain as direct leaves on the peer.
@@ -750,9 +750,19 @@ func copySimpleFields(src, dst *config.Tree) {
 		connContainer.SetContainer("md5", md5Container)
 	}
 
-	// Three ExaBGP neighbor leaves keep their name inside ze's behavior
+	// Two ExaBGP neighbor leaves keep their name inside ze's behavior
 	// container (ze-bgp-conf.yang, peer > behavior).
-	for _, field := range []string{"group-updates", "manual-eor", "auto-flush"} {
+	//
+	// ExaBGP's `auto-flush` is accepted (exabgp.yang) and written nowhere,
+	// because ExaBGP itself ignores it. Its only reader was the line in
+	// peer.py that commit d337e1519 ("always check for new routes in
+	// outgoing RIB", 2017, first in 4.0.4) deleted:
+	//   self._have_routes = self.neighbor.flush if update is None else update
+	// Since then 4.2.25 (configuration/neighbor/__init__.py), 5.0.1
+	// (bgp/neighbor.py) and f9bfb853b (bgp/neighbor/neighbor.py) only parse,
+	// compare and print it, and every route goes out at once. Writing nothing
+	// gives a migrated peer the same effect on the remote router.
+	for _, field := range []string{"group-updates", "manual-eor"} {
 		v, ok := src.Get(field)
 		if !ok {
 			continue
