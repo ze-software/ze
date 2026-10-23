@@ -195,6 +195,31 @@ func TestAttestRefusalDerivesFromKeywordTable(t *testing.T) {
 	}
 }
 
+// TestRefuseUndeclaredWithAttestRefusesLiveKeywordWithoutGiven pins the
+// refusal's fail-closed branch: a live keyword the table declares without a
+// Given reader cannot be judged, so the attest refusal names it and refuses
+// rather than waving it through, while a removed keyword (Replacement set),
+// which parsing refuses before Options exists, is still skipped.
+//
+// MUTATION: skip a rule on Given == nil again and the first case fails.
+func TestRefuseUndeclaredWithAttestRefusesLiveKeywordWithoutGiven(t *testing.T) {
+	options := &Options{Subject: "the owner attests", Attest: "0123456789abcdef", AttestWords: "yes"}
+
+	live := map[string]keywordRule{"a-live-keyword-without-reader": {Value: true}}
+	err := refuseUndeclaredWithAttest(options, live)
+	if err == nil {
+		t.Fatal("a live keyword with no Given reader was waved through, want it refused")
+	}
+	if !strings.Contains(err.Error(), "a-live-keyword-without-reader") {
+		t.Errorf("the refusal %q does not name the keyword", err)
+	}
+
+	removed := map[string]keywordRule{"a-removed-keyword": {Replacement: "./le verify worktree"}}
+	if err := refuseUndeclaredWithAttest(options, removed); err != nil {
+		t.Errorf("a removed keyword answered %v, want it skipped", err)
+	}
+}
+
 // TestEveryCreateKeywordReadsOptions pins the table's other half: a keyword
 // Create can receive carries the reader that says whether Options holds it, so
 // the derived refusal cannot pass one over for want of a reader. Only a removed

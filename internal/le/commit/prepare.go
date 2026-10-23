@@ -601,8 +601,15 @@ func refuseUndeclaredWithAttest(options *Options, rules map[string]keywordRule) 
 			continue
 		}
 		// A removed keyword never reaches Options: parsing refuses it.
-		if rule.Given == nil {
+		if rule.Replacement != "" {
 			continue
+		}
+		// A live keyword with no Given reader cannot be judged, so the
+		// refusal says so rather than letting an attestation carry it.
+		if rule.Given == nil {
+			return errors.New("attest refused: create keyword " + keyword + " has no Given reader, " +
+				"so the attest refusal cannot tell whether an attestation carries it; " +
+				"give " + keyword + " a Given in createKeywords, in internal/le/commit/actions.go")
 		}
 		if !rule.Given(options) {
 			continue

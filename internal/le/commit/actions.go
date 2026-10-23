@@ -243,7 +243,9 @@ type keywordRule struct {
 	Usage string
 	// Given reports whether Options carries the keyword, for a refusal that
 	// judges Options rather than argv: Create is callable as Go. Every create
-	// keyword but a removed one carries it (TestEveryCreateKeywordReadsOptions).
+	// keyword but a removed one carries it (TestEveryCreateKeywordReadsOptions),
+	// and refuseUndeclaredWithAttest refuses an attestation outright while a
+	// live keyword lacks it.
 	Given func(*Options) bool
 	// WithAttest declares that an attestation may carry the keyword. Its zero
 	// value refuses it, so a keyword added without a decision is refused by
