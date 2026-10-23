@@ -7,9 +7,9 @@
 | Release reason | Recorded NAT-T and EAP repairs still owe current execution, discrimination and review evidence. |
 | Scope | protocol |
 | Depends | - |
-| Phase | 6/8 (D2: code and pages landed; runs owed, see step 6 status) |
+| Phase | 8/8 (closed: code, pages, runs and RFC records landed) |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-10-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -1141,7 +1141,7 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 
 ### Documentation Updates
 - `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `ipsec-9-ikev2-eap-nat.md`, `ipsec-13-rekey-wire.md`, `docs/guide/ipsec.md`, `docs/architecture/testing/interop.md`, `docs/contributing/patching-the-standard-library.md` and the D2 pages of the Documentation Update Checklist, each edited in the commit that changed the behaviour (commits listed under Implementation Steps, D2 status)
-- `./le doc check verify`: run by the full verify below
+- `./le doc check verify`: PASSED 2026-10-23 at closure ("Documentation tests PASSED")
 
 ### Deviations from Plan
 - See "Deviations from the plan" above (stdpatch generator package path, patchstamps path)
@@ -1152,6 +1152,7 @@ Design-phase steps (2026-10-13), each phase TDD with a self-review before the ne
 |------|---------------|----------------------|----------------|--------|
 | assumption | A-10: every type-checking tool honours a GOFLAGS `-overlay` | golangci-lint, staticcheck and govulncheck fail opening a file an overlay adds under GOROOT | probe 2026-10-14 | Q-5 raised and decided (A): patched GOROOT link tree instead of an overlay |
 | approach | the rebind rekey copied the retired pair's peer address | a port-only rebind hid it; an address move sent ESP to the old address | closure review round 1 | fixed in `5754eac4f4` |
+| tooling | the guest discrimination route could re-record the 5 Linux-only records (`rfc4301_sad_selector_linux_test.go`, `rfc4303_inbound_key_linux_test.go`) | in the macOS QEMU guest a unit that re-execs itself in a user namespace SKIPped: the namespaced child could not exec the test binary on the 9p checkout (EACCES), and its coverage never reached the profile, so the recorder refused each clean run as "never executes" | closure, re-recording the records `installChildSA` staled (2026-10-23) | `guestScript` (`internal/le/rfc/discriminate_guest.go`) runs a guest-local copy (`d586325f2a`) and passes `-test.gocoverdir=` (`dbf2cd2bc7`); records re-recorded in `deb6ee4359`; journal `gate-verdict-depends-on-the-machine.md` |
 
 ## Implementation Audit
 
@@ -1253,6 +1254,8 @@ Round 4: 0 BLOCKER, 0 ISSUE, three NOTEs (the "ze defect" refusal in `installChi
 | AC-1, AC-5, AC-6, AC-11, AC-14, AC-2 | whole stack against strongSwan 5.9.14 | "Interop Tests", "Runs of 2026-10-21": every scenario green (AC-5's three real-nat scenarios 18:56 to 18:59), walks recorded |
 | AC-1 | Linux XFRM state read back | `TestRFC3948InstalledStateCarriesTheIKEPeerPort` PASS 19:31, runtime kernel `7.2.9-runtime-arm64-runtime-docker-387d6b76` |
 | all unit ACs | unit suites green | `./le verify worktree` over `40e5a5ea23` (2026-10-22 00:25, log `tmp/verify-worktree-logs/20261021T232548.747872000Z-p71703-r1-40e5a5ea239c`): stopped at stage 49 of 55 when the disk fell to 2.9 GB, no verdict. In what ran, `ike/cmd`, `ike/dataplane`, `ike/ipsec`, `ike/transport`, `ike/wire`, `ike/yang`, `stdpatch/gen` and `test/interop-ipsec` passed. The reds are other sessions' packages: `bgp/configjson`, `le/job`, `le/repo`, `le/test/sensitivity`, `test/runner`, `test/interop-l2tp`, `exabgp/bridge`, `le/ai/rules`, `plugins/signal`, plus the repo tree, sensitivity, doc links (5 dead paths in `ai/doors/api-surfaces.md`, `linux-limitations.md`, `running-commands.md`), site facts, vulnerability, rfc check, doc wiring, retired-commands and exabgp stages. `ike/engine` and `core/eap` were not reached in this run; they last passed on 2026-10-21 (handover 14), and their code has not changed since `a1cbd95e05` |
+| all unit ACs | scoped suites green at closure, 2026-10-23 over `2e7ebbcbff` (by the owner's rule: the packages the change reaches, no full verify) | `./le job run ... go test -race -count=1`: `ike/cmd`, `ike/crypto`, `ike/dataplane`, `ike/engine` (71s), `ike/ipsec`, `ike/transport`, `ike/wire`, `ike/yang`, `core/eap`, `le/rfc` (192s), `le/rfc/skeletons`, `le/interoplab/ipsec`, `le/go/stdpatch/gen`, `le/go/patchstamps` all `ok`. The working tree under `ike/engine` also held another session's uncommitted `established.go` and `childless_lifecycle_test.go` |
+| AC-3 | RFC proof records fresh for this spec's rows | `./le rfc check` 2026-10-23: none of RFC3948-2.1-2, RFC5216-2.1.1-4, RFC4301-4.4.2-1, RFC4301-5.2-2, RFC4303-2.1-2, RFC7296-1.4.1-1 flagged. RFC7296-1.4.1-1's mutant record (`delete.go::sendDeleteESP`, `tr == nil` -> `true`) and its re-judge were written by session 5f8a1c15 and ride in this commit by the owner's decision. The IKE rows it does flag (RFC3948-3.1.2-1, RFC7296-2.7-1, RFC7296-2.21.4-8) come from other sessions' uncommitted `checkers.go` and `established.go::maintainSA` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -1280,4 +1283,4 @@ Round 4: 0 BLOCKER, 0 ISSUE, three NOTEs (the "ze defect" refusal in `installChi
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | ipsec-9 rebind: charon's `update_hosts` reading | `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` line naming `update_hosts`, against A-7 | yes |
-| pages and anchors | `./le doc check verify` in the full verify | doc check/links red on five dead paths, none on a page this spec edited; doc wiring red, not attributed to this spec's pages in the log |
+| pages and anchors | `./le doc check verify`, 2026-10-23 at closure | yes: "Documentation tests PASSED" |

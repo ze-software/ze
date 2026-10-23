@@ -6,8 +6,8 @@
     "unit-sha": "7a2412d6cec63b28",
     "claim-sha": "d8fc7d7b028fea3e",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-    "producer-sha": "c3d60974dc4ed15f",
-    "break": "line 459: \"ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)\" -\u003e \"_ = tr\""
+    "producer": "internal/component/ike/engine/delete.go::sendDeleteESP",
+    "producer-sha": "88333ed346db9a88",
+    "break": "line 105: \"tr == nil\" -\u003e \"true\""
   }
 ]
