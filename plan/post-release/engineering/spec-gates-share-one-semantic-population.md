@@ -238,7 +238,7 @@ with the reason, instead of being matched or missed by a pattern.
 
 ## Owned journal rows
 
-117 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
+119 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -370,6 +370,8 @@ with the reason, instead of being matched or missed by a pattern.
 | feature-test-missing-build-tag | 2026-09-17 | always-on `mtu/cmd/overhead.go` imports `ike/crypto`, kept in the bare `ze_core` binary |
 | gate-excludes-part-of-its-population | 2026-08-31 | discriminate-record revert route cannot prove a producer on a background goroutine |
 | gate-excludes-part-of-its-population | 2026-09-07 | `deriveTaglessConfig`: four lint flavors run no gocritic |
+| unwired-feature | 2026-08-19 | `examples/plugin/go` separate module no gate compiles (`residue` in `internal/le/go/lint/verifylint.go`) |
+| unwired-feature | 2026-08-19 | netns `caps=net-admin` tests chosen by the hand list `netnsSelections` (`internal/le/test/qemu/netns_linux.go`) |
 
 ## Rows found already fixed
 

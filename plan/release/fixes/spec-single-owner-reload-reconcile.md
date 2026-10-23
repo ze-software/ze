@@ -255,17 +255,17 @@ refused at commit.
 | unwired-feature | 2026-09-20 | isis `buildCircuit` never sees a committed `net` or `system-id` change |
 | unwired-feature | 2026-08-31 | bmp `environment` reload never re-applies the receiver |
 | announced-state-never-replayed | 2026-09-06 | `api-reload.1.conf` two static routes, one advertised |
-| check-mode-mutates-the-tree | 2026-10-11 | bgp `createReloadFunc` applies dynamic groups during verify |
 | gate-excludes-part-of-its-population | 2026-08-25 | `Server.ReloadConfig` verifies no plugin for a root the reload adds |
 | unwired-feature | 2026-09-06 | reload of a running `ze` daemon from the ExaBGP test runner |
 
-15 rows.
+16 rows.
 
 ## Rows found already fixed
 
 | Class file | Date | Surface (short) | Evidence |
 |------------|------|-----------------|----------|
 | rollback-forgets-partial-apply | 2026-09-23 | VRRP shared-sysctl restore | `internal/plugins/vrrp/dataplane_linux.go` retains failed restorations independently of group references (comments on the restore and compaction helpers), and `dataplane_failure_linux_test.go` carries the rollback-failure and teardown-retry regressions the row names. Tests not run by this agent |
+| check-mode-mutates-the-tree | 2026-10-11 | bgp `createReloadFunc` applies dynamic groups during verify | AC-23 of the closed spec-bgp-live-receive-binding-and-bfd-keep-session (`a7b42bdc54`): `createReloadFunc` (`internal/component/bgp/config/loader_create.go`) now returns the groups and applies nothing; `TestTreeRouteLeavesDynamicGroupsUnchanged` (`reactor_dynamic_swap_test.go`). Row closed in its journal file |
 
 ## Rows considered and not owned
 

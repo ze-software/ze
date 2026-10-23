@@ -214,6 +214,12 @@ WHEN the marker goes out.
 |---------|----------|
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| grace-bound-hides-a-missing-signal | 2026-08-30 | `(*Peer).SignalAPIReady` anonymous sync counter masks a missing route-process signal |
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)

@@ -337,6 +337,7 @@ sentences quoted in Required Reading.
 | `silent-fall-through.md` | 2026-10-17 | `BGPConsumer.InjectRoute` warning read as announced=0 | F1 |
 | `silent-fall-through.md` | 2026-10-15 | `cos.Resolve` nil maps with no resolver | F1 |
 | `silent-fall-through.md` | 2026-10-13 | mrt peer state handlers' failed type assertion | F1 |
+| `silent-fall-through.md` | 2026-10-13 | `yangTypeToValueType` maps a union list key to `TypeString`, so `ValidateListKey` never checks its member types | F2 |
 | `silent-fall-through.md` | 2026-10-12 | doctor `collectSchemaListeners` falls back to a hardcoded list | F1 |
 | `silent-fall-through.md` | 2026-10-08 | debug `setModuleSetting` drops trailing keywords | F2 |
 | `silent-fall-through.md` | 2026-10-07 | `captureRawStart` answers done when it cannot capture | F1 |
@@ -374,7 +375,7 @@ sentences quoted in Required Reading.
 | `silent-fall-through.md` | 2026-10-20 | ddos responder, exabgp bridge, flowexport enrichment declare no BGP dependency | F1 |
 | `silent-fall-through.md` | 2026-10-20 | redistribute `destination`, ls_export `source` not checked against the registry | F1 |
 
-50 rows.
+51 rows.
 
 ## Rows found already fixed
 
