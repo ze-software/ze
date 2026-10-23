@@ -53,6 +53,12 @@ type structuralReds struct {
 	// Causes says, for each charged stage in Charged order, why it is charged,
 	// the command that diagnoses it, and the verify runs that clear it.
 	Causes []string
+	// Unjudged names the structural stages an interrupt cut short. Such a
+	// stage holds no verdict, so it is not charged: the verify certificate is
+	// already STALE, and UnjudgedCauses says, for each in order, that it was
+	// never judged, why, and the command that judges it.
+	Unjudged       []string
+	UnjudgedCauses []string
 }
 
 type failureIndex struct {
@@ -78,6 +84,10 @@ type failureStage struct {
 	// no run judged.
 	OutsideRun  bool           `json:"outside-run"`
 	CarriedFrom *failureOrigin `json:"carried-from"`
+	// Interrupted marks a stage an interrupt cut short, and Rerun the command
+	// that judges it (artifactStage in internal/le/verify/engine).
+	Interrupted bool   `json:"interrupted"`
+	Rerun       string `json:"rerun"`
 }
 
 type failureGroup struct {
@@ -117,6 +127,16 @@ func structuralGateReds(root string, paths []string) structuralReds {
 		if !structural[stage.Stage] {
 			continue
 		}
+		var groups []failureGroup
+		groupsReadable := json.Unmarshal(stage.Groups, &groups) == nil
+		// An interrupted stage holds no verdict, so it is reported as never
+		// judged and not charged. An index written before the writer marked
+		// interruption records the run's interrupt status as the stage's exit.
+		if stage.Interrupted || stage.ExitCode == verifyengine.Interrupted {
+			result.Unjudged = append(result.Unjudged, stage.Stage)
+			result.UnjudgedCauses = append(result.UnjudgedCauses, unjudgedCause(stage, groups))
+			continue
+		}
 		if stage.Reached != nil && !*stage.Reached {
 			if stage.OutsideRun {
 				continue
@@ -131,8 +151,6 @@ func structuralGateReds(root string, paths []string) structuralReds {
 		if stage.ExitCode == 0 {
 			continue
 		}
-		var groups []failureGroup
-		groupsReadable := json.Unmarshal(stage.Groups, &groups) == nil
 		blind := make([]string, 0)
 		owned := false
 		if !groupsReadable || len(groups) == 0 {
@@ -199,6 +217,28 @@ func redCause(stage failureStage, groups []failureGroup) string {
 	return stage.Stage + ": red " + origin + ", carried because the latest run did not run it" + tail
 }
 
+// unjudgedCause says that an interrupted structural stage was never judged,
+// why, and the command that judges it: the stage's own Rerun, else the first
+// rerun its groups name (an index written before Rerun existed), else the full
+// verify run.
+func unjudgedCause(stage failureStage, groups []failureGroup) string {
+	judge := stage.Rerun
+	for _, group := range groups {
+		if judge != "" {
+			break
+		}
+		if named, ok := group.Rerun.(string); ok {
+			judge = named
+		}
+	}
+	if judge == "" {
+		judge = rerunAllStages
+	}
+	return stage.Stage + ": never judged, because the verify run was interrupted while it ran" +
+		" (it holds no verdict and is not charged); judge it with: " + judge + "; " +
+		clearingRuns(stage.Stage)
+}
+
 // clearingRuns names the verify runs whose index rewrites the named stage's
 // entry: the full run, the piece of a cut run that holds it, and the fast run
 // when the fast population holds the stage. The fast membership is read from
@@ -256,6 +296,13 @@ func verificationState(root string, paths []string) VerificationState {
 	}
 	if freshness.Fresh {
 		state.State = verifyFresh
+		return state
+	}
+	// A stale certificate's report names each structural stage an interrupt
+	// left unjudged, so the commit says why it is not charged and how to
+	// judge it.
+	for _, cause := range structuralGateReds(root, paths).UnjudgedCauses {
+		state.Detail += "; " + cause
 	}
 	return state
 }

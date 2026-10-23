@@ -121,6 +121,10 @@ type StageReport struct {
 	Start   time.Time `json:"start"`
 	Seconds float64   `json:"seconds"`
 	Failure *Failure  `json:"failure,omitempty"`
+	// Interrupted is set on the stage the run was executing when an interrupt
+	// landed. Its Code is whatever its process died with, so it holds no
+	// verdict on the tree: the failure index writes it as never judged.
+	Interrupted bool `json:"interrupted,omitempty"`
 }
 
 type Report struct {
@@ -414,12 +418,16 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, plan Pla
 		}
 		// An interrupt is read before the stage's own verdict: a stage cut short
 		// answers whatever its process died with, and the run's answer is 130.
+		// That status is no verdict on the tree, so the stage is marked
+		// interrupted and the failure index writes it as never judged.
 		if err := ctx.Err(); err != nil {
+			report.Stages[len(report.Stages)-1].Interrupted = true
 			report.Code = Interrupted
 			report.Failure = failure("interrupted", current.Identity.Name, err.Error())
 			break
 		}
 		if stageReport.Failure != nil && stageReport.Failure.Kind == "interrupted" {
+			report.Stages[len(report.Stages)-1].Interrupted = true
 			report.Code = Interrupted
 			report.Failure = stageReport.Failure
 			break

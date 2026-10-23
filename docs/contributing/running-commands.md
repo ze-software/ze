@@ -1030,7 +1030,13 @@ names the runs whose index rewrites the entry: `le verify worktree`, the
 `le verify worktree part <i> of <n>` piece that holds the stage, and
 `le verify current fast` when the fast population holds it. A stage no
 run has judged is listed as never judged and is not charged: not running a
-stage is the derived verification debt's business, not a red. So a green
+stage is the derived verification debt's business, not a red. A stage an
+interrupt cut short is the same: its exit is what its process died with, not a
+verdict, so the index writes it `interrupted` with no exit and no group (or
+carries the earlier verdict for it), and the commit report names it as never
+judged, with its own rerun as the command that judges it, without charging it.
+An index written before that marker existed records the interrupt status 130
+as the stage's exit, and the gate reads that the same way. So a green
 `verify current fast` charges nothing for the stages it drops, and a green
 `le verify worktree all of <m>` sweep of every piece leaves no structural charge. A
 missing or malformed earlier index is treated as empty, and the index's

@@ -57,6 +57,12 @@ type Group struct {
 // for it, with CarriedFrom naming the run that judged it (carryForward). One
 // no earlier run judged is not reached and carries nothing: it is unjudged,
 // never red, and a reader MUST NOT read its zero exit as a green.
+//
+// A stage an interrupt cut short is not held either: its exit status is what
+// its process died with, not a verdict. It takes the earlier verdict like any
+// stage the run did not finish, and with none it is written Interrupted, not
+// reached and with no exit or group, so the commit gate reports it as never
+// judged and does not charge it.
 type artifactStage struct {
 	Stage       string         `json:"stage"`
 	Reached     bool           `json:"reached"`
@@ -67,6 +73,11 @@ type artifactStage struct {
 	Groups      []Group        `json:"groups,omitempty"`
 	OutsideRun  bool           `json:"outside-run,omitempty"`
 	CarriedFrom *carriedOrigin `json:"carried-from,omitempty"`
+	// Interrupted marks a stage an interrupt cut short. It is never reached,
+	// carries no exit status and no group, and Rerun names the command that
+	// judges it: a reader reports it as never judged, never as red.
+	Interrupted bool   `json:"interrupted,omitempty"`
+	Rerun       string `json:"rerun,omitempty"`
 }
 
 // carriedOrigin names the run whose verdict a carried stage repeats.
@@ -102,6 +113,16 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 		Stages: make([]artifactStage, 0, len(report.Stages)+len(report.Unreached)),
 	}
 	for _, stage := range report.Stages {
+		if stage.Interrupted {
+			// The run did not finish this stage, so it holds it no more than a
+			// stage it never started: carryForward gives it the earlier
+			// verdict, or writes it as interrupted and never judged.
+			index.Stages = append(index.Stages, artifactStage{
+				Stage: stage.Identity.Name, OutsideRun: true, Interrupted: true,
+				DetailLog: stage.Log, Rerun: "le " + invocation(stage.Identity),
+			})
+			continue
+		}
 		result := artifactStage{
 			Stage: stage.Identity.Name, Reached: true, ExitCode: stage.Code, DetailLog: stage.Log,
 			Start: stage.Start.UTC().Format(time.RFC3339), Seconds: stage.Seconds,
@@ -265,7 +286,12 @@ func earlierRun(commit, runDir string) string {
 func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 	result := make([]artifactStage, 0, len(stages))
 	held := make(map[string]bool, len(stages))
+	interrupted := make(map[string]artifactStage)
 	for index := range stages {
+		if stages[index].Interrupted {
+			interrupted[stages[index].Stage] = stages[index]
+			continue
+		}
 		if stages[index].OutsideRun {
 			continue
 		}
@@ -283,14 +309,27 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 			continue
 		}
 		entry := artifactStage{Stage: name, OutsideRun: true}
-		if was, found := earlier[name]; found {
-			if judged(was) {
-				entry = was
-				entry.Reached = true
-				entry.OutsideRun = true
-				if entry.CarriedFrom == nil {
-					entry.CarriedFrom = &origin
-				}
+		was, found := earlier[name]
+		// Every population a run holds (full, fast, a piece) is a subset of
+		// the full one, so each interrupted stage is met here.
+		cut, cutShort := interrupted[name]
+		switch {
+		case found && judged(was):
+			entry = was
+			entry.Reached = true
+			entry.OutsideRun = true
+			if entry.CarriedFrom == nil {
+				entry.CarriedFrom = &origin
+			}
+		case cutShort:
+			entry = cut
+		case found && interruptedEntry(was):
+			// No run has judged the stage since an interrupt cut it short,
+			// so it stays reported as interrupted rather than silently
+			// unjudged.
+			entry = artifactStage{
+				Stage: name, OutsideRun: true, Interrupted: true,
+				DetailLog: was.DetailLog, Rerun: interruptedRerun(was),
 			}
 		}
 		result = append(result, entry)
@@ -298,12 +337,43 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 	return result
 }
 
-// judged reports whether an earlier index entry holds a verdict to carry.
+// judged reports whether an earlier index entry holds a verdict to carry. A
+// stage an interrupt cut short holds none, whichever way it was written.
 func judged(stage artifactStage) bool {
+	if interruptedEntry(stage) {
+		return false
+	}
 	if stage.Reached {
 		return true
 	}
 	return stage.ExitCode != 0
+}
+
+// interruptedEntry reports whether an index entry records a stage an
+// interrupt cut short: the Interrupted marker, or, in an index written before
+// the marker existed, the run's interrupt status (Interrupted, 130) as the
+// stage's exit. The engine assigns that status to an interrupt, so it never
+// stands for a verdict on the tree.
+func interruptedEntry(stage artifactStage) bool {
+	if stage.Interrupted {
+		return true
+	}
+	return stage.ExitCode == Interrupted
+}
+
+// interruptedRerun answers the command that judges an interrupted entry: its
+// own Rerun, or the first rerun its groups name in an index written before
+// Rerun existed. Empty when neither names one.
+func interruptedRerun(stage artifactStage) string {
+	if stage.Rerun != "" {
+		return stage.Rerun
+	}
+	for index := range stage.Groups {
+		if stage.Groups[index].Rerun != "" {
+			return stage.Groups[index].Rerun
+		}
+	}
+	return ""
 }
 
 // PublishFailureIndex publishes the failure index a run wrote under source into
@@ -425,10 +495,12 @@ func failureIndexText(index artifactIndex) string {
 	if index.StoppedAt != "" {
 		text.Str("Stopped at first red: ").Str(index.StoppedAt).Byte('\n')
 	}
-	var stopped, carried, unjudged []string
+	var stopped, carried, unjudged, interrupted []string
 	for position := range index.Stages {
 		stage := &index.Stages[position]
 		switch {
+		case stage.Interrupted:
+			interrupted = append(interrupted, stage.Stage+" (judge it with: "+stage.Rerun+")")
 		case !stage.OutsideRun && !stage.Reached:
 			stopped = append(stopped, stage.Stage)
 		case stage.OutsideRun && stage.Reached:
@@ -445,6 +517,7 @@ func failureIndexText(index artifactIndex) string {
 		{"Not reached, the run stopped at its first red: ", stopped},
 		{"Not run by this run, carried from an earlier run: ", carried},
 		{"Not run by this run and never judged: ", unjudged},
+		{"Cut short by an interrupt and never judged: ", interrupted},
 	} {
 		if len(list.stages) != 0 {
 			text.Str(list.heading).Join(list.stages, ", ").Byte('\n')
