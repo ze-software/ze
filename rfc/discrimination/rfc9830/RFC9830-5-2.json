@@ -7,14 +7,14 @@
     "claim-sha": "fa2cfb50e74f53b7",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-    "producer-sha": "222e2e233e9e8539",
+    "producer-sha": "826126729e221442",
     "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9830-5-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
-    "unit-sha": "ff627cd3103761a1",
+    "unit-sha": "f4cf52e8db297093",
     "claim-sha": "0493c132d1cb20d2",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
@@ -25,11 +25,11 @@
     "rid": "RFC9830-5-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
-    "unit-sha": "ff627cd3103761a1",
+    "unit-sha": "f4cf52e8db297093",
     "claim-sha": "43e93e4900aab50c",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-    "producer-sha": "222e2e233e9e8539",
+    "producer-sha": "826126729e221442",
     "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

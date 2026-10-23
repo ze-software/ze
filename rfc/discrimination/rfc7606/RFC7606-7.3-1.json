@@ -7,7 +7,7 @@
     "claim-sha": "e7bf973e75df440d",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-    "producer-sha": "222e2e233e9e8539",
+    "producer-sha": "826126729e221442",
     "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]
