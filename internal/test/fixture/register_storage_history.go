@@ -351,7 +351,7 @@ func storageCommandEnv(ctx context.Context, extra []string, args ...string) ([]b
 	deadline, cancel := context.WithTimeout(ctx, WaitBudget(75, 25*time.Second))
 	defer cancel()
 	command := exec.CommandContext(deadline, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
-	command.Env = append(os.Environ(), extra...)
+	command.Env = childEnvironmentAssignments(os.Environ(), extra...)
 	return command.CombinedOutput()
 }
 

@@ -475,6 +475,12 @@ key before setting it. Otherwise the runner's dotted `ze.config.dir` outranks
 `ZE_CONFIG_DIR` and sends client initialization into the daemon's locked store.
 <!-- source: internal/test/fixture/plugin_fixture_04_cli.go -- overrideEnv04 -->
 
+Other subprocess fixtures use `childEnvironment` or
+`childEnvironmentAssignments` when overriding their private configuration store
+or repository root. These helpers remove aliases before applying overrides;
+appending `ZE_CONFIG_DIR` or `ZE_REPO_ROOT` alone does not isolate the child.
+<!-- source: internal/test/fixture/fixture.go -- childEnvironment, childEnvironmentAssignments -->
+
 The IRR-over-SSH reload fixture puts SSH and its BGP peer on different loopback
 addresses so the runner's existing two-port lease also covers the IRR mock.
 <!-- source: test/reload/bgp-filter-irr-loaded-over-ssh.ci -->

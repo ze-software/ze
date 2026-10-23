@@ -40,27 +40,9 @@ type pluginShellExtra2Result struct {
 	err    error
 }
 
-func pluginShellExtra2Env(overrides map[string]string) []string {
-	base := os.Environ()
-	if len(overrides) == 0 {
-		return base
-	}
-	result := make([]string, 0, len(base)+len(overrides))
-	for _, entry := range base {
-		key, _, _ := strings.Cut(entry, "=")
-		if _, replaced := overrides[key]; !replaced {
-			result = append(result, entry)
-		}
-	}
-	for key, value := range overrides {
-		result = append(result, key+"="+value)
-	}
-	return result
-}
-
 func pluginShellExtra2Run(ctx context.Context, env map[string]string, stdin string, args ...string) pluginShellExtra2Result {
 	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the arguments
-	command.Env = pluginShellExtra2Env(env)
+	command.Env = childEnvironment(os.Environ(), env)
 	if stdin != "" {
 		command.Stdin = strings.NewReader(stdin)
 	}
@@ -73,7 +55,7 @@ func pluginShellExtra2Run(ctx context.Context, env map[string]string, stdin stri
 
 func pluginShellExtra2RunCombined(ctx context.Context, env map[string]string, args ...string) pluginShellExtra2Result {
 	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the arguments
-	command.Env = pluginShellExtra2Env(env)
+	command.Env = childEnvironment(os.Environ(), env)
 	var output bytes.Buffer
 	command.Stdout = &output
 	command.Stderr = &output
@@ -104,7 +86,7 @@ func pluginShellExtra2StartDaemon(ctx context.Context, config, logPath string, e
 		return nil, err
 	}
 	command := exec.CommandContext(ctx, "ze", "start", config) //nolint:gosec // the fixture chooses the program and its arguments
-	command.Env = pluginShellExtra2Env(env)
+	command.Env = childEnvironment(os.Environ(), env)
 	command.Stdout = os.Stdout
 	command.Stderr = logFile
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

@@ -64,7 +64,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 		}
 	}
 
-	env := replaceWeeklyEnv(os.Environ(), "ZE_REPO_ROOT", fixture)
+	env := childEnvironment(os.Environ(), map[string]string{"ZE_REPO_ROOT": fixture})
 	run := func(args ...string) weeklyCommandResult {
 		productArgs := append([]string{"weekly"}, args...)
 		return runWeeklyCommand(ctx, here, env, binary, productArgs...)
@@ -213,15 +213,4 @@ func runWeeklyCommand(ctx context.Context, dir string, env []string, name string
 		stderr:   stderr.String(),
 		exitCode: exitCode,
 	}
-}
-
-func replaceWeeklyEnv(env []string, key, value string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(env)+1)
-	for _, item := range env {
-		if !strings.HasPrefix(item, prefix) {
-			out = append(out, item)
-		}
-	}
-	return append(out, prefix+value)
 }

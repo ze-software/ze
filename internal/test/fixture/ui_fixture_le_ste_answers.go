@@ -84,7 +84,7 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("the newly committed export is not clean: %q", status.stdout)
 	}
 
-	productEnv := leSTESetEnv(os.Environ(), "ZE_REPO_ROOT", export)
+	productEnv := childEnvironment(os.Environ(), map[string]string{"ZE_REPO_ROOT": export})
 	le := func(args ...string) leSTEResult {
 		return leSTERun(ctx, here, productEnv, binary, args...)
 	}
@@ -465,17 +465,6 @@ func leSTEExtractTar(r io.Reader, destination string) error {
 		}
 	}
 	return nil
-}
-
-func leSTESetEnv(environment []string, key, value string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(environment)+1)
-	for _, entry := range environment {
-		if !strings.HasPrefix(entry, prefix) {
-			out = append(out, entry)
-		}
-	}
-	return append(out, prefix+value)
 }
 
 func leSTEWithin(parent, child string) bool {

@@ -24,7 +24,7 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 	}
 	defer os.RemoveAll(configDir) //nolint:errcheck // best-effort fixture cleanup
 
-	env := p12SetEnv(os.Environ(), "ZE_CONFIG_DIR", configDir)
+	env := childEnvironment(os.Environ(), map[string]string{"ZE_CONFIG_DIR": configDir})
 	if err := p12RunCommand(ctx, env, strings.NewReader("readonly\nreadonlypass\n127.0.0.1\n2222\n"), io.Discard, "init"); err != nil {
 		return fmt.Errorf("ze init: %w", err)
 	}
@@ -52,7 +52,7 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 	if err := os.WriteFile(configPath, []byte(p12WebRBACConfig), 0o600); err != nil {
 		return err
 	}
-	env = p12SetEnv(env, "ze_test_bgp_port", strconv.Itoa(12000+os.Getpid()%40000))
+	env = childEnvironment(env, map[string]string{"ze_test_bgp_port": strconv.Itoa(12000 + os.Getpid()%40000)})
 	daemonLog, err := os.Create("daemon.log")
 	if err != nil {
 		return err
@@ -78,17 +78,6 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 	}
 	_ = daemonLog.Close()
 	return checkErr
-}
-
-func p12SetEnv(current []string, key, value string) []string {
-	prefix := key + "="
-	result := make([]string, 0, len(current)+1)
-	for _, entry := range current {
-		if !strings.HasPrefix(entry, prefix) {
-			result = append(result, entry)
-		}
-	}
-	return append(result, prefix+value)
 }
 
 func p12RunCommand(ctx context.Context, env []string, stdin io.Reader, stdout io.Writer, args ...string) error {

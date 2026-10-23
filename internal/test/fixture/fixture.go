@@ -350,8 +350,8 @@ func Poll(ctx context.Context, attempts int, delay time.Duration, predicate func
 // key to the reader and two entries in the environment. env.Set writes the
 // canonical DOT spelling, which is deliberate and documented there, so a fixture
 // that inherits a root from a caller and sets `ZE_REPO_ROOT` beside it hands the
-// child both. Which one wins is the order env.ensureCache happens to meet them
-// in, and the fixture's own value is not the one that has to survive it.
+// child both. env.ensureCache gives a dotted spelling priority regardless of
+// order, so an appended uppercase override need not be the value the child reads.
 //
 // The verify engine is exactly that caller: dispatch.go sets `ze.repo.root` to
 // the worktree before every action. Measured 2026-09-19 -- five `le-*` ui
