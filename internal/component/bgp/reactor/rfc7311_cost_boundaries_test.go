@@ -96,13 +96,22 @@ func TestRFC7311RecursiveZeroCostRemainsAnnounced(t *testing.T) {
 // RFC 8950 Section 3: "When the AFI/SAFI is <1/1>, <1/2>, or <1/4> and when
 // the Length of Next Hop Address field is equal to 16 or 32, the next-hop
 // address is of type IPv6."
+// A destination never advertised the route sees nothing on the withhold (RFC
+// 4271 Section 3.1) and still receives it once the cost is known; one holding
+// the route sees exactly one withdrawal first.
 // RFC requirement: RFC7311-3.4.3-7 positive -- a retained IPv4 route with a negotiated IPv6 next hop recovers with recomputed AIGP after a metric change, without a new source UPDATE.
 // RFC requirement: RFC7311-3.4.3-7 negative -- replay must not silently lose a cost-withheld route by forcing an extended next hop into legacy IPv4 framing.
 func TestRFC7311ExtendedNextHopCostRecovery(t *testing.T) {
-	for _, paired := range []bool{false, true} {
+	for _, tc := range []struct{ paired, advertised bool }{{false, false}, {false, true}, {true, false}, {true, true}} {
 		name := "global-16"
+		paired, advertised := tc.paired, tc.advertised
 		if paired {
 			name = "global-and-link-local-32"
+		}
+		if advertised {
+			name += "/advertised-first"
+		} else {
+			name += "/never-advertised"
 		}
 		t.Run(name, func(t *testing.T) {
 			f := newAIGPReplayFixture(t, nil)
@@ -141,17 +150,23 @@ func TestRFC7311ExtendedNextHopCostRecovery(t *testing.T) {
 			}
 			attrs = append(attrs, mp...)
 			received := makeUpdateBody(nil, attrs, nil)
-			f.advertiseFirst(t, received)
+			withheldFrames := 0
+			if advertised {
+				f.advertiseFirst(t, received)
+				withheldFrames = 1
+			}
 			f.forward(t, f.receive(t, received))
 			forwardSocketBarrier(t, f.r)
 			bodies := aigpSocketBodies(t, f.conn)
-			if len(bodies) != 1 {
-				t.Fatalf("withheld UPDATE count=%d, want 1", len(bodies))
+			if len(bodies) != withheldFrames {
+				t.Fatalf("withheld UPDATE count=%d, want %d", len(bodies), withheldFrames)
 			}
-			legacyWithdraw := []byte{0, 4, 24, 10, 20, 0, 0, 0}
-			mpWithdraw := []byte{0, 0, 0, 10, 0x80, 15, 7, 0, 1, 1, 24, 10, 20, 0}
-			if !bytes.Equal(bodies[0], legacyWithdraw) && !bytes.Equal(bodies[0], mpWithdraw) {
-				t.Fatalf("unavailable extended-next-hop cost did not withdraw the exact route: %x", bodies[0])
+			if advertised {
+				legacyWithdraw := []byte{0, 4, 24, 10, 20, 0, 0, 0}
+				mpWithdraw := []byte{0, 0, 0, 10, 0x80, 15, 7, 0, 1, 1, 24, 10, 20, 0}
+				if !bytes.Equal(bodies[0], legacyWithdraw) && !bytes.Equal(bodies[0], mpWithdraw) {
+					t.Fatalf("unavailable extended-next-hop cost did not withdraw the exact route: %x", bodies[0])
+				}
 			}
 			protocol := redistevents.RegisterProtocol("aigp-readvertise-test")
 			prefix := netip.PrefixFrom(hop, 128)
@@ -160,10 +175,10 @@ func TestRFC7311ExtendedNextHopCostRecovery(t *testing.T) {
 			f.r.readvertiseAIGP()
 			forwardSocketBarrier(t, f.r)
 			bodies = aigpSocketBodies(t, f.conn)
-			if len(bodies) != 2 {
-				t.Fatalf("extended-next-hop recovery UPDATE count=%d, want 2; retained MP route was not restored", len(bodies))
+			if len(bodies) != withheldFrames+1 {
+				t.Fatalf("extended-next-hop recovery UPDATE count=%d, want %d; retained MP route was not restored", len(bodies), withheldFrames+1)
 			}
-			body := bodies[1]
+			body := bodies[withheldFrames]
 			sections, err := wire.ParseUpdateSections(body)
 			if err != nil {
 				t.Fatal(err)

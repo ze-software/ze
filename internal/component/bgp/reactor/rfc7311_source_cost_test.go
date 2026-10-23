@@ -132,18 +132,20 @@ func TestRFC7311SourceLinkCostReachesRecipient(t *testing.T) {
 // TestRFC7311UnknownCostWithdrawsUntilMetricRecovers checks the recipient's
 // route, not only attribute absence: an unavailable increment cannot turn an
 // AIGP route into an attribute-free next-hop-self announcement. A later distance
-// update must recover the retained route without a new received UPDATE.
+// update must recover the retained route without a new received UPDATE. Three
+// starts: a destination never advertised the route sees nothing on the withhold
+// (RFC 4271 Section 3.1) and still receives the route once the cost is known; a
+// destination holding an earlier generation, and one advertised this route with
+// a known cost, each see exactly one withdrawal before the recovery.
 // RFC 7311 Section 3.4.3: "However, A MUST be increased by a non-zero amount."
 // RFC requirement: RFC7311-3.4.3-6 negative -- missing direct-link cost withdraws the route instead of announcing next-hop-self without its required AIGP increment.
 // RFC requirement: RFC7311-3.4.3-6 positive -- a known nonzero distance restores the original received route and adds that distance exactly once.
 func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 	for _, rail := range []string{"general", "rs-cached"} {
 		for _, unavailable := range []string{"unknown", "zero"} {
-			for _, prior := range []bool{false, true} {
-				name := rail + "/" + unavailable + "/initially-withheld"
-				if prior {
-					name = rail + "/" + unavailable + "/previously-advertised"
-				}
+			for _, start := range []string{"never-advertised", "initially-withheld", "previously-advertised"} {
+				name := rail + "/" + unavailable + "/" + start
+				prior := start == "previously-advertised"
 				t.Run(name, func(t *testing.T) {
 					f := newAIGPReplayFixture(t, nil)
 					f.source.settings.RSClient = rail == "rs-cached"
@@ -156,7 +158,8 @@ func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 					}
 					if prior {
 						f.metric(7)
-					} else {
+					}
+					if start == "initially-withheld" {
 						// RFC 4271 Section 3.1: only a previously advertised
 						// route is withdrawn, so the destination first holds
 						// an earlier generation of the route the received
@@ -184,6 +187,9 @@ func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 					}
 					forwardSocketBarrier(t, f.r)
 					wantFrames := 1
+					if start == "never-advertised" {
+						wantFrames = 0
+					}
 					if prior {
 						bodies := aigpSocketBodies(t, f.conn)
 						if len(bodies) != 1 {
@@ -206,16 +212,18 @@ func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 					if len(bodies) != wantFrames {
 						t.Fatalf("withheld UPDATE count=%d, want %d", len(bodies), wantFrames)
 					}
-					withdraw := bodies[len(bodies)-1]
-					sections, err := wire.ParseUpdateSections(withdraw)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if !bytes.Equal(sections.Withdrawn(withdraw), []byte{24, 10, 20, 0}) {
-						t.Fatalf("unavailable cost advertised instead of withdrawing: body=%x", withdraw)
-					}
-					if len(sections.NLRI(withdraw)) != 0 || len(sections.Attrs(withdraw)) != 0 {
-						t.Fatalf("unavailable-cost withdrawal carries an announcement or attributes: %x", withdraw)
+					if wantFrames > 0 {
+						withdraw := bodies[len(bodies)-1]
+						sections, err := wire.ParseUpdateSections(withdraw)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if !bytes.Equal(sections.Withdrawn(withdraw), []byte{24, 10, 20, 0}) {
+							t.Fatalf("unavailable cost advertised instead of withdrawing: body=%x", withdraw)
+						}
+						if len(sections.NLRI(withdraw)) != 0 || len(sections.Attrs(withdraw)) != 0 {
+							t.Fatalf("unavailable-cost withdrawal carries an announcement or attributes: %x", withdraw)
+						}
 					}
 					f.metric(11)
 					f.r.readvertiseAIGP()
@@ -225,7 +233,7 @@ func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 						t.Fatalf("recovery UPDATE count=%d, want %d; withdrawal lost its retained recipient", len(bodies), wantFrames+1)
 					}
 					recovered := bodies[len(bodies)-1]
-					sections, err = wire.ParseUpdateSections(recovered)
+					sections, err := wire.ParseUpdateSections(recovered)
 					if err != nil {
 						t.Fatal(err)
 					}
