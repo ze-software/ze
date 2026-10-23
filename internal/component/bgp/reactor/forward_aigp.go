@@ -122,8 +122,9 @@ func (r *Reactor) sourceAIGPLinkMetric(addr netip.Addr) uint64 {
 // It uses the received value as the accumulation base, not a previously sent
 // value, so replay or a metric change cannot add the same distance twice.
 // A true result means this announcement was withheld only for its unavailable
-// cost. The caller MUST carry that reason to the successful write receipt so a
-// later metric change can recover this recipient, without a new received UPDATE.
+// cost. The caller MUST carry that reason to the final writer, which records
+// the recipient even when no withdrawal reaches the wire, so a later metric
+// change can recover it without a new received UPDATE.
 func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, base []byte, sourcePeer netip.Addr, sourceLinkMetric uint64, mods *filterapi.ModAccumulator) bool {
 	if mods.IsWithdraw() {
 		return false

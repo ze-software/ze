@@ -54,8 +54,22 @@ type aigpAdvertisement struct {
 	revision  uint64
 	metric    uint64
 	hasMetric bool
-	// A successful cost-withheld withdrawal retains this recipient for recovery.
+	// A cost-withheld withdrawal retains this recipient for recovery, whether
+	// or not the adj-out filter let it reach the wire (writeUpdateBody).
 	costWithheld bool
+	// queued is the outcome of the replay already handed to the forward queue
+	// for this record, guarded by aigpState.mu. Commit replaces the record, so
+	// it lives until the replay is written or the session ends.
+	queued aigpOutcome
+}
+
+// aigpOutcome is what one replay computes for a recipient. set is false until
+// a replay is queued, so the zero value matches no computed outcome.
+type aigpOutcome struct {
+	metric       uint64
+	hasMetric    bool
+	costWithheld bool
+	set          bool
 }
 
 // dispatch serializes receive invalidation and replay enqueueing. mu protects
@@ -195,9 +209,12 @@ func aigpRevision() uint64 {
 	return 0
 }
 
-// noteAIGPWrite records only the final, policy-filtered body. The pending entries
-// MUST be committed only after flush succeeds; failed flushes MUST discard them.
-func (s *Session) noteAIGPWrite(body []byte) {
+// noteAIGPWrite records the final, policy-filtered body. With withheldOnly it
+// records a cost-withheld withdrawal before the adj-out filter drops the keys
+// this recipient was never advertised, and keeps only the entries that retain a
+// route, so a key that never reaches the wire never removes a record. The pending entries MUST be committed only after flush succeeds;
+// failed flushes MUST discard them.
+func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 	if s.aigpReactor == nil || s.aigpPeer == nil {
 		return
 	}
@@ -261,6 +278,9 @@ func (s *Session) noteAIGPWrite(body []byte) {
 			if route != nil && !bytes.Equal(route.nextHop, nextHop) {
 				entry.route = route
 			}
+		}
+		if withheldOnly && entry.route == nil {
+			return
 		}
 		s.aigpPending = append(s.aigpPending, entry)
 	})
@@ -392,6 +412,17 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 		r.aigp.mu.Unlock()
 		return
 	}
+	// Every committed write signals a new pass, so a pass for another
+	// recipient can run before this recipient's replay is written. The same
+	// outcome already queued is not queued again: it would put the same UPDATE
+	// on the wire twice.
+	outcome := aigpOutcome{metric: metric, hasMetric: present, costWithheld: costWithheld, set: true}
+	r.aigp.mu.Lock()
+	inFlight := ad.queued == outcome
+	r.aigp.mu.Unlock()
+	if inFlight {
+		return
+	}
 	wu := ad.route.wire
 	withdrawn, err := wu.Withdrawn()
 	if err != nil {
@@ -416,5 +447,9 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	src.info.sender = ad.sender
 	if err := adapter.forwardUpdateValidated(update, id, peers, src.info); err != nil {
 		fwdLogger().Debug("AIGP metric re-advertisement withheld", "source", src.addr, "error", err)
+		return
 	}
+	r.aigp.mu.Lock()
+	ad.queued = outcome
+	r.aigp.mu.Unlock()
 }

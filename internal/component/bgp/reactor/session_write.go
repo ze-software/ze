@@ -685,6 +685,15 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	// write, the raw diagnostic one included (owner, Q-3 (a), 2026-10-14).
 	// RFC 8277 Section 2.4 as well, in the same walk and for the same reason.
 	body = body[:normalizeTransmittedUpdate(body, ownership.encoding)]
+	// RFC 7311 Section 3.4.3: a route withheld because its AIGP increment is
+	// unknown stays owed to this recipient, and a later known distance
+	// re-advertises it. The filter below drops the withdrawal of a key this
+	// recipient was never advertised (RFC 4271 Section 3.1), so the recovery
+	// record is taken from the unfiltered withdrawal, whether or not any of it
+	// reaches the wire. flushWrites commits it, a failed write discards it.
+	if !raw && s.sentAIGPCostWithheld {
+		s.noteAIGPWrite(body, true)
+	}
 	if !raw {
 		length, err := ownership.filter(nil, body)
 		if err != nil {
@@ -784,7 +793,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	s.updateSendTotals.announcedRoutes += ownership.announcedRoutes
 	s.updateSendTotals.withdrawnRoutes += ownership.withdrawnRoutes
 	if !opaque {
-		s.noteAIGPWrite(body)
+		s.noteAIGPWrite(body, false)
 	}
 	committed = true
 	// Asked only while the answer can still change, as above. This is the
