@@ -89,9 +89,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   a commit or before a push: the targeted checks for the files it touched are
   its evidence. A push gate compares the pushed tree with the last green tree
   ignoring such paths.
-- The verification-debt ledger is being removed. Never run `le commit
-  debt-clear` or `debt-discharge`, never treat an open debt row as owed work,
-  and never report on debt.
+- There is no verification-debt ledger. Debt is derived from git and the last
+  green full verify, and `./le commit push` refuses while it is owed. The
+  session-start line is the only report of it, and it is never work to do
+  before the single full gate.
 - A check that ran is not re-run to reconfirm what its output said.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit. If `./le verify status check` is FRESH,
