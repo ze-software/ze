@@ -338,19 +338,13 @@ sentences quoted in Required Reading.
 | `silent-fall-through.md` | 2026-10-15 | `cos.Resolve` nil maps with no resolver | F1 |
 | `silent-fall-through.md` | 2026-10-13 | mrt peer state handlers' failed type assertion | F1 |
 | `silent-fall-through.md` | 2026-10-12 | doctor `collectSchemaListeners` falls back to a hardcoded list | F1 |
-| `silent-fall-through.md` | 2026-10-10 | `recoveryRoutes` destination never seen sends no withdraw | F1 |
 | `silent-fall-through.md` | 2026-10-08 | debug `setModuleSetting` drops trailing keywords | F2 |
 | `silent-fall-through.md` | 2026-10-07 | `captureRawStart` answers done when it cannot capture | F1 |
 | `silent-fall-through.md` | 2026-10-02 | rib family with no splitter dropped at Debug | F1 |
-| `silent-fall-through.md` | 2026-09-27 | GTSM on darwin applied nowhere, DEBUG only | F1 |
-| `silent-fall-through.md` | 2026-08-19 | `formatAttributesHuman` fixed list of seven attributes | F2 |
-| `silent-fall-through.md` | 2026-08-19 | `foldFilters` pipe kinds with no default arm | F2 |
 | `silent-fall-through.md` | 2026-09-21 | `validateYangType` default arm accepts | F2 |
 | `silent-fall-through.md` | 2026-09-21 | LDP `DecodeInit` skips unknown U=0 TLV | F2 |
-| `silent-fall-through.md` | 2026-09-30 | BFD `EnsureSession` accepts IPv6 with no IPv6 socket | F2 |
-| `silent-fall-through.md` | 2026-10-10 | web `serializeTreeAtPath` empty for a bare list | F1 |
-| `silent-fall-through.md` | 2026-09-06 | `AnnounceNLRIBatch` skips peer on next-hop error | F1 |
-| `silent-fall-through.md` | 2026-10-14 | `formatNLRIAsPrefix` renders VPN NLRI as a prefix | F2 |
+| `constant-reported-as-measured-state.md` | 2026-10-13 | from-Established FSM arm reports `connection lost` for every cause | F2 |
+| `declared-format-contradicts-payload.md` | 2026-08-19 | `RawJSON.MarshalJSON` quotes invalid JSON instead of refusing | F2 |
 | `zero-value-as-valid-answer.md` | 2026-10-22 | `appendNLRIJSONValue` writes a placeholder route on decode failure | F2 |
 | `zero-value-as-valid-answer.md` | 2026-10-19 | `interfaceExists` any error reads as absent | F1 |
 | `zero-value-as-valid-answer.md` | 2026-10-19 | DHCPv6 `dadUnreported` on VPP | F4 |

@@ -250,6 +250,8 @@ map index, so a key can only be built with every fact.
 | identifier-reused-after-its-owner-is-gone | 2026-08-18 | netlink monitor `ifNameCache` refill after delete |
 | two-owners-share-one-name | 2026-10-10 | bgp reactor `recordCreatedPeerLocked` overwrites operator key |
 | gate-excludes-part-of-its-population | 2026-08-14 | `PeerKey` keys raw operator text |
+| declared-format-contradicts-payload | 2026-10-20 | adj-rib-in `handleReceived` keys a VPN NLRI without its RD, stores one NLRI per section |
+| gate-excludes-part-of-its-population | 2026-09-02 | `countPeerUpBarrier` asks the registry by process name, not registration name |
 | index-key-derived-from-mutable-field | 2026-10-05 | rs `appendOpaqueRecords`/`recordKey` keyed on full wire hex |
 
 12 rows.

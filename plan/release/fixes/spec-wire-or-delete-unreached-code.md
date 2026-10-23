@@ -207,11 +207,9 @@ exported symbols to every declaration kind above.
 | unwired-feature | 2026-09-06 | `fwdDedupMetricsPtr` never stored |
 | unwired-feature | 2026-09-05 | `(*Transaction).QueueAnnounce` test-only |
 | unwired-feature | 2026-09-05 | `builtinReadOnlyProfile` test-only |
-| unwired-feature | 2026-09-04 | route-refresh BoRR and EoRR operator text reaches no handler |
 | unwired-feature | 2026-08-31 | radius exported symbols with no cross-package caller |
 | unwired-feature | 2026-08-11 | iface vpp logger is `DiscardLogger` with no setter |
 | unwired-feature | 2026-08-10 | l2tp ppp `IfaceBackend` onlink gateway implemented by no backend |
-| unwired-feature | 2026-08-13 | `getExternalPluginYANG` never reaches the daemon |
 | unwired-feature | 2026-08-14 | ike engine exported symbols with no cross-package caller |
 | unwired-feature | 2026-08-14 | five web config templates reach no caller |
 | unwired-feature | 2026-08-16 | ike remote-access virtual IP pool allocator built, never used |

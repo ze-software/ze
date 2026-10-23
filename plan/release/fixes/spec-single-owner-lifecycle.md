@@ -296,6 +296,7 @@ that prints the owner's location.
 | state-read-after-teardown-reset-it | 2026-10-11 | `Peer.run` backoff reset only on stop |
 | unwired-feature | 2026-10-13 | `addPeerLocked` passive peer gets no listener in standalone start |
 | unwired-feature | 2026-09-08 | rib `handleState` vs gr `retain-routes` race on peer-down |
+| false-synchronization-claim | 2026-10-03 | `Process.Registration`/`SetRegistration` unlocked across respawn |
 | late-write-lands-on-the-successor | 2026-10-10 | web leaf `input changed delay:1s` POST lands after the next edit |
 
 19 rows.

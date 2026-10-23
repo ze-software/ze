@@ -243,7 +243,6 @@ refused at commit.
 |------------|------|-----------------|
 | rollback-forgets-partial-apply | 2026-10-11 | `restoreReload` -> `loadPeersFullOrTree` ignores `undo.before` |
 | policy-change-never-re-evaluates-what-it-admitted | 2026-10-08 | redistribute `SetGlobal` stores, never re-judges held routes |
-| reconciler-claims-state-another-owner-installed | 2026-10-18 | `reconcileOnReadyWithJournal` removes learned addresses (VPP lifetimes left) |
 | reconciler-repairs-against-a-stale-snapshot | 2026-08-23 | `resyncCarrierState` judges carrier from a 1 Hz sample |
 | reconciler-repairs-against-a-stale-snapshot | 2026-10-17 | `reconcileOnRegistryChange` ignores `applyIsOwed` |
 | reconciler-repairs-against-a-stale-snapshot | 2026-10-19 | `goneWhileUp` misses an undelivered down and up |
@@ -255,6 +254,9 @@ refused at commit.
 | unwired-feature | 2026-10-11 | `autoLoadForNewConfigPaths` never starts an external program |
 | unwired-feature | 2026-09-20 | isis `buildCircuit` never sees a committed `net` or `system-id` change |
 | unwired-feature | 2026-08-31 | bmp `environment` reload never re-applies the receiver |
+| announced-state-never-replayed | 2026-09-06 | `api-reload.1.conf` two static routes, one advertised |
+| check-mode-mutates-the-tree | 2026-10-11 | bgp `createReloadFunc` applies dynamic groups during verify |
+| gate-excludes-part-of-its-population | 2026-08-25 | `Server.ReloadConfig` verifies no plugin for a root the reload adds |
 | unwired-feature | 2026-09-06 | reload of a running `ze` daemon from the ExaBGP test runner |
 
 15 rows.

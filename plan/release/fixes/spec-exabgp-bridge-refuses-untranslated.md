@@ -314,10 +314,13 @@ Correct the comment above `claimInitialSyncEOR` and quote RFC 4724 Section 2 abo
 | `zero-value-as-valid-answer.md` | 2026-09-06 | bridge `parseConfig` falls back to ipv4/unicast; migration writes no family |
 | `check-cannot-see-the-change-it-looks-for.md` | 2026-09-06 | `findUnsupportedFeatures` reads the migrated tree |
 | `unwired-feature.md` | 2026-10-22 | `auto-flush` written by migrate, read by nothing |
-| `unwired-feature.md` | 2026-10-08 | bridge `formatFlushRequest` sends an RPC dispatch cannot resolve |
 | `unwired-feature.md` | 2026-10-17 | bridge `announce eor` dropped by `claimInitialSyncEOR` |
 | `gate-excludes-part-of-its-population.md` | 2026-09-06 | `discoverExaBGPSuite` drops unknown `option=` lines |
 | `declared-format-contradicts-payload.md` | 2026-09-19 | bridge drops events that carry no BGP message |
+| `conflicting-feature-contracts.md` | 2026-10-21 | migration `TestInterfaceSetExtCommunityRefusals` "dotted as number" red after asdot `asn.Parse` |
+| `declared-format-contradicts-payload.md` | 2026-09-06 | `update` event to an API process: empty peer address, zero ASN, no `message` |
+| `delegation-hands-the-callee-a-different-argv.md` | 2026-10-17 | bridge `clear adj-rib out` dispatches `clear bgp rib out` with no selector |
+| `delegation-hands-the-callee-a-different-argv.md` | 2026-10-17 | bridge reads `announce route-refresh` as a route, sends `-refresh` |
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-14 | bridge `convertAnnounceSRPolicy` leftover tokens refused by `parseSRPolicySection` |
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-17 | `update text` refuses the bridge's interface-set and rate-limit extended communities |
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | bridge `as-path` refuses ExaBGP's `( )` AS_SET segment |

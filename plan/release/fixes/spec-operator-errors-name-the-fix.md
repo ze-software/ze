@@ -329,8 +329,7 @@ No protocol code changes. The `error-message` use cites RFC 7950 Section 7.5.4.1
 | `earlier-guard-hides-the-better-error.md` | 2026-10-18 | decode `Diff` reports `contains=` as invalid hex |
 | `help-text-describes-superseded-behaviour.md` | 2026-10-11 | editor help says discard reverts all |
 | `help-text-describes-superseded-behaviour.md` | 2026-10-17 | `rpc dns-cache` description |
-| `error-answered-with-another-errors-code.md` | 2026-10-19 | NTP `doSync` unsynchronised as kiss of death |
-| `error-answered-with-another-errors-code.md` | 2026-10-10 | `DockerKernelRoute` blames the kernel for `unknown` |
+| `failure-report-names-a-command-that-does-not-exist.md` | 2026-10-13 | `formatPeerError` missing-mandatory hint keeps the slash path |
 | `guard-message-teaches-the-violation.md` | 2026-08-24 | `rowOperatorRefusal` tells the operator to select a list no command selects |
 
 18 rows.

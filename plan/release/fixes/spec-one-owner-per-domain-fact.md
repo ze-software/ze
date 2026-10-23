@@ -225,31 +225,19 @@ The 48 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `env-var-double-registration.md` | 2026-04-18 | `ze.config.dir` registered in two files |
 | `env-var-double-registration.md` | 2026-09-04 | `ze.plugin.hub.*`, `ze.plugin.ca.pem` registered in the SDK, read elsewhere |
 | `same-bytes-decoded-once-per-accessor.md` | 2026-08-14 | `Event.GetPeerGroup` re-unmarshals the peer JSON per accessor |
-| `one-state-held-in-two-fields.md` | 2026-09-20 | `send bgp flowspec` component set published from two walks |
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-13 | session `writeThroughSet` writes a list-key line `walkAndSet` refuses |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-21 | simultaneous announce and withdraw: only MUP treats the withdrawal as absent |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-21 | RFC 7999 `blackholeReadvertiseRefused` reads received communities only |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-13 | web and CLI bar `set` list-key resolution differs from SSH `ensureListEntry` |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-11 | IKE half-open initiator arms kill the SA on SK decrypt failure |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-09 | `Session.SendAnnounce` bypasses `writeUpdateGated` next-hop admission |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-09-04 | TLS rotation: web listener holds a handle the looking glass refuses |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-09-03 | web editor rollback skips the pre-commit validator |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-08-11 | govpp reply deadline set by the firewall only |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-08-23 | IKE VPP dataplane: fifth unbounded govpp consumer |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-08-12 | geodns `parseSOA` minimum skips the `parseTTL` bound |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-08-18 | iface resolver `onLinkEvent` keeps the old drop shape |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-08-22 | fleet hub auth line readers disagree on a trailing CR |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-08-22 | web `ChangeCount` and `/config/diff` body from two producers |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-08-31 | RPKI origin AS: structured rail ignores the final segment type |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-08-30 | RPKI RFC 6811 origin derivation reached one rail only |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-09-14 | policy-route `from/protocol` leaf ungated against the shared table |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-09-27 | VPP firewall verifier refuses ARP and ND matches nft lowers |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-09-28 | firewall family arp: literal address match unguarded |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-03 | bgp-rib JSON `reconcileReceivedNLRIs` frames withdrawals as announcements |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-03 | reactor `forEachPrefixEntry` frames withdrawals as announcements |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-03 | `decodeMPNLRIs` decodes withdrawals with announcement readers |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-03 | `nlritype.Retain` frames withdrawals as announcements |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-03 | VPN `DecodeNLRIHex` has no withdrawal mode |
+| `green-that-could-not-have-been-red.md` | 2026-09-03 | `system command list` has two producers; a plugin reads the stage-4 copy |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-11 | web commit audits on output text, discard on a success signal |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-15 | IKE `newVPPBackend` channel without `SetReplyTimeout` |
 | `guard-enumerates-instead-of-subtracting.md` | 2026-10-21 | `mpReachLabeledNLRI` lists the labelled families again beside `nlrisplit` |

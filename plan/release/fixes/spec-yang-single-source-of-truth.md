@@ -205,7 +205,6 @@ The 51 open rows this root cause owns. Each is re-pointed to this spec when it l
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `unwired-feature.md` | 2026-10-23 | `label`/`labels` in a config `attribute` block never reach the route |
-| `unwired-feature.md` | 2026-10-22 | peer `behavior > auto-flush` has no reader |
 | `unwired-feature.md` | 2026-10-10 | `parseContainer` value mode: `graceful-restart disable` boots, later commit refused |
 | `unwired-feature.md` | 2026-09-04 | `request peer <sel> borr` declared in `ze-refresh-cmd.yang`, dispatcher answers unknown command |
 | `unwired-feature.md` | 2026-09-04 | fifteen leaves incl. `l2tp/shaper/upload-rate`, `bmp/route-action` with no reader |
@@ -243,7 +242,6 @@ The 51 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `command-takes-an-untyped-positional-value.md` | 2026-09-15 | thirteen commands declare args on rpc input only; web form renders none |
 | `command-takes-an-untyped-positional-value.md` | 2026-10-21 | `peer teardown`/`disable` read `validated.Tokens()` by position |
 | `argument-leaf-declared-on-container-and-rpc-input.md` | 2026-09-15 | 25 commands declare one leaf on the `-cmd` container and the rpc input |
-| `validate-accepts-what-start-refuses.md` | 2026-10-17 | `ze config validate` never calls `l2tp.ExtractParameters` |
 | `gate-excludes-part-of-its-population.md` | 2026-10-08 | `contractSatisfied`: 14 local handlers with no YANG node pass |
 | `gate-excludes-part-of-its-population.md` | 2026-10-08 | yangcontract reads `-cmd` only: 117 rpc methods with no handler |
 | `gate-excludes-part-of-its-population.md` | 2026-09-04 | `walkTree`: mandatory leaf inside an absent container never checked |
@@ -254,7 +252,6 @@ The 51 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `gate-excludes-part-of-its-population.md` | 2026-08-11 | three validators answer from a registry not holding the asked value |
 | `gate-excludes-part-of-its-population.md` | 2026-10-12 | `bgpMandatoryFailures` skips `peer`, `group` and choice cases |
 | `helper-bypassed-by-an-open-coded-copy.md` | 2026-10-13 | completer `validateStringPatterns` guesses IP from pattern text |
-| `guard-added-to-one-half-of-a-pair.md` | 2026-10-13 | leaf-list and multi-leaf builders drop YANG `range` and `length` |
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | goyang `ToEntry` refuses an augment of an action's absent `input` |
 | `unwired-feature.md` | 2026-09-06 | peer leaf `behavior > manual-eor` read by no reactor code |
 | `zero-value-as-valid-answer.md` | 2026-10-10 | `goyang-enum-negative.patch` has no owner to drop it |
