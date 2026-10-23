@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 const messageWidth = 72
@@ -197,8 +195,9 @@ func unique(values []string) []string {
 // Message returns a commit message with a one-line 72-column subject, a body
 // wrapped without breaking words, and the trailer lines after a blank line.
 // A trailer is a record a script reads back, so it is never wrapped, and a
-// subject or body line the author writes as one is refused: the record is
-// the owner's, and `create` writes it from `./le rfc approve` alone.
+// subject or body line that starts with a declared trailer key is refused:
+// the record is written by the one route declaredTrailers names, never by
+// the author's prose.
 func Message(subject string, body, trailers []string) (string, error) {
 	subject = strings.TrimSpace(subject)
 	if subject == "" {
@@ -282,14 +281,19 @@ func wrapBody(chunks []string) (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-// refuseHandWrittenTrailer refuses one message line that starts with the
-// approval trailer key. The key inside a line is prose; at its start it is
-// the owner's record, which only `./le rfc approve` puts in a commit.
+// refuseHandWrittenTrailer refuses one message line that starts with a
+// declared trailer key (declaredTrailers). The key inside a line is prose; at
+// its start it is a record the derivation reads back, which only the route
+// the table names puts in a commit.
 func refuseHandWrittenTrailer(line string) error {
-	key := strings.TrimSpace(rfc.ApprovalTrailer)
-	if !strings.HasPrefix(strings.TrimSpace(line), key) {
-		return nil
+	trimmed := strings.TrimSpace(line)
+	for _, declared := range declaredTrailers {
+		key := strings.TrimSpace(declared.Key)
+		if !strings.HasPrefix(trimmed, key) {
+			continue
+		}
+		return fmt.Errorf("the line %q starts with %s: that trailer is written by %s alone, never by hand",
+			trimmed, key, declared.WrittenBy)
 	}
-	return fmt.Errorf("the line %q starts with %s: that trailer is written by create from ./le rfc approve alone, never by hand",
-		strings.TrimSpace(line), key)
+	return nil
 }

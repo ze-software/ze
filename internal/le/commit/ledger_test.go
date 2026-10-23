@@ -13,8 +13,7 @@ import (
 )
 
 // The two authors these tests drive. They are ordinary commit sessions: the
-// same eight hex characters that name each one's script, message and
-// verification-debt shard.
+// same eight hex characters that name each one's script and message.
 const (
 	sessionOne = "aaaaaaaa"
 	sessionTwo = "bbbbbbbb"
@@ -269,11 +268,10 @@ func weakenLedgerTest(t *testing.T, root, path, name string) {
 func ledgerCreate(t *testing.T, root, session string, paths ...string) (Prepared, error) {
 	t.Helper()
 	return Create(root, &Options{
-		Session:    session,
-		Subject:    "ledger fixture for session " + session,
-		Files:      paths,
-		NoTest:     "the fixture carries tests only",
-		Unverified: "the fixture repository runs no verification",
+		Session: session,
+		Subject: "ledger fixture for session " + session,
+		Files:   paths,
+		NoTest:  "the fixture carries tests only",
 	})
 }
 
@@ -284,58 +282,4 @@ func readLedgerFile(t *testing.T, root, path string) string {
 		t.Fatal(err)
 	}
 	return string(content)
-}
-
-// TestEveryLedgerGateNameIsDeclared reads the gate string of every row in the
-// repository's own ledger and requires debtGates to declare it, as a Name or as
-// an alias.
-//
-// This is what keeps the alias declaration honest as the ledger grows. Making
-// an unrecognized name fail closed strands the rows that carry it, so a spelling
-// nobody declared has to become a RED TEST rather than a silent open row. It
-// found one on 2026-09-08: `./le verify current mode full structural gates
-// (red)` on 157 rows, a fifth legacy spelling the spec had measured as four.
-//
-// An empty ledger PASSES and does not skip. Emptying the ledger is what this
-// work exists to do, so a skip on zero rows would turn the guard off at the
-// moment it succeeds. An unresolvable checkout is a defect here rather than an
-// environment this test tolerates: the package under test is inside the
-// checkout it reads.
-func TestEveryLedgerGateNameIsDeclared(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatalf("resolve the checkout the ledger lives in: %v", err)
-	}
-	rows, err := readDebtRows(root)
-	if err != nil {
-		t.Fatalf("read the ledger: %v", err)
-	}
-	undeclared := make(map[string]int)
-	for index := range rows {
-		if debtGateAt(rows[index].Gate) < 0 {
-			undeclared[rows[index].Gate]++
-		}
-	}
-	for gate, count := range undeclared {
-		t.Errorf("%d ledger row(s) name gate %q, which debtGates declares neither as a Name nor as an alias", count, gate)
-	}
-}
-
-// TestHistoricalTrackedBuildSpellingIsDeclared pins the spelling that rows under
-// plan/verification-debt/ carry for the broken-HEAD gate. The method is the
-// same lookup a verification uses, debtGateAt, over the literal row text.
-//
-// The command was renamed from `le repository tracked-build` to `le repo
-// compiles`. The ledger rows are history and keep the old name, so a
-// rewrite that follows the rename into the alias list strands those rows as
-// unrecognized, and a green verification then never clears them.
-func TestHistoricalTrackedBuildSpellingIsDeclared(t *testing.T) {
-	historical := "./le repository tracked-build check (HEAD does not compile)"
-	at := debtGateAt(historical)
-	if at < 0 {
-		t.Fatalf("debtGates does not declare the historical spelling %q", historical)
-	}
-	if debtGates[at].Key != gateBrokenHeadFix {
-		t.Fatalf("%q resolves to gate %q, want %q", historical, debtGates[at].Key, gateBrokenHeadFix)
-	}
 }

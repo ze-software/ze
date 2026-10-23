@@ -1026,3 +1026,39 @@ func TestAWorktreeSharesTheCheckoutLintCache(t *testing.T) {
 		t.Fatalf("removing the worktree removed the checkout's lint cache: %v", err)
 	}
 }
+
+// TestGreenRecordWrittenAtAskingRoot: the green record is written at the
+// checkout that asked, from the run's own verdict, and never inside the
+// worktree, which the run removes and which nothing copies back. The worktree
+// is kept so its absence there is observed rather than inferred.
+//
+// MUTATION: write the record at the worktree path and this fails twice.
+func TestGreenRecordWrittenAtAskingRoot(t *testing.T) {
+	repo := newFixtureRepo(t)
+	head := repo.git(t, "rev-parse", "HEAD")
+	report := Run(context.Background(), repo.root, Options{Keep: true}, passingRunner)
+	if report.Code != 0 || !report.Green {
+		t.Fatalf("green run: code %d green %v: %v", report.Code, report.Green, report.Diagnostics)
+	}
+	t.Cleanup(func() {
+		// t.Context is canceled before cleanup runs, so the removal has its own.
+		remove := exec.CommandContext(context.Background(), "git", "worktree", "remove", "--force", report.Worktree) // #nosec G204 -- the path is the run's own worktree.
+		remove.Dir = repo.root
+		if out, err := remove.CombinedOutput(); err != nil {
+			t.Errorf("remove the kept worktree: %v: %s", err, out)
+		}
+	})
+	record, err := ReadGreenRecord(repo.root)
+	if err != nil {
+		t.Fatalf("no green record at the asking root: %v", err)
+	}
+	if record.Commit() != head {
+		t.Errorf("the green record names %s, want %s", record.Commit(), head)
+	}
+	if want := repo.git(t, "rev-parse", "HEAD^{tree}"); record.Tree() != want {
+		t.Errorf("the green record holds tree %s, want HEAD^{tree} %s", record.Tree(), want)
+	}
+	if _, err := os.Stat(filepath.Join(report.Worktree, filepath.FromSlash(GreenPath))); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a green record exists inside the worktree (%v)", err)
+	}
+}

@@ -27,6 +27,8 @@ const (
 	// keywordPart and keywordOf cut the worktree population into pieces.
 	keywordPart = "part"
 	keywordOf   = "of"
+	// keywordAll runs every piece of the cut `of` names, one worktree each.
+	keywordAll = "all"
 )
 
 // jobLabel is the name a verification claims in the shared job registry.

@@ -31,8 +31,10 @@ var configured struct {
 }
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:   actionName,
-		Why:    "run the full native verification population against a fixed commit in a fresh detached worktree; commit defaults to HEAD and keep leaves the worktree",
+		Verb: actionName,
+		Why: "run the full native verification population against a fixed commit in a fresh detached worktree; " +
+			"commit defaults to HEAD and keep leaves the worktree; part <i> of <m> runs one piece of a cut, " +
+			"all of <m> runs every piece not yet proven over the commit; a green full run writes the green record",
 		Writes: false,
 		Parameters: []leaction.Parameter{
 			{Keyword: commitKeyword, Value: "revision", Requirement: leaction.Optional},
@@ -40,6 +42,7 @@ var actions = leaction.New(area,
 			{Keyword: keywordFirstRed},
 			{Keyword: keywordPart, Value: "index", Requirement: leaction.Optional},
 			{Keyword: keywordOf, Value: "pieces", Requirement: leaction.Optional},
+			{Keyword: keywordAll},
 		},
 		AnswerArgs: runHere,
 	},
@@ -90,12 +93,76 @@ func Subs() string { return actions.Subs() }
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func runHere(args leaction.Arguments) (any, int) {
-	options, err := optionsFrom(args, os.Getenv)
+	request, err := worktreeFrom(args, os.Getenv)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return runWorktree(options)
+	if request.sweep {
+		return sweepWorktree(request.options)
+	}
+	return runWorktree(request.options)
+}
+
+// worktreeRequest is one `le verify worktree` line: the options, and whether
+// they name the sweep (`all of <m>`) rather than one run.
+type worktreeRequest struct {
+	options Options
+	sweep   bool
+}
+
+// worktreeFrom reads a `le verify worktree` line into one run or the sweep.
+// Every malformed cut is refused here, before any work, naming the form that
+// works.
+func worktreeFrom(args leaction.Arguments, getenv func(string) string) (worktreeRequest, error) {
+	if !args.Has(keywordAll) {
+		options, err := optionsFrom(args, getenv)
+		return worktreeRequest{options: options}, err
+	}
+	if args.Has(keywordPart) {
+		return worktreeRequest{}, worktreeRefusal(sweepWithPart)
+	}
+	if !args.Has(keywordOf) {
+		return worktreeRequest{}, worktreeRefusal(sweepWithoutCount)
+	}
+	options := baseOptions(args, getenv)
+	count := strings.TrimSpace(args.One(keywordOf))
+	parts, err := strconv.Atoi(count)
+	if err != nil {
+		return worktreeRequest{}, notAPieceCount(count)
+	}
+	if parts < 1 {
+		return worktreeRequest{}, notAPieceCount(count)
+	}
+	options.Parts = parts
+	if err := sweepValid(options); err != nil {
+		return worktreeRequest{}, worktreeRefusal(err.Error())
+	}
+	return worktreeRequest{options: options, sweep: true}, nil
+}
+
+func notAPieceCount(count string) error {
+	var text textbuf.Buffer
+	return errors.New(text.Str("le verify worktree: all of <m> takes a positive piece count, got ").
+		Quoted(count).Str("; as in: le verify worktree all of 6").String())
+}
+
+func worktreeRefusal(reason string) error {
+	var text textbuf.Buffer
+	return errors.New(text.Str("le verify worktree: ").Str(reason).String())
+}
+
+// sweepWorktree runs every piece of a cut not yet proven over one commit.
+func sweepWorktree(options Options) (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	ctx, stop := signalContext()
+	defer stop()
+	report := Sweep(ctx, root, options, actionRunner(), Options.HostPreflight)
+	return report, report.Code
 }
 
 // runWorktree runs the full population in a fresh detached worktree. Both
@@ -121,15 +188,7 @@ func runWorktree(options Options) (any, int) {
 // positive integer, a piece without its count, and first-red with a piece are
 // refused here, before any work, with the reason and the spellings that work.
 func optionsFrom(args leaction.Arguments, getenv func(string) string) (Options, error) {
-	commit := strings.TrimSpace(getenv("COMMIT"))
-	if args.Has(commitKeyword) {
-		commit = strings.TrimSpace(args.One(commitKeyword))
-	}
-	keep := strings.TrimSpace(getenv("KEEP")) != ""
-	if args.Has("keep") {
-		keep = true
-	}
-	options := Options{Commit: commit, Keep: keep, FirstRed: args.Has(keywordFirstRed)}
+	options := baseOptions(args, getenv)
 	var err error
 	if options.Part, err = pieceNumber(args, keywordPart); err != nil {
 		return Options{}, err
@@ -141,6 +200,20 @@ func optionsFrom(args leaction.Arguments, getenv func(string) string) (Options, 
 		return Options{}, err
 	}
 	return options, nil
+}
+
+// baseOptions reads the commit, keep and first-red of a `le verify worktree`
+// line, which one run and the sweep share.
+func baseOptions(args leaction.Arguments, getenv func(string) string) Options {
+	commit := strings.TrimSpace(getenv("COMMIT"))
+	if args.Has(commitKeyword) {
+		commit = strings.TrimSpace(args.One(commitKeyword))
+	}
+	keep := strings.TrimSpace(getenv("KEEP")) != ""
+	if args.Has("keep") {
+		keep = true
+	}
+	return Options{Commit: commit, Keep: keep, FirstRed: args.Has(keywordFirstRed)}
 }
 
 // pieceNumber reads the value of a part or of keyword, zero when it is absent.

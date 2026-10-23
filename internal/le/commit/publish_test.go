@@ -356,8 +356,8 @@ func TestABlockWithNothingToCommitIsRefused(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "empty-commit-fixture")
 	configureCommitAuthor(t, root)
 	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	// Without the checkout marker no gate runs, so neither block records a
-	// verification debt row, and the second block names mine.txt alone.
+	// Without the checkout marker no gate runs, so the second block names
+	// mine.txt alone.
 	if err := os.Remove(filepath.Join(root, "feature-gates.txt")); err != nil {
 		t.Fatal(err)
 	}

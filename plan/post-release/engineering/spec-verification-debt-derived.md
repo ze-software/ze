@@ -2,16 +2,20 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
-| Priority | P3 |
-| Release reason | Release-independent verification debt derived work; historical findings do not establish a current product defect. |
+| Status | in-progress |
+| Priority | P2 |
+| Release reason | The per-commit ledger refuses every push while any row is open, and over 2,000 are open, so nothing reaches origin until this lands. |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-19 |
+| Updated | 2026-10-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+Owner permission (2026-10-23): this spec starts above the work-in-progress cap,
+claimed at `ZE_SPEC_WIP_CAP=15` (14 in flight against a cap of 12), because the
+ledger it deletes blocks every push. The exception covers this spec only.
 
 ## Task
 
@@ -66,6 +70,12 @@ I2, I4, I5, N1 and N2 below are applied as decided, not as readings.
 | N1 | `AGENTS.md` is generated | It is a copy of `ai/INSTRUCTIONS.md` written by `./le ai sync write` (`internal/le/ai/sync/ai.go`); edit `ai/INSTRUCTIONS.md` and regenerate, never edit `AGENTS.md` |
 | N2 | Template sections that do not apply | RFC Summaries, End-to-End User Stories and RFC Documentation are N/A (Scope tooling; no RFC, no user-facing product path) |
 
+### Owner decision (2026-10-23, committed as an owner rule in `ai/META-DECISIONS.md` by 764d6ca131)
+
+| # | Decision | What this spec does with it |
+|---|----------|-----------------------------|
+| D-9 | "A commit that changes only documentation or prose owes no full gate, before a commit or before a push: the targeted checks for the files it touched are its evidence. A push gate compares the pushed tree with the last green tree ignoring such paths." | Replaces D-5 and refines D-1 and D-6. The tree rule becomes COVERAGE, not equality: the green tree covers a tree T when every path `git diff --name-only <green tree> <T>` names is a prose path. A prose path is Markdown under `ai/`, `plan/` or `docs/`, declared ONCE by marking those three entries of `nonGoPathRules` (`internal/le/repo/changed/selector.go`) and read through one exported predicate there; the push gate keeps no list of its own. Every other path, root-level Markdown (`AGENTS.md`, `CLAUDE.md`, `README.md`), the RFC corpus, `.ci`/`.et`/`.wb` bodies and every non-Markdown file under the three prefixes included, stays owed. An empty diff is covered. A diff that cannot be computed is NOT covered (never read as empty). The diff is computed per candidate, so its cost is one `git diff --name-only` per commit the push target walk visits |
+
 ## Required Reading
 
 ### Architecture Docs
@@ -74,7 +84,7 @@ I2, I4, I5, N1 and N2 below are applied as decided, not as readings.
   → Constraint: the certificate's `tree_hash` is a `job.SnapshotTree` digest of the working tree (or `tree-moved-during-run`), NOT a git tree object id. The green record must store the git tree id of the verified commit (`<commit>^{tree}`) so it compares with `HEAD^{tree}`, and must refuse a run whose snapshot moved.
   → Constraint: `CheckCertificate` stales any non-zero exit and any mode `StagesForMode` does not know (`full-part-2-of-6`), so a cut piece never certifies. The cut aggregation today is `recordDebtPart` / `provenDebtParts` / `forgetDebtParts` (`internal/le/commit/debtpart.go`, record `tmp/ze-verify-debt-parts.json`), called from `clearDebt` (`internal/le/commit/actions.go`) with `root` = the ASKING checkout, after `verify.Run` returns. It must stay at that root when it moves: the engine runs inside the throwaway worktree, so aggregation there would be deleted with the worktree.
   → Constraint: `CopyCertificate` loops over `StatusPath` and `ManifestPath` and returns an error wrapping `os.ErrNotExist` for a missing file; `internal/le/verify/lifecycle.go` reads that error as "no certificate to publish". The green record must not be added to that loop: an absent green record is the normal outcome of a red run and must neither fail the publish nor be read as "no certificate".
-  → Decision: the runnable gates (`unverified`, `structural-red-ok`, `missing-full-verify-ok`, `broken-head-fix`) all clear on the same event, one green full verify (`clearDebt` marks EVERY runnable gate passed on exit 0). They collapse to one derived question: is `HEAD^{tree}` the green tree.
+  → Decision: the runnable gates (`unverified`, `structural-red-ok`, `missing-full-verify-ok`, `broken-head-fix`) all clear on the same event, one green full verify (`clearDebt` marks EVERY runnable gate passed on exit 0). They collapse to one derived question: does the green tree cover `HEAD^{tree}` (equal, or differing only in prose paths, D-9).
 - [ ] `docs/contributing/committing.md` - keywords, push, debt sections
   → Constraint: `rfc-change-ok` "records a verification-debt row naming the owner's answer as owed". Owner approvals already travel as `RFC-approved:` trailers written by `Message` (`internal/le/commit/input.go`), which is the precedent for a trailer-carried obligation.
   → Constraint: in a `ZE_REPO_ROOT` tree that is not the Ze checkout (`lepath.IsCheckout` false) no debt is written, and "the push authorisation apply in every tree" (line 309). The site and wiki push through the same route, so the new push route answers NOT-APPLICABLE for the derivation there and still pushes.
@@ -175,11 +185,15 @@ N/A: Scope tooling; no RFC is referenced (N2).
 
 | Condition, in order | P | Note |
 |---------------------|---|------|
-| `HEAD^{tree}` equals the green record's tree | HEAD | covers G itself and G followed by empty attestation commits (D-7) |
-| the green record's commit G is an ancestor of HEAD | G | the commits `HEAD ^G` are named as left behind; they are not published |
+| the green tree covers `HEAD^{tree}` (D-9) | HEAD | covers G itself, G followed by empty attestation commits (D-7), and G followed by prose-only commits |
+| the green record's commit G is an ancestor of HEAD | the last commit X of the walk below | the commits `HEAD ^X` are named as left behind; they are not published |
 | otherwise (no record, or G left the branch through a rebase) | none | verify owed, `./le verify worktree` named |
 
-With `debt-status commit <rev>` the candidate is `<rev>` itself: it is admissible only when `<rev>^{tree}` equals the green tree, `<rev>` is an ancestor of HEAD (a commit that left the branch is never published), and `@{u}` is an ancestor of `<rev>`.
+The walk: start at X = G, then follow `git rev-list --reverse --first-parent G..HEAD`, advancing X to each commit while the green tree covers that commit's tree, and stopping at the first commit it does not cover. So prose-only commits landed after G are published with it, and the first commit carrying anything else ends the walk.
+
+With `debt-status commit <rev>` the candidate is `<rev>` itself: it is admissible only when the green tree covers `<rev>^{tree}` (D-9), `<rev>` is an ancestor of HEAD (a commit that left the branch is never published), and `@{u}` is an ancestor of `<rev>`.
+
+The display list of owed commits (`create` report, session-start hook) names only commits in `HEAD ^X` that change a non-prose path; a prose-only commit is never listed as owing a full verify.
 
 **Cut grammar (I4), on `./le verify worktree`, beside `commit <revision>` and `keep`:**
 
@@ -336,7 +350,9 @@ N/A: Scope tooling (N2). The developer paths are covered by the Wiring Test tabl
 | AC-16 | an attested commit rebased with no conflict | still answered; when conflict resolution changes its diff, owed again |
 | AC-17 | `git pull --rebase` that moved the upstream, after a green verify | push refused; the list names every local commit (G is no longer an ancestor) |
 | AC-18 | commits pulled from `origin` that the other machine made | never in the owed list (they are in `@{u}`) |
-| AC-19 | a docs-only commit after the green record | owed, like any commit (D-5) |
+| AC-19 | a commit changing only Markdown under `docs/`, `ai/` or `plan/` after the green record (D-9) | not owed: `./le commit push` takes P = HEAD with no new verify, and the hook lists no owed commit. The same commit also touching `AGENTS.md`, a `.ci` body, an `rfc/` file or any Go file is owed, and P stops before it |
+| AC-34 | the prose-path predicate (D-9) | answers true only for paths a `nonGoPathRules` entry marks as prose; a unit test asserts `docs/x.md`, `ai/rules/y.md`, `plan/z.md` are prose and `README.md`, `AGENTS.md`, `rfc/short/rfc4271.md`, `docs/x.png`, `test/runner/a.ci`, `internal/x/y.go` are not; the push gate holds no prose classification of its own: `internal/le/commit` decides prose only through `IsProse` (a prefix used for another purpose, such as the closure-stem journal rule in `review.go`, is not a prose list) |
+| AC-35 | `git diff --name-only` fails during the walk | the commit is treated as NOT covered; the refusal names the git error; never read as an empty diff |
 | AC-20 | `structural-red-ok` / `broken-head-fix` given | admission unchanged; reason recorded as a trailer; no obligation beyond the tree rule |
 | AC-21 | `unverified`, `missing-full-verify-ok`, or `push` on `create` | unknown keyword error naming the replacement (`./le verify worktree` for the first two, `./le commit push "<owner authorisation>"` for the third) |
 | AC-22 | session start with HEAD's tree not the green tree | one line `verification debt: N commit(s) owe a full verify since <G>, push refused until cleared` plus up to five items; nothing when the trees match and no person act is open |
@@ -363,7 +379,7 @@ N/A: Scope tooling (N2). The developer paths are covered by the Wiring Test tabl
 | `TestDerivedDebtRefusesWithoutUpstream` | same | AC-11 | |
 | `TestDerivedDebtRebaseReowesEveryLocalCommit` | same | AC-17 | |
 | `TestDerivedDebtSkipsPulledCommits` | same | AC-18 | |
-| `TestDerivedDebtDocsOnlyCommitOwes` | same | AC-19 | |
+| `TestDerivedDebtProseOnlyCommitIsCovered` (replaces `TestDerivedDebtDocsOnlyCommitOwes`, D-9) | same | AC-19 | |
 | `TestDerivedDebtReadsPersonActTrailers` | same | AC-13, AC-14 (each answer kind, the reviewed kind included) | |
 | `TestOwnerAttestationSurvivesRebase` | same | AC-15, AC-16, A-6 | |
 | `TestDebtStatusExitCodes` | `internal/le/commit/actions_test.go` | AC-25 | |

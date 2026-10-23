@@ -20,7 +20,11 @@ import (
 const (
 	scriptMarker = "# ze-commit-script:"
 	blockMarker  = "# ze-commit-block:"
-	pushMarker   = "# ze-commit-push:"
+	// pushMarker carries the owner's authorisation in a push-only script
+	// (`./le commit push`), and opened the push section the removed
+	// `create ... push` keyword appended. A script holding it takes no
+	// appended block.
+	pushMarker = "# ze-commit-push:"
 )
 
 type commitBlock struct {
@@ -161,6 +165,9 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		panic("BUG: commit block " + block.Tag + " rendered without the HEAD it was prepared against")
 	}
 	all := append(append([]string{}, block.Paths...), block.Removed...)
+	if len(all) == 0 {
+		return renderEmptyPublish(block)
+	}
 	quoted := quotePaths(all)
 	notPublished := notPublishedLine(block)
 	// The capacity is a sizing hint for the two appends below, which write
@@ -269,6 +276,53 @@ func renderPublish(block commitBlock, scriptPath string) string {
 	return strings.Join(lines, "\n")
 }
 
+// renderEmptyPublish emits the commit half of an empty block, an owner
+// attestation (D-7): the commit takes its parent's tree, so no path is staged
+// and no peer change can collide with it, and the block builds on HEAD as it
+// stands. The empty-diff refusal of a block with paths is inverted: an empty
+// diff is this block's success, and a diff naming any path never lands.
+func renderEmptyPublish(block commitBlock) string {
+	notPublished := notPublishedLine(block)
+	lines := []string{
+		`_ze_message=` + shellQuote(block.MessagePath),
+		renderRefusal(`! -f "$_ze_message"`, notRunLine(block),
+			`echo "Its message file $_ze_message is gone. A block deletes it once its commit lands, so this block already published on an earlier run of this script, or the file was cleaned up."`,
+			`echo `+shellQuote("Check whether it landed with: git log --format='%h %s' --fixed-strings --grep="+shellQuote(commentSafe(block.Subject)))),
+		`_ze_text=$(git stripspace < "$_ze_message")`,
+		renderRefusal(`-z "$_ze_text"`, notPublished,
+			`echo "Its message file $_ze_message holds no message once blank lines are stripped."`),
+		`_ze_status=0`,
+		`_ze_gpgsign=$(git config --type=bool --get commit.gpgsign) || _ze_status=$?`,
+		renderRefusal(`"$_ze_status" -gt 1`, notPublished,
+			`echo "git config could not read commit.gpgsign as a boolean (its error is above); set it with: git config commit.gpgsign true (or false)."`),
+		`_ze_sign=`,
+		`if [ "$_ze_gpgsign" = true ]; then _ze_sign=1; fi`,
+		`_ze_attempt=1`,
+		`while :; do`,
+		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
+		`_ze_status=0`,
+		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_parent^{tree}") || _ze_status=$?`,
+		renderRefusal(`"$_ze_status" -ne 0`, notPublished,
+			`echo "git commit-tree could not build the commit (its error is above). When commit.gpgsign is true, signing is the usual cause."`),
+		`_ze_changed=$(git diff-tree -r -z --no-renames --name-only "$_ze_parent" "$_ze_commit" | tr '\0' '\n')`,
+		renderRefusal(`-n "$_ze_changed"`, notPublished,
+			`echo "An attestation must not change the tree, and this commit changes paths against its parent $_ze_parent:"`,
+			`printf '%s\n' "$_ze_changed"`,
+			`echo "This is a defect in the generated script: report it with this script's path."`),
+		`if _ze_swap=$(git update-ref -m ` + shellQuote("commit: "+commentSafe(block.Subject)) + ` HEAD "$_ze_commit" "$_ze_parent" 2>&1); then`,
+		"  " + ownBookkeeping,
+		`  break`,
+		`fi`,
+		renderRefusal(`"$_ze_attempt" -ge `+strconv.Itoa(publishAttemptsMax), notPublished,
+			`echo "git update-ref refused to move HEAD `+strconv.Itoa(publishAttemptsMax)+` times in a row; it said:"`,
+			`printf '%s\n' "$_ze_swap"`),
+		`_ze_attempt=$((_ze_attempt + 1))`,
+		`done`,
+		`git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"`,
+	}
+	return strings.Join(lines, "\n")
+}
+
 // ownBookkeeping is the line a block runs once its swap succeeds, recording the
 // commit it published so a later block of the same script leaves it out of the
 // peer-change comparison by exact SHA. A block that lacks it was prepared by an
@@ -364,7 +418,7 @@ func renderPrivateIndex(block commitBlock) string {
 // between preparation and the run collects them. `update-index --index-info`
 // accepts an entry whose object is missing, and `git write-tree` then stops at
 // the first one it meets in tree order, which is often a path the author did
-// not write, such as the verification-debt shard under plan/.
+// not write.
 func renderLostBlobs(block commitBlock) []string {
 	lines := make([]string, 0, len(block.IndexEntries)+3)
 	lines = append(lines, `_ze_lost=$(git cat-file --batch-check='%(objectname)' <<'`+indexInfoDelimiter+`' | sed -n 's/ missing$//p'`)
@@ -570,42 +624,25 @@ func commentLine(value string) string {
 	return markerLine("#", value)
 }
 
-func renderPush(authorisation string) string {
-	return markerLine(pushMarker, authorisation) + "\n" +
-		"# Push authorized by the owner. Reached only after every commit succeeded.\n" +
-		"git push\n"
-}
-
-func splitPush(text string) (string, string, error) {
-	lines := strings.SplitAfter(text, "\n")
-	found := -1
-	for index, line := range lines {
+// refusePushAppend refuses to append to a script that pushes: a push-only
+// script from `./le commit push`, or one prepared with the removed
+// `create ... push` keyword. Either pushes a commit chosen before the block
+// existed, so the appended commit would not be published while the session
+// reads the script's push as covering it.
+func refusePushAppend(existing string) error {
+	for line := range strings.SplitSeq(existing, "\n") {
 		if strings.HasPrefix(line, pushMarker) {
-			if found >= 0 {
-				return "", "", errors.New("refusing a script with more than one push marker")
-			}
-			found = index
+			return errors.New("append refused: the script pushes a commit chosen when it was prepared, so an appended " +
+				"commit would not be published; run the push script first, or use replace, then prepare the push " +
+				"again with ./le commit push \"<owner authorisation>\"")
 		}
 	}
-	if found < 0 {
-		return text, "", nil
-	}
-	authorisation := commentSafe(strings.TrimPrefix(strings.TrimSpace(lines[found]), pushMarker))
-	tail := strings.Join(lines[found:], "")
-	if strings.TrimSpace(tail) != strings.TrimSpace(renderPush(authorisation)) {
-		return "", "", errors.New("refusing a script whose push marker is not its final section")
-	}
-	body := strings.TrimRight(strings.Join(lines[:found], ""), "\n")
-	if body != "" {
-		body += "\n"
-	}
-	return body, authorisation, nil
+	return nil
 }
 
+// pushAuthorisation validates the owner's push authorisation and answers it
+// made safe for a script comment. An empty or short sentence is refused.
 func pushAuthorisation(reason string) (string, error) {
-	if reason == "" {
-		return "", nil
-	}
 	reason = commentSafe(reason)
 	if len(reason) < 12 {
 		return "", fmt.Errorf("push authorisation is too short: %q is %d characters, 12 is the minimum", reason, len(reason))
@@ -614,9 +651,9 @@ func pushAuthorisation(reason string) (string, error) {
 }
 
 // validateTag reports whether a caller-supplied tag can name a message file.
-// Create MUST call it before it records verification debt: nextTag runs after
-// that record is written, so a tag refused there leaves rows naming a commit
-// that was never made (plan/journal/record-written-before-the-operation-succeeds.md).
+// Create MUST call it before its gates run: nextTag runs after them, so a tag
+// refused there is found only once every gate has been paid for
+// (plan/journal/record-written-before-the-operation-succeeds.md).
 func validateTag(requested string) error {
 	if requested == "" {
 		return nil

@@ -57,8 +57,8 @@ func TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit(t *test
 	if content := runCommitGitOutput(t, root, "show", "HEAD:mine.txt"); content != "the author wrote this\n" {
 		t.Fatalf("the commit carried the other session's edit: %q\n%s", content, output)
 	}
-	// Create adds the verification-debt row of its own, so the population to
-	// assert is what it PREPARED. The peer's staged path is not in it.
+	// The population to assert is what Create PREPARED. The peer's staged path
+	// is not in it.
 	names := strings.Fields(runCommitGitOutput(t, root, "show", "--name-only", "--format=", "HEAD"))
 	want := append([]string{}, prepared.Added...)
 	slices.Sort(names)
@@ -491,7 +491,13 @@ func TestARemovalOfAPathHeadDoesNotHoldDeletesNothing(t *testing.T) {
 	configureCommitAuthor(t, root)
 	writeCommitFixture(t, root, "staged.txt", "staged, never committed\n")
 	runCommitGit(t, root, "add", "--", "staged.txt")
-	prepared, err := Create(root, &Options{Subject: "remove staged.txt", Remove: []string{"staged.txt"}})
+	// A removal of a path HEAD does not hold changes nothing, so the block
+	// carries a real change beside it: an empty block is refused before its
+	// deletion step, which would keep the file without proving this branch.
+	writeCommitFixture(t, root, "other.txt", "the change this commit carries\n")
+	prepared, err := Create(root, &Options{
+		Subject: "remove staged.txt", Files: []string{"other.txt"}, Remove: []string{"staged.txt"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

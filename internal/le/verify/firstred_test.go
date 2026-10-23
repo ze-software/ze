@@ -107,7 +107,7 @@ func TestFirstRedWithAPartIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("first-red with part 1 of 2 was accepted")
 	}
-	for _, want := range []string{"debt clearing", "le verify worktree first-red", "le verify worktree part <i> of <n>"} {
+	for _, want := range []string{"green record", "le verify worktree first-red", "le verify worktree part <i> of <m>"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal %q does not say %q", err, want)
 		}

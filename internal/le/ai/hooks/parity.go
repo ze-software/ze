@@ -138,7 +138,7 @@ func bashCode(command string) int {
 	if len(fields) >= 3 && fields[0] == "./le" && fields[1] == "commit" {
 		switch fields[2] {
 		case "session", "create", "message", "audit", "review-check",
-			"debt-list", "debt-status", "debt-clear":
+			"push", "debt-status":
 		default:
 			return 2
 		}

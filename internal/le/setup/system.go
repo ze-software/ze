@@ -459,7 +459,7 @@ func (s *Setup) noteLoopbackFix(report *Report, missing []string) {
 // address the functional suites bind, and otherwise the refusal that names each
 // missing address and the commands that add it.
 //
-// A functional run, a verification that holds one, and a debt-clear pass call it
+// A functional run, a verification that holds one, and a cut sweep call it
 // BEFORE any work starts. Without it, a host rebooted since its last `./le
 // setup` ran a verification for two hours before the first fixture that binds
 // fd00::2 failed (the runner's own per-test probe, ensureLoopbackAlias in

@@ -4,8 +4,6 @@ package hookruntime
 import (
 	"bytes"
 	stdcontext "context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/rfc"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
+	"github.com/ze-software/ze/internal/le/verify"
 )
 
 // TestSubagentContextResolvesClaim drives the JSON hook entry over every current
@@ -85,43 +84,6 @@ func TestSubagentContextResolvesClaim(t *testing.T) {
 				t.Errorf("resolved claim emitted a failure: %s", context)
 			}
 		})
-	}
-}
-
-// TestSessionHookCountsNoDischargedRowAsOwed drives the third consumer of the
-// ledger over a discharged row.
-//
-// The hook holds no rule of its own: it reads commit.ListDebt and counts the
-// rows whose status is open, so a discharge narrows what it prints with no edit
-// here. That is what the test proves, and the first half is why it can: the
-// same shard with no discharge record still warns.
-func TestSessionHookCountsNoDischargedRowAsOwed(t *testing.T) {
-	root := t.TempDir()
-	// The hook builds every registered derived artifact that is absent, which
-	// has nothing to do with the ledger and would read a tree this fixture does
-	// not hold. Seeding them keeps this test about the ledger alone.
-	for _, artifact := range derived.All() {
-		writeHookFixture(t, root, artifact.Path, "# derived\n")
-	}
-
-	const row = "| 2026-09-08 | aaaaaaaa | a commit | independent critical review | no reviewer | open |"
-	writeHookFixture(t, root, "plan/verification-debt/aaaaaaaa.md",
-		"| Date | Session | Subject | Gate owed | Reason | Status |\n"+
-			"|------|---------|---------|-----------|--------|--------|\n"+row+"\n")
-
-	if printed := runSessionStart(t, root); !strings.Contains(printed, "verification debt: 1 gate(s) owed") {
-		t.Fatalf("the hook printed %q, want one owed gate before the discharge", printed)
-	}
-
-	digest := sha256.Sum256([]byte(row))
-	writeHookFixture(t, root, "plan/verification-debt/discharged/cccccccc.md",
-		"| Date | Shard | Line | Row digest | Kind | Commit | Artifact | Authorisation |\n"+
-			"|------|-------|------|------------|------|--------|----------|---------------|\n"+
-			"| 2026-09-08 | aaaaaaaa.md | 3 | "+hex.EncodeToString(digest[:])+
-			" | owner | | | Thomas ordered this commit |\n")
-
-	if printed := runSessionStart(t, root); strings.Contains(printed, "verification debt") {
-		t.Fatalf("the hook printed %q, want no owed gate once the row is discharged", printed)
 	}
 }
 
@@ -373,7 +335,7 @@ func rfcCorpusFixture(t *testing.T, root string) {
 // The rebuild is ABSENT-ONLY because the hook has a budget: `.claude/settings.json`
 // gives `le ai hooks session-start` 5 seconds, and rendering all three
 // artifacts does not fit inside it. A hook killed at its timeout loses the
-// whole session-start message with it, the verification-debt warning
+// whole session-start message with it, the push-gate warning
 // included, and leaves every artifact after the kill
 // point exactly as it found them. Measure it before changing this:
 //
@@ -517,4 +479,132 @@ func TestSessionStartPrintsAReadyReportPastTheDeadline(t *testing.T) {
 			t.Fatalf("try %d: an empty channel answered a report after the deadline", try)
 		}
 	}
+}
+
+// TestSessionStartReportsDerivedDebt drives the session-start hook over real
+// git checkouts with a real upstream and asserts the debt line the derivation
+// produces: one warning and the owed commits when HEAD's tree is not the green
+// tree, nothing when it is, a stderr note naming the fix when the main
+// checkout has no upstream, and silence in a linked worktree with none,
+// because a worktree agent never pushes. Each run stays inside the hook's
+// budget, which is what A-5 claims for one rev-list and one log.
+// VALIDATES: AC-22, AC-11, AC-12, A-5.
+func TestSessionStartReportsDerivedDebt(t *testing.T) {
+	const warning = "verification debt: 1 commit(s) owe a full verify since "
+	t.Run("a commit after the green record", func(t *testing.T) {
+		root := derivedDebtCheckout(t, true)
+		green := derivedDebtCommit(t, root, "the verified change")
+		derivedDebtGreen(t, root, green)
+		derivedDebtCommit(t, root, "a change after the verify")
+
+		started := time.Now()
+		printed, noted := runSessionStartStreams(t, root)
+		if elapsed := time.Since(started); elapsed >= sessionStartBudget {
+			t.Fatalf("the hook took %s, past its %s budget", elapsed, sessionStartBudget)
+		}
+		if !strings.Contains(printed, warning+green[:7]) {
+			t.Fatalf("the hook printed %q, want %q naming the green commit", printed, warning)
+		}
+		if !strings.Contains(printed, "push refused until cleared") {
+			t.Fatalf("the hook printed %q, want the push refusal named", printed)
+		}
+		if !strings.Contains(printed, "a change after the verify") {
+			t.Fatalf("the hook printed %q, want the owed commit's subject", printed)
+		}
+		if strings.Contains(noted, "verification debt") {
+			t.Fatalf("the hook said on stderr %q over a derivation that answered", noted)
+		}
+	})
+	t.Run("HEAD's tree is the green tree", func(t *testing.T) {
+		root := derivedDebtCheckout(t, true)
+		derivedDebtGreen(t, root, derivedDebtCommit(t, root, "the verified change"))
+		printed, noted := runSessionStartStreams(t, root)
+		if strings.Contains(printed, "verification debt") || strings.Contains(noted, "verification debt") {
+			t.Fatalf("the hook warned over a verified HEAD: stdout %q stderr %q", printed, noted)
+		}
+	})
+	t.Run("the main checkout has no upstream", func(t *testing.T) {
+		root := derivedDebtCheckout(t, false)
+		derivedDebtGreen(t, root, derivedDebtCommit(t, root, "the verified change"))
+		printed, noted := runSessionStartStreams(t, root)
+		if strings.Contains(printed, "verification debt") {
+			t.Fatalf("the hook printed %q, want nothing on stdout when it cannot derive", printed)
+		}
+		if !strings.Contains(noted, "git branch --set-upstream-to") {
+			t.Fatalf("the hook said %q on stderr, want the missing upstream and its fix", noted)
+		}
+	})
+	t.Run("a linked worktree has no upstream", func(t *testing.T) {
+		root := derivedDebtCheckout(t, true)
+		linked := filepath.Join(t.TempDir(), "linked")
+		derivedDebtGit(t, root, "worktree", "add", "-q", "-b", "agent", linked)
+		for _, artifact := range derived.All() {
+			writeHookFixture(t, linked, artifact.Path, "# derived\n")
+		}
+		printed, noted := runSessionStartStreams(t, linked)
+		if strings.Contains(printed, "verification debt") || strings.Contains(noted, "verification debt") {
+			t.Fatalf("a linked worktree with no upstream spoke of debt: stdout %q stderr %q", printed, noted)
+		}
+	})
+}
+
+// derivedDebtCheckout is a committed Ze checkout on main with every derived
+// artifact seeded, so the hook renders nothing else, and, when upstream is
+// set, a bare upstream that holds the baseline.
+func derivedDebtCheckout(t *testing.T, upstream bool) string {
+	t.Helper()
+	root := t.TempDir()
+	writeHookFixture(t, root, "go.mod", "module fixture\n")
+	writeHookFixture(t, root, "feature-gates.txt", "")
+	derivedDebtGit(t, root, "init", "-q", "--initial-branch=main")
+	derivedDebtGit(t, root, "add", "go.mod", "feature-gates.txt")
+	derivedDebtGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+		"commit", "-q", "-m", "baseline")
+	for _, artifact := range derived.All() {
+		writeHookFixture(t, root, artifact.Path, "# derived\n")
+	}
+	if !upstream {
+		return root
+	}
+	remote := filepath.Join(t.TempDir(), "origin.git")
+	derivedDebtGit(t, root, "init", "-q", "--bare", "--initial-branch=main", remote)
+	derivedDebtGit(t, root, "remote", "add", "origin", remote)
+	derivedDebtGit(t, root, "push", "-q", "-u", "origin", "main")
+	return root
+}
+
+// derivedDebtCommit commits one new file named after the subject and answers
+// the commit's full SHA.
+func derivedDebtCommit(t *testing.T, root, subject string) string {
+	t.Helper()
+	path := "change-" + strings.ReplaceAll(subject, " ", "-") + ".txt"
+	writeHookFixture(t, root, path, subject+"\n")
+	derivedDebtGit(t, root, "add", "--", path)
+	derivedDebtGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+		"commit", "-q", "-m", subject)
+	return strings.TrimSpace(derivedDebtGit(t, root, "rev-parse", "HEAD"))
+}
+
+// derivedDebtGreen records a green, uncut verification over commit at root.
+func derivedDebtGreen(t *testing.T, root, commit string) {
+	t.Helper()
+	tree := strings.TrimSpace(derivedDebtGit(t, root, "rev-parse", commit+"^{tree}"))
+	record, err := verify.NewGreenRecord(commit, tree, 1, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verify.WriteGreenRecord(root, record); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func derivedDebtGit(t *testing.T, root string, args ...string) string {
+	t.Helper()
+	command := exec.CommandContext(t.Context(), "git", args...)
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
+	}
+	return string(output)
 }

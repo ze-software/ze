@@ -1,0 +1,20 @@
+# A closure admitted without a clean review carries its obligation in a
+# trailer, and the push waits for it.
+#
+# The fixture runs the REAL `le commit create ... remove <spec>
+# review-override "<reason>"` in a throwaway Ze checkout, runs the script, and
+# asserts the commit message carries `Review-owed: <stem>: <reason>` and the
+# commit holds no file under plan/verification-debt/. With a green record over
+# that commit, `le commit push` is refused naming the trailer and the
+# attestation that answers it (AC-13).
+#
+# Spec: plan/post-release/engineering/spec-verification-debt-derived.md.
+# Drop the Review-owed trailer from Message (internal/le/commit/input.go) and
+# seq=1 fails at review-owed-trailer-written.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture runner/commit-review-owed-trailer
+expect=exit:code=0
+expect=stdout:contains=review-owed-trailer-written
+expect=stdout:contains=push-held-until-attested

@@ -65,6 +65,10 @@ type Certificate struct {
 	TreeHash  string `json:"tree-hash"`
 }
 
+// TreeMoved answers whether the tree the run verified changed while it ran,
+// which WriteCertificate records in place of the tree hash.
+func (c Certificate) TreeMoved() bool { return c.TreeHash == treeMoved }
+
 // Text renders the status file byte for byte in its established format.
 func (c Certificate) Text() string {
 	var text textbuf.Buffer

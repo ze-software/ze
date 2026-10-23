@@ -11,7 +11,7 @@ rule is a pointer, and the rule file wins where the two differ.
 These override every other instruction, including "the task requires it". If
 you have broken one, stop and tell the user.
 
-## git commit, add, rm, mv, and push only through `./le commit create`
+## git commit, add, rm, mv, and push only through `./le commit`
 - Never run `git commit`, `git add`, `git rm`, `git mv`, `git restore --staged`,
   `git stash` or `git push` as a direct Bash call. Sessions share the index, so a
   loose command carries another session's work.
@@ -19,8 +19,9 @@ you have broken one, stop and tell the user.
   path it prints. Never construct that path.
 - To delete a tracked file, pass the path to `remove` and leave the file in
   place: the script deletes the working-tree copy once the commit lands.
-- Push only when the owner ordered it, through `./le commit create ... push "<owner
-  authorisation>"`. A throwaway script that carries a push is the same ban.
+- Push only when the owner ordered it, through `./le commit push "<owner
+  authorisation>"`, then run the push-only script at the `script=` path it
+  prints. A throwaway script that carries a push is the same ban.
 - Never `--no-verify`, never `--no-gpg-sign`.
 - Full rule: `ai/rules/git-safety.md`, `docs/contributing/committing.md`.
 

@@ -37,6 +37,17 @@ type RFCApprovals struct {
 	Path     string   `json:"path"`
 	Trailers []string `json:"trailers,omitempty"`
 	Dropped  []string `json:"dropped,omitempty"`
+	// Unapproved is each changed unit no live row names, as `<package>.<Test>`:
+	// what `rfc-change-ok` records as one RFC-approval-owed trailer each.
+	Unapproved []string `json:"unapproved,omitempty"`
+}
+
+// unit names the change the way an owner approval and its trailers do,
+// `<package>.<Test>`. It is the one place a change becomes a unit name, so the
+// gate, the owed trailer and the push derivation cannot spell one unit two
+// ways.
+func (c *RFCChange) unit() string {
+	return c.Package + "." + c.Name
 }
 
 // rfcChangeProblems judges the tagged tests a prospective commit changes
@@ -144,10 +155,11 @@ func rfcChangeProblems(
 		if landedBy[index] != "" {
 			why = "the approval row naming it was already used by commit " + landedBy[index] + ", so it approves nothing further"
 		}
+		approvals.Unapproved = append(approvals.Unapproved, change.unit())
 		problems = append(problems, fmt.Sprintf(
 			"%s changes RFC-tagged test %s and %s.\n"+
 				"  Only the OWNER approves a change to a tagged test. Once Thomas has answered, record his words and retry:\n"+
-				"    %s", change.Path, change.Name, why, rfc.ApproveCommand(change.Package+"."+change.Name)))
+				"    %s", change.Path, change.Name, why, rfc.ApproveCommand(change.unit())))
 	}
 	return changes, approvals, problems
 }

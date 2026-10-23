@@ -49,7 +49,7 @@ The conversion inventory is already measured and carries no blocker:
 - **Two areas need their sub-verbs flattened.** `spec session` nests three deep
   (`state {current|latest}`, `review {hash|record|check}`, `model current`) and
   `spec status` nests one (`closure {list|check}`). `commit` already flattens by
-  hand (`debt-list`, `debt-status`, `debt-clear`, `debt-discharge`), which is the
+  hand (`debt-status`, `review-check`), which is the
   pattern to follow.
 - **One genuine conflict.** `spec status` answers DATA for a bare invocation,
   where `leaction.Area.Answer` answers the action listing. That bare form needs a

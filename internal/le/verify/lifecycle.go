@@ -87,12 +87,13 @@ func (o Options) part() (verifyengine.Part, error) {
 	return part, part.Valid()
 }
 
-// firstRedWithPart is the refusal of first-red on a cut run. A piece is dealt so
-// debt clearing proves every stage in it, and a piece that stopped early would
-// leave stages of it unproven while reading as the piece that was asked for.
-const firstRedWithPart = "first-red cannot be combined with part: a piece is dealt for debt clearing, " +
-	"which needs every stage of the piece to run; use le verify worktree first-red for an early red " +
-	"over the whole population, or le verify worktree part <i> of <n> to run every stage of one piece"
+// firstRedWithPart is the refusal of first-red on a cut run. A piece counts
+// towards the green record only when every stage in it ran, and a piece that
+// stopped early would leave stages of it unproven while reading as the piece
+// that was asked for.
+const firstRedWithPart = "first-red cannot be combined with part or all: a piece counts towards the green record " +
+	"only when every stage of it runs; use le verify worktree first-red for an early red " +
+	"over the whole population, or le verify worktree part <i> of <m> to run every stage of one piece"
 
 // CleanupFailure is one failed cleanup operation. Cleanup attempts continue so
 // one failure cannot prevent prune or hide another failure.
@@ -121,18 +122,23 @@ type PreservedWorktree struct {
 
 // Report is the complete lifecycle and action verdict.
 type Report struct {
-	Action      string                `json:"action"`
-	Commit      string                `json:"commit"`
-	Worktree    string                `json:"worktree,omitempty"`
-	Code        int                   `json:"code"`
-	Kept        bool                  `json:"kept"`
-	Swept       []string              `json:"swept,omitempty"`
-	Preserved   []PreservedWorktree   `json:"preserved,omitempty"`
-	Diagnostics []string              `json:"diagnostics"`
-	Logs        string                `json:"logs,omitempty"`
-	Verify      *verifyengine.Report  `json:"verify,omitempty"`
-	Failure     *verifyengine.Failure `json:"failure,omitempty"`
-	Cleanup     []CleanupFailure      `json:"cleanup-failures,omitempty"`
+	Action      string               `json:"action"`
+	Commit      string               `json:"commit"`
+	Worktree    string               `json:"worktree,omitempty"`
+	Code        int                  `json:"code"`
+	Kept        bool                 `json:"kept"`
+	Swept       []string             `json:"swept,omitempty"`
+	Preserved   []PreservedWorktree  `json:"preserved,omitempty"`
+	Diagnostics []string             `json:"diagnostics"`
+	Logs        string               `json:"logs,omitempty"`
+	Verify      *verifyengine.Report `json:"verify,omitempty"`
+	// Proven is every piece of this run's cut proven over Commit after it ran,
+	// empty for an uncut run. Green says this run wrote the green record
+	// (GreenPath) at the asking root.
+	Proven  []int                 `json:"proven,omitempty"`
+	Green   bool                  `json:"green"`
+	Failure *verifyengine.Failure `json:"failure,omitempty"`
+	Cleanup []CleanupFailure      `json:"cleanup-failures,omitempty"`
 }
 
 type commandResult struct {
@@ -397,6 +403,13 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	case publishErr == nil:
 		report.Diagnostics = append(report.Diagnostics, text.Reset().
 			Str("verify-worktree: certificate published to ").Str(verifyengine.StatusPath).String())
+		// The green record and the parts record are written here, at the
+		// asking root, after the publish and only after it: a run that
+		// published no certificate has no tree-moved answer to give. Neither is
+		// written in the worktree, so CopyCertificate copies neither.
+		if line := recordGreen(ctx, root, part, &report, deps); line != "" {
+			report.Diagnostics = append(report.Diagnostics, line)
+		}
 	case errors.Is(publishErr, os.ErrNotExist):
 		report.Diagnostics = append(report.Diagnostics, text.Reset().
 			Str("verify-worktree: no certificate to publish (").Err(publishErr).Byte(')').String())

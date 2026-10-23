@@ -1,8 +1,7 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 //
 // The eight-hex namespace names every artifact one session prepares: its commit
-// script, its commit message, its verification-debt shard and its two test
-// ledger shards. It lives here, beside ResolveSession, because the commit gate
+// script, its commit message and its two test ledger shards. It lives here, beside ResolveSession, because the commit gate
 // and the pre-write hook both derive a path from it and neither may import the
 // other.
 //

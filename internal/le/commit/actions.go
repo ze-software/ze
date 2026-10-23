@@ -2,21 +2,79 @@
 package commit
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/rfc"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
-	"github.com/ze-software/ze/internal/le/verify"
-	verifydispatch "github.com/ze-software/ze/internal/le/verify/dispatch"
-	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const area = "commit"
+
+// keywordPush is the push verb. It is the one push route: create carries no
+// push keyword.
+const keywordPush = "push"
+
+// keywordDebtStatus is the verb that answers the derived verification debt.
+const keywordDebtStatus = "debt-status"
+
+// The create keywords that admit a commit the gates would otherwise refuse.
+// Each one's reason is the operator's, and the admission it grants is
+// unchanged by the derived debt.
+const (
+	keywordSession         = "session"
+	actionReviewCheck      = "review-check"
+	keywordStructuralRedOK = "structural-red-ok"
+	keywordReviewOverride  = "review-override"
+	keywordBrokenHeadFix   = "broken-head-fix"
+	keywordRFCChangeOK     = "rfc-change-ok"
+	// keywordAttest prepares the owner's attestation: an empty commit whose
+	// only content is its Owner-attested: trailer (D-7).
+	keywordAttest = "attest"
+	// keywordLedgerCarried names one person-act row the ledger-deletion
+	// commit carries as a Ledger-carried: trailer (D-4).
+	keywordLedgerCarried = "ledger-carried"
+)
+
+// The commit message trailers that record a person act or an admission. Each
+// key is the line's prefix, its value follows. The derivation (owed.go) reads
+// the first four back; the last two are an audit record only.
+const (
+	// trailerReviewOwed is `Review-owed: <spec stem>: <reason>`.
+	trailerReviewOwed = "Review-owed: "
+	// trailerRFCApprovalOwed is `RFC-approval-owed: <package>.<Test>: <reason>`.
+	trailerRFCApprovalOwed = "RFC-approval-owed: "
+	// trailerOwnerAttested is `Owner-attested: <stable patch-id>: <owner words>`.
+	trailerOwnerAttested = "Owner-attested: "
+	// trailerLedgerCarried is `Ledger-carried: <sha> [<stable patch-id>] <gate key>: <reason>`.
+	trailerLedgerCarried = "Ledger-carried: "
+	// trailerStructuralRedOK is `Structural-red-ok: <reason>`.
+	trailerStructuralRedOK = "Structural-red-ok: "
+	// trailerBrokenHeadFix is `Broken-head-fix: <reason>`.
+	trailerBrokenHeadFix = "Broken-head-fix: "
+)
+
+// declaredTrailers is every trailer create writes itself, with the one route
+// that writes it. A subject or body line that starts with a key is refused
+// (refuseHandWrittenTrailer), because the derivation would read it as the
+// record: a hand-written `Owner-attested:` would answer an obligation the
+// owner never answered.
+var declaredTrailers = []struct {
+	Key       string
+	WrittenBy string
+}{
+	{trailerReviewOwed, `create ... ` + keywordReviewOverride + ` "<reason>"`},
+	{trailerRFCApprovalOwed, `create ... ` + keywordRFCChangeOK + ` "<reason>"`},
+	{trailerOwnerAttested, `create ... ` + keywordAttest + ` <commit> "<owner words>"`},
+	{trailerLedgerCarried, `the ledger-deletion commit: create ... remove <path> ` + keywordLedgerCarried + ` "<sha> <gate key>: <reason>"`},
+	{trailerStructuralRedOK, `create ... ` + keywordStructuralRedOK + ` "<reason>"`},
+	{trailerBrokenHeadFix, `create ... ` + keywordBrokenHeadFix + ` "<reason>"`},
+	{rfc.ApprovalTrailer, "create from ./le rfc approve"},
+}
 
 var commandVerbs = []struct {
 	Verb   string
@@ -28,10 +86,16 @@ var commandVerbs = []struct {
 	{"message", false, "render and validate a commit message without preparing a script"},
 	{"audit", false, "audit a branch range and worktree for unexplained test weakening"},
 	{actionReviewCheck, false, "re-check a hash-pinned independent review immediately before staging"},
-	{"debt-list", false, "list every verification-debt row"},
-	{"debt-status", false, "summarize open and cleared verification debt"},
-	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero; part <n> of <m> runs one piece, all of <m> sweeps every piece in order, and nothing clears until every piece has passed at one commit"},
-	{"debt-discharge", true, "record how a row's obligation was met, for a gate no verification can re-run; kind not-applicable, closed and reviewed are re-derived on every read from every commit the row covers, and kind owner is an attestation"},
+	{keywordPush, true, "derive what the verified commit P owes and prepare a script that re-derives against P and pushes P to the upstream branch; takes the owner's authorisation"},
+	{keywordDebtStatus, false, "derive what a push of the verified commit P, or of commit <rev>, would still owe: exit 0 when nothing, 1 when anything, 2 when it cannot answer"},
+}
+
+// retiredVerbs maps each verb the derived debt removed to the command that
+// replaced it. It feeds only the refusal: none of these verbs dispatches.
+var retiredVerbs = map[string]string{
+	"debt-list":      "./le commit " + keywordDebtStatus,
+	"debt-clear":     verifyWorktreeCommand,
+	"debt-discharge": `./le commit create ... attest <commit> "<owner words>"`,
 }
 
 // CommandRow is one closed verb exposed by `le commit`.
@@ -45,62 +109,6 @@ type CommandRow struct {
 type commandList struct {
 	Area  string       `json:"area"`
 	Verbs []CommandRow `json:"verbs"`
-}
-
-// debtStatus is the debt population summary.
-//
-// Discharged is split by kind because the kind alone says whether a machine
-// derived the discharge. An attested population that grows while the derived
-// one does not is the tell that kind owner has become the lazy route, and this
-// answer is where it shows.
-type debtStatus struct {
-	Open       int            `json:"open"`
-	Cleared    int            `json:"cleared"`
-	Discharged int            `json:"discharged"`
-	ByKind     map[string]int `json:"discharged-by-kind,omitempty"`
-	Invalid    []string       `json:"invalid-records,omitempty"`
-	Total      int            `json:"total"`
-}
-
-// summarizeDebt counts one ledger read. A row is open, cleared or discharged,
-// and ListDebt is the one producer that decides which.
-func summarizeDebt(ledger DebtLedger) debtStatus {
-	status := debtStatus{Total: len(ledger.Rows), Invalid: ledger.Invalid}
-	for index := range ledger.Rows {
-		row := &ledger.Rows[index]
-		switch row.Status {
-		case statusOpen:
-			status.Open++
-		case statusDischarged:
-			status.Discharged++
-			if status.ByKind == nil {
-				status.ByKind = make(map[string]int)
-			}
-			status.ByKind[row.DischargeKind]++
-		default:
-			status.Cleared++
-		}
-	}
-	return status
-}
-
-// debtClearResult records the fixed commit judged and the rows changed. Part,
-// Of and Proven are empty for an uncut pass, which proves the whole population
-// in one run and has no progress to carry.
-type debtClearResult struct {
-	Commit       string   `json:"commit,omitempty"`
-	Open         int      `json:"open"`
-	Cleared      int      `json:"cleared"`
-	Remaining    int      `json:"remaining"`
-	Part         int      `json:"part,omitempty"`
-	Of           int      `json:"of,omitempty"`
-	Proven       []int    `json:"proven-parts,omitempty"`
-	Skipped      []int    `json:"skipped-parts,omitempty"`
-	Failed       []int    `json:"failed-parts,omitempty"`
-	Runnable     []string `json:"runnable,omitempty"`
-	Unrunnable   []string `json:"unrunnable,omitempty"`
-	Unrecognized []string `json:"unrecognized,omitempty"`
-	Diagnostics  []string `json:"diagnostics,omitempty"`
 }
 
 // messageResult is a validated message preview.
@@ -178,49 +186,31 @@ func Answer(args []string) (any, int) {
 			return review, 3
 		}
 		return review, 0
-	case "debt-list":
-		if len(args) != 1 {
-			return commandError(fmt.Errorf("debt-list takes no arguments, got %q", args[1]), 2)
+	case keywordPush:
+		if len(args) != 2 {
+			return commandError(errors.New(`push takes the owner's authorisation, as in: ./le commit push "<owner authorisation>"`), 2)
 		}
-		rows, err := ListDebt(root)
+		prepared, code, err := preparePush(root, args[1])
 		if err != nil {
-			return commandError(err, 2)
+			return commandError(err, code)
 		}
-		return rows, 0
-	case "debt-status":
-		if len(args) != 1 {
-			return commandError(fmt.Errorf("debt-status takes no arguments, got %q", args[1]), 2)
-		}
-		ledger, err := readDebt(root)
+		return &prepared, 0
+	case keywordDebtStatus:
+		values, err := parseKeywords(args[1:], map[string]keywordRule{"commit": {Value: true}})
 		if err != nil {
-			return commandError(err, 2)
+			return commandError(fmt.Errorf("%w; the form is ./le commit debt-status [commit <rev>]", err), 2)
 		}
-		return summarizeDebt(ledger), 0
-	case "debt-clear":
-		values, err := parseKeywords(args[1:], map[string]keywordRule{
-			"part": {Value: true}, "of": {Value: true}, "all": {Value: false},
-		})
+		// The derivation answers or errors; an error is "cannot answer", exit
+		// 2, and never reads as nothing owed.
+		status, code, err := answerDebtStatus(root, values.one("commit"))
 		if err != nil {
-			return commandError(err, 2)
+			return commandError(err, code)
 		}
-		part, err := debtPartFrom(values)
-		if err != nil {
-			return commandError(err, 2)
-		}
-		result, code := clearDebt(root, part)
-		return result, code
-	case "debt-discharge":
-		request, err := parseDischarge(args[1:])
-		if err != nil {
-			return commandError(err, 2)
-		}
-		session, err := lepath.CommitSession(root, "")
-		if err != nil {
-			return commandError(err, 2)
-		}
-		result, code := dischargeDebt(root, session, request)
-		return result, code
+		return &status, code
 	default:
+		if replacement, retired := retiredVerbs[args[0]]; retired {
+			return commandError(fmt.Errorf("commit verb %q was removed: verification debt is derived from git and the green record; run %s instead", args[0], replacement), 2)
+		}
 		return commandError(fmt.Errorf("commit has no verb %q", args[0]), 2)
 	}
 }
@@ -244,6 +234,13 @@ func Subs() string {
 type keywordRule struct {
 	Value  bool
 	Repeat bool
+	// Replacement is set for a keyword that was removed: it names the command
+	// that replaced it, and the keyword is refused naming it.
+	Replacement string
+	// Pair is set for a keyword that takes two values; Usage is its form,
+	// named when a value is missing.
+	Pair  bool
+	Usage string
 }
 
 type keywordValues map[string][]string
@@ -268,8 +265,19 @@ func parseKeywords(args []string, rules map[string]keywordRule) (keywordValues, 
 		if !exists {
 			return nil, fmt.Errorf("unknown keyword %q; every value follows a closed keyword", keyword)
 		}
+		if rule.Replacement != "" {
+			return nil, fmt.Errorf("keyword %q was removed: verification debt is derived from git and the green record; run %s instead", keyword, rule.Replacement)
+		}
 		if !rule.Repeat && values.has(keyword) {
 			return nil, fmt.Errorf("keyword %q appears more than once", keyword)
+		}
+		if rule.Pair {
+			if index+2 >= len(args) {
+				return nil, fmt.Errorf("keyword %q requires two values: %s", keyword, rule.Usage)
+			}
+			values[keyword] = append(values[keyword], args[index+1], args[index+2])
+			index += 2
+			continue
 		}
 		value := ""
 		if rule.Value {
@@ -290,11 +298,14 @@ func parseCreate(args []string) (Options, error) {
 		"body": {Value: true, Repeat: true}, "file": {Value: true, Repeat: true},
 		"file-list": {Value: true, Repeat: true}, "remove-list": {Value: true, Repeat: true},
 		"remove": {Value: true, Repeat: true}, "script": {Value: true},
-		"append": {}, "replace": {}, "push": {Value: true}, "no-test": {Value: true},
-		gateUnverified:      {Value: true},
-		gateStructuralRedOK: {Value: true}, gateMissingFullVerifyOK: {Value: true},
-		gateReviewOverride: {Value: true},
-		gateBrokenHeadFix:  {Value: true}, gateRFCChangeOK: {Value: true}, "dry-run": {},
+		"append": {}, "replace": {}, "no-test": {Value: true},
+		keywordStructuralRedOK: {Value: true}, keywordReviewOverride: {Value: true},
+		keywordBrokenHeadFix: {Value: true}, keywordRFCChangeOK: {Value: true}, "dry-run": {},
+		keywordAttest:            {Pair: true, Usage: keywordAttest + ` <commit> "<owner words>"`},
+		keywordLedgerCarried:     {Value: true, Repeat: true},
+		keywordPush:              {Replacement: `./le commit push "<owner authorisation>"`},
+		"unverified":             {Replacement: "./le verify worktree"},
+		"missing-full-verify-ok": {Replacement: "./le verify worktree"},
 	}
 	values, err := parseKeywords(args, rules)
 	if err != nil {
@@ -310,183 +321,27 @@ func parseCreate(args []string) (Options, error) {
 	if err != nil {
 		return Options{}, err
 	}
+	attest := pairValues(values[keywordAttest])
 	return Options{
 		Session: values.one(keywordSession), Tag: values.one("tag"), Subject: values.one("subject"),
 		Body: values["body"], Files: files, Remove: removed, Script: values.one("script"),
-		Append: values.has("append"), Replace: values.has("replace"), Push: values.one("push"),
-		NoTest: values.one("no-test"), Unverified: values.one(gateUnverified),
-		StructuralRedOK:     values.one(gateStructuralRedOK),
-		MissingFullVerifyOK: values.one(gateMissingFullVerifyOK),
-		ReviewOverride:      values.one(gateReviewOverride), BrokenHeadFix: values.one(gateBrokenHeadFix),
-		RFCChangeOK: values.one(gateRFCChangeOK), DryRun: values.has("dry-run"),
+		Append: values.has("append"), Replace: values.has("replace"),
+		NoTest:          values.one("no-test"),
+		StructuralRedOK: values.one(keywordStructuralRedOK),
+		ReviewOverride:  values.one(keywordReviewOverride), BrokenHeadFix: values.one(keywordBrokenHeadFix),
+		RFCChangeOK: values.one(keywordRFCChangeOK), DryRun: values.has("dry-run"),
+		Attest: attest.one(0), AttestWords: attest.one(1), LedgerCarried: values[keywordLedgerCarried],
 	}, nil
 }
 
-// clearDebt re-judges every open debt row against HEAD, through the native
-// verification the rows name, running the piece of it the caller named.
-func clearDebt(root string, part debtPart) (debtClearResult, int) {
-	return clearDebtWith(root, part, verifydispatch.RunAction, verify.Options.HostPreflight)
-}
+// pairValues is the two values of a Pair keyword, or none when it was not given.
+type pairValues []string
 
-// debtVerifyOptions answers the verification one piece of a debt-clear pass
-// runs. The preflight and the run both read it, so the host is checked for the
-// piece that then runs.
-func debtVerifyOptions(piece debtPart) verify.Options {
-	return verify.Options{Commit: "HEAD", Part: piece.Index, Parts: piece.Of}
-}
-
-// clearDebtWith is clearDebt with the verification's action dispatcher named.
-//
-// The dispatcher is a parameter because the DECISION this function makes is
-// "clear only what the gate passed", and proving that decision means running it
-// once against a green verdict and once against a red one. Through the real
-// dispatcher each of those runs is the hour-long verification, so the decision
-// would be the one part of debt clearing no test ever reaches, in a function
-// whose whole job is to refuse to trust an unverified claim.
-//
-// hostReady is the host preflight of one piece's verification, a parameter for
-// the same reason: the refusal it causes is a decision this function makes.
-func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner,
-	hostReady func(verify.Options) error) (debtClearResult, int) {
-	rows, err := openDebt(root)
-	if err != nil {
-		leaction.ReportError(err)
-		return debtClearResult{}, 2
+func (p pairValues) one(index int) string {
+	if index >= len(p) {
+		return ""
 	}
-	result := debtClearResult{Open: len(rows)}
-	if len(rows) == 0 {
-		return result, 0
-	}
-	// Which gates a verification can re-run is DECLARED by debtGates, and read
-	// back here. It was two string literals in this function, so a gate renamed
-	// in the table stayed silently runnable, and a gate string nobody declared
-	// cleared on a green verify under a name the table never emits.
-	runnableSet := make(map[string]bool)
-	unrunnableSet := make(map[string]bool)
-	unrecognizedSet := make(map[string]bool)
-	for index := range rows {
-		gate := rows[index].Gate
-		at := debtGateAt(gate)
-		if at < 0 {
-			unrecognizedSet[gate] = true
-			continue
-		}
-		if !debtGates[at].Runnable {
-			unrunnableSet[gate] = true
-			continue
-		}
-		runnableSet[gate] = true
-	}
-	for gate := range runnableSet {
-		result.Runnable = append(result.Runnable, gate)
-	}
-	for gate := range unrunnableSet {
-		result.Unrunnable = append(result.Unrunnable, gate)
-	}
-	for gate := range unrecognizedSet {
-		result.Unrecognized = append(result.Unrecognized, gate)
-	}
-	slices.Sort(result.Runnable)
-	slices.Sort(result.Unrunnable)
-	slices.Sort(result.Unrecognized)
-	passed := make(map[string]bool)
-	proven := false
-	red := false
-	if len(result.Runnable) != 0 {
-		// A sweep skips what an earlier sweep already proved at this commit, so
-		// a run killed at its fattest stage resumes rather than starting again.
-		already := provenDebtParts(root, debtSweepCommit(root), part.Of)
-		// Every piece this pass will run is checked before the first starts: a
-		// sweep whose last piece holds the functional suites would otherwise
-		// run every other piece first and only then find the host cannot.
-		for _, piece := range part.sweep() {
-			if part.All && slices.Contains(already, piece.Index) {
-				continue
-			}
-			if err := hostReady(debtVerifyOptions(piece)); err != nil {
-				leaction.ReportError(err)
-				result.Remaining = result.Open
-				return result, 2
-			}
-		}
-		for _, piece := range part.sweep() {
-			if part.All && slices.Contains(already, piece.Index) {
-				result.Skipped = append(result.Skipped, piece.Index)
-				result.Proven = already
-				result.Of = piece.Of
-				proven = debtPartsComplete(already, piece.Of)
-				continue
-			}
-			report := verify.Run(context.Background(), root, debtVerifyOptions(piece), runner)
-			result.Commit = report.Commit
-			result.Diagnostics = append(result.Diagnostics, report.Diagnostics...)
-			if piece.cut() {
-				result.Of = piece.Of
-				if !part.All {
-					result.Part = piece.Index
-				}
-			}
-			if report.Code != 0 {
-				result.Remaining = result.Open
-				red = true
-				if !part.All {
-					if report.Verify == nil {
-						return result, 1
-					}
-					break
-				}
-				// A sweep carries on: the pieces are independent, so one red
-				// says nothing about the ones behind it.
-				result.Failed = append(result.Failed, piece.Index)
-				continue
-			}
-			if !piece.cut() {
-				proven = true
-				break
-			}
-			// The piece exited 0, so what it proved is recorded before anything
-			// else can end this process. The whole point of cutting the run is
-			// that a piece killed mid-flight costs that piece and not the run.
-			recorded, err := recordDebtPart(root, report.Commit, piece)
-			if err != nil {
-				leaction.ReportError(err)
-				result.Remaining = result.Open
-				return result, 2
-			}
-			result.Proven = recorded
-			proven = debtPartsComplete(recorded, piece.Of)
-		}
-	}
-	if proven {
-		for _, gate := range result.Runnable {
-			passed[gate] = true
-		}
-	}
-	if !proven {
-		result.Remaining = result.Open
-		// A red verification cleared nothing, so the exit code says so. Exiting
-		// zero over zero cleared rows made the command's answer and its exit
-		// code disagree, and a caller reading only the code read the red as a
-		// pass with nothing to do.
-		if red {
-			return result, 1
-		}
-		return result, 0
-	}
-	cleared, err := clearDebtRows(root, passed)
-	if err != nil {
-		leaction.ReportError(err)
-		result.Remaining = result.Open
-		return result, 2
-	}
-	if part.cut() {
-		if err := forgetDebtParts(root); err != nil {
-			leaction.ReportError(err)
-		}
-	}
-	result.Cleared = cleared
-	result.Remaining = result.Open - cleared
-	return result, 0
+	return p[index]
 }
 
 func commandError(err error, code int) (any, int) {
@@ -500,14 +355,11 @@ func (p *Prepared) Text() string {
 	text.Str("session=").Str(p.Session).Str("\nmessage=").Str(p.Message).
 		Str("\nscript=").Str(p.Script).Str("\nverify=").Str(strings.ToUpper(p.Verify.State)).
 		Str(" (").Str(p.Verify.Detail).Str(")\n")
-	if len(p.Debt) != 0 {
-		text.Str("debt=").Int(int64(len(p.Debt))).Str(" row(s) -> ").Str(debtPath(p.Session)).Byte('\n')
-	}
 	if p.NoTest != "" {
 		text.Str("no-test=").Str(p.NoTest).Byte('\n')
 	}
-	if p.Push {
-		text.Str("push=AUTHORIZED\n")
+	if p.Debt != "" {
+		text.Str("debt=").Str(p.Debt).Byte('\n')
 	}
 	// The staged paths and their size against HEAD, last so it sits directly
 	// above the prompt. A file that reads bigger than the author expects is
@@ -533,76 +385,4 @@ func (l commandList) Text() string {
 		text.Str("  ").Str(row.Verb).Str("  ").Str(mark).Str("  ").Str(row.Why).Byte('\n')
 	}
 	return text.String()
-}
-
-func (s debtStatus) Text() string {
-	var text textbuf.Buffer
-	text.Str("verification debt: ").Int(int64(s.Open)).Str(" open, ").
-		Int(int64(s.Cleared)).Str(" cleared, ").Int(int64(s.Discharged)).Str(" discharged")
-	kinds := make([]string, 0, len(s.ByKind))
-	for kind := range s.ByKind {
-		kinds = append(kinds, kind)
-	}
-	slices.Sort(kinds)
-	for index, kind := range kinds {
-		if index == 0 {
-			text.Str(" (")
-		} else {
-			text.Str(", ")
-		}
-		text.Str(kind).Byte(' ').Int(int64(s.ByKind[kind]))
-	}
-	if len(kinds) != 0 {
-		text.Byte(')')
-	}
-	text.Byte('\n')
-	for _, line := range s.Invalid {
-		text.Str("INVALID DISCHARGE  ").Str(line).Byte('\n')
-	}
-	return text.String()
-}
-
-func (r debtClearResult) Text() string {
-	var text textbuf.Buffer
-	if r.Open == 0 {
-		return "No open verification-debt rows.\n"
-	}
-	for _, gate := range r.Unrunnable {
-		text.Str("UNRUNNABLE  ").Str(gate).Byte('\n')
-	}
-	for _, gate := range r.Unrecognized {
-		text.Str("UNRECOGNIZED  ").Str(gate).
-			Str("  (declare it as a debtGates Name or alias)").Byte('\n')
-	}
-	for _, line := range r.Diagnostics {
-		text.Str(line).Byte('\n')
-	}
-	if r.Of != 0 {
-		if r.Part == 0 {
-			text.Str("sweep of ").Int(int64(r.Of)).Str(" piece(s)")
-		} else {
-			text.Str("part ").Int(int64(r.Part)).Str(" of ").Int(int64(r.Of))
-		}
-		text.Str(" over ").Str(r.Commit).Str("; proven so far:")
-		for _, piece := range r.Proven {
-			text.Byte(' ').Int(int64(piece))
-		}
-		text.Str(" of ").Int(int64(r.Of)).Byte('\n')
-		if len(r.Skipped) != 0 {
-			text.Str("already proven, not re-run:")
-			for _, piece := range r.Skipped {
-				text.Byte(' ').Int(int64(piece))
-			}
-			text.Byte('\n')
-		}
-		if len(r.Failed) != 0 {
-			text.Str("red this sweep, re-run them:")
-			for _, piece := range r.Failed {
-				text.Byte(' ').Int(int64(piece))
-			}
-			text.Byte('\n')
-		}
-	}
-	return text.Str("cleared ").Int(int64(r.Cleared)).Str(" row(s), ").
-		Int(int64(r.Remaining)).Str(" still open\n").String()
 }

@@ -40,7 +40,7 @@ var CorpusGlobs = [...]string{
 // longer resolves.
 //
 // The plan trees are RECORDS, and that is the whole reason (owner decision,
-// 2026-08-29). A spec, a journal row, a deferral and a debt row each describe
+// 2026-08-29). A spec, a journal row and a deferral each describe
 // what was true when it was written, so a path inside one is a fact about that
 // moment rather than a claim about the tree today. Repointing it at whatever
 // replaced the file rewrites the record into something that was never true, and
@@ -70,7 +70,6 @@ func excludes() []string {
 		"third_party/",
 		"plan/handover/",
 		"plan/journal/",
-		"plan/verification-debt/",
 		"plan/known-failures/",
 		// Closed-spec summaries, audits and session handoffs are records of the
 		// same kind: each states what the tree held on the day it was written.

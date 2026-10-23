@@ -11,7 +11,6 @@ import (
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
-	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // notCheckoutDetail says why no native verification judges this commit. The
@@ -22,24 +21,28 @@ const notCheckoutDetail = "root is not the Ze checkout, so no native gate judges
 // Options is the callable commit-preparation contract. Paths and removals are
 // explicit and repeatable; no option broadens them to a directory or whole tree.
 type Options struct {
-	Session             string   `json:"session,omitempty"`
-	Tag                 string   `json:"tag,omitempty"`
-	Subject             string   `json:"subject"`
-	Body                []string `json:"body,omitempty"`
-	Files               []string `json:"files,omitempty"`
-	Remove              []string `json:"remove,omitempty"`
-	Script              string   `json:"script,omitempty"`
-	Append              bool     `json:"append"`
-	Replace             bool     `json:"replace"`
-	Push                string   `json:"push,omitempty"`
-	NoTest              string   `json:"no-test,omitempty"`
-	Unverified          string   `json:"unverified,omitempty"`
-	StructuralRedOK     string   `json:"structural-red-ok,omitempty"`
-	MissingFullVerifyOK string   `json:"missing-full-verify-ok,omitempty"`
-	ReviewOverride      string   `json:"review-override,omitempty"`
-	BrokenHeadFix       string   `json:"broken-head-fix,omitempty"`
-	RFCChangeOK         string   `json:"rfc-change-ok,omitempty"`
-	DryRun              bool     `json:"dry-run"`
+	Session         string   `json:"session,omitempty"`
+	Tag             string   `json:"tag,omitempty"`
+	Subject         string   `json:"subject"`
+	Body            []string `json:"body,omitempty"`
+	Files           []string `json:"files,omitempty"`
+	Remove          []string `json:"remove,omitempty"`
+	Script          string   `json:"script,omitempty"`
+	Append          bool     `json:"append"`
+	Replace         bool     `json:"replace"`
+	NoTest          string   `json:"no-test,omitempty"`
+	StructuralRedOK string   `json:"structural-red-ok,omitempty"`
+	ReviewOverride  string   `json:"review-override,omitempty"`
+	BrokenHeadFix   string   `json:"broken-head-fix,omitempty"`
+	RFCChangeOK     string   `json:"rfc-change-ok,omitempty"`
+	DryRun          bool     `json:"dry-run"`
+	// Attest is the commit an attestation answers and AttestWords the owner's
+	// words. An attestation names no file and no remove path (D-7).
+	Attest      string `json:"attest,omitempty"`
+	AttestWords string `json:"attest-words,omitempty"`
+	// LedgerCarried is one `<sha> <gate key>: <reason>` per person-act row
+	// the ledger-deletion commit carries (D-4).
+	LedgerCarried []string `json:"ledger-carried,omitempty"`
 }
 
 // Prepared is the structured result printed by `le commit create`.
@@ -49,9 +52,7 @@ type Prepared struct {
 	Script      string                 `json:"script"`
 	Verify      VerificationState      `json:"verify"`
 	Review      *ReviewResult          `json:"review,omitempty"`
-	Debt        []Debt                 `json:"debt,omitempty"`
 	NoTest      string                 `json:"no-test,omitempty"`
-	Push        bool                   `json:"push"`
 	DryRun      bool                   `json:"dry-run"`
 	MessageText string                 `json:"message-text,omitempty"`
 	ScriptText  string                 `json:"script-text,omitempty"`
@@ -62,6 +63,15 @@ type Prepared struct {
 	// RFCApprovals is what the commit carries as RFC-approved: trailers and
 	// what its script drops from the session's approval file once it lands.
 	RFCApprovals RFCApprovals `json:"rfc-approvals"`
+	// Trailers is the record of each admission a gate granted this commit:
+	// `Review-owed:` and `RFC-approval-owed:`, which the push derivation reads
+	// as owed person acts, and the audit-only `Structural-red-ok:` and
+	// `Broken-head-fix:`.
+	Trailers []string `json:"trailers,omitempty"`
+	// Debt is the derived verification debt as this commit is prepared: how
+	// many commits owe a full verify, and since which green record. It is
+	// empty outside the Ze checkout.
+	Debt string `json:"debt,omitempty"`
 	// Stats is how much of each staged path this commit carries, measured
 	// against HEAD. See FileStat: it is printed, never enforced.
 	Stats []FileStat `json:"stats,omitempty"`
@@ -82,8 +92,16 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
-	if len(paths) == 0 && len(removed) == 0 {
-		return result, errors.New("at least one file or remove path is required")
+	attesting := options.Attest != ""
+	if attesting && len(slices.Concat(paths, removed)) != 0 {
+		return result, errors.New("attest refused with a file or remove path: an attestation must not change the tree, " +
+			"because a changed tree moves HEAD off the green tree and owes the full verify the attestation exists to spare; " +
+			"prepare the attestation alone with ./le commit create subject \"<subject>\" attest <commit> \"<owner words>\", " +
+			"and the files in a commit of their own")
+	}
+	if !attesting && len(paths) == 0 && len(removed) == 0 {
+		return result, errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
+			`attest <commit> "<owner words>"`)
 	}
 	// The message is judged before any gate runs, so a bad subject is the
 	// first refusal; it is composed again below once the gates have answered
@@ -93,13 +111,9 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	// The tag is validated here, beside the message, and not where nextTag
-	// derives the message path. nextTag runs after recordDebt, so a tag refused
-	// there leaves verification-debt rows naming a commit that was never made.
+	// derives the message path: nextTag runs after every gate, so a tag refused
+	// there costs the caller a full gate pass to learn of a typo.
 	if err := validateTag(options.Tag); err != nil {
-		return result, err
-	}
-	authorisation, err := pushAuthorisation(options.Push)
-	if err != nil {
 		return result, err
 	}
 	result.NoTest = strings.TrimSpace(options.NoTest)
@@ -110,16 +124,15 @@ func Create(root string, options *Options) (Prepared, error) {
 	// rather than build it, the site and the wiki, and none of those sources
 	// exists there. A gate then refuses the commit for want of a file that tree
 	// never had, or reads a path that means something else in it: gh-pages
-	// publishes plan/ pages, which the closure gate read as a spec closing, and
-	// it wrote a verification-debt row into the published site.
+	// publishes plan/ pages, which the closure gate read as a spec closing.
 	//
 	// What still holds in either tree is what protects any tree, and none of it
-	// is skipped: the path validation above, the message contract, the private
-	// index the generated script commits from, and the push authorisation.
+	// is skipped: the path validation above, the message contract and the
+	// private index the generated script commits from.
 	// The commit session is resolved before the gates rather than after,
 	// because the ledger shards those gates read are named after it. One
-	// identity names the script, the message, the debt shard and the two
-	// ledger shards, so a second author cannot reach any of them.
+	// identity names the script, the message and the two ledger shards, so a
+	// second author cannot reach any of them.
 	session, err := lepath.CommitSession(root, options.Session)
 	if err != nil {
 		return result, err
@@ -127,28 +140,50 @@ func Create(root string, options *Options) (Prepared, error) {
 	result.Session = session
 
 	native := lepath.IsCheckout(root)
-	if native {
+	reviewCheck := ""
+	switch {
+	case attesting:
+		// An empty commit changes no byte, so no source or verification gate
+		// has anything to judge; the trailer is the whole commit.
+		trailer, err := attestationTrailer(root, native, options)
+		if err != nil {
+			return result, err
+		}
+		result.Trailers = []string{trailer}
+		result.Verify = VerificationState{State: verifyNotApplicable, Detail: "an attestation changes no file"}
+		message, err = Message(options.Subject, options.Body, result.Trailers)
+		if err != nil {
+			return result, err
+		}
+	case native:
 		if err := checkSourceGates(root, options, &result, paths, removed, session); err != nil {
 			return result, err
 		}
-	} else {
+		reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed)
+		if err != nil {
+			return result, err
+		}
+		carried, err := ledgerCarriedTrailers(root, options.LedgerCarried, paths, removed)
+		if err != nil {
+			return result, err
+		}
+		result.Trailers = append(result.Trailers, carried...)
+		// The message is composed once every gate has answered which
+		// trailers it carries: the RFC approvals it uses, then the record of
+		// each admission the gates granted.
+		trailers := slices.Concat(result.RFCApprovals.Trailers, result.Trailers)
+		message, err = Message(options.Subject, options.Body, trailers)
+		if err != nil {
+			return result, err
+		}
+	default:
+		if len(options.LedgerCarried) != 0 {
+			return result, errors.New("ledger-carried refused: this tree is not the Ze checkout, and only the Ze checkout carries the ledger")
+		}
 		result.Verify = VerificationState{State: verifyNotApplicable, Detail: notCheckoutDetail}
 	}
-	reviewCheck := ""
 	if native {
-		message, err = Message(options.Subject, options.Body, result.RFCApprovals.Trailers)
-		if err != nil {
-			return result, err
-		}
-		paths, reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed)
-		if err != nil {
-			return result, err
-		}
-		if authorisation != "" {
-			if err := refusePushWithDebt(root, result.Debt); err != nil {
-				return result, err
-			}
-		}
+		result.Debt = debtReport(root)
 	}
 
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
@@ -202,13 +237,12 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 	}
-	scriptText, err := composeScript(root, existing, scriptPath, session, block, options.Append, authorisation)
+	scriptText, err := composeScript(root, existing, scriptPath, session, block, options.Append)
 	if err != nil {
 		return result, err
 	}
 	result.Message = messagePath
 	result.Script = scriptPath
-	result.Push = authorisation != ""
 	result.DryRun = options.DryRun
 	result.Added = paths
 	result.Stats = fileStats(root, paths)
@@ -276,6 +310,22 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
 		return errors.New(strings.Join(rfcProblems, "\n\n"))
 	}
+	if len(rfcProblems) != 0 {
+		// The admission is recorded per unit, so a gate that could not name
+		// the units it judged has nothing to record, and admitting the commit
+		// would publish an owner approval nobody owes.
+		if len(rfcApprovals.Unapproved) == 0 {
+			return errors.New(keywordRFCChangeOK + " records one " + strings.TrimSpace(trailerRFCApprovalOwed) +
+				" trailer per changed unit, and the gate named no unit:\n" + strings.Join(rfcProblems, "\n\n"))
+		}
+		for _, unit := range rfcApprovals.Unapproved {
+			trailer, err := admissionTrailer(trailerRFCApprovalOwed, unit, options.RFCChangeOK)
+			if err != nil {
+				return err
+			}
+			result.Trailers = append(result.Trailers, trailer)
+		}
+	}
 	// Each shard this commit carries holds the rows this commit uses. Every
 	// other row in it that git holds at HEAD is one an earlier commit
 	// landed, and the gate drops it here rather than asking the author to. A
@@ -303,25 +353,31 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 
 // checkVerificationGates judges the commit against the native verification
 // certificate, the recorded structural reds and the independent-review
-// artifact, then records the debt every override and observed red owes. It
-// answers the path population the commit carries, which grows by the debt row
-// when one is written, and the review re-check line the script runs.
-func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string) ([]string, string, error) {
+// artifact. It refuses a charged structural red with no admission and a
+// closure with no clean review and no override, and answers the review
+// re-check line the script runs. It never refuses for a missing verification:
+// that is owed before a push, and the push derives it.
+func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string) (string, error) {
 	all := append(append([]string{}, paths...), removed...)
 	result.Verify = verificationState(root, all)
-	observed := make(map[string]string)
-	if result.Verify.State != verifyFresh {
-		observed[gateUnverified] = "verify-status is not FRESH-green: " + result.Verify.Detail
-	}
-	if carriesGo(all) && result.Verify.Mode != verifyengine.Mode {
-		observed[gateMissingFullVerifyOK] = "no full native verification covers this commit's Go"
-	}
 	if result.Verify.State != verifyFresh {
 		reds := structuralGateReds(root, all)
 		charged := append([]string(nil), reds.Charged...)
 		if len(charged) == 1 && charged[0] == compilesStage &&
 			strings.TrimSpace(options.BrokenHeadFix) != "" {
+			trailer, err := admissionTrailer(trailerBrokenHeadFix, "", options.BrokenHeadFix)
+			if err != nil {
+				return "", err
+			}
+			result.Trailers = append(result.Trailers, trailer)
 			charged = nil
+		}
+		if len(charged) != 0 && strings.TrimSpace(options.StructuralRedOK) != "" {
+			trailer, err := admissionTrailer(trailerStructuralRedOK, "", options.StructuralRedOK)
+			if err != nil {
+				return "", err
+			}
+			result.Trailers = append(result.Trailers, trailer)
 		}
 		if len(charged) != 0 && strings.TrimSpace(options.StructuralRedOK) == "" {
 			detail := ""
@@ -332,7 +388,7 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 			for _, cause := range reds.Causes {
 				detail += "\n  " + cause
 			}
-			return nil, "", fmt.Errorf(
+			return "", fmt.Errorf(
 				"deterministic structural gate(s) block this commit, red or not reached: %s%s\n"+
 					"  fix the producer, use broken-head-fix for the sole compiles red, "+
 					"or name structural-red-ok with a truthful reason",
@@ -343,63 +399,41 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 
 	stem, err := closureStem(root, paths, removed)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
-	reviewCheck := ""
-	if stem != "" {
-		review := CheckReview(root, stem, paths)
-		result.Review = &review
-		if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
-			return nil, "", errors.New(strings.Join(review.Problems, "\n"))
-		}
-		if review.Clean {
-			reviewCheck = reviewCheckCommand(stem, paths)
-		}
+	if stem == "" {
+		return "", nil
 	}
-
-	overrides := map[string]string{
-		gateUnverified:          options.Unverified,
-		gateStructuralRedOK:     options.StructuralRedOK,
-		gateMissingFullVerifyOK: options.MissingFullVerifyOK,
-		gateReviewOverride:      options.ReviewOverride,
-		gateBrokenHeadFix:       options.BrokenHeadFix,
-		gateRFCChangeOK:         options.RFCChangeOK,
+	review := CheckReview(root, stem, paths)
+	result.Review = &review
+	if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
+		return "", errors.New(strings.Join(review.Problems, "\n"))
 	}
-	owed := owedDebt(result.Session, options.Subject, overrides, observed)
-	if len(owed) != 0 && !options.DryRun {
-		debtFile, err := recordDebt(root, result.Session, options.Subject, owed)
+	if !review.Clean {
+		trailer, err := admissionTrailer(trailerReviewOwed, stem, options.ReviewOverride)
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
-		if !slices.Contains(paths, debtFile) {
-			paths = append(paths, debtFile)
-			result.Verify = verificationState(root, append(paths, removed...))
-		}
+		result.Trailers = append(result.Trailers, trailer)
+		return "", nil
 	}
-	result.Debt = owed
-	return paths, reviewCheck, nil
+	return reviewCheckCommand(stem, paths), nil
 }
 
-// refusePushWithDebt keeps an authorized push behind every open obligation, the
-// rows this commit is about to write included.
-//
-// The message names BOTH routes, because a row naming a gate no command can run
-// never clears and `debt-clear` cannot help it, and it points at `debt-status`,
-// which is the only surface that prints an INVALID DISCHARGE line. An operator
-// held here by a discharge record that stopped deriving would otherwise be sent
-// to the one command that says nothing about it.
-func refusePushWithDebt(root string, owed []Debt) error {
-	open, err := openDebt(root)
-	if err != nil {
-		return err
+// admissionTrailer renders the record of one admission: `<key><subject>:
+// <reason>`, or `<key><reason>` for an admission about no subject. A trailer
+// is one message line the derivation reads back, so a reason spanning lines
+// is refused rather than cut.
+func admissionTrailer(key, subject, reason string) (string, error) {
+	reason = strings.TrimSpace(reason)
+	if strings.ContainsAny(reason, "\r\n") {
+		return "", fmt.Errorf("the reason given for %s must be one line, because it becomes the %s trailer: %q",
+			strings.TrimSpace(key), strings.TrimSuffix(strings.TrimSpace(key), ":"), reason)
 	}
-	if len(open)+len(owed) == 0 {
-		return nil
+	if subject == "" {
+		return key + reason, nil
 	}
-	return fmt.Errorf("refusing push: %d open verification-debt row(s); run le commit debt-clear "+
-		"for a row whose gate a verification re-runs, le commit debt-discharge for one no command "+
-		"runs, and le commit debt-status for the open rows and any INVALID DISCHARGE record",
-		len(open)+len(owed))
+	return key + subject + ": " + reason, nil
 }
 
 func normalizePaths(root string, raw []string, validate func(string, string) error) ([]string, error) {
@@ -415,20 +449,6 @@ func normalizePaths(root string, raw []string, validate func(string, string) err
 		paths = append(paths, path)
 	}
 	return unique(paths), nil
-}
-
-func owedDebt(session, subject string, overrides, observed map[string]string) []Debt {
-	owed := make([]Debt, 0)
-	for _, gate := range debtGates {
-		reason := strings.TrimSpace(overrides[gate.Key])
-		if reason == "" {
-			reason = strings.TrimSpace(observed[gate.Key])
-		}
-		if reason != "" {
-			owed = append(owed, Debt{Session: session, Subject: subject, Gate: gate.Name, Reason: reason, Status: statusOpen})
-		}
-	}
-	return owed
 }
 
 func testCoverageProblems(root string, paths []string) []string {
@@ -549,34 +569,31 @@ func refuseForeignReplace(script string, paths []string) error {
 	return errors.New("replace refused: script was prepared for a different commit and shares none of these files")
 }
 
-func composeScript(root, existing, scriptPath, session string, block commitBlock, appendBlock bool, push string) (string, error) {
-	// The script names the checkout it was prepared for, rather than asking git
-	// which checkout it is being RUN in. Those are two different trees whenever
-	// ZE_REPO_ROOT points le at a sibling: the script sits in the site's tmp/
-	// and is run from the Ze checkout, where `git rev-parse --show-toplevel`
-	// answered "the Ze checkout" and staged this commit's paths there.
-	header := "#!/bin/bash\nset -euo pipefail\n" +
+// scriptHeader opens every generated script, a commit script and a push-only
+// script alike, so append and replace recognize both by scriptMarker.
+//
+// The script names the checkout it was prepared for, rather than asking git
+// which checkout it is being RUN in. Those are two different trees whenever
+// ZE_REPO_ROOT points le at a sibling: the script sits in the site's tmp/
+// and is run from the Ze checkout, where `git rev-parse --show-toplevel`
+// answered "the Ze checkout" and staged this commit's paths there.
+func scriptHeader(root, scriptPath, session string) string {
+	return "#!/bin/bash\nset -euo pipefail\n" +
 		"cd " + shellQuote(root) + "\n\n" +
 		markerLine(scriptMarker, scriptPath+" session="+session) + "\n\n"
-	body := header
-	existingPush := ""
+}
+
+func composeScript(root, existing, scriptPath, session string, block commitBlock, appendBlock bool) (string, error) {
+	body := scriptHeader(root, scriptPath, session)
 	if appendBlock && existing != "" {
-		var err error
-		body, existingPush, err = splitPush(existing)
-		if err != nil {
+		if err := refusePushAppend(existing); err != nil {
 			return "", err
 		}
-		if err := refuseBlocksWithoutBookkeeping(scriptPath, body); err != nil {
+		if err := refuseBlocksWithoutBookkeeping(scriptPath, existing); err != nil {
 			return "", err
 		}
-		body = strings.TrimRight(body, "\n") + "\n\n"
+		body = strings.TrimRight(existing, "\n") + "\n\n"
 	}
 	body += renderBlock(block, scriptPath)
-	if push == "" {
-		push = existingPush
-	}
-	if push != "" {
-		body += "\n" + renderPush(push)
-	}
 	return body, nil
 }

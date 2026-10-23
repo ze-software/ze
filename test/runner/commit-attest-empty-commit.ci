@@ -1,0 +1,21 @@
+# An owner attestation lands as an empty commit and admits the push without a
+# new verification.
+#
+# The fixture commits a closure carrying `Review-owed:`, records a green
+# verification over it, and asserts the REAL `le commit push` is refused naming
+# the trailer. It then runs `le commit create ... attest <commit> "<words>"`
+# with no file, runs the script, and asserts the new commit's tree is its
+# parent's and its message carries `Owner-attested:` with the owner's words.
+# Last, `le commit push` prepares a script that pushes HEAD (D-7, AC-15).
+#
+# Spec: plan/post-release/engineering/spec-verification-debt-derived.md.
+# Let the attestation block stage a path and seq=1 fails at
+# empty-attestation-commit-landed.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture runner/commit-attest-empty-commit
+expect=exit:code=0
+expect=stdout:contains=push-refused-by-review-owed
+expect=stdout:contains=empty-attestation-commit-landed
+expect=stdout:contains=push-admitted-without-new-verify

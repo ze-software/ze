@@ -37,7 +37,7 @@ const staleTemporaryAge = 10 * time.Minute
 // The hook runs under a FIXED 5 second timeout (`.claude/settings.json`), and a
 // hook killed at that timeout loses every artifact after the kill point AND the
 // whole session-start message, the BLOCKING LSP notice and the
-// verification-debt warning included. So the budget is the property each
+// push-gate warning included. So the budget is the property each
 // artifact declares against, and there is no Unspecified answer: a generator
 // that says nothing would inherit a render nobody measured, which is exactly
 // how the 5.32s measurement below happened.

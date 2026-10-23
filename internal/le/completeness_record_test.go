@@ -163,7 +163,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-precommit-verify-changed", Area: "verify", Verb: "current", Note: "fast: the changed-files population in place"},
 	{Target: "ze-precommit-verify-list", Area: "verify", Verb: "list"},
 	{Target: "ze-verify-worktree", Area: "verify", Verb: "worktree"},
-	{Target: "ze-verify-debt-clear", Area: "commit", Verb: "debt-clear"},
+	{Target: "ze-verify-debt-clear", Area: "verify", Verb: "worktree", Note: "the debt is derived: a green full verify worktree is what clears it"},
 	{Target: "ze-lint", Area: "go lint", Verb: "run"},
 	{Target: "ze-lint-changed", Area: "go lint", Verb: "run", Note: "scope takes the package list `le repo changed packages` derives"},
 	{Target: "ze-evidence-vet", Area: "verify deps", Verb: "evidence-vet"},

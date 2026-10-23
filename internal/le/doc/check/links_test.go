@@ -274,7 +274,7 @@ func runGit(t *testing.T, root string, args ...string) {
 // repair, which is what separates them from a stale path in a live page. A
 // site fixture is a frozen publication a byte comparison pins, so a marker
 // fails the test and a rewrite claims a publication that never happened.
-// The ledgers close the same way. A ledger shard is named for
+// The test-weakening ledger closes the same way. Its shard is named for
 // its commit session, ForeignShardProblems refuses a commit carrying another
 // session's shard, and every commit gets a fresh session id, so a row in a
 // closed session's shard can never be edited by anyone. Policing it reports a
@@ -287,7 +287,6 @@ func TestRecordTreesAreExcludedFromCitationPolicing(t *testing.T) {
 	}{
 		{"test/weakened/8c4ad6c3.md", true, "a weakened row names the test a commit deleted"},
 		{"plan/journal/removal-leaves-the-file-on-disk.md", true, "already a record before this change"},
-		{"plan/verification-debt/20476e05.md", true, "already a record before this change"},
 		{"internal/le/site/testdata/published-plugins-index.md", true,
 			"a frozen publication a byte comparison forbids anyone to edit"},
 		{"docs/architecture/core-design.md", false, "a live page is read for what is true now"},

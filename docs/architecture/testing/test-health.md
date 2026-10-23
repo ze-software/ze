@@ -148,7 +148,7 @@ it under `tmp/` and the commit carries it as an `RFC-approved:` trailer
 The ledger is a directory, and each session writes one file in it:
 `test/weakened/<session>.md`, where `<session>` is the eight hex characters
 `./le commit session` prints. That is the same identity that names your commit
-script, your commit message and your verification-debt shard, and
+script and your commit message, and
 `internal/le/le/path.CommitSession` is the only thing that derives it.
 
 Two authors therefore never resolve to one path, so neither can replace the

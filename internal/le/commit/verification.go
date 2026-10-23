@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/verify-freshness-scope.md -- verification debt at commit preparation
+// Design: docs/architecture/testing/verify-freshness-scope.md -- what the certificate proves at commit preparation
 package commit
 
 import (
@@ -21,6 +21,13 @@ type VerificationState struct {
 	Commit    string `json:"commit,omitempty"`
 }
 
+// The two VerificationState values the commit flow branches on: the
+// certificate covers the commit's paths, or no native gate judges this tree.
+const (
+	verifyFresh         = "fresh"
+	verifyNotApplicable = "not-applicable"
+)
+
 const compilesStage = "repo compiles/check"
 
 // structuralStages answers which recorded reds mean the tree is broken.
@@ -40,7 +47,8 @@ type structuralReds struct {
 	// before (AC-11). Each is also in Charged: the run set out to judge them
 	// and did not finish. A stage the run never held is not here: the index
 	// carries an earlier verdict for it, or marks it unjudged, and an unjudged
-	// stage is not red (the unverified-debt row already owes "not run").
+	// stage is not red (the derived verification debt already owes the full
+	// verify that judges it).
 	Unreached []string
 	// Causes says, for each charged stage in Charged order, why it is charged,
 	// the command that diagnoses it, and the verify runs that clear it.
@@ -250,13 +258,4 @@ func verificationState(root string, paths []string) VerificationState {
 		state.State = verifyFresh
 	}
 	return state
-}
-
-func carriesGo(paths []string) bool {
-	for _, path := range paths {
-		if strings.HasSuffix(path, ".go") || path == "go.mod" || path == "go.sum" || strings.HasPrefix(path, "vendor/") {
-			return true
-		}
-	}
-	return false
 }

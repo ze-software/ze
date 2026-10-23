@@ -171,10 +171,17 @@ const (
 // packageDirsFor beside the tree it judges, where the evidence for it sits.
 // A kind no rule names is the third case, and it seeds its readers rather than
 // widening (unclassifiedDirs).
+//
+// prose marks a kind that is documentation and nothing else: a commit that
+// changes only such paths owes no full verification (ai/META-DECISIONS.md, "A
+// commit that changes only documentation or prose owes no full gate"). IsProse
+// is its only reader, and the push gate asks IsProse rather than holding a
+// path list of its own.
 type pathRule struct {
 	prefix string
 	suffix string
 	dirs   []string
+	prose  bool
 }
 
 // toolingPackages are the Go packages whose tests read repository content
@@ -191,11 +198,24 @@ var nonGoPathRules = []pathRule{
 	{prefix: testTreePrefix, suffix: ".ci", dirs: []string{ciRunnerPackage, docValidationPackage, checksPackage}},
 	{prefix: testTreePrefix, suffix: ".et", dirs: []string{editorRunnerPackage}},
 	{prefix: testTreePrefix, suffix: ".wb", dirs: []string{"internal/component/web/testing"}},
-	{prefix: "ai/", suffix: markdownSuffix, dirs: []string{rulesPackage, docCheckPackage}},
-	{prefix: "plan/", suffix: markdownSuffix, dirs: []string{specPackage, docCheckPackage}},
-	{prefix: "docs/", suffix: markdownSuffix, dirs: []string{docValidationPackage, docCheckPackage}},
+	{prefix: "ai/", suffix: markdownSuffix, dirs: []string{rulesPackage, docCheckPackage}, prose: true},
+	{prefix: "plan/", suffix: markdownSuffix, dirs: []string{specPackage, docCheckPackage}, prose: true},
+	{prefix: "docs/", suffix: markdownSuffix, dirs: []string{docValidationPackage, docCheckPackage}, prose: true},
 	{prefix: ".github/", suffix: ".yml", dirs: []string{workflowPackage}},
 	{prefix: rfcCorpusPrefix, dirs: []string{rfcPackage}},
+}
+
+// IsProse answers whether one repository-relative, slash-separated path is
+// prose: the first nonGoPathRules entry it matches marks it so. Every other
+// path, a root-level page, the RFC corpus, a test body and a kind no rule
+// names included, is not, so a caller judging coverage errs on the owed side.
+func IsProse(changed string) bool {
+	for _, rule := range nonGoPathRules {
+		if strings.HasPrefix(changed, rule.prefix) && strings.HasSuffix(changed, rule.suffix) {
+			return rule.prose
+		}
+	}
+	return false
 }
 
 // printMode says which answer goes to stdout.

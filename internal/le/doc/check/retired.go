@@ -145,26 +145,6 @@ var retiredExceptions = [...]retiredException{
 		why:  "the skill named ze-test, not the harness binary",
 	},
 	{
-		file: retiredDebtFile,
-		old:  "le repository tracked-build",
-		why:  "the command text of debt rows written before the rename, which the ledger still reads",
-	},
-	{
-		file: retiredDebtFile,
-		old:  "le repository",
-		why:  "the command text of debt rows written before the rename, which the ledger still reads",
-	},
-	{
-		file: retiredLedgerTestFile,
-		old:  "le repository tracked-build",
-		why:  "a debt row written before the rename, to prove the ledger still reads it",
-	},
-	{
-		file: retiredLedgerTestFile,
-		old:  "le repository",
-		why:  "a debt row written before the rename, to prove the ledger still reads it",
-	},
-	{
 		file: "internal/le/le/action/leaction_test.go",
 		old:  "le qemu",
 		why:  "the usage line of a fixture area named qemu, not the qemu command",
@@ -305,8 +285,6 @@ const (
 const (
 	retiredLeTestBin           = "le.test.bin"
 	retiredZeTestBin           = "ze.test.bin"
-	retiredDebtFile            = "internal/le/commit/debt.go"
-	retiredLedgerTestFile      = "internal/le/commit/ledger_test.go"
 	retiredGuestLeTestFile     = "internal/le/test/qemu/guestle_run_test.go"
 	retiredQEMUKnobsTestFile   = "internal/le/test/qemu/alltests_knobs_test.go"
 	retiredStressReproTestFile = "internal/le/test/stressrepro/stressrepro_test.go"

@@ -44,9 +44,10 @@ to an author who had been warned about those exact files minutes beforehand.
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
 | `session` | no | The eight-hex commit namespace. `./le commit session` creates or reuses this harness session's |
 | `tag` | no | The block tag inside the script |
-| `push` | no | The owner's authorisation text. The script pushes after every commit succeeds |
+| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would owe the full verify it exists to spare. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
+| `ledger-carried` | yes | Only on the ledger-deletion commit (`remove` paths, no `file`): `"<sha> <gate key>: <reason>"`, the gate key `review-override` or `rfc-change-ok`. Writes one `Ledger-carried:` trailer. A row on a commit already on the upstream carries no patch-id and is audit only; a row on an unpushed commit carries that commit's stable patch-id, computed here and never given, and holds the push until it is answered |
 | `no-test` | no | The reason a commit carries no test evidence |
-| `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. It records a verification-debt row naming the owner's answer as owed, instead of refusing |
+| `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. Instead of refusing, the message carries one `RFC-approval-owed: <package>.<TestName>: <reason>` trailer per unapproved unit, and the push derivation holds the push until the owner answers |
 
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the
 body wrap, and appends one `RFC-approved: <package>.<TestName>: <reason>`
@@ -55,9 +56,24 @@ approval is written once, by `./le rfc approve unit <package>.<TestName> reason
 "<the owner's words>"`, into `tmp/commit-rfc-approved-<session>.md`; the
 generated script drops the used rows from that file after `git commit`
 succeeds, so the trailer in the commit is the only record
-(`docs/contributing/rfc-implementation-guide.md`). `Message` refuses a
-subject or a body line that starts with `RFC-approved:`, naming the line: the
-trailer is the owner's record, and `create` writes it from that file alone.
+(`docs/contributing/rfc-implementation-guide.md`).
+
+Each admission the gates grant is recorded the same way, as one trailer line
+after the approvals (`Prepared.Trailers`):
+
+| Admission | Trailer | Read by the push derivation |
+|-----------|---------|-----------------------------|
+| `review-override "<reason>"` on a closure with no clean review | `Review-owed: <spec stem>: <reason>` | yes, until a clean review, a recorded Review Gate or the owner's attestation answers it |
+| `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a later `RFC-approved:` for the unit or the owner's attestation |
+| `structural-red-ok "<reason>"` with a charged structural red | `Structural-red-ok: <reason>` | no, audit only |
+| `broken-head-fix "<reason>"` for the sole compiles red | `Broken-head-fix: <reason>` | no, audit only |
+
+An admission no gate used records nothing. A reason spanning lines is refused,
+because a trailer is one line. `Message` refuses a subject or a body line that
+starts with any declared trailer key (`declaredTrailers` in
+`internal/le/commit/actions.go`, which also lists `Owner-attested:` and
+`Ledger-carried:`), naming the line and the one route that writes it: a
+trailer is a record the derivation reads back, never the author's prose.
 
 ## What the command refuses
 
@@ -91,8 +107,9 @@ have to run `git ls-files --error-unmatch` yourself.
 `rfcChangeProblems` (`internal/le/commit/rfcchange.go`) refuses a commit that
 changes an RFC-tagged test unit no row in this session's
 `tmp/commit-rfc-approved-<session>.md` names, and prints the `./le rfc approve`
-command for each unit. `rfc-change-ok "<reason>"` admits the commit with a
-debt row instead. A row a landed commit already carries as a trailer approves
+command for each unit. `rfc-change-ok "<reason>"` admits the commit with one
+`RFC-approval-owed:` trailer per unit instead; a gate that could not name the
+units it judged is refused even then, because it has nothing to record. A row a landed commit already carries as a trailer approves
 nothing further, and the next successful commit drops it from the file.
 
 A list keyword buys one thing: a population too large to type stays explicit. It
@@ -106,17 +123,58 @@ cd ../gh-pages && git -c core.quotePath=false status --porcelain |
 ```
 
 The command also checks verification freshness for the named file population,
-records verification debt rather than dropping a local commit, and refuses
-`push` while any debt row is open.
+and never refuses a commit for a missing verification: that is owed before a
+push. Its output carries `debt=<n> commit(s) owe a full verify since <G>` (or
+`since no green record`), read from the derivation in
+`docs/architecture/testing/verify-freshness-scope.md`, and
+`debt=cannot answer: <why>` when the derivation cannot answer. Nothing is
+written: no commit carries a debt file.
 
-A row clears by RUNNING the gate it names: `./le commit debt-clear`. Three
-gates cannot be re-run. Two name an act a person performs: an independent review
-and an owner approval. The third, `discovery-index freshness`, was retired with
-the check that produced it. No clearing pass can reach a row naming one of the
-three. Those rows are answered by `./le commit debt-discharge`, which
-records HOW the obligation was met and re-derives that record from git on every
-read. The four kinds and what re-derives each one are in
-`docs/architecture/testing/verify-freshness-scope.md`.
+The keywords `unverified` and `missing-full-verify-ok` were removed and are
+refused naming `./le verify worktree`; `push` on `create` was removed and is
+refused naming `./le commit push "<owner authorisation>"`. The verbs
+`debt-list`, `debt-clear` and `debt-discharge` were removed too, each refused
+naming `./le commit debt-status`, `./le verify worktree` or `create ... attest`.
+
+## Pushing
+
+`./le commit push "<owner authorisation>"` is the one push route, and only the
+owner orders it (`ai/rules/git-safety.md`). It derives the verification debt
+and chooses the push target P: HEAD when the last green full verification
+covers HEAD's tree, else the verified commit the walk from it reaches. It is
+refused, exit 1, naming what clears each reason, when no P exists, when nothing
+verified is ahead of the upstream, when the upstream does not fast-forward to
+P, or while a person act is open on a commit `P ^@{u}` publishes. It answers
+exit 2 when the derivation cannot answer, such as a branch with no upstream
+(`git branch --set-upstream-to=origin/<branch>`).
+
+When it admits, it writes a push-only script at the session's `script=` path
+and prints that line, the commit it pushes, and every commit the push leaves
+behind, each owing `./le verify worktree`. The script makes no commit. It
+re-runs `./le commit debt-status commit <P>` and pushes nothing when that
+fails (a lost green record, a moved upstream, a rebase that took P off the
+branch), then runs `git push <remote> <P>:<upstream branch ref>`. It pushes P
+by SHA, never the branch tip, so a commit that lands after the script was
+prepared is not published. Outside the Ze checkout P is HEAD and the script
+carries no re-check.
+
+| Script already at the session's path | `./le commit push` | `create ... append` |
+|--------------------------------------|--------------------|---------------------|
+| commit blocks not yet run | refused: run that script first, then verify and push | as before |
+| a push-only script | prepared again in place, P chosen again | refused: an appended commit would not be published; run the push script first, or use `replace` |
+
+`./le commit debt-status` answers exit 0 when P is HEAD and nothing is owed, 1
+when anything is owed (listing it, P included), and 2 when it cannot answer.
+`debt-status commit <rev>` answers 0 when `<rev>` is an admissible push target
+with no open item in `<rev> ^@{u}`, whatever follows it on the branch.
+<!-- source: internal/le/commit/push.go -- preparePush, pushScriptPath, renderPushScript, answerDebtStatus -->
+
+An owner attestation is `./le commit create subject "<subject>" attest <commit>
+"<owner words>"` with no file. Its empty commit leaves HEAD's tree the green
+tree, so the push that follows needs no new verification. The script builds it
+on its parent's tree and refuses it if the diff names any path.
+<!-- source: internal/le/commit/attest.go -- attestationTrailer, ledgerCarriedTrailers -->
+<!-- source: internal/le/commit/script.go -- renderEmptyPublish -->
 
 ## Worked invocations
 
@@ -271,8 +329,8 @@ them. One commit block holds, in order:
 
 The script opens with `set -euo pipefail` and a `cd` to the checkout it was
 PREPARED for, named as an absolute path, so a failed step stops it and a script
-prepared for one tree never stages in another. A push, when one was authorised, runs after every commit
-in the script succeeds.
+prepared for one tree never stages in another. A commit script never pushes:
+a push is a script of its own (Pushing, above).
 
 The message file is read when the SCRIPT runs, not when `create` wrote it. So
 repairing the message file in place before you run the script is the correct fix
@@ -312,8 +370,8 @@ decides it: a tree with no `go.mod` beside `feature-gates.txt` is not the Ze
 checkout. It holds no test ledger, no discovery index, no verification
 certificate and no `plan/` specs, so each of those gates would refuse the commit
 for want of a file that tree never had, or read a path that means something else
-in it. `verify=NOT-APPLICABLE` says so in the output, and no verification-debt
-row is written into a tree that has no native gate to owe.
+in it. `verify=NOT-APPLICABLE` says so in the output, nothing is derived, and
+`./le commit push` there prepares a push of HEAD with no re-check.
 
 Path validation, the message contract, the private index the script commits
 from, and the push authorisation apply in every tree.

@@ -277,7 +277,7 @@ func RunMode(ctx context.Context, root, commit, mode string, plan Plan, runner A
 // RunPart executes one piece of the mode's stage population (part.go). The
 // uncut part is every stage, so RunPart with Uncut is RunMode. A cut run keeps
 // the dealt declared order whatever the history says, because the piece is
-// dealt for debt clearing and CI balance, not for an early answer.
+// dealt for the green record and CI balance, not for an early answer.
 func RunPart(ctx context.Context, root, commit, mode string, part Part, plan Plan, runner ActionRunner, slot Slot) Report {
 	leave, err := enterVerifyEnvironment()
 	if err != nil {

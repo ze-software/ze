@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
+	lecommit "github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/derived"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/session"
@@ -105,6 +106,7 @@ var sessionStartBudget = 3500 * time.Millisecond
 var sessionStartSteps = []sessionStartStep{
 	{name: "tree", run: reportTree},
 	{name: "specs", run: reportSpecs},
+	{name: "verification debt", run: reportDerivedDebt},
 	{name: "session state", run: reportSessionState},
 	{name: "journal", run: reportDueJournal},
 	{name: "derived artifacts", run: buildDerivedArtifacts},
@@ -246,6 +248,40 @@ func reportTree(deadline stdcontext.Context, state *sessionStart, report *sessio
 		}
 	}
 	fmt.Fprintf(&report.out, "Warning: %d uncommitted: %dM %dA\n", len(lines), modified, added) //nolint:errcheck // hook protocol
+}
+
+// reportDerivedDebt prints the derived verification debt: one line and at
+// most five items, or nothing when HEAD's tree is covered and no person act is
+// open. A derivation that cannot answer is said on stderr with its fix, and
+// is never read as nothing owed. A linked worktree is the one silence: a
+// worktree agent never pushes, so its branch having no upstream is normal.
+func reportDerivedDebt(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	warning, err := lecommit.DebtWarning(state.ctx.root)
+	if err == nil {
+		report.out.WriteString(warning)
+		return
+	}
+	if linkedWorktree(deadline, state.ctx.root) {
+		return
+	}
+	report.note.WriteString("session-start: the verification debt was not derived, so it was not counted: " + err.Error() + "\n")
+}
+
+// linkedWorktree answers whether root is a linked worktree: its git dir is
+// not the repository's common dir. A git failure answers false, so the
+// caller says what it could not derive rather than going silent.
+func linkedWorktree(deadline stdcontext.Context, root string) bool {
+	command := exec.CommandContext(deadline, "git", "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+	command.Dir = root
+	output, err := command.Output()
+	if err != nil {
+		return false
+	}
+	dirs := strings.Fields(string(output))
+	if len(dirs) != 2 {
+		return false
+	}
+	return dirs[0] != dirs[1]
 }
 
 // reportSpecs names this session's claimed spec and the spec population.

@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -204,18 +203,8 @@ func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) 
 		t.Fatalf("Create structural refusal = %v", err)
 	}
 	options.StructuralRedOK = "other session owns the red and this text cannot affect it"
-	prepared, err := Create(root, &options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, debt := range prepared.Debt {
-		if debt.Gate == "native structural checks (red)" {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("override did not record structural debt: %#v", prepared.Debt)
+	if _, err := Create(root, &options); err != nil {
+		t.Fatalf("Create refused a charged red the override admits: %v", err)
 	}
 }
 
@@ -379,8 +368,8 @@ func TestACarriedRedWithNoRecordedCommitSaysSo(t *testing.T) {
 
 // TestAGreenFastRunChargesNoStructuralStage proves a green `verify current
 // fast` leaves no structural charge for the stages the fast population drops
-// (verify deps/evidence-vet): a stage no run judged is not red, and the
-// unverified-debt row already covers "not run".
+// (verify deps/evidence-vet): a stage no run judged is not red, and the push
+// gate already owes the full verify that covers "not run".
 func TestAGreenFastRunChargesNoStructuralStage(t *testing.T) {
 	root := newCommitRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "fast-index-fixture")
@@ -398,7 +387,7 @@ func TestAGreenFastRunChargesNoStructuralStage(t *testing.T) {
 	}
 }
 
-// TestAGreenSweepOfEveryPieceChargesNoStructuralStage proves a debt-clear
+// TestAGreenSweepOfEveryPieceChargesNoStructuralStage proves a cut
 // sweep that runs every piece of a cut green leaves no structural charge: the
 // last piece's index carries the other pieces' green verdicts.
 func TestAGreenSweepOfEveryPieceChargesNoStructuralStage(t *testing.T) {
@@ -486,27 +475,36 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 	}
 }
 
-func TestAppendKeepsOneAuthorisedPushAtTheEnd(t *testing.T) {
+// TestAppendRefusesAScriptCarryingAPushSection pins the one push route. A
+// script prepared with the removed `create ... push` keyword ends in its push,
+// so a block appended to it would run after the push and never be published.
+// The append is refused naming the push verb, and a script with no push section
+// still takes an appended block.
+func TestAppendRefusesAScriptCarryingAPushSection(t *testing.T) {
 	t.Parallel()
 	first := commitBlock{PreparedHead: preparedHeadFixture, Tag: "a", Subject: "first", Paths: []string{"one.txt"}, MessagePath: "tmp/a.txt"}
-	initial, err := composeScript("/repo", "", "tmp/commit-owner.sh", "12345678", first, false, "owner approved this push")
+	initial, err := composeScript("/repo", "", "tmp/commit-owner.sh", "12345678", first, false)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(initial, "git push") {
+		t.Fatalf("a commit script carries a push:\n%s", initial)
 	}
 	second := commitBlock{PreparedHead: preparedHeadFixture, Tag: "b", Subject: "second", Paths: []string{"two.txt"}, MessagePath: "tmp/b.txt"}
-	appended, err := composeScript("/repo", initial, "tmp/commit-owner.sh", "12345678", second, true, "")
+	appended, err := composeScript("/repo", initial, "tmp/commit-owner.sh", "12345678", second, true)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("append onto a commit script was refused: %v", err)
 	}
-	if strings.Count(appended, "git push") != 1 || !strings.HasSuffix(appended, "git push\n") {
-		t.Fatalf("append did not preserve one final push:\n%s", appended)
+	if !strings.Contains(appended, "Commit b:") {
+		t.Fatalf("the appended block is missing:\n%s", appended)
 	}
-	if strings.Index(appended, "Commit b:") > strings.Index(appended, pushMarker) {
-		t.Fatal("second commit landed after the push")
+	legacy := initial + "\n" + pushMarker + " owner approved this push\ngit push\n"
+	_, err = composeScript("/repo", legacy, "tmp/commit-owner.sh", "12345678", second, true)
+	if err == nil {
+		t.Fatal("append onto a script carrying a push section was accepted")
 	}
-	tampered := initial + "echo after-push\n"
-	if _, _, err := splitPush(tampered); err == nil {
-		t.Fatal("splitPush accepted commands after the push")
+	if !strings.Contains(err.Error(), "./le commit push") {
+		t.Fatalf("the refusal %q does not name the push verb", err)
 	}
 }
 
@@ -518,32 +516,6 @@ func TestReplaceRefusesAnotherPreparedPopulation(t *testing.T) {
 	}
 	if err := refuseForeignReplace(foreign, []string{"their.txt", "mine.txt"}); err != nil {
 		t.Fatalf("refuseForeignReplace rejected an overlapping population: %v", err)
-	}
-}
-
-func TestDebtRowsDeduplicateOnlyWhileOpen(t *testing.T) {
-	root := t.TempDir()
-	owed := []Debt{{Gate: debtGates[0].Name, Reason: "run after commit"}}
-	path, err := recordDebt(root, "12345678", "subject", owed)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := recordDebt(root, "12345678", "subject", owed); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := ListDebt(root)
-	if err != nil || len(rows) != 1 || rows[0].Status != "open" {
-		t.Fatalf("ListDebt after duplicate = %#v, %v", rows, err)
-	}
-	if cleared, err := clearDebtRows(root, map[string]bool{debtGates[0].Name: true}); err != nil || cleared != 1 {
-		t.Fatalf("clearDebtRows = %d, %v", cleared, err)
-	}
-	if _, err := recordDebt(root, "12345678", "subject", owed); err != nil {
-		t.Fatal(err)
-	}
-	rows, err = ListDebt(root)
-	if err != nil || len(rows) != 2 || rows[0].Status != "cleared" || rows[1].Status != "open" {
-		t.Fatalf("ListDebt after re-owing %s = %#v, %v", path, rows, err)
 	}
 }
 
@@ -756,8 +728,8 @@ func TestCreateRefusesAnUnmarkedJournalRow(t *testing.T) {
 }
 
 // TestCommitSessionIsStableAndExplicitlyReplaceable drives the namespace every
-// artifact of a prepared commit is named after: the script, the message, the
-// verification-debt shard and the two test-ledger shards. The producer is
+// artifact of a prepared commit is named after: the script, the message and
+// the two test-ledger shards. The producer is
 // lepath.CommitSession, which both this package and the pre-write hook read,
 // and the assertions are unchanged from when it lived here.
 func TestCommitSessionIsStableAndExplicitlyReplaceable(t *testing.T) {
@@ -827,18 +799,17 @@ func runCommitGitOutput(t *testing.T, root string, args ...string) string {
 	return string(output)
 }
 
-// TestCreateRefusesBadTagBeforeRecordingDebt asserts a tag that cannot name a
-// message file is refused with NO verification-debt shard left behind.
+// TestCreateRefusesBadTagBeforeTheGates asserts a tag that cannot name a
+// message file is refused before any gate runs, with no message reservation
+// left behind.
 //
-// VALIDATES: Create calls validateTag beside Message, before recordDebt.
-// PREVENTS: the second occurrence of
+// VALIDATES: Create calls validateTag beside Message, before its gates.
+// PREVENTS: the shape of
 // plan/journal/record-written-before-the-operation-succeeds.md. nextTag is the
-// only other place the tag is checked and it runs after recordDebt has already
-// appended its rows, so `tag "fix(bgp)"` left three rows naming a commit that
-// git log finds zero of. Orphan rows are indistinguishable from real debt by
-// reading the ledger, they make debt-clear re-run gates for a commit that does
-// not exist, and they refuse a push until somebody deletes them by hand.
-func TestCreateRefusesBadTagBeforeRecordingDebt(t *testing.T) {
+// only other place the tag is checked and it runs after every gate, so a bad
+// tag found there costs a full gate pass and anything a gate wrote stays
+// behind for a commit that was never made.
+func TestCreateRefusesBadTagBeforeTheGates(t *testing.T) {
 	root := newCommitRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "bad-tag-fixture")
 	writeCommitFixture(t, root, "mine.txt", "mine\n")
@@ -852,13 +823,12 @@ func TestCreateRefusesBadTagBeforeRecordingDebt(t *testing.T) {
 		t.Fatalf("Create with tag %q = %v, want a tag-format refusal", options.Tag, err)
 	}
 
-	shards, globErr := filepath.Glob(filepath.Join(root, "plan", "verification-debt", "*.md"))
+	messages, globErr := filepath.Glob(filepath.Join(root, "tmp", "commit-msg-*"))
 	if globErr != nil {
 		t.Fatal(globErr)
 	}
-	if len(shards) != 0 {
-		body, _ := os.ReadFile(shards[0])
-		t.Fatalf("refused create left %d debt shard(s) behind, first is %s:\n%s", len(shards), shards[0], body)
+	if len(messages) != 0 {
+		t.Fatalf("refused create left message reservation(s) behind: %q", messages)
 	}
 }
 
@@ -900,9 +870,8 @@ func TestValidateTagReportsLengthSeparatelyFromCharacters(t *testing.T) {
 // lepath.IsCheckout answers true, and prepares a plain explicit commit in the
 // sibling checkouts ZE_REPO_ROOT names.
 // PREVENTS: the two failures a site republish met. The discovery-index gate
-// refused every commit with "the tree holds no ai/ directory", and the debt the
-// stale certificate owed was written to plan/verification-debt/ INSIDE the site
-// and published from there.
+// refused every commit with "the tree holds no ai/ directory", and the stale
+// certificate's verdict was judged against a tree no native gate builds.
 func TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-site-fixture")
 	site := newSiteRepository(t)
@@ -917,12 +886,6 @@ func TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources(t *testing.T) 
 	if prepared.Verify.State != verifyNotApplicable {
 		t.Fatalf("verify state = %q, want %q", prepared.Verify.State, verifyNotApplicable)
 	}
-	if len(prepared.Debt) != 0 {
-		t.Fatalf("site commit owed %d debt row(s)", len(prepared.Debt))
-	}
-	if _, err := os.Stat(filepath.Join(site, "plan", "verification-debt")); err == nil {
-		t.Fatal("Create wrote verification debt into the published tree")
-	}
 	script, err := os.ReadFile(filepath.Join(site, filepath.FromSlash(prepared.Script)))
 	if err != nil {
 		t.Fatal(err)
@@ -935,7 +898,7 @@ func TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources(t *testing.T) 
 	// runs the verification gates, so the skip is keyed to the tree rather than
 	// to what the fixture happens to hold. The gate that answers here is the
 	// verification certificate: no fixture carries a FRESH-green one, so the
-	// commit owes debt and the ledger is written under the checkout.
+	// state judged is the certificate's, never not-applicable.
 	//
 	// It was the discovery-index gate until 2026-09-11, which refused outright
 	// with "the tree holds no ai/ directory". That gate is deleted, and the map
@@ -948,11 +911,8 @@ func TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources(t *testing.T) 
 	if err != nil {
 		t.Fatalf("Create refused a commit inside the Ze checkout: %v", err)
 	}
-	if len(inside.Debt) == 0 {
+	if inside.Verify.State == verifyNotApplicable {
 		t.Fatal("Create skipped the verification gates inside the Ze checkout")
-	}
-	if _, err := os.Stat(filepath.Join(checkout, "plan", "verification-debt")); err != nil {
-		t.Fatalf("the ledger was not written inside the Ze checkout: %v", err)
 	}
 }
 
@@ -981,11 +941,6 @@ func TestACommitChangingAPackageCommentNeedsNoIndex(t *testing.T) {
 	}
 	if slices.Contains(prepared.Added, "ai/PACKAGE-MAP.md") {
 		t.Error("the prepared commit carries the derived map")
-	}
-	for _, row := range prepared.Debt {
-		if row.Gate == "discovery-index freshness" {
-			t.Errorf("the commit owes a gate nothing can now run: %#v", row)
-		}
 	}
 }
 
@@ -1050,20 +1005,12 @@ func TestATaggedTestNeedsNoLedgerRegeneration(t *testing.T) {
 			}
 		}
 	}
-	for _, row := range prepared.Debt {
-		for _, path := range derivedOutputs {
-			if strings.Contains(row.Gate, path) || strings.Contains(row.Reason, path) {
-				t.Errorf("the commit owes a gate over a derived output: %#v", row)
-			}
-		}
-	}
 }
 
 // TestStaleIndexOKIsNotAKeyword pins that the override went with its gate.
 //
-// A keyword whose gate is deleted is worse than no keyword: it parses, it is
-// recorded as a debt reason, and it says a check was overridden when no check
-// ran. parseCreate refuses an undeclared keyword, so the absence is testable.
+// A keyword whose gate is deleted is worse than no keyword: it parses, and it
+// says a check was overridden when no check ran. parseCreate refuses an undeclared keyword, so the absence is testable.
 func TestStaleIndexOKIsNotAKeyword(t *testing.T) {
 	t.Parallel()
 	if _, err := parseCreate([]string{"subject", "s", "file", "a", "stale-index-ok", "why"}); err == nil {
@@ -1071,7 +1018,7 @@ func TestStaleIndexOKIsNotAKeyword(t *testing.T) {
 	}
 	// The discrimination: a keyword that IS declared still parses, so the
 	// refusal above is about this one name and not about the shape of the call.
-	if _, err := parseCreate([]string{"subject", "s", "file", "a", "unverified", "why"}); err != nil {
+	if _, err := parseCreate([]string{"subject", "s", "file", "a", "structural-red-ok", "why"}); err != nil {
 		t.Fatalf("parseCreate refused a declared override keyword: %v", err)
 	}
 }
@@ -1126,266 +1073,6 @@ func newSiteRepository(t *testing.T) string {
 	runCommitGit(t, root, "init", "-q")
 	runCommitGit(t, root, "add", "--", "tracked.txt")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
-	return root
-}
-
-// debtClearFixture writes a checkout holding one runnable debt row and one row
-// no gate can re-run, and answers its root.
-func debtClearFixture(t *testing.T) string {
-	t.Helper()
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# fixture\n"), 0o600); err != nil {
-		t.Fatalf("write the fixture file: %v", err)
-	}
-	// The verification names HEAD, so the fixture needs one.
-	for _, args := range [][]string{
-		{"init", "-q", "."},
-		{"config", "user.email", "tester@example.com"},
-		{"config", "user.name", "Tester"},
-		{"config", "commit.gpgsign", "false"},
-		{"add", "-A"},
-		{"commit", "-q", "-m", "base"},
-	} {
-		command := exec.CommandContext(t.Context(), "git", args...) //nolint:gosec // the argument lists are literals above
-		command.Dir = root
-		if out, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("git %s in the fixture checkout: %v\n%s", strings.Join(args, " "), err, out)
-		}
-	}
-	owed := []Debt{
-		{Gate: debtGates[0].Name, Reason: "the gate had not run"},
-		{Gate: "independent critical review", Reason: "no reviewer"},
-	}
-	if _, err := recordDebt(root, "12345678", "a commit", owed); err != nil {
-		t.Fatalf("record the fixture debt rows: %v", err)
-	}
-	return root
-}
-
-// debtClearStatuses answers each row's gate and status, in ledger order.
-func debtClearStatuses(t *testing.T, root string) map[string]string {
-	t.Helper()
-	rows, err := ListDebt(root)
-	if err != nil {
-		t.Fatalf("read the fixture ledger: %v", err)
-	}
-	status := make(map[string]string, len(rows))
-	for index := range rows {
-		status[rows[index].Gate] = rows[index].Status
-	}
-	return status
-}
-
-// VALIDATES: debt clearing writes `cleared` only for a gate the verification
-// PASSED, and a red verification leaves every row open.
-// PREVENTS: the failure the ledger exists to stop -- a row marked cleared by the
-// act of asking rather than by the gate answering. The decision sits behind an
-// hour-long verification through the real dispatcher, so a test that does not
-// name its own dispatcher cannot reach it at all.
-func TestDebtClearingHonorsTheGateExit(t *testing.T) {
-	green := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
-	}
-	red := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
-	}
-
-	passing := debtClearFixture(t)
-	result, code := clearDebtWith(passing, uncutDebtPart(), green, anyHost)
-	if code != 0 {
-		t.Fatalf("a passing verification answered %d: %#v", code, result)
-	}
-	if result.Cleared != 1 || result.Remaining != 1 {
-		t.Errorf("a passing verification cleared %d of %d rows, want 1 with 1 remaining", result.Cleared, result.Open)
-	}
-	if !slices.Contains(result.Unrunnable, "independent critical review") {
-		t.Errorf("the answer names %v as unrunnable, want the review row among them", result.Unrunnable)
-	}
-	status := debtClearStatuses(t, passing)
-	if status[debtGates[0].Name] != "cleared" {
-		t.Errorf("the runnable row is %q after a passing gate, want cleared", status[debtGates[0].Name])
-	}
-	if status["independent critical review"] != "open" {
-		t.Errorf("the unrunnable row is %q, want open: no gate re-ran it", status["independent critical review"])
-	}
-
-	failing := debtClearFixture(t)
-	result, _ = clearDebtWith(failing, uncutDebtPart(), red, anyHost)
-	if result.Cleared != 0 || result.Remaining != result.Open {
-		t.Errorf("a red verification cleared %d of %d rows, want none", result.Cleared, result.Open)
-	}
-	for gate, state := range debtClearStatuses(t, failing) {
-		if state != "open" {
-			t.Errorf("%q is %q after a red gate, want open", gate, state)
-		}
-	}
-}
-
-// TestOneOpenRowPerGateAndReason pins both polarities of the writer's dedup: a
-// second commit owing the same gate for the same reason extends the row it
-// already wrote, and a second reason still opens a row of its own.
-func TestOneOpenRowPerGateAndReason(t *testing.T) {
-	root := t.TempDir()
-	same := []Debt{{Gate: debtGates[0].Name, Reason: "verify-status is not FRESH-green: STALE"}}
-	for index, subject := range []string{"first commit", "second commit", "third commit"} {
-		if _, err := recordDebt(root, "12345678", subject, same); err != nil {
-			t.Fatalf("record the owed gate for commit %d: %v", index+1, err)
-		}
-	}
-	rows, err := ListDebt(root)
-	if err != nil {
-		t.Fatalf("read the ledger: %v", err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("three commits owing one gate for one reason wrote %d rows: %#v", len(rows), rows)
-	}
-	if rows[0].Subject != "first commit (+2 more)" {
-		t.Fatalf("the extended row names %q, not the first subject and the two commits after it", rows[0].Subject)
-	}
-	other := []Debt{{Gate: debtGates[0].Name, Reason: "verify-status is not FRESH-green: last verify failed"}}
-	if _, err := recordDebt(root, "12345678", "fourth commit", other); err != nil {
-		t.Fatalf("record the second reason: %v", err)
-	}
-	rows, err = ListDebt(root)
-	if err != nil {
-		t.Fatalf("read the ledger after the second reason: %v", err)
-	}
-	if len(rows) != 2 {
-		t.Fatalf("a second reason under the same gate wrote %d rows in total: %#v", len(rows), rows)
-	}
-	if rows[1].Subject != "fourth commit" || rows[1].Reason != other[0].Reason {
-		t.Fatalf("the second reason's row = %#v", rows[1])
-	}
-}
-
-// TestUnrunnableGatesComeFromTheGateTable pins that the runnable/unrunnable
-// split is DERIVED from debtGates rather than compared against two literals.
-//
-// It is table-driven over every declared gate, so a gate whose Runnable flag
-// changes moves this test with it, and a gate added to the table without one is
-// judged here rather than nowhere. Two string literals in clearDebtWith could
-// not answer for a seventh gate at all.
-func TestUnrunnableGatesComeFromTheGateTable(t *testing.T) {
-	green := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
-	}
-	for _, gate := range debtGates {
-		root := debtGateFixture(t, gate.Name)
-		result, code := clearDebtWith(root, uncutDebtPart(), green, anyHost)
-		if code != 0 {
-			t.Fatalf("%s answered %d: %#v", gate.Name, code, result)
-		}
-		if gate.Runnable {
-			if !slices.Contains(result.Runnable, gate.Name) {
-				t.Errorf("%s is declared runnable and the pass names it %v", gate.Name, result.Unrunnable)
-			}
-			continue
-		}
-		if !slices.Contains(result.Unrunnable, gate.Name) {
-			t.Errorf("%s is declared unrunnable and the pass names it runnable: %#v", gate.Name, result)
-		}
-		if result.Cleared != 0 {
-			t.Errorf("%s cleared %d row(s) on a green verify", gate.Name, result.Cleared)
-		}
-	}
-}
-
-// TestUnrecognizedGateNameIsNeverClearedByAGreenVerify is the fail-closed half.
-//
-// A gate string nobody declared says nothing about what ran, so a green
-// verification must not clear it. The other polarity is the declared ALIAS: the
-// legacy spellings the ledger already holds still clear, which is what makes
-// this a declaration rather than a widened fallback.
-func TestUnrecognizedGateNameIsNeverClearedByAGreenVerify(t *testing.T) {
-	green := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
-	}
-	const undeclared = "a gate string no table declares"
-
-	root := debtGateFixture(t, undeclared)
-	result, code := clearDebtWith(root, uncutDebtPart(), green, anyHost)
-	if code != 0 {
-		t.Fatalf("an undeclared gate answered %d: %#v", code, result)
-	}
-	if !slices.Contains(result.Unrecognized, undeclared) {
-		t.Errorf("the pass names %v as unrecognized, want the undeclared gate among them", result.Unrecognized)
-	}
-	if len(result.Runnable) != 0 || result.Cleared != 0 {
-		t.Errorf("an undeclared gate ran %v and cleared %d row(s), want neither", result.Runnable, result.Cleared)
-	}
-	if status := debtClearStatuses(t, root)[undeclared]; status != statusOpen {
-		t.Errorf("the undeclared row is %q after a green verify, want open", status)
-	}
-
-	// A declared alias is the other polarity: a legacy spelling still clears.
-	alias := ""
-	for _, gate := range debtGates {
-		if gate.Runnable && len(gate.Aliases) != 0 {
-			alias = gate.Aliases[0]
-			break
-		}
-	}
-	if alias == "" {
-		t.Fatal("debtGates declares no alias for a runnable gate, so the accepting polarity cannot run")
-	}
-	root = debtGateFixture(t, alias)
-	result, code = clearDebtWith(root, uncutDebtPart(), green, anyHost)
-	if code != 0 {
-		t.Fatalf("a declared alias answered %d: %#v", code, result)
-	}
-	if result.Cleared != 1 {
-		t.Fatalf("a declared alias cleared %d row(s) on a green verify, want 1: %#v", result.Cleared, result)
-	}
-}
-
-// TestDebtClearingReportsRedVerificationAsFailure pins that the exit code and
-// the ledger agree. A red run cleared nothing, and exiting zero over zero
-// cleared rows told a caller reading only the code that there was nothing to do.
-func TestDebtClearingReportsRedVerificationAsFailure(t *testing.T) {
-	red := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
-	}
-	root := debtClearFixture(t)
-	result, code := clearDebtWith(root, uncutDebtPart(), red, anyHost)
-	if code == 0 {
-		t.Fatalf("a red verification exited 0 over %d cleared row(s): %#v", result.Cleared, result)
-	}
-	if result.Cleared != 0 {
-		t.Fatalf("a red verification cleared %d row(s)", result.Cleared)
-	}
-}
-
-// TestPushProceedsWhenEveryRemainingRowIsDischarged drives the push gate over
-// the overlaid ledger. The gate holds no rule of its own: it reads openDebt,
-// which reads ListDebt, which is where a discharge stops counting.
-func TestPushProceedsWhenEveryRemainingRowIsDischarged(t *testing.T) {
-	root := newCommitRepository(t)
-	shard, line := debtRowFor(t, root, "the commit the owner ordered", "independent critical review")
-	if err := refusePushWithDebt(root, nil); err == nil {
-		t.Fatal("the push gate allowed a push with one open row")
-	}
-	if _, exit := discharge(t, root, "shard", shard, "line", strconv.Itoa(line),
-		"kind", kindOwner, "owner", "the owner's sentence"); exit != 0 {
-		t.Fatalf("the discharge exited %d", exit)
-	}
-	if err := refusePushWithDebt(root, nil); err != nil {
-		t.Fatalf("the push gate still refuses with every row discharged: %v", err)
-	}
-	// The gate still refuses the rows this commit is about to write, which is
-	// the half a narrowed overlay must not have bought.
-	if err := refusePushWithDebt(root, []Debt{{Gate: "independent critical review"}}); err == nil {
-		t.Fatal("the push gate allowed a push while this commit owes a gate")
-	}
-}
-
-// debtGateFixture is a checkout holding ONE open debt row naming one gate.
-func debtGateFixture(t *testing.T, gate string) string {
-	t.Helper()
-	root := newCommitRepository(t)
-	owed := []Debt{{Gate: gate, Reason: "the fixture's reason"}}
-	if _, err := recordDebt(root, "12345678", "a commit", owed); err != nil {
-		t.Fatalf("record the fixture debt row: %v", err)
-	}
 	return root
 }
 

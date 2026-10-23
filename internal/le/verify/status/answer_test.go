@@ -6,9 +6,17 @@
 package verifystatus
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/verify"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -92,5 +100,54 @@ func TestTheBareAreaListsItsActions(t *testing.T) {
 	}
 	if len(list.Actions) != 4 {
 		t.Errorf("the listing carries %d actions, want four", len(list.Actions))
+	}
+}
+
+// TestStatusWriteNeverWritesGreenRecord: `le verify status write exit-code 0
+// mode full` writes the certificate as it always has, and the green record is
+// neither written nor changed. The record is the verify lifecycle's alone: a
+// caller-declared exit code proves no run, so a push cannot be bought with one.
+// The method records a green record first and compares its bytes after.
+//
+// MUTATION: write the green record from WriteCertificate and this fails.
+func TestStatusWriteNeverWritesGreenRecord(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("tmp/\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	previous := env.Get(lepath.RootKey)
+	if err := env.Set(lepath.RootKey, root); err != nil {
+		t.Fatalf("point the checkout root at the fixture: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set(lepath.RootKey, previous); err != nil {
+			t.Fatalf("restore the checkout root: %v", err)
+		}
+	})
+
+	if _, code := Answer([]string{"write", "exit-code", "0", "mode", "full"}); code != 0 {
+		t.Fatalf("status write answered %d", code)
+	}
+	if _, err := verifyengine.ReadCertificate(root); err != nil {
+		t.Fatalf("status write wrote no certificate: %v", err)
+	}
+	if _, err := verify.ReadGreenRecord(root); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("status write made a green record (%v)", err)
+	}
+
+	held, err := verify.NewGreenRecord(strings.Repeat("a", 40), strings.Repeat("b", 40), 1,
+		time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verify.WriteGreenRecord(root, held); err != nil {
+		t.Fatal(err)
+	}
+	if _, code := Answer([]string{"write", "exit-code", "0", "mode", "full"}); code != 0 {
+		t.Fatalf("status write answered %d", code)
+	}
+	after, err := verify.ReadGreenRecord(root)
+	if err != nil || after != held {
+		t.Errorf("status write changed the green record to (%+v, %v), want %+v", after, err, held)
 	}
 }

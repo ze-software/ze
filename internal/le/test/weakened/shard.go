@@ -178,8 +178,8 @@ func shardPopulation(shards []Shard, mine string) string {
 
 // sessionShard answers the shard path the caller writes and the gate reads. An
 // empty session resolves the running harness's own commit namespace, which is
-// the same eight hex characters that name its commit script and its
-// verification-debt shard.
+// the same eight hex characters that name its commit script and its commit
+// message.
 func sessionShard(root, dir, session string) (string, string, string) {
 	if session != "" {
 		return session, ShardPath(dir, session), ""

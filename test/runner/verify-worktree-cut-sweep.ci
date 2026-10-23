@@ -1,0 +1,25 @@
+# The cut grammar of `le verify worktree` and the green record a cut earns.
+#
+# The fixture drives the REAL `le verify worktree` with every malformed cut
+# (`all part 2 of 3`, `all`, `part 2`, `part 0 of 3`, `part 4 of 3`) and
+# asserts each exits 2 before any worktree exists, the `all` forms naming
+# `all of <m>`. It then runs the two pieces of a cut of two through
+# verify.Run with a fixture action runner that answers every stage green, and
+# asserts one piece alone writes no green record and the piece completing
+# 1..2 over one commit writes it at the asking root with cut 2. Last, the
+# `all of <m>` sweep proves every piece and a second sweep skips the proven
+# ones.
+#
+# Spec: plan/post-release/engineering/spec-verification-debt-derived.md (AC-8, AC-9, AC-32).
+# Make one piece write the green record and seq=1 fails at
+# one-piece-writes-no-green-record.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture runner/verify-worktree-cut-sweep
+expect=exit:code=0
+expect=stdout:contains=malformed-cuts-refused
+expect=stdout:contains=one-piece-writes-no-green-record
+expect=stdout:contains=completing-piece-writes-green-record
+expect=stdout:contains=sweep-proves-every-piece
+expect=stdout:contains=second-sweep-skips-proven-pieces

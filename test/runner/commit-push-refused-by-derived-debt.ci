@@ -1,0 +1,20 @@
+# An agent commits with no green verification, and `le commit push` refuses,
+# naming the verify that clears it; once a green full verification covers HEAD,
+# the push-only script is prepared.
+#
+# The fixture builds a throwaway Ze checkout with a bare upstream (ZE_REPO_ROOT)
+# and drives the REAL `le commit push`. The green record stands in for the
+# verification, whose own leg is verify-green-record-clears-derived-debt.ci.
+# It asserts the script makes no commit, re-derives with
+# `debt-status commit <P>`, and pushes `<P>:refs/heads/main`.
+#
+# Spec: plan/post-release/engineering/spec-verification-debt-derived.md (AC-3).
+# Make deriveDebt (internal/le/commit/owed.go) answer pushTargetHead with no
+# green record and seq=1 fails at push-refused-without-green.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture runner/commit-push-refused-by-derived-debt
+expect=exit:code=0
+expect=stdout:contains=push-refused-without-green
+expect=stdout:contains=push-script-prepared-for-head

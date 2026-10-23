@@ -162,11 +162,11 @@ parent) and its text equals the removed spec's text at the parent with every
 occurrence of the old stem replaced by the new stem, and the pairing is one to
 one. Any other edit leaves the removal a closure, because the failure the rule
 guards is a real closure passing as a rename. A prepared commit reads HEAD and
-the working tree; a discharge reads the commit's parent and the commit, through
+the working tree; the push derivation reads the commit's parent and the commit, through
 the same `closedSpecStem`. One commit closes one spec, and `oneStem` refuses a
 second.
 <!-- source: internal/le/commit/review.go -- closedSpecStem, renamedSpecs -->
-<!-- source: internal/le/commit/discharge.go -- commitSides -->
+<!-- source: internal/le/commit/owed_answers.go -- commitSides -->
 
 
 A journal row NEVER makes a commit a closure. A row names the spec a defect was
@@ -199,7 +199,8 @@ review independence comes from a fresh reviewer context.
 The review gate then requires a CLEAN `./le spec review record` artifact
 that covers every reviewable file in the commit and whose hashes still match, so
 any edit after the review invalidates it. `review-override <reason>` is the only
-way past, and it records a verification-debt row.
+way past, and it writes a `Review-owed:` trailer that refuses the push until a
+clean review, a recorded Review Gate or the owner's attestation answers it.
 
 ## Which reference form each link gate reads
 

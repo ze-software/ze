@@ -34,11 +34,10 @@ func approvalRepository(t *testing.T) string {
 func approvalCreate(t *testing.T, root string, paths ...string) (Prepared, error) {
 	t.Helper()
 	return Create(root, &Options{
-		Session:    approvalSession,
-		Subject:    "change the tagged unit",
-		Files:      paths,
-		NoTest:     "the fixture carries tests only",
-		Unverified: "the fixture repository runs no verification",
+		Session: approvalSession,
+		Subject: "change the tagged unit",
+		Files:   paths,
+		NoTest:  "the fixture carries tests only",
 	})
 }
 

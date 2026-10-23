@@ -192,7 +192,7 @@ functional suite checks the host first, before it builds or runs anything:
 |---------|----------------|
 | `./le test functional gating`, `./le test functional <suite>`, `./le test functional exabgp-test` | Always |
 | `./le verify worktree`, `./le verify current` | When the population holds a functional stage |
-| `./le commit debt-clear` | When a piece the pass will run holds a functional stage, for every such piece before the first starts |
+| `./le verify worktree all of <m>` | When a piece the sweep will run holds a functional stage, for every such piece before the first starts |
 | `./le feature record-run feature <id>`, `./le feature record-run due <days>`, `./le site build refresh` | When a feature's real-path tests hold a `.ci` that runs on this host, before its first test runs. A Go test, an editor test and a `.ci` whose home is the QEMU guest bind none of the addresses. Each due or stale feature is judged on its own, so every one is refused and none runs |
 | `./le rfc discriminate-record` | When the tagged unit's carrier is a functional `.ci`, before the break is built. An escape (`route no-break`) runs nothing and is not checked, and neither is `./le rfc discriminate`, which only reads records |
 
@@ -206,7 +206,6 @@ so `./le setup check` says the same thing before you start.
 <!-- source: internal/le/setup/system.go -- FunctionalHostPreflight -->
 <!-- source: internal/le/verify/preflight.go -- HostPreflight -->
 <!-- source: internal/le/test/functional/actions.go -- hostReady -->
-<!-- source: internal/le/commit/actions.go -- clearDebtWith -->
 <!-- source: internal/le/feature/recordrun.go -- repoRunner.preflight -->
 <!-- source: internal/le/rfc/discriminate_action.go -- observeFor -->
 
@@ -355,7 +354,7 @@ session directory and its scratch, and owns what follows:
 
 | Artifact | Keyed on | Main thread's file | An agent's file | Producer |
 |----------|----------|--------------------|-----------------|----------|
-| Commit namespace (8 hex): the commit script, the message, `test/weakened/<ns>.md`, `plan/verification-debt/<ns>.md` | session and agent | `tmp/commit-session-id-<session>` | `tmp/commit-session-id-<session>+<agent>` | `lepath.CommitSession` |
+| Commit namespace (8 hex): the commit script, the message, `test/weakened/<ns>.md` | session and agent | `tmp/commit-session-id-<session>` | `tmp/commit-session-id-<session>+<agent>` | `lepath.CommitSession` |
 | Spec claim | session and agent | `tmp/session/.session-<session>` | `tmp/session/.session-<session>+<agent>` | `lepath.SpecClaimMarker` |
 | RFC approval | the session alone, because the owner approves to the main thread | `tmp/commit-rfc-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
 
@@ -1031,9 +1030,9 @@ names the runs whose index rewrites the entry: `le verify worktree`, the
 `le verify worktree part <i> of <n>` piece that holds the stage, and
 `le verify current fast` when the fast population holds it. A stage no
 run has judged is listed as never judged and is not charged: not running a
-stage is the unverified-debt row's business, not a red. So a green
+stage is the derived verification debt's business, not a red. So a green
 `verify current fast` charges nothing for the stages it drops, and a green
-`commit debt-clear` sweep of every piece leaves no structural charge. A
+`le verify worktree all of <m>` sweep of every piece leaves no structural charge. A
 missing or malformed earlier index is treated as empty, and the index's
 `carry-note` (the `Earlier index:` line of the text index) says so. The merge
 runs under a lock on `tmp/ze-verify-failures.lock`, because sessions publish
@@ -1046,10 +1045,14 @@ run to it.
 <!-- source: internal/le/commit/verification.go -- structuralGateReds -->
 <!-- source: internal/le/verify/engine/artifacts.go -- carryForward -->
 
-`./le verify worktree part <i> of <n>` runs one dealt piece, every stage of it,
-as `./le commit debt-clear` does. `first-red` with `part` is refused with exit
-2, because a piece is dealt for debt clearing, which needs every stage of the
-piece.
+`./le verify worktree part <i> of <m>` runs one dealt piece, every stage of it,
+and `./le verify worktree all of <m>` runs every piece not yet proven over one
+commit, each in its own worktree. The piece that completes 1..m over one commit
+writes the green record (`docs/architecture/testing/verify-freshness-scope.md`,
+"The green record and the cut"). `first-red` with `part` or `all` is refused
+with exit 2, because a piece counts towards the green record only when every
+stage of it runs.
+<!-- source: internal/le/verify/sweep.go -- Sweep -->
 
 ## One verify at a time
 

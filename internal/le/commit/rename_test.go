@@ -2,8 +2,8 @@
 //
 // VALIDATES: a spec whose stem is renamed in one commit, with its content
 // carried over and only the old stem replaced by the new one, is a rename and
-// does not count as a closure, both when the commit is prepared and when a
-// discharge re-derives it from the commit's own blobs.
+// does not count as a closure, both when the commit is prepared and when an
+// owed item's answer re-derives it from the commit's own blobs.
 // PREVENTS: the owner's rename of a spec being refused with "no
 // independent-review artifact", and the opposite failure: a real closure
 // passing as a rename because some other spec was added beside it.
@@ -179,11 +179,11 @@ func TestABucketMoveIsStillARelocation(t *testing.T) {
 	}
 }
 
-// TestADischargeReadsARenameFromTheCommitBlobs pins the second caller. A
-// discharge re-derives the closure months later from the commit alone, so the
+// TestAnAnswerReadsARenameFromTheCommitBlobs pins the second caller. An owed
+// item's answer re-derives the closure later from the commit alone, so the
 // rename has to be recognized from the parent's blob and the commit's blob,
 // with nothing left in the working tree.
-func TestADischargeReadsARenameFromTheCommitBlobs(t *testing.T) {
+func TestAnAnswerReadsARenameFromTheCommitBlobs(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name")
 	parent := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
 	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
@@ -199,8 +199,8 @@ func TestADischargeReadsARenameFromTheCommitBlobs(t *testing.T) {
 		Paths:   []string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
 		Removed: []string{"plan/post-release/engineering/spec-old-name.md"},
 	}
-	if err := verifyKindNotApplicable(root, gateReviewOverride, facts); err != nil {
-		t.Fatalf("a discharge read the committed rename as a closure: %v", err)
+	if err := answerNotApplicable(root, owedItemReview, facts); err != nil {
+		t.Fatalf("the not-applicable answer read the committed rename as a closure: %v", err)
 	}
 	path, err := removedSpecPath(root, facts)
 	if err != nil || path != "" {
