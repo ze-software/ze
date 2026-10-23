@@ -284,7 +284,14 @@ sent such an NLRI for a flow command with no match component; the old-command
 corpus records 99 of them per release, and ze's own row `oldMalformedRecorded`
 judges each recording malformed where the pin's judge counts it as nothing
 sent.
+
+Where both reset over a malformed FlowSpec NLRI, ExaBGP 6.0 sends NOTIFICATION
+3/10 (Invalid Network Field) and Ze sends 3/1 (Malformed Attribute List), as for
+every MP_REACH_NLRI or MP_UNREACH_NLRI section it cannot walk: RFC 4271 Section
+6.3 assigns Invalid Network Field to the NLRI field of the UPDATE itself, not to
+an attribute (`test/plugin/flowspec-malformed-nlri-reset.ci`).
 <!-- source: internal/core/bgp/nlri/nlrisplit/flowspec.go -- SplitFlowSpec -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- mpNLRIJudgementResult -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go -- judgeFlowSpecSection, flowSpecMalformed -->
 
 ---

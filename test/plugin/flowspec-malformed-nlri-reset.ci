@@ -1,0 +1,70 @@
+# flowspec-malformed-nlri-reset -- RFC 8955 Section 4.2, a received FlowSpec NLRI that
+# is not encoded as specified resets the session, over a live iBGP session.
+#
+# Section 4.2: "An NLRI value not encoded as specified here, including an NLRI that
+# contains an unknown component type, is considered malformed and error handling according
+# to Section 10 is performed." Section 10 defers to RFC 7606, whose Section 3 (j) allows
+# treat-as-withdraw only for an NLRI that parsed. The FlowSpec plugin's NLRI syntax rule
+# (judgeFlowSpecSection, internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go)
+# runs from message.validateMPNLRISyntax on every MP_REACH_NLRI section, before any plugin
+# decodes it.
+#
+# Two UPDATEs, in TCP order on one session, each an AFI 2 / SAFI 133 MP_REACH_NLRI with no
+# next hop, ORIGIN IGP, an empty AS_PATH and LOCAL_PREF 100. Both carry the NLRI of the
+# ExaBGP 4.2 corpus (qa/old responses-4.2): destination 2a02:b80:15:0:7aca:39ff:feae:a87a/128,
+# source-ipv6 ::/128 at offset 120, next-header 17, destination-port 25:
+#   U1: the well-formed twin, with the one pattern octet RFC 8956 Section 3.1 asks for.
+#       The session stays up.
+#   U2: the corpus bytes, sixteen pattern octets where one belongs: the fifteen extra
+#       octets read as a component of type 0, unknown, so ze resets the session with
+#       NOTIFICATION 3/1. It is the fence: ze reads one connection on one goroutine in TCP
+#       order, so the reset naming U2's own defect proves U1 was judged well-formed and the
+#       session survived it. Had U1 reset the session, U2 would never be read.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+
+# End-of-RIB for ipv6/flow: an MP_UNREACH_NLRI (extended length) holding AFI 2 / SAFI 133 alone.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000285
+
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004F02000000384001010040020040050400000064800E270002850000210180002A020B80001500007ACA39FFFEAEA87A028078010381110B81650D9107DD
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005E02000000474001010040020040050400000064800E360002850000300180002A020B80001500007ACA39FFFEAEA87A028078000000000000000000000000000000010381110B81650D9107DD
+
+# NOTIFICATION code 3 (UPDATE Message Error), subcode 1 (Malformed Attribute List), for U2.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/flow { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+# U2's own defect, the unknown component type, names the reset: U1 did not cause it.
+expect=stderr:contains=RFC 8955 Section 4.2: malformed ipv6/flow NLRI: flowspec: invalid component type
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
