@@ -97,6 +97,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/softver"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/softver/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/watchdog"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/watchdog/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	_ "github.com/ze-software/ze/internal/component/bgp/reactor/filter/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"

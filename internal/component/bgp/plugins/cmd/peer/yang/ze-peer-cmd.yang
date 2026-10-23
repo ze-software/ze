@@ -7,6 +7,7 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
+    revision 2026-10-23 { description "The request peer selector states which commands act on every peer it matches and which refuse all but one, delete bgp peer refuses a selector that is not one peer, disable states the communication Ze sends when no message is given, and teardown names RFC 9003."; }
     revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner. request peer disable and enable hold a peer administratively down and release it. request peer notify closes a session with a NOTIFICATION of any code and subcode, its Data field given as text or, after the keyword hex, as octets."; }
     revision 2026-10-18 { description "The peer selector summary names * for every peer, so the selector guard's refusal, which quotes it, names the explicit every-peer form."; }
     // One verb pair for one runtime resource: create and delete, the pair the
@@ -369,8 +370,10 @@ configuration. Does not modify the config file on disk.";
                     type string;
                     mandatory true;
                     description "The value is an IP address, a peer name, an AS pattern such as as65001, a
-glob, or * for every peer. Ze tears down and deletes each peer it matches.";
-                    ze:help "* for every peer, or an address, a peer name or an AS pattern";
+glob. It names one peer: *, an exclusion such as !edge1, and a selector that
+matches more than one peer are refused, and a pattern or glob that matches
+exactly one peer is accepted. Ze tears down and deletes that peer.";
+                    ze:help "One peer: its address or peer name";
                 }
             }
         }
@@ -497,9 +500,12 @@ the 'network' permission.";
                 type string;
                 mandatory true;
                 description "The value is an IP address, a peer name, an AS pattern such as as65001, a
-glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than
-one peer, and the other commands act on each peer it matches.";
-                ze:help "* for every peer, or an address, a peer name or an AS pattern";
+glob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer
+it matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and
+'clear soft' act on one session: they refuse *, an exclusion such as !edge1,
+and a selector that matches more than one peer, and they accept a pattern or
+glob that matches exactly one peer.";
+                ze:help "An address or peer name; * or a pattern for refresh, borr, eorr and flush";
             }
 
             container teardown {
@@ -507,10 +513,12 @@ one peer, and the other commands act on each peer it matches.";
                 ze:command "ze-bgp:peer-teardown";
                 ze:rpc "ze-bgp-api:peer-teardown";
                 description "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.
-Ze sends an RFC 8203 shutdown communication message with subcode 2,
-administrative shutdown, and with subcode 4, administrative reset, and with no
-other subcode. The message follows the subcode on the command line, and the
-answer echoes the truncated text that went on the wire.";
+Ze sends an RFC 9003 Shutdown Communication with subcode 2, Administrative
+Shutdown, and with subcode 4, Administrative Reset, and with no other subcode.
+The message follows the subcode on the command line, and the answer echoes the
+truncated text that went on the wire. With no message, Ze sends the subcode's
+name, such as Administrative Shutdown, as the communication. The selector names
+one peer: *, an exclusion and a selector matching several peers are refused.";
                 ze:help "Tear down a peer session.";
                 leaf cease-subcode {
                     type uint8;
@@ -587,7 +595,7 @@ fits on the wire.";
                 leaf message {
                     type string;
                     description "Every word after disable, joined by one space. Absent, the Cease carries
-no communication.";
+Administrative Shutdown as its communication.";
                     ze:help "Shutdown communication";
                 }
             }

@@ -199,11 +199,14 @@ func parseStateEvent(text string) (peerAddr, state, reason string, initialReplay
 // registry.Registration, which anything linking the composition root reads
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
+//
+// It carries the names alone: the routing ForwardToPlugin needs. The help
+// and the arguments are declared once, in yang/ze-watchdog-cmd.yang.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: commandRequestWatchdogAnnounce, ShortHelp: "Announce routes in watchdog group"},
-		{Name: commandRequestWatchdogWithdraw, ShortHelp: "Withdraw routes in watchdog group"},
-		{Name: commandRequestWatchdogGive, ShortHelp: "Give a route to a watchdog group, sent now or held"},
-		{Name: commandRequestWatchdogForget, ShortHelp: "Withdraw and forget the routes an owner gave watchdog groups"},
+		{Name: commandRequestWatchdogAnnounce},
+		{Name: commandRequestWatchdogWithdraw},
+		{Name: commandRequestWatchdogGive},
+		{Name: commandRequestWatchdogForget},
 	}
 }

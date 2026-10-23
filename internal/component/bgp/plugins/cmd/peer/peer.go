@@ -670,7 +670,8 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 // handleTeardown handles "request peer <sel> teardown <subcode> [message]" command.
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
-// RFC 8203: optional message is included in the NOTIFICATION for subcodes 2/4.
+// RFC 9003 Section 2: the message is the Shutdown Communication of subcodes 2
+// and 4, and an empty message sends the subcode's name instead.
 func handleTeardown(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	_, errResp, err := pluginserver.RequireReactor(ctx)
@@ -714,7 +715,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, validated command.Validate
 	}
 	subcode := uint8(code)
 
-	// RFC 8203: optional shutdown communication message (remaining args joined).
+	// RFC 9003 Section 2: the optional Shutdown Communication (remaining args joined).
 	var shutdownMsg string
 	if len(args) > 1 {
 		shutdownMsg = textbuf.Join(args[1:], " ")
@@ -750,7 +751,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, validated command.Validate
 		fieldSubcode: subcode,
 	}
 	if shutdownMsg != "" && (subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset) {
-		// Show the truncated message that was actually sent on the wire (RFC 8203).
+		// Show the truncated message that was actually sent on the wire (RFC 9003 Section 3).
 		wireData := message.BuildShutdownData(shutdownMsg)
 		if wireData[0] > 0 {
 			resp["shutdown-message"] = string(wireData[1:])

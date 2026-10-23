@@ -6,12 +6,15 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
 	pluginSetup()
+	// The request bgp watchdog commands YANG declares (cmd_request.go).
+	pluginserver.RegisterRPCs(commandRPCs()...)
 }
 
 func pluginSetup() {

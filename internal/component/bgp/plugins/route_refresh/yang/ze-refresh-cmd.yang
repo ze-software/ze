@@ -5,6 +5,7 @@ module ze-refresh-cmd {
     description "Request peers to re-send routes (RFC 2918, RFC 7313)";
     // ze-peer-cmd.yang declares that container, and it is the keyword the
     // operator types the selector after.
+    revision 2026-10-23 { description "clear soft states that its selector names one peer."; }
     revision 2026-08-29 { description "The peer selector of every command here comes from the request peer container."; }
     revision 2026-03-16 { description "Initial revision"; }
 
@@ -53,7 +54,9 @@ BORR. Only send this after the peer has finished re-advertising.";
                     ze:command "ze-bgp:peer-clear-soft";
                     ze:rpc "ze-bgp-api:peer-clear-soft";
                     description "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
-to re-send all routes. No session bounce, no traffic impact.";
+to re-send all routes. No session bounce, no traffic impact. The selector names
+one peer: *, an exclusion and a selector matching several peers are refused.
+refresh, borr and eorr act on every peer the selector matches.";
                     ze:help "Soft-clear a peer without dropping the session.";
                 }
             }

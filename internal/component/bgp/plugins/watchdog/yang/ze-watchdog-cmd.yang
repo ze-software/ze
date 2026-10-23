@@ -1,0 +1,126 @@
+module ze-watchdog-cmd {
+    namespace "urn:ze:watchdog:cmd";
+    prefix wdcmd;
+    import ze-extensions { prefix ze; }
+    // Owned by the bgp-watchdog plugin, so removing the plugin removes these
+    // command nodes with the handlers that forward them (cmd_request.go).
+    description "request bgp watchdog ... command tree of the bgp-watchdog plugin.";
+    revision 2026-10-23 { description "Initial revision: announce, withdraw, give and forget, declared in YANG so the catalog and completion show their arguments."; }
+
+    container request {
+        config false;
+
+        container bgp {
+            config false;
+            // The text matches ze-rib-cmd.yang, which declares the same node.
+            description "These act on the live sessions. Nothing here writes configuration, so a restart
+                         returns the daemon to what its config describes.";
+            ze:help "BGP operational actions.";
+
+            container watchdog {
+                config false;
+                description "This keyword runs nothing on its own. A watchdog is a named group of routes,
+from the configuration or given by a process, that is announced and withdrawn
+together.";
+                ze:help "Announce and withdraw watchdog route groups.";
+
+                container announce {
+                    config false;
+                    ze:command "ze-bgp:watchdog-announce";
+                    description "Ze announces every route of the watchdog to each peer that carries it, and
+the routes stay announced across a reconnect. The peer is every peer, *, or
+the one address typed after the name. A watchdog whose routes a process gave
+refuses med, because Ze cannot change the MED of an update text it did not
+write.";
+                    ze:help "Announce the routes of a watchdog.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The watchdog's name. med is refused as a name, because it is the
+keyword of the MED override.";
+                        ze:help "Watchdog name";
+                    }
+                    leaf med {
+                        type uint32;
+                        description "The MED the configured routes are announced with, in place of their own.
+Absent, each route keeps its configured MED.";
+                        ze:help "MED override";
+                    }
+                    leaf peer {
+                        type string;
+                        description "The peer the routes are announced to, or * for every peer that carries
+the watchdog. Absent, the peer the command was sent for.";
+                        ze:help "Peer address, or * for every peer";
+                    }
+                }
+
+                container withdraw {
+                    config false;
+                    ze:command "ze-bgp:watchdog-withdraw";
+                    description "Ze withdraws every route of the watchdog from each peer that carries it, and
+holds them withdrawn across a reconnect until the next announce.";
+                    ze:help "Withdraw the routes of a watchdog.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The watchdog's name. med is refused as a name.";
+                        ze:help "Watchdog name";
+                    }
+                    leaf peer {
+                        type string;
+                        description "The peer the routes are withdrawn from, or * for every peer that carries
+the watchdog. Absent, the peer the command was sent for.";
+                        ze:help "Peer address, or * for every peer";
+                    }
+                }
+
+                container give {
+                    config false;
+                    ze:command "ze-bgp:watchdog-give";
+                    description "A process gives one route to a watchdog. The ExaBGP bridge sends it for an
+announce that names a watchdog. The route is sent now, or with withdraw held
+until 'request bgp watchdog announce <name>'. The same route given again
+replaces the first. The command reads:
+  give <name> owner <owner> selector <selector> [withdraw]
+       announce <n> <update text> withdrawal <update text>
+where n counts the words of the announce text, because update text has no word
+that cannot appear in it. A route the engine refuses to send is not kept.";
+                    ze:help "Give a route to a watchdog, sent now or held.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The watchdog the route is given to. med is refused as a name.";
+                        ze:help "Watchdog name";
+                    }
+                    // The rest of the line is the plugin's own grammar, which
+                    // parseGivenRequest reads: a selector keyword and two
+                    // update texts that may hold any word.
+                    leaf owner {
+                        type string { length "1..65535"; }
+                        mandatory true;
+                        ze:rest-of-line;
+                        description "The owner, then selector <selector>, an optional withdraw, announce
+<n> <update text> and withdrawal <update text>. The owner names the process
+that gave the route, so 'request bgp watchdog forget <owner>' takes it back.";
+                        ze:help "Owner, selector, announce and withdrawal of the route";
+                    }
+                }
+
+                container forget {
+                    config false;
+                    ze:command "ze-bgp:watchdog-forget";
+                    description "Ze takes every route the owner gave any watchdog off it, and withdraws the
+ones it holds announced. A later announce does not bring them back. The ExaBGP
+bridge sends it when the process that gave the routes exits.";
+                    ze:help "Withdraw and forget the routes an owner gave watchdogs.";
+                    leaf owner {
+                        type string;
+                        mandatory true;
+                        description "The owner named when the routes were given.";
+                        ze:help "Owner of the given routes";
+                    }
+                }
+            }
+        }
+    }
+}
