@@ -109,6 +109,11 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | AC-13 | `radius-coa-duplicate-freeradius` | The scenario runs Ze's authradius at the log level its checker reads; the CoA teardown is asserted from Ze's output |
 | AC-14 | `EncodeVSA`/`DecodeVSA` | The two are inverses on the same octets (the attribute value); a round-trip unit passes and every caller writes one Type and Length |
 | AC-15 | `ExtractParameters` | `ze config validate` runs the relay and dial-source checks start runs; a config relaying to an undeclared remote fails validate with the same message |
+| AC-16 | `pppoe-padr-replay`, `IfaceBackend` AddRoute comment, `TestTacacsInvalidRequestCannotFallBack` | The scenario runs green and goes red on a forced break; the comment states what the code installs; the TACACS+ test reaches a server so request validation is exercised |
+| AC-17 | RADIUS accounting without authentication, SCCRQ Protocol Version | Accounting is configurable alone or the limitation is refused at verify; an SCCRQ with an unsupported version gets StopCCN Result Code 5 (RFC 2661 Section 4.4.2) |
+| AC-18 | MS-CHAPv2 via RADIUS | The authenticator receives the 20-octet Authenticator-Response decoded from the RADIUS `S=` string (RFC 2759 Section 5); a test runs the RADIUS path end to end |
+| AC-19 | `LoadBackend` fallback | Two racing nil checks build one backend; the comment matches the code; a `-race` test starts both subsystems at once |
+| AC-20 | RADIUS tests x2 | `TestClientRetransmit` asserts the Identifier and Request Authenticator are unchanged across attempts (RFC 2865 Section 2.5); the EAP test's comment states only what it checks |
 
 ## 🧪 TDD Test Plan
 
@@ -162,6 +167,15 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | `silent-fall-through` | 2026-09-20 | `EncodeVSA` |
 | `transient-failure-treated-as-fatal` | 2026-08-31 | PPP NCP Configure-Reject |
 | `validate-accepts-what-start-refuses` | 2026-10-17 | `l2tp.ExtractParameters` |
+| `premature-closure` | 2026-10-10 | interop scenario `pppoe-padr-replay` |
+| `reference-checked-claim-unchecked` | 2026-08-10 | l2tp ppp `IfaceBackend` AddRoute comment |
+| `test-against-broken-path` | 2026-09-22 | `TestTacacsInvalidRequestCannotFallBack` |
+| `unwired-feature` | 2026-09-03 | `activateRadiusConfig` accounting needs authentication |
+| `validated-value-discarded-by-its-caller` | 2026-09-05 | l2tp `parseSCCRQ` Protocol Version |
+| `declared-format-contradicts-payload` | 2026-08-30 | MS-CHAPv2 Authenticator-Response raw vs `S=` hex from RADIUS |
+| `false-synchronization-claim` | 2026-10-14 | l2tp and pppoe `LoadBackend` fallback called idempotent |
+| `green-that-could-not-have-been-red` | 2026-09-04 | `TestClientRetransmit` asserts neither Identifier nor Authenticator |
+| `green-that-could-not-have-been-red` | 2026-09-04 | `TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes` comment overclaims |
 
 ## Rows found already fixed
 

@@ -166,6 +166,25 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | AC-37 | `AnnounceNLRIBatch` flowspec | A FlowSpec batch with no next hop is announced (RFC 8955 zero-length next hop); a `.ci` asserts the UPDATE |
 | AC-38 | relay pool dry | A peer-up replay that meets an empty read-buffer pool waits and retries; no route is dropped; a unit with a pool of 1 replays 100 routes |
 | AC-39 | raw AS_PATH | RFC 4271 Section 5: "The same attribute (attribute with the same type) cannot appear more than once within the Path Attributes field of a particular UPDATE message." A raw AS_PATH replaces the typed one or config verify refuses both |
+| AC-40 | RFC8654-6-1 receive limit | The UPDATE receive limit follows the RFC 8654 Section 6 rule on an asymmetric session (one side advertises Extended Message); a reactor test drives both asymmetries |
+| AC-41 | weak RFC tags x5 (RFC2545-3-1, RFC2545-3-3, RFC4271-5.1.2-3, RFC9830-4.2.1, RFC9252-7) | Each tag is backed by a test that drives the behavior its claim names (invalid IPv6 globals, shared subnet, empty AS_PATH, SR Policy receive validation, second Service TLV), or the tag is narrowed to what the body proves |
+| AC-42 | BGP functional reds x5 (`bgp-gtsm-reject.ci`, `relay-withdraw-nexthop-self.ci`, `bgp-nexthop-self-local-auto-frr`, draft `rib-rail-two-octet-source.ci`, bgp-rib relay) | Each runs green with its cause named in the commit, or the product defect behind it is fixed |
+| AC-43 | received LARGE_COMMUNITY, normal selected-route egress, cease subcode 6 page | A received route shows its LARGE_COMMUNITY in `rib show`; a selected Loc-RIB route reaches peers without RS or RR; the interface-event page states only what the code performs |
+| AC-44 | discarded values x4 (`announce ... for`, `SendRoutes`, `DecodeNLRIHex` rest, LS Node Flag `T`/`A`) | The lifetime is applied, a `Commit` error reaches the caller with a true count, trailing NLRI bytes refuse, and the JSON key follows RFC 9552 Table 7 |
+| AC-45 | `peerSettingsFromOperationConfig` | An API add-peer built from the reload config carries `Name`, as `PeersFromTree` sets it |
+| AC-58 | mvpn unparsed route types | RFC 6514 Section 4.4: a Leaf A-D route (type 4) carries no Route Distinguisher, so `parseBody` reads an RD only for the route types whose layout holds one, and `String` names none for type 4 |
+| AC-46 | `bufMux` budget | An idle 64K pool releases blocks so the 4K pool can grow; a session read under that load is not ended |
+| AC-47 | MUP ext-community text | `ParseSingleExtCommunity` parses every administrator form and sub-type the MUP draft defines, and the comment says so |
+| AC-48 | RFC 9552 MUST rows x5 | Each of the five rows carries a test or a recorded exclusion; `TestRealTreeIsGreen` passes |
+| AC-49 | AS_PATH width x2 (`as-path-prepend`, `TranscodeASPath`) | RFC 6793 Section 4.2.2: a prepend on a two-octet session uses AS_TRANS and AS4_PATH; a malformed AS_PATH never consumes NLRI bytes (hex tests) |
+| AC-50 | MRT TABLE_DUMP_V2 SAFI | RFC 6396 Section 4.3: non-unicast SAFIs use RIB_GENERIC or are refused; a test reads the written subtype |
+| AC-51 | state reason text | The `<state-event>` reason is one token or the BNF and its three parsers accept the multi-word form; a test feeds `connection lost` |
+| AC-52 | reactor races x2 (`PeerSettings` readers, `locRIB`/`sendCtxID`) | Every cross-goroutine read uses the accessor or the writer's lock; the race tests pass under `-race -count=20` |
+| AC-53 | population gaps x5 (community Add buffer, forward rails, listener vs dynamic group, peer/group names, prefix-list ge/le) | Each check covers the member the row names, with a test that feeds that member |
+| AC-54 | plugin `.ci` reds x2 | `bgp-rs-fastpath.ci` and `rpki-decorator-merge.ci` pass in an export of HEAD |
+| AC-55 | initial-sync hold | A peer granting `send [ update ]` to a process that never reports does not hold its announces for `apiSyncTimeout` |
+| AC-56 | prefix-list multi-entry test | The multi-entry test is fed the shape `ParseBGPSubtree` produces from config |
+| AC-57 | ROUTE-REFRESH subtype | RFC 7313 Section 5: a ROUTE-REFRESH with an unknown Message Subtype "MUST be ignored"; a test sends subtype 3 and sees no reply and no error |
 
 ## 🧪 TDD Test Plan
 
@@ -254,13 +273,28 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `refcount-released-outside-the-lock` | 2026-08-18 | rib route store `releaseRoute` |
 | `requirement-applied-outside-the-case-it-names` | 2026-10-20 | `bgp-prefix-sid-malformed-frr` |
 | `session-up-before-its-subscriber` | 2026-08-15 | dynamic group listener |
-| `silent-fall-through` | 2026-10-17 | `BGPConsumer.InjectRoute` |
 | `silent-fall-through` | 2026-10-14 | `Session.buildOpen` |
 | `silent-fall-through` | 2026-10-14 | `pool.ExtractSRv6SIDFull` |
-| `silent-fall-through` | 2026-10-13 | `mrt.Component.onPeerEstablished` |
 | `silent-fall-through` | 2026-10-10 | `recoveryRoutes` |
 | `silent-fall-through` | 2026-10-04 | `insertPoolNLRIs` SAFI 4 |
-| `silent-fall-through` | 2026-10-02 | `insertPoolNLRIs` no splitter |
+| `bound-too-small-for-its-own-burst` | 2026-10-21 | `bufMuxStd`/`bufMuxExt` shared byte budget |
+| `comment-describes-superseded-behaviour` | 2026-10-21 | `ParseSingleExtCommunity` `mup` case |
+| `concurrent-rfc-gate-stale` | 2026-08-25 | `rfc/short/rfc9552.md` five MUST rows with no test |
+| `declared-format-contradicts-payload` | 2026-09-06 | `as-path-prepend` four-octet segment on a two-octet path |
+| `declared-format-contradicts-payload` | 2026-10-05 | `TranscodeASPath` malformed AS_PATH consumes NLRI |
+| `declared-format-contradicts-payload` | 2026-10-07 | MRT `writeTableDumpV2` ignores SAFI |
+| `declared-format-contradicts-payload` | 2026-10-14 | `<state-event>` reason one token vs `connection lost` |
+| `false-synchronization-claim` | 2026-08-23 | readers of mutable `PeerSettings` fields |
+| `false-synchronization-claim` | 2026-10-05 | RIB `locRIB` and session `sendCtxID` races |
+| `gate-excludes-part-of-its-population` | 2026-08-10 | `genericCommunityHandler` Add `Buf` unchecked |
+| `gate-excludes-part-of-its-population` | 2026-08-11 | forward rails `overflowPending` misses the pool channel |
+| `gate-excludes-part-of-its-population` | 2026-08-12 | per-peer listener swallows a dynamic group's inbound |
+| `gate-excludes-part-of-its-population` | 2026-08-13 | peer and group name namespaces can collide |
+| `gate-excludes-part-of-its-population` | 2026-08-18 | prefix-list `ge`/`le` missing combination |
+| `gate-red-where-nothing-blocks-on-it` | 2026-10-10 | `bgp-rs-fastpath.ci`, `rpki-decorator-merge.ci` red in an export |
+| `grace-bound-hides-a-missing-signal` | 2026-08-15 | initial-sync hold waits for a ready only bgp-rib sends |
+| `green-that-could-not-have-been-red` | 2026-08-23 | `parsePrefixListEntries` multi-entry test feeds a shape no producer emits |
+| `green-that-could-not-have-been-red` | 2026-08-31 | `handleRouteRefresh` unknown subtype not ignored |
 | `silent-fall-through` | 2026-09-27 | GTSM socket setup, macOS |
 | `silent-fall-through` | 2026-09-01 | `setTCPMD5Sig` FreeBSD |
 | `silent-fall-through` | 2026-08-16 | peer with no `family` block |
@@ -275,6 +309,26 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `transient-failure-treated-as-fatal` | 2026-08-15 | bgp-rs peer-up replay |
 | `unguarded-goroutine-kills-the-process` | 2026-10-01 | bgp fsm callback panic |
 | `wire-carries-both-arms-of-an-either-or` | 2026-10-18 | `parseRawAttribute` |
+| `green-that-could-not-have-been-red` | 2026-10-05 | RFC8654-6-1 asymmetric receive limit |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-09-21 | `lsNodeFlagBits.ToJSON` bit 6 `T` not `A` |
+| `reference-checked-claim-unchecked` | 2026-10-06 | RFC2545-3-1 `nextHopGlobalOctets` |
+| `reference-checked-claim-unchecked` | 2026-10-06 | RFC2545-3-3 `egressNextHopGlobalHalf` |
+| `reference-checked-claim-unchecked` | 2026-10-06 | RFC4271-5.1.2-3 `ASPathEdit.recordPrepend` |
+| `reference-checked-claim-unchecked` | 2026-10-13 | RFC9830-4.2.1-2/-6 `rfc9830_test.go` |
+| `reference-checked-claim-unchecked` | 2026-10-13 | RFC9252-7-1/-2 `TestRFC9252FirstServiceTLVWins` |
+| `test-against-broken-path` | 2026-08-10 | `test/plugin/bgp-gtsm-reject.ci` times out |
+| `test-against-broken-path` | 2026-08-15 | `test/plugin/relay-withdraw-nexthop-self.ci` |
+| `test-against-broken-path` | 2026-09-09 | `bgp-rib` as a relay |
+| `test-against-broken-path` | 2026-10-06 | `bgp-nexthop-self-local-auto-frr` AIGP |
+| `test-against-broken-path` | 2026-10-08 | draft `rib-rail-two-octet-source.ci` |
+| `unwired-feature` | 2026-08-12 | received LARGE_COMMUNITY in `rib show` |
+| `unwired-feature` | 2026-08-17 | normal selected-route egress |
+| `unwired-feature` | 2026-09-07 | `interface-event-reactions.md` cease subcode 6 paragraph |
+| `validated-value-discarded-by-its-caller` | 2026-09-03 | `announceAndTrack` lifetime |
+| `validated-value-discarded-by-its-caller` | 2026-09-05 | `SendRoutes` discards `Commit` error |
+| `validated-value-discarded-by-its-caller` | 2026-09-20 | `DecodeNLRIHex` discards `rest` |
+| `zero-value-as-valid-answer` | 2026-10-10 | `peerSettingsFromOperationConfig` sets no `Name` |
+| `zero-value-as-valid-answer` | 2026-09-01 | mvpn `parseBody` reads a Leaf A-D Route Key as an RD (zero-RD face fixed by `rdPresent`) |
 
 ## Rows found already fixed
 

@@ -119,6 +119,13 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | AC-20 | web `show <list>`, web `compare` | A bare list name renders its entries or says it has none; `compare` diffs against the current committed config |
 | AC-21 | empty OSPF area in the editor | `ze config validate` and the SSH editor commit agree on `area 0.0.0.0 { }` |
 | AC-22 | live view buffer | A long `monitor event` session keeps a bounded buffer; memory stays flat over 100k events |
+| AC-23 | `?` box | A key scrolls the explanation box, or `MaxLongHelpBytes` fits an 80x24 terminal |
+| AC-24 | ssh `idle-timeout` | The leaf sets an idle timeout (`IdleTimeout`), and a test holds an active session past the value |
+| AC-25 | output formats x3 (REST command list, SSH exec trailer, workbench pending marker) | REST keys are kebab-case; an SSH exec JSON answer is the only output; the pending marker lights for a pending path |
+| AC-26 | `show bgp` children x2 | The alias barrier and the declared shapes derive from the registered children; both tests pass |
+| AC-27 | CLI grammar R1 x2 | `explain`, `generate wireguard keypair`, `skills`, `support` and `validate config` follow R1 or carry a documented exemption; `TestTheRealCheckoutPassesAndWasRead` passes |
+| AC-28 | `ze init` value flags, editor list keys, `TestValidateSyntaxMissingSemicolon` | `--web-cert` and `--web-cert-name` complete as value flags; `SetValue` refuses a key the editor cannot read back; the syntax test and the parser agree on a missing semicolon |
+| AC-29 | web goldens x3, `ze-reference-mcp.ci` oracle | The goldens are regenerated from the page that holds the `bgp` subtree; the MCP test expects what `aihelp.Build` derives |
 
 ## 🧪 TDD Test Plan
 
@@ -160,10 +167,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `format-cannot-hold-a-state-the-tree-holds` | 2026-10-11 | `emitValueOrArrayNop` |
 | `format-cannot-hold-a-state-the-tree-holds` | 2026-10-21 | `tokenize` |
 | `guard-added-to-one-half-of-a-pair` | 2026-10-13 | leaf-list builders `yang_schema.go` |
-| `guard-added-to-one-half-of-a-pair` | 2026-10-13 | web `set` key leaf |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-03 | web editor rollback |
-| `guard-added-to-one-half-of-a-pair` | 2026-08-22 | `/config/diff` |
-| `guard-added-to-one-half-of-a-pair` | 2026-10-11 | `terminalAuditSucceeded` |
 | `help-answers-unknown-for-its-own-command` | 2026-09-07 | `ze plugin command help` |
 | `help-lists-a-root-verb-twice` | 2026-10-08 | `zeUsage` |
 | `inert-registration-offered-as-a-choice` | 2026-10-12 | `InternalPluginNameValidator` |
@@ -185,6 +189,20 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `silent-fall-through` | 2026-10-10 | empty OSPF area, `keyedList` |
 | `silent-fall-through` | 2026-10-21 | goyang `ApplyDeviate` |
 | `stream-buffer-grows-for-its-whole-life` | 2026-09-27 | CLI `outputBuf` |
+| `bound-too-small-for-its-own-burst` | 2026-09-04 | `?` box `renderExplanationBox` cannot scroll past 22 rows |
+| `comment-describes-superseded-behaviour` | 2026-09-03 | ssh `idle-timeout` applied as `MaxTimeout` |
+| `declared-format-contradicts-payload` | 2026-09-28 | REST `api.CommandMeta` has no json tags |
+| `declared-format-contradicts-payload` | 2026-10-10 | SSH exec JSON answer followed by plugin frame trailer |
+| `declared-format-contradicts-payload` | 2026-10-14 | workbench `entryHasPendingChange` reads `/`, paths joined by spaces |
+| `gate-excludes-part-of-its-population` | 2026-09-05 | `cmdBgpChildren` alias barrier is a hand list missing `reject-asn` |
+| `gate-excludes-part-of-its-population` | 2026-09-08 | `TestDeclaredShapesReachTheRegistry` red: `show bgp irr`, `show bgp rib` |
+| `gate-fires-outside-its-population` | 2026-10-10 | CLI grammar R1: five root commands open with no verb |
+| `gate-red-where-nothing-blocks-on-it` | 2026-10-09 | `TestTheRealCheckoutPassesAndWasRead` R1 refusals |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-09-25 | `ze init` `--web-cert` flags registered `FlagValueNone` |
+| `zero-value-as-valid-answer` | 2026-09-13 | `newEditor` and `(*Editor).SetValue` |
+| `test-against-broken-path` | 2026-08-17 | `TestValidateSyntaxMissingSemicolon` |
+| `test-against-broken-path` | 2026-09-04 | web goldens `get-fragment-detail*.txt`, `get-show-bgp-finder.txt` |
+| `test-against-broken-path` | 2026-10-09 | `test/plugin/ze-reference-mcp.ci` stale oracle |
 
 ## Rows found already fixed
 

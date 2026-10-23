@@ -250,8 +250,9 @@ map index, so a key can only be built with every fact.
 | identifier-reused-after-its-owner-is-gone | 2026-08-18 | netlink monitor `ifNameCache` refill after delete |
 | two-owners-share-one-name | 2026-10-10 | bgp reactor `recordCreatedPeerLocked` overwrites operator key |
 | gate-excludes-part-of-its-population | 2026-08-14 | `PeerKey` keys raw operator text |
+| index-key-derived-from-mutable-field | 2026-10-05 | rs `appendOpaqueRecords`/`recordKey` keyed on full wire hex |
 
-11 rows.
+12 rows.
 
 ## Rows found already fixed
 

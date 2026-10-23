@@ -103,6 +103,12 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | AC-8 | `v6PrefixSIDsFromTLV` | RFC 8362 Sections 3.4, 3.6, 3.7: "Inclusion in other Extended LSAs MUST be ignored." A Prefix-SID in a TLV carried by the wrong LS type is ignored |
 | AC-9 | BFD IPv6 without `bind-v6` | `EnsureSession` refuses an IPv6 peer when no IPv6 socket is bound, with a message naming `bfd { bind-v6 }`; `ospfv3-bfd-frr` sees the refusal or a working session |
 | AC-10 | `incrementBootCount` | A store lock held past the deadline is retried, not fatal to the engine; a unit holds the lock across the first deadline |
+| AC-11 | VRRP x4 (owner ARP filter requests, shared-sysctl restore retry, unbound selector in `ze doctor`, negative tags on `TestDataplaneRestoreOnLastGroup`) | The owner's parent sends no ARP request with the owned address as sender; a failed restore keeps the original values; a group whose selector names no device shows as not running in `ze doctor` and metrics; the six negative tags are withdrawn or backed |
+| AC-12 | OSPF x2 (NSSA translator set, OSPFv3 AH kernel) | The RFC 3101 Section 3.2 translator set is read from translator-equivalent LSAs; the runtime kernel carries the AH transform and an OSPFv3 AH adjacency forms on it |
+| AC-13 | RSVP-TE state lifetime | RFC 2205 Section 3.7: the PSB/RSB lifetime is at least (K + 0.5)*1.5*R; a test refreshing at 1.5R keeps the state |
+| AC-14 | OSPF AuType 2 sequence | The cryptographic sequence never regresses across a restart after any number of packets; a test restarts after N > 2 sends |
+| AC-15 | OSPFv3 extended LSAs x2 | RFC 8362 Sections 4.8 and 4.3: E-Intra-Area-Prefix references 0xA021 or 0xA022 and each E-Inter-Area-Prefix-LSA carries one Inter-Area-Prefix TLV (hex tests) |
+| AC-16 | OSPF reload race | `TestOSPFReloadCreatedInstanceInitializesState` and its AF sibling pass under `-race -count=20` |
 
 ## 🧪 TDD Test Plan
 
@@ -145,6 +151,17 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | `requirement-applied-outside-the-case-it-names` | 2026-10-20 | `v6PrefixSIDsFromTLV` |
 | `silent-fall-through` | 2026-09-30 | BFD `EnsureSession` IPv6 |
 | `transient-failure-treated-as-fatal` | 2026-09-30 | `engine.incrementBootCount` |
+| `guard-added-to-one-half-of-a-pair` | 2026-09-27 | vrrp `ownerfilter.go` ARP request |
+| `rollback-forgets-partial-apply` | 2026-09-23 | vrrp shared-sysctl restore |
+| `unwired-feature` | 2026-08-23 | vrrp unbound selector, `ze doctor`, metrics |
+| `reference-checked-claim-unchecked` | 2026-10-13 | VRRP negatives on `TestDataplaneRestoreOnLastGroup` |
+| `key-omits-a-fact-the-builder-uses` | 2026-09-27 | ospf NSSA translator set |
+| `unwired-feature` | 2026-09-14 | runtime kernel without AH for OSPFv3 |
+| `bound-too-small-for-its-own-burst` | 2026-08-29 | RSVP-TE `expiredPSBs` lifetime K*R below RFC 2205 floor |
+| `claim-outlives-the-evidence-it-cites` | 2026-09-30 | OSPF `authStore.signKey` AuType 2 sequence regresses across restart |
+| `declared-format-contradicts-payload` | 2026-10-20 | `v6EIntraAreaPrefixBody` references LS Type 0x2001 |
+| `declared-format-contradicts-payload` | 2026-10-20 | `v6EInterAreaPrefixBody` has no Inter-Area-Prefix TLV |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | OSPF reload-created instance tests race in `reconcile` |
 
 ## Rows found already fixed
 

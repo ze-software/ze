@@ -331,6 +331,7 @@ No protocol code changes. The `error-message` use cites RFC 7950 Section 7.5.4.1
 | `help-text-describes-superseded-behaviour.md` | 2026-10-17 | `rpc dns-cache` description |
 | `error-answered-with-another-errors-code.md` | 2026-10-19 | NTP `doSync` unsynchronised as kiss of death |
 | `error-answered-with-another-errors-code.md` | 2026-10-10 | `DockerKernelRoute` blames the kernel for `unknown` |
+| `guard-message-teaches-the-violation.md` | 2026-08-24 | `rowOperatorRefusal` tells the operator to select a list no command selects |
 
 18 rows.
 

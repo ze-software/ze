@@ -122,6 +122,11 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | AC-20 | netlink monitor overflow | ENOBUFS triggers a resync and the monitor keeps running |
 | AC-21 | `interface/up` events | Up and down events are emitted only on a state change |
 | AC-22 | mirror with absent destination | An absent mirror destination is reported and retried, not a whole-commit abort |
+| AC-23 | LDP x2 (`TestLDPInteropFRR` rerun, `transport-address` default) | `TestLDPInteropFRR` passes in the QEMU guest after a42919934f; a Hello with no configured transport address carries the LSR-ID Transport Address TLV |
+| AC-24 | RSVP-TE x3 (refresh ratio, `newRSVPProducerLab`, `requirePush`) | A refresh period increase is limited per RFC 2205 Section 3.7 item 5; both MPLS egress lab fixtures pass with their prerequisites explicit |
+| AC-25 | `TestDoHIgnoresEDNSUDPSize` | The DoH test drives the production handler, not its own `dns.HandlerFunc` |
+| AC-26 | DHCPv6-PD from config | A test starts from config and asserts `pdRequested`/`pdLength` and the IAID `identify` derives reach the request |
+| AC-27 | flowspec-firewall events | `handleEvent` decodes the ze-bgp envelope the daemon emits; a test feeds a real `update` event and a rule is installed |
 
 ## 🧪 TDD Test Plan
 
@@ -160,9 +165,7 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `guard-added-to-one-half-of-a-pair` | 2026-08-10 | iface netlink routes |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-12 | geodns TTL bounds |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-12 | dns negative answers |
-| `guard-added-to-one-half-of-a-pair` | 2026-08-18 | iface resolver link-event fan-out |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-14 | policy-route `from/protocol` |
-| `guard-added-to-one-half-of-a-pair` | 2026-09-28 | firewall `validateMatch` arp |
 | `identity-default-hides-a-mapping` | 2026-08-22 | iface owned registries |
 | `identity-default-hides-a-mapping` | 2026-08-23 | iface/ra doctor |
 | `identity-default-hides-a-mapping` | 2026-08-23 | traffic tc backend |
@@ -176,10 +179,17 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `read-fails-on-a-fact-the-caller-does-not-need` | 2026-10-19 | `show interface <name> counters` |
 | `read-fails-on-a-fact-the-caller-does-not-need` | 2026-10-19 | resolver `mac/match` |
 | `reconciler-claims-state-another-owner-installed` | 2026-10-18 | `reconcileOnReadyWithJournal` |
-| `silent-fall-through` | 2026-10-19 | gNMI `Server.Get` |
 | `silent-fall-through` | 2026-10-15 | netlink `(*monitor).run` |
 | `state-event-emitted-without-comparing-state` | 2026-08-11 | iface monitor |
 | `transient-failure-treated-as-fatal` | 2026-08-15 | traffic mirroring |
+| `test-against-broken-path` | 2026-08-24 | `TestLDPInteropFRR` rerun owed |
+| `zero-value-as-valid-answer` | 2026-09-21 | LDP `parseLDPConfig` zero `transport-address` |
+| `setting-changed-faster-than-its-consumer-allows` | 2026-09-05 | rsvpte `adoptedRefreshPeriod` |
+| `test-against-broken-path` | 2026-09-22 | `newRSVPProducerLab` loopback rp_filter |
+| `test-against-broken-path` | 2026-09-22 | `requirePush` frame budget |
+| `test-against-broken-path` | 2026-08-12 | dnsserver `TestDoHIgnoresEDNSUDPSize` |
+| `claim-outlives-the-evidence-it-cites` | 2026-10-19 | `TestDHCPv6PDLengthRequestsDelegatedPrefix` starts at `dHCPConfig`, not config |
+| `declared-format-contradicts-payload` | 2026-08-19 | flowspec-firewall `handleEvent` reads a flat envelope the daemon never emits |
 
 ## Rows found already fixed
 

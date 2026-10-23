@@ -255,8 +255,9 @@ refused at commit.
 | unwired-feature | 2026-10-11 | `autoLoadForNewConfigPaths` never starts an external program |
 | unwired-feature | 2026-09-20 | isis `buildCircuit` never sees a committed `net` or `system-id` change |
 | unwired-feature | 2026-08-31 | bmp `environment` reload never re-applies the receiver |
+| unwired-feature | 2026-09-06 | reload of a running `ze` daemon from the ExaBGP test runner |
 
-14 rows.
+15 rows.
 
 ## Rows found already fixed
 

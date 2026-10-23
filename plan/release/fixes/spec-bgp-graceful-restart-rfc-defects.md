@@ -122,7 +122,7 @@ as the rejected branch and nothing builds it.
 
 ## Journal rows homed here (2026-10-23)
 
-Two open journal rows are GR and LLGR defects in the code this spec already
+Three open journal rows are GR and LLGR defects in the code this spec already
 reads. They are homed here, not in a new spec. The next design round turns each
 into a D-row and an AC with a test that goes red first; until then they are
 owed by this spec.
@@ -131,6 +131,8 @@ owed by this spec.
 |------------|------|---------|--------|
 | `negotiated-family-lost-at-retention-boundary` | 2026-10-04 | `onSessionDownDeferred` (`gr/gr_state.go`) | A session with no GR families returns before LLGR retention runs. RFC 9494 Section 4.2: "After the session goes down, and before the session is re- established, the stale routes for an AFI/SAFI MUST be retained." |
 | `escape-hatch-scoped-wider-than-its-justification` | 2026-10-18 | `attachCommunityCommand` (`rib/rib_commands.go`) | A GR-stale route is depreferenced for any attached community. RFC 9494 Section 4.3 justifies the depreference for LLGR_STALE only; the one caller passes 0xFFFF0006, so the check must name that value |
+| `declared-format-contradicts-payload` | 2026-10-02 | gr `handleOpenEvent` (JSON path) against `formatCapability` | No arm for `*capability.GracefulRestart`: the generic arm hex-encodes `WriteTo` output with the code and length header, and `decodeGR` reads that header as Restart Flags and Time. The gr tests feed header-less hex, so they cannot see it |
+| `unwired-feature` | 2026-09-08 | `parseGRCapValue` (`gr/gr.go`) | The GR capability carries the flags and restart time only, so ze tells every peer it preserves forwarding state for no family (wire `40 02 00 78`). RFC 4724 Section 3 puts the `<AFI, SAFI, Flags>` tuples after that pair; emit one per negotiated GR family |
 
 ## Required Reading
 

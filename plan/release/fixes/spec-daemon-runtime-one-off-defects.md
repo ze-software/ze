@@ -123,6 +123,10 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | AC-25 | streamed plugin answer | A plugin's own terminator message and `wrn` reach the operator |
 | AC-26 | `BlobStore` cross-process | Two daemons writing one store do not overwrite each other (file lock), or the second refuses to start |
 | AC-27 | plugin goroutine panic | The SDK offers a recovered goroutine starter; a panic in it is logged and the plugin keeps running |
+| AC-28 | `ze signal restart` | After `ze signal restart` ze is running again under systemd and gokrazy, or the pages stop promising it; a test reads the generated unit |
+| AC-29 | VPP stop signal | VPP receives SIGTERM and a bounded wait on ctx cancel (`cmd.Cancel` set); a test observes the signal |
+| AC-30 | doctor foreign-namespace test | `TestRegisterDoctorCheckAcceptsForeignNamespace` passes under the full feature tag set |
+| AC-31 | plugin `.ci` reds x3 (`attach-process-reload.ci`, seven `test/plugin` tests, `config-edit-ssh.ci` shutdown decode), MCP `tools/list` readiness x2 | Each runs green with the cause named, and `mcp-header-mismatch-rejected.ci` waits on a readiness signal the daemon emits |
 
 ## 🧪 TDD Test Plan
 
@@ -175,9 +179,6 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | `placeholder-shipped-as-the-real-artifact` | 2026-08-28 | `tools/ipxe-binaries/ipxe.efi` |
 | `pointer-shared-across-the-names-it-indexes` | 2026-09-02 | storage active pointer |
 | `queued-request-waits-for-an-unrelated-trigger` | 2026-09-26 | `TestSIGHUPQueuedBehindTransactionRunsWhenItEnds` |
-| `silent-fall-through` | 2026-10-12 | `collectSchemaListeners` |
-| `silent-fall-through` | 2026-10-08 | `setModuleSetting` |
-| `silent-fall-through` | 2026-10-07 | `captureRawStart` |
 | `silent-fall-through` | 2026-08-12 | hub reload guard, functional |
 | `silent-fall-through` | 2026-08-12 | hub `--plugin` |
 | `silent-fall-through` | 2026-09-24 | early SIGHUP, crashlog |
@@ -186,6 +187,14 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | `silent-fall-through` | 2026-10-21 | `pluginAnswerRows` |
 | `store-serializes-in-process-only` | 2026-09-03 | `BlobStore` |
 | `unguarded-goroutine-kills-the-process` | 2026-09-02 | plugin goroutines |
+| `claim-outlives-the-evidence-it-cites` | 2026-10-13 | `ze signal restart` promised to restart; unit has `Restart=on-failure` |
+| `comment-describes-superseded-behaviour` | 2026-10-15 | `VPPManager.Run` says SIGTERM; `exec.CommandContext` sends SIGKILL |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-14 | `TestRegisterDoctorCheckAcceptsForeignNamespace` red with full tags |
+| `test-against-broken-path` | 2026-08-22 | `test/plugin/attach-process-reload.ci` |
+| `test-against-broken-path` | 2026-08-23 | seven `test/plugin` tests red |
+| `test-against-broken-path` | 2026-08-23 | `config-edit-ssh.ci` observer shutdown decode |
+| `unwired-feature` | 2026-08-15 | mcp `tools/list` first line fails |
+| `unwired-feature` | 2026-08-15 | mcp `tools/list` readiness, rerun from `git archive HEAD` |
 
 ## Rows found already fixed
 

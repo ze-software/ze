@@ -255,6 +255,10 @@ The 51 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `gate-excludes-part-of-its-population.md` | 2026-10-12 | `bgpMandatoryFailures` skips `peer`, `group` and choice cases |
 | `helper-bypassed-by-an-open-coded-copy.md` | 2026-10-13 | completer `validateStringPatterns` guesses IP from pattern text |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-13 | leaf-list and multi-leaf builders drop YANG `range` and `length` |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | goyang `ToEntry` refuses an augment of an action's absent `input` |
+| `unwired-feature.md` | 2026-09-06 | peer leaf `behavior > manual-eor` read by no reactor code |
+| `zero-value-as-valid-answer.md` | 2026-10-10 | `goyang-enum-negative.patch` has no owner to drop it |
+| `zero-value-as-valid-answer.md` | 2026-10-10 | `TestGoyangNumbersAnEnumAfterANegativeValue` follow-up |
 
 ## Rows found already fixed
 

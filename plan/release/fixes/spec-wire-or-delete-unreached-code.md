@@ -228,8 +228,9 @@ exported symbols to every declaration kind above.
 | parameter-no-caller-ever-fills | 2026-09-12 | pppoe interop helpers `timeout`, `username`, `peer`, `needle` constant |
 | parameter-no-caller-ever-fills | 2026-09-15 | reactor test `yangEnumValues` `module` constant |
 | production-function-only-tests-call | 2026-10-17 | filter_irr `irrPrefixList.evaluateUpdate` test-only |
+| unwired-feature | 2026-09-14 | debug `set debug profile name` and `set debug active name` reached by no `.ci` |
 
-29 rows.
+30 rows.
 
 ## Rows found already fixed
 

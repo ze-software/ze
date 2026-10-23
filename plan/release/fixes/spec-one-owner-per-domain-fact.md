@@ -252,6 +252,7 @@ The 48 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-03 | VPN `DecodeNLRIHex` has no withdrawal mode |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-11 | web commit audits on output text, discard on a success signal |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-15 | IKE `newVPPBackend` channel without `SetReplyTimeout` |
+| `guard-enumerates-instead-of-subtracting.md` | 2026-10-21 | `mpReachLabeledNLRI` lists the labelled families again beside `nlrisplit` |
 
 ## Rows found already fixed
 

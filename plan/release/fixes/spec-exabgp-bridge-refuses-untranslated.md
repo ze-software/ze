@@ -318,8 +318,15 @@ Correct the comment above `claimInitialSyncEOR` and quote RFC 4724 Section 2 abo
 | `unwired-feature.md` | 2026-10-17 | bridge `announce eor` dropped by `claimInitialSyncEOR` |
 | `gate-excludes-part-of-its-population.md` | 2026-09-06 | `discoverExaBGPSuite` drops unknown `option=` lines |
 | `declared-format-contradicts-payload.md` | 2026-09-19 | bridge drops events that carry no BGP message |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-14 | bridge `convertAnnounceSRPolicy` leftover tokens refused by `parseSRPolicySection` |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-17 | `update text` refuses the bridge's interface-set and rate-limit extended communities |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | bridge `as-path` refuses ExaBGP's `( )` AS_SET segment |
+| `unwired-feature.md` | 2026-09-05 | `conf-watchdog` against `migrateProcesses` dropping the watchdog |
+| `unwired-feature.md` | 2026-10-17 | bridge refuses `announce vpls`, `withdraw vpls` and `ping` |
+| `unwired-feature.md` | 2026-10-17 | API-created peer does not attach the creating process |
+| `zero-value-as-valid-answer.md` | 2026-10-20 | `convertEOR` expands a bare `announce eor` over every family |
 
-7 rows.
+14 rows.
 
 ## Rows found already fixed
 

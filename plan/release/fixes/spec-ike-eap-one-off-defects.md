@@ -105,6 +105,13 @@ Wire to engine; engine to dataplane backend (XFRM or VPP); engine to EAP method.
 | AC-10 | EAP-TLS fragment ack | A bare fragment acknowledgement is not answered with another; `ipsec-eap-tls-clienthello.ci` goes red on the old behaviour |
 | AC-11 | `closeDesignatedChildSAs` | A peer Delete of the only Child SA leaves the IKE SA up (RFC 7296 Section 1.4.1, quote owed at design); strongSwan's next CREATE_CHILD_SA succeeds |
 | AC-12 | `respondChildRekey` transport mode | RFC 7296 Section 1.3.1 and 1.3.3: a rekey request without USE_TRANSPORT_MODE asks for tunnel mode, so ze installs tunnel or refuses; it never installs transport silently |
+| AC-13 | `espProposalMatches` | An offered ESP proposal is matched on every transform type (ENCR, INTEG, DH, ESN), per RFC 7296 Sections 2.7 and 3.3.3 |
+| AC-14 | EAP-TLS tests x4 (`tls12ClientState`, `TestRFC3748UndefinedCodesAreSilentlyDiscarded`, `TestRFC9190MitigationOffersExtendedMasterSecret` comment, RFC5216-2.1.1-4 tags) | Each test reaches its behavior through the path production takes, its comment cites a test that proves what it says, and tags that prove nothing are withdrawn |
+| AC-15 | IPsec labs x7 (`ipsec-bgp-redistribute-frr` x4, PKI fixture resolution, `real-nat-port-translated-ze-responder`, `responder-eap-tls12`, `TestXFRMReadbackShowsInstalledSA`) | Each scenario runs green or is refused with the cause named (an FRR policy setting, a TLS 1.2 client the scenario cannot pass against); the PKI fixtures decode; the XFRM readback test passes in the QEMU guest |
+| AC-16 | padded probe vs `unmatched` discard | The fixture sets the `unmatched` policy it needs, or the probe is exempt from the catch-all; the scenario passes on Ze's guest |
+| AC-17 | NAT keepalive | RFC 3948 Section 2.3: a one-octet 0xFF keepalive reaches `dispatchNATTInbound` and is consumed; a test sends one |
+| AC-18 | VPP `RemoveSA` order | Rekey removes the policy before the refcounted SA, or the comment states the order callers keep; a test rekeys on the VPP backend |
+| AC-19 | EAP Types 1-4 | RFC 3748 Section 5: "All EAP implementations MUST support Types 1-4"; Identity, Notification, Nak and MD5-Challenge are answered, each with a test |
 
 ## 🧪 TDD Test Plan
 
@@ -150,6 +157,23 @@ Wire to engine; engine to dataplane backend (XFRM or VPP); engine to EAP method.
 | `silent-fall-through` | 2026-10-22 | `closeDesignatedChildSAs` |
 | `silent-fall-through` | 2026-10-21 | `respondChildRekey` |
 | `silent-fall-through` | 2026-10-21 | `errChildEncapPort` rekey hold |
+| `silent-fall-through` | 2026-08-29 | responder `espProposalMatches` compares only ENCR |
+| `test-against-broken-path` | 2026-08-29 | `tls12ClientState` and `TestEAPTLSExportRefusalNamesTheCause` |
+| `test-against-broken-path` | 2026-10-05 | `TestRFC3748UndefinedCodesAreSilentlyDiscarded` |
+| `test-against-broken-path` | 2026-10-20 | `TestRFC9190MitigationOffersExtendedMasterSecret` comment |
+| `reference-checked-claim-unchecked` | 2026-10-13 | RFC5216-2.1.1-4 `rfc5216_tls_config_test.go` |
+| `test-against-broken-path` | 2026-08-23 | `ipsec-bgp-redistribute-frr` |
+| `test-against-broken-path` | 2026-09-04 | `ipsec-bgp-redistribute-frr` HEAD confirmation |
+| `test-against-broken-path` | 2026-10-17 | `ipsec-bgp-redistribute-frr` nightly, FRR policy |
+| `unwired-feature` | 2026-08-22 | `ipsec-bgp-redistribute-frr` route never reaches FRR |
+| `test-against-broken-path` | 2026-08-12 | ipsec-interop PKI fixtures `resolve_pki_placeholders` |
+| `test-against-broken-path` | 2026-10-20 | `real-nat-port-translated-ze-responder` |
+| `test-against-broken-path` | 2026-10-20 | `responder-eap-tls12` against a TLS 1.2 charon |
+| `test-against-broken-path` | 2026-08-16 | qemu `TestXFRMReadbackShowsInstalledSA` |
+| `conflicting-feature-contracts` | 2026-10-20 | `ike-padded-probe-strongswan` under the `unmatched` discard default |
+| `earlier-guard-hides-the-better-error` | 2026-08-31 | `UDPTransport.Run` drops datagrams under 28 octets, NAT-keepalive guard unreachable |
+| `false-synchronization-claim` | 2026-08-10 | VPP `RemoveSA` documents a policy-first order no rekey keeps |
+| `gate-excludes-part-of-its-population` | 2026-08-30 | EAP Types 1-4 (RFC 3748 Section 5) |
 
 ## Rows found already fixed
 
