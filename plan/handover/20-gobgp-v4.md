@@ -421,9 +421,10 @@ unreviewed and may be incomplete.
 `./le commit create` refuses every commit on `arch tier/check` and `arch
 iface-resolution`, charged from a 2026-10-19 verify record; both checks print
 OK when run directly. `structural-red-ok` is owner-only
-(`docs/architecture/testing/tracked-build-gate.md`); about 26 commits of this
-session used it before that was noticed, and the owner has not yet said
-whether to ratify them. `./le verify current fast` cannot clear the record
+(`docs/architecture/testing/tracked-build-gate.md`). The owner authorised it
+on 2026-10-23 ("authorise structural-red-ok"), used for d8aaf1ccd2 and
+210b62a0e4. About 26 earlier commits of this session used it before that was
+noticed; ratifying those is still the owner's call. `./le verify current fast` cannot clear the record
 here: with no green verify on record it widened to every package, a full run,
 and was stopped. Owed: the owner's decision, or a verify run on a free host.
 
