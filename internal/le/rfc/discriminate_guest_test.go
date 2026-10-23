@@ -133,7 +133,11 @@ func TestGuestObservationCommands(t *testing.T) {
 	}
 
 	script := runner.guestScript(binary, profile)
-	want := "cd '/workspace/internal/widget' && exec '/workspace/tmp/s/guest-1.test' -test.run '^TestWidget$'" +
+	// The binary runs from a guest-local copy: a unit that re-executes itself in a
+	// new user namespace cannot exec a path on the 9p checkout, whose owner that
+	// namespace does not map (guestScript).
+	want := "cp '/workspace/tmp/s/guest-1.test' '/tmp/guest-1.test' && cd '/workspace/internal/widget'" +
+		" && exec '/tmp/guest-1.test' -test.run '^TestWidget$'" +
 		" -test.count=1 -test.v -test.timeout 20m -test.coverprofile '/workspace/tmp/s/cover-1.out'\n"
 	if script != want {
 		t.Errorf("guest script\n got %q\nwant %q", script, want)

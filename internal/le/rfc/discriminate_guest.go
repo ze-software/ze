@@ -44,6 +44,12 @@ const guestDaemonsRel = "tmp/qemu/rfc-discriminate"
 // inside carrierRunDeadline: a boot, the package install, and the one .ci.
 const guestCICommandTimeout = "3000s"
 
+// guestLocalDir is where the guest script copies a unit's test binary before
+// running it: the guest's own writable /tmp, which le test qemu run already
+// exports as TMPDIR. guestScript says why the binary cannot run from the
+// shared checkout.
+const guestLocalDir = "/tmp"
+
 // placementContexts answers the two build contexts a tagged unit's file is
 // asked of: this host under the tag set the host run passes, and the guest.
 //
@@ -177,10 +183,23 @@ func (o *observationRunner) guestBuildArgv(binary, overlay, profile string) []st
 // passes. `-test.v` is what prints `=== RUN   <Name>`, which killedByTheBreak
 // reads. The profile is written through the shared checkout, so the host reads
 // it where it asked for it.
+//
+// The binary runs from a copy on the guest's own filesystem, never from the
+// shared checkout. The checkout arrives over 9p with `security_model=none`, so
+// its files keep the host owner's uid and modes, and the checkout root is
+// commonly 0700. The guest's root reaches it only through CAP_DAC_OVERRIDE. A
+// unit that re-executes itself in a new user namespace (CLONE_NEWUSER, as the
+// SAD-selector probes do) holds no capability over an inode whose owner that
+// namespace does not map, so its fork/exec of a path under /workspace is
+// refused with EACCES and the unit SKIPs: a skip observes nothing. A copy owned
+// by the guest's root has an owner the child namespace maps, so the re-exec
+// works on every host whatever the checkout's modes.
 func (o *observationRunner) guestScript(binary, profile string) string {
+	local := singleQuoted(path.Join(guestLocalDir, filepath.Base(binary)))
 	var tb textbuf.Buffer
-	tb.Str("cd ").Str(singleQuoted(o.guestPath(treePath(o.tree, filepath.Dir(o.tag.File))))).
-		Str(" && exec ").Str(singleQuoted(o.guestPath(binary))).
+	tb.Str("cp ").Str(singleQuoted(o.guestPath(binary))).Byte(' ').Str(local).
+		Str(" && cd ").Str(singleQuoted(o.guestPath(treePath(o.tree, filepath.Dir(o.tag.File))))).
+		Str(" && exec ").Str(local).
 		Str(" -test.run '^").Str(o.unitName).Str("$' -test.count=1 -test.v -test.timeout ").
 		Str(o.toolchain.Timeout)
 	if profile != "" {

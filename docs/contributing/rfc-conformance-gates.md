@@ -1205,7 +1205,17 @@ guest and under the same overlay, so the break still reaches the compiler and no
 file is modified. The binary then runs inside the guest through
 `./le test qemu run`, selected to the one unit with `-test.run '^<Func>$' -test.v`
 from its package directory, and the coverage profile is written through the
-shared checkout where the host reads it. Attribution is unchanged: the red must
+shared checkout where the host reads it. The guest script first copies the
+binary to the guest's own `/tmp` and runs that copy, never the file on the
+shared checkout (`guestScript`). The checkout reaches the guest over 9p with
+`security_model=none`, so its files keep the host owner's uid and modes, and
+the checkout root is commonly closed to other users. A unit that re-executes
+itself in a new user namespace, as the SAD-selector probes do, holds no
+capability over an inode whose owner that namespace does not map, so its exec
+of a checkout path is refused with `EACCES` and the unit skips, observing
+nothing. The guest-local copy is owned by the guest's root, which the child
+namespace maps.
+<!-- source: internal/le/rfc/discriminate_guest.go -- guestScript, guestLocalDir --> Attribution is unchanged: the red must
 name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder
 takes `kernel <vmlinuz>` for a guest unit and refuses to run one without it, and
 refuses the keyword for a unit that runs on the host (`requireGuestKernel`):
