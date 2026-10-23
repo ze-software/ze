@@ -1,3 +1,5 @@
+//go:build ze_bgp
+
 // Design: docs/architecture/exabgp-bridge.md -- the ExaBGP JSON a process receives
 // RFC: rfc/short/rfc7911.md -- RFC7911-3-1, the Path Identifier ahead of a VPN NLRI
 

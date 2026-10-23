@@ -1,4 +1,11 @@
+//go:build ignore
+
 /*
+ * The constraint above keeps this file out of the Go package beside it
+ * (parity_test.go): Ze builds with CGO_ENABLED=0, and Go refuses a package
+ * holding a C file it would have to compile, so every build of the package
+ * failed. gcc reads the line as a comment; Dockerfile.strongswan builds it.
+ *
  * rawprobe: send exactly one crafted IPv4 UDP datagram or TCP SYN through a raw
  * IP socket, so the packet takes the kernel's routing and XFRM output path and is
  * protected by whatever IPsec policy covers it.
