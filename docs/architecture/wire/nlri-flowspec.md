@@ -55,7 +55,8 @@ plugin's decoder uses (`flowspec.ValidateFlowSpec` and `ValidateFlowSpecVPN`
 share them with `ParseFlowSpec`), and decodes nothing: a well-formed section
 costs no allocation. One those checks refuse (an unknown or repeated component type, a prefix
 pattern of the wrong size, an operator list that runs past the NLRI) resets the
-session with UPDATE Message Error / Malformed Attribute List. RFC 8955 Section
+session with UPDATE Message Error / Optional Attribute Error, the whole MP
+attribute in its Data field (RFC 4760 Section 7, RFC 4271 Section 6.3). RFC 8955 Section
 4.2 sends a malformed NLRI to RFC 7606 error handling, and RFC 7606 Section
 3 (j) allows treat-as-withdraw only for an NLRI that parsed. Ze implements no
 AFI/SAFI disable, so the session reset is the one choice left. ExaBGP 6.0

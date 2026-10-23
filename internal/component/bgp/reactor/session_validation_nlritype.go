@@ -113,7 +113,9 @@ const (
 // attrs is the view a family's UPDATE-level check reads (nlritype.UpdateCheck):
 // pathAttrs with the codes attribute-discard removes after this pass marked absent.
 // withdrawAll says the whole UPDATE is treated as withdrawn (RFC 7606 Section 2),
-// so no route it announces is held (typedNLRIHold).
+// so no route it announces is held (typedNLRIHold). unparseable is the whole MP
+// attribute whose NLRI cannot be walked, returned only with typedNLRIUnparseable,
+// so the session reset can name it in the NOTIFICATION Data (RFC 4760 Section 7).
 //
 // A withdrawal in a family whose recognizer judges the body is relayed by the
 // generation of the route this session held, never by malformed bytes, and not at
@@ -128,20 +130,20 @@ func (s *Session) applyTypedNLRIDiscard(
 	mpReach, mpUnreach message.MPNLRILocation,
 	addPathFor func(afi uint16, safi uint8) bool,
 	withdrawAll bool,
-) (out *wireu.WireUpdate, outAttrs []byte, outcome typedNLRIOutcome, withdrawBodies [][]byte) {
+) (out *wireu.WireUpdate, outAttrs []byte, outcome typedNLRIOutcome, withdrawBodies [][]byte, unparseable []byte) {
 	// Stamps the routes this UPDATE files in the hold (typedNLRIRelayEdit).
 	s.typedNLRIUpdate++
 	edits := make([]mpNLRIEdit, 0, 2)
 	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, attrs, addPathFor, withdrawAll)
 	if !ok {
-		return wu, pathAttrs, typedNLRIUnparseable, nil
+		return wu, pathAttrs, typedNLRIUnparseable, nil, mpAttributeAsReceived(pathAttrs, attribute.AttrMPReachNLRI)
 	}
 	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, attrs, addPathFor, withdrawAll)
 	if !ok {
-		return wu, pathAttrs, typedNLRIUnparseable, nil
+		return wu, pathAttrs, typedNLRIUnparseable, nil, mpAttributeAsReceived(pathAttrs, attribute.AttrMPUnreachNLRI)
 	}
 	if len(edits) == 0 {
-		return wu, pathAttrs, typedNLRIKept, nil
+		return wu, pathAttrs, typedNLRIKept, nil, nil
 	}
 
 	newAttrs := rewriteMPNLRISections(pathAttrs, edits)
@@ -161,14 +163,14 @@ func (s *Session) applyTypedNLRIDiscard(
 		newAttrs, withdrawBodies, err = s.typedNLRIPlaceWithdrawals(wu.Payload(), pathAttrs, newAttrs, withdrawBodies,
 			reach.afi, reach.safi, append(reach.withdrawn, reach.replaced...), addPathFor)
 		if err != nil {
-			return wu, pathAttrs, typedNLRIUnparseable, nil
+			return wu, pathAttrs, typedNLRIUnparseable, nil, mpAttributeAsReceived(pathAttrs, attribute.AttrMPReachNLRI)
 		}
 	}
 	if unreach, found := findEdit(edits, uint8(attribute.AttrMPUnreachNLRI)); found {
 		newAttrs, withdrawBodies, err = s.typedNLRIPlaceWithdrawals(wu.Payload(), pathAttrs, newAttrs, withdrawBodies,
 			unreach.afi, unreach.safi, unreach.replaced, addPathFor)
 		if err != nil {
-			return wu, pathAttrs, typedNLRIUnparseable, nil
+			return wu, pathAttrs, typedNLRIUnparseable, nil, mpAttributeAsReceived(pathAttrs, attribute.AttrMPUnreachNLRI)
 		}
 	}
 	oldCtxID := wu.SourceCtxID()
@@ -183,7 +185,24 @@ func (s *Session) applyTypedNLRIDiscard(
 	}
 	// Keep pathAttrs a subslice of the body the caller now holds, so the
 	// attribute-discard branch's in-place rewrite still shows through.
-	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)], outcome, withdrawBodies
+	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)], outcome, withdrawBodies, nil
+}
+
+// mpAttributeAsReceived returns the whole MP attribute of code in pathAttrs, flags, type
+// code, length and value: the Data of the RFC 4760 Section 7 NOTIFICATION
+// (message.MPAttributeErrorNotification). applyTypedNLRIDiscard calls it only for an
+// attribute typedNLRIEdit already found in the same unchanged pathAttrs, so a miss is a Ze
+// defect, never something a peer can send.
+func mpAttributeAsReceived(pathAttrs []byte, code attribute.AttributeCode) []byte {
+	hdrStart, flags, value, found := attribute.AttrFind(pathAttrs, code)
+	if !found {
+		panic("BUG: typedNLRIEdit judged an MP attribute AttrFind cannot find")
+	}
+	hdrLen := 3
+	if flags&attribute.FlagExtLength != 0 {
+		hdrLen = 4
+	}
+	return pathAttrs[hdrStart : hdrStart+hdrLen+len(value)]
 }
 
 // typedNLRIPlaceWithdrawals carries nlri, withdrawals of one family, either in

@@ -286,12 +286,14 @@ judges each recording malformed where the pin's judge counts it as nothing
 sent.
 
 Where both reset over a malformed FlowSpec NLRI, ExaBGP 6.0 sends NOTIFICATION
-3/10 (Invalid Network Field) and Ze sends 3/1 (Malformed Attribute List), as for
-every MP_REACH_NLRI or MP_UNREACH_NLRI section it cannot walk: RFC 4271 Section
-6.3 assigns Invalid Network Field to the NLRI field of the UPDATE itself, not to
-an attribute (`test/plugin/flowspec-malformed-nlri-reset.ci`).
+3/10 (Invalid Network Field) and Ze sends 3/9 (Optional Attribute Error) with
+the whole MP_REACH_NLRI or MP_UNREACH_NLRI attribute as its Data, as for every
+MP section it cannot walk in any family. RFC 4760 Section 7 names that subcode
+for an incorrect MP attribute, RFC 4271 Section 6.3 puts the attribute in the
+Data field, and FRR sends the same; Invalid Network Field belongs to the NLRI
+field of the UPDATE itself (`test/plugin/flowspec-malformed-nlri-reset.ci`).
 <!-- source: internal/core/bgp/nlri/nlrisplit/flowspec.go -- SplitFlowSpec -->
-<!-- source: internal/component/bgp/message/rfc7606.go -- mpNLRIJudgementResult -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- mpNLRIJudgementResult, MPAttributeErrorNotification -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go -- judgeFlowSpecSection, flowSpecMalformed -->
 
 ---

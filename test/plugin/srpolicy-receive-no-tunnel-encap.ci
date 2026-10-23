@@ -17,7 +17,8 @@
 #   U2: B again with an IPv4-address Route Target 12.0.0.2:0 (type 0x01, subtype 0x02)
 #       and no Tunnel Encapsulation attribute: treat-as-withdraw, session kept.
 #   U3: one NLRI of length 0x64 (100 bits), with the U1 tunnel: the NLRI section cannot
-#       be walked, so ze resets the session with NOTIFICATION 3/1. It is the fence: ze
+#       be walked, so ze resets the session with NOTIFICATION 3/9 (RFC 4760 Section 7),
+#       its Data the whole MP_REACH_NLRI attribute. It is the fence: ze
 #       reads one connection on one goroutine in TCP order, so the NOTIFICATION answering
 #       U3 proves U2 was already judged, and that the session survived U2.
 
@@ -34,8 +35,9 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0069020000005240010
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004902000000324001010040020040050400000064800E1600014904C00002010060000000000000012C0A000003C0100801020C0000020000
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006A02000000534001010040020040050400000064800E1700014904C0000201006400000000000000C80A00000400C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
 
-# NOTIFICATION code 3 (UPDATE Message Error), subcode 1 (Malformed Attribute List), for U3.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+# NOTIFICATION code 3 (UPDATE Message Error), subcode 9 (Optional Attribute Error), for U3,
+# Data = U3's MP_REACH_NLRI attribute: flags 0x80, type 14, length 0x17 and its value.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F030309800E1700014904C0000201006400000000000000C80A00000400
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF

@@ -8,6 +8,7 @@ package reactor
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"net/netip"
 	"testing"
 
@@ -97,11 +98,39 @@ func srReceive(t *testing.T, addPath bool, body []byte) srReceipt {
 	return got
 }
 
-// srReset is the NOTIFICATION every SR Policy session reset sends: UPDATE Message Error /
-// Malformed Attribute List (3/1), like every other MP NLRI reset.
-var srReset = message.PackTo(&message.Notification{
+// srMalformedList is the NOTIFICATION of the RFC 7606 Section 5.2 escalation: a walkable
+// malformed NLRI whose UPDATE carries attributes and no reachable NLRI. The NLRI section
+// parsed, so the attribute is not what failed: UPDATE Message Error / Malformed Attribute
+// List (3/1), empty Data.
+var srMalformedList = message.PackTo(&message.Notification{
 	ErrorCode: message.NotifyUpdateMessage, ErrorSubcode: message.NotifyUpdateMalformedAttr,
 }, nil)
+
+// srMPAttrError is the NOTIFICATION of an SR Policy NLRI section that cannot be walked, the
+// RFC 4760 Section 7 one: UPDATE Message Error / Optional Attribute Error (3/9), whose Data
+// is the whole MP attribute of code in body, flags, type, length and value (RFC 4271
+// Section 6.3).
+func srMPAttrError(t *testing.T, body []byte, code attribute.AttributeCode) []byte {
+	t.Helper()
+	attrsLen := int(binary.BigEndian.Uint16(body[2:4]))
+	attrs := body[4 : 4+attrsLen]
+	for pos := 0; pos < len(attrs); {
+		hdrLen, length := 3, int(attrs[pos+2])
+		if attrs[pos]&0x10 != 0 {
+			hdrLen, length = 4, int(binary.BigEndian.Uint16(attrs[pos+2:pos+4]))
+		}
+		if attrs[pos+1] == byte(code) {
+			return message.PackTo(&message.Notification{
+				ErrorCode:    message.NotifyUpdateMessage,
+				ErrorSubcode: message.NotifyUpdateOptionalAttr,
+				Data:         attrs[pos : pos+hdrLen+length],
+			}, nil)
+		}
+		pos += hdrLen + length
+	}
+	t.Fatalf("attribute %d not in body %x", code, body)
+	return nil
+}
 
 // srRequireKept asserts the UPDATE was accepted unchanged with no RFC 7606 action.
 func srRequireKept(t *testing.T, name string, got srReceipt, body []byte) {
@@ -128,14 +157,14 @@ func srRequireWithdrawn(t *testing.T, name string, got srReceipt, body []byte) {
 	}
 }
 
-// srRequireReset asserts session reset with NOTIFICATION 3/1.
-func srRequireReset(t *testing.T, name string, got srReceipt) {
+// srRequireReset asserts session reset with exactly the NOTIFICATION want.
+func srRequireReset(t *testing.T, name string, got srReceipt, want []byte) {
 	t.Helper()
 	if got.err == nil || got.state == fsm.StateEstablished {
 		t.Fatalf("%s: err=%v state=%v, want session reset", name, got.err, got.state)
 	}
-	if !bytes.Equal(got.written, srReset) {
-		t.Fatalf("%s: NOTIFICATION %x, want %x (3/1)", name, got.written, srReset)
+	if !bytes.Equal(got.written, want) {
+		t.Fatalf("%s: NOTIFICATION %x, want %x", name, got.written, want)
 	}
 	if len(got.dispatched) != 0 {
 		t.Fatalf("%s: dispatched %d UPDATEs before the reset", name, len(got.dispatched))
@@ -186,16 +215,19 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 			srRequireWithdrawn(t, name, srReceive(t, addPath, body), body)
 		}
 
-		// Unwalkable: session reset with 3/1, in MP_REACH and in MP_UNREACH.
-		// RFC requirement: RFC9830-5-4 positive -- an NLRI section that cannot be walked (zero length, a length of 100 bits, an NLRI overrunning the attribute), in MP_REACH_NLRI or MP_UNREACH_NLRI, resets the session with NOTIFICATION 3/1, since ze has no AFI/SAFI disable
+		// Unwalkable: session reset with 3/9 naming the attribute, in MP_REACH and in MP_UNREACH.
+		// RFC requirement: RFC9830-5-4 positive -- an NLRI section that cannot be walked (zero length, a length of 100 bits, an NLRI overrunning the attribute), in MP_REACH_NLRI or MP_UNREACH_NLRI, resets the session with NOTIFICATION 3/9 carrying that attribute, since ze has no AFI/SAFI disable
 		// RFC requirement: RFC9830-5-2 negative -- an error that does not let the rest of the UPDATE be processed is not handled as treat-as-withdraw: the unwalkable cases reset the session and deliver nothing
-		for name, body := range map[string][]byte{
-			"zero length":         srReceiveBody(v4, srNLRI(0, 0, addPath, 1), nil, false),
-			"100 bits":            srReceiveBody(v4, srNLRI(100, 12, addPath, 1), nil, false),
-			"overrun":             srReceiveBody(v4, srNLRI(96, 11, addPath, 1), nil, false),
-			"MP_UNREACH 100 bits": srReceiveBody(v4, good4, srNLRI(100, 12, addPath, 1), false),
+		for name, c := range map[string]struct {
+			body []byte
+			code attribute.AttributeCode
+		}{
+			"zero length":         {srReceiveBody(v4, srNLRI(0, 0, addPath, 1), nil, false), attribute.AttrMPReachNLRI},
+			"100 bits":            {srReceiveBody(v4, srNLRI(100, 12, addPath, 1), nil, false), attribute.AttrMPReachNLRI},
+			"overrun":             {srReceiveBody(v4, srNLRI(96, 11, addPath, 1), nil, false), attribute.AttrMPReachNLRI},
+			"MP_UNREACH 100 bits": {srReceiveBody(v4, good4, srNLRI(100, 12, addPath, 1), false), attribute.AttrMPUnreachNLRI},
 		} {
-			srRequireReset(t, name, srReceive(t, addPath, body))
+			srRequireReset(t, name, srReceive(t, addPath, c.body), srMPAttrError(t, c.body, c.code))
 		}
 
 		// A skippable-malformed NLRI in an UPDATE with no reachable NLRI. RFC 7606 Section
@@ -212,13 +244,14 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 			t.Fatalf("ADD-PATH=%v: MP_UNREACH alone 13 octets dispatched %x, want nothing", addPath, gotAlone.dispatched)
 		}
 		srRequireReset(t, "MP_UNREACH with other attributes 13 octets",
-			srReceive(t, addPath, srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), true)))
+			srReceive(t, addPath, srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), true)), srMalformedList)
 	}
 
 	// ADD-PATH only: a path identifier cut short cannot be walked. This is the section
 	// TestReceivePrefixLimitShortAddPathEntry sends.
+	cutShort := srReceiveBody(v4, nil, []byte{8, 0}, false)
 	srRequireReset(t, "cut-short path identifier",
-		srReceive(t, true, srReceiveBody(v4, nil, []byte{8, 0}, false)))
+		srReceive(t, true, cutShort), srMPAttrError(t, cutShort, attribute.AttrMPUnreachNLRI))
 }
 
 // TestSRPolicyMalformedWithdrawalSynthesis checks that treat-as-withdraw relays no NLRI Ze

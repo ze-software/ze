@@ -19,7 +19,8 @@
 #   U2: A again, then N, length 0x68 (104 bits, 13 octets): color 200, endpoint 10.0.0.2.
 #       The section walks, N has the wrong length: treat-as-withdraw, session kept.
 #   U3: one NLRI of length 0x64 (100 bits): the section cannot be walked, so ze resets the
-#       session with NOTIFICATION 3/1 (Malformed Attribute List).
+#       session with NOTIFICATION 3/9 (Optional Attribute Error, RFC 4760 Section 7), its
+#       Data the whole MP_REACH_NLRI attribute (RFC 4271 Section 6.3).
 # ze reads one connection on one goroutine in TCP order, so the NOTIFICATION answering U3
 # proves U2 was already judged, and that the session survived U2.
 
@@ -36,8 +37,9 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0069020000005240010
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007702000000604001010040020040050400000064800E2400014904C0000201006000000000000000640A0000016800000000000000C80A00000200C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006A02000000534001010040020040050400000064800E1700014904C0000201006400000000000000C80A00000400C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
 
-# NOTIFICATION code 3 (UPDATE Message Error), subcode 1 (Malformed Attribute List), for U3.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+# NOTIFICATION code 3 (UPDATE Message Error), subcode 9 (Optional Attribute Error), for U3,
+# Data = U3's MP_REACH_NLRI attribute: flags 0x80, type 14, length 0x17 and its value.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F030309800E1700014904C0000201006400000000000000C80A00000400
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF

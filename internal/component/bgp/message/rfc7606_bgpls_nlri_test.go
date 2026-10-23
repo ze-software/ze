@@ -338,18 +338,18 @@ func TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly(t *testing.T) {
 	duplicateSubTLV := lsNLRIOf(1, lsNodeBodyOf(lsLocalNodeDescriptors(bytesOf(
 		lsAutonomousSystem(), lsAutonomousSystem())...)...)...)
 
-	assert.Nil(t, validateMPNLRISyntax(code, afiBGPLS, safiBGPLS, lsWellFormedNode(), false),
+	assert.Nil(t, validateMPNLRISyntax(code, nil, afiBGPLS, safiBGPLS, lsWellFormedNode(), false),
 		"a well-formed Link-State NLRI section is not malformed")
-	assert.Nil(t, validateMPNLRISyntax(code, afiBGPLS, safiBGPLS, duplicateSubTLV, false),
+	assert.Nil(t, validateMPNLRISyntax(code, nil, afiBGPLS, safiBGPLS, duplicateSubTLV, false),
 		"a duplicated sub-TLV is skipable, so it is the discard's business and not this walk's")
 
 	overrun := lsWellFormedNode()
 	overrun[2], overrun[3] = 0x00, 0xff
-	result := validateMPNLRISyntax(code, afiBGPLS, safiBGPLS, overrun, false)
+	result := validateMPNLRISyntax(code, nil, afiBGPLS, safiBGPLS, overrun, false)
 	require.NotNil(t, result, "a Total NLRI Length past the attribute is malformed")
 	assert.Equal(t, RFC7606ActionSessionReset, result.Action)
 	assert.Equal(t, code, result.AttrCode)
 
-	assert.Nil(t, validateMPNLRISyntax(code, afiBGPLS, 1, overrun, false),
+	assert.Nil(t, validateMPNLRISyntax(code, nil, afiBGPLS, 1, overrun, false),
 		"AFI 16388 with a SAFI RFC 9552 does not define is left alone")
 }

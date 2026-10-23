@@ -14,27 +14,38 @@ import (
 
 // VALIDATES: validateMPNLRISyntax reads the nlrisyntax registry by family. BGP-LS reaches
 // its RFC 9552 Section 8.2.2 rule through the registry with the verdict it had before; a
-// family with a registered Judge gets that verdict mapped to treat-as-withdraw or session
-// reset with no Notification (so the session sends 3/1); a rule answering no verdict is
-// session reset; a family with no rule still returns nil, and IPv4 unicast still takes the
-// prefix walk.
+// family with a registered Judge gets that verdict mapped to treat-as-withdraw, or to session
+// reset carrying the RFC 4760 Section 7 NOTIFICATION (3/9 with the whole attribute as Data);
+// a rule answering no verdict is session reset; a family with no rule still returns nil, and
+// IPv4 unicast still takes the prefix walk, whose reset carries the same NOTIFICATION.
 // PREVENTS: a hard-coded family branch beside the registry (ai/rules/no-layering.md), and
 // a rule's zero verdict read as well-formed.
 func TestValidateMPNLRISyntaxConsultsRegistry(t *testing.T) {
 	const code = uint8(attribute.AttrMPReachNLRI)
+	// The whole attribute as the walk hands it over. Its bytes are not parsed here; the
+	// NOTIFICATION must carry them unchanged.
+	attr := []byte{0x80, 0x0e, 0x03, 0xde, 0xad, 0x01}
+	requireMPAttrError := func(r *RFC7606ValidationResult) {
+		t.Helper()
+		require.NotNil(t, r.Notification)
+		require.Equal(t, NotifyUpdateMessage, r.Notification.ErrorCode)
+		require.Equal(t, NotifyUpdateOptionalAttr, r.Notification.ErrorSubcode)
+		require.Equal(t, attr, r.Notification.Data)
+	}
 
 	// BGP-LS, through its real registration: a Total NLRI Length overrunning the section.
 	overrun := []byte{0x00, 0x01, 0x00, 0xff, 0xaa}
-	r := validateMPNLRISyntax(code, afiBGPLS, safiBGPLS, overrun, false)
+	r := validateMPNLRISyntax(code, attr, afiBGPLS, safiBGPLS, overrun, false)
 	require.NotNil(t, r)
 	require.Equal(t, RFC7606ActionSessionReset, r.Action)
-	require.Nil(t, r.Notification)
+	requireMPAttrError(r)
 	require.Equal(t, code, r.AttrCode)
 
 	// The same bytes under IPv4 unicast are judged by the prefix walk, never by the BGP-LS
 	// rule: 0x00 is a default route, then 0x01 with no octet left overruns.
-	r = validateMPNLRISyntax(code, attribute.AFIIPv4, attribute.SAFIUnicast, overrun, false)
+	r = validateMPNLRISyntax(code, attr, attribute.AFIIPv4, attribute.SAFIUnicast, overrun, false)
 	require.NotNil(t, r, "IPv4 unicast must still take the prefix walk")
+	requireMPAttrError(r)
 
 	t.Cleanup(nlrisyntax.SnapshotForTest())
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFISRPolicy}
@@ -46,26 +57,27 @@ func TestValidateMPNLRISyntaxConsultsRegistry(t *testing.T) {
 	afi, safi := attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI)
 
 	answer = nlrisyntax.WellFormed
-	require.Nil(t, validateMPNLRISyntax(code, afi, safi, []byte{1}, false))
+	require.Nil(t, validateMPNLRISyntax(code, attr, afi, safi, []byte{1}, false))
 
 	answer = nlrisyntax.Judgement{Action: nlrisyntax.ActionTreatAsWithdraw, Reason: "bad length"}
-	r = validateMPNLRISyntax(code, afi, safi, []byte{1}, false)
+	r = validateMPNLRISyntax(code, attr, afi, safi, []byte{1}, false)
 	require.NotNil(t, r)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, r.Action)
 	require.Equal(t, "bad length", r.Description)
 	require.Nil(t, r.Notification)
 
 	answer = nlrisyntax.Judgement{Action: nlrisyntax.ActionSessionReset, Reason: "unwalkable"}
-	r = validateMPNLRISyntax(code, afi, safi, []byte{1}, false)
+	r = validateMPNLRISyntax(code, attr, afi, safi, []byte{1}, false)
 	require.NotNil(t, r)
 	require.Equal(t, RFC7606ActionSessionReset, r.Action)
-	require.Nil(t, r.Notification)
+	requireMPAttrError(r)
 
 	answer = nlrisyntax.Judgement{}
-	r = validateMPNLRISyntax(code, afi, safi, []byte{1}, false)
+	r = validateMPNLRISyntax(code, attr, afi, safi, []byte{1}, false)
 	require.NotNil(t, r, "a rule's zero verdict must not pass as well-formed")
 	require.Equal(t, RFC7606ActionSessionReset, r.Action)
+	requireMPAttrError(r)
 
 	// The registry is now empty but for the test rule: BGP-LS has no rule and is permissive.
-	require.Nil(t, validateMPNLRISyntax(code, afiBGPLS, safiBGPLS, overrun, false))
+	require.Nil(t, validateMPNLRISyntax(code, attr, afiBGPLS, safiBGPLS, overrun, false))
 }

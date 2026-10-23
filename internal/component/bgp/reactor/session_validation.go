@@ -135,7 +135,8 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 	if result.Action != message.RFC7606ActionSessionReset {
 		attrs := typedNLRIUpdateAttrs(pathAttrs, result)
 		var outcome typedNLRIOutcome
-		wu, pathAttrs, outcome, validation.typedWithdrawBodies = s.applyTypedNLRIDiscard(
+		var unparseable []byte
+		wu, pathAttrs, outcome, validation.typedWithdrawBodies, unparseable = s.applyTypedNLRIDiscard(
 			wu, pathAttrs, offset, &attrs, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor,
 			result.Action == message.RFC7606ActionTreatAsWithdraw)
 		body = wu.Payload()
@@ -146,8 +147,10 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 			// field cannot be parsed, because treat-as-withdraw needs it parsed. Same verdict
 			// the validator already reaches for an IPv4 or IPv6 unicast MP NLRI; typed
 			// families reach it here because their framing walk is the family's splitter.
-			return s.rfc7606SessionReset(receivedWU,
-				"RFC 7606 Section 5.3: MP NLRI overruns the attribute; Section 3(j) requires session reset", "")
+			// The NOTIFICATION is the validator's too: RFC 4760 Section 7.
+			return s.rfc7606ResetNotification(receivedWU,
+				"RFC 7606 Section 5.3: MP NLRI overruns the attribute; Section 3(j) requires session reset",
+				message.MPAttributeErrorNotification(unparseable), "")
 		case typedNLRIEmptied:
 			// Section 5.4 discarded every route the UPDATE carried. What is left encodes no
 			// reachability, in either of the two shapes applyTypedNLRIDiscard names: a body

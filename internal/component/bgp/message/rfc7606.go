@@ -496,7 +496,7 @@ func ValidateUpdateRFC7606AddPath(
 		// per-family ADD-PATH state to skip the RFC 7911 path identifier. The MP attribute
 		// has already passed its minimum-length (and, for MP_REACH, next-hop) checks above.
 		if attrCode == attrCodeMPReachNLRI || attrCode == attrCodeMPUnreachNLRI {
-			if r := validateMPNLRIField(attrCode, attrData, addPathFor); r != nil {
+			if r := validateMPNLRIField(attrCode, pathAttrs[attrStart:pos], attrData, addPathFor); r != nil {
 				if r.Action == RFC7606ActionSessionReset {
 					return r
 				}
@@ -973,8 +973,10 @@ func validateMPUnreachAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606
 // loop) because it needs the per-family ADD-PATH state, which validateAttribute's fixed
 // signature cannot carry. The attribute has already passed its minimum-length check
 // (validateMPReachAttr/validateMPUnreachAttr) and, for MP_REACH, its next-hop check, so the
-// AFI/SAFI/NH_LEN bytes are present.
-func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16, safi uint8) bool) *RFC7606ValidationResult {
+// AFI/SAFI/NH_LEN bytes are present. attr is the whole attribute as received (flags, type
+// code, length and value), the NOTIFICATION Data of an NLRI session reset; attrData is its
+// value.
+func validateMPNLRIField(code uint8, attr, attrData []byte, addPathFor func(afi uint16, safi uint8) bool) *RFC7606ValidationResult {
 	afi := attribute.AFI(binary.BigEndian.Uint16(attrData[0:2]))
 	safi := attribute.SAFI(attrData[2])
 	// MPNLRIStart owns the header arithmetic for both codes, so this walk and the
@@ -1001,7 +1003,7 @@ func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16
 	}
 	nlri := attrData[start:]
 	addPath := addPathFor != nil && addPathFor(uint16(afi), uint8(safi))
-	return validateMPNLRISyntax(code, afi, safi, nlri, addPath)
+	return validateMPNLRISyntax(code, attr, afi, safi, nlri, addPath)
 }
 
 // validateMPNLRISyntax runs the RFC 7606 Section 5.3 NLRI checks -- length inconsistent
@@ -1027,41 +1029,78 @@ func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16
 // the nlrisyntax registry, and its Judge answers here: RFC 9552 Section 8.2.2 for BGP-LS, RFC
 // 9830 Section 5 for SR Policy. Its per-NLRI Retain answer runs at the same pass
 // reactor.typedNLRIEdit runs. This function names no family; it maps the Judge's verdict.
-func validateMPNLRISyntax(code uint8, afi attribute.AFI, safi attribute.SAFI, nlri []byte, addPath bool) *RFC7606ValidationResult {
+//
+// Every session reset it returns carries the RFC 4760 Section 7 NOTIFICATION built by
+// MPAttributeErrorNotification from attr, the whole MP attribute as received.
+func validateMPNLRISyntax(code uint8, attr []byte, afi attribute.AFI, safi attribute.SAFI, nlri []byte, addPath bool) *RFC7606ValidationResult {
 	if rule, ruled := nlrisyntax.Get(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}); ruled && rule.Judge != nil {
-		return mpNLRIJudgementResult(code, rule.Judge(nlri, addPath))
+		return mpNLRIJudgementResult(code, attr, rule.Judge(nlri, addPath))
 	}
 	if (afi != attribute.AFIIPv4 && afi != attribute.AFIIPv6) ||
 		(safi != attribute.SAFIUnicast && safi != attribute.SAFIMulticast) {
 		return nil
 	}
+	// ValidateNLRISyntaxAddPath answers nil or a session reset, never a weaker action.
 	if r := ValidateNLRISyntaxAddPath(nlri, afi == attribute.AFIIPv6, addPath); r != nil {
 		r.AttrCode = code
+		// RFC 4760 Section 7.
+		r.Notification = MPAttributeErrorNotification(attr)
 		return r
 	}
 	return nil
 }
 
 // mpNLRIJudgementResult maps a registered family rule's verdict on an MP NLRI section to the
-// RFC 7606 result. None of them sets Notification: an MP NLRI reset is attribute-level, so the
-// session sends it as UPDATE Message Error / Malformed Attribute List like every other MP NLRI
-// reset (RFC 4271 Section 6.3 assigns Invalid Network Field to the legacy NLRI field only).
-func mpNLRIJudgementResult(code uint8, judged nlrisyntax.Judgement) *RFC7606ValidationResult {
+// RFC 7606 result. A session reset carries the RFC 4760 Section 7 NOTIFICATION, Optional
+// Attribute Error with attr as its Data, for every family: the NLRI is part of the MP
+// attribute, so the attribute is what is incorrect. Invalid Network Field (RFC 4271 Section
+// 6.3) belongs to the legacy NLRI field only.
+func mpNLRIJudgementResult(code uint8, attr []byte, judged nlrisyntax.Judgement) *RFC7606ValidationResult {
 	switch judged.Action {
 	case nlrisyntax.ActionWellFormed:
 		return nil
 	case nlrisyntax.ActionTreatAsWithdraw:
 		return &RFC7606ValidationResult{Action: RFC7606ActionTreatAsWithdraw, AttrCode: code, Description: judged.Reason}
 	case nlrisyntax.ActionSessionReset:
-		return &RFC7606ValidationResult{Action: RFC7606ActionSessionReset, AttrCode: code, Description: judged.Reason}
+		// RFC 4760 Section 7.
+		return &RFC7606ValidationResult{
+			Action:       RFC7606ActionSessionReset,
+			AttrCode:     code,
+			Description:  judged.Reason,
+			Notification: MPAttributeErrorNotification(attr),
+		}
 	case nlrisyntax.ActionUnspecified:
 	}
 	// A rule that answered no verdict is a Ze defect. Nothing it judged can be trusted, so the
 	// section is handled as unwalkable rather than passed as well-formed.
 	return &RFC7606ValidationResult{
-		Action:      RFC7606ActionSessionReset,
-		AttrCode:    code,
-		Description: "NLRI syntax rule answered no verdict",
+		Action:       RFC7606ActionSessionReset,
+		AttrCode:     code,
+		Description:  "NLRI syntax rule answered no verdict",
+		Notification: MPAttributeErrorNotification(attr),
+	}
+}
+
+// MPAttributeErrorNotification builds the NOTIFICATION that resets a session over an
+// MP_REACH_NLRI or MP_UNREACH_NLRI attribute whose NLRI cannot be parsed. attr is the whole
+// attribute as received: flags, type code, length and value. The Notification borrows attr
+// and MUST be sent before the buffer holding it is reused.
+//
+// RFC 7606 Section 3 (j) leaves that reset to RFC 4760: "If this is not possible, the
+// procedures of [RFC4271] and/or [RFC4760] continue to apply, meaning that the "session
+// reset" approach (or the "AFI/SAFI disable" approach) MUST be followed."
+//
+// RFC 4760 Section 7: "The session SHOULD be terminated with the Notification message
+// code/subcode indicating "UPDATE Message Error"/"Optional Attribute Error"."
+//
+// RFC 4271 Section 6.3: "If an error is detected, the attribute MUST be discarded, and the
+// Error Subcode MUST be set to Optional Attribute Error.  The Data field MUST contain the
+// attribute (type, length, and value)."
+func MPAttributeErrorNotification(attr []byte) *Notification {
+	return &Notification{
+		ErrorCode:    NotifyUpdateMessage,
+		ErrorSubcode: NotifyUpdateOptionalAttr,
+		Data:         attr,
 	}
 }
 

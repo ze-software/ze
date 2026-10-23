@@ -23,7 +23,7 @@ import (
 // errors (NLRI discard) from unparseable outer framing (session reset).
 // Keep the original exact-sum payloads and vary only their length octets.
 // RFC requirement: RFC7752-6.2.2-2 positive -- exact-sum type 1, 2 and 3 NLRIs retain their bytes through MP_REACH and MP_UNREACH validation and dispatch without notification.
-// RFC requirement: RFC7752-6.2.2-2 negative -- outer NLRI overruns reset with the length-sum diagnostic and NOTIFICATION 3/1; descriptor over/underruns log malformed-NLRI discard and dispatch nothing without notification.
+// RFC requirement: RFC7752-6.2.2-2 negative -- outer NLRI overruns reset with the length-sum diagnostic and NOTIFICATION 3/9 carrying the MP attribute; descriptor over/underruns log malformed-NLRI discard and dispatch nothing without notification.
 func TestRFC7752LinkStateLengthSumsOnReceive(t *testing.T) {
 	for _, kind := range []byte{1, 2, 3} {
 		for _, withdrawn := range []bool{false, true} {
@@ -38,9 +38,13 @@ func TestRFC7752LinkStateLengthSumsOnReceive(t *testing.T) {
 				case "descriptor-underrun":
 					wire[16]--
 				}
+				// mpAttr is the MP attribute alone: mpReachAttrs puts ORIGIN (4 octets) and
+				// the empty AS_PATH (3) before it, mpUnreachAttrs nothing.
 				attrs := mpReachAttrs(lsFam, wire)
+				mpAttr := attrs[7:]
 				if withdrawn {
 					attrs = mpUnreachAttrs(lsFam, wire)
+					mpAttr = attrs
 				}
 				body := makeUpdateBody(nil, attrs, nil)
 				original := bytes.Clone(body)
@@ -82,7 +86,7 @@ func TestRFC7752LinkStateLengthSumsOnReceive(t *testing.T) {
 						t.Fatalf("expected exactly one malformed NLRI discarded: %s", diagnostics.String())
 					}
 				}
-				assertLinkStateLengthDispatch(t, original, fault, wantError)
+				assertLinkStateLengthDispatch(t, original, mpAttr, fault, wantError)
 			}
 		}
 	}
@@ -210,7 +214,7 @@ func assertLinkStateLengthError(t *testing.T, err error, want string) {
 // assertLinkStateLengthDispatch observes the consumer and notification boundaries.
 // The empty AS_PATH control is legal on iBGP; keep its original bytes rather than
 // changing the payload to satisfy the unrelated eBGP first-AS admission rule.
-func assertLinkStateLengthDispatch(t *testing.T, body []byte, fault, wantError string) {
+func assertLinkStateLengthDispatch(t *testing.T, body, mpAttr []byte, fault, wantError string) {
 	t.Helper()
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01020301)
 	session := NewSession(settings)
@@ -256,8 +260,11 @@ func assertLinkStateLengthDispatch(t *testing.T, body []byte, fault, wantError s
 		// RFC 7606 Section 3(a): "An error detected while processing the UPDATE
 		// message for which a session reset is specified MUST be indicated by
 		// sending the NOTIFICATION message with the Error Code UPDATE Message Error."
+		// RFC 4760 Section 7 names the subcode, Optional Attribute Error, and RFC 4271
+		// Section 6.3 the Data: the whole MP attribute, mpAttr.
 		want := message.PackTo(&message.Notification{
-			ErrorCode: message.NotifyUpdateMessage, ErrorSubcode: message.NotifyUpdateMalformedAttr,
+			ErrorCode: message.NotifyUpdateMessage, ErrorSubcode: message.NotifyUpdateOptionalAttr,
+			Data: mpAttr,
 		}, nil)
 		if !bytes.Equal(conn.written(), want) {
 			t.Fatalf("notification=%x, want %x", conn.written(), want)

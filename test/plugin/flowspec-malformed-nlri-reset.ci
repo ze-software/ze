@@ -17,7 +17,8 @@
 #       The session stays up.
 #   U2: the corpus bytes, sixteen pattern octets where one belongs: the fifteen extra
 #       octets read as a component of type 0, unknown, so ze resets the session with
-#       NOTIFICATION 3/1. It is the fence: ze reads one connection on one goroutine in TCP
+#       NOTIFICATION 3/9 (RFC 4760 Section 7), its Data the whole MP_REACH_NLRI attribute
+#       (RFC 4271 Section 6.3). It is the fence: ze reads one connection on one goroutine in TCP
 #       order, so the reset naming U2's own defect proves U1 was judged well-formed and the
 #       session survived it. Had U1 reset the session, U2 would never be read.
 
@@ -32,8 +33,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F00
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004F02000000384001010040020040050400000064800E270002850000210180002A020B80001500007ACA39FFFEAEA87A028078010381110B81650D9107DD
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005E02000000474001010040020040050400000064800E360002850000300180002A020B80001500007ACA39FFFEAEA87A028078000000000000000000000000000000010381110B81650D9107DD
 
-# NOTIFICATION code 3 (UPDATE Message Error), subcode 1 (Malformed Attribute List), for U2.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+# NOTIFICATION code 3 (UPDATE Message Error), subcode 9 (Optional Attribute Error), for U2,
+# Data = U2's MP_REACH_NLRI attribute: flags 0x80, type 14, length 0x36 and its value.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E030309800E360002850000300180002A020B80001500007ACA39FFFEAEA87A028078000000000000000000000000000000010381110B81650D9107DD
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
