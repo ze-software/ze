@@ -75,7 +75,7 @@
       "claim-sha": "1fbcf2407efd73c3",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::installChildSA",
-      "producer-sha": "fcdb2e58cf4c099d",
+      "producer-sha": "528023fd0f737e3f",
       "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "b069f21d92cf23e6",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "06d8f21f105e7440",
+      "producer-sha": "5806e3ed91074346",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "a3f9b45600b981ee",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "06d8f21f105e7440",
+      "producer-sha": "5806e3ed91074346",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "9a54b1fbc2417f73",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "c323c229a788f4f4",
+      "producer-sha": "887047cb0f5ec1b3",
       "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "2919b1d152f354ac",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "c323c229a788f4f4",
+      "producer-sha": "887047cb0f5ec1b3",
       "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "79120dabf54fc505",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::installChildSA",
-      "producer-sha": "fcdb2e58cf4c099d",
+      "producer-sha": "528023fd0f737e3f",
       "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "5d9b9f9297591100",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::installChildSA",
-      "producer-sha": "fcdb2e58cf4c099d",
+      "producer-sha": "528023fd0f737e3f",
       "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

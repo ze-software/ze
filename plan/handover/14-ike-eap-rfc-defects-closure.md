@@ -196,3 +196,33 @@ shared index pointing at pre-`9d60c1d841` content for its paths; the repair is i
   round 10."). The closure prep (`plan/learned/032-ike-eap-rfc-defects.md`, the citer repoints in
   `docs/contributing/patching-the-standard-library.md`, `ai/INDEX.md` and two `plan/pre-release/`
   specs) is still uncommitted in the working tree.
+
+## Closure attempt, 2026-10-23 (session 9b5c1d68): still blocked on rfc/check
+
+- `./le rfc check` over the tree at `2177fd9cde`: 204 violations, 43 on IKE/EAP stems. This
+  spec owns 40: 39 discrimination records (`producer-changed` on `respondChildRekey`,
+  `applyChildRekeyResponse`, `initiateChildRekey`, `rebindChildSAs`, `installChildSA`,
+  `newChildSA`, `handleCreateChildSAOwned`) and the STALE RFC7296-1.4.1-1 verdict. The
+  file-name refusal and the RFC3948-2.1-2 SHIFTED verdict are gone (`7848d67b8a` renamed the
+  test byte-identically). The other three IKE rows are another session's uncommitted
+  child-rekey-narrowing work in `established.go` and `interoplab/ipsec/checkers.go`:
+  RFC3948-3.1.2-1 STALE, RFC7296-2.7-1 SHIFTED, RFC7296-2.21.4-8 STALE. Its hunks also sit in
+  `rfc/audit/rfc7296.json`, and the `checkers.go` stamps there match no committed file.
+- Re-recorded and committed: the 33 host records (each observed red under its break with
+  `./le rfc discriminate-record ... route revert`).
+- Still owed: (1) the 5 guest records (`rfc4301_sad_selector_linux_test.go` for RFC4301-4.4.2-1
+  and RFC4301-5.2-2, both polarities; `rfc4303_inbound_key_linux_test.go` for RFC4303-2.1-2
+  negative). In the macOS QEMU guest the unit re-execs itself in a user namespace and SKIPs on
+  `fork/exec .../guest-<pid>.test: permission denied`, so the recorder refuses; journaled in
+  `plan/journal/gate-verdict-depends-on-the-machine.md`. A second attempt also hit another
+  session's uncommitted `bgp_routes.go` change, which breaks the guest le build. A Linux
+  host's guest, or the recorder fix, is needed. (2) The mutant record RFC7296-1.4.1-1
+  positive (`TestRFC7296RefusedRekeyAnswerDeletesTheNewPair`, the break replacing the default
+  arm's `ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)` in `handleCreateChildSAOwned` with
+  `_ = tr`): it needs a gomu report over `inbound.go` run under the patched GOROOT, then
+  `route mutant report <path> mutant <selector>`. (3) The RFC7296-1.4.1-1 re-judge: the
+  pending verdict is in this session's scratch (`rejudge-rfc7296.json`); stamp it with
+  `./le rfc audit-stamp stem rfc7296 from <file> mode rejudge` only after (2), and commit
+  `rfc/audit/rfc7296.json` without the other session's `checkers.go` stamps.
+- The review artifact is re-recorded for session 9b5c1d68 (`./le spec review check` OK, the 13
+  files still hash to their round-9 values). No code changed, so no round 10 is owed.
