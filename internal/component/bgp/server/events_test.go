@@ -92,7 +92,8 @@ func TestMain(m *testing.M) {
 		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
 		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
 		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
-		bgpevents.EventUpdateNotification,
+		bgpevents.EventUpdateNotification, bgpevents.EventConnected,
+		bgpevents.EventFSM, bgpevents.EventSignal,
 	)
 	os.Exit(m.Run())
 }

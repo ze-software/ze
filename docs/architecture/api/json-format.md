@@ -212,13 +212,23 @@ OPENSENT, OPENCONFIRM or ESTABLISHED. The `connected` event comes before the
 Text: `peer 192.0.2.1 remote as 65001 connected` and
 `peer 192.0.2.1 remote as 65001 fsm CONNECT OPENSENT`. Neither has a
 structured (DirectBridge) form: every process takes the line.
+
+The engine queues `connected`, `fsm` and `signal` on each process's delivery
+queue and does not wait for the process to answer, because it emits them from
+the FSM before the OPEN goes out and from the hub before a stop or reload
+starts. A slow or wedged subscriber therefore delays neither. Each process
+still receives its events in the order they were emitted; a failed write is
+logged.
+<!-- source: internal/component/bgp/server/events.go -- deliverPeerLine -->
 <!-- source: internal/component/bgp/format/session_events.go -- AppendConnected -->
 <!-- source: internal/component/bgp/format/session_events.go -- AppendFSM -->
 <!-- source: internal/component/bgp/reactor/peer_fsm_events.go -- emitFSMEvents -->
 
 A process subscribed to `signal` hears each operating-system signal the daemon
-takes (SIGHUP, SIGINT, SIGTERM), once for every configured peer, before the
-daemon reloads or stops. The hub publishes it on the EventBus
+takes (SIGHUP, SIGINT, SIGTERM), once for every configured peer. The event is
+queued before the daemon reloads or stops; a stop signal is announced once
+the stop has begun and a second signal can already skip the drain, so a
+subscriber that does not read it cannot hold the stop. The hub publishes it on the EventBus
 (`daemonevents.Signal`, namespace `daemon`) and the BGP reactor tells each
 peer's processes. A stop asked for by `daemon shutdown` or by the end of stdin
 is not a signal and is not told.

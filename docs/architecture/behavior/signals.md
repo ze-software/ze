@@ -264,6 +264,12 @@ teardown, where BGP sends Cease 6/2 to each live session. `request shutdown`,
 `request halt` and SSH `stop` stop nothing themselves: they hand the stop to the
 hub through the daemon shutdown function.
 
+`waitLoop` hands the stop signal back without announcing it. `run` registers
+`forceCh` first and only then publishes the signal on the EventBus, so a
+second signal reaches `stopSignals` even while the `signal` event is being
+queued to every peer's subscribers. A SIGHUP is still announced by `waitLoop`
+before the reload it causes.
+
 Once the stop has begun, `stopSignals` reads SIGINT and SIGTERM from `forceCh`
 and acts by phase: during the fence a signal skips the drain, during the drain
 it aborts the round, and after either, or once teardown has begun, it forces

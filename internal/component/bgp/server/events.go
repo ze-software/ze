@@ -1071,8 +1071,15 @@ func onPeerSignal(s *pluginserver.Server, peer *plugin.PeerInfo, number int, nam
 // same line, a structured consumer included, as the congestion events always
 // did: none of these events carries a structured form.
 //
-// Delivery is parallel via long-lived per-process goroutines (see
-// rules/goroutine-lifecycle.md), and it returns once every write finished.
+// Delivery enqueues to each process's long-lived delivery goroutine (see
+// rules/goroutine-lifecycle.md) and does not wait for the writes. These events
+// are emitted from the FSM callback before the OPEN goes out (connected, fsm)
+// and from the hub's signal publish before the stop or reload starts (signal):
+// waiting there let one slow `*` subscriber hold the OPEN, or SIGTERM, for the
+// delivery timeout once per peer. Each process's queue keeps its events in the
+// order they were enqueued, which is the only order a subscriber relies on. A
+// failed write is logged by the delivery loop (deliverBatch), as for sent
+// events.
 func deliverPeerLine(s *pluginserver.Server, peer *plugin.PeerInfo, eventType string, render func(buf []byte, encoding string) []byte) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
@@ -1103,23 +1110,11 @@ func deliverPeerLine(s *pluginserver.Server, peer *plugin.PeerInfo, eventType st
 		}
 	}
 
-	// Enqueue to long-lived per-process delivery goroutines and collect results.
-	results := make(chan process.EventResult, len(procs))
-	sent := 0
-
+	// Enqueue without a result channel: the caller is the FSM or the signal
+	// publish, and neither may wait on a plugin.
 	for _, proc := range procs {
 		output, _ := fmtCache.get(proc.Encoding())
-		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
-			continue
-		}
-		sent++
-	}
-
-	for range sent {
-		r := <-results
-		if r.Err != nil && s.Context().Err() == nil {
-			logger().Warn("per-peer event write failed", "event", eventType, "proc", r.ProcName, "err", r.Err)
-		}
+		proc.Deliver(process.EventDelivery{Output: output})
 	}
 
 	// Deliver to CLI monitors lazily.

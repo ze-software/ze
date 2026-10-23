@@ -1577,7 +1577,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// A reload can remove every plugin without ending this daemon lifecycle.
 	doneCh := make(chan struct{})
 	go waitForServerDone(apiServer, doneCh)
-	waitLoop(stopCh, hupCh, reloadCh, doneCh, func(sig os.Signal) { announceSignal(apiServer, sig) })
+	stopSig := waitLoop(stopCh, hupCh, reloadCh, doneCh, func(sig os.Signal) { announceSignal(apiServer, sig) })
 	// The stop starts here: the drain ceiling is counted from this instant,
 	// so the config fence below spends from it.
 	stopStart := time.Now()
@@ -1590,7 +1590,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// hold the process past the point an operator is willing to wait.
 	//
 	// It gets its OWN channel rather than reusing stopCh, because
-	// apiServer.SetShutdownFunc injects a SIGTERM into stopCh on every
+	// apiServer.SetShutdownFunc sends requestedStop{} into stopCh on every
 	// `request shutdown`, and that value is not an operator's signal: after
 	// `request shutdown` the operator's first OS signal is the one counted.
 	// Sharing the channel also made a config-reload SIGHUP arriving
@@ -1601,6 +1601,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	signal.Notify(forceCh, syscall.SIGINT, syscall.SIGTERM)
 	signals := newStopSignals(stopForceExit)
 	go signals.run(forceCh)
+
+	// The stop signal is announced only now, with forceCh registered: the
+	// announce writes to every `signal` subscriber, and an operator's second
+	// signal must still reach stopSignals while it does.
+	announceSignal(apiServer, stopSig)
 
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace, reloadCancel)
@@ -1668,10 +1673,12 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 }
 
 // waitLoop dispatches signals: a SIGHUP from hupCh to reloadCh, and any signal
-// from stopCh returns so the caller shuts down. It also returns when doneCh
-// closes (server exit); a nil doneCh never fires. Each signal goes to announce
-// first (announceSignal), so a process told of it reads the line before the
-// reload or the stop it causes.
+// from stopCh returns it so the caller shuts down. It also returns, with nil,
+// when doneCh closes (server exit); a nil doneCh never fires. A SIGHUP goes to
+// announce first (announceSignal), so a process told of it reads the line
+// before the reload it causes. The stop signal is not announced here: the
+// caller announces it once forceCh is registered, so a second signal during
+// the announce still reaches stopSignals.
 //
 // It MUST NOT block on reloadCh, because it is the only reader of stopCh: a loop
 // parked on a full reloadCh reads no SIGTERM until the reload worker takes the
@@ -1679,12 +1686,11 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 // per queued signal. A SIGHUP that finds one already queued is coalesced into
 // it: the queued reload reads the config source when it runs
 // (handleSIGHUPReload), so it applies every edit the dropped signal announced.
-func waitLoop(stopCh, hupCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}, announce func(os.Signal)) {
+func waitLoop(stopCh, hupCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}, announce func(os.Signal)) os.Signal {
 	for {
 		select {
 		case sig := <-stopCh:
-			announce(sig)
-			return
+			return sig
 		case sig := <-hupCh:
 			announce(sig)
 			select {
@@ -1692,7 +1698,7 @@ func waitLoop(stopCh, hupCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh 
 			default: // A reload is already queued and covers this signal.
 			}
 		case <-doneCh:
-			return
+			return nil
 		}
 	}
 }
