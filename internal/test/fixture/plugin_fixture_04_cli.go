@@ -17,6 +17,7 @@ import (
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -467,19 +468,12 @@ func runCommandProcess04(ctx context.Context, env []string, input io.Reader, arg
 }
 
 func overrideEnv04(base []string, values ...string) []string {
-	keys := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		key, _, _ := strings.Cut(value, "=")
-		keys[key] = struct{}{}
+	keys := make([]string, len(values))
+	for i, value := range values {
+		keys[i], _, _ = strings.Cut(value, "=")
 	}
-	env := make([]string, 0, len(base)+len(values))
-	for _, value := range base {
-		key, _, _ := strings.Cut(value, "=")
-		if _, replaced := keys[key]; !replaced {
-			env = append(env, value)
-		}
-	}
-	return append(env, values...)
+	// The runner exports dotted keys, which outrank uppercase aliases.
+	return append(env.Without(base, keys...), values...)
 }
 
 // driveEditor04 opens config in the TUI editor over a PTY, commits it, and
