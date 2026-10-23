@@ -1003,22 +1003,25 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		)
 		relayed := prefix + "           unicast [ze_peer 03:18:06.271] * (100) [AS65002i]\n" +
 			"\tvia 172.30.0.2 on eth0\n" +
-			"\tType: BGP univ\n" +
-			"\tBGP.origin: IGP\n" +
-			"\tBGP.as_path: " + want + "\n" +
-			"\tBGP.next_hop: 172.30.0.2\n"
+			"\tpreference: 100\n" +
+			"\tfrom: 172.30.0.2\n" +
+			"\tsource: BGP\n" +
+			"\tbgp_origin: IGP\n" +
+			"\tbgp_path: " + want + "\n" +
+			"\tbgp_next_hop: 172.30.0.2\n" +
+			"\tInternal route handling values: 0L 2G 0S id 1\n"
 		if err := requireBIRDASPath(relayed, prefix, want); err != nil {
 			t.Fatalf("a relay that kept the client's own path was rejected: %v", err)
 		}
-		prepended := strings.ReplaceAll(relayed, "BGP.as_path: "+want, "BGP.as_path: 65001 "+want)
+		prepended := strings.ReplaceAll(relayed, "bgp_path: "+want, "bgp_path: 65001 "+want)
 		if requireBIRDASPath(prepended, prefix, want) == nil {
 			t.Fatal("a relay that prepended ze's own AS passed as route-server transparency")
 		}
-		appended := strings.ReplaceAll(relayed, "BGP.as_path: "+want, "BGP.as_path: "+want+" 65001")
+		appended := strings.ReplaceAll(relayed, "bgp_path: "+want, "bgp_path: "+want+" 65001")
 		if requireBIRDASPath(appended, prefix, want) == nil {
 			t.Fatal("a relay that added ze's AS elsewhere in the path passed")
 		}
-		emptied := strings.ReplaceAll(relayed, "BGP.as_path: "+want, "BGP.as_path:")
+		emptied := strings.ReplaceAll(relayed, "bgp_path: "+want, "bgp_path: ")
 		if requireBIRDASPath(emptied, prefix, want) == nil {
 			t.Fatal("an empty AS_PATH passed as the client's own path")
 		}
@@ -1527,11 +1530,11 @@ func TestBespokeCheckerBranches(t *testing.T) {
 	})
 
 	t.Run("bgp-wire-edit-api-origin-bird", func(t *testing.T) {
-		recorder := &recordingLab{output: "10.55.0.0/24\n BGP.community: (65001,100) (65001,200)\n BGP.large_community: (65001, 0, 1)\n"}
+		recorder := &recordingLab{output: "10.55.0.0/24\n\tbgp_community: (65001,100) (65001,200)\n\tbgp_large_community: (65001, 0, 1)\n"}
 		if err := checkBIRDAPICommunities(t.Context(), recorder, "10.55.0.0/24"); err != nil {
 			t.Fatalf("scoped community lines failed: %v", err)
 		}
-		recorder.output = "10.55.0.0/24\n BGP.community: (65001,100)\n other: (65001,200)\n BGP.large_community: (65001, 0, 1)\n"
+		recorder.output = "10.55.0.0/24\n\tbgp_community: (65001,100)\n\tother: (65001,200)\n\tbgp_large_community: (65001, 0, 1)\n"
 		if err := checkBIRDAPICommunities(t.Context(), recorder, "10.55.0.0/24"); err == nil {
 			t.Fatal("community on the wrong attribute line passed")
 		}

@@ -9,7 +9,7 @@ import (
 )
 
 // VALIDATES: the readers checkVPNFRR decides with, in both polarities, over the
-// text FRR 10.3.1 and BIRD 2.15.1 print, with no container.
+// text FRR 10.3.1 and BIRD 3.4.0 print, with no container.
 // PREVENTS: the RD-keyed FRR document read as a route with no path, a BIRD
 // route without its link-local read as one with it, and a missing route read
 // as an empty next-hop list.
@@ -42,16 +42,23 @@ func TestVPNNextHopReaders(t *testing.T) {
 	table := strings.Join([]string{
 		"Table vpntab6:",
 		"65001:100 2001:db8:4659::/48 unreachable [ze_vpn6 10:00:00.000] * (100) [AS65001i]",
-		"\tType: BGP univ",
-		"\tBGP.origin: IGP",
-		"\tBGP.as_path: 65001",
-		"\tBGP.next_hop: fd00:1e::2 fe80::fd00:1e:0:2",
-		"\tBGP.local_pref: 100",
+		"\tpreference: 100",
+		"\tfrom: fd00:1e::2",
+		"\tsource: BGP",
+		"\tbgp_origin: IGP",
+		"\tbgp_path: 65001",
+		"\tbgp_next_hop: fd00:1e::2 fe80::fd00:1e:0:2",
+		"\tbgp_local_pref: 100",
+		"\tInternal route handling values: 0L 3G 0S id 1",
 		"65001:100 2001:db8:465a::/48 unreachable [ze_vpn6 10:00:00.000] * (100) [AS65001i]",
-		"\tType: BGP univ",
-		"\tBGP.next_hop: 2001:db8:ffff::1",
+		"\tpreference: 100",
+		"\tsource: BGP",
+		"\tbgp_next_hop: 2001:db8:ffff::1",
+		"\tInternal route handling values: 0L 4G 0S id 2",
 		"65001:100 2001:db8:9999::/48 unreachable [ze_vpn6 10:00:00.000] * (100) [AS65001i]",
-		"\tType: BGP univ",
+		"\tpreference: 100",
+		"\tsource: BGP",
+		"\tInternal route handling values: 0L 5G 0S id 3",
 		"",
 	}, "\n")
 	t.Run("BIRD on-link route carries both addresses", func(t *testing.T) {
@@ -80,7 +87,7 @@ func TestVPNNextHopReaders(t *testing.T) {
 	})
 	t.Run("BIRD route without a next-hop line", func(t *testing.T) {
 		if _, err := birdVPNNextHops(table, "65001:100", "2001:db8:9999::/48"); err == nil {
-			t.Fatal("a route with no BGP.next_hop line was accepted")
+			t.Fatal("a route with no bgp_next_hop line was accepted")
 		}
 	})
 	t.Run("BIRD without the route", func(t *testing.T) {

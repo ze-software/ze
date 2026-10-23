@@ -33,21 +33,29 @@ func birdRouteListing(primary string) string {
 	if primary == clusterListReflectedProtocol {
 		reflected += " *"
 	}
-	return "BIRD 2.15.1 ready.\nTable master4:\n" +
+	return "BIRD 3.4.0+branch..no.branch..c3669497e394 ready.\nTable master4:\n" +
 		clusterListPrefix + "        " + direct + " (100) [i]\n" +
 		"\tvia 172.30.0.5 on eth0\n" +
-		"\tType: BGP univ\n" +
-		"\tBGP.origin: IGP\n" +
-		"\tBGP.next_hop: 172.30.0.5\n" +
-		"\tBGP.local_pref: 100\n" +
+		"\tpreference: 100\n" +
+		"\tfrom: 172.30.0.5\n" +
+		"\tsource: BGP\n" +
+		"\tbgp_origin: IGP\n" +
+		"\tbgp_path: \n" +
+		"\tbgp_next_hop: 172.30.0.5\n" +
+		"\tbgp_local_pref: 100\n" +
+		"\tInternal route handling values: 0L 3G 0S id 1\n" +
 		"                    " + reflected + " (100) [i]\n" +
 		"\tvia 172.30.0.5 on eth0\n" +
-		"\tType: BGP univ\n" +
-		"\tBGP.origin: IGP\n" +
-		"\tBGP.next_hop: 172.30.0.5\n" +
-		"\tBGP.local_pref: 100\n" +
-		"\tBGP.originator_id: 172.30.0.5\n" +
-		"\t" + clusterListAttributeLabel + "172.30.0.3\n"
+		"\tpreference: 100\n" +
+		"\tfrom: 172.30.0.3\n" +
+		"\tsource: BGP\n" +
+		"\tbgp_origin: IGP\n" +
+		"\tbgp_path: \n" +
+		"\tbgp_next_hop: 172.30.0.5\n" +
+		"\tbgp_local_pref: 100\n" +
+		"\tbgp_originator_id: 172.30.0.5\n" +
+		"\t" + clusterListAttributeLabel + "172.30.0.3\n" +
+		"\tInternal route handling values: 0L 4G 0S id 2\n"
 }
 
 // TestBIRDPrimaryProtocol pins which BIRD route line counts as the verdict.
@@ -68,7 +76,7 @@ func TestBIRDPrimaryProtocol(t *testing.T) {
 	}
 	// The info suffix carries brackets of its own, and an attribute line can
 	// too. Neither is a route line, and neither may be read as one.
-	if _, err := birdPrimaryProtocol("\tBGP.as_path: [65000] *\n"); err == nil {
+	if _, err := birdPrimaryProtocol("\tbgp_path: [65000] *\n"); err == nil {
 		t.Fatal("an attribute line passed as the selected route")
 	}
 }

@@ -115,7 +115,7 @@ func TestVirtualLinkBIRDRouteRequiresExactOSPFRoute(t *testing.T) {
 		present bool
 	}{
 		{"backbone route", "2001:db8:10::1/128 unicast [vlink_ospf 12:00:00] * I (150/20)", true},
-		{"withdrawn", "BIRD 2.15.1 ready.\nTable master6:\n", false},
+		{"withdrawn", "BIRD 3.4.0+branch..no.branch..c3669497e394 ready.\nTable master6:\n", false},
 		{"covering route", "2001:db8:10::/64 unicast [vlink_ospf 12:00:00] * I (150/20)", false},
 		{"another producer", "2001:db8:10::1/128 unicast [connected 12:00:00] * (240)", false},
 		{"prefix only in attributes", "2001:db8:20::1/128 unicast [vlink_ospf 12:00:00] * I (150/20)\n\tvia 2001:db8:10::1/128", false},

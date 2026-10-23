@@ -31,13 +31,13 @@ func parseFRRVPNNextHops(output, rd string) ([]nextHop, error) {
 	return parseFRRNextHops(string(document))
 }
 
-// birdVPNNextHops reads the BGP.next_hop line BIRD prints for one VPN route in
+// birdVPNNextHops reads the bgp_next_hop line BIRD 3 prints for one VPN route in
 // `show route table <table> all`. BIRD heads a route with `<rd> <prefix>` and
 // indents its attributes below it, so the block runs from that heading to the
 // next unindented line. BIRD prints one address for a Next Hop that carried no
 // link-local, and the global then the link-local for one that did
 // (proto/bgp/attrs.c, bgp_format_next_hop). A missing route or a route with no
-// BGP.next_hop line is an error rather than an empty answer.
+// bgp_next_hop line is an error rather than an empty answer.
 func birdVPNNextHops(output, rd, prefix string) ([]netip.Addr, error) {
 	heading := rd + " " + prefix + " "
 	inRoute := false
@@ -55,7 +55,7 @@ func birdVPNNextHops(output, rd, prefix string) ([]netip.Addr, error) {
 		if line[0] != ' ' && line[0] != '\t' {
 			break
 		}
-		value, found := strings.CutPrefix(strings.TrimSpace(line), "BGP.next_hop:")
+		value, found := strings.CutPrefix(strings.TrimSpace(line), "bgp_next_hop:")
 		if !found {
 			continue
 		}
@@ -71,7 +71,7 @@ func birdVPNNextHops(output, rd, prefix string) ([]netip.Addr, error) {
 		return addresses, nil
 	}
 	if inRoute {
-		return nil, fmt.Errorf("BIRD route %s %s has no BGP.next_hop line", rd, prefix)
+		return nil, fmt.Errorf("BIRD route %s %s has no bgp_next_hop line", rd, prefix)
 	}
 	return nil, fmt.Errorf("BIRD holds no route %s %s", rd, prefix)
 }

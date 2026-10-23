@@ -38,8 +38,9 @@ const (
 	clusterListWinnerField = "winner-peer"
 	clusterListStepField   = "step"
 
-	// BIRD's spelling of the reflected path's CLUSTER_LIST attribute.
-	clusterListAttributeLabel = "BGP.cluster_list: "
+	// BIRD 3's spelling of the reflected path's CLUSTER_LIST attribute
+	// (bgp_cluster_list, proto/bgp/attrs.c at v3.4.0).
+	clusterListAttributeLabel = "bgp_cluster_list: "
 
 	clusterListBudget = 90 * time.Second
 )

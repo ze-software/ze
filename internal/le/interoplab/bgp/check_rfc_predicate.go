@@ -547,8 +547,9 @@ func kernelRouteFor(table string, destination netip.Addr) kernelRoute {
 
 // BIRD's own decode of one route, as `show route for <prefix> all` prints it. The
 // attribute name is the whole first field of its line, so a value that carries the
-// same text cannot pass as the attribute.
-const birdASPathAttribute = "BGP.as_path:"
+// same text cannot pass as the attribute. BIRD 3 names AS_PATH bgp_path
+// (proto/bgp/attrs.c at v3.4.0) and prints it as space-separated ASNs.
+const birdASPathAttribute = "bgp_path:"
 
 // requireBIRDASPath reports whether BIRD attributes exactly want to the route it
 // holds for prefix. Three conditions carry the decision. A route line naming

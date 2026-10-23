@@ -8,8 +8,8 @@ import (
 
 // rpkiReloadCheckerBranches rejects incomplete retention and cross-route evidence.
 func rpkiReloadCheckerBranches(t *testing.T) {
-	const control = "10.58.0.0/16 unicast [ze_peer 12:00:00] * (100)\n\tBGP.as_path: 65000 65001\n"
-	const invalid = "9.58.0.0/24 unicast [ze_peer 12:00:00] * (100)\n\tBGP.as_path: 65000 65001\n"
+	const control = "10.58.0.0/16 unicast [ze_peer 12:00:00] * (100)\n\tbgp_path: 65000 65001\n"
+	const invalid = "9.58.0.0/24 unicast [ze_peer 12:00:00] * (100)\n\tbgp_path: 65000 65001\n"
 	for _, test := range []struct {
 		name     string
 		output   string

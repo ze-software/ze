@@ -26,7 +26,7 @@ const (
 	localASPartitionFRRPath = localASPartitionLocalAS + " 65001"
 	// localASPartitionBIRDPath ends at the newline, so the two-AS path FRR is
 	// owed does not satisfy it.
-	localASPartitionBIRDPath    = "BGP.as_path: " + localASPartitionLocalAS + "\n"
+	localASPartitionBIRDPath    = "bgp_path: " + localASPartitionLocalAS + "\n"
 	localASPartitionBIRDShowAll = "show route for " + localASPartitionPrefix + " all"
 	// localASPartitionAnnounce reaches AnnounceNLRIBatch once for both peers.
 	// The next hop is self, which is ze's one lab address toward either peer.
