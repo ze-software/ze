@@ -9,7 +9,10 @@ package airules
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func TestPyReprPicksTheQuotePythonPicks(t *testing.T) {
@@ -129,5 +132,157 @@ func TestRelToNamesAPathAgainstTheCheckout(t *testing.T) {
 	tree := string(filepath.Separator) + "checkout"
 	if got := relTo(tree, filepath.Join(tree, "ai", "rules", "planning.md")); got != "ai/rules/planning.md" {
 		t.Errorf("relTo = %s", got)
+	}
+}
+
+func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.T) {
+	for _, tc := range []struct {
+		name, update, check, artifact string
+		kept                          []string
+		dropped                       string
+	}{
+		{
+			name: "trigger rows", update: "condensed-update", check: "condensed-check", artifact: "TRIGGERS.md",
+			kept: []string{
+				"| `ai/rules/completion.md` | blocking | before claiming any gokrazy qdisc work done |",
+				"| `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting a file holding uncommitted work |",
+				"| `ai/rules/rfc-compliance.md` | blocking, always-on | writing protocol code for any RFC ze implements |",
+				"| `ai/rules/rule-precedence.md` | blocking, always-on | when two rules disagree |",
+			},
+		},
+		{
+			name: "core directives", update: "condensed-update", check: "condensed-check", artifact: "CORE.md",
+			kept: []string{
+				"## Never Destroy Work\n`ai/rules/never-destroy-work.md`",
+				"- MUST ask first.",
+				"## RFC Compliance\n`ai/rules/rfc-compliance.md`",
+				"- MUST conform.",
+			},
+			dropped: "- MUST finish it.",
+		},
+		{
+			name: "index rows", update: "index-update", check: "index-check", artifact: "INDEX.md",
+			kept: []string{
+				"| Completion | before claiming any gokrazy qdisc work done | blocking | `ai/rules/completion.md` |",
+				"| Never Destroy Work | before deleting a file holding uncommitted work | blocking | `ai/rules/never-destroy-work.md` |",
+				"| RFC Compliance | writing protocol code for any RFC ze implements | blocking | `ai/rules/rfc-compliance.md` |",
+				"| Rule Precedence | when two rules disagree | blocking | `ai/rules/rule-precedence.md` |",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := digestCorpus()
+			files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
+			root := digestTree(t, files)
+			t.Setenv("ZE_REPO_ROOT", root)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+			if answer, code := Answer([]string{tc.update}); code != 0 {
+				t.Fatalf("%s = %d, %+v", tc.update, code, answer)
+			}
+			path := filepath.Join(root, "ai", "rules", tc.artifact)
+			body, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range tc.kept {
+				if strings.Count(string(body), want) != 1 {
+					t.Errorf("%s must carry exactly one %q: %s", tc.artifact, want, body)
+				}
+			}
+			if tc.dropped != "" && strings.Contains(string(body), tc.dropped) {
+				t.Errorf("%s loaded a routed directive: %s", tc.artifact, body)
+			}
+			if answer, code := Answer([]string{tc.check}); code != 0 {
+				t.Fatalf("fresh %s = %d, %+v", tc.check, code, answer)
+			}
+			// Both words have eight bytes. A size-only freshness check is not
+			// enough, and a check must never repair the artifact it rejects.
+			stale := strings.Replace(string(body), "blocking", "advisory", 1)
+			if stale == string(body) || len(stale) != len(body) {
+				t.Fatal("fixture must introduce same-size drift")
+			}
+			if err := os.WriteFile(path, []byte(stale), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if answer, code := Answer([]string{tc.check}); code != 1 {
+				t.Errorf("stale %s = %d, %+v; want 1", tc.check, code, answer)
+			}
+			after, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(after) != stale {
+				t.Errorf("%s rewrote the rejected artifact", tc.check)
+			}
+		})
+	}
+}
+
+func TestNativeRenderCommandPreservesPointBodiesAndCheckWithoutWriting(t *testing.T) {
+	const want = "# T\n\n**When:** when x\n**Severity:** blocking\n\n## S\n\n- **MUST x.**\n"
+	root := digestTree(t, map[string]string{
+		"ai/rules/points/sample/manifest.md": "---\ntitle: T\nwhen: when x\nseverity: blocking\n---\ns ## S\n  p\n",
+		"ai/rules/points/sample/s/p.md":      "---\nkind: directive\nlevel: MUST\n---\n- **MUST x.**\n",
+	})
+	t.Setenv("ZE_REPO_ROOT", root)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	if answer, code := Answer([]string{"render-update"}); code != 0 {
+		t.Fatalf("render-update = %d, %+v", code, answer)
+	}
+	path := filepath.Join(root, "ai", "rules", "sample.md")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != want {
+		t.Fatalf("rendered rule = %q, want %q", body, want)
+	}
+	if answer, code := Answer([]string{"render-check"}); code != 0 {
+		t.Fatalf("fresh render-check = %d, %+v", code, answer)
+	}
+	stale := strings.Replace(want, "MUST x", "MUST y", 1)
+	if err := os.WriteFile(path, []byte(stale), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if answer, code := Answer([]string{"render-check"}); code != 1 {
+		t.Errorf("stale render-check = %d, %+v; want 1", code, answer)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != stale {
+		t.Errorf("render-check rewrote the rejected rule: %q", after)
+	}
+}
+
+func TestNativeRenderCommandRefusesToOverwriteDigestArtifacts(t *testing.T) {
+	for _, name := range []string{"CORE", "TRIGGERS", "INDEX"} {
+		t.Run(name, func(t *testing.T) {
+			const saved = "another generator owns these bytes\n"
+			root := digestTree(t, map[string]string{
+				"ai/rules/" + name + ".md":                 saved,
+				"ai/rules/points/" + name + "/manifest.md": "---\ntitle: T\nwhen: when x\nseverity: blocking\n---\ns ## S\n  p\n",
+				"ai/rules/points/" + name + "/s/p.md":      "---\nkind: directive\nlevel: MUST\n---\n- **MUST x.**\n",
+			})
+			t.Setenv("ZE_REPO_ROOT", root)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+			answer, code := Answer([]string{"render-update"})
+			report, ok := answer.(RenderReport)
+			if code != 1 || !ok || len(report.Failures) != 1 ||
+				!strings.Contains(report.Failures[0], "a point directory may not be named for a generated artifact") {
+				t.Fatalf("render-update = %d, %+v; want artifact ownership refusal", code, answer)
+			}
+			body, err := os.ReadFile(filepath.Join(root, "ai", "rules", name+".md"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(body) != saved {
+				t.Errorf("render-update overwrote %s.md: %q", name, body)
+			}
+		})
 	}
 }

@@ -253,6 +253,7 @@ rule above. A long single line is correct here. Do not wrap it for looks.
 | A slug carrying a path separator, a leading dot, or a parent reference | A manifest MUST NOT read outside its own rule directory |
 | A `*.md` below its section directory, or a directory inside one | The tree is at a fixed depth of two and nothing reads deeper, so the instruction renders into nothing while every gate exits 0 |
 | A `##` heading inside a point BODY | A `##` opens a section, and a section is a directory. The rendered bytes are identical either way, so this is the one loss no other gate can see: every point after that heading carries an id naming a section no reader ever sees |
+| A point directory named for a generated artifact, such as `CORE`, `TRIGGERS` or `INDEX` | The point renderer must not overwrite a file owned by the digest or index generator |
 
 A `##` heading with no blank line above it is still a section. The manifest
 records the missing blank line with a leading `^` on the section line, so the
@@ -343,6 +344,14 @@ a render that has not run yet feeds them the previous text.
 
 `./le doc check verify` runs all of them, plus `./le ai rules render-check`,
 `./le ai rules points-roundtrip-check` and `./le ai rules gate-map-report`. Run it before you commit.
+
+The three freshness commands (`render-check`, `condensed-check` and
+`index-check`) compare content, not file size. They exit nonzero for drift and
+leave the rejected files untouched; only the corresponding update commands
+write them. Native command fixtures in `internal/le/ai/rules/rules_test.go`
+exercise those decisions through `Answer`, including the emitted routing rows,
+core directives and artifact ownership refusals. They assert consumer-visible
+behavior rather than a hash of the implementation's source bytes.
 
 After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. A
 trigger that lost half its clause is not visible from the point file alone.
