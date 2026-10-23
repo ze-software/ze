@@ -6,13 +6,22 @@
 # downloads (HTTP 403), so the source is the upstream Git repository at the tag,
 # and the build refuses a tag that no longer points at the commit read when the
 # pin was set.
+#
+# The build runs on Debian, not Alpine. 3.4.0 built on Alpine 3.24.3 died with
+# SIGILL on the first route it imported: gdb stopped in rte_announce_to
+# (nest/rt-table.c), called from bgp_rte_update, on an IPv4 UPDATE from Ze, so
+# every scenario in which Ze sends BIRD a route lost its BIRD container. Alpine's
+# own 3.2.4 package and this Debian build of 3.4.0 import the same UPDATE and
+# stay up (measured 2026-10-22).
 
-FROM alpine:3.24.3 AS builder
+FROM debian:trixie-slim AS builder
 
 ARG BIRD_VERSION=3.4.0
 ARG BIRD_COMMIT=c3669497e3949b942d86d07e343092cc439b4659
 
-RUN apk add --no-cache build-base autoconf flex bison ncurses-dev readline-dev linux-headers git
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential autoconf flex bison libncurses-dev libreadline-dev git ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 RUN git clone --depth 1 --branch "v${BIRD_VERSION}" https://gitlab.nic.cz/labs/bird.git . && \
@@ -22,9 +31,11 @@ RUN git clone --depth 1 --branch "v${BIRD_VERSION}" https://gitlab.nic.cz/labs/b
     make -j"$(nproc)" && \
     make install DESTDIR=/out
 
-FROM alpine:3.24.3
+FROM debian:trixie-slim
 
-RUN apk add --no-cache iproute2 tini ncurses-libs readline && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends iproute2 tini libncursesw6 libreadline8t64 && \
+    rm -rf /var/lib/apt/lists/* && \
     mkdir -p /run/bird /etc/bird
 
 COPY --from=builder /out/usr/sbin/ /usr/sbin/
