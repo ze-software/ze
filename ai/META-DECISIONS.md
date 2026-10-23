@@ -139,8 +139,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   specs close, never raised.
 - A handover lives in the repository (`plan/handover/`) and is committed in the
   turn it is written, never only in a session directory.
-- While known reds are open, fix them with targeted reruns of the failing tests
-  only; verify the whole tree once, after they all pass.
+- Test selectively: run only the tests the change reaches (its packages, its
+  tagged units, its named functional tests). Never start a full verification
+  run or a full suite on your own initiative, at closure included; while known
+  reds are open, rerun only the failing tests.
 - Show the observed failure, trace its cause to the producing code, fix that
   code, and rerun the existing failing test without weakening its assertions.
   If the test itself is wrong, explain its exact defect and why its expectation
