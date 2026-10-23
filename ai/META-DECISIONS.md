@@ -85,6 +85,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   The full gate (`./le verify current`, `./le verify worktree`) runs once per
   piece of work, over its final commit, never between phases, review rounds or
   fixes.
+- A commit that changes only documentation or prose owes no full gate, before
+  a commit or before a push: the targeted checks for the files it touched are
+  its evidence. A push gate compares the pushed tree with the last green tree
+  ignoring such paths.
 - A check that ran is not re-run to reconfirm what its output said.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit. If `./le verify status check` is FRESH,
