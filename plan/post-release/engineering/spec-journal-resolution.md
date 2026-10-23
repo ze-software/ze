@@ -223,7 +223,7 @@ and the commit SHAs. The Pass Log is append-only otherwise.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | HEAD holds a check-captured class DUE at 1 counted row and an uncaptured class at 40 | the report prints the check-captured class first among DUE classes, then the rest by counted rows descending; text and JSON agree |
-| AC-2 | HEAD holds an `open:` row whose Fix cell cites `plan/spec-missing.md`, which does not exist at HEAD | the report names the class, the row date and the path under an unresolved-pointer line and still exits 0 |
+| AC-2 | HEAD holds an `open:` row whose Fix cell cites a spec path that does not exist at HEAD | the report names the class, the row date and the path under an unresolved-pointer line and still exits 0 |
 | AC-3 | A row added in the working tree is `open:` and cites a `plan/` spec path that does not exist on disk | `./le spec journal validate` names the line with a problem kind for the unresolved pointer and exits non-zero; a `fixed:` row citing a closed spec is not refused |
 | AC-4 | A spec declares `| Status | standing |` (if the owner approves the status) | the spec validation hook accepts it, `./le spec status` reports it, and the roadmap counts it as Backlog |
 | AC-5 | The session's claimed spec is `standing` and the session edits a `.go` file | `writeSpecStatus` allows the edit; the permitted set is read from `internal/le/spec/status`, and the hook holds no status literal |

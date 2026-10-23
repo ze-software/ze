@@ -533,4 +533,4 @@ MUST document: REQ-1 (EIM), REQ-2 (port preservation), REQ-3 (port parity), REQ-
 - [ ] Implementation Audit filled
 - [ ] Add the closure row to `plan/journal/<class>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
-- [ ] **Commit B:** `git rm plan/spec-cgnat.md`
+- [ ] **Commit B:** remove `plan/proposals/spec-cgnat.md` through the native closure script.
