@@ -58,6 +58,53 @@ func TestAnInterruptedStructuralStageIsNeverJudgedNotCharged(t *testing.T) {
 	}
 }
 
+// TestAnUnreadableFailureIndexIsReportedNotClean holds that the gate never
+// reads an index it could not parse, or a stage entry it could not parse, as
+// clean: it charges nothing from it, since it holds no verdict, and it names
+// what is wrong, why, and the command that rewrites it, in the verification
+// state the commit reports. A missing index is legitimately empty and reports
+// nothing. Method: a malformed index, an index with one malformed stage entry,
+// and no index at all.
+func TestAnUnreadableFailureIndexIsReportedNotClean(t *testing.T) {
+	for name, tc := range map[string]struct {
+		index string
+		want  bool
+	}{
+		"malformed index":       {index: `{"stages":[`, want: true},
+		"malformed stage entry": {index: `{"stages":[{"stage":7}]}`, want: true},
+		"no index":              {want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			writeCommitFixture(t, root, "mine.txt", "mine\n")
+			if tc.index != "" {
+				writeCommitFixture(t, root, "tmp/ze-verify-failures.json", tc.index)
+			}
+
+			reds := structuralGateReds(root, []string{"mine.txt"})
+
+			if len(reds.Charged) != 0 {
+				t.Fatalf("an unreadable index was charged: %#v", reds)
+			}
+			if got := len(reds.Unreadable) != 0; got != tc.want {
+				t.Fatalf("Unreadable = %#v, want reported %v", reds.Unreadable, tc.want)
+			}
+			if !tc.want {
+				return
+			}
+			for _, want := range []string{"tmp/ze-verify-failures.json", "no verdict", "le verify"} {
+				if !strings.Contains(reds.Unreadable[0], want) {
+					t.Errorf("unreadable cause %q does not say %q", reds.Unreadable[0], want)
+				}
+			}
+			state := verificationState(root, []string{"mine.txt"})
+			if !strings.Contains(state.Detail, reds.Unreadable[0]) {
+				t.Errorf("verification state %#v does not report the unreadable index", state)
+			}
+		})
+	}
+}
+
 // TestACurrentFormatExit130IsCharged holds that the exit-130 reading is only
 // for an index the old writer produced: the current writer never gives an
 // interrupted stage an exit, so 130 in its index is the stage's own red (a

@@ -3,8 +3,11 @@ package commit
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
@@ -59,6 +62,12 @@ type structuralReds struct {
 	// never judged, why, and the command that judges it.
 	Unjudged       []string
 	UnjudgedCauses []string
+	// Unreadable says, for the index or each stage entry the gate could not
+	// read, what is wrong, why, and the command that rewrites it. What it could
+	// not read holds no verdict, so nothing in it is charged, and it is never
+	// read as clean either: the commit reports it. A missing index is not
+	// here, because no run has published one and it is legitimately empty.
+	Unreadable []string
 }
 
 type failureIndex struct {
@@ -105,14 +114,28 @@ type failureGroup struct {
 // group names a narrower rerun for.
 const rerunAllStages = "le verify worktree"
 
+// failureIndexPath is the checkout's failure index, relative to its root.
+const failureIndexPath = "tmp/ze-verify-failures.json"
+
+// unreadableIndex answers the Unreadable cause for what of the failure index
+// could not be read: what, why, and the command that rewrites it.
+func unreadableIndex(what string, err error) string {
+	return failureIndexPath + ": " + what + " could not be read (" + err.Error() +
+		"), so it holds no verdict and nothing in it is charged; rewrite it with: le verify current"
+}
+
 func structuralGateReds(root string, paths []string) structuralReds {
-	content, err := os.ReadFile(filepath.Join(root, "tmp", "ze-verify-failures.json")) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-	if err != nil {
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(failureIndexPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+	if errors.Is(err, fs.ErrNotExist) {
+		// No run has published an index: there is nothing to charge.
 		return structuralReds{}
 	}
+	if err != nil {
+		return structuralReds{Unreadable: []string{unreadableIndex("the index", err)}}
+	}
 	var index failureIndex
-	if json.Unmarshal(content, &index) != nil {
-		return structuralReds{}
+	if err := json.Unmarshal(content, &index); err != nil {
+		return structuralReds{Unreadable: []string{unreadableIndex("the index", err)}}
 	}
 	scope := make([]string, 0, len(paths))
 	for _, path := range paths {
@@ -122,9 +145,11 @@ func structuralGateReds(root string, paths []string) structuralReds {
 	}
 	structural := structuralStages()
 	var result structuralReds
-	for _, rawStage := range index.Stages {
+	for position, rawStage := range index.Stages {
 		var stage failureStage
-		if json.Unmarshal(rawStage, &stage) != nil {
+		if err := json.Unmarshal(rawStage, &stage); err != nil {
+			result.Unreadable = append(result.Unreadable,
+				unreadableIndex("stage entry "+strconv.Itoa(position+1), err))
 			continue
 		}
 		if !structural[stage.Stage] {
@@ -305,9 +330,13 @@ func verificationState(root string, paths []string) VerificationState {
 		return state
 	}
 	// A stale certificate's report names each structural stage an interrupt
-	// left unjudged, so the commit says why it is not charged and how to
-	// judge it.
-	for _, cause := range structuralGateReds(root, paths).UnjudgedCauses {
+	// left unjudged, and what of the failure index could not be read, so the
+	// commit says why it is not charged and how to judge it.
+	reds := structuralGateReds(root, paths)
+	for _, cause := range reds.UnjudgedCauses {
+		state.Detail += "; " + cause
+	}
+	for _, cause := range reds.Unreadable {
 		state.Detail += "; " + cause
 	}
 	return state
