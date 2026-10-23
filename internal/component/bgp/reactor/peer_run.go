@@ -376,6 +376,10 @@ func (p *Peer) runOnce() error {
 		p.upPhase = sessionUpUnspecified
 		p.mu.Unlock()
 	}()
+	// Register before any accept rail can process an OPEN. A retained
+	// collision winner can publish negotiation and then fail its KEEPALIVE
+	// before the delivery worker (and its Established down) even exists.
+	defer p.endNegotiatedSession(session)
 
 	// Update state based on FSM mode
 	if p.settings.Connection.IsActive() {
@@ -518,7 +522,7 @@ func (p *Peer) runOnce() error {
 			// ops bypassed opQueue and the bgp-peer-sync quiescer reported the peer
 			// settled -- see setState (peer.go).
 
-			// Notify reactor of peer established and negotiated capabilities
+			// Notify the reactor that the session is established.
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()

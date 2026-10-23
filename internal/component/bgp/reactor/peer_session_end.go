@@ -7,6 +7,7 @@ package reactor
 import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // sessionLeave is what the FSM leave-Established arm hands Peer.runOnce's
@@ -26,6 +27,9 @@ type sessionLeave struct {
 // sessionEndHooks are test seams on the session end. Each nil hook is skipped.
 // Production never sets Peer.sessionEndHooks.
 type sessionEndHooks struct {
+	// beforeNegotiated runs after publication admission, before the phase mark.
+	// It holds no locks and may pause a BFD-driven publication.
+	beforeNegotiated func()
 	// leaveArm runs first in the leave-Established arm, on whichever goroutine
 	// drains the FSM's pending queue.
 	leaveArm func()
@@ -200,6 +204,66 @@ func (p *Peer) sessionDown(session *Session, deliverChan chan deliveryItem, deli
 	}
 	peerLogger().Info("session closed", "peer", p.settings.Address.String(), "reason", reason)
 	p.history.append(leave.transition)
+}
+
+// beginNegotiatedPublication admits at most one publication for this session.
+// The caller MUST mark negotiationDone after delivery, including panic unwinding.
+// Admission adds the publisher under mu before an ending session can wait.
+func (s *Session) beginNegotiatedPublication() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.negotiationEnded || s.negotiationStarted {
+		return false
+	}
+	s.negotiationStarted = true
+	s.negotiationDone.Add(1)
+	return true
+}
+
+// finishNegotiatedPublication seals admission and joins an admitted publisher.
+// It MUST run without peer/reactor locks: the publisher needs both to mark its
+// phase before delivering. Queued FSM callbacks cannot publish after this seal.
+func (s *Session) finishNegotiatedPublication() bool {
+	s.mu.Lock()
+	s.negotiationEnded = true
+	started := s.negotiationStarted
+	s.mu.Unlock()
+	if !started {
+		return false
+	}
+	s.negotiationDone.Wait()
+	return true
+}
+
+// endNegotiatedSession ends only the publication made in OpenConfirm. The
+// Established observers require an established session (and may remove routes),
+// so only the state dispatcher is told down. runOnce calls this after delivery
+// drains and before it can start the next connection.
+func (p *Peer) endNegotiatedSession(session *Session) {
+	if !session.finishNegotiatedPublication() {
+		return
+	}
+	p.mu.RLock()
+	reactor := p.reactor
+	negotiated := p.upPhaseLocked(session) == sessionUpNegotiated
+	p.mu.RUnlock()
+	if !negotiated {
+		return
+	}
+	p.markSessionUp(reactor, session, sessionUpClosing)
+	if reactor.eventDispatcher == nil {
+		return
+	}
+	closed := sessionClose{reason: rpc.ReasonTCPFailure}
+	if closeCause(session) != nil {
+		closed.reason = rpc.ReasonLocalClose
+	}
+	if p.notificationExchanged.Load() {
+		closed.reason = rpc.ReasonNotification
+		closed.notification = p.closingNotification()
+	}
+	observer := apiStateObserver{dispatcher: reactor.eventDispatcher}
+	observer.OnPeerClosed(p, closed)
 }
 
 // failReceivePublication records that the delivery worker could not publish a

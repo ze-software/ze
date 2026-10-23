@@ -250,6 +250,11 @@ type Session struct {
 	bufReader  *bufio.Reader // Wraps conn to batch kernel read syscalls
 	bufWriter  *bufio.Writer // Wraps conn to batch kernel write syscalls
 	negotiated *capability.Negotiated
+	// Negotiation publication is admitted once and joined before runOnce ends.
+	// Admission fields are protected by mu; delivery itself holds no lock.
+	negotiationStarted bool
+	negotiationEnded   bool
+	negotiationDone    sync.WaitGroup
 	// Updated at connection setup and interface address events; immutable on receive.
 	nextHopScope atomic.Pointer[receiveNextHopScope]
 	// rfc7606Errors bounds the RFC 7606 error log, one window per attribute

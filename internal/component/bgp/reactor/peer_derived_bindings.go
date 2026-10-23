@@ -398,6 +398,13 @@ func (p *Peer) markSessionUp(r *Reactor, session *Session, phase sessionUpPhase)
 // process without the event (Peer.applyHotSwappableSettings).
 // The caller MUST hold neither r.mu nor p.mu.
 func (p *Peer) announceNegotiated(r *Reactor, session *Session, neg *capability.Negotiated) {
+	if !session.beginNegotiatedPublication() {
+		return
+	}
+	defer session.negotiationDone.Done()
+	if hooks := p.sessionEndHooks.Load(); hooks != nil && hooks.beforeNegotiated != nil {
+		hooks.beforeNegotiated()
+	}
 	p.markSessionUp(r, session, sessionUpNegotiated)
 	r.notifyPeerNegotiated(p, neg)
 }

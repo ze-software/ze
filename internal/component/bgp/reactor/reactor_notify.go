@@ -151,12 +151,16 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 }
 
 // notifyPeerNegotiated sends negotiated capabilities to subscribed plugins.
-// Called after OPEN exchange completes and peer reaches Established.
+// Called once the OPENs are exchanged, on entry to OpenConfirm
+// (Peer.announceNegotiated), before the session reaches Established.
 func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	if r.eventDispatcher == nil || neg == nil {
 		return
 	}
 
+	// Dynamic settings still carry AS 0 until Established. Negotiation
+	// already resolved the current OPEN's full-width remote identity.
+	peer.mu.RLock()
 	peerInfo := plugin.PeerInfo{
 		Address:         peer.settings.Address,
 		LocalAddress:    peer.settings.LocalAddress,
@@ -164,9 +168,10 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 		LocalAddressStr: peer.localAddrString,
 		Name:            peer.settings.Name,
 		GroupName:       peer.settings.GroupName,
-		PeerAS:          peer.settings.PeerAS,
+		PeerAS:          neg.PeerASN,
 		LocalAS:         peer.settings.LocalAS,
 	}
+	peer.mu.RUnlock()
 
 	decoded := format.NegotiatedToDecoded(neg)
 	r.eventDispatcher.OnPeerNegotiated(&peerInfo, decoded)

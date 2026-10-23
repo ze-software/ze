@@ -5,6 +5,8 @@ package reactor
 
 import (
 	"context"
+	"encoding/json"
+	"net"
 	"net/netip"
 	"slices"
 	"sync"
@@ -16,9 +18,17 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
@@ -637,4 +647,318 @@ func sessionDownHistoryRow(t *testing.T, p *Peer, reason string) {
 		return
 	}
 	t.Fatalf("no leave-Established history row in %+v", rows)
+}
+
+// newNegotiatedLifetimePeer wires a real peer, dispatcher and IPC subscriber.
+func newNegotiatedLifetimePeer(t *testing.T, settings *PeerSettings) (*Peer, *stateLog, *mockLifecycleObserver) {
+	t.Helper()
+	if err := EnsureProcessBinding(settings, "monitor", "open-received negotiated state", ""); err != nil {
+		t.Fatal(err)
+	}
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	if err := r.AddPeer(settings); err != nil {
+		t.Fatal(err)
+	}
+	p := r.peers[settings.PeerKey()]
+	p.ctx, p.cancel = context.WithCancel(t.Context())
+	t.Cleanup(p.cancel)
+	srv := flowForwardPluginServer(t, r)
+	r.api = srv
+	dispatcher := bgpserver.NewEventDispatcher(srv)
+	r.eventDispatcher = dispatcher
+	r.setMessageReceiver(dispatcher)
+	observer := &mockLifecycleObserver{}
+	r.addPeerObserver(observer)
+	r.addPeerObserver(&apiStateObserver{dispatcher: dispatcher, reactor: r})
+
+	engineSide, pluginSide := net.Pipe()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "monitor"})
+	proc.SetConn(plugipc.NewPluginConn(engineSide, engineSide))
+	proc.StartDelivery(t.Context())
+	t.Cleanup(func() {
+		proc.Stop()
+		if err := pluginSide.Close(); err != nil {
+			t.Log(err)
+		}
+	})
+	for _, kind := range []string{bgpevents.EventOpen, bgpevents.EventNegotiated, bgpevents.EventState} {
+		direction := events.DirUnspecified
+		if kind == bgpevents.EventOpen {
+			direction = events.DirReceived
+		}
+		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
+			Namespace: events.LookupNamespaceID(bgpevents.Namespace),
+			EventType: events.LookupEventTypeID(kind),
+			Direction: direction,
+		})
+	}
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
+	log := &stateLog{}
+	go answerStateEvents(t.Context(), plugipc.NewPluginConn(pluginSide, pluginSide), log, nil)
+	return p, log, observer
+}
+
+// TestOpenConfirmFailureEndsNegotiatedCache drives two real runOnce handshakes
+// through the dispatcher and replays the process's events through the bridge.
+// The first fails before Established; the next OPEN must carry no old block.
+// A third connection fails before negotiation and must not invent another down.
+func TestOpenConfirmFailureEndsNegotiatedCache(t *testing.T) {
+	p, log, observer := newNegotiatedLifetimePeer(t, lowLiveSettings("192.0.2.1", 65000, 65002))
+
+	for cycle := range 3 {
+		done := make(chan error, 1)
+		go func() { done <- p.runOnce() }()
+		lowEventually(t, func() bool { return p.SessionState() == fsm.StateActive }, "passive session")
+		server, remote := net.Pipe()
+		v := &lowLivePeer{peer: p, remote: remote, stopped: make(chan struct{})}
+		go v.readFrames()
+		t.Cleanup(func() {
+			_ = remote.Close()
+			_ = server.Close()
+			<-v.stopped
+		})
+		if err := p.acceptConnection(server); err != nil {
+			t.Fatal(err)
+		}
+		if cycle < 2 {
+			open := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x0a000001,
+				OptionalParams: []byte{2, 6, 65, 4, 0, 0, 0xfd, 0xea, 2, 6, 1, 4, 0, 1, 0, 1}}
+			v.send(t, message.PackTo(open, nil))
+			// Reading the answering KEEPALIVE proves negotiated delivery returned,
+			// rather than merely seeing the FSM state before its callback ran.
+			lowEventually(t, func() bool {
+				v.mu.Lock()
+				defer v.mu.Unlock()
+				for _, frame := range v.frames {
+					if frame[18] == byte(msgtype.TypeKEEPALIVE) {
+						return true
+					}
+				}
+				return false
+			}, "OpenConfirm KEEPALIVE")
+		}
+		if err := remote.Close(); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("session teardown did not return")
+		}
+	}
+	if observer.establishedCount() != 0 || observer.closedCount() != 0 {
+		t.Fatal("pre-Established failure called Established lifecycle observers")
+	}
+
+	var sessions bridge.Sessions
+	opens, negotiated, downs := 0, 0, 0
+	for _, payload := range log.recorded() {
+		var batch struct {
+			Events []string `json:"events"`
+		}
+		if err := json.Unmarshal([]byte(payload), &batch); err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range batch.Events {
+			var data map[string]any
+			if err := json.Unmarshal([]byte(line), &data); err != nil {
+				t.Fatal(err)
+			}
+			event := bridge.ReadEvent(data)
+			sessions.Note(&event)
+			switch event.Kind {
+			case "open":
+				opens++
+				if event.Negotiated != nil {
+					t.Fatalf("OPEN %d inherited previous session capabilities: %v", opens, event.Negotiated)
+				}
+			case "negotiated":
+				negotiated++
+				probe := bridge.Event{Kind: "keepalive", Peer: event.Peer}
+				sessions.Note(&probe)
+				if probe.Negotiated == nil {
+					t.Fatal("negotiated event did not populate bridge cache")
+				}
+			case "state":
+				if event.Payload["state"] == "down" {
+					downs++
+				} else {
+					t.Fatalf("unexpected pre-Established state: %v", event.Payload)
+				}
+			}
+		}
+	}
+	if opens != 2 || negotiated != 2 || downs != 2 {
+		t.Fatalf("events: OPEN=%d negotiated=%d down=%d; want 2 each", opens, negotiated, downs)
+	}
+}
+
+// TestRetainedOpenFailureEndsNegotiatedCache fails the answering KEEPALIVE on
+// the retained collision-winner rail, before runOnce starts its read worker.
+func TestRetainedOpenFailureEndsNegotiatedCache(t *testing.T) {
+	p, log, observer := newNegotiatedLifetimePeer(t, lowLiveSettings("192.0.2.1", 65000, 65002))
+	open := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x0a000001,
+		OptionalParams: []byte{2, 6, 65, 4, 0, 0, 0xfd, 0xea}}
+	conn := &failAfterConn{writesLeft: 1}
+	p.mu.Lock()
+	p.inbound = inboundConnection{conn: conn, open: open, wire: message.PackTo(open, nil)}
+	p.collisionHandoff = true
+	p.mu.Unlock()
+	if err := p.runOnce(); err == nil {
+		t.Fatal("retained OPEN's answering KEEPALIVE did not fail")
+	}
+	if observer.establishedCount() != 0 || observer.closedCount() != 0 {
+		t.Fatal("retained OPEN failure called Established lifecycle observers")
+	}
+	requireNegotiatedLifetimeEnd(t, log, p.addrString)
+}
+
+// TestBFDNegotiatedPublicationJoinsSessionEnd pauses the actual BFD subscriber
+// after publication admission but before its phase mark. Closing the socket
+// must join that publisher, then send down, and reject a queued late callback.
+func TestBFDNegotiatedPublicationJoinsSessionEnd(t *testing.T) {
+	svc := &fakeBFDService{}
+	api.SetService(svc)
+	t.Cleanup(func() { api.SetService(nil) })
+	settings := lowLiveSettings("192.0.2.1", 65000, 65002)
+	settings.BFD = &BFDSettings{Enabled: true, Strict: true, HoldTime: 90}
+	settings.Capabilities = append(settings.Capabilities, &capability.BFDStrictMode{})
+	p, log, observer := newNegotiatedLifetimePeer(t, settings)
+	t.Cleanup(p.stopBFDClient)
+	entered, release, drained := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(release) }) }
+	t.Cleanup(unblock)
+	p.sessionEndHooks.Store(&sessionEndHooks{
+		beforeNegotiated: func() {
+			close(entered)
+			<-release
+		},
+		drained: func() { close(drained) },
+	})
+	done := make(chan error, 1)
+	go func() { done <- p.runOnce() }()
+	lowEventually(t, func() bool { return p.SessionState() == fsm.StateActive }, "strict passive session")
+	session := p.currentSession()
+	server, remote := net.Pipe()
+	v := &lowLivePeer{peer: p, remote: remote, stopped: make(chan struct{})}
+	go v.readFrames()
+	t.Cleanup(func() {
+		_ = remote.Close()
+		_ = server.Close()
+		<-v.stopped
+	})
+	if err := p.acceptConnection(server); err != nil {
+		t.Fatal(err)
+	}
+	open := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x0a000001,
+		OptionalParams: []byte{2, 8, 65, 4, 0, 0, 0xfd, 0xea, 74, 0}}
+	v.send(t, message.PackTo(open, nil))
+	lowEventually(t, func() bool {
+		return session.fsm.BfdSubState() == fsm.SubStateOpenSentBfdUpPending
+	}, "OPEN waiting for BFD")
+	p.bfd.mu.Lock()
+	handle, ok := p.bfd.handle.(*fakeBFDHandle)
+	p.bfd.mu.Unlock()
+	if !ok {
+		t.Fatal("strict peer did not start the BFD subscriber")
+	}
+	handle.emit(t, packet.StateUp, packet.DiagNone)
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("BFD subscriber did not enter negotiation publication")
+	}
+	if err := remote.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-drained:
+	case <-time.After(5 * time.Second):
+		t.Fatal("read loop did not finish while publication was paused")
+	}
+	lowEventually(t, func() bool {
+		session.mu.RLock()
+		defer session.mu.RUnlock()
+		return session.negotiationEnded
+	}, "publication admission sealed")
+	select {
+	case <-done:
+		t.Fatal("runOnce returned ahead of its admitted negotiation publication")
+	default:
+	}
+	unblock()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("session end did not join the released publisher")
+	}
+	if observer.establishedCount() != 0 || observer.closedCount() != 0 {
+		t.Fatal("BFD OpenConfirm failure called Established lifecycle observers")
+	}
+	requireNegotiatedLifetimeEnd(t, log, p.addrString)
+	before := len(log.recorded())
+	p.announceNegotiated(p.reactor, session, session.Negotiated())
+	if len(log.recorded()) != before {
+		t.Fatal("queued late callback republished negotiation after session end")
+	}
+	// A callback still queued before admission must also be refused, not
+	// just a duplicate of the publication that already completed above.
+	unpublished := NewSession(settings)
+	p.endNegotiatedSession(unpublished)
+	p.announceNegotiated(p.reactor, unpublished, session.Negotiated())
+	if len(log.recorded()) != before {
+		t.Fatal("callback admitted after an unpublished session ended")
+	}
+}
+
+// requireNegotiatedLifetimeEnd feeds the actual IPC events through the bridge,
+// proving positive cache population, ordered down, and an empty reconnect OPEN.
+func requireNegotiatedLifetimeEnd(t *testing.T, log *stateLog, peer string) {
+	t.Helper()
+	var sessions bridge.Sessions
+	negotiated, downs := 0, 0
+	for _, payload := range log.recorded() {
+		var batch struct {
+			Events []string `json:"events"`
+		}
+		if err := json.Unmarshal([]byte(payload), &batch); err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range batch.Events {
+			var data map[string]any
+			if err := json.Unmarshal([]byte(line), &data); err != nil {
+				t.Fatal(err)
+			}
+			event := bridge.ReadEvent(data)
+			sessions.Note(&event)
+			switch event.Kind {
+			case "negotiated":
+				negotiated++
+				if downs != 0 {
+					t.Fatal("negotiation published after down")
+				}
+				probe := bridge.Event{Kind: "keepalive", Peer: peer}
+				sessions.Note(&probe)
+				if probe.Negotiated == nil {
+					t.Fatal("negotiation did not populate the bridge cache")
+				}
+			case "state":
+				if event.Payload["state"] != "down" {
+					t.Fatalf("unexpected state: %v", event.Payload)
+				}
+				downs++
+			}
+		}
+	}
+	if negotiated != 1 || downs != 1 {
+		t.Fatalf("negotiated=%d down=%d, want one each", negotiated, downs)
+	}
+	open := bridge.Event{Kind: "open", Peer: peer}
+	sessions.Note(&open)
+	if open.Negotiated != nil {
+		t.Fatal("reconnect OPEN inherited ended session capabilities")
+	}
 }

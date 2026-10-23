@@ -482,18 +482,24 @@ const (
 
 ### Reactor Notification
 
-The FSM callback in `peer_run.go` notifies the reactor on Established
-transitions. A callback runs on whichever goroutine drains the FSM's pending
-queue: the read goroutine, a teardown caller, the hold timer, the BFD
-subscriber or a forward-pool worker. So the leave arm waits on nothing, and the
-down is announced later, by `runOnce` itself:
+The FSM callback in `peer_run.go` publishes negotiated capabilities on entry
+to OpenConfirm, before the answering KEEPALIVE, with identity from the current
+negotiation. Established transitions separately notify lifecycle observers.
+A callback runs on whichever goroutine drains the FSM's pending queue: the
+read goroutine, a teardown caller, the hold timer, the BFD subscriber or a
+forward-pool worker. So the leave arm waits on nothing, and the down is
+announced later, by `runOnce` itself:
 
 ```go
 session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
-    if to == fsm.StateEstablished {
+    if to == fsm.StateOpenConfirm {
+        if reactor != nil {
+            p.announceNegotiated(reactor, session, session.Negotiated())
+        }
+    } else if to == fsm.StateEstablished {
         // ... set negotiated capabilities ...
         if reactor != nil {
-            p.announceEstablished(reactor, session, neg) // marks the up phase around notifyPeerEstablished
+            p.announceEstablished(reactor, session) // marks the up phase around notifyPeerEstablished
         }
         p.startInitialRoutes()
     } else if from == fsm.StateEstablished {
@@ -523,6 +529,22 @@ follows `PeerStateConnecting`. A delivery worker that cannot publish a batch
 (a recovered receiver panic, or no receiver) tears its session down with Cease
 / Out of Resources (`failReceivePublication`), without waiting on itself.
 
+Before any handshake can publish negotiation, `runOnce` defers its publication
+end, including for a retained collision-winner OPEN. The session owns admission
+and completion of that publication. Ending seals admission, rejects queued late
+callbacks and waits for an admitted publication to finish, without holding
+reactor or peer locks across delivery. This also orders a BFD-subscriber
+publication against a read-loop failure.
+
+If the session published negotiation but never entered Established,
+`endNegotiatedSession` marks that publication closing and sends only the
+dispatcher's state-down event. It does not run Established lifecycle observers,
+route cleanup, BFD release or session-dropped reporting. A failure before
+publication emits no down. This ends the ExaBGP bridge's negotiated block and
+attribute context before the next connection's OPEN; both caches live until
+state down, not merely until the socket closes. Established teardown still
+follows the table above, with exactly one down after all buffered UPDATEs.
+
 Every callback receives the event whose handling made its change: `Event`
 records it before dispatching, and `change` queues it with the transition, so a
 callback drained on another goroutine still reads its own cause. `change` sets
@@ -533,7 +555,7 @@ queues the enter transition's callback.
 <!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- FSM.Event, FSM.change -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
-<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceEstablished, Peer.announceClosed, Peer.announceDown -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceNegotiated, Peer.announceEstablished, Peer.announceClosed, Peer.announceDown -->
 <!-- source: internal/component/bgp/reactor/peer_session_end.go -- Peer.leaveSession, Peer.sessionDown, failReceivePublication -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- FSM.EnteredEstablished -->
 
