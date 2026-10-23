@@ -622,8 +622,13 @@ behind an `SO_REUSEPORT` gate, and colliding test-fake pool IDs.
 | Completion test fails intermittently | A real bug, not a flake | Check `completeShowPath` includes YANG schema children |
 | Inter-message timing in plugin tests | Sleep too tight under load | Increase the inter-message delay, or synchronize |
 
-A darwin `FAIL` caused by a `_other.go` stub returning `ErrUnsupported` is a
-test-setup bug rather than a real failure. Keep the failure list meaningful.
+Keep portable protocol assertions running on every platform. An unsupported
+platform service is not a reason to skip authentication or lifecycle checks.
+The PPP NCP lifetime fixtures require the authenticated principal, negotiated
+address and address-before-session-up ordering everywhere. They require no
+IPv6 backend call from the non-Linux stub; Linux additionally requires the
+negotiated link-local address pair.
+<!-- source: internal/component/l2tp/ppp/lcp_lifecycle_test.go -- assertLifecycleNCPPublished -->
 
 Reproducing a load-dependent flake is
 `../architecture/testing/runner-architecture.md`.

@@ -1153,9 +1153,9 @@ func ncpSetLength(body []byte, length uint16) {
 	body[3] = byte(length)
 }
 
-// onNCPOpened runs per-family post-Opened side effects. For IPv4 this
-// programs pppN with the assigned address and peer route. For IPv6 no
-// backend call is made (kernel auto-derives link-local). Both publish and await
+// onNCPOpened runs per-family post-Opened side effects. IPv4 programs
+// pppN with its assigned address and peer route. The platform's IPv6
+// service programs IPv6 addresses. Both publish and await
 // EventSessionIPAssigned, except IPv6 skips it when peerInterfaceID was
 // never negotiated (session.go: peerInterfaceIDNegotiated): the event
 // exists to carry the peer's identifier, and there is none to carry.

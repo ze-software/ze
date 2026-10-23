@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"net"
 	"net/netip"
+	"runtime"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -487,8 +488,17 @@ func assertLifecycleNCPPublished(t *testing.T, events <-chan Event, backend *fak
 		}
 		return
 	}
-	// IPv6-only completion programs no IPv4 address. Its one p2p call is
-	// the negotiated link-local pair the IPv6 service installs on pppN.
+	// The non-Linux IPv6 service stub returns errNotLinux without touching
+	// the backend. The portable assignment and session-up events above still
+	// prove that the authenticated NCP exchange completed.
+	if runtime.GOOS != "linux" {
+		if len(calls) != 0 {
+			t.Fatalf("unsupported IPv6 service programmed addresses: %+v", calls)
+		}
+		return
+	}
+	// On Linux, IPv6-only completion programs no IPv4 address. Its one p2p
+	// call is the negotiated link-local pair the IPv6 service installs on pppN.
 	if len(calls) != 1 {
 		t.Fatalf("IPv6-only completion programmed %d addresses, want the link-local pair only: %+v", len(calls), calls)
 	}
