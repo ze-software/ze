@@ -44,7 +44,12 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 	// Get encoding context for add-path detection.
 	// RFC 7911 Section 3: read ADD-PATH from the UPDATE, not its attribute
 	// section, which a withdraw-only UPDATE does not have.
-	encCtx := msg.SourceEncodingContext()
+	encCtx, known := msg.SourceEncodingContext()
+	if !known {
+		logger().Error("withdrawal map not updated: the UPDATE names an encoding context the registry does not hold, so its ADD-PATH layout is unknown",
+			"peer", sourcePeer, "context-id", wu.SourceCtxID(), "message-id", msg.MessageID)
+		return
+	}
 
 	// Withdrawals (del) run BEFORE announces (add), and the order is load-bearing.
 	// RFC 4271 Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and

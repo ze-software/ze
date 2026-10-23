@@ -69,11 +69,22 @@ func (m *RawMessage) IsAsyncSafe() bool {
 // AttrsWire is built from the same WireUpdate (WireUpdate.Attrs), so the two
 // agree whenever both exist.
 //
-// It returns nil when the message is not an UPDATE wrapper or the context id
-// is not registered: the caller then knows of no negotiated ADD-PATH.
-func (m *RawMessage) SourceEncodingContext() *bgpctx.EncodingContext {
+// Context id zero is the one an UPDATE carries when no session negotiated it
+// (bgp-rib injection, BMP replay): the registry never hands it out, so it
+// means "no ADD-PATH", and so does a message that is not an UPDATE wrapper.
+// Both answer nil, true. A non-zero id the registry does not hold answers nil,
+// false: the UPDATE was decoded under a negotiation nobody can name, so
+// whether its NLRI carry Path Identifiers is unknown, and a caller that read
+// nil as "no ADD-PATH" would walk an ADD-PATH section from the wrong octet.
+// The caller MUST refuse such an UPDATE rather than read its NLRI.
+func (m *RawMessage) SourceEncodingContext() (*bgpctx.EncodingContext, bool) {
 	if m.WireUpdate == nil {
-		return nil
+		return nil, true
 	}
-	return bgpctx.Registry.Get(m.WireUpdate.SourceCtxID())
+	id := m.WireUpdate.SourceCtxID()
+	if id == 0 {
+		return nil, true
+	}
+	ctx := bgpctx.Registry.Get(id)
+	return ctx, ctx != nil
 }

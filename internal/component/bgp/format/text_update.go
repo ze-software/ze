@@ -106,7 +106,12 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 		content.Format == plugin.FormatParsed &&
 		content.Attributes == nil && content.NLRI == nil &&
 		msg.AttrsWire != nil {
-		return appendParsedUpdateJSONDirect(buf, peer, msg, msg.SourceEncodingContext(), direction, messageType)
+		encCtx, known := msg.SourceEncodingContext()
+		if !known {
+			// The ADD-PATH layout is unknown, so no route can be read from it.
+			return appendEmptyUpdate(buf, peer, msg, content, direction, messageType)
+		}
+		return appendParsedUpdateJSONDirect(buf, peer, msg, encCtx, direction, messageType)
 	}
 
 	// Get attribute filter (nil means all)
@@ -134,8 +139,13 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 
 		// RFC 7911 Section 3: the ADD-PATH state comes from the UPDATE itself,
 		// so a withdraw-only UPDATE (no attribute section) keeps its Path
-		// Identifiers.
-		return appendFromFilterResult(buf, peer, msg, content, result, msg.SourceEncodingContext(), direction, messageType)
+		// Identifiers. An UPDATE naming a context the registry does not hold
+		// has no known layout, so no route is read from it.
+		encCtx, known := msg.SourceEncodingContext()
+		if !known {
+			return appendEmptyUpdate(buf, peer, msg, content, direction, messageType)
+		}
+		return appendFromFilterResult(buf, peer, msg, content, result, encCtx, direction, messageType)
 	}
 
 	// Non-UPDATE messages: pass typed direction (no .String() on hot path).

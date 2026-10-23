@@ -63,15 +63,20 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 	}
 	wu := msg.WireUpdate
 
+	// RFC 7911 Section 3: read ADD-PATH from the UPDATE, not its attribute
+	// section, which a withdraw-only UPDATE does not have.
+	encCtx, known := msg.SourceEncodingContext()
+	if !known {
+		logger().Error("NLRI records not extracted: the UPDATE names an encoding context the registry does not hold, so its ADD-PATH layout is unknown",
+			"context-id", wu.SourceCtxID(), "message-id", msg.MessageID)
+		return nil
+	}
+
 	sp, ok := nlriRecordPool.Get().(*nlriRecords)
 	if !ok {
 		return nil
 	}
 	sp.records = sp.records[:0]
-
-	// RFC 7911 Section 3: read ADD-PATH from the UPDATE, not its attribute
-	// section, which a withdraw-only UPDATE does not have.
-	encCtx := msg.SourceEncodingContext()
 
 	// Withdrawn records are appended BEFORE announced ones, and the order is
 	// load-bearing: every consumer walks this slice in order, and
