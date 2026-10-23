@@ -627,7 +627,7 @@ spec.
 | `spec-bgp-prefix-sid-rfc-defects` (closed 2026-10-20) | RFC8669-6-1, RFC9252-3.4-1, RFC9252-3.2.1-3, RFC9252-5-1, RFC9252-7-1 |
 | `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` | RFC4724-4-2, RFC9494-4.2-8, RFC9494-4.3-1, RFC9494-4.3-3, RFC9494-4.2-6 with 4.3-2 |
 | spec-bgp-open-session-rfc-defects (closed 2026-10-21) | RFC9072-2-1, RFC6286-2.1-1, and two Ze behaviour defects with journal rows |
-| `plan/release/validation/spec-bgp-update-propagation-rfc-defects.md` | RFC4271-4.3-3 and 4.3-4, RFC8092-3-1, MUP 3.1.3.1-6/-7/-10, RFC9234-3.1-1, RFC7999-3.1-2, RFC 2545 Section 3 with LINKLOCAL-CAPABILITY-4-2 |
+| `spec-bgp-update-propagation-rfc-defects` (closed 2026-10-23) | RFC4271-4.3-3 and 4.3-4, RFC8092-3-1, MUP 3.1.3.1-6/-7/-10, RFC9234-3.1-1, RFC7999-3.1-2, RFC 2545 Section 3 with LINKLOCAL-CAPABILITY-4-2 |
 | `spec-bgp-sr-policy-rfc-defects` (closed 2026-10-21) | RFC 9830 Section 2.4.2 flags and BSID label, RFC9830-4.2.1-2 |
 | `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` | RFC 7854 Section 4.9 reason 4, SFLOW-V5-x-11 |
 | `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` | RFC 9568 Section 8.1.2, and the vpp verifier parity journal row |

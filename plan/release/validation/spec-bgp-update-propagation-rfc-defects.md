@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-10-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -670,6 +670,7 @@ Added at closure (2026-10-21): the design phase left this table and the next one
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/bgp-update-propagation-rfc-defects-0b4a8e87-9c06-4f85-90a2-0445cb843906.md`, re-recorded 2026-10-21 with `rounds 5` (109 files, verdict clean). Four reviewed files are left out of the re-record because other specs' commits changed them after round 5 (reviewed at 5af84be2ea): `docs/architecture/testing/interop.md` (bde7ee3a09 and others), `message/rfc7606_withdraw.go` (c972e77416), `interoplab/bgp/checkers.go` and `names.go` (c379d157b1) |
+| Closure re-record, 2026-10-23 | `tmp/review/bgp-update-propagation-rfc-defects-9b5c1d68-9221-4876-b88d-f55e905c0f79.md`, `rounds 5`, verdict clean, over the 70 reviewed files whose bytes still equal round 5's. The other 23 were changed after round 5 only by other specs' commits (e306f08858, 0883a60fff, ecc446c73b, 0350bb7e96, a870c72164, 74c7fa5193, 2f5c10c737, 98c1ca04a5, 1994b7c89a, 4831b585d9, 01b86d8f1a, afbfe6b42f, 2ad0b56c6b, ecf2804fc1, 7848d67b8a; the last renamed `draft_ietf_bess_mup_safi_held_wiring_test.go` to `held_wiring_test.go` with no content change), each under its own spec's gate, so they are left out rather than re-reviewed here. `./le spec review check` over those 70 files plus this spec: OK (45 code files) |
 | `./le spec review check` | OK, 2026-10-21. Round 5: 0 BLOCKER, 0 ISSUE. No code changed after round 5 (aadfe7bc07 is the handover only) |
 | Rounds | 5: round 1 over every D1 to D5 commit, rounds 2 and 3 over the fixes, round 4 over 0bd7a50667 and 05ea9ac55d (1 ISSUE), round 5 over its fix 5af84be2ea; each finding a product defect |
 | Reviewer lenses used | protocol and wire, guards and security, performance (allocations, message size), proof and wiring |
@@ -842,7 +843,7 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 | AC-10, AC-10a | Done | `TestMUPMalformedT1STWithdrawEdges`, `TestMUPUnkeyableMalformedT1STDiscardedNotRelayed`, `TestMUPHeldGenerationWithdrawalsFitTheMessageLimit` | |
 | AC-11 | Done | `TestOTCEgressFilter`, `rfc9234-rs-client-learned-not-upward.ci` | |
 | AC-12, AC-12a | Done | `TestRFC7999ReadvertiseWithheldWithoutAgreement`, `TestRFC7999AgreementReloadTransaction`, `rfc7999-blackhole-readvertise-agreement.ci`, `test/reload/rfc7999-blackhole-agreement-removed-by-reload.ci` | |
-| AC-5 | Done | `rfc/audit/*.json`: all eight IDs `enforced`, MUP three rejudged in 399ee383e1 and 1a8c2b90c6 | |
+| AC-5 | Done | `rfc/audit/*.json`: all eight IDs `enforced` in HEAD, MUP three rejudged in 399ee383e1 and 1a8c2b90c6 | 2026-10-23: another session's uncommitted rejudge moves DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 to `partial`. The cause is not this spec's producer: `mup/types.go::parseBodyT1ST` accepts a -02 T1ST that ends at the Endpoint Address with no Source Address Length octet (98c1ca04a5), the owner-approved ExaBGP compatibility decision of 2026-10-22 recorded in `plan/release/fixes/spec-exabgp-6-api-compatibility.md`. Under `rfc-compliance.md` an owner-approved deviation is not counted conformant, so that clause stays a recorded deviation owned by that decision. Every shape this spec's AC-3a names (Length ending inside the Endpoint Address) is still treated as withdrawn |
 | AC-13 | see Goal Validation | interop green and red runs | |
 
 ### Tests from TDD Plan
@@ -873,7 +874,7 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 | a malformed MUP route is withdrawn, not kept | interop + functional | `bgp-mup-malformed-t1st-withdraw-gobgp` green `[3/5] ... pass (57s)`, red INTEROP-RED-D3; `.ci` red with the substitution off (Ze sent K'), green on |
 | RS-Client-learned routes stay off upward sessions | interop + functional | `bgp-role-rs-client-learned-not-upward-frr` green `[5/5] ... pass (4s)`, red INTEROP-RED-D4; `rfc9234-rs-client-learned-not-upward.ci` |
 | BLACKHOLE reaches only agreed peers | interop + functional | `bgp-rfc7999-blackhole-readvertise-frr` green `[4/5] ... pass (8s)`, red INTEROP-RED-D5; `rfc7999-blackhole-readvertise-agreement.ci` |
-| verdicts reach `enforced` | audit | eight IDs `enforced` in `rfc/audit/` (independent rejudge) |
+| verdicts reach `enforced` | audit | eight IDs `enforced` in `rfc/audit/` at HEAD (independent rejudge); 3.1.3.1-6 is being re-judged `partial` for the owner-approved -02 T1ST compatibility read (AC-5 row) |
 
 ## Work Not Done
 
@@ -895,12 +896,14 @@ whole-spec closure or skeleton deletion is authorized by this D6 record.
 |-------|-------|----------------|
 | AC-3, AC-10, AC-10a | malformed withdrawn by held generation, bounded, unkeyable discarded | `go test -race` reactor/nlritype/mup in a `git archive` export of 897ac54217: ok; `--- PASS` for every `TestMUP*` unit; `.ci` `mup-t1st-malformed-treat-as-withdraw` PASS |
 | AC-1, AC-2, AC-11, AC-12 | D1, D2, D4, D5 | `go test -race` filter_community, role, gr, reactor in an export of 88ef88edda: ok |
-| AC-5 | eight IDs enforced | `rfc/audit/{rfc4271,rfc8092,draft-ietf-bess-mup-safi,rfc9234,rfc7999}.json` read 2026-10-21: all `enforced` |
+| AC-5 | eight IDs enforced | `rfc/audit/{rfc4271,rfc8092,draft-ietf-bess-mup-safi,rfc9234,rfc7999}.json` read 2026-10-21: all `enforced`; re-read 2026-10-23 at HEAD: all `enforced` (working tree: 3.1.3.1-6 `partial`, see AC-5 audit row) |
+| AC-1 to AC-12a | closure re-run, 2026-10-23, scoped | `./le job run ... go test -race -count=1` over `plugins/role`, `plugins/filter_community`, `plugins/nlri/mup`, `core/bgp/nlri/nlritype`, `plugins/cmd/announce`, `core/bgp/attribute`: all ok; `go test -race -run 'TestRFC4271\|TestRFC8092\|TestMUP\|TestDraftLinkLocal\|TestRFC2545\|TestRFC8669'` over `reactor` and `message`: ok (reactor 47s; `-list` confirms every D1, D2 and D3 unit named in the Audit matched) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | malformed T1ST after a well-formed generation, relayed through bgp-rs | `test/plugin/mup-t1st-malformed-treat-as-withdraw.ci` | read: expects K's held bytes in MP_UNREACH_NLRI and rejects K' anywhere; red with the substitution off |
+| D1 to D5 relays, closure re-run 2026-10-23 | `rfc4271-attr-flags-low-nibble-relay`, `rfc8092-large-community-no-repeat-egress`, `mup-t1st-malformed-treat-as-withdraw`, `rfc9234-rs-client-learned-not-upward`, `rfc7999-blackhole-readvertise-agreement` (`le test bgp plugin`), `rfc7999-blackhole-agreement-removed-by-reload` (`le test bgp reload`) | all six PASS in a `git archive` export of HEAD e66e668efb. `linklocal-only-multihop-withdraw` SKIP on darwin (needs-linux). In the shared working tree, which carries other sessions' uncommitted reactor edits, the RFC 9234 and RFC 7999 readvertise `.ci` fail (no withdrawal reaches the provider; dest C check); HEAD does not, so that red belongs to the uncommitted work |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
