@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- the green record a push is judged against
-// Related: lifecycle.go -- the run whose own verdict is the only writer of the record
+// Related: lifecycle.go -- the run whose own verdict writes the record through recordGreen
 // Related: sweep.go -- every piece of one cut, run in one invocation
 package verify
 
@@ -278,7 +278,8 @@ func recordGreen(ctx context.Context, root string, part verifyengine.Part, repor
 }
 
 // writeGreen writes the green record for commit, dealt into pieces, and when
-// cut forgets the parts record, which the green record now holds. An uncut run
+// cut forgets the parts record of that commit and that cut, which the green
+// record now holds. An uncut run
 // leaves the parts record alone: it may be another cut's, over another commit.
 // It answers the diagnostic to print and whether the green record was written.
 //
@@ -309,7 +310,7 @@ func writeGreen(ctx context.Context, root, commit string, pieces int, cut bool, 
 	if !cut {
 		return text.Str("verify-worktree: green record written to ").Str(GreenPath).String(), true
 	}
-	if err := forgetParts(root, commit); err != nil {
+	if err := forgetParts(root, commit, pieces); err != nil {
 		return text.Str("verify-worktree: green record written to ").Str(GreenPath).
 			Str("; the parts record was not removed: ").Err(err).String(), true
 	}
@@ -409,13 +410,16 @@ func partsComplete(passed []int, of int) bool {
 }
 
 // forgetParts drops the parts record once the green record holds what commit's
-// pieces proved, so the next cut over this commit starts from the green record.
+// pieces, cut into of, proved, so the next cut over this commit starts from the
+// green record.
 //
-// It removes the file under the lock recordPart takes. A record that names
-// another commit once the lock is held is that commit's progress, written by a
-// recordPart that ran between the green write and this call, and it stays:
-// removing it would lose that piece's credit.
-func forgetParts(root, commit string) error {
+// It removes the file under the lock recordPart takes. A record pinned to
+// another commit or to another cut once the lock is held is that pair's
+// progress, the same pinning provenParts reads, and it stays: a recordPart
+// that ran between the green write and this call wrote it, and removing it
+// would lose that piece's credit. A sweep of all of 4 over the commit a cut of
+// 3 just completed is one such record.
+func forgetParts(root, commit string, of int) error {
 	path := filepath.Join(root, filepath.FromSlash(partsPath))
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -435,6 +439,9 @@ func forgetParts(root, commit string) error {
 	// An unreadable record is a record of nothing, so it goes too.
 	if json.Unmarshal(content, &held) == nil {
 		if held.Commit != commit {
+			return nil
+		}
+		if held.Of != of {
 			return nil
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -309,17 +310,99 @@ func TestForgetPartsKeepsAnotherCommitsRecord(t *testing.T) {
 	if _, err := recordPart(root, "other", verifyengine.Part{Index: 1, Of: 2}, at); err != nil {
 		t.Fatal(err)
 	}
-	if err := forgetParts(root, "green"); err != nil {
+	if err := forgetParts(root, "green", 2); err != nil {
 		t.Fatalf("forget the green commit's parts: %v", err)
 	}
 	if got := provenParts(root, "other", 2); !slices.Equal(got, []int{1}) {
 		t.Fatalf("the other commit's parts after the green commit's forget = %v, want [1]", got)
 	}
-	if err := forgetParts(root, "other"); err != nil {
+	if err := forgetParts(root, "other", 2); err != nil {
 		t.Fatalf("forget the other commit's parts: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(partsPath))); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("the parts record survived its own commit's forget (%v)", err)
+	}
+}
+
+// TestForgetPartsKeepsAnotherCutsRecord: the green write for one commit cut
+// into 3 forgets the parts record only while that record is still pinned to
+// that cut. A sweep of all of 4 over the same commit holds its own progress
+// there, and removing it would end that sweep saying no green record was
+// written while the record names the commit.
+//
+// MUTATION: drop the cut check in forgetParts and the all of 4 piece is
+// removed, so provenParts answers nothing for it.
+func TestForgetPartsKeepsAnotherCutsRecord(t *testing.T) {
+	root := t.TempDir()
+	if _, err := recordPart(root, "green", verifyengine.Part{Index: 1, Of: 4}, time.Unix(0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if err := forgetParts(root, "green", 3); err != nil {
+		t.Fatalf("forget the cut of 3: %v", err)
+	}
+	if got := provenParts(root, "green", 4); !slices.Equal(got, []int{1}) {
+		t.Fatalf("the cut of 4's parts after the cut of 3's forget = %v, want [1]", got)
+	}
+	if err := forgetParts(root, "green", 4); err != nil {
+		t.Fatalf("forget the cut of 4: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(partsPath))); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the parts record survived its own cut's forget (%v)", err)
+	}
+}
+
+// TestForgetPartsWaitsForThePartsLock: forgetParts reads and removes the parts
+// record under the lock recordPart takes. The test holds that lock, as a
+// recordPart would, and forgetParts must not finish while it is held. Under the
+// lock the test then rewrites the record for another commit, the piece a
+// recordPart lands between the green write and the forget; once the lock is
+// released forgetParts reads that record and leaves it.
+//
+// MUTATION: make forgetParts read and remove without lockParts, and it finishes
+// while the lock is held, removing the record the test is about to rewrite.
+func TestForgetPartsWaitsForThePartsLock(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, filepath.FromSlash(partsPath))
+	at := time.Unix(0, 0)
+	if _, err := recordPart(root, "green", verifyengine.Part{Index: 1, Of: 2}, at); err != nil {
+		t.Fatal(err)
+	}
+
+	held, err := lockParts(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close() //nolint:errcheck // the test reads nothing back from it
+
+	done := make(chan error, 1)
+	go func() { done <- forgetParts(root, "green", 2) }()
+	select {
+	case err := <-done:
+		t.Fatalf("forgetParts finished while the parts lock was held (err %v)", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("the parts record is gone while the parts lock was held: %v", err)
+	}
+
+	other := []byte(`{"commit": "other", "of": 2, "passed": [1], "updated": "1970-01-01T00:00:00Z"}` + "\n")
+	if _, err := held.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := held.Write(other); err != nil {
+		t.Fatal(err)
+	}
+	if err := held.Truncate(int64(len(other))); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Flock(int(held.Fd()), syscall.LOCK_UN); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("forget after the lock was released: %v", err)
+	}
+	if got := provenParts(root, "other", 2); !slices.Equal(got, []int{1}) {
+		t.Errorf("the piece written under the lock after the forget = %v, want [1]", got)
 	}
 }
 
@@ -345,7 +428,7 @@ func TestHoldPartsRefusesARemovedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer early.Close() //nolint:errcheck // the test reads nothing back from it
-	if err := forgetParts(root, "green"); err != nil {
+	if err := forgetParts(root, "green", 2); err != nil {
 		t.Fatalf("forget: %v", err)
 	}
 	named, err := holdParts(early, path)
