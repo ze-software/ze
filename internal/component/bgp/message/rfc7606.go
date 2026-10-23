@@ -284,6 +284,10 @@ func ValidateUpdateRFC7606AddPath(
 	strongest := RFC7606ActionNone
 	var strongestCode uint8
 	var strongestDesc string
+	// strongestMPAttr is the whole MP_REACH_NLRI or MP_UNREACH_NLRI attribute whose NLRI
+	// produced the strongest verdict, nil when another attribute did. It is the Data of the
+	// NOTIFICATION if RFC 7606 Section 5.2 escalates that verdict to a session reset.
+	var strongestMPAttr []byte
 	var discardEntries []DiscardEntry
 	var discardDescriptions []string
 
@@ -370,6 +374,9 @@ func ValidateUpdateRFC7606AddPath(
 			strongest = r.Action
 			strongestCode = r.AttrCode
 			strongestDesc = r.Description
+			// A stronger verdict replaces the MP attribute that held the strongest one; the
+			// MP NLRI branch below sets it again when that verdict is its own.
+			strongestMPAttr = nil
 		}
 	}
 
@@ -480,6 +487,13 @@ func ValidateUpdateRFC7606AddPath(
 			prefixSID = AttrRange{Start: pos - attrLen, End: pos}
 		}
 
+		// RFC 7606 Section 5.3: an MP attribute too short to hold its fixed header. Judged
+		// here rather than in the attrValidators table because the reset's NOTIFICATION
+		// carries the whole attribute, which the table's signature does not see.
+		if r := validateMPAttrLength(attrCode, pathAttrs[attrStart:pos], attrLen); r != nil {
+			return r
+		}
+
 		// Validate specific attributes per RFC 7606 Section 7
 		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
 		if result != nil && result.Action != RFC7606ActionNone {
@@ -492,15 +506,22 @@ func ValidateUpdateRFC7606AddPath(
 		}
 
 		// RFC 7606 Section 5.3: NLRI syntax inside MP attributes, ADD-PATH aware. Done here
-		// rather than in validateMPReachAttr/validateMPUnreachAttr because it needs the
-		// per-family ADD-PATH state to skip the RFC 7911 path identifier. The MP attribute
-		// has already passed its minimum-length (and, for MP_REACH, next-hop) checks above.
+		// rather than in the attrValidators table because it needs the per-family ADD-PATH
+		// state to skip the RFC 7911 path identifier. The MP attribute has already passed its
+		// minimum-length (validateMPAttrLength) and, for MP_REACH, next-hop checks above.
 		if attrCode == attrCodeMPReachNLRI || attrCode == attrCodeMPUnreachNLRI {
 			if r := validateMPNLRIField(attrCode, pathAttrs[attrStart:pos], attrData, addPathFor); r != nil {
 				if r.Action == RFC7606ActionSessionReset {
 					return r
 				}
+				previous := strongest
 				recordError(r)
+				// The NLRI section walked, so this verdict is not a reset on its own, but
+				// RFC 7606 Section 5.2 escalates it below when the UPDATE carries no
+				// reachable NLRI, and the escalated reset is about this attribute.
+				if strongest > previous {
+					strongestMPAttr = pathAttrs[attrStart:pos]
+				}
 			}
 		}
 
@@ -536,9 +557,10 @@ func ValidateUpdateRFC7606AddPath(
 			mpUnreachNLRI = locateMPNLRI(attrCode, attrData)
 		}
 
-		// RFC 7606 Section 3.g: "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
-		// attribute appears more than once in the UPDATE message, then a NOTIFICATION
-		// message MUST be sent with the Error Subcode 'Malformed Attribute List'."
+		// RFC 7606 Section 3 (g): "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
+		// [RFC4760] attribute appears more than once in the UPDATE message, then a
+		// NOTIFICATION message MUST be sent with the Error Subcode "Malformed Attribute
+		// List"."
 		//
 		// Judged HERE, the moment the second one is seen, not after the loop. Section 3.h
 		// already makes session reset immediate, and every other session-reset verdict in
@@ -552,6 +574,11 @@ func ValidateUpdateRFC7606AddPath(
 		// another -- the Section 5.4 recognizer for one family applied to another family's
 		// NLRI. Reporting the duplicate when it is seen removes the whole class: no exit
 		// added to this loop later can outrun it.
+		// The duplicate is a fault of the attribute list, not of either attribute, so this
+		// reset keeps Malformed Attribute List rather than RFC 4760 Section 7's Optional
+		// Attribute Error (MPAttributeErrorNotification): RFC 7606 Section 3 (g) names the
+		// subcode and outranks RFC 4760 for this case. Notification stays nil, and the
+		// reactor's default reset sends 3/1 with empty Data.
 		if mpReachCount > 1 || mpUnreachCount > 1 {
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionSessionReset,
@@ -624,11 +651,19 @@ func ValidateUpdateRFC7606AddPath(
 	// so an UPDATE whose only attribute is MP_UNREACH_NLRI is not escalated: a walkable
 	// malformed NLRI in it stays treat-as-withdraw (RFC 9830 Section 5).
 	if !hasReachableNLRI && hasAttrOtherThanMPUnreach && strongest > RFC7606ActionAttributeDiscard {
-		return &RFC7606ValidationResult{
+		escalated := &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    strongestCode,
 			Description: "RFC 7606 Section 5.2: " + strongestDesc + " (escalated — attrs with no NLRI)",
 		}
+		// An MP attribute's malformed NLRI makes that attribute incorrect, so the reset is
+		// the RFC 4760 Section 7 one. Any other escalated error keeps Malformed Attribute
+		// List (the reactor's default).
+		if strongestMPAttr != nil {
+			// RFC 4760 Section 7.
+			escalated.Notification = MPAttributeErrorNotification(strongestMPAttr)
+		}
+		return escalated
 	}
 
 	if strongest == RFC7606ActionNone {
@@ -683,7 +718,6 @@ func init() {
 	attrValidators[attrCodeExtCommunity] = validateExtCommunityAttr
 	attrValidators[attrCodeLargeCommunity] = validateLargeCommunityAttr
 	attrValidators[attrCodeMPReachNLRI] = validateMPReachAttr
-	attrValidators[attrCodeMPUnreachNLRI] = validateMPUnreachAttr
 	attrValidators[attribute.AttrAIGP] = validateAIGPAttr
 }
 
@@ -942,37 +976,55 @@ func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RF
 	return nil
 }
 
-// RFC 7606 Section 5.3/7.11: MP_REACH_NLRI minimum length 5, next-hop validation.
-func validateMPReachAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
-	if length < 5 {
-		var b textbuf.Buffer
-		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionSessionReset,
-			AttrCode:    code,
-			Description: b.Reset().Str("RFC 7606 Section 5.3: MP_REACH_NLRI length ").Int(int64(length)).Str(" < 5").String(),
-		}
-	}
+// RFC 7606 Section 7.11: MP_REACH_NLRI next-hop validation. The minimum length is judged
+// earlier, by validateMPAttrLength in the walk.
+func validateMPReachAttr(_ uint8, _ int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
 	return validateMPReachNextHop(attrData)
 }
 
-// RFC 7606 Section 5.3: MP_UNREACH_NLRI minimum length 3.
-func validateMPUnreachAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
-	if length < 3 {
-		var b textbuf.Buffer
-		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionSessionReset,
-			AttrCode:    code,
-			Description: b.Reset().Str("RFC 7606 Section 5.3: MP_UNREACH_NLRI length ").Int(int64(length)).Str(" < 3").String(),
+// validateMPAttrLength refuses an MP_REACH_NLRI or MP_UNREACH_NLRI attribute too short to
+// hold its fixed header, and answers nil for every other attribute code. attr is the whole
+// attribute as received (flags, type code, length and value), the NOTIFICATION Data of the
+// reset; length is its value length.
+//
+// RFC 7606 Section 5.3: "Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an
+// update SHALL be considered to be incorrect if any of the following are true:" ... "The
+// length of the MP_UNREACH_NLRI attribute is less than 3, or the length of the
+// MP_REACH_NLRI attribute is less than 5."
+//
+// RFC 4760 Section 7 then names the reset for an incorrect MP attribute; see
+// MPAttributeErrorNotification.
+func validateMPAttrLength(code uint8, attr []byte, length int) *RFC7606ValidationResult {
+	var b textbuf.Buffer
+	switch code {
+	case attrCodeMPReachNLRI:
+		if length >= 5 {
+			return nil
 		}
+		b.Reset().Str("RFC 7606 Section 5.3: MP_REACH_NLRI length ").Int(int64(length)).Str(" < 5")
+	case attrCodeMPUnreachNLRI:
+		if length >= 3 {
+			return nil
+		}
+		b.Reset().Str("RFC 7606 Section 5.3: MP_UNREACH_NLRI length ").Int(int64(length)).Str(" < 3")
+	default:
+		// Every other attribute has no MP header to measure.
+		return nil
 	}
-	return nil
+	// RFC 4760 Section 7.
+	return &RFC7606ValidationResult{
+		Action:       RFC7606ActionSessionReset,
+		AttrCode:     code,
+		Description:  b.String(),
+		Notification: MPAttributeErrorNotification(attr),
+	}
 }
 
 // validateMPNLRIField runs the RFC 7606 Section 5.3 NLRI checks on the NLRI carried inside
 // an MP attribute. It lives outside the attrValidators table (it is called from the main
 // loop) because it needs the per-family ADD-PATH state, which validateAttribute's fixed
 // signature cannot carry. The attribute has already passed its minimum-length check
-// (validateMPReachAttr/validateMPUnreachAttr) and, for MP_REACH, its next-hop check, so the
+// (validateMPAttrLength) and, for MP_REACH, its next-hop check, so the
 // AFI/SAFI/NH_LEN bytes are present. attr is the whole attribute as received (flags, type
 // code, length and value), the NOTIFICATION Data of an NLRI session reset; attrData is its
 // value.
@@ -983,8 +1035,8 @@ func validateMPNLRIField(code uint8, attr, attrData []byte, addPathFor func(afi 
 	// Section 5.4 typed-NLRI check locate the NLRI identically.
 	start, ok := MPNLRIStart(code, attrData)
 	if !ok {
-		// Only MP_REACH reaches here: validateMPReachAttr already refused length < 5 and
-		// validateMPUnreachAttr length < 3, and both refusals return session-reset before
+		// Only MP_REACH reaches here: validateMPAttrLength already refused an MP_REACH
+		// length < 5 and an MP_UNREACH length < 3, and both refusals return session-reset before
 		// this call. So the failure is always a next-hop length running past the value.
 		// The length byte is read under its own bound rather than on that reasoning, so a
 		// future reordering of the walk degrades the message instead of panicking.
@@ -995,10 +1047,12 @@ func validateMPNLRIField(code uint8, attr, attrData []byte, addPathFor func(afi 
 		} else {
 			b.Str("field")
 		}
+		// RFC 4760 Section 7: the attribute cannot be parsed, so it is incorrect.
 		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionSessionReset,
-			AttrCode:    code,
-			Description: b.Str(" overruns the attribute").String(),
+			Action:       RFC7606ActionSessionReset,
+			AttrCode:     code,
+			Description:  b.Str(" overruns the attribute").String(),
+			Notification: MPAttributeErrorNotification(attr),
 		}
 	}
 	nlri := attrData[start:]

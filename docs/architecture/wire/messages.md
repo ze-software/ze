@@ -227,14 +227,18 @@ and ATOMIC_AGGREGATE use attribute discard.
 
 An unrecognized well-known attribute still causes NOTIFICATION 3/2, with the
 complete attribute in its Data field. Invalid IPv4 NLRI or Withdrawn Routes
-syntax causes NOTIFICATION 3/10. Section-length overruns and duplicate MP
-attributes retain NOTIFICATION 3/1. NLRI carried in MP_REACH_NLRI or
-MP_UNREACH_NLRI is judged by the prefix walk for unicast and multicast and by a
-family's registered syntax rule otherwise (`nlri.md`, "NLRI Receive
-Validation"); its resets send 3/9 (Optional Attribute Error) with the whole MP
-attribute in the Data field, as RFC 4760 Section 7 and RFC 4271 Section 6.3 ask,
-because RFC 4271 Section 6.3 assigns 3/10 to the legacy NLRI field only. A
-typed family whose own splitter cannot walk the section sends the same. An SR Policy NLRI of the wrong length for its AFI
+syntax causes NOTIFICATION 3/10. Section-length overruns retain NOTIFICATION
+3/1, and so do duplicate MP attributes: RFC 7606 Section 3 (g) names Malformed
+Attribute List for them, because the fault is in the list rather than in either
+attribute. An incorrect MP_REACH_NLRI or MP_UNREACH_NLRI sends 3/9 (Optional
+Attribute Error) with the whole MP attribute in the Data field, as RFC 4760
+Section 7 and RFC 4271 Section 6.3 ask: an MP_REACH_NLRI shorter than 5 octets
+or an MP_UNREACH_NLRI shorter than 3 (RFC 7606 Section 5.3), an MP_REACH_NLRI
+whose next hop overruns the attribute, and NLRI that cannot be parsed. That NLRI
+is judged by the prefix walk for unicast and multicast and by a family's
+registered syntax rule otherwise (`nlri.md`, "NLRI Receive Validation"); 3/10
+does not apply, because RFC 4271 Section 6.3 assigns it to the legacy NLRI field
+only. A typed family whose own splitter cannot walk the section sends the same. An SR Policy NLRI of the wrong length for its AFI
 is treat-as-withdraw (RFC 9830 Section 5). An AS_SET or AS_CONFED_SET segment in
 AS_PATH or AS4_PATH is treat-as-withdraw (RFC 9774 Section 3), and on AS4_PATH it
 outranks the attribute discard AS 0 earns (RFC 7606 Section 3(h)).
@@ -300,7 +304,10 @@ that abandons the walk still escalates, because the unread rest of the section
 may hold other attributes. An empty MP_REACH is not evidence of a reachable route,
 including when a later framing error abandons the attribute walk. This prevents
 treat-as-withdraw from turning an empty MP_REACH into a false End-of-RIB marker.
-Attribute-discard-only errors do not trigger this escalation.
+Attribute-discard-only errors do not trigger this escalation. When the
+escalated error is a walkable malformed NLRI inside an MP attribute, the reset
+sends 3/9 with that MP attribute as Data (RFC 4760 Section 7); any other
+escalated error sends 3/1.
 Validation results retain the original reachable-NLRI fact for later Session
 checks. A downstream attribute or typed-NLRI rewrite must not replace that fact
 with the presence or absence of routes in the rewritten body.

@@ -98,16 +98,10 @@ func srReceive(t *testing.T, addPath bool, body []byte) srReceipt {
 	return got
 }
 
-// srMalformedList is the NOTIFICATION of the RFC 7606 Section 5.2 escalation: a walkable
-// malformed NLRI whose UPDATE carries attributes and no reachable NLRI. The NLRI section
-// parsed, so the attribute is not what failed: UPDATE Message Error / Malformed Attribute
-// List (3/1), empty Data.
-var srMalformedList = message.PackTo(&message.Notification{
-	ErrorCode: message.NotifyUpdateMessage, ErrorSubcode: message.NotifyUpdateMalformedAttr,
-}, nil)
-
-// srMPAttrError is the NOTIFICATION of an SR Policy NLRI section that cannot be walked, the
-// RFC 4760 Section 7 one: UPDATE Message Error / Optional Attribute Error (3/9), whose Data
+// srMPAttrError is the NOTIFICATION of an SR Policy NLRI section that cannot be walked, and
+// of the RFC 7606 Section 5.2 escalation of a walkable malformed one in an UPDATE with no
+// reachable NLRI: the RFC 4760 Section 7 one, UPDATE Message Error / Optional Attribute Error
+// (3/9), whose Data
 // is the whole MP attribute of code in body, flags, type, length and value (RFC 4271
 // Section 6.3).
 func srMPAttrError(t *testing.T, body []byte, code attribute.AttributeCode) []byte {
@@ -236,15 +230,16 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 		// shapes part: MP_UNREACH_NLRI alone stays treat-as-withdraw, and the same NLRI
 		// beside ORIGIN, AS_PATH and LOCAL_PREF resets the session.
 		// RFC requirement: RFC9830-5-2 positive -- a walkable malformed NLRI (13 octets under AFI 1) in an UPDATE whose only attribute is MP_UNREACH_NLRI is handled as treat-as-withdraw through processMessage: the session stays Established and nothing is dispatched
-		// RFC requirement: RFC7606-5.2-1 negative -- an UPDATE whose only attribute is MP_UNREACH_NLRI is not escalated to session reset by a walkable malformed NLRI, while the same NLRI beside ORIGIN, AS_PATH and LOCAL_PREF with no reachable NLRI resets the session with NOTIFICATION 3/1
+		// RFC requirement: RFC7606-5.2-1 negative -- an UPDATE whose only attribute is MP_UNREACH_NLRI is not escalated to session reset by a walkable malformed NLRI, while the same NLRI beside ORIGIN, AS_PATH and LOCAL_PREF with no reachable NLRI resets the session with NOTIFICATION 3/9 carrying the MP_UNREACH_NLRI attribute
 		alone := srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), false)
 		gotAlone := srReceive(t, addPath, alone)
 		srRequireWithdrawn(t, "MP_UNREACH alone 13 octets", gotAlone, alone)
 		if len(gotAlone.dispatched) != 0 {
 			t.Fatalf("ADD-PATH=%v: MP_UNREACH alone 13 octets dispatched %x, want nothing", addPath, gotAlone.dispatched)
 		}
+		withOthers := srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), true)
 		srRequireReset(t, "MP_UNREACH with other attributes 13 octets",
-			srReceive(t, addPath, srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), true)), srMalformedList)
+			srReceive(t, addPath, withOthers), srMPAttrError(t, withOthers, attribute.AttrMPUnreachNLRI))
 	}
 
 	// ADD-PATH only: a path identifier cut short cannot be walked. This is the section

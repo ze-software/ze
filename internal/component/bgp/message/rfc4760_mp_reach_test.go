@@ -240,7 +240,7 @@ func mpUnreachShortAttr() []byte {
 // RFC requirement: RFC4760-7-1 positive -- an MP_REACH_NLRI with a next-hop length its AFI/SAFI
 // does not admit, and an MP_UNREACH_NLRI shorter than three octets, each return
 // RFC7606ActionSessionReset, the action that deletes the neighbor's routes for that AFI/SAFI
-// (internal/component/bgp/message/rfc7606.go validateMPReachNextHop, validateMPUnreachAttr).
+// (internal/component/bgp/message/rfc7606.go validateMPReachNextHop, validateMPAttrLength).
 // RFC requirement: RFC4760-7-1 negative -- a well-formed MP_REACH_NLRI carrying ORIGIN and
 // AS_PATH returns RFC7606ActionNone, so a correct attribute never triggers the deletion
 // (internal/component/bgp/message/rfc7606.go validateMPReachAttr).

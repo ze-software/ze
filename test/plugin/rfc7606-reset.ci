@@ -1,11 +1,14 @@
 # RFC 7606 session-reset test
 # Verifies: Peer sends UPDATE with MP_REACH_NLRI too short (length=2, minimum is 5).
-# Expected: ze sends NOTIFICATION (code=3 UPDATE Message Error, subcode=1 Malformed Attribute List)
-#           and resets the session per RFC 7606 Section 5.3.
+# Expected: ze sends NOTIFICATION (code=3 UPDATE Message Error, subcode=9 Optional Attribute Error,
+#           Data = the whole MP_REACH_NLRI attribute) and resets the session: RFC 7606 Section 5.3
+#           makes the attribute incorrect, RFC 4760 Section 7 names the subcode, and RFC 4271
+#           Section 6.3 puts the attribute in the Data field.
 #
 # RFC requirement: RFC7606-5.3-6 negative — MP_REACH_NLRI length < 5 makes the attribute incorrect
 # RFC requirement: RFC7606-3.a-1 negative — a session-reset error is indicated by NOTIFICATION
-#   with Error Code UPDATE Message Error (this test asserts code 3 / subcode 1 on the wire)
+#   with Error Code UPDATE Message Error (this test asserts code 3 / subcode 9 with the MP_REACH_NLRI
+#   attribute as Data on the wire)
 # RFC requirement: RFC7606-3.j-1 negative — an MP attribute that cannot be parsed requires session reset
 
 # ze-peer expectations
@@ -25,8 +28,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # UPDATE: withdrawn=0, attrs=[ORIGIN(IGP)+AS_PATH(empty)+MP_REACH_NLRI(len=2,data=0001)]
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0023020000000C40010100400200800E020001
 
-# Step 3: Expect NOTIFICATION (code=3 UPDATE Message Error, subcode=1 Malformed Attribute List)
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+# Step 3: Expect NOTIFICATION (code=3 UPDATE Message Error, subcode=9 Optional Attribute Error,
+# Data=800E020001: flags 0x80, type 14, length 2, value 0001)
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001A030309800E020001
 EOF_PEER
 
 # Minimal plugin (ze needs at least one plugin process)

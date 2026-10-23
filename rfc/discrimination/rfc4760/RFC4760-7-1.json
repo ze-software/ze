@@ -2,6 +2,28 @@
   {
     "rid": "RFC4760-7-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession",
+    "unit-sha": "7597b8e48139830d",
+    "claim-sha": "cd22d9ae5e59378c",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateMPAttrLength",
+    "producer-sha": "dbb4f2073ee8f0dc",
+    "break": "body of validateMPAttrLength replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-7-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession",
+    "unit-sha": "7597b8e48139830d",
+    "claim-sha": "5086a41664158e33",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateMPReachAttr",
+    "producer-sha": "3cdac3b6b91ed37f",
+    "break": "body of validateMPReachAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-7-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes",
     "unit-sha": "06dc98271f9e7939",
     "claim-sha": "d8e3d9147579256c",
@@ -18,7 +40,7 @@
     "claim-sha": "a7ff419c08ac52e3",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-    "producer-sha": "66c0f3d227b0c731",
+    "producer-sha": "a43220679f2444ca",
     "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
