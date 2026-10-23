@@ -407,7 +407,7 @@ func TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete(t *testing.T) {
 	require.Nil(t, api.r.api, "fixture must have no API server for this case")
 	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
 	require.NotNil(t, dst, "fixture must expose the destination peer")
-	dst.settings.ExportFilters = []filterapi.FilterRef{{Name: "someplugin:scrub"}}
+	dst.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "someplugin:scrub"}}, filterapi.FinalAccept)
 	dst.refreshForwardFacts()
 
 	api.r.orderedEgressSteps = []orderedEgressStep{{name: "peer-chain", policyChain: true}}

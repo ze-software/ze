@@ -25,7 +25,7 @@ bgp {
 			}
 		}
 		filter {
-			export [ remove-private-as:BAD ]
+			export { filters [ remove-private-as:BAD ]; final accept; }
 		}
 	}
 }

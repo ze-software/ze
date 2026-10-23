@@ -54,7 +54,7 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 // cluster-id sync, the port override -- is applied to a dynamic group's template
 // by the same line of code. A second walk that read the layers somebody
 // remembered is what left an IXP route server's dynamic members with no policy
-// at all: until 2026-08-13 no `ImportFilters` assignment was reachable from the
+// at all: until 2026-08-13 no import-policy assignment was reachable from the
 // dynamic path, so no prefix, AS-path, community or IRR filter ever ran for them.
 func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
 	// Register BGP redistribute sources (bgp, ibgp, ebgp) for config validation.
@@ -67,6 +67,9 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		return nil, nil, fmt.Errorf("load schema for inactive pruning: %w", err)
 	}
 	config.PruneInactive(tree, schema)
+	if err := validateFilterPolicies(tree); err != nil {
+		return nil, nil, err
+	}
 
 	// Step 1: Resolve templates at the map level.
 	bgpTree, err := ResolveBGPTree(tree)
@@ -190,18 +193,24 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 
 	// Step 3b: Extract filter chains from all layers (cumulative).
 	// Like routes, filters accumulate: bgp + group + peer.
-	bgpImport, bgpExport := extractFilterChain(bgpContainer)
+	bgpImport, bgpExport, err := extractFilterPolicies(bgpContainer, "bgp")
+	if err != nil {
+		return nil, nil, err
+	}
 
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
 		groupTree := groupEntry.Value
-		groupImport, groupExport := extractFilterChain(groupTree)
+		groupImport, groupExport, err := extractFilterPolicies(groupTree, "bgp/group/"+groupEntry.Key)
+		if err != nil {
+			return nil, nil, err
+		}
 
 		// The dynamic group's own chain is bgp + group, which is the whole
 		// import and export policy an IXP route server's members are subject to:
 		// they have no peer layer to add to it.
 		if ds, ok := dynByGroup[groupEntry.Key]; ok {
-			ds.ImportFilters = concatFilters(bgpImport, groupImport)
-			ds.ExportFilters = concatFilters(bgpExport, groupExport)
+			ds.ImportPolicy = concatPolicies(bgpImport, groupImport)
+			ds.ExportPolicy = concatPolicies(bgpExport, groupExport)
 		}
 
 		for _, peerEntry := range groupTree.GetListOrdered("peer") {
@@ -209,9 +218,12 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 			if !ok {
 				continue
 			}
-			peerImport, peerExport := extractFilterChain(peerEntry.Value)
-			ps.ImportFilters = concatFilters(bgpImport, groupImport, peerImport)
-			ps.ExportFilters = concatFilters(bgpExport, groupExport, peerExport)
+			peerImport, peerExport, err := extractFilterPolicies(peerEntry.Value, "bgp/group/"+groupEntry.Key+"/peer/"+peerEntry.Key)
+			if err != nil {
+				return nil, nil, err
+			}
+			ps.ImportPolicy = concatPolicies(bgpImport, groupImport, peerImport)
+			ps.ExportPolicy = concatPolicies(bgpExport, groupExport, peerExport)
 		}
 	}
 
@@ -220,9 +232,12 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		if !ok {
 			continue
 		}
-		peerImport, peerExport := extractFilterChain(peerEntry.Value)
-		ps.ImportFilters = concatFilters(bgpImport, peerImport)
-		ps.ExportFilters = concatFilters(bgpExport, peerExport)
+		peerImport, peerExport, err := extractFilterPolicies(peerEntry.Value, "bgp/peer/"+peerEntry.Key)
+		if err != nil {
+			return nil, nil, err
+		}
+		ps.ImportPolicy = concatPolicies(bgpImport, peerImport)
+		ps.ExportPolicy = concatPolicies(bgpExport, peerExport)
 	}
 
 	// Step 3b2: Validate policy filter names in peer filter chains.
@@ -242,25 +257,25 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	var tb textbuf.Buffer
 	for _, ps := range settings {
 		tb.Reset()
-		if err := filterReg.ValidateFilterNames(ps.ImportFilters, tb.Str("peer ").Str(ps.Name).Str(" import").String()); err != nil {
+		if err := filterReg.ValidateFilterNames(ps.ImportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
 			return nil, nil, err
 		}
 		tb.Reset()
-		if err := filterReg.ValidateFilterNames(ps.ExportFilters, tb.Str("peer ").Str(ps.Name).Str(" export").String()); err != nil {
+		if err := filterReg.ValidateFilterNames(ps.ExportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
 			return nil, nil, err
 		}
 	}
 
 	// Step 3b2a: Canonicalize chain refs to the full `<plugin-process>:<filter>`
 	// form. Users can write any of:
-	//   - `filter import [ bgp-filter-prefix:CUSTOMERS ]`  (explicit plugin)
-	//   - `filter import [ prefix-list:CUSTOMERS ]`        (filter-type prefix)
-	//   - `filter import [ CUSTOMERS ]`                    (plain name)
+	//   - `filters [ bgp-filter-prefix:CUSTOMERS ]`  (explicit plugin)
+	//   - `filters [ prefix-list:CUSTOMERS ]`        (filter-type prefix)
+	//   - `filters [ CUSTOMERS ]`                    (plain name)
 	// All three resolve to the same dispatch target at runtime; this step
 	// rewrites them into the canonical form before peer settings are frozen.
 	for _, ps := range settings {
-		ps.ImportFilters = canonicalizeFilterRefs(ps.ImportFilters, filterReg)
-		ps.ExportFilters = canonicalizeFilterRefs(ps.ExportFilters, filterReg)
+		ps.ImportPolicy = ps.ImportPolicy.WithFilters(canonicalizeFilterRefs(ps.ImportPolicy.Filters(), filterReg))
+		ps.ExportPolicy = ps.ExportPolicy.WithFilters(canonicalizeFilterRefs(ps.ExportPolicy.Filters(), filterReg))
 	}
 
 	// Step 3b3: Prepend default filter names to each peer's import chain.
@@ -739,8 +754,8 @@ func validateLeakFilterObligations(pairs []peerRole, reg *FilterRegistry, declar
 		if !bound {
 			continue
 		}
-		missingImport := obligation.importChain && !chainNamesFilterType(pair.settings.ImportFilters, reg, declaringTypes)
-		missingExport := obligation.exportChain && !chainNamesFilterType(pair.settings.ExportFilters, reg, declaringTypes)
+		missingImport := obligation.importChain && !chainNamesFilterType(pair.settings.ImportPolicy.Filters(), reg, declaringTypes)
+		missingExport := obligation.exportChain && !chainNamesFilterType(pair.settings.ExportPolicy.Filters(), reg, declaringTypes)
 		if !missingImport && !missingExport {
 			continue
 		}
@@ -916,7 +931,7 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peers []*reactor.PeerSe
 	}
 
 	for _, ps := range peers {
-		for _, ref := range ps.ImportFilters {
+		for _, ref := range ps.ImportPolicy.Filters() {
 			entry, ok := ldEntries[ref.Name]
 			if !ok {
 				continue
@@ -954,7 +969,7 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peers []*reactor.PeerSe
 // prependDefaultFilters adds default filter names to each peer's import chain
 // if not already present (explicitly or as inactive:). Default filters come from
 // loop-detection entries in the policy section. Each entry's name is prepended
-// to ImportFilters so loop detection runs first in the chain.
+// to ImportPolicy so loop detection runs first without changing its final.
 func prependDefaultFilters(bgpContainer *config.Tree, peers []*reactor.PeerSettings) {
 	policyTree := bgpContainer.GetContainer("policy")
 	if policyTree == nil {
@@ -975,10 +990,10 @@ func prependDefaultFilters(bgpContainer *config.Tree, peers []*reactor.PeerSetti
 
 	for _, ps := range peers {
 		for _, dflt := range defaults {
-			if filterChainContains(ps.ImportFilters, dflt) {
+			if filterChainContains(ps.ImportPolicy.Filters(), dflt) {
 				continue
 			}
-			ps.ImportFilters = append([]filterapi.FilterRef{{Name: dflt}}, ps.ImportFilters...)
+			ps.ImportPolicy = ps.ImportPolicy.WithFilters(append([]filterapi.FilterRef{{Name: dflt}}, ps.ImportPolicy.Filters()...))
 		}
 	}
 }

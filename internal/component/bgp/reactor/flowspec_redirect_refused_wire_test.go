@@ -42,7 +42,7 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newAIGPReplayFixture(t, nil)
 			for _, peer := range []*Peer{f.source, f.destination} {
-				peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{fam: true}})
+				negotiateForwardTestFamilies(peer, fam)
 			}
 			f.destination.settings.PeerAS = 65001
 			f.destination.settings.NextHopMode = NextHopUnchanged

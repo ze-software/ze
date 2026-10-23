@@ -157,7 +157,7 @@ bgp {
             send [ update ];
         }
         filter {
-            export [ NO-TRANSIT ];
+            export { filters [ NO-TRANSIT ]; final accept; }
         }
     }
 }

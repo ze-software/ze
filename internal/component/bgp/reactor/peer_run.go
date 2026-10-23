@@ -239,6 +239,12 @@ func (p *Peer) runOnce() error {
 	session.onMessageReceived = p.messageCallback
 	session.aigpReactor = p.reactor
 	session.aigpPeer = p
+	session.egressFinalAccepts = func() bool {
+		if facts := p.forwardFacts(); facts != nil {
+			return facts.exportPolicy.AcceptsAtEnd()
+		}
+		return p.ExportPolicy().AcceptsAtEnd()
+	}
 	// Originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, run the peer's export filter chain at the session write
 	// gate, the same as forwarded routes do in forwardUpdateCore. The
@@ -445,6 +451,19 @@ func (p *Peer) runOnce() error {
 
 		transitionReason := from.String() + " -> " + to.String()
 
+		// The OPENs are exchanged on entry to OpenConfirm, and the KEEPALIVE
+		// that answers the peer's OPEN is sent after this callback returns
+		// (Session.advanceAfterOpen), so the negotiated event precedes every
+		// message of the session that it describes (Peer.announceNegotiated).
+		if to == fsm.StateOpenConfirm {
+			p.mu.RLock()
+			reactor := p.reactor
+			p.mu.RUnlock()
+			if reactor != nil {
+				p.announceNegotiated(reactor, session, session.Negotiated())
+			}
+		}
+
 		if to == fsm.StateEstablished {
 			// Pre-compute negotiated capabilities for O(1) access during route sending
 			neg := session.Negotiated()
@@ -506,7 +525,7 @@ func (p *Peer) runOnce() error {
 			// announceEstablished marks the phases a reload racing this
 			// delivery reads (applyHotSwappableSettings).
 			if reactor != nil {
-				p.announceEstablished(reactor, session, neg)
+				p.announceEstablished(reactor, session)
 			}
 
 			// Open a BFD session for this peer if the operator

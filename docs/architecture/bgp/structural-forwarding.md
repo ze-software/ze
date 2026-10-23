@@ -147,8 +147,29 @@ spans. Original and synthesized withdrawals remain distinct through splitting,
 transcoding and overflow. Item release returns the manifest. Superseding cannot
 collapse different source/session generations or manifested ingress paths.
 Unknown ordinary withdrawals look up outgoing identifiers without minting new
-mappings. Ownership filtering precedes PATHS-LIMIT admission; only the final
-normalized surviving body changes the recipient inventory.
+mappings. A retained replay can assign a path's first outgoing identifier after
+a live withdrawal was materialized but before the replay fence releases it.
+Final admission resolves that withdrawal through a derived ingress-identity
+index of the recipient's actual advertisements, not through the cache allocator.
+It patches only the session-private wire buffer and still checks the source and
+received path that own the resolved slot. Reannouncements use that same index,
+so cache eviction cannot give an already-advertised ingress path a second
+outgoing identifier. A new source-owned announcement whose proposed ID collides
+with another recipient owner gets a distinct reserved ID; direct local/API
+writes keep their explicit identifiers and ownership semantics.
+
+The index changes only with recorded slot installation, ownership replacement,
+deletion and session clear. Resolving an unknown withdrawal in this index uses
+bounded map lookups; it neither scans the route table nor creates an allocator
+mapping. Every new-path proposal holds a temporary ID
+reservation through both filtering passes, even if it does not collide with an
+existing recipient slot. This prevents a later path in the same UPDATE from
+allocating an earlier proposal's ID after source-cache eviction and allocator
+wrap. The bindings are bounded scratch for one UPDATE; recording or refusing
+the write releases their temporary reservations. This applies to peer-up
+replay and export-final restoration; a retained path need not have been exported
+before either replay. Ownership filtering precedes PATHS-LIMIT admission; only
+the final normalized surviving body changes the recipient inventory.
 The table is an ordered buffered frontier under `writeMu`, not a separately
 published successfully-sent cache. Flush success commits it; any write/flush
 failure clears it and seals that exact Session before another send can enter.
@@ -156,10 +177,13 @@ Sent callbacks preserve their existing timing after buffered acceptance, not
 after successful flush or TCP delivery. They remain asynchronous projection
 events, not committed ownership proof. Receipt-fenced cold replay and recovery
 must not treat an old callback alone as authority on a replacement session.
-<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, adjOutPath -->
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, adjOutPath, setOwner, releasePath, clearRoutes -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
 <!-- source: internal/component/bgp/reactor/forward_provenance.go -- prepareFwdProvenance, writePath -->
-<!-- source: internal/component/bgp/reactor/session_ownership.go -- beginAdjOut, filter, record -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- beginAdjOut, bindSourcePath, filter, record, release -->
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- reserve, retain, release -->
+<!-- test: internal/component/bgp/reactor/policy_reconcile_test.go TestPolicyFinalReplayCannotReviveWithdrawnAddPath, TestPolicyFinalReplayWithdrawalSurvivesGapEviction -->
+<!-- test: internal/component/bgp/reactor/policy_replay_identity_test.go TestRecipientAddPathIdentitySurvivesCacheEviction, TestRecipientAddPathCollisionPreservesLocalOwner, TestRecipientAddPathCombinedCollisionReservesStagedIDs, TestRecipientAddPathLocalReplacementRemovesBinding, TestRecipientAddPathReservationsEndWithSession, TestRecipientAddPathCollisionReservationReleasedOnRefusal -->
 
 Withdrawal and recovery fixtures MUST first advertise the affected paths through
 the real Session writer with source identity and negotiated framing. A synthetic
@@ -184,13 +208,15 @@ generation and message receipt before restarting its source, then keeps the
 exact recipient withdrawal history as its behavioral assertion.
 <!-- test: internal/component/bgp/reactor/forward_withdrawal_ownership_test.go TestRSWithdrawalOwnershipSourceGeneration -->
 
-The unknown-identifier regression uses a dedicated source Peer: source IDs are
-registered by address, and allocator mappings survive a fixture's session.
-It requires both that source's framed and unframed mapping sets to start and
-finish empty, with no withdrawal on the recipient wire. Another source supplies
-the writer-fence announcement, and the measured source's cleanup releases its
-identifiers only after the forwarding workers stop. A repeated package run
-therefore cannot mistake earlier fixtures' advertised paths for new allocations.
+The unknown-identifier regression isolates its allocator as well as its source
+Peer: registered IDs can overlap literal IDs used by other fixtures, so a
+dedicated address alone does not isolate state. Both the measured source's
+framed and unframed mapping sets must start and finish empty, with no withdrawal
+on the recipient wire. Another source supplies the writer-fence announcement.
+Cleanup stops forwarding, clears recipient slots and cached history, releases
+source mappings, and checks for leaked reservations before restoring the saved
+allocator. Repeated package runs therefore preserve the zero-state assertion
+without deleting another fixture's evidence.
 <!-- test: internal/component/bgp/reactor/forward_provenance_ownership_test.go TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate -->
 
 A source-bound operation discarded without output still advances the existing
@@ -267,9 +293,9 @@ it replays the authoritative RIB's feasible FlowSpec paths before sending EOR.
 
 ## How long a Path Identifier lives
 
-Ze's own Path Identifier for a re-advertised path is held in one table, which
-both rails read, so a replayed route and a live forward of one path carry the
-same value (`forward_path_id.go`).
+Both forwarding rails use one source-path allocator (`forward_path_id.go`).
+The recipient's recorded source-path index is authoritative once an identifier
+has reached that session, including after a source mapping was evicted.
 
 The key mirrors the key the SOURCE uses to name a path. A source that negotiated
 no ADD-PATH names a path by its prefix and frames no identifier, so ze holds one
@@ -291,14 +317,19 @@ ADD-PATH identifier is replaced. Identity comes from each family's registered
 route-key function, so changes to non-key label fields or FlowSpec length
 encoding keep the identifier. Long native keys are retained in full.
 
-Only the second kind is freed before the peer is removed, and the free runs at
-ONE point: the recent-update cache evicting the UPDATE that withdrew the path
-(`recent_cache.go` `evictLocked`). It cannot run at the end of either rail,
-because one UPDATE reaches both: `reactorForwardRS` serves the destinations it
-can and hands the rest to the rs plugin as `FastPathSkipped`, which forwards them
-through `forwardUpdateCore`. Freeing after the first rail would mint a fresh
-identifier for the second rail's destinations, and each of those would then hold
-a route ze can never withdraw.
+Only the second kind of source mapping is freed before the peer is removed.
+The recent-update cache releases it when evicting the UPDATE that withdrew the
+path (`recent_cache.go` `evictLocked`), not at the end of either forwarding rail:
+one UPDATE reaches both the reactor fast path and the plugin's cached fallback.
+
+Source mappings, recorded recipient slots and temporary writer reservations
+hold counted references in the allocator's existing used-ID table. Evicting a
+source mapping does not free an ID still advertised by a recipient, even when
+the safety valve evicts an entry with outstanding forwarding retains. Recipient
+deletion and session clear release the advertisement's reference. This also
+reserves explicit local/API identifiers against allocator wrap. Every staged
+proposal's reservation is released after the write records its surviving slots,
+or after refusal; only recorded slots keep an additional reference.
 
 The free has two exceptions. A path retained by the validation provider keeps
 its identifier while ineligible, so recovery can replace its earlier

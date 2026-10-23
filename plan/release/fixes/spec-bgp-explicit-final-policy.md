@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Priority | P0 |
 | Release reason | Explicit final policy must not be bypassed by accepted filter rewrites. |
 | Scope | config |
 | Depends | - |
-| Phase | 4/4 — focused repair review, verification and commit |
+| Phase | 4/4 — product and review complete; commit A and removal B pending |
 | Handoff | - |
-| Updated | 2026-10-22 |
+| Updated | 2026-10-23 |
 
 ## Task
 
@@ -286,9 +286,9 @@ a claim that the final verification gate has passed.
 | Preserve absent/automatic-only behavior, AC-7 | `TestPolicyConstruction`, `TestPolicyInactiveContainerIsAbsent`, dynamic-template checks and existing no-export-policy acceptance checks | scoped checks passed |
 | Empty/inactive final-only policies, AC-8 | Empty matrix cases; `TestPolicyFinalWithoutActiveFilters`, `TestPolicyFinalNilAPIRails` and `TestPolicyFinalOnlyDecisionDoesNotAllocate` passed in race/count-20 runs | no-RPC/no-allocation path proven |
 | Original-layer validation and inheritance, AC-9 | `TestPolicyInheritance`, `TestPolicyDynamicTemplateFinal`, original-tree validation and migrated dynamic-peer fixtures | scoped and functional checks passed |
-| Withdraw/restore on final-only reload, AC-10 | Reload scenario passed 80 invocations; accepting-final mutant retains forbidden routes in `job-policy-final-reload-discrimination-da796aa7.log`; restored scenario passes. Actual eviction and staged-ID collision reds (`job-policy-replay-eviction-red-373dda8c.log`, `job-policy-staged-id-collision-red-899af56a.log`) are repaired; `job-policy-replay-identity-final-race20-a0d38ba2.log` passes the final targeted race/count-20 population, including replay, recipient identity/lifetime and unknown-withdrawal allocation controls | real-peer reload and targeted replay repair proven; final native gate pending |
+| Withdraw/restore on final-only reload, AC-10 | Reload scenario passed 80 invocations; accepting-final mutant retains forbidden routes in `job-policy-final-reload-discrimination-da796aa7.log`; restored scenario passes. Actual eviction and staged-ID collision reds (`job-policy-replay-eviction-red-373dda8c.log`, `job-policy-staged-id-collision-red-899af56a.log`) are repaired; `job-policy-replay-identity-final-race20-a0d38ba2.log` passes the final targeted race/count-20 population, including replay, recipient identity/lifetime and unknown-withdrawal allocation controls | real-peer reload, targeted repair and scoped proof/review complete; external verification debt remains |
 | Destination-specific alternate and all-rejected removal, AC-11 | `policyFinalAlternate` in the same reload scenario, with exact received state and unchanged sessions | this policy path proven; separate RS WIP remains open |
-| Migrate active producers and examples, AC-12 | All 120 fixtures promoted after 24 groups of 80 invocations; `policy-stress80-passed-groups.json` and the promotion inventories identify them | migration complete; final gate pending |
+| Migrate active producers and examples, AC-12 | All 120 fixtures promoted after 24 groups of 80 invocations; `policy-stress80-passed-groups.json` and the promotion inventories identify them | migration and scoped proof/review complete; external verification debt remains |
 | Display effective final and dry-run agreement, AC-13 | `policy-operational-smoke/logs/669-policy-final-disposition/client-stderr.log` records 16 configured import/export display and dry-run observations. `policy-automatic-display-smoke/logs/669-policy-final-disposition/client-stderr.log:257` records the real automatic-only import chain with filter AUTO and no invented final; its complete matrix run passed in `job-policy-automatic-display-smoke-253c2e96.log` | live commands proven |
 
 ### Goal Gates
@@ -297,7 +297,7 @@ a claim that the final verification gate has passed.
 - [x] Scoped package checks and real entry-point smoke are observed.
 - [x] Independent review covers all affected producers/callers.
 - [x] Existing unrelated reds are disclosed, never hidden by weakening tests.
-- [ ] Applicable native verification runs through the repository launcher and throwaway verification worktree.
+- [x] Parent-owned native closure evidence and verification disposition are recorded: trustworthy semantic proof, scoped freshness, review artifact/check, and explicit external verification debt rather than a full-tree green claim.
 
 ## Design Decisions
 
@@ -434,22 +434,27 @@ The thirteen-row Goal Validation table above is the single AC-to-observed-result
 
 ## Work Not Done
 
-| What was not done | Why | The spec that now owns it |
-|-------------------|-----|---------------------------|
-| No in-scope product behavior omitted | All thirteen ACs have source and observed evidence | This spec retains its native verification and closure gates until parent completion |
-| General filter-definition re-advertisement | Explicitly outside final-transition scope | `plan/release/fixes/spec-bgp-export-policy-reload-readvertise.md` |
-| Separate RS competing-route election cutover | Pre-existing unfinished work; twelve full-reactor failures are not claimed fixed | `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md`; `plan/handover/12-rs-replacement-phase-3-remaining.md` |
+None. No in-scope product requirement or acceptance criterion was omitted or transferred to another spec. The remaining proof, review-recording and commit actions are this spec's closure gates, not deferred implementation.
+
+## Existing External Scope Boundaries
+
+These were outside the agreed final-transition capability from the start; they are not unfinished deliverables transferred by this closure:
+
+- General filter-definition re-advertisement remains owned by `plan/release/fixes/spec-bgp-export-policy-reload-readvertise.md`.
+- The separate RS competing-route election cutover remains owned by `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md`, with current details in `plan/handover/12-rs-replacement-phase-3-remaining.md`. Its twelve full-reactor failures are not claimed fixed here.
 
 ## Review Gate
 
+- [x] Before closing, complete trustworthy proof and freshness evidence and record/check the independent artifact over all 378 paths. Parent will execute commit A and removal B with the disclosed external verification debt; those commits have not yet run.
+
 | Field | Value |
 |-------|-------|
-| Artifact | Not recorded: canonical spec location, final proof metadata and parent-owned verification must settle first |
-| `./le spec review check` | Not run by closure reviewer; parent-owned |
+| Artifact | `tmp/review/bgp-explicit-final-policy-644a4e78-0122-4eeb-8642-eb50638a1641.md` — native record, 378 files, verdict clean, two rounds |
+| `./le spec review check` | Clean: parent executed the explicit 378-path check; native result reports 277 code files, clean, hashes matching the recorded artifact |
 | Rounds | 2: full independent pass, then scoped review of its fixes and affected callers; earlier implementation/repair lenses are not counted as formal closure rounds |
 | Reviewer lenses used | Deliverables, all ACs, security/trust boundaries, concurrency/lifetime, Go style, documentation/source citers, generic final review |
-| Scope | Candidate inventory `policy-pending-files.json`: 372 paths at intake, including 155 Go paths (137 tracked and 18 then-new); actual feature diff reviewed, not unrelated checkout hunks. All changed Go in that population was read, with producing functions and affected callers expanded. Additional already-landed fixture/FRR producers and native protocol summaries were read where needed |
-| Independent verdict | CLEAN independent source review: 0 BLOCKER, 0 ISSUE remaining in the reviewed feature/fix scope; changed-Go style pass completed. Native proof freshness, committed-tree verification and the final hash-pinned artifact remain pending; this is not completed closure or a green full-tree claim |
+| Scope | Final candidate inventory `policy-pending-files.json`: 378 paths, including 277 code-bearing files (156 Go, 120 CI and one YANG). Intake was 372 paths, including 155 Go (137 tracked and 18 then-new). Actual feature changes, producing functions and affected callers were read, including the late marker setup and preserved META/journal corrections; unrelated checkout hunks are not certified. Additional already-landed fixture/FRR producers and native protocol summaries were read where needed |
+| Independent verdict | CLEAN independent source/evidence review: 0 BLOCKER, 0 ISSUE remaining in the reviewed feature/fix scope; changed-Go style pass completed. Required semantic evidence, all 27 scoped RFC freshness results, native index update and native hash-pinned record/check are complete. Product implementation and review are complete; parent-owned commit A/removal B remain unexecuted, and external verification debt is not a green full-tree claim |
 
 ### Round scopes and outcomes
 
@@ -471,7 +476,21 @@ Additional real-peer evidence supplied during closure: `job-policy-addpath-final
 
 The actual profile-loader smoke, `job-policy-profile-config-resolved-smoke-dee1cc59.log:2-3`, prints canonical `bgp-filter-modify:STRESS-IMPORT` and `bgp-filter-modify:STRESS-EXPORT` references with final accept. The parent reports its native run passed in 7.02s. This proves the actual scenario's resolved configuration, not a million-route benchmark or replacement of all profile behavior tests.
 
-Native proof renewal remains incomplete: the ADD-PATH batch completed 19 of 21 Go renewals, then its buffered interop observation was killed after 1801 seconds of log silence. The parent restored the exact `forward_path_id.go::generate` body from the native saved overlay. No interrupted observation counts as proof. `plan/journal/concurrent-session-corruption.md` records the separate tooling isolation/progress defect; its repair, the last two record operations and freshness regeneration are parent-owned prerequisites to a final artifact. This separate blocking recorder fix is not another policy product review round. Full committed-tree verification and both closure commits remain pending.
+Historical renewal interruption: the initial ADD-PATH batch completed 19 of 21 renewals before its buffered interop observation was killed after 1801 seconds of log silence. The parent restored the exact `forward_path_id.go::generate` body from the native saved overlay. No interrupted observation counts as proof; the later valid replacements and final freshness results are recorded below. `plan/journal/concurrent-session-corruption.md` records the separate tooling isolation/progress defect.
+
+The parent observed both recorder regressions fail against the old producers in `job-proof-tools-before-aaf98e00.log`, using a compiler overlay without changing canonical source. After repair, `job-proof-tools-after-01242291.log` records `TestInteropBreakLeavesSourceUntouched` passing in 0.08s and `TestObservationExecStreamsProgress` passing in 3.33s, including exit-0 and exit-7 cases. The full recorder package race suite remains red only on the separately owned `TestNativeImplementationFixture` cache-path spelling mismatch, already recorded in `plan/journal/test-against-broken-path.md`; it is not claimed green. The private recorder built, and the parent resumed exactly the last two proof-record operations with safe overlays and live progress.
+
+The recorder repair is separate tooling work, not another policy product review round. The parent reports that the resumed safe interop baseline passed in 33 seconds, but its first broken run omitted the required citation and therefore recorded no proof. A later `!found`-to-`false` mutation made `found` unused: the recorder accepted a compilation failure, which is excluded as semantic proof. Both subsequent logical-not-removal observations passed their clean scenarios in 22s but ended their broken observations with unmeasured peer-state/query timeouts rather than retained collision evidence; those records are also excluded. The diagnostic limitation remains explicit: `parseAddPathState` returns errors for measured one-path or duplicate-ID states, so the generic wait can leave `measured` false and replace earlier semantic state with a final query error. No particular earlier state is inferred from those uncaptured attempts.
+
+The accepted replacement observation is `job-policy-rfc7911-interop-measured-collision-7758e80b.log`: the clean scenario passes in 24s (27-28), with actual FRR JSON showing `10.99.0.0/24`, `totalPaths: 2` and AS paths 65003 and 65004 before and after replay (5-25). With the private `!staged`-to-`staged` mutation in `session_ownership.go::bindSourcePath`, captured receiver replies instead show `totalPaths: 1` with only AS path 65004, repeatedly through 58 seconds (33-361). Assertion 5 ultimately reports the last query timeout (363), but the saved foreign-receiver states independently establish the intended persistent path collapse; acceptance rests on those measurements, not that timeout or the recorder's exit alone. Native renewal of the existing RFC7911-2-2 positive claim is recorded at 694-698. A private diagnostic-only compiler overlay printed raw parser input; canonical checker source, assertions and RFC claims were unchanged. Earlier compile-failing and unmeasured attempts remain invalid evidence.
+
+The CI renewal's clean baseline lost the replay observer destination. Source inspection establishes that the old API readiness marker's default ID zero is now retained by `recordSection`, and `mintLocked` skips retained IDs. The parent changed only `plugin_fixture_01_adj_rib.go::plugin01ReplayAddPath` to give that marker ID one, with a two-line explanation. Independent inspection of the corrected setup, section parser, recipient retention, allocator and unchanged exact-wire CI assertions is clean: the marker reserves one, leaving zero for the first source-generated path, still distinct from the source's announced ID one. The initial failing destination frame was elided, so its exact mismatch remains an inference. The corrected native observation, `job-policy-rfc7911-ci-marker-fixed-337f5a7d.log:9-20,143-145,188-189`, records the clean fixture passing in 1.2s, the intentionally broken `generatePath` producer failing in 7.6s, and successful renewal of the existing RFC7911-2-2 positive tag claim. This is a setup correction, not a relaxed RFC assertion or a new policy product defect.
+
+The parent recorded the 378-path candidate population and ran its explicit native review check, which reported 277 code-bearing files (156 Go, 120 CI and one YANG), clean with matching hashes. This includes the independently read marker setup, preserved META citations, and two observed journal rows: the fixed readiness-marker fixture and the open interop proof-attribution defect whose compile failure is excluded from this feature's evidence. The native checker does not enforce non-code freshness; this final prose records the observed outputs without changing code-bearing files. Any later fixture/product correction requires focused source review and renewed artifact coverage. The parent's preservation-only META correction was independently read: M17 now cites durable core-design and policy-carrier sources, M18 uses the historical bare spec stem, and owner decisions/quotes remain preserved.
+
+Scoped RFC freshness is complete: `job-policy-final-settled-freshness-bd54cfb8.log:1-27` records 26 stems with zero stale and zero missing records, and `job-policy-final-rfc7911-freshness-e93ae546.log:1-2` records RFC7911's 21 selected records with zero stale and zero missing. All 27 scoped stems are fresh; no repeat is needed. Native index update completed successfully in `job-policy-final-rfc-index-4f22adb6.log`; the parent reports its generated outputs unchanged from HEAD, so it adds no file population. Native recording and explicit 378-path checking are complete; both closure commits remain parent-owned and unexecuted. The separate recorder repair committed as `92c487d64e`, followed by parent-reported passes for all five committed-tree compile flavors; that result does not certify the still-uncommitted policy feature. Current pre-release rules permit local commits with recorded external verification debt and prohibit another full verification while known reds remain open. This record does not discharge that debt or claim full-tree green.
+
+The parent also reports a saved global `fast-4067063724` documentation-gate red for external gh-pages drift and stale writing-rule rendering. This is not recorder or policy verification success. It remains attributed external verification debt; current pre-release rules prohibit starting a redundant full gate while known reds remain.
 
 ## Pre-Commit Verification
 
@@ -527,11 +546,11 @@ These are independent source reads and existing evidence, not new native runs.
 
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| Feature, configuration, CLI examples, plugins, user guides and live examples | Mandatory presence schema; original-tree validator; cumulative extraction; core chain and final writer | Source review complete; native doc gate pending |
+| Feature, configuration, CLI examples, plugins, user guides and live examples | Mandatory presence schema; original-tree validator; cumulative extraction; core chain and final writer | Source review complete; native documentation gate has disclosed external reds, not a green claim |
 | API/RPC and SDK/protocol | Existing filter-update RPC remains unchanged; `PolicyInfo` and operational handlers expose optional configured final | Source review complete; no new transport message claimed |
 | Architecture, inheritance, raw traversal, reload and identity | `PolicyFilterChain`, `concatPolicies`, `reconcileExportFinal`, `bindSourcePath`, recipient slot lifecycle | Source review complete; direct anchors corrected |
 | Functional-test infrastructure descriptions | Actual `.ci` files, fixture observers, native full-event oracle and FRR path decoder | Source review complete; existing harness reused, proof conventions documented |
-| Wire/RFC | No new wire field, family or capability; registered codecs and existing ADD-PATH rules retained | RFC2545 3-3 remains PARTIAL and 3-6 remains UNIMPLEMENTED; parent owns pending proof freshness |
+| Wire/RFC | No new wire field, family or capability; registered codecs and existing ADD-PATH rules retained | All 27 scoped stems fresh, including 21 RFC7911 records; native index update completed with unchanged outputs. RFC2545 3-3 remains PARTIAL and 3-6 remains UNIMPLEMENTED |
 | Route metadata, metrics and plugin inventory | Reviewed changed declarations add no metadata key, metric or plugin registration | No corresponding new declaration to document; final is a core policy value |
 
 ## Core Insight

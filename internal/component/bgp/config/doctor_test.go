@@ -46,7 +46,7 @@ bgp {
             import customer
         }
         filter {
-            export [ NO-TRANSIT ]
+            export { filters [ NO-TRANSIT ]; final accept; }
         }
     }
     peer ibgp {

@@ -95,10 +95,11 @@ func writeChain(b *strings.Builder, direction, name string) {
 		return
 	}
 	member, deactivated := strings.CutPrefix(name, "inactive:")
-	b.WriteString("            " + direction + " [ " + member + " ]\n")
+	b.WriteString("            " + direction + " { filters [ " + member + " ]; final accept;\n")
 	if deactivated {
-		b.WriteString("            inactive: " + direction + " " + member + "\n")
+		b.WriteString("            inactive: filters " + member + "\n")
 	}
+	b.WriteString("            }\n")
 }
 
 // loadLeakConfig parses a config and runs the whole peer pipeline over it,

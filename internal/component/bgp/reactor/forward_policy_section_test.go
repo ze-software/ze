@@ -37,7 +37,7 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{groups: true})
 	peer := h.dests[0]
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "policy:mixed-raw"}}
+	peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:mixed-raw"}}, filterapi.FinalAccept)
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.settings.AIGPSession = &aigp
 	peer.refreshForwardFacts()
@@ -144,7 +144,7 @@ func TestRawExportMixedBadASPathStillWithdraws(t *testing.T) {
 	peer := h.dests[0]
 	peer.settings.PeerAS = 65002
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "policy:bad-path"}}
+	peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:bad-path"}}, filterapi.FinalAccept)
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.refreshForwardFacts()
 	mpBody, wantMPWithdrawal := llnhLinkLocalOnlyPayload(t)

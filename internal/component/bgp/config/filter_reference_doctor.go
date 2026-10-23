@@ -118,7 +118,11 @@ func undefinedFilterRefs(filter *config.Tree, defined map[string]bool, path stri
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	for _, direction := range []string{"import", "export"} {
-		for _, member := range filter.GetMultiValuesState(direction) {
+		policy := filter.GetContainer(direction)
+		if policy == nil {
+			continue
+		}
+		for _, member := range policy.GetMultiValuesState("filters") {
 			if defined[filterInstanceName(member.Value)] {
 				continue
 			}
@@ -126,7 +130,7 @@ func undefinedFilterRefs(filter *config.Tree, defined map[string]bool, path stri
 				Code:     codeFilterReferenceUndefined,
 				Severity: diagnostic.SeverityError,
 				Message: tb.Reset().Str(path).Byte('/').Str(direction).
-					Str(": references undefined filter '").Str(member.Value).Byte('\'').String(),
+					Str("/filters: references undefined filter '").Str(member.Value).Byte('\'').String(),
 			})
 		}
 	}

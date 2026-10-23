@@ -6,24 +6,30 @@ package reactor
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"io/fs"
 	"log/slog"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
+	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // attrsFixtureSubject is the subject every advertised attribute renders into,
@@ -201,101 +207,237 @@ func TestAppendSingleAttrWarnsOnUnnamedType(t *testing.T) {
 	assert.Empty(t, sink.String())
 }
 
-// TestFilterSubjectCallersPassNoDeclaredList reads every non-test call to
-// AppendUpdateForFilter in the REPOSITORY and asserts each passes a nil
-// declared list.
-//
-// The whole repository rather than this package, because AppendUpdateForFilter
-// is exported: a caller in any package can narrow the subject, and a scan of
-// one directory would answer for none of them. A file is parsed only when its
-// bytes hold the name, so the scan costs one read of each source file.
-//
-// VALIDATES: A-1 -- the render-everything arm builds the chain subject on every
-// session, so an attribute added to it reaches every filter at once.
-// PREVENTS: a caller narrowing the subject with a declared list. medRemoveHasWork
-// reads the metric's presence from the subject and holds no second reading of
-// the wire, so a narrowed subject would silently take that gate's answer away.
-// The count is asserted too: a fourth caller is a decision this invariant needs
-// to be re-taken over, not a line to slip past.
-func TestFilterSubjectCallersPassNoDeclaredList(t *testing.T) {
-	root, sources := repositorySources(t)
-
-	fset := token.NewFileSet()
-	var sites []string
-	for _, relative := range sources {
-		if strings.HasSuffix(relative, "_test.go") {
-			continue
-		}
-		path := filepath.Join(root, relative)
-		source, readErr := os.ReadFile(path) // #nosec G304 -- path is one git ls-files answered.
-		if errors.Is(readErr, fs.ErrNotExist) {
-			// git tracks the path and the working tree no longer holds it,
-			// which several sessions sharing this checkout produce routinely. A
-			// file that is not there holds no call site. Every other read error
-			// still fails, so this skips one named case rather than all of them.
-			continue
-		}
-		require.NoError(t, readErr)
-		if !bytes.Contains(source, []byte("AppendUpdateForFilter")) {
-			continue
-		}
-		file, parseErr := parser.ParseFile(fset, relative, source, 0)
-		require.NoError(t, parseErr)
-
-		ast.Inspect(file, func(node ast.Node) bool {
-			call, ok := node.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			if !callsAppendUpdateForFilter(call) {
-				return true
-			}
-			where := fset.Position(call.Pos()).String()
-			sites = append(sites, where)
-			require.Len(t, call.Args, 4, "AppendUpdateForFilter takes four arguments at "+where)
-			ident, isIdent := call.Args[3].(*ast.Ident)
-			require.True(t, isIdent, "the declared list at "+where+" must be the nil literal")
-			assert.Equal(t, "nil", ident.Name, "the declared list at "+where+" must be nil")
-			return true
-		})
+// TestFilterSubjectReadsUnmodifiableAttributes drives native plugin dispatch
+// from live import, originated export, forwarded export and both dry-run
+// directions. The plugin may modify LOCAL_PREF but decides from MED. Matching,
+// nonmatching and absent MED must therefore produce different route outcomes.
+// Text and raw rewrites exercise both export materialization paths.
+func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
+	source, _ := tePropagationPeer(t, "192.0.2.1", 65001, family.IPv4Unicast)
+	r := &Reactor{
+		peers: map[netip.AddrPort]*Peer{
+			source.Settings().PeerKey(): source,
+		},
+		recentUpdates:       newRecentUpdateCache(16),
+		attrModHandlers:     attrModHandlersWithDefaults(),
+		orderedIngressSteps: []orderedIngressStep{{name: policyChainStepName, policyChain: true}},
 	}
+	t.Cleanup(r.recentUpdates.Stop)
+	filterSubjectPlugin(t, r)
 
-	assert.Len(t, sites, 3, "three call sites build the chain subject: %v", sites)
+	for _, mode := range []string{"text", "raw"} {
+		policy := mustPolicy(t, frefs("subject-policy:"+mode), filterapi.FinalAccept)
+		source.settings.ImportPolicy = policy
+		source.settings.ExportPolicy = policy
+		for _, metric := range []struct {
+			name  string
+			value int
+		}{
+			{name: "matching", value: 100},
+			{name: "nonmatching", value: 101},
+			{name: "absent", value: -1},
+		} {
+			body := filterSubjectBody(metric.value)
+			accepted := metric.value == 100
+			t.Run(mode+"/"+metric.name+"/import", func(t *testing.T) {
+				var delivered [][]byte
+				r.setMessageReceiver(&testDeliveryReceiver{consumerCount: 1,
+					onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
+						delivered = append(delivered, bytes.Clone(msg.RawBytes))
+					},
+				})
+				update := wireu.NewWireUpdate(body, source.recvCtxID)
+				update.SetSourceID(source.SourceID())
+				r.notifyMessageReceiver(source.Settings().Address, msgtype.TypeUPDATE, body, update,
+					0, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
+				if !accepted {
+					require.Empty(t, delivered, "a refused announcement must not reach the consumer")
+					return
+				}
+				require.Len(t, delivered, 1)
+				filterSubjectAssertAccepted(t, delivered[0])
+			})
+			t.Run(mode+"/"+metric.name+"/originated-export", func(t *testing.T) {
+				// Each case starts before its route has been advertised. Sharing
+				// a Session would let final-wire dedup suppress the raw case's
+				// identical output after the text case already sent it.
+				destination, socket := tePropagationPeer(t, "192.0.2.2", 65001, family.IPv4Unicast)
+				destination.settings.ExportPolicy = policy
+				destination.refreshForwardFacts()
+				destination.session.egressRouteFilter = func(body []byte) (bool, []byte) {
+					return r.exportFilterForBody(destination, body)
+				}
+				update, err := message.UnpackUpdate(body)
+				require.NoError(t, err)
+				require.NoError(t, destination.session.SendUpdate(update))
+				written := socket.written()
+				if !accepted {
+					require.Empty(t, written, "a refused announcement must not reach the socket")
+					return
+				}
+				frames := bgpFrames(t, written)
+				require.Len(t, frames, 1)
+				filterSubjectAssertAccepted(t, frames[0][message.HeaderLen:])
+			})
+			t.Run(mode+"/"+metric.name+"/forwarded-export", func(t *testing.T) {
+				f := newAIGPReplayFixture(t, nil)
+				f.r.api = r.api
+				f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+				f.destination.settings.ExportPolicy = policy
+				f.destination.settings.PeerAS = f.destination.settings.LocalAS
+				f.destination.settings.NextHopMode = NextHopUnchanged
+				f.destination.refreshForwardFacts()
+				id := f.receive(t, body)
+				f.forward(t, id)
+				f.drain(t)
+				bodies := aigpSocketBodies(t, f.conn)
+				require.Len(t, bodies, 1, "the managed writer must emit the policy's route outcome")
+				if accepted {
+					filterSubjectAssertAccepted(t, bodies[0])
+					return
+				}
+				update, err := message.UnpackUpdate(bodies[0])
+				require.NoError(t, err)
+				require.Empty(t, update.NLRI, "the rejected announcement must not escape")
+				require.Equal(t, []byte{24, 203, 0, 113}, update.WithdrawnRoutes)
+				require.Empty(t, update.PathAttributes, "a policy withdrawal must not retain announcement attributes")
+			})
+			for _, direction := range []string{directionImport, directionExport} {
+				t.Run(mode+"/"+metric.name+"/dry-run-"+direction, func(t *testing.T) {
+					result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
+						source.Settings().Address.String(), direction, "", body, true)
+					require.NoError(t, err)
+					require.Len(t, result.Trace, 1)
+					if !accepted {
+						require.Equal(t, dryRunActionReject, result.Action)
+						require.Equal(t, dryRunActionReject, result.Trace[0].Action)
+						require.Empty(t, result.TextAfter)
+						return
+					}
+					require.Equal(t, dryRunActionModify, result.Action)
+					require.Equal(t, dryRunActionModify, result.Trace[0].Action)
+					require.Contains(t, result.TextBefore, "med 100")
+					if mode == "text" {
+						require.Contains(t, result.TextAfter, "local-preference 231")
+						require.Equal(t, []string{policyAttrLocalPreference}, result.ChangedAttrs)
+					}
+				})
+			}
+		}
+	}
 }
 
-// repositorySources returns the repository root and every Go file git holds
-// under it, tracked or newly written, with the ignored paths left out.
-//
-// git rather than a directory walk, and the reason is measured: several
-// sessions share this checkout and each keeps a whole copy of the tree under
-// tmp/, which a walk reads as twelve more call sites. tmp/ is ignored, so the
-// one question git already answers -- what is the repository's own source --
-// is the exact scope this scan needs, and it needs no skip list to go stale.
-func repositorySources(t *testing.T) (string, []string) {
+// TestFilterSubjectDryRunWithdrawalFallback keeps the real native filter's MED
+// decision visible in the trace even when final reject replaces a mixed UPDATE
+// with its explicit withdrawal. A raw rewrite must not bypass that final.
+func TestFilterSubjectDryRunWithdrawalFallback(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01010101)
+	peer := NewPeer(settings)
+	r := &Reactor{peers: map[netip.AddrPort]*Peer{settings.PeerKey(): peer}}
+	filterSubjectPlugin(t, r)
+	withdrawal := []byte{24, 198, 51, 100}
+	for _, mode := range []string{"text", "raw"} {
+		policy := mustPolicy(t, frefs("subject-policy:"+mode), filterapi.FinalReject)
+		peer.settings.ImportPolicy = policy
+		peer.settings.ExportPolicy = policy
+		for _, direction := range []string{directionImport, directionExport} {
+			t.Run(mode+"/"+direction, func(t *testing.T) {
+				announcement, err := message.UnpackUpdate(filterSubjectBody(100))
+				require.NoError(t, err)
+				body := makeUpdateBody(withdrawal, announcement.PathAttributes, announcement.NLRI)
+				result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
+					settings.Address.String(), direction, "", body, true)
+				require.NoError(t, err)
+				require.Len(t, result.Trace, 1)
+				require.Equal(t, dryRunActionModify, result.Trace[0].Action,
+					"the filter must see MED despite declaring only LOCAL_PREF")
+				require.Contains(t, result.TextBefore, "med 100")
+				require.Equal(t, dryRunActionModify, result.Action)
+				require.Equal(t, "nlri del 198.51.100.0/24", result.TextAfter,
+					"final reject retains only the original explicit withdrawal")
+			})
+		}
+	}
+}
+
+// filterSubjectPlugin starts a native SDK filter, including its real declaration
+// and direct dispatch. It changes LOCAL_PREF only after matching undeclared MED;
+// it never echoes a precomputed response or substitutes the policy executor.
+func filterSubjectPlugin(t *testing.T, r *Reactor) {
 	t.Helper()
-	top, err := exec.CommandContext(t.Context(), "git", "rev-parse", "--show-toplevel").Output()
-	require.NoError(t, err, "the scan needs the repository root; a wrong root reports no call site and reads as a pass")
-	root := strings.TrimSpace(string(top))
-
-	// Run from the root, so every path git prints is relative to it. Run from
-	// the package directory instead and git lists only that directory.
-	list := exec.CommandContext(t.Context(), "git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*.go")
-	list.Dir = root
-	listed, err := list.Output()
-	require.NoError(t, err)
-	files := strings.Split(strings.TrimSpace(string(listed)), "\n")
-	require.NotEmpty(t, files[0], "git listed no Go file, so this scan proves nothing")
-	return root, files
+	const name = "subject-policy"
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: name, Description: "Attribute subject decision fixture",
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(name, conn)
+			defer p.Close() //nolint:errcheck // The server owns shutdown.
+			p.OnFilterUpdate(func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+				metric, present := parseFilterAttrs(input.Update).get(faMED)
+				if !present {
+					return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil
+				}
+				if metric != "100" {
+					return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil
+				}
+				if input.Filter == "text" {
+					return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: "local-preference 231"}, nil
+				}
+				body := bytes.Clone(input.Raw)
+				sections, err := wire.ParseUpdateSections(body)
+				if err != nil {
+					return nil, err
+				}
+				_, _, localPref, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrLocalPref)
+				if !found {
+					return nil, errors.New("subject-policy: raw UPDATE has no LOCAL_PREF")
+				}
+				if len(localPref) != 4 {
+					return nil, errors.New("subject-policy: raw UPDATE has malformed LOCAL_PREF")
+				}
+				binary.BigEndian.PutUint32(localPref, 231)
+				return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: body}, nil
+			})
+			if err := p.Run(context.Background(), &sdk.Registration{Filters: []sdk.FilterDecl{
+				{Name: "text", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, OnError: sdk.OnErrorReject},
+				{Name: "raw", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, Raw: true, OnError: sdk.OnErrorReject},
+			}}); err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+	policyFinalPluginServer(t, r, name)
 }
 
-// callsAppendUpdateForFilter reports whether call names AppendUpdateForFilter,
-// spelled bare inside this package or qualified from another.
-func callsAppendUpdateForFilter(call *ast.CallExpr) bool {
-	switch fun := call.Fun.(type) {
-	case *ast.Ident:
-		return fun.Name == "AppendUpdateForFilter"
-	case *ast.SelectorExpr:
-		return fun.Sel.Name == "AppendUpdateForFilter"
+// filterSubjectBody encodes a real route with an optional MED, never filter text.
+func filterSubjectBody(metric int) []byte {
+	attrs := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0})
+	attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrASPath), as4FilterPath4(64496))...)
+	attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrNextHop), []byte{192, 0, 2, 1})...)
+	attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrLocalPref), []byte{0, 0, 0, 150})...)
+	if metric >= 0 {
+		var value [4]byte
+		binary.BigEndian.PutUint32(value[:], uint32(metric)) //nolint:gosec // Bounded fixture metrics.
+		attrs = append(attrs, makeAttr(0x80, byte(attribute.AttrMED), value[:])...)
 	}
-	return false
+	return makeUpdateBody(nil, attrs, []byte{24, 203, 0, 113})
+}
+
+// filterSubjectAssertAccepted judges the consumer's wire route, including the
+// declared modification and the untouched attribute that decided admission.
+func filterSubjectAssertAccepted(t *testing.T, body []byte) {
+	t.Helper()
+	update, err := message.UnpackUpdate(body)
+	require.NoError(t, err)
+	require.Equal(t, []byte{24, 203, 0, 113}, update.NLRI)
+	require.Empty(t, update.WithdrawnRoutes)
+	_, _, localPref, present := attribute.AttrFind(update.PathAttributes, attribute.AttrLocalPref)
+	require.True(t, present)
+	require.Equal(t, []byte{0, 0, 0, 231}, localPref)
+	_, _, metric, present := attribute.AttrFind(update.PathAttributes, attribute.AttrMED)
+	require.True(t, present)
+	require.Equal(t, []byte{0, 0, 0, 100}, metric)
 }

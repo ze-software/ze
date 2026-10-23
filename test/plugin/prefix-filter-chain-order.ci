@@ -72,7 +72,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:ALLOW bgp-filter-prefix:DENY ]
+			import { filters [ bgp-filter-prefix:ALLOW bgp-filter-prefix:DENY ]; final accept; }
 		}
 	}
 }

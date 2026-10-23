@@ -228,7 +228,7 @@ func TestReloadReplacedDynamicPeerNotifiesFilters(t *testing.T) {
 	configured.Connection = ConnectionPassive
 	configured.Name = "ix-peer-2"
 
-	r, member := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, []*PeerSettings{configured})
+	r, member := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, []*PeerSettings{configured})
 	memberSettings := member.Settings()
 	require.True(t, memberSettings.IsDynamic)
 

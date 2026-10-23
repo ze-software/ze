@@ -26,7 +26,7 @@ bgp {
     	}
     }
     filter {
-        import [ filter-reject-test:reject-all ];
+        import { filters [ filter-reject-test:reject-all ]; final accept; }
     }
     peer peer1 {
         connection {

@@ -108,13 +108,13 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 
 		if markInactive {
 			if err := p.parseNodeInactive(entry, fieldName, fieldNode, tok.line); err != nil {
-				return err
+				return prependSyntaxPath(err, key)
 			}
 			continue
 		}
 
 		if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
-			return err
+			return prependSyntaxPath(err, key)
 		}
 	}
 
@@ -486,7 +486,7 @@ func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket 
 // storeValueOrArray validates collected leaf-list items against the schema
 // and stores them (slice for GetSlice, joined string for Get). An inline
 // "inactive:" member prefix (the compact deactivation form operators may write
-// directly in a bracket list, e.g. `import [ inactive:no-self-as ... ]`) is
+// directly in a bracket list, e.g. `filters [ inactive:no-self-as ... ]`) is
 // normalized here into the out-of-band per-member marker: the stored member
 // value is clean and validated clean, so no value ever carries the prefix.
 func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, items []string, tok token) error {

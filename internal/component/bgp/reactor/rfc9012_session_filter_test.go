@@ -45,7 +45,7 @@ func TestRFC9012TunnelFilterSelectedSession(t *testing.T) {
 // complete original attribute, while the other address loses it.
 // RFC 9012 Section 11: "This filtering SHOULD be possible on a per-BGP-session basis."
 // MUTATION: in forwardUpdateSection, substitute the stripping destination's
-// exportFilters for every destination's facts.exportFilters; the other session
+// exportPolicy for every destination's facts.exportPolicy; the other session
 // must fail its exact original-attribute assertion rather than inherit the strip.
 // RFC requirement: RFC9012-11-7 negative -- with the filtering destination swapped, its sibling retains exact original attribute-23 bytes on socket output and downstream receipt; filtering must not leak into the sibling or mutate the received/cached announcement.
 func TestRFC9012TunnelFilterDoesNotAffectOtherSession(t *testing.T) {
@@ -99,7 +99,7 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 		if i == filtered {
 			filter = teSessionFilterRemove
 		}
-		destination.settings.ExportFilters = []filterapi.FilterRef{{Name: teSessionFilterPlugin + ":" + filter}}
+		destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: teSessionFilterPlugin + ":" + filter}}, filterapi.FinalAccept)
 		destination.refreshForwardFacts()
 		r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
 	}

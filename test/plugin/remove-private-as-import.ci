@@ -55,7 +55,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ remove-private-as:STRIP ]
+			import { filters [ remove-private-as:STRIP ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

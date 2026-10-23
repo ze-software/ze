@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"errors"
 	"maps"
 	"net/netip"
 	"slices"
@@ -288,6 +289,18 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 	r := a.r
 	var previous []*DynamicGroupConfig
 	var undone []dynamicSwap
+	restore := func() error {
+		r.mu.Lock()
+		r.installDynamicGroupsLocked(previous)
+		r.mu.Unlock()
+		var errs []error
+		for _, swap := range slices.Backward(undone) {
+			if err := swap.peer.restoreHotSwappableSettings(swap.next, swap.apply); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		return errors.Join(errs...)
+	}
 	return j.Record(
 		func() error {
 			r.mu.Lock()
@@ -301,20 +314,15 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 			}
 			for _, swap := range swaps {
 				before := swap.peer.hotSwappableSnapshot(swap.apply)
-				swap.peer.applyHotSwappableSettings(swap.next, swap.apply)
 				undone = append(undone, dynamicSwap{peer: swap.peer, next: before, apply: swap.apply})
+				if err := swap.peer.applyHotSwappableSettings(swap.next, swap.apply); err != nil {
+					// Record does not keep the inverse of a failed apply.
+					return errors.Join(err, restore())
+				}
 			}
 			return nil
 		},
-		func() error {
-			r.mu.Lock()
-			r.installDynamicGroupsLocked(previous)
-			r.mu.Unlock()
-			for _, swap := range slices.Backward(undone) {
-				swap.peer.applyHotSwappableSettings(swap.next, swap.apply)
-			}
-			return nil
-		},
+		restore,
 	)
 }
 
@@ -516,7 +524,7 @@ func (r *Reactor) installDynamicGroupsLocked(groups []*DynamicGroupConfig) {
 // resolveDynamicPeerSettings sets PeerAS from the OPEN message and resolves
 // config variables ($remote_as, $remote_ip) in the filter chains. Called in the
 // Established callback before sendInitialRoutes. Idempotent: it resolves from
-// the unresolved template pair (dynImportFilters, dynExportFilters) that NewPeer
+// the unresolved template pair (dynImportPolicy, dynExportPolicy) that NewPeer
 // captured and a reload's dynamic swap replaces.
 func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	session.mu.RLock()
@@ -552,13 +560,8 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	// operator issues during one establishment.
 	for {
 		read := p.readDynamicTemplate()
-		var newImport, newExport []filterapi.FilterRef
-		if read.importTemplate != nil {
-			newImport = resolveFilterVars(read.importTemplate, localAS, remoteAS, remoteIP)
-		}
-		if read.exportTemplate != nil {
-			newExport = resolveFilterVars(read.exportTemplate, localAS, remoteAS, remoteIP)
-		}
+		newImport := read.importTemplate.WithFilters(resolveFilterVars(read.importTemplate.Filters(), localAS, remoteAS, remoteIP))
+		newExport := read.exportTemplate.WithFilters(resolveFilterVars(read.exportTemplate.Filters(), localAS, remoteAS, remoteIP))
 		if p.publishDynamicResolution(read, remoteAS, newImport, newExport) {
 			break
 		}
@@ -573,8 +576,8 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 // pair, with the generation it was read at (Peer.readDynamicTemplate).
 type dynamicTemplateRead struct {
 	generation     uint64
-	importTemplate []filterapi.FilterRef
-	exportTemplate []filterapi.FilterRef
+	importTemplate filterapi.Policy
+	exportTemplate filterapi.Policy
 }
 
 // readDynamicTemplate reads the template pair and its generation under p.mu.
@@ -585,8 +588,8 @@ func (p *Peer) readDynamicTemplate() dynamicTemplateRead {
 	defer p.mu.RUnlock()
 	return dynamicTemplateRead{
 		generation:     p.dynGeneration,
-		importTemplate: p.dynImportFilters,
-		exportTemplate: p.dynExportFilters,
+		importTemplate: p.dynImportPolicy,
+		exportTemplate: p.dynExportPolicy,
 	}
 }
 
@@ -599,21 +602,17 @@ func (p *Peer) readDynamicTemplate() dynamicTemplateRead {
 // The three fields are written under p.mu so cross-goroutine readers (the
 // routerid_unique.go identifier claim, PeerInfo builders, API/plugin Settings
 // snapshots, filter getters) observe consistent values via the
-// PeerAS()/ImportFilters()/ExportFilters() accessors, never a torn slice header
+// PeerAS()/ImportPolicy()/ExportPolicy() accessors, never a torn policy value
 // or an unsynchronized PeerAS.
-func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint32, newImport, newExport []filterapi.FilterRef) bool {
+func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint32, newImport, newExport filterapi.Policy) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.dynGeneration != read.generation {
 		return false
 	}
 	p.settings.PeerAS = remoteAS
-	if newImport != nil {
-		p.settings.ImportFilters = newImport
-	}
-	if newExport != nil {
-		p.settings.ExportFilters = newExport
-	}
+	p.settings.ImportPolicy = newImport
+	p.settings.ExportPolicy = newExport
 	return true
 }
 
@@ -633,8 +632,8 @@ func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint3
 // The caller MUST hold p.mu for writing, and MUST have run the copier onto
 // p.settings first.
 func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
-	p.dynImportFilters = next.ImportFilters
-	p.dynExportFilters = next.ExportFilters
+	p.dynImportPolicy = next.ImportPolicy
+	p.dynExportPolicy = next.ExportPolicy
 	p.dynGeneration++
 	remoteAS := p.settings.PeerAS
 	if remoteAS == 0 {
@@ -642,12 +641,8 @@ func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
 	}
 	localAS := p.settings.LocalAS
 	remoteIP := p.settings.Address.String()
-	if next.ImportFilters != nil {
-		p.settings.ImportFilters = resolveFilterVars(next.ImportFilters, localAS, remoteAS, remoteIP)
-	}
-	if next.ExportFilters != nil {
-		p.settings.ExportFilters = resolveFilterVars(next.ExportFilters, localAS, remoteAS, remoteIP)
-	}
+	p.settings.ImportPolicy = next.ImportPolicy.WithFilters(resolveFilterVars(next.ImportPolicy.Filters(), localAS, remoteAS, remoteIP))
+	p.settings.ExportPolicy = next.ExportPolicy.WithFilters(resolveFilterVars(next.ExportPolicy.Filters(), localAS, remoteAS, remoteIP))
 }
 
 // scheduleDynamicPeerCleanup starts a timer that removes a dynamic peer after

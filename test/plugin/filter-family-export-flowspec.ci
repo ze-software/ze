@@ -141,7 +141,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			export [ bgp-filter-family:NoFlow ]
+			export { filters [ bgp-filter-family:NoFlow ]; final accept; }
 		}
 		attach process export-flowspec {
 			send [ update ]

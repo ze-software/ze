@@ -224,9 +224,22 @@ func TestRSWithdrawalOwnershipMixedSynthesizedIntent(t *testing.T) {
 // TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate checks both observable
 // refusal and bounded allocator state for unknown received ADD-PATH withdrawals.
 func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
-	// RegisterPeer reuses IDs by address, while the allocator outlives fixtures.
-	// This source belongs only to this test. Register its cleanup before the
-	// rail's cleanup so all forwarding workers stop before its IDs are released.
+	// Registered IDs are reused by address and can overlap literal SourceIDs
+	// in other fixtures. Isolate the allocator rather than deleting preexisting
+	// mappings before the zero-state assertion. Restore it after every worker,
+	// recipient slot and cache entry belonging to this fixture is released.
+	saved := fwdPathIDs
+	fwdPathIDs = newFwdPathIDTable()
+	t.Cleanup(func() {
+		fwdPathIDs.mu.RLock()
+		remaining := len(fwdPathIDs.used)
+		mappings := len(fwdPathIDs.bySource) + len(fwdPathIDs.byPath)
+		fwdPathIDs.mu.RUnlock()
+		fwdPathIDs = saved
+		if remaining != 0 || mappings != 0 {
+			t.Errorf("unknown-withdrawal fixture left %d identifier reservations and %d source mapping tables", remaining, mappings)
+		}
+	})
 	source := NewPeer(&PeerSettings{
 		Connection: ConnectionBoth,
 		Address:    netip.MustParseAddr("198.18.0.88"),
@@ -242,6 +255,12 @@ func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
 		t.Fatalf("isolated source starts with %d path-ID mappings", initial)
 	}
 	f := ownershipRailNew(t, nil)
+	t.Cleanup(func() {
+		f.r.fwdPool.Stop()
+		f.destination.adjOut.reset()
+		fwdPathIDs.releaseSource(f.source.SourceID())
+		fwdPathIDs.releaseSource(f.other.SourceID())
+	})
 	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	if err != nil {

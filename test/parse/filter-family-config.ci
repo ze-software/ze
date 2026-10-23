@@ -1,6 +1,6 @@
 # Test: ze config validate accepts family-filter config + chain references
 # VALIDATES: AC-1 -- family-filter instances parse (family + action)
-# VALIDATES: Composable in chains (filter export [bgp-filter-family:NAME], import [...])
+# VALIDATES: Composable filters in import/export policies with explicit final accept
 # PREVENTS: YANG schema or augment regression breaking family-filter parsing
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -36,8 +36,8 @@ bgp {
 			}
 		}
 		filter {
-			export [ bgp-filter-family:NoFlow ]
-			import [ bgp-filter-family:Kill ]
+			export { filters [ bgp-filter-family:NoFlow ]; final accept; }
+			import { filters [ bgp-filter-family:Kill ]; final accept; }
 		}
 	}
 }

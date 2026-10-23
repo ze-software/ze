@@ -126,7 +126,7 @@ func TestAttachWhileSessionClosingDispatcherDeliversDown(t *testing.T) {
 	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	got := log.recorded()
 	require.Len(t, got, 2, "the attached process is told up, then down: %v", got)

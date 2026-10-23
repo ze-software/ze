@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-21",
+  "audited": "2026-10-22",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -317,10 +318,10 @@
       "note": "Re-judged 2026-10-01 (BGP c15 judge). The c14 gap is closed: TestRFC4271ForwardExportASPathEditsSkipInternalPeers drives the general forward rail (forwardUpdateCore -> forwardUpdateSection) with the policy-chain egress step answering 'as-path-prepend 2' and 'remove-private strip'; the internal destination (AS 65000) and the RFC 7705 migration-internal destination (AS 64999 = MigrationAS) are sent the received AS_PATH [64512 64496] byte for byte, while the external control in the same fan-out is sent [65000 65000 65000 64512 64496] and [65000 64496]. Judge overlay (forwardUpdateSection passes false instead of !facts.isEBGP, judge j15-ov-fwd.log) reddens all four internal and migration-internal assertions, so the forward rail is now discriminated. With the c14 units (exportFilterForBody/runEgressPolicyChain guard, migration-aware verdict, policy dry-run agreement, announce rail reactor_wire, batch IBGP verbatim) every rail that edits AS_PATH toward an internal peer has a unit that reddens when it does. Judge re-recorded the two producer-changed revert records of TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer on forwardUpdateSection. rfc4271_test.go and reactor_batch_test.go tags still carry no record (reach unproven by record, semantic by c13/c14 overlays).",
       "requirement_sha": "0cfcf537b0aafcec",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "9a11af33ccbe070c",
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "9a11af33ccbe070c",
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "9a11af33ccbe070c",
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "9a11af33ccbe070c",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "7be8956d77d2d1ad",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "7be8956d77d2d1ad",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "7be8956d77d2d1ad",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "7be8956d77d2d1ad",
         "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
@@ -434,11 +435,11 @@
       "note": "forward_med_test and med-not-propagated-across-as.ci assert attribute 4 stripped toward a plain eBGP peer; negatives keep it toward iBGP, RS clients and for a locally originated metric (med-locally-set-reaches-peer.ci) Rejudged 2026-10-17 (independent reader, not the author of 3f6bb1965e) after the owner-approved command-text change in 3f6bb1965e (injection grammar: nlri <family> became mp <family> for MP families and bare nlri for IPv4 unicast): test/plugin/med-locally-set-reaches-peer.ci changed its one cmd=api line from nlri ipv4/unicast add to nlri add; the expected UPDATE (ORIGIN, AS_PATH, NEXT_HOP, MULTI_EXIT_DISC 100, NLRI 1.0.0.1/32) is byte-identical, so the negative still requires a locally set MED to reach the eBGP peer and the received-MED positives are untouched. Re-run green 2026-10-17 (./le test bgp plugin med-locally-set-reaches-peer). RFC 4271 Section 5.1.4: \"The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.\" Verdict stands.",
       "requirement_sha": "5d956ce89d316bad",
       "tests": {
-        "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "d216c0c86115d31f",
-        "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS": "d216c0c86115d31f",
-        "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "d216c0c86115d31f",
-        "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "d216c0c86115d31f",
-        "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "d216c0c86115d31f",
+        "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "677aec0a7e53cb68",
+        "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS": "677aec0a7e53cb68",
+        "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "677aec0a7e53cb68",
+        "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "677aec0a7e53cb68",
+        "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "677aec0a7e53cb68",
         "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "9d03834af3f0f054",
         "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "9d03834af3f0f054",
         "test/plugin/med-locally-set-reaches-peer.ci": "54e8dc11e57bcfab",
@@ -460,39 +461,39 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.4-2": {
-      "note": "modify_test, forward_med_test and three .ci tests assert the del med directive runs on the import chain before the RIB stores the route, is refused on export, and removes only attribute 4",
+      "note": "Rejudged 2026-10-22 by independent route-policy auditor. RFC 4271 Section 5.1.4: \"If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2).\" Read every carrier: filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly; reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable; the manifest drafts test/draft/plugin/med-removal-before-decision.ci, med-removal-configured.ci and med-removal-export-refused.ci in place of their same-named live files. Unit assertions pin import-only med-remove emission, export withholding, one attribute-4 suppression, exact rebuilt payload without MED for 0/100/4294967295, and preservation without the directive. internal/test/fixture/plugin_fixture_09_bgp.go::medRemovalBeforeDecision09 requires one stored route, absence of the received MED-100 encoding, and exact ORIGIN/AS_PATH/COMMUNITIES survivors in Adj-RIB-In; this is the storage-order assertion, not a claim that its substring test parses all possible MED encodings. Configured-removal wire comparison is to an rs-client so automatic inter-AS MED stripping cannot satisfy it. Export-refused preserves the complete MED-bearing frame and requires the refusal log while rejecting delta=med-remove. Producers: filter_modify/filter_modify.go::handleFilterUpdate and appendMEDRemove; reactor/filter_delta.go::ExtractMEDRemoveOps and textDeltaToModOps; filter_ordered.go::runIngressPolicyChain; reactor_notify.go::notifyMessageReceiver replaces both raw bytes and WireUpdate before cache and receiver dispatch. The egress converter skips med-remove. Each draft differs from its live carrier only by the explicit final-accept syntax; no expectations, inputs or negotiated families changed in these three drafts. Retain enforced at the existing configured-mechanism/order scope; no execution or renewed native proof is claimed.",
       "requirement_sha": "ccf89bedacdc9dd9",
       "tests": {
         "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "2edac2df7ff816c2",
         "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "2edac2df7ff816c2",
-        "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "d216c0c86115d31f",
-        "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "d216c0c86115d31f",
-        "test/plugin/med-removal-before-decision.ci": "40af84c9e9dc2878",
-        "test/plugin/med-removal-before-decision.ci#2": "40af84c9e9dc2878",
-        "test/plugin/med-removal-configured.ci": "23598647d92208bb",
-        "test/plugin/med-removal-export-refused.ci": "d81b417753833888"
+        "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "677aec0a7e53cb68",
+        "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "677aec0a7e53cb68",
+        "test/plugin/med-removal-before-decision.ci": "5dd1861198d63d6d",
+        "test/plugin/med-removal-before-decision.ci#2": "5dd1861198d63d6d",
+        "test/plugin/med-removal-configured.ci": "9ed79b08ab615843",
+        "test/plugin/med-removal-export-refused.ci": "74c9745d8548a582"
       },
       "units": {
         "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "b0e76e42bcdfcce5",
         "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "b0e76e42bcdfcce5",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "a9ba4d2d27c4fa5a",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "a9ba4d2d27c4fa5a",
-        "test/plugin/med-removal-before-decision.ci": "40af84c9e9dc2878",
-        "test/plugin/med-removal-before-decision.ci#2": "40af84c9e9dc2878",
-        "test/plugin/med-removal-configured.ci": "23598647d92208bb",
-        "test/plugin/med-removal-export-refused.ci": "d81b417753833888"
+        "test/plugin/med-removal-before-decision.ci": "5dd1861198d63d6d",
+        "test/plugin/med-removal-before-decision.ci#2": "5dd1861198d63d6d",
+        "test/plugin/med-removal-configured.ci": "9ed79b08ab615843",
+        "test/plugin/med-removal-export-refused.ci": "74c9745d8548a582"
       },
       "verdict": "enforced"
     },
     "RFC4271-5.1.4-3": {
-      "note": "Re-judged 2026-10-01 (BGP c17 judge). Row is {single-polarity: positive} (ordering constraint, no non-conformant input to refuse). Forbidden: the RIB plugin, which runs phases 1 and 2, being handed the received MED instead of the configured alteration. NEW TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess receives an UPDATE with MULTI_EXIT_DISC 100 from an EBGP peer through notifyMessageReceiver, the import policy (seam 'med 10') runs in the ordered ingress steps, and the dispatched message's RawBytes and WireUpdate both carry exactly 0000000A; the audit's earlier objection (dispatch ordering stated in a comment, not asserted) is now asserted at the dispatch boundary Ze owns. Record: + on notifyMessageReceiver, observed red; author semantic overlay (the ingress loop drops payload = res.modifiedPayload) reddens it with actual 00000064, c17-ov-514.log. HEAD TestRFC4271MEDAlterationHappensAtIngress stays supplementary.",
+      "note": "Rejudged 2026-10-22 by independent route-policy auditor. RFC 4271 Section 5.1.4: \"If a BGP speaker is configured to alter the value of the MULTI_EXIT_DISC attribute received over EBGP, then altering the value MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2).\" Preserve the existing single-polarity positive ordering scope. Read reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess and reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress. The former supplies an EBGP UPDATE carrying MED 100 to notifyMessageReceiver, runs the configured med-10 policy seam, requires exactly one received dispatch, and asserts exact 0000000A in both RawBytes and WireUpdate.Payload. The latter checks safeIngressFilter returns rewritten bytes and is supplementary, not independent proof of dispatch ordering. Producers: filter_ordered.go::runIngressPolicyChain applies PolicyFilterChain and rebuilds the text delta; reactor_notify.go::notifyMessageReceiver consumes modifiedPayload and replaces RawMessage fields before cache insertion and receiver delivery. The typed ImportPolicy constructed with FinalAccept preserves the previous chain exhaustion acceptance and the asserted MED change; it does not change the seam or assertion. Retain enforced for alteration before the decision-process input boundary, without claiming execution of the RIB decision process or new runtime proof.",
       "requirement_sha": "39b6d1281fba91ed",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess": "6620389bad0e1997",
+        "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess": "706c9cbb40d875dd",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "94aa07ebd53dcc5b"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess": "33c560dab3f53f9d",
+        "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess": "204f99433b1fb260",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "34d0862d7f22517b"
       },
       "verdict": "enforced"
@@ -581,8 +582,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "0df229125a9cf20f",
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "0df229125a9cf20f",
-        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "61fc221c9e4b9fed",
-        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "61fc221c9e4b9fed"
+        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "315a739f73db9bac",
+        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "315a739f73db9bac"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "5fc5f0caeaad3e50",
@@ -1143,9 +1144,9 @@
     "RFC4271-8.2.2-20": {
       "code": {
         "internal/component/bgp/fsm/fsm.go::handleIdle": "78df6eefa7aae06e",
-        "internal/component/bgp/reactor/peer_run.go::runOnce": "7f340d8be2528042"
+        "internal/component/bgp/reactor/peer_run.go::runOnce": "999fd1004ba52e33"
       },
-      "note": "Re-judged 2026-10-21 (Phase 7 agent, not the author of 72a56ddfbf) after 72a56ddfbf changed runOnce: the only change is an early return when p.adminDown is set, placed before p.session is published (peer_run.go line 313) and before reachedEstablished := p.cycleReachedEstablished.Swap(false) (line 416), so a held cycle neither consumes nor sets the Established marker and the Event 3 / Event 6 choice (startAutomatic when true, startDamped otherwise) and the Store(true) beside PeerStateEstablished are byte-identical to what the earlier judgement read. The discrimination record for TestRFC4271FailedCycleAfterEstablishedKeepsCounter was re-taken over the current runOnce (red under the break). Verdict unchanged. Earlier judgement follows. Re-judged 2026-10-18 (independent auditor, after 2c5338dc38). RFC 4271 Section 8.2.2 (Idle) states: 'In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect.' Section 8.1.2 Event 3 (AutomaticStart): 'Definition: Local system automatically starts the BGP connection.' 'Status: Optional, depending on local system'. Producer read: fsm.go::handleIdle serves Events 1 and 3 in one arm calling f.crc.Reset() then Connect, or Active when passive (Event 3 conflated with Event 5, whose 8.2.2 action list carries the same counter reset); Event 6 has its own arm that leaves the counter. reactor/peer_run.go::runOnce does reachedEstablished := cycleReachedEstablished.Swap(false) and starts with session.startAutomatic (Event 3) when true, startDamped (Event 6) otherwise, Session.Start (Event 1) for the operator's first start; runOnce's FSM callback stores true beside PeerStateEstablished. Only 2c5338dc38 touched the producers or tests since 34b90e0d16, and it changed only the test file (new tagged negative). Tests: FSM positive pins counter 7 -> 0 and the exact Connect/Active branch; FSM negative pins Event 6 in Idle keeping 7 and Event 3 ignored (counter and state) in all five non-Idle states; Peer positive drives Established then a Cease NOTIFICATION and a 3 s HoldTimer expiry, reads 1 after the session ends and 0 after the next dial; Peer negative TestRFC4271FailedCycleRestartKeepsCounter fails a never-Established cycle on an all-zero marker and reads 1 after the next dial; new Peer negative TestRFC4271FailedCycleAfterEstablishedKeepsCounter runs Established -> Cease -> second dial reads 0 -> all-zero marker fails it -> counter 1 -> third dial still 1. Each claim states what its body asserts. Mutants re-run by this auditor via go test -overlay (tags ze_core ze_bgp, baseline green): always Event 6 -> Peer positive red both subtests (want 0 got 1) and new negative red at its Event-3 precondition; always Event 3 -> both Peer negatives red (want 1 got 0); Swap(false) -> Load() -> new negative red (want 1 got 0), the break that survived the 56c2e06f0a judgement is now killed; Store(true) removed -> Peer positive red and new negative red. The recorded discriminations remain whole-body panics (handleIdle, startAutomatic, startDamped, runOnce) and prove nothing about the deciding logic; the mutants above are the evidence. Residual, not against this row: the ErrTeardown and inboundNotify restart exits are covered by untagged tests (TestRFC4271AutomaticStopTeardownRestartZeroesCounter, TestRFC4271InboundShortenedBackoffZeroesCounter); the passive branch is proven only at FSM level; 'initializes all BGP resources' is evidenced only by the next dial occurring. Enforced: both polarities fail on all four deciding-logic breaks.",
+      "note": "Independently rejudged 2026-10-22; no execution or stamping. RFC 4271 Section 8.2.2, Idle: \"In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect.\" Read all five tagged units: internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesConnectRetryCounter and TestRFC4271AutomaticStartZeroesOnlyFromIdle; internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271AutomaticStartEvent3ZeroesCounter, TestRFC4271FailedCycleRestartKeepsCounter and TestRFC4271FailedCycleAfterEstablishedKeepsCounter. FSM assertions pin 7 to 0 for Event 3 in Idle and Connect/Active according to passive mode; Event 6 retains 7, and Event 3 in every non-Idle state changes neither counter nor state. Running-peer assertions pin 1 after Established ends by Cease or a real 3-second HoldTimer expiry, then 0 after the next dial; never-Established failure retains 1 after redial; Established then a failed second cycle retains 1 on the third dial. Producers fsm.go::handleIdle and peer_run.go::runOnce still implement Reset for Events 1/3, non-reset for Event 6, cycleReachedEstablished.Swap(false), the Event-3 choice only for the consumed true value, and Store(true) on establishment. The timer lock correction is justified at the actual callback boundary, not only the Established arm: NewSession hold expiry and session_write.go::sendHoldTimerExpired now call logFSMEvent without s.mu; FSM.change releases f.mu while draining callbacks; runOnce calls emitFSMEvents on every transition; emitFSMEvents -> fsmEventPeerInfo -> connectedLocalEndpoint -> Session.Conn takes s.mu.RLock even for the expiry transition. The old lock would self-deadlock that observer path. Notification sending and timer connection snapshots remain outside the Event call, and FSM.Event owns state locking; removal of the session lock does not remove FSM synchronization. Preserve the prior scope: passive behavior is proved at FSM level, and resource initialization is observed through the next dial rather than every resource individually. Prior deciding-logic mutant observations remain historical evidence, not runs by this auditor; supplied native renewal metadata is not a substitute for these assertions.",
       "requirement_sha": "241b63ca3e60d062",
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesConnectRetryCounter": "2227e129c50e80e0",
@@ -1419,8 +1420,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "70e4f5e5056d4e79",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "70e4f5e5056d4e79"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "dc546dccf368c8ad",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
@@ -1460,8 +1461,8 @@
       "note": "Re-judged 2026-10-01 (BGP c17 judge). Forbidden: an IBGP readvertisement carrying a LOCAL_PREF other than the degree of preference the import policy computed. NEW TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers runs an external route through the source's real runIngressPolicyChain (filter seam answers local-preference 200) and forwards the chain's payload on the general rail: the internal destination is sent exactly 000000C8 and the external one none; the same route with no import policy is sent 00000064, so a constant (100 or 200) cannot pass both cases. Records: + on runIngressPolicyChain, - on applyFactsLocalPref, both observed red; author semantic overlay (applyFactsLocalPref overwrites any base LOCAL_PREF toward internal peers with 100) reddens the + case, c17-ov-lp.log. The HEAD - tag on TestRFC4271LocalPrefOmittedForExternalPeers was removed (D-15): its assertion is RFC4271-5.1.5-2's rule, which the unit keeps. HEAD + TestRFC4271LocalPrefIncludedForInternalPeers stays supplementary (default 100 on the announce rail, no record). Bound: the general forward rail is proven; the route-server rail and the rib plugin's readvertisement are not driven by this unit (5.1.5-5 shares that composition).",
       "requirement_sha": "a1b8e0c8297d0ee1",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "23ee81037daaa1b7",
-        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "23ee81037daaa1b7",
+        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "1e982907ef1ce4b4",
+        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "1e982907ef1ce4b4",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b"
       },
       "units": {
@@ -1477,8 +1478,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "70e4f5e5056d4e79",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "70e4f5e5056d4e79"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "dc546dccf368c8ad",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
@@ -1574,8 +1575,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559",
-        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "5999a263a9f55d84",
-        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "5999a263a9f55d84"
+        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "788bfed5f4fb150c",
+        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "788bfed5f4fb150c"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
@@ -1617,8 +1618,8 @@
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
       "requirement_sha": "04f270bb5549bd27",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "70e4f5e5056d4e79",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "70e4f5e5056d4e79"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "dc546dccf368c8ad",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",

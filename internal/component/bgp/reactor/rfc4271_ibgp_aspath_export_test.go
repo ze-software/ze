@@ -34,8 +34,7 @@ func exportFilterTo(t *testing.T, delta string, body []byte, destPeerAS uint32) 
 		},
 		attrModHandlers: attrModHandlersWithDefaults(),
 	}
-	res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "aspath-edit"}},
-		"10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, wireu.NewWireUpdate(body, ctxID), true)
+	res := r.runEgressPolicyChainASN4(mustPolicy(t, []filterapi.FilterRef{{Name: "aspath-edit"}}, filterapi.FinalAccept), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, wireu.NewWireUpdate(body, ctxID), true)
 	require.True(t, res.accept, "the export chain accepts the route")
 
 	payload := body
@@ -103,7 +102,7 @@ func exportThroughSession(t *testing.T, settings *PeerSettings, delta string, bo
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
 
-	settings.ExportFilters = []filterapi.FilterRef{{Name: "aspath-edit"}}
+	settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "aspath-edit"}}, filterapi.FinalAccept)
 	peer := NewPeer(settings)
 	facts := peer.buildForwardFacts()
 	facts.sendCtxID = ctxID
@@ -175,8 +174,8 @@ func dryRunWireChanges(t *testing.T, settings *PeerSettings, direction string) [
 	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		return PolicyResponse{Action: PolicyModify, Delta: "as-path-prepend 2"}
 	}
-	settings.ImportFilters = []filterapi.FilterRef{{Name: "aspath-edit"}}
-	settings.ExportFilters = []filterapi.FilterRef{{Name: "aspath-edit"}}
+	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "aspath-edit"}}, filterapi.FinalAccept)
+	settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "aspath-edit"}}, filterapi.FinalAccept)
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	r.peers[settings.PeerKey()] = peer
@@ -239,7 +238,7 @@ func forwardWithExportEdit(t *testing.T, delta string) map[netip.Addr][]byte {
 	migration.settings.MigrationAS = 64999
 	external := a2Dest(t, "192.0.2.53", 65053, netip.Addr{}, false)
 	for _, dest := range []*Peer{internal, migration, external} {
-		dest.settings.ExportFilters = []filterapi.FilterRef{{Name: "aspath-edit"}}
+		dest.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "aspath-edit"}}, filterapi.FinalAccept)
 		dest.refreshForwardFacts()
 	}
 

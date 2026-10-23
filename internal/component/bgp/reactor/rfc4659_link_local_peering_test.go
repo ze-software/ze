@@ -66,7 +66,7 @@ func TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair(t *testing.T) {
 					raw = mustHex(t, "4020010db800070000")
 				}
 				for _, peer := range []*Peer{f.source, f.destination} {
-					peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{fam: true}})
+					negotiateForwardTestFamilies(peer, fam)
 				}
 				delete(f.r.peers, f.destination.Settings().PeerKey())
 				f.destination.settings.Address = netip.MustParseAddr(tc.remote)

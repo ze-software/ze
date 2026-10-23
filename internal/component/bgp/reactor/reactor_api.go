@@ -115,7 +115,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		// drained on the read goroutine that also writes PeerAS), a from-Established teardown
 		// can be drained on the hold-timer goroutine, racing a dynamic peer's reconnect
 		// resolveDynamicPeerSettings write (reactor_dynamic.go). Other fields are immutable
-		// post-construction (only PeerAS/ImportFilters/ExportFilters mutate) so stay direct.
+		// post-construction (PeerAS/ImportPolicy/ExportPolicy use guarded accessors).
 		PeerAS:   peer.PeerAS(),
 		RouterID: s.RouterID,
 		Connect:  s.Connection.Connect,
@@ -160,8 +160,6 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		// establishment write and a reload's hot swap. All other PeerSettings fields are
 		// immutable after construction.
 		peerAS := p.PeerAS()
-		importFilters := p.ImportFilters()
-		exportFilters := p.ExportFilters()
 		prefixUpdated := p.oldestPrefixUpdated()
 		stats := p.Stats()
 		// The one rule (session_as_migration.go, isIBGPWith), taken over the guarded peerAS
@@ -207,8 +205,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
 			NextHopAddress:       s.NextHopAddress,
-			ImportFilters:        filterapi.FilterRefStrings(importFilters),
-			ExportFilters:        filterapi.FilterRefStrings(exportFilters),
+			ImportPolicy:         policyInfo(p.ImportPolicy()),
+			ExportPolicy:         policyInfo(p.ExportPolicy()),
 
 			OpensReceived:         stats.OpensReceived,
 			OpensSent:             stats.OpensSent,
@@ -269,6 +267,22 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		result = append(result, info)
 	}
 	return result
+}
+
+// policyInfo retains automatic references without inventing an operator final.
+func policyInfo(policy filterapi.Policy) *plugin.PolicyInfo {
+	if !policy.Configured() && len(policy.Filters()) == 0 {
+		return nil
+	}
+	info := &plugin.PolicyInfo{Filters: filterapi.FilterRefStrings(policy.Filters())}
+	if policy.Configured() {
+		if policy.AcceptsAtEnd() {
+			info.Final = "accept"
+		} else {
+			info.Final = "reject"
+		}
+	}
+	return info
 }
 
 // PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
@@ -1434,7 +1448,7 @@ func parseUint32FromString(s string, out *uint32) {
 // therefore compared automatically and cannot be silently ignored on reload.
 //
 // This replaces a hand-maintained field list that compared ~15 fields and ignored
-// ~35, including ImportFilters/ExportFilters (import/export policy), MD5Key (RFC
+// ~35, including ImportPolicy/ExportPolicy (import/export policy), MD5Key (RFC
 // 2385 TCP-MD5), RouteReflectorClient/ClusterID (RFC 4456), the prefix-limit maps,
 // and the loop-detection fields. Because reconcilePeersJournaled only reconciles a
 // peer this predicate reports as changed, and Peer.settings is assigned once in

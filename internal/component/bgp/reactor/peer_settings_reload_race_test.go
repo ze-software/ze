@@ -37,19 +37,21 @@ func TestReloadWhileReceivingNoRace(t *testing.T) {
 	chainA := []filterapi.FilterRef{{Name: "policy:chain-a"}}
 	chainB := []filterapi.FilterRef{{Name: "policy:chain-b"}}
 
-	initial := swapTestPeerSettings()
-	initial.ImportFilters = chainA
-	initial.ExportFilters = chainA
+	initial := swapTestPeerSettings(t)
+	initial.ImportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
+	initial.ExportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
 
 	// Every reload alternates the chains, so each one is a real swap rather than a
 	// no-change reload the reconcile would skip.
 	var reloads atomic.Uint64
 	nextSettings := func() *PeerSettings {
-		ps := swapTestPeerSettings()
+		ps := swapTestPeerSettings(t)
 		if reloads.Add(1)%2 == 0 {
-			ps.ImportFilters, ps.ExportFilters = chainA, chainA
+			ps.ImportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
+			ps.ExportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
 		} else {
-			ps.ImportFilters, ps.ExportFilters = chainB, chainB
+			ps.ImportPolicy = mustPolicy(t, chainB, filterapi.FinalAccept)
+			ps.ExportPolicy = mustPolicy(t, chainB, filterapi.FinalAccept)
 		}
 		return ps
 	}
@@ -93,7 +95,7 @@ func TestReloadWhileReceivingNoRace(t *testing.T) {
 			// The egress side reads its chain from the facts snapshot the swap
 			// rebuilds, which is the other cross-goroutine handoff.
 			_ = peer.forwardFacts()
-			_ = peer.ExportFilters()
+			_ = peer.ExportPolicy()
 		}
 	}()
 

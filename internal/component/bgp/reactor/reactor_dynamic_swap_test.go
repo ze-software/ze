@@ -75,11 +75,11 @@ func establishDynamicPeer(t *testing.T, r *Reactor, peer *Peer) *bindRecorder {
 // re-delivered would read two.
 func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 	rec := establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 
-	changed := dynamicReloadGroup()
+	changed := dynamicReloadGroup(t)
 	changed.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
 	reloadDynamicGroups(t, r, changed)
 
@@ -91,7 +91,7 @@ func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 	assert.True(t, after.currentSession() == session, "the session must be the same session")
 	require.Len(t, peer.settingsSnapshot().ProcessBindings, 1, "the binding must reach the running peer")
 	assert.Equal(t, "monitor", peer.settingsSnapshot().ProcessBindings[0].PluginName)
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, peer.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, peer.ImportPolicy().Filters(),
 		"the running chain must stay resolved against the learned AS")
 
 	steps := rec.recorded()
@@ -101,7 +101,7 @@ func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 	assert.Equal(t, []string{"monitor"}, steps[0].processes)
 
 	// The second pass: the same template again, rebuilt.
-	again := dynamicReloadGroup()
+	again := dynamicReloadGroup(t)
 	again.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
 	reloadDynamicGroups(t, r, again)
 	assert.Len(t, rec.recorded(), 1, "the second pass must deliver no second up")
@@ -125,14 +125,14 @@ func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 // PREVENTS: an unresolved $remote_as chain enforced on an established peer.
 func TestDynamicFilterSwapResolvesAgainstLearnedAS(t *testing.T) {
 	strict := func() *DynamicGroupConfig {
-		g := dynamicReloadGroup()
-		g.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}
+		g := dynamicReloadGroup(t)
+		g.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}, filterapi.FinalAccept)
 		return g
 	}
 
 	t.Run("learned", func(t *testing.T) {
 		addr := netip.MustParseAddr("185.1.69.42")
-		r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+		r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 		establishDynamicPeer(t, r, peer)
 
 		reloadDynamicGroups(t, r, strict())
@@ -141,9 +141,9 @@ func TestDynamicFilterSwapResolvesAgainstLearnedAS(t *testing.T) {
 		after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
 		r.mu.RUnlock()
 		require.True(t, after == peer, "a filter template change must swap, not restart")
-		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65010"}}, peer.ImportFilters())
+		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65010"}}, peer.ImportPolicy().Filters())
 		peer.mu.RLock()
-		template := peer.dynImportFilters
+		template := peer.dynImportPolicy.Filters()
 		peer.mu.RUnlock()
 		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}, template,
 			"the template pair must hold the new chain unresolved")
@@ -151,23 +151,131 @@ func TestDynamicFilterSwapResolvesAgainstLearnedAS(t *testing.T) {
 
 	t.Run("not yet learned", func(t *testing.T) {
 		addr := netip.MustParseAddr("185.1.69.43")
-		r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+		r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 		session := NewSession(peer.settings)
 		peer.mu.Lock()
 		peer.session = session
 		peer.mu.Unlock()
 
 		reloadDynamicGroups(t, r, strict())
-		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}, peer.ImportFilters(),
+		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}, peer.ImportPolicy().Filters(),
 			"a peer with no AS yet keeps the chain unresolved")
 
 		session.mu.Lock()
 		session.peerOpen = &message.Open{MyAS: 65020, BGPIdentifier: 0x0a0b0c0d}
 		session.mu.Unlock()
 		peer.resolveDynamicPeerSettings(session)
-		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65020"}}, peer.ImportFilters(),
+		assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65020"}}, peer.ImportPolicy().Filters(),
 			"establishment must resolve the chain from the new template pair")
 	})
+}
+
+// TestDynamicPolicyResolutionPreservesFinal checks both empty policies and
+// variable-bearing child policies through construction and OPEN resolution.
+func TestDynamicPolicyResolutionPreservesFinal(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		importRefs []filterapi.FilterRef
+		exportRefs []filterapi.FilterRef
+		wantImport []filterapi.FilterRef
+		wantExport []filterapi.FilterRef
+	}{
+		{name: "final only"},
+		{
+			name:       "substitute child variables",
+			importRefs: frefs("policy:in-$remote_as"),
+			exportRefs: frefs("policy:out-$remote_as"),
+			wantImport: frefs("policy:in-65010"),
+			wantExport: frefs("policy:out-65010"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			group := dynamicReloadGroup(t)
+			group.Settings.ImportPolicy = mustPolicy(t, tc.importRefs, filterapi.FinalReject)
+			group.Settings.ExportPolicy = mustPolicy(t, tc.exportRefs, filterapi.FinalReject)
+			r, peer := newDynamicReloadReactor(t, group, netip.MustParseAddr("185.1.69.42"), nil)
+			assert.Equal(t, group.Settings.ImportPolicy, peer.ImportPolicy())
+			assert.Equal(t, group.Settings.ExportPolicy, peer.ExportPolicy())
+
+			establishDynamicPeer(t, r, peer)
+			peer.refreshForwardFacts()
+			wantImport := mustPolicy(t, tc.wantImport, filterapi.FinalReject)
+			wantExport := mustPolicy(t, tc.wantExport, filterapi.FinalReject)
+			assert.Equal(t, wantImport, peer.ImportPolicy())
+			assert.Equal(t, wantExport, peer.ExportPolicy())
+			require.NotNil(t, peer.forwardFacts())
+			assert.Equal(t, wantExport, peer.forwardFacts().exportPolicy)
+			template := peer.readDynamicTemplate()
+			assert.Equal(t, group.Settings.ImportPolicy, template.importTemplate)
+			assert.Equal(t, group.Settings.ExportPolicy, template.exportTemplate)
+			assert.Equal(t, tc.importRefs, group.Settings.ImportPolicy.Filters(), "resolution must not mutate the group")
+			assert.Equal(t, tc.exportRefs, group.Settings.ExportPolicy.Filters(), "resolution must not mutate the group")
+		})
+	}
+}
+
+// TestDynamicPolicyFinalSwapRollbackPreservesSession checks empty policy
+// transitions and removal without replacing the learned peer or its session.
+func TestDynamicPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
+	accept := mustPolicy(t, nil, filterapi.FinalAccept)
+	reject := mustPolicy(t, nil, filterapi.FinalReject)
+	for _, tc := range []struct {
+		name string
+		from filterapi.Policy
+		to   filterapi.Policy
+	}{
+		{name: "accept to reject", from: accept, to: reject},
+		{name: "reject to accept", from: reject, to: accept},
+		{name: "remove reject", from: reject},
+		{name: "remove accept", from: accept},
+		{name: "configure reject", to: reject},
+		{name: "configure accept", to: accept},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			group := dynamicReloadGroup(t)
+			group.Settings.ImportPolicy = tc.from
+			group.Settings.ExportPolicy = tc.from
+			r, peer := newDynamicReloadReactor(t, group, netip.MustParseAddr("185.1.69.42"), nil)
+			establishDynamicPeer(t, r, peer)
+			session := peer.currentSession()
+			peer.refreshForwardFacts()
+			before := peer.forwardFacts()
+			require.NotNil(t, before)
+			generation := r.peerGeneration.Load()
+
+			next := dynamicReloadGroup(t)
+			next.Settings.ImportPolicy = tc.to
+			next.Settings.ExportPolicy = tc.to
+			j := reloadDynamicGroups(t, r, next)
+			require.Equal(t, tc.to, peer.ImportPolicy())
+			require.Equal(t, tc.to, peer.ExportPolicy())
+			require.NotNil(t, peer.forwardFacts())
+			assert.Equal(t, tc.to, peer.forwardFacts().exportPolicy)
+			assert.Equal(t, tc.from, before.exportPolicy, "the old snapshot must remain immutable")
+			template := peer.readDynamicTemplate()
+			assert.Equal(t, tc.to, template.importTemplate)
+			assert.Equal(t, tc.to, template.exportTemplate)
+			require.Len(t, r.Peers(), 1)
+			assert.True(t, r.Peers()[0] == peer, "a final-only edit must keep the same dynamic peer")
+			assert.True(t, peer.currentSession() == session)
+			assert.Equal(t, PeerStateEstablished, peer.State())
+			assert.Equal(t, generation, r.peerGeneration.Load())
+
+			require.Empty(t, j.Rollback())
+			assert.Equal(t, tc.from, peer.ImportPolicy())
+			assert.Equal(t, tc.from, peer.ExportPolicy())
+			require.NotNil(t, peer.forwardFacts())
+			assert.Equal(t, tc.from, peer.forwardFacts().exportPolicy)
+			template = peer.readDynamicTemplate()
+			assert.Equal(t, tc.from, template.importTemplate)
+			assert.Equal(t, tc.from, template.exportTemplate)
+			require.Len(t, r.Peers(), 1)
+			assert.True(t, r.Peers()[0] == peer, "rollback must keep the same dynamic peer")
+			assert.True(t, peer.currentSession() == session)
+			assert.Equal(t, PeerStateEstablished, peer.State())
+			assert.Equal(t, generation, r.peerGeneration.Load())
+		})
+	}
 }
 
 // TestFailingReloadRollsBackDynamicSwap proves AC-20 for the binding and filter
@@ -182,7 +290,7 @@ func TestDynamicFilterSwapResolvesAgainstLearnedAS(t *testing.T) {
 // PREVENTS: a rolled-back reload leaving a half-applied dynamic swap.
 func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	before := dynamicReloadGroup()
+	before := dynamicReloadGroup(t)
 	r, peer := newDynamicReloadReactor(t, before, addr, nil)
 	rec := establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
@@ -191,9 +299,9 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	api.SetService(svc)
 	defer api.SetService(nil)
 
-	changed := dynamicReloadGroup()
+	changed := dynamicReloadGroup(t)
 	changed.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
-	changed.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}
+	changed.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}, filterapi.FinalAccept)
 	changed.Settings.BFD = nonStrictBFD("fast")
 	j := reloadDynamicGroups(t, r, changed)
 	require.Len(t, peer.settingsSnapshot().ProcessBindings, 1, "the fixture must swap before it rolls back")
@@ -209,10 +317,10 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	require.True(t, after == peer, "the rollback must keep the same peer")
 	assert.True(t, after.currentSession() == session, "the rollback must keep the same session")
 	assert.Empty(t, peer.settingsSnapshot().ProcessBindings, "the bindings must be the pre-reload ones")
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, peer.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, peer.ImportPolicy().Filters(),
 		"the running chain must be the pre-reload one, still resolved")
 	peer.mu.RLock()
-	template := peer.dynImportFilters
+	template := peer.dynImportPolicy.Filters()
 	peer.mu.RUnlock()
 	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, template,
 		"the template pair must be the pre-reload one, unresolved")
@@ -242,7 +350,7 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 // PREVENTS: a resolution publishing chains from a replaced template.
 func TestDynamicTemplateSwapRacesEstablishment(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 	establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 
@@ -261,14 +369,14 @@ func TestDynamicTemplateSwapRacesEstablishment(t *testing.T) {
 
 	names := []string{"policy:a-$remote_as", "policy:b-$remote_as"}
 	for i := range 200 {
-		g := dynamicReloadGroup()
-		g.Settings.ImportFilters = []filterapi.FilterRef{{Name: names[i%2]}}
+		g := dynamicReloadGroup(t)
+		g.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: names[i%2]}}, filterapi.FinalAccept)
 		reloadDynamicGroups(t, r, g)
 	}
 	close(stop)
 	wg.Wait()
 
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:b-65010"}}, peer.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:b-65010"}}, peer.ImportPolicy().Filters(),
 		"the chain must be resolved from the template the last swap installed")
 }
 
@@ -283,19 +391,19 @@ func TestDynamicTemplateSwapRacesEstablishment(t *testing.T) {
 // PREVENTS: chains built from the replaced template overwriting the new ones.
 func TestDynamicResolutionRefusedAfterSwap(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 	establishDynamicPeer(t, r, peer)
 
 	read := peer.readDynamicTemplate()
-	stale := resolveFilterVars(read.importTemplate, peer.settings.LocalAS, uint32(dynamicPeerRemoteAS), addr.String())
+	stale := resolveFilterVars(read.importTemplate.Filters(), peer.settings.LocalAS, uint32(dynamicPeerRemoteAS), addr.String())
 
-	swapped := dynamicReloadGroup()
-	swapped.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:b-$remote_as"}}
+	swapped := dynamicReloadGroup(t)
+	swapped.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:b-$remote_as"}}, filterapi.FinalAccept)
 	reloadDynamicGroups(t, r, swapped)
 
-	published := peer.publishDynamicResolution(read, uint32(dynamicPeerRemoteAS), stale, nil)
+	published := peer.publishDynamicResolution(read, uint32(dynamicPeerRemoteAS), read.importTemplate.WithFilters(stale), filterapi.Policy{})
 	assert.False(t, published, "a resolution of the replaced template must be refused")
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:b-65010"}}, peer.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:b-65010"}}, peer.ImportPolicy().Filters(),
 		"the chain must stay the one resolved from the swapped template")
 }
 
@@ -304,30 +412,30 @@ func TestDynamicResolutionRefusedAfterSwap(t *testing.T) {
 // any establishment, so an establishment after a filter swap resolves the
 // swapped template and never the first one the peer was built with.
 //
-// VALIDATES: NewPeer captures dynImportFilters / dynExportFilters.
+// VALIDATES: NewPeer captures dynImportPolicy / dynExportPolicy.
 // PREVENTS: a lazy capture on first resolution taking the running chain, or a
 // pre-swap template, as the template.
 func TestDynamicTemplatesCapturedAtConstruction(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.44")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 
 	read := peer.readDynamicTemplate()
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, read.importTemplate,
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, read.importTemplate.Filters(),
 		"the template pair is the group template from construction")
 
 	session := NewSession(peer.settings)
 	peer.mu.Lock()
 	peer.session = session
 	peer.mu.Unlock()
-	swapped := dynamicReloadGroup()
-	swapped.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:swapped-$remote_as"}}
+	swapped := dynamicReloadGroup(t)
+	swapped.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:swapped-$remote_as"}}, filterapi.FinalAccept)
 	reloadDynamicGroups(t, r, swapped)
 
 	session.mu.Lock()
 	session.peerOpen = &message.Open{MyAS: dynamicPeerRemoteAS, BGPIdentifier: 0x0a0b0c0d}
 	session.mu.Unlock()
 	peer.resolveDynamicPeerSettings(session)
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:swapped-65010"}}, peer.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:swapped-65010"}}, peer.ImportPolicy().Filters(),
 		"establishment must resolve the swapped template")
 }
 
@@ -372,7 +480,7 @@ func TestDynamicFilterSwapRacingEstablishmentKeepsSession(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			addr := netip.MustParseAddr("185.1.69.45")
-			r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+			r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 			rec := establishDynamicPeer(t, r, peer)
 			session := peer.currentSession()
 			peer.state.Store(int32(PeerStateConnecting))
@@ -382,16 +490,16 @@ func TestDynamicFilterSwapRacingEstablishmentKeepsSession(t *testing.T) {
 			setUpPhase(peer, sessionUpUnspecified)
 
 			next := peer.settingsSnapshot()
-			next.ImportFilters = []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}
+			next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}, filterapi.FinalAccept)
 			if tc.bind {
 				next.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
 			}
 			copier, reason := peerSettingsSwapPlan(peer.settingsSnapshot(), next, session)
 			require.Empty(t, reason, "the swap must be planned in place")
-			peer.applyHotSwappableSettings(next, establishInsideApply(peer, copier))
+			mustApplyHotSwappableSettings(t, peer, next, establishInsideApply(peer, copier))
 
 			assert.True(t, peer.currentSession() == session, "the session object is kept")
-			assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65010"}}, peer.ImportFilters(),
+			assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65010"}}, peer.ImportPolicy().Filters(),
 				"the chain is resolved from the swapped template")
 			assert.Empty(t, rec.recorded(), "no targeted up: the apply judged the session not yet up")
 			peer.mu.RLock()
@@ -411,7 +519,7 @@ func TestDynamicFilterSwapRacingEstablishmentKeepsSession(t *testing.T) {
 // PREVENTS: a verify tearing dynamic peers down before the commit is decided.
 func TestReloadFuncAppliesNoDynamicGroups(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	group := dynamicReloadGroup()
+	group := dynamicReloadGroup(t)
 	r, peer := newDynamicReloadReactor(t, group, addr, nil)
 	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
 		return nil, Globals{}, nil, nil
@@ -450,7 +558,7 @@ func TestReloadFuncAppliesNoDynamicGroups(t *testing.T) {
 // PREVENTS: a tree-route apply reading absent groups as none.
 func TestTreeRouteLeavesDynamicGroupsUnchanged(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	group := dynamicReloadGroup()
+	group := dynamicReloadGroup(t)
 	r, peer := newDynamicReloadReactor(t, group, addr, nil)
 	r.mu.Lock()
 	r.reloadFunc = nil
@@ -482,12 +590,12 @@ func TestDynamicNonStrictBFDOptInSwaps(t *testing.T) {
 	api.SetService(svc)
 	defer api.SetService(nil)
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 	establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 	key := netip.AddrPortFrom(addr, DefaultBGPPort)
 
-	gained := dynamicReloadGroup()
+	gained := dynamicReloadGroup(t)
 	gained.Settings.BFD = nonStrictBFD("fast")
 	reloadDynamicGroups(t, r, gained)
 	r.mu.RLock()
@@ -499,7 +607,7 @@ func TestDynamicNonStrictBFDOptInSwaps(t *testing.T) {
 	require.Equal(t, 1, live, "the swap must open the BFD client")
 	assert.Equal(t, []string{"fast"}, profiles)
 
-	reloadDynamicGroups(t, r, dynamicReloadGroup())
+	reloadDynamicGroups(t, r, dynamicReloadGroup(t))
 	r.mu.RLock()
 	after = r.peers[key]
 	r.mu.RUnlock()
@@ -520,10 +628,10 @@ func TestDynamicStrictBFDChangeRestarts(t *testing.T) {
 	api.SetService(svc)
 	defer api.SetService(nil)
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 	establishDynamicPeer(t, r, peer)
 
-	strict := dynamicReloadGroup()
+	strict := dynamicReloadGroup(t)
 	strict.Settings.BFD = strictBFD("fast")
 	reloadDynamicGroups(t, r, strict)
 	r.mu.RLock()

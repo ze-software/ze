@@ -225,7 +225,7 @@
       "rid": "RFC9494-4.2-5",
       "polarity": "positive",
       "unit": "test/plugin/llgr-import-no-llgr.ci",
-      "unit-sha": "ebf783f2e336e4c4",
+      "unit-sha": "875d4c3b16f07985",
       "claim-sha": "bd0fb3adbc6f091a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
@@ -237,7 +237,7 @@
       "rid": "RFC9494-4.2-5",
       "polarity": "negative",
       "unit": "test/plugin/llgr-import-no-llgr.ci",
-      "unit-sha": "ebf783f2e336e4c4",
+      "unit-sha": "875d4c3b16f07985",
       "claim-sha": "ff2a4d2032e4953d",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
@@ -629,7 +629,7 @@
       "claim-sha": "1244ebc65913cb73",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-      "producer-sha": "9037656a38719d98",
+      "producer-sha": "f3778517b26304a0",
       "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -640,7 +640,7 @@
       "claim-sha": "6a23105db4110833",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-      "producer-sha": "9037656a38719d98",
+      "producer-sha": "f3778517b26304a0",
       "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

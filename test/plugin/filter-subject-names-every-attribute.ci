@@ -55,7 +55,7 @@ bgp {
         }
     }
     filter {
-        import [ filter-subject-test:record-subject ];
+        import { filters [ filter-subject-test:record-subject ]; final accept; }
     }
     peer peer1 {
         connection {

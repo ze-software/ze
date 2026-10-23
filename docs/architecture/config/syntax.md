@@ -54,6 +54,14 @@ uses for a mistyped command, `suggest.Command`.
 <!-- source: internal/component/config/retired.go -- UnknownKeywordHint -->
 <!-- source: internal/core/suggest/suggest.go -- Command -->
 
+An enumeration refusal includes its original path, the values it accepts, and
+the leaf statement to write. A bracket list where the schema expects a container
+names that path and renders the container's immediate fields instead, including
+enum choices. Hierarchical, set and set-meta parsing derive these corrections
+from schema nodes rather than a separate list of feature-specific hints.
+<!-- source: internal/component/config/parser.go -- parseNode, parseLeaf, parseContainer -->
+<!-- source: internal/component/config/parser_diagnostics.go -- prependSyntaxPath, containerValueFix, setSyntaxRefusal -->
+
 ---
 
 ## Basic Syntax Patterns
@@ -83,8 +91,8 @@ leaf-list (`ze:ordered`) keeps every copy, in order. A member deactivated in
 either block stays deactivated:
 
 ```
-filter { import [ a b ]; inactive: import b; }
-filter { import [ b c ]; }     # import is [ a b c ], b deactivated
+filter { import { filters [ a b ]; inactive: filters b; final accept; } }
+filter { import { filters [ b c ]; final accept; } } # filters is [ a b c ], b inactive
 ```
 
 An ordered leaf-list whose merged members repeat a deactivated member is
@@ -277,8 +285,11 @@ bgp {
     inactive: peer scratch { ... }      # list entry -- whole subtree skipped
     inactive: filter { ... }            # container -- whole subtree skipped
     filter {
-        import [ no-self-as reject-bogons ];
-        inactive: import no-self-as;    # single leaf-list member
+        import {
+            filters [ no-self-as reject-bogons ];
+            inactive: filters no-self-as;    # single leaf-list member
+            final accept;
+        }
     }
 }
 ```
@@ -1087,20 +1098,33 @@ Route filtering via named filter instances. Appears in `peer-fields` grouping
 
 ```
 filter {
-    import [ rpki:validate community:scrub ];
-    export [ aspath:prepend ];
+    import { filters [ rpki:validate community:scrub ]; final accept; }
+    export { filters [ aspath:prepend ]; final reject; }
 }
 ```
 
 | Keyword | Type | Description |
 |---------|------|-------------|
-| `import` | leaf-list of string | Import filter chain. Values are `<plugin>:<filter>` references |
-| `export` | leaf-list of string | Export filter chain. Values are `<plugin>:<filter>` references |
+| `import`, `export` | presence container | Configure one direction's policy |
+| `filters` | ordered leaf-list of string | Named filter instances or `<plugin>:<filter>` references; may be empty |
+| `final` | mandatory enumeration | `accept` or `reject`, with no default |
 
 Chains are cumulative across config levels (bgp > group > peer). A member can
 be written three ways, and all three resolve to the same dispatch target: the
 plain instance name `NO-TRANSIT`, the filter-type form `reject-asn:NO-TRANSIT`,
 and the plugin form `bgp-filter-path-asn:NO-TRANSIT`.
+
+The most-specific present direction supplies the final disposition; an absent
+child inherits it. Each original bgp, group and peer layer is validated before
+inheritance, even when it has no peers. A child cannot repair a parent's missing
+final. Dynamic group templates take the cumulative bgp/group filters and the
+group's final when present.
+
+Filter accept continues and reject stops. On exhaustion, including an explicitly
+empty policy, the final decides. Full payload modifications end filter traversal
+but still receive the final decision. An absent policy retains prior behavior.
+The old `import [ NAME ];` and `export [ NAME ];` forms are refused: write
+`import { filters [ NAME ]; final accept; }` or the corresponding export policy.
 
 One filter is injected rather than written: `prependDefaultFilters`
 (`internal/component/bgp/config/peers.go`) puts each `loop-detection` entry
@@ -1110,8 +1134,11 @@ named member turns the filter off for that peer:
 
 ```
 filter {
-    import [ MY-LOOP ];
-    inactive: import MY-LOOP;
+    import {
+        filters [ MY-LOOP ];
+        inactive: filters MY-LOOP;
+        final accept;
+    }
 }
 ```
 
@@ -1123,6 +1150,10 @@ counts it, and so does the transit-leak obligation below.
 There is no mandatory filter an operator cannot configure, and no `overrides`
 keyword. RFC 9234 Only-To-Customer marking is applied by the `bgp-role` plugin
 from the peer's `role` block, not by a filter named in a chain.
+Automatic loop references do not invent an operator policy or change an explicit
+final. Config and runtime carry a single validated policy value so references
+and disposition belong to the same generation.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy, NewPolicy, InternalPolicy -->
 
 ### The transit-leak obligation
 

@@ -417,14 +417,14 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {
 	current := negotiationSettings(capIPv4())
 	next := negotiationSettings(capIPv4())
-	next.ImportFilters = []filterapi.FilterRef{{Name: "reloaded"}}
+	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "reloaded"}}, filterapi.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, current, next)
 	establishNegotiatedSession(t, peer, capIPv4())
 	peer.state.Store(int32(PeerStateEstablished))
 
 	other := negotiationSettings(capIPv4())
-	other.ImportFilters = []filterapi.FilterRef{{Name: "concurrent"}}
+	other.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "concurrent"}}, filterapi.FinalAccept)
 	other.PrefixUpdated = map[string]string{"ipv4/unicast": "2026-08-08"}
 
 	adapter := &reactorAPIAdapter{r: r}
@@ -432,7 +432,7 @@ func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for range 200 {
-			peer.applyHotSwappableSettings(other, hotSwappableSettings)
+			mustApplyHotSwappableSettings(t, peer, other, hotSwappableSettings)
 		}
 	})
 

@@ -147,7 +147,17 @@ func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest,
 		}
 		candidates = r.gatherPrefixCandidatesLocked(request.Family, prefix)
 	} else {
-		candidates = r.gatherKeyCandidatesLocked(request.Family, []byte(identity.Native))
+		// A sent-table identity is not necessarily a receive-storage key:
+		// FlowSpec's sent identity omits its native length framing, while
+		// storage retains the canonical framed rule. Use the storage boundary
+		// on the already validated request NLRI, never a sent-key surrogate.
+		raw := key.NLRI
+		if request.AddPath {
+			raw = raw[4:]
+		}
+		var scratch [nlrisplit.PrefixKeyScratchSize]byte
+		receiveKey := storage.RouteKey(request.Family, raw, scratch[:], false)
+		candidates = r.gatherKeyCandidatesLocked(request.Family, receiveKey)
 	}
 	defer releaseCandidates(candidates)
 	eligible := 0

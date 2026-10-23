@@ -146,7 +146,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			export [ remove-private-as:REPLACE ]
+			export { filters [ remove-private-as:REPLACE ]; final accept; }
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

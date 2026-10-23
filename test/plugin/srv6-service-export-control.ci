@@ -51,7 +51,7 @@ bgp {
             capability { nexthop ipv4/mpls-vpn { nhafi ipv6; } }
         }
         behavior { group-updates disable; }
-        filter { export [ community-match:SERVICE-20 ]; }
+        filter { export { filters [ community-match:SERVICE-20 ]; final accept; } }
         attach process srv6-export { send [ update ]; }
     }
     peer control-peer {

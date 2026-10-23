@@ -19,7 +19,7 @@ All messages have a top-level `type` field. Event type is in the `message` objec
   "type": "<namespace>",
   "<namespace>": {
     "message": {"type": "<event-type>", "id": <n>, "direction": "<dir>"},
-    "peer": {"address": "<ip>", "local": {"address": "<local-ip>", "as": <local-asn>}, "remote": {"address": "<ip>", "as": <n>}},
+    "peer": {"local": {"address": "<local-ip>", "as": <local-asn>}, "remote": {"address": "<ip>", "as": <n>}},
     ...event-specific fields...
   }
 }
@@ -39,7 +39,7 @@ This structure keeps message metadata (type, id, direction) together in the `mes
 ### The IPC envelope
 
 ```json
-{"type":"bgp","bgp":{"peer":{"address":"...","group":"...","name":"...","remote":{"as":N}},"message":{"id":N,"direction":"received","type":"open"},"open":{...}}}
+{"type":"bgp","bgp":{"peer":{"group":"...","name":"...","local":{"address":"...","as":N},"remote":{"address":"...","as":N}},"message":{"id":N,"direction":"received","type":"open"},"open":{...}}}
 ```
 
 Envelope and value conventions:
@@ -97,7 +97,7 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
   "type": "bgp",
   "bgp": {
     "message": {"type": "<event-type>", "id": <n>, "direction": "<dir>"},
-    "peer": {"address": "<ip>", "local": {"address": "<local-ip>", "as": <local-asn>}, "remote": {"address": "<ip>", "as": <n>}},
+    "peer": {"local": {"address": "<local-ip>", "as": <local-asn>}, "remote": {"address": "<ip>", "as": <n>}},
     ...event-specific fields...
   }
 }
@@ -110,7 +110,7 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
 | bgp.message.type | string | Event type (update, state, open, etc.) |
 | bgp.message.id | int | Message identifier (omitted if 0) |
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
-| bgp.peer.address | string | Peer IP address |
+| bgp.peer.remote.address | string | Peer IP address |
 | bgp.peer.remote.as | int | Peer AS number |
 | bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
 | bgp.peer.router-id | string | THIS speaker's BGP Identifier for the session, dotted quad. Omitted when the peer sets none |
@@ -145,7 +145,7 @@ State events have the state value at `bgp` level:
   "type": "bgp",
   "bgp": {
     "message": {"type": "state"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "state": "up",
     "initial-replay": "42"
   }
@@ -174,7 +174,7 @@ For `"down"` events, a `reason` field is included:
   "type": "bgp",
   "bgp": {
     "message": {"type": "state"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "state": "down",
     "reason": "hold timer expired"
   }
@@ -238,23 +238,27 @@ The text line is `peer 192.0.2.1 remote as 65001 signal 15 SIGTERM`.
 
 ### Structure
 
-Attributes and NLRIs are at the `bgp` level (flat structure):
+Attributes and NLRIs are inside `bgp.update`. The peer's address is
+`bgp.peer.remote.address`, not `bgp.peer.address`. Full-format raw bytes are
+inside `bgp.raw`, alongside `bgp.update`.
 
 ```json
 {
   "type": "bgp",
   "bgp": {
     "message": {"type": "update", "id": 1, "direction": "received"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
-    "attr": {
-      "origin": "igp",
-      "as-path": [65001, 65002]
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24", "10.0.1.0/24"]},
-        {"action": "del", "nlri": ["172.16.0.0/16"]}
-      ]
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "update": {
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001, 65002]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24", "10.0.1.0/24"]},
+          {"action": "del", "nlri": ["172.16.0.0/16"]}
+        ]
+      }
     }
   }
 }
@@ -267,15 +271,17 @@ Attributes and NLRIs are at the `bgp` level (flat structure):
   "type": "bgp",
   "bgp": {
     "message": {"type": "update", "id": 1, "direction": "received"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
-    "attr": {
-      "origin": "igp",
-      "as-path": [65001]
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24"]}
-      ]
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "update": {
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24"]}
+        ]
+      }
     },
     "raw": {
       "attributes": "40010100400200040001fde8",
@@ -299,6 +305,8 @@ the event state. The ExaBGP bridge subscribes `full` and writes ExaBGP's
 
 <!-- source: internal/component/bgp/format/json_message.go -- JSONEncoder.Message -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendEORUpdateJSON -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON -->
+<!-- source: internal/component/bgp/format/text_update.go -- appendFullFromResult -->
 
 ### Operation Format
 
@@ -502,7 +510,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "message": {"type": "open", "id": 1, "direction": "received"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "open": {
       "asn": 65001,
       "router-id": "1.1.1.1",
@@ -540,7 +548,7 @@ in the RFC 4271 envelope.
   "type": "bgp",
   "bgp": {
     "message": {"type": "notification", "id": 3, "direction": "sent"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "notification": {
       "code": 6,
       "subcode": 2,
@@ -562,7 +570,7 @@ in the RFC 4271 envelope.
   "type": "bgp",
   "bgp": {
     "message": {"type": "keepalive", "id": 42, "direction": "sent"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "keepalive": {}
   }
 }
@@ -573,14 +581,17 @@ in the RFC 4271 envelope.
 
 ## Negotiated Capabilities
 
-Sent after OPEN exchange:
+Sent once the OPENs are exchanged, on entry to OpenConfirm: before the
+KEEPALIVE that answers the peer's OPEN, and so before the `state` up the
+session's Established brings. A session that ends in OpenConfirm sent it and
+never reaches up.
 
 ```json
 {
   "type": "bgp",
   "bgp": {
     "message": {"type": "negotiated"},
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "negotiated": {
       "timer": {"hold-time": 90},
       "asn4": true,
@@ -602,6 +613,7 @@ peer advertised RFC 8654 Extended Message, 4096 otherwise). `route-refresh` is
 `absent`, `normal` or `enhanced` (RFC 7313). `add-path`, `extended-next-hop`
 and `paths-limit` appear only when they hold a family.
 <!-- source: internal/component/bgp/format/json.go -- JSONEncoder.Negotiated -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceNegotiated -->
 
 ---
 
@@ -614,7 +626,7 @@ and `paths-limit` appear only when they hold a family.
     "type": "cache",
     "action": "new",
     "msg-id": 12345,
-    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}}
+    "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}}
   }
 }
 ```

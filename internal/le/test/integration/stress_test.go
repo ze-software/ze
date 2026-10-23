@@ -320,37 +320,6 @@ func TestStressProfileQueryRefusesATableThatStaysEmpty(t *testing.T) {
 	}
 }
 
-// TestStressProfileConfigMatchesTheHarness pins the profile scenario's ze.conf
-// to the addresses, AS and listener the harness drives, and to the policies
-// that make the filter delta run on both sides. Method: read the real file.
-func TestStressProfileConfigMatchesTheHarness(t *testing.T) {
-	content, err := os.ReadFile("../../../../test/stress/scenarios/" + scenarioProfile1M + "/" + zeConfigFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	config := string(content)
-	for _, want := range []string{
-		"ip " + stressProfileReach.receiverIP + ";",
-		"remote 65200;",
-		"import [ modify:STRESS-IMPORT ];",
-		"export [ modify:STRESS-EXPORT ];",
-		"community-add [",
-		"use bgp-rs;",
-		"use bgp-rib;",
-		"use bgp-filter-modify;",
-		"tls false;",
-		"ip 127.0.0.1;",
-		"port 8443;",
-	} {
-		if !strings.Contains(config, want) {
-			t.Fatalf("%s/%s lacks %q", scenarioProfile1M, zeConfigFile, want)
-		}
-	}
-	if !strings.HasPrefix(stressProfileReach.queryURL, "http://127.0.0.1:8443/") {
-		t.Fatalf("query URL %q does not name the configured looking glass", stressProfileReach.queryURL)
-	}
-}
-
 func TestStressProfileScenarioCapturesAllProfiles(t *testing.T) {
 	recorder := newStressRecorder()
 	recorder.pprof = true

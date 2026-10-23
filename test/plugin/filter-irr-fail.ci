@@ -68,7 +68,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-irr:65100 ]
+			import { filters [ bgp-filter-irr:65100 ]; final accept; }
 		}
 
 		attach process test-filter-irr-fail {

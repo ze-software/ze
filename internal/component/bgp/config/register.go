@@ -21,6 +21,9 @@ import (
 
 func init() {
 	zeconfig.RegisterPluginExtractor(extractBGPInlinePlugins)
+	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
+		panic("BUG: BGP filter policy validator registration failed: " + err.Error())
+	}
 	registry.RegisterReactorFactory(createReactorFromCoordinator)
 
 	// Fill the always-on infra seams (internal/component/config/infra) so

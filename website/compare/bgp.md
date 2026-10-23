@@ -125,16 +125,30 @@ chains for hitless rotation and sequence-number replay protection.
 
 ## Policy & Route Manipulation
 
-Ze takes a programmable approach to policy: external plugin filters
-manipulate routes via `filter { import [...] export [...] }` chains using
-named filter instances or explicit `<plugin>:<filter>` references. Filters
-chain as piped transforms (accept/reject/modify) with delta-only output.
-RFC-mandated checks run as default filters that can be selectively
-overridden. Built-in filter plugins shipped with Ze include prefix-list
-matching (ge/le bounds), AS-path regex filtering, community presence
-matching (standard/large/extended), route attribute modification
-(local-preference, MED, origin, next-hop, AS-path prepend), community
-tag/strip, and RFC 9234 role enforcement.
+Ze uses plugin filters to manipulate routes in ordered import and export policies.
+Each direction lists named filter instances or explicit `<plugin>:<filter>`
+references under `filters` and requires `final accept;` or `final reject;`.
+
+```text
+filter {
+    import {
+        filters [ prefix-list:CUSTOMERS ];
+        final accept;
+    }
+}
+```
+
+An `accept` response continues the chain, and a `reject` response drops the route
+immediately. A `modify` response supplies attribute changes for the next filter.
+After the filters pass, the configured final decides whether the route proceeds.
+A raw payload rewrite stops later filters but does not bypass that final decision.
+Built-in filter plugins shipped with Ze include prefix-list matching (ge/le
+bounds), AS-path regex filtering, community presence matching
+(standard/large/extended), route attribute modification (local-preference, MED,
+origin, next-hop, AS-path prepend), community tag/strip, and RFC 9234 role
+enforcement.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
 
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

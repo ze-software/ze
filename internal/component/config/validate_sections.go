@@ -130,10 +130,10 @@ func (e SectionValidationError) Message() string {
 	return tb.Reset().Str(e.Section).Str(": ").Str(msg).String()
 }
 
-// ValidateCustomSections applies the registered ze:validate custom validators,
-// and the YANG cardinality, range and pattern checks, to every section in
-// validatedSections, and the RFC 7950 Section 7.6.5 mandatory check alone to
-// every other present section (mandatoryFailures, bgpMandatoryFailures).
+// ValidateCustomSections first applies registered original-tree validators, then
+// applies ze:validate validators and YANG cardinality, range and pattern checks
+// to every section in validatedSections, and the RFC 7950 Section 7.6.5 mandatory
+// check alone to every other present section (mandatoryFailures, bgpMandatoryFailures).
 //
 // This is the one walk. LoadConfig calls it so a daemon start and a SIGHUP
 // reload apply the rules, cli.runValidation calls it so `ze config validate`
@@ -150,10 +150,12 @@ func (e SectionValidationError) Message() string {
 // ValidateTreeAllModules never emits ErrTypeUnknown, so a node the module set
 // does not describe is skipped, not rejected.
 //
-// An error return means the walk could not run. It is never reported as "no
-// failures found": a validator that cannot be built must refuse the config, not
-// wave it through.
+// An error return means a registered original-tree validator refused the config
+// or the schema walk could not run. Neither is reported as "no failures found".
 func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
+	if err := validateOriginalTree(tree); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrCustomValidation, err)
+	}
 	validator, err := YANGValidator()
 	if err != nil {
 		return nil, fmt.Errorf("build YANG validator: %w", err)

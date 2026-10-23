@@ -349,9 +349,9 @@ func (s *Session) sendHoldTimerExpired() {
 		)
 	}
 
-	s.mu.Lock()
+	// FSM.Event owns transition locking; callbacks may inspect s.Conn.
+	// MUST fire without s.mu held.
 	s.logFSMEvent(fsm.EventHoldTimerExpires)
-	s.mu.Unlock()
 
 	s.closeConn()
 
@@ -643,6 +643,14 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result error) {
 	if s.writeFailed != nil {
 		return false, s.writeFailed
+	}
+	// A pre-filtered forward can outlive the policy generation that admitted it.
+	// This core-only check never repeats a filter or an attribute modification.
+	if !raw && s.egressFinalAccepts != nil && !s.egressFinalAccepts() {
+		body = policyWithdrawals(body)
+		if body == nil {
+			return false, nil
+		}
 	}
 	// RFC 9774 Section 3. Ahead of the AIGP guard: the withdrawal carries no AIGP.
 	// Raw injection is exempt (owner, Q-4 (b), 2026-10-18): it is the operator override

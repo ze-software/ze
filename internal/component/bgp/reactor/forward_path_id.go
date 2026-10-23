@@ -108,23 +108,23 @@ func fwdPathKeyFor(out *fwdPathKey, fam family.Family, received uint32, raw []by
 // withdraws, and the table is bounded by the paths ze advertises.
 //
 // Both maps group by source so a removed peer's entries go in one delete rather
-// than a scan. used holds every identifier currently assigned, whichever map
-// holds it, so a wrapped counter cannot hand a live path's identifier to a
-// second path: (prefix, identifier) would then name two paths at the
-// destination, which is the route loss this table exists to remove.
+// than a scan. used counts source mappings, advertised recipient slots and
+// temporary writer reservations. Cache eviction releases only its source
+// mapping: a recipient keeps the identifier reserved until its advertisement
+// leaves, so counter wrap cannot reuse an identifier still on the wire.
 type fwdPathIDTable struct {
 	mu       sync.RWMutex
 	next     uint32
 	bySource map[source.SourceID]map[uint32]uint32
 	byPath   map[source.SourceID]map[fwdPathKey]uint32
-	used     map[uint32]struct{}
+	used     map[uint32]uint64
 }
 
 func newFwdPathIDTable() *fwdPathIDTable {
 	return &fwdPathIDTable{
 		bySource: make(map[source.SourceID]map[uint32]uint32),
 		byPath:   make(map[source.SourceID]map[fwdPathKey]uint32),
-		used:     make(map[uint32]struct{}),
+		used:     make(map[uint32]uint64),
 	}
 }
 
@@ -152,7 +152,7 @@ func (t *fwdPathIDTable) generate(src source.SourceID, received uint32) uint32 {
 	}
 	id = t.mintLocked()
 	perSource[received] = id
-	t.used[id] = struct{}{}
+	t.used[id]++
 	return id
 }
 
@@ -181,7 +181,7 @@ func (t *fwdPathIDTable) generatePath(src source.SourceID, key *fwdPathKey) uint
 	}
 	id = t.mintLocked()
 	perSource[*key] = id
-	t.used[id] = struct{}{}
+	t.used[id]++
 	return id
 }
 
@@ -194,16 +194,54 @@ func (t *fwdPathIDTable) lookupPath(src source.SourceID, key *fwdPathKey) uint32
 	return id
 }
 
-// releasePath frees the identifier ze advertised for one path, so the value
-// returns to the pool. A path ze holds no identifier for is not an error: a
+// reserve assigns an identifier for a recipient collision. The writer MUST
+// release the temporary reservation after recording or refusing the UPDATE;
+// an installed recipient slot retains its own reference before that release.
+// RFC 7911 Section 2: "However, the Path Identifier MUST be assigned in such
+// a way that the BGP speaker is able to use the (Prefix, Path Identifier) to
+// uniquely identify a path advertised to a neighbor."
+func (t *fwdPathIDTable) reserve() uint32 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	id := t.mintLocked()
+	t.used[id]++
+	return id
+}
+
+// retain reserves a known identifier for a recipient slot or a staged proposal.
+// Slot references MUST release on deletion or table clear; proposal references
+// MUST release after recording or refusing the UPDATE.
+func (t *fwdPathIDTable) retain(id uint32) {
+	t.mu.Lock()
+	t.used[id]++
+	t.mu.Unlock()
+}
+
+// release drops one recipient slot or temporary writer reservation.
+func (t *fwdPathIDTable) release(id uint32) {
+	t.mu.Lock()
+	t.releaseLocked(id)
+	t.mu.Unlock()
+}
+
+func (t *fwdPathIDTable) releaseLocked(id uint32) {
+	if t.used[id] > 1 {
+		t.used[id]--
+		return
+	}
+	delete(t.used, id)
+}
+
+// releasePath frees the source mapping for one withdrawn path. Recipient
+// reservations survive it. A path with no mapping is not an error: a
 // source may withdraw a pair it never announced, and RFC 7911 Section 5 has the
 // receiver silently ignore such a withdraw.
 //
-// The caller MUST be fwdReleaseWithdrawnPathIDs, and it MUST run only once every
-// destination has been given the identifier the withdraw carries. Freeing the
-// entry inside the per-destination rewrite would mint a fresh identifier for
-// every destination the fan-out had not reached yet, and each of those would
-// hold a route ze can never withdraw.
+// The caller MUST be fwdReleaseWithdrawnPathIDs at cache eviction, never a
+// per-destination rewrite. Normal eviction follows forwarding acknowledgements;
+// forced gap eviction may precede them. Recipient slots and staged proposals
+// retain their own reservations, and final admission resolves preserved ingress
+// identity against the recipient even after the source mapping is gone.
 func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey, peer netip.Addr, raw []byte) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -220,7 +258,7 @@ func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey, peer 
 	if !ok {
 		return
 	}
-	delete(t.used, id)
+	t.releaseLocked(id)
 	delete(perSource, *key)
 	if len(perSource) == 0 {
 		delete(t.byPath, src)
@@ -243,8 +281,8 @@ func (t *fwdPathIDTable) mintLocked() uint32 {
 	}
 }
 
-// releaseSource drops every identifier assigned to a source's paths, so the
-// values return to the pool.
+// releaseSource drops every source-mapping reference. An identifier returns to
+// the pool only after its recipient slots and temporary reservations release it.
 //
 // The call site is peer REMOVAL (reactor_peers.go doRemovePeer), not session
 // down. A peer that reconnects re-announces the same paths under the same
@@ -257,11 +295,11 @@ func (t *fwdPathIDTable) releaseSource(src source.SourceID) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for _, id := range t.bySource[src] {
-		delete(t.used, id)
+		t.releaseLocked(id)
 	}
 	delete(t.bySource, src)
 	for _, id := range t.byPath[src] {
-		delete(t.used, id)
+		t.releaseLocked(id)
 	}
 	delete(t.byPath, src)
 }

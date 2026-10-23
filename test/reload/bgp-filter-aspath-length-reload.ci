@@ -84,7 +84,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-aspath-length:MAX-LEN ]
+			import { filters [ bgp-filter-aspath-length:MAX-LEN ]; final accept; }
 		}
 	}
 }
@@ -141,7 +141,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-aspath-length:MAX-LEN ]
+			import { filters [ bgp-filter-aspath-length:MAX-LEN ]; final accept; }
 		}
 	}
 }

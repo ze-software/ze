@@ -87,7 +87,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-community-match:NOEXP ]
+			import { filters [ bgp-filter-community-match:NOEXP ]; final accept; }
 		}
 	}
 }
@@ -147,7 +147,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-community-match:NOEXP ]
+			import { filters [ bgp-filter-community-match:NOEXP ]; final accept; }
 		}
 	}
 }

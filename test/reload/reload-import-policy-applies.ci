@@ -108,7 +108,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:ALLOW ]
+			import { filters [ bgp-filter-prefix:ALLOW ]; final accept; }
 		}
 
 		update {
@@ -156,7 +156,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:ALLOW ]
+			import { filters [ bgp-filter-prefix:ALLOW ]; final accept; }
 		}
 	}
 }
@@ -217,7 +217,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:DENY ]
+			import { filters [ bgp-filter-prefix:DENY ]; final accept; }
 		}
 
 		update {
@@ -265,7 +265,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:ALLOW ]
+			import { filters [ bgp-filter-prefix:ALLOW ]; final accept; }
 		}
 	}
 }

@@ -56,7 +56,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ modify:PREFER-LOCAL ]
+			import { filters [ modify:PREFER-LOCAL ]; final accept; }
 		}
 	}
 }

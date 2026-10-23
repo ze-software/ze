@@ -84,7 +84,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-remove-private-as:STRIP ]
+			import { filters [ bgp-filter-remove-private-as:STRIP ]; final accept; }
 		}
 	}
 }
@@ -140,7 +140,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-remove-private-as:STRIP ]
+			import { filters [ bgp-filter-remove-private-as:STRIP ]; final accept; }
 		}
 	}
 }

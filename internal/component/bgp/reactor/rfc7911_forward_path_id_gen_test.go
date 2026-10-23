@@ -265,7 +265,7 @@ func TestForwardPathIDFiniteNamespace(t *testing.T) {
 	}{{4501, 0}, {4502, ^uint32(0)}}
 	for _, path := range paths {
 		fwdPathIDs.byPath[path.source] = map[fwdPathKey]uint32{key: path.id}
-		fwdPathIDs.used[path.id] = struct{}{}
+		fwdPathIDs.used[path.id] = 1
 	}
 	fwdPathIDs.next = ^uint32(0)
 

@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-21",
+  "audited": "2026-10-22",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -45,30 +46,30 @@
         "internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop": "abc4b426464d3c49",
         "internal/component/bgp/reactor/peer_forward_facts.go::precomputeRedirectNextHop": "85b7095439d5f4f8"
       },
-      "note": "Re-judged 2026-10-21 (independent auditor, authored none of 4f0134cacd). RFC 8955 Section 4: \"When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.\" Row {partial}: tested \"MUST be set to 0\" (every FlowSpec advertisement with no redirect-to-IP-next-hop 0x0800 community); gap \"Length of the Next-Hop Network Address\" (a 0x0800 route leaves with the redirect address, owner-approved deviation for draft-simpson-idr-flowspec-redirect-02 Section 3, never counted conformant). Producers unchanged: internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop is the boundary on the origination rails and internal/component/bgp/reactor/peer_forward_facts.go::precomputeRedirectNextHop, with applyRedirectNextHop, on the forward rails. 4f0134cacd changed one line in each forward carrier: TestFlowSpecForwardingOmitsNextHop and TestFlowSpecForwardingKeepsLegacyNextHop now drive forwardViaRIB, the live forward (which keeps no FlowSpec rule since that commit) followed by reactorAPIAdapter.RelayStoredRoute per rule, the rail the rule actually leaves by. Assertions unchanged and exact: assertFlowForwardWire compares the whole MP_REACH value to AFI/SAFI/len 0/reserved/NLRI across unchanged, self, explicit4 and explicit6 modes with empty, peer-address and IPv6 received hops; the mixed test requires exactly two bodies, the FlowSpec one zero-hop and the legacy unicast one keeping its NEXT_HOP or withdrawn by its own gate, received bytes untouched. The forward revert records were already re-taken over the relay drive (unit-sha 516fac04981b0a39 in rfc/discrimination/rfc8955.json). Origination, route-server, wire-contract and flow-encode.ci carriers unchanged. Scope proven, whole requirement unmet; zero whole-requirement credit.",
+      "note": "RFC 8955 Section 4: \"When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.\" Preserve Tested \"MUST be set to 0\" and Gap \"Length of the Next-Hop Network Address\": tested scope excludes the 0x0800 redirect-to-IP-next-hop community; the whole unconditional MUST remains unmet and earns zero whole-requirement credit. Gap Producer internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop returns true for redirect actions despite FlowSpec not needing a forwarding hop; internal/component/bgp/reactor/peer_forward_facts.go::precomputeRedirectNextHop and reactor/forward_next_hop.go::applyRedirectNextHop retain or rewrite the received redirect address on forwarding. This is the existing owner-approved deviation, not RFC conformance. draft-simpson-idr-flowspec-redirect-02 Section 3 says \"When a flow-spec route with this community is advertised to an EBGP peer the next-hop address in the MP_REACH_NLRI SHOULD be reset to an address of the advertising router by default, per normal BGP procedures.\" and \"Alternatively, the advertising router MAY be configured to keep the next-hop unchanged, if it is known that the destination AS has a valid route to the next-hop address.\" Neither makes reset a MUST or overrides RFC 8955. Additional tagged carrier reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop now negotiates both IPv4 unicast and FlowSpec through the real intersection; it still requires exactly two sections, exact zero-hop FlowSpec, unchanged legacy NEXT_HOP and NLRI or exact legacy withdrawal under its own peer-address gate, and immutable received bytes. test/encode/flow-encode.ci pins complete frames for SAFI 133/134: non-0x0800 actions have zero hop, while sequences 2/8/9 explicitly preserve the disclosed redirect deviation and supply no conformance credit. Independently read every tag carrier: message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop, reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop, reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop and protected reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop. The changed forward fixture calls negotiateForwardTestFamilies, which uses capability.Negotiate on explicit MP capabilities and publishes the same negotiated intersection to peer.session and peer.negotiated; it no longer seeds only the peer facade. forwardViaRIB sends non-FlowSpec sections live and relays individual FlowSpec StoredRoute values through reactorAPIAdapter.RelayStoredRoute to forwardUpdateCore. Exact recipient MP_REACH equals AFI/SAFI/zero length/reserved/NLRI, with exact traffic-rate bytes, no substituted withdrawal and the expected message count, for all four families, four rewrite modes and empty/IPv4/IPv6 received fields. Config, API batch and both queued origination writers compare whole TCP frames, including RD/NLRI/actions, with absent/IPv4/IPv6 configured addresses. The protected route-server carrier drives real RIB authorization and recipient TCP and remains unchanged. Native freshness inputs identify pending forward-carrier renewals; this source rejudgment does not claim they have run or passed. Parent must renew applicable proofs and stamp only after integration.",
       "requirement_sha": "50c5d81a8dd5ae83",
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "0c3cf4704d7e9ed6",
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "0c3cf4704d7e9ed6",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "b883019b7d43172f",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "b883019b7d43172f",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "03d254040896ec90",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "03d254040896ec90",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "35393b715d2814ad",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "35393b715d2814ad",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "3cddaf419ff97267",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "3cddaf419ff97267",
-        "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "3eb25988fa539761",
+        "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "9747cf4f7f6427e6",
         "test/encode/flow-encode.ci": "4ccb1a1d5d30da76"
       },
       "units": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "0b4f5756d9a4e420",
-        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "0b4f5756d9a4e420",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "4a56a353530b52c8",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "4a56a353530b52c8",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "e1f3d8b9277ec8db",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "e1f3d8b9277ec8db",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "af3f647998b5033c",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "af3f647998b5033c",
-        "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "5dad439c5afde155",
+        "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "83929f8bd11e1dc5",
         "test/encode/flow-encode.ci": "4ccb1a1d5d30da76"
       },
       "verdict": "partial"
@@ -96,11 +97,11 @@
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused#2": "3b634bb3697d6635",
         "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated": "a9a5c896d4f603f7",
         "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated#2": "a9a5c896d4f603f7",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated#2": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleWithdraw": "3eafc93869261790",
-        "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable": "948af328bccd6417",
-        "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable#2": "948af328bccd6417",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated#2": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleWithdraw": "e900920dae82a00f",
+        "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable": "7ed0aea124a2e7a7",
+        "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable#2": "7ed0aea124a2e7a7",
         "test/parse/flowspec-unmatchable-refused.ci": "8d5e63d00f9f8f3a"
       },
       "units": {
@@ -177,7 +178,7 @@
       "requirement_sha": "0f57ab4586d8f6b2",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -228,7 +229,7 @@
       "requirement_sha": "be10025decf5c2c3",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -241,7 +242,7 @@
       "requirement_sha": "fc598b483c50d2eb",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -254,7 +255,7 @@
       "requirement_sha": "ede78e78a8974f4c",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
-        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "706910e4f9b8e4b9"
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
@@ -310,12 +311,12 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule#2": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "3eafc93869261790"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule#2": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "e900920dae82a00f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",
@@ -333,8 +334,8 @@
       "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
       "requirement_sha": "508626fc308dfc4f",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "3eafc93869261790",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "3eafc93869261790"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "e900920dae82a00f",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "e900920dae82a00f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "c358ea038139731d",

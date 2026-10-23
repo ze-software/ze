@@ -20,19 +20,13 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
-// tracePolicyFilterChain runs a chain of named filters on an update text and
-// records per-filter trace entries. It reuses the same PolicyFilterFunc and
-// semantics as PolicyFilterChain (reject short-circuits, default accept,
-// inactive filters skipped) but captures each filter's decision.
-func tracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string, []plugin.PolicyTraceEntry) {
-	if len(filterRefs) == 0 {
-		return PolicyAccept, updateText, nil
-	}
-
+// tracePolicyFilterChain records each filter decision and applies the effective
+// policy final at exhaustion or a terminal raw rewrite, just like PolicyFilterChain.
+func tracePolicyFilterChain(policy filterapi.Policy, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyChainResult, []plugin.PolicyTraceEntry) {
 	var trace []plugin.PolicyTraceEntry
 	current := updateText
 
-	for _, ref := range filterRefs {
+	for _, ref := range policy.Filters() {
 		if ref.Inactive {
 			continue
 		}
@@ -44,14 +38,34 @@ func tracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer st
 			Canonical: ref.Name,
 		}
 
+		if result.Teardown {
+			entry.Action = dryRunActionReject
+			trace = append(trace, entry)
+			return PolicyChainResult{
+				Action:        PolicyReject,
+				Failed:        result.Failed,
+				Teardown:      true,
+				NotifyCode:    result.NotifyCode,
+				NotifySubcode: result.NotifySubcode,
+			}, trace
+		}
+
 		switch result.Action {
 		case PolicyReject:
 			entry.Action = dryRunActionReject
 			entry.TextAfter = ""
 			trace = append(trace, entry)
-			return PolicyReject, "", trace
+			return PolicyChainResult{Action: PolicyReject, Failed: result.Failed}, trace
 		case PolicyModify:
 			entry.Action = dryRunActionModify
+			if len(result.Raw) > 0 {
+				entry.TextAfter = current
+				trace = append(trace, entry)
+				if !policy.AcceptsAtEnd() {
+					return PolicyChainResult{Action: PolicyReject}, trace
+				}
+				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}, trace
+			}
 			entry.Delta = result.Delta
 			current = applyFilterDelta(current, result.Delta)
 			entry.TextAfter = current
@@ -65,7 +79,10 @@ func tracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer st
 		trace = append(trace, entry)
 	}
 
-	return PolicyAccept, current, trace
+	if !policy.AcceptsAtEnd() {
+		return PolicyChainResult{Action: PolicyReject}, trace
+	}
+	return PolicyChainResult{Action: PolicyAccept, Text: current}, trace
 }
 
 const (
@@ -95,13 +112,10 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		return nil, errPeerNotFound
 	}
 
-	// Snapshot everything needed from the peer under r.mu: ImportFilters /
-	// ExportFilters can be rewritten by the peer FSM goroutine
-	// (resolveDynamicPeerSettings) for dynamic peers, so copy the slice here
-	// rather than reading it after the lock is released. peerAS/localAS are
-	// fixed at NewPeer and safe to read in the same critical section.
+	// Policies are immutable snapshots read through the peer's guarded
+	// accessors, because dynamic establishment and reload can replace them.
 	r := a.r
-	var filterRefs []filterapi.FilterRef
+	var policy filterapi.Policy
 	var peerAS, localAS uint32
 	internal := false
 	found := false
@@ -120,9 +134,9 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		internal = p.IsIBGP()
 		switch direction {
 		case directionImport:
-			filterRefs = append([]filterapi.FilterRef(nil), p.ImportFilters()...)
+			policy = p.ImportPolicy()
 		case directionExport:
-			filterRefs = append([]filterapi.FilterRef(nil), p.ExportFilters()...)
+			policy = p.ExportPolicy()
 		}
 		break
 	}
@@ -134,11 +148,11 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 
 	// If a single filter override is specified, find it in the chain.
 	if filterOverride != "" {
-		ref := resolveFilterOverride(filterOverride, filterRefs)
+		ref := resolveFilterOverride(filterOverride, policy.Filters())
 		if ref == "" {
 			return nil, errFilterNotFound
 		}
-		filterRefs = []filterapi.FilterRef{{Name: ref}}
+		policy = policy.WithFilters([]filterapi.FilterRef{{Name: ref}})
 	}
 
 	// Validate the UPDATE body parses correctly before proceeding.
@@ -172,17 +186,30 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 
 	// Run the trace chain using the real filter function (calls plugins via IPC).
 	callFilter := r.policyFilterFunc(updateBody)
-	action, textAfter, trace := tracePolicyFilterChain(
-		filterRefs, direction, peerAddr, peerAS, textBefore, callFilter,
+	result, trace := tracePolicyFilterChain(
+		policy, direction, peerAddr, peerAS, textBefore, callFilter,
 	)
+	// A policy rejection removes announcements, not explicit withdrawals.
+	// Execution failures and teardown still drop the entire UPDATE.
+	if result.Action == PolicyReject && !policy.AcceptsAtEnd() && !result.Failed && !result.Teardown {
+		if withdrawals := policyWithdrawals(updateBody); withdrawals != nil {
+			withdrawalUpdate := wireu.NewWireUpdate(withdrawals, ctxID)
+			withdrawalAttrs, attrErr := withdrawalUpdate.Attrs()
+			if attrErr != nil {
+				return nil, errInvalidUpdateBody
+			}
+			buf = AppendUpdateForFilter(buf[:0], withdrawalAttrs, withdrawalUpdate, nil)
+			result = PolicyChainResult{Action: PolicyAccept, Text: string(buf)}
+		}
+	}
+	textAfter := result.Text
 
 	var actionStr string
-	switch action {
+	switch result.Action {
 	case PolicyReject:
 		actionStr = dryRunActionReject
 	case PolicyModify:
-		// TracePolicyFilterChain never returns PolicyModify (only PolicyAccept/PolicyReject),
-		// but exhaustive switch requires coverage.
+		// A raw rewrite changes the wire payload without a text delta.
 		actionStr = dryRunActionModify
 	case PolicyAccept:
 		if textAfter == textBefore {

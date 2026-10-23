@@ -31,6 +31,10 @@ type adjRIBOut struct {
 	mu      sync.Mutex
 	session *Session
 	routes  map[adjOutKey]*adjRIBOutRoute
+	// sourcePaths is a derived index of source-owned ADD-PATH slots, keyed
+	// before outgoing identifier generation. It has the same lifetime as
+	// routes, not the recent-update cache or its allocator mappings.
+	sourcePaths map[adjOutSourceKey]uint32
 	// owed holds the keys whose owner withdrawal this destination did not
 	// emit, because the RIB elects what replaces the route
 	// (adjOutWrite.allow). Every reset of routes clears it: a record is framed
@@ -269,6 +273,51 @@ type adjOutKey struct {
 	addPath bool
 }
 
+// adjOutSourceKey names an ingress path independently of its outgoing ID.
+// A nil source is not indexed; the zero key is therefore uninitialized.
+type adjOutSourceKey struct {
+	path    fwdPathKey
+	source  *Peer
+	addPath bool
+}
+
+func adjOutSourceKeyFor(key *adjOutKey, owner adjOutPath) adjOutSourceKey {
+	out := adjOutSourceKey{path: key.path, source: owner.source, addPath: owner.addPath}
+	out.path.received = owner.received
+	return out
+}
+
+// setOwner updates the derived ingress index when a recorded slot changes
+// ownership. The caller MUST hold mu and retain a newly installed outgoing ID.
+func (a *adjRIBOut) setOwner(key *adjOutKey, entry *adjRIBOutRoute, owner adjOutPath) {
+	if key.addPath {
+		if !adjOutSameOwner(entry.owner, owner) {
+			if entry.owner.source != nil {
+				delete(a.sourcePaths, adjOutSourceKeyFor(key, entry.owner))
+			}
+			if owner.source != nil {
+				if a.sourcePaths == nil {
+					a.sourcePaths = make(map[adjOutSourceKey]uint32)
+				}
+				a.sourcePaths[adjOutSourceKeyFor(key, owner)] = key.path.received
+			}
+		}
+	}
+	entry.owner = owner
+}
+
+// releasePath drops a recorded slot's identifier reservation and derived
+// ingress binding. The caller MUST hold mu and remove the slot from routes.
+func (a *adjRIBOut) releasePath(key *adjOutKey, entry *adjRIBOutRoute) {
+	if !key.addPath {
+		return
+	}
+	if entry.owner.source != nil {
+		delete(a.sourcePaths, adjOutSourceKeyFor(key, entry.owner))
+	}
+	fwdPathIDs.release(key.path.received)
+}
+
 // adjRIBOutRoute retains no forwarded attributes. Local advertisements share
 // one signature per body and keep exact NLRI only when the semantic key loses
 // wire information (labels, framing, or noncanonical prefix bits).
@@ -303,9 +352,19 @@ func (a *adjRIBOut) tombstoned(key adjOutKey) bool {
 	return found
 }
 
-// clearRoutes empties routes and everything framed for them: the owed set
-// and the tombstones. MUST be called with mu held.
+// clearRoutes empties routes and everything framed for them: source bindings,
+// identifier reservations, the owed set and tombstones. MUST hold mu.
 func (a *adjRIBOut) clearRoutes() {
+	if len(a.routes) != 0 {
+		fwdPathIDs.mu.Lock()
+		for key := range a.routes {
+			if key.addPath {
+				fwdPathIDs.releaseLocked(key.path.received)
+			}
+		}
+		fwdPathIDs.mu.Unlock()
+	}
+	a.sourcePaths = nil
 	a.routes = nil
 	a.tombstones = nil
 	a.dropOwed()

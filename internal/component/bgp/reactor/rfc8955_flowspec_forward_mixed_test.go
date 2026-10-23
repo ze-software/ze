@@ -24,7 +24,7 @@ func TestFlowSpecForwardingKeepsLegacyNextHop(t *testing.T) {
 			f := newAIGPReplayFixture(t, nil)
 			fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 			for _, peer := range []*Peer{f.source, f.destination} {
-				peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{family.IPv4Unicast: true, fam: true}})
+				negotiateForwardTestFamilies(peer, family.IPv4Unicast, fam)
 			}
 			f.destination.settings.PeerAS = 65000
 			f.destination.settings.NextHopMode = NextHopUnchanged

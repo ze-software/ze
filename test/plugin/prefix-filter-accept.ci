@@ -72,7 +72,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:CUSTOMERS ]
+			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

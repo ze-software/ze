@@ -311,7 +311,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		// query to the IRR server (default RADB) per peer at every startup, on
 		// the operator's behalf and without being asked. That also contradicted
 		// the documented behavior (docs/guide/irr-filtering.md: a peer with no
-		// "import [ bgp-filter-irr:<asn> ]" reference has no `show bgp irr`
+		// "import { filters [ bgp-filter-irr:<asn> ]; final accept; }" reference has no `show bgp irr`
 		// entry) and this plugin's own vocabulary ("no IRR-filtered peer with
 		// ASN %d", command.go). An unenrolled peer's filter chain never reaches
 		// handleFilterUpdate, so nothing else observes the difference.

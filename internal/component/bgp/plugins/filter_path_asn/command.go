@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -54,7 +55,7 @@ type attachment struct {
 // A chain reference reaches this plugin as the bare list name, as
 // reject-asn:NAME or as bgp-filter-path-asn:NAME, and the engine concatenates
 // the bgp-level, group-level and peer-level chains into the peer's effective one
-// (concatFilters, internal/component/bgp/config/peers.go). So a peer counts when
+// (concatPolicies, internal/component/bgp/config/redistribution.go). So a peer counts when
 // the name appears at any of the three levels, and the instance name is read
 // after the prefix rather than compared whole.
 //
@@ -91,7 +92,11 @@ func chainNames(direction string, levels ...map[string]any) map[string]bool {
 		if !ok {
 			continue
 		}
-		for _, ref := range refList(filterBlock[direction]) {
+		policy, ok := filterBlock[direction].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, ref := range configvalue.LeafList(policy["filters"]) {
 			names[instanceName(ref)] = true
 		}
 	}
@@ -106,30 +111,6 @@ func instanceName(ref string) string {
 		return after
 	}
 	return ref
-}
-
-// refList normalises a filter chain leaf-list to []string. The delivered value
-// is []any after the JSON round trip, and []string or a bare string on the
-// in-process path.
-func refList(value any) []string {
-	switch list := value.(type) {
-	case []any:
-		refs := make([]string, 0, len(list))
-		for _, item := range list {
-			if ref, ok := item.(string); ok {
-				refs = append(refs, ref)
-			}
-		}
-		return refs
-	case []string:
-		return list
-	case string:
-		if list == "" {
-			return nil
-		}
-		return []string{list}
-	}
-	return nil
 }
 
 // handleCommand answers one command RPC. The command string is the full path the

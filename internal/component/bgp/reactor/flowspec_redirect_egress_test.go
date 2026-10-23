@@ -27,7 +27,7 @@ func flowRedirectForward(t *testing.T, fam family.Family, raw, payload []byte, s
 	t.Helper()
 	f := newAIGPReplayFixture(t, nil)
 	for _, peer := range []*Peer{f.source, f.destination} {
-		peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{fam: true}})
+		negotiateForwardTestFamilies(peer, fam)
 	}
 	f.destination.settings.PeerAS = 65000
 	f.destination.settings.NextHopMode = NextHopAuto

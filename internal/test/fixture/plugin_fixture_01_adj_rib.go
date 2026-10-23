@@ -62,8 +62,10 @@ func plugin01ReplayOne(ctx context.Context, plugin *sdk.Plugin, peer string) err
 func plugin01ReplayAddPath(ctx context.Context, plugin *sdk.Plugin) error {
 	const source = "127.0.0.1"
 	destinations := []string{addrLoopbackSecond, addrLoopbackThird}
+	// The API marker retains its ID too. Reserve 1 so the live/replayed
+	// source path can use 0, distinct from the source's announced ID 1.
 	if err := plugin01ReplaySetup(ctx, plugin, 3, source,
-		"update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24", 40); err != nil {
+		"update text origin igp nhop 1.1.1.1 nlri path-information 1 add 192.0.2.0/24", 40); err != nil {
 		return err
 	}
 	for _, peer := range destinations {

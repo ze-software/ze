@@ -84,7 +84,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-modify:SET-MED ]
+			import { filters [ bgp-filter-modify:SET-MED ]; final accept; }
 		}
 	}
 }
@@ -143,7 +143,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-modify:SET-MED ]
+			import { filters [ bgp-filter-modify:SET-MED ]; final accept; }
 		}
 	}
 }

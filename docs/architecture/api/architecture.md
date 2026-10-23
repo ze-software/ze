@@ -268,6 +268,20 @@ state (`request bgp adj-rib-in replay-path`, a one-route page) and relays it
 itself. A relay bgp-adj-rib-in sends itself (its own self-replay, or the operator's
 `request bgp adj-rib-in replay`) is judged on its own grant and refused toward a
 peer that does not grant it `send [ update ]`.
+
+An accepting transition after export-final rejection uses that same authorized
+owner and retained-source replay, not a separate API desired-state cache. The
+live session holds source updates behind the replay until its last page has
+reached the writer; a concurrent source withdrawal therefore wins over an older
+page, including an ADD-PATH withdrawal from the same source session.
+Reconciliation errors propagate through the reload transaction and its inverse;
+an accepting configuration is not committed while required replay has failed.
+FlowSpec is not replayed from the optional receive store: restoration enumerates
+the selecting RIB's authorized keys, reads each current path, and relays it under
+the same actual owner's grant. The receive-store prerequisite therefore applies
+to negotiated ordinary families, not to a FlowSpec-only destination.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, policyReplayOwner, flushPolicyReplay -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- requeuePolicyReplay -->
 <!-- source: internal/core/bgp/ribevents/replay.go -- ReplayRoutesCommand, RelayReplay, ReplayPathCommand, RelayReplayPath -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand, buildReplayPage -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->

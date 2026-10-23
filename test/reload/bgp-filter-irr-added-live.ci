@@ -92,7 +92,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-irr:65001 ]
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 	}
 }
@@ -139,7 +139,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-irr:65001 ]
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 
 		update {

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -111,7 +112,11 @@ func exportChain(m map[string]any) []string {
 	if !ok {
 		return nil
 	}
-	return toStringList(filterBlock["export"])
+	policy, ok := filterBlock["export"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return configvalue.LeafList(policy["filters"])
 }
 
 // exportRefInstanceName returns the family-filter instance name a chain ref points
@@ -126,27 +131,4 @@ func exportRefInstanceName(ref string) string {
 		return "" // a different plugin's filter
 	}
 	return ref // bare name; the caller checks it against our instance set
-}
-
-// toStringList normalises a leaf-list value to []string. The config loader may
-// pass []any (JSON round-trip), []string (multi-value), or a bare string.
-func toStringList(v any) []string {
-	switch s := v.(type) {
-	case []any:
-		out := make([]string, 0, len(s))
-		for _, item := range s {
-			if str, ok := item.(string); ok {
-				out = append(out, str)
-			}
-		}
-		return out
-	case []string:
-		return s
-	case string:
-		if s == "" {
-			return nil
-		}
-		return []string{s}
-	}
-	return nil
 }

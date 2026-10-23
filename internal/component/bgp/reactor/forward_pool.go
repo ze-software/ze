@@ -29,6 +29,7 @@ package reactor
 import (
 	"bytes"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -181,7 +182,7 @@ func fwdWriteDeadline() time.Duration {
 // Sets a write deadline on the TCP connection before writing to prevent a stuck
 // peer from blocking the worker goroutine indefinitely. The deadline is cleared
 // after the batch write+flush completes (or fails).
-func fwdBatchHandler(_ fwdKey, items []fwdItem) {
+func fwdBatchHandler(key fwdKey, items []fwdItem) {
 	if len(items) == 0 {
 		return
 	}
@@ -235,6 +236,9 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 
 	session.writeMu.Lock()
 	defer session.writeMu.Unlock()
+	if peer.policyReplayHolds.Load() != 0 {
+		peer.reactor.fwdPool.requeuePolicyReplay(key, items)
+	}
 
 	// Set write deadline AFTER acquiring writeMu so the full deadline budget
 	// is available for TCP writes (not consumed by mutex contention).
@@ -359,6 +363,70 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			recovery.settle()
 		}
 	}
+}
+
+// requeuePolicyReplay returns pre-admitted live work to the existing overflow
+// while a final-policy replay holds the destination. Caller MUST hold writeMu;
+// reconciliation raises its hold under that same lock. Moved items transfer all
+// buffer and completion ownership, so safeBatchHandle MUST see empty originals.
+func (fp *fwdPool) requeuePolicyReplay(key fwdKey, items []fwdItem) {
+	first := -1
+	for i := range items {
+		if items[i].peer != nil && !items[i].initialUpdate {
+			first = i
+			break
+		}
+	}
+	if first < 0 {
+		return
+	}
+	fp.mu.RLock()
+	// Keep shutdown from draining overflow before this ownership transfer ends.
+	defer fp.mu.RUnlock()
+	worker := fp.workers[key]
+	stopped := fp.stopped
+	if worker == nil {
+		return
+	}
+	if stopped {
+		return
+	}
+	epoch := items[first].peer.policyReplayEpoch.Load()
+	held := make([]fwdItem, 0, len(items)-first)
+	for i := first; i < len(items); i++ {
+		if items[i].peer != nil && items[i].initialUpdate {
+			continue
+		}
+		if items[i].channelCounted {
+			ownOverflowBodies(&items[i])
+		}
+		items[i].uncountOnChannel()
+		held = append(held, items[i])
+		items[i] = fwdItem{}
+	}
+	// These items were admitted before the fence, so they precede every live
+	// change parked after it. Keep the pending count conservative until the
+	// worker's ordinary batch completion re-derives it from the queue.
+	worker.overflowMu.Lock()
+	if worker.policyReplayEpoch != epoch {
+		worker.policyReplayEpoch, worker.policyParked = epoch, 0
+	}
+	// Earlier pre-admitted batches are already parked ahead of newer live
+	// arrivals. Insert after them, not before them. Replay items may occur
+	// between parked live items, and pass the hold independently.
+	at := worker.policyParkedEnd()
+	worker.overflow = slices.Insert(worker.overflow, at, held...)
+	worker.policyParked += len(held)
+	worker.overflowPending.Store(max(worker.overflowPending.Load(), int64(len(worker.overflow))))
+	if len(held) > 0 {
+		for i := range held {
+			if held[i].peer != nil {
+				held[i].peer.fwdOverflowPending.Store(worker.overflowPending)
+				break
+			}
+		}
+	}
+	worker.overflowMu.Unlock()
 }
 
 // closeRecoveryWrites settles every recovery admission of a batch whose
@@ -500,6 +568,10 @@ type fwdWorker struct {
 	// goroutine after processing each batch.
 	overflowMu sync.Mutex
 	overflow   []fwdItem
+	// Counts writer-parked live items at the front, ignoring replay items.
+	// Protected by overflowMu; reset for each destination replay epoch.
+	policyParked      int
+	policyReplayEpoch uint64
 
 	// overflowPending counts items dispatched to overflow whose bytes have NOT
 	// yet been written to the destination. That is wider than len(w.overflow)
@@ -534,6 +606,25 @@ type fwdWorker struct {
 	// Set on TryDispatch failure, cleared when channel drains below low-water.
 	// Transitions fire pool-level onCongested/onResumed callbacks.
 	congested bool
+}
+
+// policyParkedEnd locates the end of the already parked live prefix. Replay
+// items can be prepended by a partial drain and do not contribute to its count.
+// Caller MUST hold overflowMu.
+func (w *fwdWorker) policyParkedEnd() int {
+	left := w.policyParked
+	if left == 0 {
+		return 0
+	}
+	for i := range w.overflow {
+		if w.overflow[i].peer == nil || !w.overflow[i].initialUpdate {
+			left--
+			if left == 0 {
+				return i + 1
+			}
+		}
+	}
+	return len(w.overflow)
 }
 
 // fwdPool manages per-destination-peer worker goroutines for async UPDATE forwarding.
@@ -1011,6 +1102,9 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item *fwdItem) bool {
 				continue
 			}
 			old := w.overflow[i]
+			if i < w.policyParkedEnd() && !old.initialUpdate {
+				w.policyParked--
+			}
 			copy(w.overflow[i:], w.overflow[i+1:])
 			w.overflow[len(w.overflow)-1] = *item
 			fp.releaseItem(&old)
@@ -1114,6 +1208,7 @@ func (fp *fwdPool) Stop() {
 			fp.releaseItem(&kw.w.overflow[i])
 		}
 		kw.w.overflow = nil
+		kw.w.policyParked = 0
 		kw.w.overflowPending.Store(0)
 		kw.w.overflowMu.Unlock()
 	}
@@ -1520,21 +1615,23 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 // peer's own goroutine takes them the other way round.
 func takeOverflowReleased(w *fwdWorker) []fwdItem {
 	items := w.overflow
+	parkedEnd := w.policyParkedEnd()
 	first := firstOverflowHeld(items)
 	if first < 0 {
 		// The common case, with no hold: the whole queue, no copy.
 		w.overflow = nil
+		w.policyParked = 0
 		return items
 	}
 	released := make([]fwdItem, 0, len(items)-first)
 	released = append(released, items[:first]...)
 	kept := items[:0]
+	keptParked := 0
 	for i := first; i < len(items); i++ {
-		if len(kept) > 0 && items[i].peer == nil {
-			kept = append(kept, items[i])
-			continue
-		}
-		if overflowItemHeld(&items[i]) {
+		if len(kept) > 0 && items[i].peer == nil || overflowItemHeld(&items[i]) {
+			if i < parkedEnd && (items[i].peer == nil || !items[i].initialUpdate) {
+				keptParked++
+			}
 			kept = append(kept, items[i])
 			continue
 		}
@@ -1542,6 +1639,7 @@ func takeOverflowReleased(w *fwdWorker) []fwdItem {
 	}
 	clear(items[len(kept):])
 	w.overflow = kept
+	w.policyParked = keptParked
 	return released
 }
 

@@ -210,8 +210,9 @@ func TestOwedVPNWithdrawalAsksInAnnouncementFraming(t *testing.T) {
 // The source announces P and withdraws it: the withdrawal is written at once,
 // nothing is owed, and the worker asks the RIB nothing, so a later UPDATE from
 // the source cannot overtake it. Attaching the owner to the source then makes
-// the next owner withdrawal owed, so the test is not passing on a worker that
-// never owes.
+// an owner withdrawal of a fresh key owed, so the test is not passing on a
+// worker that never owes. A fresh key isolates withdrawal admission from the
+// announcement election required when an earlier withdrawal left a tombstone.
 func TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource(t *testing.T) {
 	r, source, destination, conn, _ := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
@@ -223,17 +224,20 @@ func TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource(t *testing.T) {
 	destination.reactor = r
 	destination.sendingInitialRoutes.Store(0)
 	requests := make(chan ribevents.RecoveryRequest, 8)
+	release := make(chan struct{}, 1)
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		requests <- request
+		<-release
 		return recoveryWithdrawAnswer(request), nil
 	})
 	session := destination.currentSession()
 	session.startRecovery(destination)
 	t.Cleanup(func() {
+		close(release)
 		session.joinRecovery()
 		owner.Close()
 	})
-	rail := &owedRail{r: r, source: source, destination: destination, conn: conn}
+	rail := &owedRail{r: r, source: source, destination: destination, conn: conn, requests: requests}
 	p := []byte{24, 192, 0, 2}
 
 	rail.forward(t, false, p)
@@ -249,14 +253,24 @@ func TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource(t *testing.T) {
 	}
 
 	attachRecoveryOwner(t, r, source)
-	rail.forward(t, false, p)
-	rail.forward(t, true, p)
-	require.Len(t, recoveryWrittenUpdates(t, conn.written()), 3, "an attached owner's withdrawal is owed, not written")
-	request := <-requests
+	q := []byte{24, 192, 0, 3}
+	rail.forward(t, false, q)
+	updates = recoveryWrittenUpdates(t, conn.written())
+	require.Len(t, updates, 3, "the fresh key is advertised before its withdrawal")
+	require.Equal(t, q, updates[2].NLRI)
+	rail.forward(t, true, q)
+	request := rail.request(t)
 	require.Len(t, request.Keys, 1)
+	require.Equal(t, q, request.Keys[0].NLRI)
+	require.Len(t, rail.owed(), 1, "the attached owner's withdrawal remains owed")
+	require.Len(t, recoveryWrittenUpdates(t, conn.written()), 3, "the held RIB decision has emitted no withdrawal")
+	release <- struct{}{}
 	lowEventually(t, func() bool {
 		return len(recoveryWrittenUpdates(t, conn.written())) == 4
 	}, "the attached owner's WITHDRAW decision is written")
+	updates = recoveryWrittenUpdates(t, conn.written())
+	require.Equal(t, q, updates[3].WithdrawnRoutes)
+	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the decision clears the owed key")
 }
 
 // TestOwedKeyHandOffNeverBlocksWriter proves the writer never waits on the

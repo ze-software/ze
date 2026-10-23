@@ -12,11 +12,31 @@
 
 ### Route Filters
 
-External plugins can act as route filters on import and export. Filters are
-configured per peer/group/globally via `filter { import [...] export [...] }`
-using named filter instances or explicit `<plugin>:<filter>` references. Multiple filters chain as piped transforms
-(each sees previous filter's output). Filters respond accept/reject/modify with
-delta-only attribute changes and dirty tracking for efficient re-encoding.
+External plugins can filter routes on import and export. Configure each direction
+per peer, per group, or globally:
+
+```text
+filter {
+    import {
+        filters [ rpki:validate ];
+        final accept;
+    }
+    export {
+        filters [ community:scrub ];
+        final accept;
+    }
+}
+```
+Each configured direction requires a final decision, even with no active filters.
+References name filter instances or use the explicit `<plugin>:<filter>` form.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
+
+Each filter sees the previous filter's output. An `accept` response continues,
+a `reject` response stops the chain, and a `modify` response supplies attribute
+changes. The final decision applies after the filters pass. A raw payload rewrite
+stops later filters but still receives the final decision.
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 Three filter categories:
 

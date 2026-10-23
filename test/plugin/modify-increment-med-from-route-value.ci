@@ -111,7 +111,7 @@ bgp {
 		# IMPORT: the operator wants the metric raised on what the route becomes, so the
 		# change is made once on arrival rather than on each re-announcement.
 		filter {
-			import [ modify:INC-MED ]
+			import { filters [ modify:INC-MED ]; final accept; }
 		}
 		attach process adj-rib-in {
 			receive [ update-received state ]

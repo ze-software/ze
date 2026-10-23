@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 const deactivateTestConfig = `bgp {
@@ -29,7 +31,10 @@ const deactivateTestConfig = `bgp {
 		}
 	}
 	filter {
-		import [ no-self-as reject-bogons ];
+		import {
+			filters [ no-self-as reject-bogons ];
+			final accept;
+		}
 	}
 }
 `
@@ -89,7 +94,7 @@ func TestCmdDeactivateLeafListValue(t *testing.T) {
 
 	rc := cmdDeactivateImpl(nil, []string{
 		configPath,
-		"bgp", "filter", "import", "no-self-as",
+		"bgp", "filter", "import", "filters", "no-self-as",
 	})
 	if rc != exitOK {
 		t.Fatalf("exit code = %d", rc)
@@ -99,8 +104,38 @@ func TestCmdDeactivateLeafListValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	if !strings.Contains(string(content), "inactive: import no-self-as") {
+	if !strings.Contains(string(content), "inactive: filters no-self-as") {
 		t.Fatalf("leaf-list value not deactivated:\n%s", content)
+	}
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	tree, err := config.NewParser(schema).Parse(string(content))
+	if err != nil {
+		t.Fatalf("parse deactivated config: %v", err)
+	}
+	policy := tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	members := policy.GetMultiValues("filters")
+	if len(members) != 1 {
+		t.Fatalf("active filters = %v, want [reject-bogons]", members)
+	}
+	if members[0] != "reject-bogons" {
+		t.Fatalf("active filter = %q, want reject-bogons", members[0])
+	}
+	present, inactive := policy.MultiValueMemberState("filters", "no-self-as")
+	if !present {
+		t.Fatal("deactivated member was removed")
+	}
+	if !inactive {
+		t.Fatal("no-self-as is still active")
+	}
+	final, present := policy.Get("final")
+	if !present {
+		t.Fatal("deactivation removed the final action")
+	}
+	if final != "accept" {
+		t.Fatalf("final = %q, want accept", final)
 	}
 }
 

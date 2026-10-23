@@ -57,7 +57,7 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }
-		filter { import [ modify:NO-LLGR ]; }
+		filter { import { filters [ modify:NO-LLGR ]; final accept; } }
 		attach process gr { receive [ open state eor ]; send [ update ]; }
 		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
 		attach process observer { receive [ state ]; send [ update ]; }

@@ -125,7 +125,7 @@ bgp {
             send [ update ];
         }
         filter {
-            export [ filter-export-modify-test:set-export-localpref ];
+            export { filters [ filter-export-modify-test:set-export-localpref ]; final accept; }
         }
     }
 }

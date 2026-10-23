@@ -68,7 +68,10 @@ bgp {
             }
         }
         filter {
-            import [ bgp-filter-irr:65001 ]
+            import {
+                filters [ bgp-filter-irr:65001 ];
+                final accept;
+            }
         }
         attach process bgp-adj-rib-in {
             receive [ update-received state ]
@@ -76,6 +79,7 @@ bgp {
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is not required to make the filter decision, but it provides `show bgp adj-rib-in` so you can verify which routes passed.
 
@@ -88,7 +92,7 @@ No `attach process bgp-filter-irr` block is needed. A filter reference invokes t
 
 ## Add it to an existing stored configuration
 
-If the stored `ze.conf` already contains the BGP peer but no IRR filter, stop Ze and add the five required settings to the stored configuration. An offline `ze config set` writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: `ze config cat` reads it, one `ze config set -` stage applies each setting, and `ze config import` stores the result as a new version.
+If the stored `ze.conf` already contains the BGP peer but no IRR filter, stop Ze and add these settings to the stored configuration. An offline `ze config set` writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: `ze config cat` reads it, one `ze config set -` stage applies each setting, and `ze config import` stores the result as a new version.
 
 ```console
 $ sudo systemctl stop ze.service
@@ -97,7 +101,8 @@ $ ze config cat ze.conf |
 > ze config set - bgp policy irr server whois.radb.net |
 > ze config set - bgp policy irr refresh-interval 3600 |
 > ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
-> ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |
+> ze config set - bgp peer customer-a filter import filters bgp-filter-irr:65001 |
+> ze config set - bgp peer customer-a filter import final accept |
 > ze config import --yes --name ze.conf -
 $ sudo systemctl start ze.service
 ```
@@ -127,7 +132,7 @@ session {
 ## Changing IRR settings on a running router
 
 A commit that changes a peer's `as-set`, the IRR `server`, or a peer's
-`import [ bgp-filter-irr:<asn> ]` takes effect on the running filter. A changed
+`filter import filters` reference takes effect on the running filter. A changed
 as-set does not inherit the list of the old one: the next UPDATE from that peer
 waits a few seconds for the new set to resolve, then is filtered against it.
 Deleting the `as-set` counts as a change: Ze asks PeeringDB again, as it would
@@ -246,7 +251,7 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 
 | Symptom | Check | Resolution |
 |---------|-------|------------|
-| `show bgp irr` has no entry for the ASN | Plugin and filter reference | Load `bgp-filter-irr` and use `import [ bgp-filter-irr:<remote-asn> ]` on the peer. |
+| `show bgp irr` has no entry for the ASN | Plugin and filter reference | Load `bgp-filter-irr` and configure `filter { import { filters [ bgp-filter-irr:<remote-asn> ]; final accept; } }` on the peer. |
 | Status stays `pending` | IRR connectivity | Permit outbound TCP to the configured whois server and run `update bgp irr asn <asn>`. |
 | Status is `error` | `error` field in `show bgp irr` | Correct the AS-SET or server, then refresh. The last known good list remains active. |
 | Status is `stale` | `stale-since` and `data-age-seconds` in `show firewall irr` | The last refresh returned no prefixes. Confirm the AS-SET still exists and the server is reachable, then refresh. The previous prefixes stay enforced meanwhile. |

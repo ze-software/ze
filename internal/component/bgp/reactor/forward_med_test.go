@@ -90,7 +90,7 @@ func TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval(t *testing.T) {
 	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 
 	dest := h.dests[0]
-	dest.settings.ExportFilters = []filterapi.FilterRef{{Name: "someplugin:remove-med"}}
+	dest.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "someplugin:remove-med"}}, filterapi.FinalAccept)
 	dest.refreshForwardFacts()
 
 	require.NoError(t, h.forward())

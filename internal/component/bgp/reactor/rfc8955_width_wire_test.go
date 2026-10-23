@@ -141,7 +141,7 @@ func forwardPreferredWidth(t *testing.T, body, want []byte) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	f := newAIGPReplayFixture(t, nil)
 	for _, peer := range []*Peer{f.source, f.destination} {
-		peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{fam: true}})
+		negotiateForwardTestFamilies(peer, fam)
 	}
 	f.destination.settings.PeerAS = 65000
 	f.destination.refreshForwardFacts()

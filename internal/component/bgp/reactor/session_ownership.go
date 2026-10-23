@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -32,6 +33,10 @@ type adjOutWrite struct {
 	encoding  *bgpctx.EncodingContext
 	owners    map[adjOutKey]adjOutPath
 	withdrawn map[adjOutKey]struct{}
+	// bindings reserves every new source path through both filtering passes,
+	// including proposals whose evicted source mapping no longer holds an ID.
+	// Release drops these references after record retains the surviving slots.
+	bindings map[adjOutSourceKey]uint32
 	// owes, movers and refused stage this write's effects on owed keys:
 	// the owner withdrawals it leaves to recovery, the forwarded writes of
 	// keys already owed, and the replays refused at an owed key. allow
@@ -126,6 +131,10 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 // release MUST follow beginAdjOut on every path, while writeMu is still held.
 func (w *adjOutWrite) release() {
 	w.table.mu.Unlock()
+	for _, id := range w.bindings {
+		fwdPathIDs.release(id)
+	}
+	clear(w.bindings)
 	clear(w.owners)
 	clear(w.withdrawn)
 	w.clearStaged()
@@ -143,7 +152,7 @@ func (w *adjOutWrite) release() {
 // RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
 // MUST be ignored." RFC 7911 Section 3: "In order to carry the Path Identifier
 // in an UPDATE message, the NLRI encoding MUST be extended by prepending the
-// Path Identifier field, which is of four octets".
+// Path Identifier field, which is of four octets."
 func (w *adjOutWrite) key(fam family.Family, raw []byte, withdraw bool) (adjOutKey, error) {
 	key := adjOutKey{addPath: w.encoding.AddPathFor(fam)}
 	id := uint32(0)
@@ -172,7 +181,7 @@ func (w *adjOutWrite) sourceBound() bool {
 // current message ID and source session generation: retained GR paths remain
 // withdrawable by the same source on its new session.
 // RFC 7911 Section 5: "If a BGP speaker receives a message to withdraw a
-// prefix with a Path Identifier not seen before, it SHOULD silently ignore it".
+// prefix with a Path Identifier not seen before, it SHOULD silently ignore it."
 func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotocol bool, occurrence int, sig adjRIBOutSignature, readable bool) (bool, error) {
 	key, err := w.key(fam, raw, withdraw)
 	if err != nil {
@@ -192,6 +201,18 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		owner.generation = item.receivedGeneration
 		if owner.source != nil {
 			owner.revocation = owner.source.forwardRevocation.Load()
+		}
+		if key.addPath {
+			if owner.source != nil {
+				if !withdraw || item.authority == adjOutForwarded {
+					// RFC 7911 Section 2: the recipient's path identity
+					// survives a source-cache mapping's eviction.
+					if w.bindSourcePath(&key, entry, owner, withdraw) {
+						binary.BigEndian.PutUint32(raw, key.path.received)
+						entry = w.table.routes[key]
+					}
+				}
+			}
 		}
 		switch item.authority {
 		case adjOutUnspecified:
@@ -301,6 +322,51 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 	}
 	w.owners[key] = owner
 	return true, nil
+}
+
+// bindSourcePath uses the recipient's ingress index, never an evictable cache
+// mapping. The caller MUST hold the table mutex, supply a source-owned ADD-PATH
+// key, and patch only its private wire buffer when the outgoing ID changes.
+// Unknown withdrawals do not allocate. A new announcement that meets another
+// owner's slot gets a reserved identifier rather than replacing that path.
+// RFC 7911 Section 2: "However, the Path Identifier MUST be assigned in such
+// a way that the BGP speaker is able to use the (Prefix, Path Identifier) to
+// uniquely identify a path advertised to a neighbor."
+func (w *adjOutWrite) bindSourcePath(key *adjOutKey, entry *adjRIBOutRoute, owner adjOutPath, withdraw bool) bool {
+	if entry != nil {
+		if adjOutSameOwner(entry.owner, owner) {
+			return false
+		}
+	}
+	sourceKey := adjOutSourceKeyFor(key, owner)
+	id, found := w.table.sourcePaths[sourceKey]
+	if !found {
+		stagedID, staged := w.bindings[sourceKey]
+		if !staged {
+			if withdraw {
+				return false
+			}
+			stagedID = key.path.received
+			_, stagedSlot := w.owners[*key]
+			if entry != nil || stagedSlot {
+				stagedID = fwdPathIDs.reserve()
+			} else {
+				// The source mapping may already have been evicted. Keep
+				// this proposal out of later collision allocations too.
+				fwdPathIDs.retain(stagedID)
+			}
+			if w.bindings == nil {
+				w.bindings = make(map[adjOutSourceKey]uint32)
+			}
+			w.bindings[sourceKey] = stagedID
+		}
+		id = stagedID
+	}
+	if id == key.path.received {
+		return false
+	}
+	key.path.received = id
+	return true
 }
 
 // adjOutOwe is one staged owner withdrawal: the family and the
@@ -555,6 +621,18 @@ func adjOutExactNLRI(entry *adjRIBOutRoute, key adjOutKey, raw []byte) bool {
 
 func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, multiprotocol bool, sig adjRIBOutSignature, readable bool) (int, error) {
 	if len(data) == 0 {
+		return 0, nil
+	}
+	// RFC 4760 Section 8: "To have a bi-directional exchange of routing
+	// information for a particular <AFI, SAFI> between a pair of BGP speakers,
+	// each such speaker MUST advertise to the other (via the Capability
+	// Advertisement mechanism) the capability to support that particular
+	// <AFI, SAFI> route." SupportsFamily includes classic IPv4 negotiation.
+	// negotiateCapabilities publishes this immutable pointer under writeMu;
+	// no reverse Session.mu acquisition or duplicate capability fact is needed.
+	if negotiated := w.session.negotiated; !w.raw && negotiated != nil &&
+		!negotiated.SupportsFamily(capability.Family{AFI: capability.AFI(fam.AFI), SAFI: capability.SAFI(fam.SAFI)}) {
+		w.removed++
 		return 0, nil
 	}
 	split := nlrisplit.Get(fam)
@@ -813,8 +891,11 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 		if entry == nil {
 			entry = new(adjRIBOutRoute)
 			w.table.routes[key] = entry
+			if key.addPath {
+				fwdPathIDs.retain(key.path.received)
+			}
 		}
-		entry.owner = owner
+		w.table.setOwner(&key, entry, owner)
 		if _, contested := w.contested[key]; contested {
 			entry.contested = true
 		}
@@ -865,6 +946,9 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 // because no candidate the destination may receive remained at its drain.
 func (w *adjOutWrite) recordDeletion(key adjOutKey) {
 	entry := w.table.routes[key]
+	if entry != nil {
+		w.table.releasePath(&key, entry)
+	}
 	delete(w.table.routes, key)
 	if item := w.session.sentForward; item != nil && item.authority == adjOutRecovery {
 		delete(w.table.tombstones, key)

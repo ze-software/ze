@@ -69,7 +69,7 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 			Examples: []string{
 				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp router-id").String(),
 				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp peer peer1").String(),
-				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp filter import no-self-as").String(),
+				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp filter import filters no-self-as").String(),
 			},
 		}
 		p.WriteErr()

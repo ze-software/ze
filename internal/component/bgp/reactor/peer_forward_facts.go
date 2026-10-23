@@ -67,7 +67,7 @@ type peerForwardFacts struct {
 	propagatePrefixSID bool
 	name               string
 	groupName          string
-	exportFilters      []filterapi.FilterRef
+	exportPolicy       filterapi.Policy
 
 	clusterID      uint32
 	clusterIDBytes [4]byte
@@ -161,6 +161,10 @@ func (r *redirectNextHop) hop(afi family.AFI) []byte {
 		if r.has6 {
 			return r.global[:]
 		}
+	case family.AFIL2VPN, family.AFIBGPLS:
+		// No IP packet family, so no FIB key and no rewrite address.
+	default:
+		// The AFI set is open: a code no family names carries no rewrite address.
 	}
 	return nil
 }
@@ -240,7 +244,7 @@ func (p *Peer) refreshForwardFactsIfLiveFrom(connected []netip.Prefix) {
 func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	s := p.settings
 
-	// ExportFilters and PeerAS are read under p.mu because both are mutable, and both
+	// ExportPolicy and PeerAS are read under p.mu because both are mutable, and both
 	// writers hold this lock: applyHotSwappableSettings (peer_settings_apply.go) writes the
 	// filter pair from the config-reload goroutine, and resolveDynamicPeerSettings
 	// (reactor_dynamic.go) writes PeerAS and the filter pair on a dynamic peer's
@@ -259,7 +263,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	}
 	connectedLocal := connectedLocalAddress(p.session)
 	sendCtxID := p.sendCtxID
-	exportFilters := s.ExportFilters
+	exportPolicy := s.ExportPolicy
 	peerAS := s.PeerAS
 	isEBGP := s.IsEBGP()
 	isIBGP := s.IsIBGP()
@@ -295,7 +299,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		propagatePrefixSID: s.PropagateSRv6PrefixSID,
 		name:               s.Name,
 		groupName:          s.GroupName,
-		exportFilters:      exportFilters,
+		exportPolicy:       exportPolicy,
 
 		sendCtxID:   sendCtxID,
 		sendASN4:    sendASN4,

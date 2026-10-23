@@ -995,7 +995,8 @@ Add but before `deliverChan` enqueue. It calls the egress pipeline directly
 (`reactorForwardRS` in `forward_rs.go`), bypassing plugin dispatch, bgp-rs
 workers, and ForwardCached entirely. Peers with an ACTIVE export filter fall
 back to the plugin path via `FastPathSkipped` on `RawMessage`. A chain of only
-deactivated refs applies no policy, so that peer keeps the fast path. Enabled per peer group
+deactivated refs needs no filter RPC, but its final still applies. A rejecting
+final cannot use the no-policy acceptance shortcut. Enabled per peer group
 via `PeerSettings.RSFastPath`.
 
 Two consumer categories. **Forwarders** (route server, route reflector, future
@@ -1041,8 +1042,23 @@ Forwarded replacements clear local duplicate evidence. The ordered pending
 frontier becomes committed at flush; a write/flush failure invalidates it and
 seals only the failing Session. The asynchronous sent RIB remains a projection;
 cold source-DOWN recovery retains its existing drain and session/sequence fences.
+
+An export-final rejection publishes the new forwarding facts before joining the
+session writer and snapshotting its advertisements. This includes direct API
+writes, not only the forwarding pool: an old accepting decision must reach
+ownership admission before the rejection takes its withdrawal snapshot.
+Restoration raises the replay-order gate before publishing accepting facts and holds
+work admitted before the hold was raised. That work returns to overflow in its
+original order. A replay-only completion marker reaches the writer before the
+hold is released, so a same-session withdrawal follows, rather than precedes,
+a retained page that still contains its route.
+The withdrawal snapshot reconstructs native framing from semantic route keys;
+FlowSpec keys regain their length field, including the RD for VPN FlowSpec.
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, beginPolicyReplay, flushPolicyReplay -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- requeuePolicyReplay -->
 
 **Batched cache retains (rs-gap-0):** `ForwardUpdate` accumulates per-peer
 dispatch items during the egress loop and calls `retainN(id, peerCount)` once
@@ -1101,17 +1117,20 @@ code position:
    synchronously, attached processes or not, so the state is gone before the
    removal returns (`bgp-role` frees a learned role this way).
 
-2. **The external-plugin per-peer policy chain** (`peer.settings.ImportFilters`,
-   resolved via `filter { import [...] }` config), which the reactor binds as ONE
-   ordered step at `filterapi.FilterStagePeerChain` (300) -- so it sorts **after**
-   every in-process filter, including OTC. It runs `PolicyFilterChain` with
-   `direction="import"` only when the peer has an ACTIVE import filter and the
-   API server is present (text serialization is gated to that case). A chain of
-   only deactivated refs runs nothing, so it accepts. `Reject`
-   drops the route; `Teardown` closes the session (import only); a raw override or
-   a `Modify` text delta is converted to wire-attribute mods (`ModAccumulator`)
-   and rebuilds the cached `WireUpdate` via the same `buildModifiedPayload`
-   progressive build used on the egress path.
+2. **The external-plugin per-peer policy** (`peer.settings.ImportPolicy`,
+   resolved via `filter { import { filters [ name ]; final accept; } }`), which
+   the reactor binds as ONE ordered step at `filterapi.FilterStagePeerChain`
+   (300), after every in-process filter, including OTC. Active references need
+   the API server and text serialization; an empty or inactive-only policy
+   applies its final without either. `Reject` drops the route; `Teardown`
+   closes the session (import only). A raw override stops later filters but
+   still receives the final decision. An accepted raw override or `Modify`
+   text delta rebuilds the cached `WireUpdate` through the same progressive
+   build used on egress.
+   With `final reject`, a policy denial preserves explicit withdrawals in a mixed
+   UPDATE; execution failure and teardown still reject the whole operation.
+   A pure withdrawal stays on the unchanged-payload path: it is delivered without
+   allocating another `WireUpdate` or rebuilding its attributes.
 
 Because the external chain is a declared terminal stage (not a second back-to-back
 code block), the cross-system order is inspectable and a future filter registered
@@ -1232,7 +1251,8 @@ nothing gains no attribute".
 
 After in-process filters (role OTC), a configurable policy filter chain runs for
 external plugin filters. Filters are referenced by `<plugin>:<filter>` in
-`filter { import [...] export [...] }` config at bgp/group/peer levels.
+`filter { import { filters [ name ]; final accept; } export { final reject; } }`
+config at bgp/group/peer levels. Every present direction requires a final.
 
 ```
 Ingress:  Wire → In-process (mandatory) → Default filters → Policy chain (user) → Cache
@@ -1255,9 +1275,36 @@ Three categories of filters:
 | Default | Always unless overridden | Yes, per-peer | `rfc:no-self-as` |
 | User | When configured | N/A | `rpki:validate` |
 
-Config hierarchy is cumulative (bgp > group > peer). Filters respond
-accept/reject/modify with delta-only output. Dirty tracking ensures only
-modified attributes are re-encoded.
+Filter references are cumulative (bgp > group > peer); the most-specific
+configured direction supplies the final decision. `filterapi.Policy` carries
+both together through `PeerSettings`, dynamic resolution, forwarding snapshots
+and reload. Its absent state preserves automatic-filter behavior and acceptance
+at exhaustion, distinct from a configured empty policy.
+
+Filters respond accept/reject/modify with delta-only output. Accept continues;
+reject, fail-closed error and teardown short-circuit. Exhaustion, including
+empty or inactive-only chains, applies the effective final. A raw rewrite stops
+later filters and also receives that final. Dirty tracking ensures only
+modified attributes are re-encoded. Dry-run follows the same decisions.
+
+Reload compares and replaces whole policies. An export-final change publishes
+the new forwarding snapshot before reconciling advertisements on the existing
+session. Rejection drains queued forwards and withdraws the session's recorded
+advertisements through the normal serialized writer; its last admission check
+also rejects announcements evaluated before the swap. Returning to acceptance,
+including removal of the direction, regenerates configured static, default and
+plugin routes and replays retained received routes under the configured replay
+owner's send permission. Dynamic variable resolution retains the final.
+
+This does not add desired-state storage for one-shot API announcements. Those
+announcements are withdrawn on rejection, but their producer must reannounce
+after acceptance returns: consumed operations and sent-state withdrawals retain
+no original desired source. Import-final rejection preserves received withdrawal
+sections, and export-final rejection preserves API withdrawals. Broad filter
+definition reload is separate from this final-transition reconciliation.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, policyReplayOwner -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- policyWithdrawals -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 
 The chain reads one text subject, built once per UPDATE and shared by every
 filter on the peer. Which attribute names that subject carries, and the value
@@ -1294,7 +1341,8 @@ A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
 
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter containers -->
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
+<!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy, NewPolicy, WithFilters, AcceptsAtEnd -->
 
 ---
 
@@ -2271,16 +2319,15 @@ struct, so a field nobody classified still counts as a change.
 | Restart | any other difference | the peer is removed and re-added, and one log line names every field that forced it. The session first reads a Cease with RFC 4486 Section 4 subcode 6 "Other Configuration Change"; a peer the configuration no longer holds reads subcode 3 "Peer De-configured" instead |
 
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
-struct rather than a list of what matters. Four fields qualify: `ImportFilters`,
-`ExportFilters`, `PrefixUpdated` and `StaticRoutes`; `ProcessBindings` does
+struct rather than a list of what matters. Four fields qualify: `ImportPolicy`,
+`ExportPolicy`, `PrefixUpdated` and `StaticRoutes`; `ProcessBindings` does
 for a receive-only binding, and `BFD` for a non-strict opt-in (both below). Every other field forces a
 restart, so a field added to `PeerSettings` tomorrow is restart-scoped until
 somebody classifies it on purpose. A wrongly restarted session is visible and
 self-healing; a session left running on settings nobody checked is silent.
 
-A route set is the one member whose consumer is the wire, so delivering the field
-alone would change nothing until the next connection. `deliverStaticRouteDelta`
-(`peer_static_wire.go`) is what makes it swappable: it announces the routes the
+The static route set needs delivery to the wire, not only a field swap.
+`deliverStaticRouteDelta` (`peer_static_wire.go`) makes it swappable: it announces the routes the
 running session does not hold, withdraws the ones the configuration no longer
 names, and leaves an unchanged route alone. The difference is computed against
 what the connection was SENT (`Peer.staticWire`), not against the previous
@@ -2428,14 +2475,17 @@ The swap writes onto the struct the peer points at, under `p.mu`, rather than
 replacing the pointer: `Session` holds its own copy of the same pointer, so
 replacing it would leave every `s.settings` reader on the old struct. Cross-goroutine
 readers of the swappable fields go through the `p.mu`-guarded accessors
-`Peer.ImportFilters`, `Peer.OldestPrefixUpdated` (`peer.go`) and
+`Peer.ImportPolicy`, `Peer.OldestPrefixUpdated` (`peer.go`) and
 `Peer.bfdSettings` (`peer_bfd.go`), and the egress
 snapshot and the prefix-stale alarm are rebuilt after the lock is released.
 
-Reload delivers a policy change to routes received AFTER the swap. It does not
-re-run policy over already-imported routes. BIRD behaves the same way on
-reconfigure; doing more needs a route refresh or route retention
-(`docs/research/bird-bgp-reference.md`).
+An import-policy change applies to routes received AFTER the swap; it does not
+re-run policy over already-imported routes. An export-final transition also
+reconciles existing advertisements through `reconcileExportFinal`: rejection
+withdraws them, and acceptance restores eligible retained sources. Re-evaluation
+for arbitrary filter-definition changes remains separate.
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
 
 ## 19. Component Boundaries
 

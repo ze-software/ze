@@ -235,7 +235,7 @@ func (p *SetParser) parseSetWithMeta(tree *Tree, meta *MetaTree, entry MetaEntry
 		return fmt.Errorf("line %d: set requires at least a path", lineNum)
 	}
 
-	return p.walkAndSetWithMeta(tree, meta, p.schema.root, entry, tokens, lineNum)
+	return p.setSyntaxRefusal(tokens, p.walkAndSetWithMeta(tree, meta, p.schema.root, entry, tokens, lineNum))
 }
 
 // walkAndSetWithMeta walks the path, sets the value, and records metadata at the leaf.

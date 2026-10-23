@@ -7,7 +7,7 @@ Ze applies ordered import and export filter chains to BGP updates. Define named 
 Policy has two parts:
 
 1. Named filter instances under `bgp { policy { ... } }`.
-2. Ordered references under `filter { import [...] export [...] }`.
+2. Direction policies under `filter`, each with ordered `filters` and a required `final accept` or `final reject`.
 
 ```text
 bgp {
@@ -24,19 +24,51 @@ bgp {
     }
 
     filter {
-        import [ no-self-as rpki:validate ]
+        import { filters [ no-self-as rpki:validate ]; final accept; }
     }
 
     group customers {
         filter {
-            import [ community:scrub ]
-            export [ prefix:customer-export ]
+            import { filters [ community:scrub ]; final accept; }
+            export { filters [ prefix:customer-export ]; final accept; }
         }
     }
 }
 ```
 
-The effective chain is cumulative: automatic safety filters run first, followed by global, group, and peer references. Use `insert` in the editor when order matters.
+The effective references are cumulative: automatic safety filters run first,
+followed by global, group, and peer references. The most-specific configured
+direction supplies its final decision; references inherited from less-specific
+levels are not replaced. Each configured direction must state its own final,
+even if it has no references. Use `insert` in the editor when order matters.
+
+For example, `filter { import { filters [ name ]; final accept; } export {
+final reject; } }` runs `name` on import and rejects every export that reaches
+the policy final. An absent direction keeps the existing automatic-filter
+behavior and accepts when those filters finish; it is not a configured empty
+policy.
+
+A reload compares the whole effective policy. Changing only the export `final`
+therefore reconciles advertisements on the existing session without a source
+UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance,
+including removal of the direction, regenerates configured static, default and
+plugin routes and replays retained received routes through the configured replay
+owner. Ordinary received-route restoration requires the receive store and that
+owner's existing send permission. FlowSpec instead restores the selecting RIB's
+currently authorized paths through the same owner. A destination negotiating only
+FlowSpec does not require the optional receive store; negotiated ordinary families
+still require their retained source.
+An already accepting direction can be removed without replay or resetting the
+delivered static-route set; routes removed in the same reload are still withdrawn.
+If required restoration fails, reload returns the error and rolls back the policy
+instead of committing an accepting configuration with stale rejected state.
+
+One-shot API announcements have no retained desired source. They are withdrawn
+on rejection, but their producer must reannounce them after acceptance returns.
+This preserves the existing API ownership contract rather than introducing a
+second route store. Explicit withdrawals remain effective under `final reject`.
+Reloading a filter definition without changing the final is a separate operation.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
 
 ## Filter outcomes
 
@@ -45,6 +77,12 @@ A filter can:
 - accept the update unchanged;
 - reject it and stop the chain;
 - modify selected attributes and pass the changed update onward.
+
+A filter's `accept` means continue, not bypass the remaining policy. After the
+last active reference, Ze applies `final`. An empty policy, or one whose
+references are all inactive, still applies it. A raw full-UPDATE rewrite stops
+later filters, but still receives the policy final. An earlier reject,
+fail-closed error, or teardown cannot be turned into acceptance by `final accept`.
 
 Each plugin declares whether an internal error fails open or closed. Security filters should normally reject on failure. Operational policy should make that choice explicit rather than depending on an unavailable external service.
 
@@ -87,8 +125,8 @@ bgp {
     peer ix-member {
         role   { import peer; }
         filter {
-            import [ NO-TRANSIT ];
-            export [ NO-TRANSIT ];
+            import { filters [ NO-TRANSIT ]; final accept; }
+            export { filters [ NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -321,6 +359,16 @@ Use named destinations and specify the source protocols deliberately. Avoid broa
 See [Route filters and redistribution](redistribution.md) for the current chain rules and configuration syntax.
 
 ## Verify policy
+
+`show policy chain peer <selector> [import|export]` reports each effective direction as an object containing
+`filters` and `final`, including a configured direction with no filters.
+Peer detail reports the same policy under `import-policy` and `export-policy`.
+Automatic-only filters have no configured `final`; an entirely absent policy
+is omitted. Policy dry-run applies the same final as live execution.
+With `final reject`, a pure withdrawal remains `accept` with unchanged resulting
+text. A mixed announcement and withdrawal reports `modify`, with only its explicit
+withdrawals in the resulting text. A filter execution failure or teardown still
+reports `reject` without resulting text; neither is a successful withdrawal.
 
 Use the same route at each boundary:
 

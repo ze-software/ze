@@ -84,7 +84,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-path-asn:NO-ASN ]
+			import { filters [ bgp-filter-path-asn:NO-ASN ]; final accept; }
 		}
 	}
 }
@@ -141,7 +141,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-path-asn:NO-ASN ]
+			import { filters [ bgp-filter-path-asn:NO-ASN ]; final accept; }
 		}
 	}
 }

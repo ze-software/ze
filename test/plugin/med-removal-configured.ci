@@ -109,7 +109,7 @@ bgp {
 		# IMPORT, not export. Section 5.1.4 requires the removal to happen before the
 		# decision process, and the import chain is the only chain that runs there.
 		filter {
-			import [ modify:DROP-MED ]
+			import { filters [ modify:DROP-MED ]; final accept; }
 		}
 		attach process adj-rib-in {
 			receive [ update-received state ]

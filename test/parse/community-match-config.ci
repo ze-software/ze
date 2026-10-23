@@ -40,7 +40,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ community-match:BLOCK-NO-EXPORT ]
+			import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; }
 		}
 	}
 }

@@ -53,7 +53,7 @@ bgp {
 	peer peer1 {
 		role { import provider; }
 		# Isolate ASPA from the independent transit-leak filter.
-		filter { import [ inactive:NO-TRANSIT ]; }
+		filter { import { filters [ inactive:NO-TRANSIT ]; final accept; } }
 		connection {
 			remote {
 				ip 127.0.0.1

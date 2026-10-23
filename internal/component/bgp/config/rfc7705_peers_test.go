@@ -317,7 +317,8 @@ func TestLoopDetectionConfigExtraction(t *testing.T) {
 	// Create a peer with an import filter chain referencing the loop-detection entry.
 	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 	filterTree := config.NewTree()
-	filterTree.SetSlice("import", []string{"my-loop-filter"})
+	filterTree.GetOrCreateContainer("import").SetSlice("filters", []string{"my-loop-filter"})
+	filterTree.GetOrCreateContainer("import").Set("final", "accept")
 	peerTree.SetContainer("filter", filterTree)
 
 	bgp.AddListEntry("peer", "peer1", peerTree)
@@ -352,7 +353,8 @@ func TestLoopDetectionClusterID(t *testing.T) {
 	// Peer referencing the filter.
 	peerTree := buildMinimalPeer("10.0.0.2", "65001", "auto")
 	filterTree := config.NewTree()
-	filterTree.SetSlice("import", []string{"ld-with-cluster"})
+	filterTree.GetOrCreateContainer("import").SetSlice("filters", []string{"ld-with-cluster"})
+	filterTree.GetOrCreateContainer("import").Set("final", "accept")
 	peerTree.SetContainer("filter", filterTree)
 
 	bgp.AddListEntry("peer", "peer1", peerTree)
@@ -392,8 +394,10 @@ func TestLoopDetectionDefaultAutoPopulation(t *testing.T) {
 	require.Len(t, peers, 1)
 
 	ps := peers[0]
-	assert.True(t, filterChainContains(ps.ImportFilters, "my-loop"), "loop-detection should auto-populate in import chain")
+	assert.True(t, filterChainContains(ps.ImportPolicy.Filters(), "my-loop"), "loop-detection should auto-populate in import chain")
 	assert.Equal(t, uint8(3), ps.LoopAllowOwnAS, "auto-populated filter settings should be applied")
+	assert.False(t, ps.ImportPolicy.Configured(), "automatic filters must not invent an operator policy")
+	assert.True(t, ps.ImportPolicy.AcceptsAtEnd(), "automatic filters preserve absent-policy acceptance")
 }
 
 // TestLoopDetectionInactiveDisables verifies a deactivated loop-detection filter
@@ -416,9 +420,10 @@ func TestLoopDetectionInactiveDisables(t *testing.T) {
 	// value stays clean; deactivation is a sibling marker).
 	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 	filterTree := config.NewTree()
-	filterTree.SetSlice("import", []string{"my-loop"})
-	require.NoError(t, filterTree.DeactivateMultiValue("import", "my-loop"))
-	if _, inactive := filterTree.MultiValueMemberState("import", "my-loop"); true {
+	filterTree.GetOrCreateContainer("import").SetSlice("filters", []string{"my-loop"})
+	filterTree.GetOrCreateContainer("import").Set("final", "accept")
+	require.NoError(t, filterTree.GetOrCreateContainer("import").DeactivateMultiValue("filters", "my-loop"))
+	if _, inactive := filterTree.GetOrCreateContainer("import").MultiValueMemberState("filters", "my-loop"); true {
 		require.True(t, inactive, "my-loop deactivated out-of-band")
 	}
 	peerTree.SetContainer("filter", filterTree)
@@ -508,7 +513,8 @@ func TestClusterIDSync(t *testing.T) {
 		// Peer with no session/cluster-id but referencing loop-detection.
 		peerTree := buildMinimalPeer("10.0.0.2", "65000", "auto")
 		filterTree := config.NewTree()
-		filterTree.SetSlice("import", []string{"ld-custom"})
+		filterTree.GetOrCreateContainer("import").SetSlice("filters", []string{"ld-custom"})
+		filterTree.GetOrCreateContainer("import").Set("final", "accept")
 		peerTree.SetContainer("filter", filterTree)
 		bgp.AddListEntry("peer", "peer1", peerTree)
 		tree.SetContainer("bgp", bgp)

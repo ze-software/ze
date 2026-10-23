@@ -27,10 +27,10 @@ import (
 //
 // Spec: plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1, AC-2).
 
-// peerWithExportFilters builds a Peer whose forwarding facts are established
-// (non-nil) and carry the given export filter chain, without going through a
+// peerWithExportPolicy builds a Peer whose forwarding facts are established
+// (non-nil) and carry the given export policy, without going through a
 // live session. The facts pointer is what forwardFacts() reads.
-func peerWithExportFilters(t *testing.T, addr string, filters []filterapi.FilterRef) *Peer {
+func peerWithExportPolicy(t *testing.T, addr string, policy filterapi.Policy) *Peer {
 	t.Helper()
 	peer := NewPeer(&PeerSettings{
 		Address: netip.MustParseAddr(addr),
@@ -38,8 +38,8 @@ func peerWithExportFilters(t *testing.T, addr string, filters []filterapi.Filter
 		PeerAS:  65001,
 	})
 	peer.fwdFacts.Store(&peerForwardFacts{
-		addrStr:       addr,
-		exportFilters: filters,
+		addrStr:      addr,
+		exportPolicy: policy,
 	})
 	return peer
 }
@@ -63,7 +63,7 @@ func TestExportFilterForBodyNilAPIWithExportFiltersSuppressesAndWarns(t *testing
 	rec := captureWarnPeers(t)
 
 	r := &Reactor{} // r.api is nil: the whole subject
-	peer := peerWithExportFilters(t, "10.0.0.1", []filterapi.FilterRef{{Name: "reject-private-asn"}})
+	peer := peerWithExportPolicy(t, "10.0.0.1", mustPolicy(t, []filterapi.FilterRef{{Name: "reject-private-asn"}}, filterapi.FinalAccept))
 
 	suppress, override := r.exportFilterForBody(peer, []byte{0x00})
 
@@ -82,7 +82,7 @@ func TestExportFilterForBodyNoExportFiltersAccepts(t *testing.T) {
 	rec := captureWarnPeers(t)
 
 	r := &Reactor{}
-	peer := peerWithExportFilters(t, "10.0.0.2", nil)
+	peer := peerWithExportPolicy(t, "10.0.0.2", filterapi.Policy{})
 
 	suppress, override := r.exportFilterForBody(peer, []byte{0x00})
 

@@ -100,7 +100,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ modify:DROP-MED ]
+			import { filters [ modify:DROP-MED ]; final accept; }
 		}
 
 		attach process adj-rib-in {

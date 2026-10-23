@@ -50,7 +50,7 @@ func TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess(t *testing.T) {
 		GlobalLocalAS: 65000,
 		PeerAS:        65001,
 		RouterID:      0xcb007109,
-		ImportFilters: []filterapi.FilterRef{{Name: "alter-med"}},
+		ImportPolicy:  mustPolicy(t, []filterapi.FilterRef{{Name: "alter-med"}}, filterapi.FinalAccept),
 	})
 	source.state.Store(int32(PeerStateEstablished))
 

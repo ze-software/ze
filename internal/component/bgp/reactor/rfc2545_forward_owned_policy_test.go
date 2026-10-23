@@ -69,7 +69,7 @@ func TestRFC2545ForwardPolicyOwnGlobalJointSubnet(t *testing.T) {
 								}
 								return PolicyResponse{Action: PolicyAccept}
 							}
-							f.destination.settings.ExportFilters = []filterapi.FilterRef{{Name: "ipv6:own-global"}}
+							f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "ipv6:own-global"}}, filterapi.FinalAccept)
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 							f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 							if rail == "rs" {

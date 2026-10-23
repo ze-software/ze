@@ -8,6 +8,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"strings"
@@ -130,5 +131,31 @@ func TestPolicySelectorReadsEveryNotation(t *testing.T) {
 	// A token that names no AS number selects nothing rather than everything.
 	if got := filterPeersByPolicySelector(peers, "AS1.99999"); len(got) != 0 {
 		t.Errorf("selector AS1.99999 returned %v, want none", got)
+	}
+}
+
+// TestPolicyChainFinalDisplay preserves configured empty directions in JSON
+// while distinguishing absent policy and automatic-only references.
+func TestPolicyChainFinalDisplay(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		policy *plugin.PolicyInfo
+		want   string
+	}{
+		{name: "absent", want: "null"},
+		{name: "empty accept", policy: &plugin.PolicyInfo{Final: "accept"}, want: `{"filters":null,"final":"accept"}`},
+		{name: "empty reject", policy: &plugin.PolicyInfo{Final: "reject"}, want: `{"filters":null,"final":"reject"}`},
+		{name: "automatic", policy: &plugin.PolicyInfo{Filters: []string{"rfc:no-self-as"}}, want: `{"filters":[{"name":"no-self-as","canonical":"rfc:no-self-as"}]}`},
+		{name: "inactive", policy: &plugin.PolicyInfo{Filters: []string{"inactive:plug:SKIP"}, Final: "reject"}, want: `{"filters":[{"name":"inactive:SKIP","canonical":"inactive:plug:SKIP"}],"final":"reject"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := json.Marshal(toPolicyChain(tc.policy))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tc.want {
+				t.Errorf("policy JSON = %s, want %s", got, tc.want)
+			}
+		})
 	}
 }

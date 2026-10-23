@@ -529,6 +529,12 @@ identity and ingress path identity; local/config/API writes establish local
 ownership. Explicit local withdrawals retain their authority, while automatic
 RIB cleanup and sent replay carry captured ownership rather than impersonating
 an operator.
+Each nonempty family section also checks the bound Session's negotiated family
+intersection before changing ownership. The negotiated pointer is published under
+`writeMu` during OPEN processing, so this check takes no peer or session read lock
+inside the writer. A remote offer alone cannot authorize a family the local side
+did not offer; mixed UPDATEs retain their supported sections, and the existing
+negotiation rule still admits classic IPv4 when neither side advertises MP.
 
 Policy output is filtered per withdrawal path before PATHS-LIMIT mutates its
 counts. An original withdrawal requires an existing matching owner; a synthesized
@@ -597,9 +603,12 @@ excludes it; the destination is not retired for it. The RIB's answer is staged
 as one admission on the destination's forward worker, which decides each key
 under `writeMu`. A key whose record left, belongs to another session, or
 carries a newer epoch is not written. A key whose chosen candidate withdrew
-or re-announced it since the snapshot is left owed: every forwarded write of an
-owed key records its source as a mover, so a RIB answer older than the
-candidate's newer revision is never written over it. A survivor whose source is still the same
+it since the snapshot is left owed without writing that decision. A forwarded
+or initial-replay announcement of an owed key is withheld and recorded as an
+announcement mover: the drained round may still decide, but leaves the record
+owed with an advanced epoch so the next round elects over the newer revision.
+The newer bytes cannot bypass election or be overwritten by the older round.
+A survivor whose source is still the same
 live session is written whatever that session accepted since the round's cut:
 an UPDATE of the key itself reaches the destination's writer on the forward
 rail, as a mover before the admission or as a write after it, so traffic on
@@ -610,8 +619,9 @@ reconstruction or at the final writer, is owed again with that source excluded. 
 survivor, in election order, that the destination's export policy permits, as
 the new owner (a denied candidate is stepped past, never written), or the
 withdrawal when no candidate survives or every one is denied. A
-written decision removes its record when its epoch has not moved, and that
-completes its waiters; a table reset drops every record and completes them too.
+written decision removes its record when its epoch has not moved and no
+announcement mover requires another round, completing its waiters; a table
+reset drops every record and completes them too.
 An admission that reaches the forward worker when the destination has no
 Established session, or no connection, writes nothing and settles as
 destination-closed; the worker then ends without resetting the session, because
@@ -1032,7 +1042,7 @@ RFC 4271 Section 4.3 identifies a withdrawn route by its destination, "which una
 
 A connection that has advertised nothing has no route for any withdrawal to name, so the API rail names no route to such a peer. The condition is about the CONNECTION, not about the route: once the connection has carried one UPDATE that makes any destination reachable, every later withdrawal is written, whether or not the peer holds the route named. A key-based rule would be a different rule and a wrong one, because an operator withdrawing a route the peer never received is telling a peer it must not hold it, and RFC 4271 Section 9.1.2 has the receiver ignore a withdrawal for a route it does not have.
 
-The peer receives NOTHING, whatever the family. With the routes removed a withdrawal has nothing left to say, so no UPDATE is written, not even one carrying the path attributes a FlowSpec withdrawal would have carried. No RFC asks a speaker to send such an attributes-only message, and ExaBGP does not: at the pinned 685f772e4, `UpdateCollection._mp_family_messages` yields nothing for a withdrawal while `include_withdraw` is False and nothing is announced, and its `qa/api/api-flow.ci` records no attributes-only frame. ExaBGP 4.2 did send one, which `test/exabgp-compat/old-4.2/api-flow.ci` carries as an allowance.
+The peer receives NOTHING, whatever the family. With the routes removed a withdrawal has nothing left to say, so no UPDATE is written, not even one carrying the path attributes a FlowSpec withdrawal would have carried. No RFC asks a speaker to send such an attributes-only message, and ExaBGP does not: at the pinned f9bfb853b, `UpdateCollection._mp_family_messages` yields nothing for a withdrawal while `include_withdraw` is False and nothing is announced, and its `qa/api/api-flow.ci` records no attributes-only frame. ExaBGP 4.2 did send one, which `test/exabgp-compat/old-4.2/api-flow.ci` carries as an allowance.
 
 A withheld withdrawal writes nothing, so it does not arm the connection either: a second withdrawal is withheld exactly as the first was.
 

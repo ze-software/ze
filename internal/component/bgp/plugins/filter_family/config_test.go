@@ -74,7 +74,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 	for _, ref := range []string{"bgp-filter-family:Kill", "family-filter:Kill", "Kill"} {
 		cfg := cloneMap(base)
 		cfg["peer"] = map[string]any{
-			"edge": map[string]any{"filter": map[string]any{"export": []any{ref}}},
+			"edge": map[string]any{"filter": map[string]any{"export": map[string]any{"filters": []any{ref}, "final": "accept"}}},
 		}
 		_, err := parseFamilyFilters(cfg)
 		require.Error(t, err, "tear-down ref %q in export must be rejected", ref)
@@ -83,7 +83,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 	// remove in export chain -> OK.
 	cfg := cloneMap(base)
 	cfg["peer"] = map[string]any{
-		"edge": map[string]any{"filter": map[string]any{"export": []any{"bgp-filter-family:NoFlow"}}},
+		"edge": map[string]any{"filter": map[string]any{"export": map[string]any{"filters": []any{"bgp-filter-family:NoFlow"}, "final": "accept"}}},
 	}
 	_, err := parseFamilyFilters(cfg)
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 	// tear-down in an IMPORT chain -> OK (import is its only legal direction).
 	cfg = cloneMap(base)
 	cfg["peer"] = map[string]any{
-		"edge": map[string]any{"filter": map[string]any{"import": []any{"bgp-filter-family:Kill"}}},
+		"edge": map[string]any{"filter": map[string]any{"import": map[string]any{"filters": []any{"bgp-filter-family:Kill"}, "final": "accept"}}},
 	}
 	_, err = parseFamilyFilters(cfg)
 	require.NoError(t, err)
@@ -112,4 +112,28 @@ func cloneMap(m map[string]any) map[string]any {
 	out := make(map[string]any, len(m))
 	maps.Copy(out, m)
 	return out
+}
+
+// TestExportPolicyFinalDoesNotHideReferences keeps the export-only restriction
+// effective at global/group levels and distinguishes a final-only empty policy.
+func TestExportPolicyFinalDoesNotHideReferences(t *testing.T) {
+	instances := map[string]*familyFilter{"Kill": {action: actionTearDown}}
+	for _, final := range []string{"accept", "reject"} {
+		empty := map[string]any{"filter": map[string]any{
+			"export": map[string]any{"final": final},
+		}}
+		if err := validateNoTearDownInExport(empty, instances); err != nil {
+			t.Fatalf("final-only export policy refused: %v", err)
+		}
+		chained := map[string]any{"filter": map[string]any{
+			"export": map[string]any{"filters": []string{"Kill"}, "final": final},
+		}}
+		group := cloneMap(chained)
+		group["peer"] = map[string]any{"edge": map[string]any{}}
+		for _, cfg := range []map[string]any{chained, {"group": map[string]any{"g": group}}} {
+			if err := validateNoTearDownInExport(cfg, instances); err == nil {
+				t.Fatalf("final %s hid a tear-down reference", final)
+			}
+		}
+	}
 }

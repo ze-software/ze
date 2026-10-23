@@ -1,7 +1,7 @@
 # Test: ze config validate accepts prefix-list config
 # VALIDATES: AC-9 -- IPv4 prefix-list config parses
 # VALIDATES: AC-10 -- IPv6 prefix-list config parses
-# VALIDATES: Composable in chain (filter import [bgp-filter-prefix:NAME])
+# VALIDATES: Composable prefix-list filters in policies with explicit final accept
 # PREVENTS: YANG schema or augment regression breaking prefix-list parsing
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -42,7 +42,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ bgp-filter-prefix:CUSTOMERS ]
+			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
 		}
 	}
 }

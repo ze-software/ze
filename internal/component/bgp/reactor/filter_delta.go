@@ -178,8 +178,8 @@ func ExtractMEDRemoveOps(modAttrs *filterAttrs, mods *filterapi.ModAccumulator) 
 // into the subject whenever the wire carries MULTI_EXIT_DISC, so the metric the
 // peer sent is in the text this predicate reads.
 //
-// A FILTER EARLIER IN THE SAME CHAIN SET IT. `filter import [ modify:SET-MED
-// modify:DROP-MED ]` is legal config -- validateNoConflict
+// A FILTER EARLIER IN THE SAME CHAIN SET IT. `filter { import { filters [
+// modify:SET-MED modify:DROP-MED ]; final accept; } }` is legal -- validateNoConflict
 // (filter_modify/config.go) refuses the pair inside ONE definition, not across a
 // chain -- and applyFilterDelta (filter_chain.go) merges each filter's delta
 // INTO the current subject, so a Set by an earlier filter is in the same text.
@@ -192,8 +192,9 @@ func ExtractMEDRemoveOps(modAttrs *filterAttrs, mods *filterapi.ModAccumulator) 
 //
 // This rests on every caller of AppendUpdateForFilter passing a nil declared
 // list, so the subject is never narrowed to a subset that could drop `med`.
-// TestFilterSubjectCallersPassNoDeclaredList (filter_format_attrs_test.go) is
-// what fails if that stops being true.
+// TestFilterSubjectReadsUnmodifiableAttributes (filter_format_attrs_test.go)
+// proves that MED decides live and dry-run policy even when only LOCAL_PREF
+// is declared modifiable.
 func medRemoveHasWork(modAttrs *filterAttrs) bool {
 	return modAttrs.has(faMED)
 }

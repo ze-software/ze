@@ -12,9 +12,9 @@
 option=env:var=ze.log.bgp.filter.irr:value=info
 
 stdin=peer:terminator=EOF_PEER
-# The peer has no expectation left once it sends, so without linger it closes
-# the instant its write lands. ze reads that as session-down and purges the
-# peer's routes, which is the state this test's observer polls for.
+# Keep the scripted connection open until the manual refresh observer finishes.
+# Its peer-progress wait prevents successful IRR commands from ending the daemon
+# before the peer completes OPEN and sends its UPDATE.
 option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=20s
@@ -62,7 +62,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-irr:65001 ]
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 	}
 }

@@ -21,6 +21,7 @@ kill -HUP $(pidof ze)               # Direct signal
 | Peer removed | Session torn down with NOTIFICATION |
 | A peer `create bgp peer` built, which the file does not declare | Nothing: the peer keeps its session. `delete bgp peer` removes it, and `update bgp config` writes it into the file |
 | Peer settings changed, other than the in-place changes below | Session restarted with new config |
+| Export policy `final` changed, including policy removal | The session stays up. `final reject` withdraws advertised routes. Acceptance restores eligible routes from retained sources, as described below |
 | A configured peer gains, loses or changes a receive-only `attach process` block, one with no `send` and no `open` grant | The peer keeps its session. A process attached to an up session receives a `state up` for the peer with reason `attached` before any message of the session. When its grant covers routes the peer sent and the peer already announced some, Ze sends one ROUTE-REFRESH per negotiated family so the process learns them. A detached process receives a `state down` for that peer alone, and one whose grant changed receives a down, then an up. When that process is `bgp-rs`, the other peers lose the routes it forwarded from that peer (each is replaced by the best remaining route or withdrawn) even though the peer's session stays up |
 | The same change on a session that cannot catch the process up | Session restarted with NOTIFICATION Cease subcode 6 (Other Configuration Change): the peer announced routes and did not advertise Route Refresh, or the grant covers routes Ze sent and Ze already advertised one, or the session reached Established while the reload ran |
 | A peer gains, loses or edits a BFD opt-in (`connection bfd`) with no `strict true` before or after: added, removed, set `enabled false` or back, or its profile or mode changed | The peer keeps its session. An Established peer opens its BFD session at once; a removed or disabled opt-in releases it (when no other client holds that session, the BFD plugin puts it in AdminDown, RFC 5882 Section 8, see `bfd.md`); an edited opt-in releases the old session and opens one under the new profile. A peer that is not Established opens BFD when it next reaches Established |
@@ -41,6 +42,23 @@ kill -HUP $(pidof ze)               # Direct signal
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.ReloadRunning, withPeerEntries -->
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the looking-glass certificate gate -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate -->
+
+Changing the export final decision reconciles advertisements without a new source UPDATE.
+Restoration uses retained received routes, configured static and default routes, and plugin routes.
+Restoring negotiated ordinary route families requires `bgp-adj-rib-in` attached
+to their sources and an authorized forwarding owner. FlowSpec uses the selecting
+RIB's currently authorized paths through that same owner's send grant. A
+FlowSpec-only destination does not require the optional receive store.
+One-shot API announcements have no retained desired source, so their producer must announce them again after acceptance returns.
+This does not re-evaluate existing routes for arbitrary filter-definition changes.
+Removing an accepting final does not reset the delivered static-route set; a
+simultaneous static-route removal still sends its withdrawal. Only a transition
+out of rejection requires restoration.
+If reconciliation fails, static and dynamic reload transactions report the error
+and restore the previous settings, including an apply that failed before the
+journal recorded its inverse. If that restoration also fails, the affected
+connection is retired rather than left advertising uncertain state.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, policyReplayOwner -->
 
 The reload runs the same loader as daemon start, so it applies the password transform
 with no branch of its own. Every load that hashes a leaf warns that the file still

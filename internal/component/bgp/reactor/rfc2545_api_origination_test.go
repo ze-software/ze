@@ -144,7 +144,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 			peer.negotiated.Store(initial.negotiated.Load())
 			peer.negotiated.Load().LinkLocalNextHop = tc.cap77
 			peer.session = initial.session
-			var caps []capability.Capability
+			caps := peerOffering(families...)
 			if tc.cap77 {
 				caps = append(caps, &capability.LinkLocalNextHop{})
 			}
@@ -186,7 +186,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				attrs := append([]byte{0x80, 0x0e, byte(len(mp))}, mp...)
 				attrs = append(attrs, mustHex(t, "4001010040020602010000fde8")...)
 				body := append([]byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}, attrs...)
-				peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "origination:replace-next-hop"}}
+				peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "origination:replace-next-hop"}}, filterapi.FinalAccept)
 				peer.refreshForwardFacts()
 				r.api = &pluginserver.Server{}
 				var ipv6Policy bool
@@ -405,7 +405,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				hop = "00000000000000000000000000000001"
 			}
 			override := mustHex(t, "0000002e800e1e00020110"+hop+"004020010db8000700004001010040020602010000fde8")
-			peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "queued:replace-first-next-hop"}}
+			peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "queued:replace-first-next-hop"}}, filterapi.FinalAccept)
 			peer.refreshForwardFacts()
 			r.api = &pluginserver.Server{}
 			var ipv6Policy bool

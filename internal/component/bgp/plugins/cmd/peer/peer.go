@@ -618,11 +618,11 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 		if !p.LastWriteTime.IsZero() {
 			row["last-write"] = p.LastWriteTime.UTC().Format(time.RFC3339)
 		}
-		if len(p.ImportFilters) > 0 {
-			row["import-policy"] = p.ImportFilters
+		if p.ImportPolicy != nil {
+			row["import-policy"] = p.ImportPolicy
 		}
-		if len(p.ExportFilters) > 0 {
-			row["export-policy"] = p.ExportFilters
+		if p.ExportPolicy != nil {
+			row["export-policy"] = p.ExportPolicy
 		}
 		caps := map[string]any{
 			fieldNegotiationComplete: p.NegotiationComplete,
@@ -850,6 +850,9 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	}, nil
 }
 
+// actionFlush is the fieldAction every flush answer echoes.
+const actionFlush = "flush"
+
 // handleBgpPeerFlush handles "request peer <sel> flush" command.
 // Blocks until the forward pool has drained all queued items for the targeted peers.
 // If selector is "*", flushes all peers; otherwise every peer the selector names.
@@ -874,7 +877,7 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data: plugin.Map{
-				fieldAction: "flush",
+				fieldAction: actionFlush,
 				fieldPeer:   "*",
 			},
 		}, nil
@@ -883,7 +886,7 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 	// Any other selector names a set of peers, read as every peer-scoped command
 	// that takes a set reads it (`send bgp <selector> update`): an address, an
 	// address list, a name, an ASN, a glob. The ExaBGP bridge flushes `<a>,<b>`
-	// after a route aimed at two neighbours. Flush is a barrier: it drains, it
+	// after a route aimed at two neighbors. Flush is a barrier: it drains, it
 	// destroys nothing and it is idempotent, so draining every peer of the set
 	// is what the caller asked. The destructive verbs (teardown, pause, delete)
 	// keep ResolveSinglePeer, which refuses anything but one peer.
@@ -902,12 +905,12 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 	if len(flushed) == 1 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{fieldAction: "flush", fieldPeer: flushed[0]},
+			Data:   plugin.Map{fieldAction: actionFlush, fieldPeer: flushed[0]},
 		}, nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{fieldAction: "flush", fieldPeer: selector, fieldPeers: flushed},
+		Data:   plugin.Map{fieldAction: actionFlush, fieldPeer: selector, fieldPeers: flushed},
 	}, nil
 }
 
@@ -935,7 +938,7 @@ func flushUnmatchedSelector(flushCtx context.Context, ctx *pluginserver.CommandC
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{fieldAction: "flush", fieldPeer: peerAddr},
+		Data:   plugin.Map{fieldAction: actionFlush, fieldPeer: peerAddr},
 	}, nil
 }
 

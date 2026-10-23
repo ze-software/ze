@@ -43,15 +43,15 @@ import (
 // The departed source .2 closes its TCP session before the DOWN command, so
 // the destination's entry it owns is held by an ended session and is owed.
 // "newer-target-owner": .4 owns 203.0.114.0/24 at the destination when the
-// DOWN arrives, so the writer's record owes nothing, no lookup runs, and the
-// newer owner is never overwritten on TCP. "unrelated-prefix": the key is owed
-// and the recovery worker elects .3; .3's native write of an unrelated prefix
-// after the barrier never cancels that decision.
+// DOWN arrives, so the writer's record owes nothing, no source-DOWN lookup
+// runs, and the newer owner is never overwritten on TCP. "unrelated-prefix":
+// the key is owed and the recovery worker elects .3; .3's native write of an
+// unrelated prefix after the barrier never cancels that decision.
 // MUTATION: Remove the departedOwner test in oweDeparture (owe every requested
-// key). The newer-target case then owes 203.0.114.0/24, and the election
-// writes .3's older route over .4's on TCP. Removing the worker's
-// Process.DrainEventsApplied call lets the unrelated case elect before the RIB
-// applied the held sent event.
+// key). The newer-target case then wrongly asks the RIB to re-elect a key
+// already owned by .4, failing the source-DOWN lookup assertion. Removing the
+// worker's Process.DrainEventsApplied call reaches the lookup while the real
+// sent event is still held, failing the causal receipt assertion.
 func TestRecoveryQueuedDeliveryTransport(t *testing.T) {
 	for _, mode := range []string{"direct", "ipc"} {
 		for _, target := range []bool{true, false} {
@@ -82,7 +82,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		reg := registry.Lookup("bgp-rib")
 		original := reg.RunEngine
 		reg.RunEngine = func(conn net.Conn) int {
-			return original(&recoveryIPCConn{Conn: conn, lookup: lookup, commands: &ipcCommands})
+			return original(&recoveryIPCConn{Conn: conn, lookup: lookup, commands: &ipcCommands, match: recoveryDepartureCommand})
 		}
 		t.Cleanup(func() { reg.RunEngine = original })
 	}
@@ -103,11 +103,29 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		}
 		var queried sync.Once
 		observed := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-			queried.Do(func() { close(lookup) })
+			if recoveryDepartureRequest(request) {
+				queried.Do(func() { close(lookup) })
+			}
 			return owner.Lookup(request)
 		})
 		t.Cleanup(observed.Close)
 	}
+
+	var deliveryGates []*process.RecoveryDeliveryGate
+	t.Cleanup(func() {
+		for _, deliveryGate := range deliveryGates {
+			deliveryGate.Release()
+		}
+		r.Stop()
+		srv.Stop()
+		join, stop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stop()
+		for _, deliveryGate := range deliveryGates {
+			if err := deliveryGate.Wait(join); err != nil {
+				t.Errorf("delivery proxy did not join: %v", err)
+			}
+		}
+	})
 
 	// Observe the received generation before ordinary consumer acknowledgements
 	// release its cache entry. Cache residency is not the source-DOWN cut.
@@ -118,24 +136,33 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		}
 		return recoverySentFrom(delivery, "127.0.0.1", "127.0.0.4")
 	})
-	t.Cleanup(func() {
-		gate.Release()
-		r.Stop()
-		srv.Stop()
-		join, stop := context.WithTimeout(context.Background(), 5*time.Second)
-		defer stop()
-		if err := gate.Wait(join); err != nil {
-			t.Errorf("delivery proxy did not join: %v", err)
-		}
+	deliveryGates = append(deliveryGates, gate)
+	// The socket close also delivers a real DOWN event to RS, whose normal
+	// fan-out could start another destination's recovery worker. Hold that
+	// event until the explicit .1 command completes, so its applied-event
+	// barrier is the only departure barrier eligible for this interleaving.
+	// Both transport variants keep RS's real structured handler; only the
+	// RIB transport differs.
+	rsProcess := srv.ProcessManager().GetProcess("bgp-rs")
+	if !rsProcess.HasStructuredHandler() {
+		t.Fatal("departure fixture requires the real structured RS handler")
+	}
+	downGate := process.GateRecoveryDelivery(t, ctx, rsProcess, func(delivery process.EventDelivery) bool {
+		event, ok := delivery.Event.(*rpc.StructuredEvent)
+		return ok && event.EventType == rpc.EventKindState &&
+			event.State == rpc.SessionStateDown && event.PeerAddress == "127.0.0.2"
 	})
+	deliveryGates = append(deliveryGates, downGate)
 
-	// TCP is the only route-state producer. Survivor .3 has a shorter path
-	// than .4; .2 is advertised last so it owns the original sent identity.
-	recoverySend(t, peers[2].conn, recoveryAnnouncement(114, 3, 2))
-	recoveryWaitAnnouncement(t, ctx, peers[0], 114, 3)
+	// TCP is the only route-state producer. Each later target owner has a
+	// shorter path, so the real election, not arrival order, installs it.
+	recoverySend(t, peers[2].conn, recoveryAnnouncement(114, 3, 3))
+	recoveryWaitAnnouncement(t, ctx, peers[0], 114, 3, 3)
+	recoveryWaitAnnouncement(t, ctx, peers[3], 114, 3, 3)
 	recoveryStored(t, ctx, "127.0.0.3", 114)
-	recoverySend(t, peers[1].conn, recoveryAnnouncement(114, 2, 1))
-	recoveryWaitAnnouncement(t, ctx, peers[0], 114, 2)
+	recoverySend(t, peers[1].conn, recoveryAnnouncement(114, 2, 2))
+	recoveryWaitAnnouncement(t, ctx, peers[0], 114, 2, 2)
+	recoveryWaitAnnouncement(t, ctx, peers[3], 114, 2, 2)
 	recoveryStored(t, ctx, "127.0.0.2", 114)
 	if err := ribProcess.DrainEvents(ctx); err != nil {
 		t.Fatal(err)
@@ -152,15 +179,26 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	if target {
 		prefix = 114
 	}
-	recoverySend(t, peers[3].conn, recoveryAnnouncement(prefix, 4, 3))
-	recoveryWaitAnnouncement(t, ctx, peers[0], prefix, 4)
+	recoverySend(t, peers[3].conn, recoveryAnnouncement(prefix, 4, 1))
+	recoveryWaitAnnouncement(t, ctx, peers[0], prefix, 4, 1)
 	recoveryAwait(t, ctx, gate.Held, "real sent event before RIB application")
 	if !delayed {
 		if err := ribProcess.DrainEvents(ctx); err != nil {
 			t.Fatal(err)
 		}
-		// Discard only the control's explicitly requested barrier observation.
-		recoveryAwait(t, ctx, gate.Barriers, "control sent-event drain")
+	}
+	// Both destinations that received competing setup candidates (.1 and .4)
+	// have emitted the elected .2 route on TCP, so their setup lookup barriers
+	// have already run. The other sources each received only one candidate.
+	// Clear those completed setup observations before accepting a departure
+	// barrier; the fresh unrelated prefix cannot start another election.
+	draining := true
+	for draining {
+		select {
+		case <-gate.Barriers:
+		default:
+			draining = false
+		}
 	}
 	select {
 	case <-lookup:
@@ -171,12 +209,13 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	// the DOWN command, so the entry it owns is held by an ended session.
 	peers[1].conn.Close() //nolint:errcheck // The departure under test; the fixture's close is idempotent.
 	recoveryPeerLeft(t, ctx, r, "127.0.0.2")
+	recoveryAwait(t, ctx, downGate.Held, "native RS DOWN held before its recovery fan-out")
 
 	// Use the production SDK API and sender grant, not recoverNLRIBatch or a
 	// manufactured NLRIBatch. This is the native source-DOWN command emitted
 	// by RS. The writer, not a received-message cut, decides which keys the
 	// departed source's ended session still owns.
-	bridge := srv.ProcessManager().GetProcess("bgp-rs").Bridge()
+	bridge := rsProcess.Bridge()
 	client, unused := net.Pipe()
 	api := sdk.NewWithConn("bgp-rs", rpc.NewBridgedConn(client, bridge))
 	t.Cleanup(func() {
@@ -208,31 +247,27 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	if delayed && !target {
 		select {
 		case <-gate.Barriers:
-			if !target {
-				// RS's real direct-write rail can emit while RIB delivery is
-				// held. This is after snapshot/barrier, not before recovery.
-				recoverySend(t, peers[2].conn, recoveryAnnouncement(116, 3, 2))
-				recoveryWaitAnnouncement(t, ctx, peers[0], 116, 3)
+			select {
+			case <-lookup:
+				t.Fatal("source-DOWN lookup ran before the held sent event was applied")
+			default:
 			}
+			// RS's real direct-write rail can emit while RIB delivery is
+			// held. This is after snapshot/barrier, not before recovery.
+			recoverySend(t, peers[2].conn, recoveryAnnouncement(116, 3, 3))
+			recoveryWaitAnnouncement(t, ctx, peers[0], 116, 3, 3)
 			gate.Release()
 		case <-lookup:
-			// The omission mutant reaches the real producer before the held
-			// sent event. Leave it held until the final socket rail finishes.
-			if err := recoveryResult(t, ctx, completed); err != nil {
-				t.Fatal(err)
-			}
-			joined = true
-			gate.Release()
+			t.Fatal("source-DOWN lookup ran before the held sent event was applied")
 		case <-ctx.Done():
 			t.Fatal("neither causal barrier nor real lookup became reachable", ctx.Err())
 		}
 	}
-	if !joined {
-		if err := recoveryResult(t, ctx, completed); err != nil {
-			t.Fatal(err)
-		}
-		joined = true
+	if err := recoveryResult(t, ctx, completed); err != nil {
+		t.Fatal(err)
 	}
+	joined = true
+	downGate.Release()
 	if err := ribProcess.DrainEvents(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -240,13 +275,25 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		t.Fatal("recovery did not cross the real external JSON command transport")
 	}
 	if !target {
-		recoveryWaitAnnouncement(t, ctx, peers[0], 114, 3)
+		recoveryWaitAnnouncement(t, ctx, peers[0], 114, 3, 3)
+		select {
+		case <-lookup:
+		default:
+			t.Fatal("the owed target was not decided by the observed source-DOWN lookup")
+		}
+	}
+	if target {
+		select {
+		case <-lookup:
+			t.Fatal("old source DOWN queried recovery for a key the newer source already owns")
+		default:
+		}
 	}
 
 	// A fresh unrelated native UPDATE is a TCP fence behind completed recovery.
 	// Reading it drains every earlier byte, so a forbidden overwrite cannot
 	// escape a nonblocking channel assertion or a too-short observation window.
-	recoverySend(t, peers[2].conn, recoveryAnnouncement(117, 3, 2))
+	recoverySend(t, peers[2].conn, recoveryAnnouncement(117, 3, 3))
 	for {
 		update := recoveryNextUpdate(t, ctx, peers[0])
 		if bytes.Equal(update.NLRI, []byte{24, 203, 0, 117}) {
@@ -261,6 +308,40 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	}
 }
 
+// recoveryDepartureRequest distinguishes this destination's source-DOWN
+// election from ordinary announcement elections, which use the same producer.
+func recoveryDepartureRequest(request ribevents.RecoveryRequest) bool {
+	if request.Destination != netip.MustParseAddr("127.0.0.1") {
+		return false
+	}
+	for _, key := range request.Keys {
+		if !bytes.Equal(key.NLRI, []byte{24, 203, 0, 114}) {
+			continue
+		}
+		for _, excluded := range key.Excluded {
+			if excluded == netip.MustParseAddr("127.0.0.2") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func recoveryDepartureCommand(input rpc.ExecuteCommandInput) bool {
+	if len(input.Args) < 5 || input.Args[0] != "127.0.0.1" {
+		return false
+	}
+	request := ribevents.RecoveryRequest{Destination: netip.MustParseAddr(input.Args[0])}
+	for _, encoded := range input.Args[4:] {
+		key, err := ribevents.ParseRecoveryKey(encoded)
+		if err != nil {
+			return false
+		}
+		request.Keys = append(request.Keys, key)
+	}
+	return recoveryDepartureRequest(request)
+}
+
 // recoveryIPCConn deliberately hides rpc.Bridger. Read observes complete RPC
 // execute-command frames going into the registered RIB SDK, never generates an
 // answer, and leaves every byte unchanged. The startup share-registry also names
@@ -272,6 +353,7 @@ type recoveryIPCConn struct {
 	commands *atomic.Int32
 	window   []byte
 	queried  sync.Once
+	match    func(rpc.ExecuteCommandInput) bool
 }
 
 func (conn *recoveryIPCConn) Read(buf []byte) (int, error) {
@@ -305,6 +387,9 @@ func (conn *recoveryIPCConn) Read(buf []byte) (int, error) {
 			return n, fmt.Errorf("recovery IPC observer command: %w", decodeErr)
 		}
 		if input.Command != "request bgp rib recovery" {
+			continue
+		}
+		if conn.match != nil && !conn.match(input) {
 			continue
 		}
 		conn.commands.Add(1)
@@ -681,7 +766,7 @@ func recoveryNextUpdate(t *testing.T, ctx context.Context, peer *recoveryTCPPeer
 	}
 }
 
-func recoveryWaitAnnouncement(t *testing.T, ctx context.Context, peer *recoveryTCPPeer, prefix, source byte) {
+func recoveryWaitAnnouncement(t *testing.T, ctx context.Context, peer *recoveryTCPPeer, prefix, source, pathLength byte) {
 	t.Helper()
 	for {
 		update := recoveryNextUpdate(t, ctx, peer)
@@ -693,7 +778,7 @@ func recoveryWaitAnnouncement(t *testing.T, ctx context.Context, peer *recoveryT
 		}
 		_, _, nextHop, found := attribute.AttrFind(update.PathAttributes, attribute.AttrNextHop)
 		if found && bytes.Equal(nextHop, []byte{192, 0, 2, source}) {
-			expected, err := message.UnpackUpdate(recoveryAnnouncement(prefix, source, source-1)[message.HeaderLen:])
+			expected, err := message.UnpackUpdate(recoveryAnnouncement(prefix, source, pathLength)[message.HeaderLen:])
 			if err != nil {
 				t.Fatal(err)
 			}

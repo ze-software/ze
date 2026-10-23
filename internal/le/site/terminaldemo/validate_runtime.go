@@ -379,13 +379,20 @@ func validateIRR() error {
 	if err := requireNone(before, "bgp-filter-irr", "AS-TEST"); err != nil {
 		return err
 	}
-	sets := [][]string{{"plugin", "internal", "bgp-filter-irr", "use", "bgp-filter-irr"}, {commandBGP, "policy", demoIRR, "server", "127.0.0.1:4343"}, {commandBGP, "policy", demoIRR, "refresh-interval", "3600"}, {commandBGP, ipPeer, "customer-a", "session", demoIRR, "as-set", "AS-TEST"}, {commandBGP, ipPeer, "customer-a", "filter", "import", "bgp-filter-irr:65001"}}
+	sets := [][]string{
+		{"plugin", "internal", "bgp-filter-irr", "use", "bgp-filter-irr"},
+		{commandBGP, "policy", demoIRR, "server", "127.0.0.1:4343"},
+		{commandBGP, "policy", demoIRR, "refresh-interval", "3600"},
+		{commandBGP, ipPeer, "customer-a", "session", demoIRR, "as-set", "AS-TEST"},
+		{commandBGP, ipPeer, "customer-a", "filter", "import", "filters", "bgp-filter-irr:65001"},
+		{commandBGP, ipPeer, "customer-a", "filter", "import", "final", "accept"},
+	}
 	edited, err := editStoredConfig(env, sets)
 	if err != nil {
 		return err
 	}
-	// The tape waits for the import's closing line, so the run proves it is printed.
-	if err := requireAll(edited, "set bgp peer customer-a filter import bgp-filter-irr:65001", "replaced "+zeConfigFile, "1 file(s) imported"); err != nil {
+	// Both settings must survive the pipeline before the edited config is stored.
+	if err := requireAll(edited, "set bgp peer customer-a filter import filters bgp-filter-irr:65001", "set bgp peer customer-a filter import final accept", "replaced "+zeConfigFile, "1 file(s) imported"); err != nil {
 		return err
 	}
 	configured, _ := runZe([]string{commandConfig, commandCat, zeConfigFile}, env, nil)

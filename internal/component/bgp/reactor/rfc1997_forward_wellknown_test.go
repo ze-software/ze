@@ -294,7 +294,7 @@ func TestForwardWellKnownNeedsNoOperatorPolicy(t *testing.T) {
 	require.NoError(t, err)
 
 	ebgp := wkPeer(t, wkEBGPAddr, 65002, ctx, ctxID)
-	require.Empty(t, ebgp.forwardFacts().exportFilters,
+	require.Empty(t, ebgp.forwardFacts().exportPolicy.Filters(),
 		"precondition: the destination must carry NO operator export policy")
 
 	got := wkForward(t, wkTestPayload(attribute.CommunityNoExport), ebgp)

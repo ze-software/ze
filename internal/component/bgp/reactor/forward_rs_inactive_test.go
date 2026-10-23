@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
@@ -53,7 +54,7 @@ func TestReactorForwardRSDeactivatedExportFilterKeepsTheFastPath(t *testing.T) {
 
 	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-	dst.settings.ExportFilters = frefs("inactive:bgp-rs:test-filter")
+	dst.settings.ExportPolicy = mustPolicy(t, frefs("inactive:bgp-rs:test-filter"), filterapi.FinalAccept)
 	dst.refreshForwardFacts()
 
 	var dispatched []fwdItem
@@ -111,7 +112,7 @@ func TestExportFilterForBodyDeactivatedChainAcceptsWithoutAPIServer(t *testing.T
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	peer := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-	peer.settings.ExportFilters = frefs("inactive:bgp-rs:test-filter")
+	peer.settings.ExportPolicy = mustPolicy(t, frefs("inactive:bgp-rs:test-filter"), filterapi.FinalAccept)
 	peer.refreshForwardFacts()
 
 	r := &Reactor{}
@@ -134,7 +135,7 @@ func TestRunIngressPolicyChainDeactivatedChainAcceptsWithoutAPIServer(t *testing
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	peer := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
-	peer.settings.ImportFilters = frefs("inactive:bgp-rs:test-filter")
+	peer.settings.ImportPolicy = mustPolicy(t, frefs("inactive:bgp-rs:test-filter"), filterapi.FinalAccept)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)

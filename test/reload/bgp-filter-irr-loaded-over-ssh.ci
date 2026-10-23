@@ -21,6 +21,8 @@
 #
 # The tmpfs sections are demos/terminal/topics/irr/{1-server,2-as-set,3-import}.conf
 # with the IRR server's port replaced by $PORT2.
+# SSH and the BGP peer share the first leased port on distinct loopback
+# addresses; the IRR mock owns the second port. There is no third port variable.
 #
 # WAITS: the editor redraws only the cells that change, so the second and third
 # merge notices reach the terminal as the file name's differing characters, not
@@ -52,7 +54,7 @@ environment {
         enabled true
         server main {
             ip 127.0.0.1;
-            port $PORT3;
+            port $PORT;
         }
     }
 }
@@ -62,7 +64,7 @@ bgp {
     peer customer {
         connection {
             remote {
-                ip 127.0.0.1
+                ip 127.0.0.2
             }
             local {
                 ip 127.0.0.1
@@ -110,7 +112,7 @@ tmpfs=3-import.conf:terminator=EOF_IMPORT
 bgp {
     peer customer {
         filter {
-            import [ bgp-filter-irr:65001 ]
+            import { filters [ bgp-filter-irr:65001 ]; final accept; }
         }
     }
 }
@@ -136,7 +138,7 @@ has accepted: false
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test irr --port $PORT2
-cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze start bgp-filter-irr-loaded-over-ssh.conf:timeout=60s
-cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT3 bgp-filter-irr-loaded-over-ssh.conf bgp-filter-irr-loaded-over-ssh.script:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT bgp-filter-irr-loaded-over-ssh.conf bgp-filter-irr-loaded-over-ssh.script:timeout=60s
 expect=exit:code=0

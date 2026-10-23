@@ -45,10 +45,11 @@ func newDynamicReloadReactor(t *testing.T, group *DynamicGroupConfig, addr netip
 // carries a filter chain because the chain is what resolveDynamicPeerSettings
 // rewrites on the running peer, which is what makes a running dynamic peer
 // un-diffable against configuration.
-func dynamicReloadGroup() *DynamicGroupConfig {
+func dynamicReloadGroup(t testing.TB) *DynamicGroupConfig {
+	t.Helper()
 	dg := newTestDynamicGroup("ix", []string{"185.1.69.0/24"}, 100)
 	dg.Settings.Connection = ConnectionPassive
-	dg.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}
+	dg.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, filterapi.FinalAccept)
 	return dg
 }
 
@@ -74,7 +75,7 @@ func TestReloadKeepsAnEstablishedDynamicPeer(t *testing.T) {
 	other := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0x01020304)
 	other.Connection = ConnectionPassive
 
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, []*PeerSettings{other})
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, []*PeerSettings{other})
 
 	// The establishment goroutine has already resolved the template on this peer:
 	// PeerAS learned from the OPEN, $remote_as substituted in the chain. This is
@@ -83,7 +84,7 @@ func TestReloadKeepsAnEstablishedDynamicPeer(t *testing.T) {
 	peer.mu.Lock()
 	peer.session = session
 	peer.settings.PeerAS = 65010
-	peer.settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-65010"}}
+	peer.settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, filterapi.FinalAccept)
 	peer.mu.Unlock()
 
 	adapter := &reactorAPIAdapter{r: r}
@@ -109,7 +110,7 @@ func TestReloadKeepsAnEstablishedDynamicPeer(t *testing.T) {
 	// The resolved chain is still the running one. A swap would have written the
 	// template over it, which is the write plan/deferrals/
 	// fixit-dynamic-peer-settings-unlocked-read.md races against.
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, after.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, after.ImportPolicy().Filters(),
 		"the resolved filter chain must not be overwritten by a reload")
 	assert.Equal(t, uint32(65010), after.PeerAS(),
 		"the AS learned from the OPEN must not be reset by a reload")
@@ -127,7 +128,7 @@ func TestReloadKeepsAnEstablishedDynamicPeer(t *testing.T) {
 // VALIDATES: a configured peer absent from the new config is still torn down.
 // DISCRIMINATION: widening the guard to skip every peer makes this test red.
 func TestReloadRemovesAConfiguredPeerTheConfigDropped(t *testing.T) {
-	initial := swapTestPeerSettings()
+	initial := swapTestPeerSettings(t)
 	kept := NewPeerSettings(mustParseAddr("10.0.0.2"), 65001, 65002, 0x01020304)
 	kept.Connection = ConnectionPassive
 
@@ -165,7 +166,7 @@ func TestReloadReplacesADynamicPeerTheConfigNowNames(t *testing.T) {
 	configured.Connection = ConnectionPassive
 	configured.Name = "ix-peer-1"
 
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, []*PeerSettings{configured})
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, []*PeerSettings{configured})
 	generationBefore := r.peerGeneration.Load()
 
 	adapter := &reactorAPIAdapter{r: r}
@@ -189,7 +190,7 @@ func TestReloadReplacesADynamicPeerTheConfigNowNames(t *testing.T) {
 //
 // VALIDATES: applyHotSwappableSettings never runs on a dynamic peer. That is the
 // premise plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md rests on:
-// resolveDynamicPeerSettings writes ImportFilters and ExportFilters from the
+// resolveDynamicPeerSettings writes ImportPolicy and ExportPolicy from the
 // ESTABLISHMENT goroutine, and a reload writing them from its own goroutine is
 // the race that shard records. The fix for the reload teardown must not arm it.
 // PREVENTS: the branch decaying into "the fields happen to differ anyway". Today
@@ -203,12 +204,12 @@ func TestReloadReplacesADynamicPeerTheConfigNowNames(t *testing.T) {
 // (ai/rules/evidence.md).
 func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	group := dynamicReloadGroup()
+	group := dynamicReloadGroup(t)
 
 	r, peer := newDynamicReloadReactor(t, group, addr, nil)
 	swappableOnly := *peer.Settings()
-	swappableOnly.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-strict"}}
-	require.NotEmpty(t, peer.Settings().ImportFilters, "the fixture needs a chain to change")
+	swappableOnly.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-strict"}}, filterapi.FinalAccept)
+	require.NotEmpty(t, peer.Settings().ImportPolicy.Filters(), "the fixture needs a chain to change")
 
 	// The plan agrees this entry is swappable: without the dynamic branch the
 	// reload would deliver it to the running peer.
@@ -228,7 +229,7 @@ func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 
 	require.NotNil(t, after)
 	assert.False(t, after == peer, "a configured entry must restart the dynamic peer, never swap onto it")
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, peer.ImportFilters(),
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, peer.ImportPolicy().Filters(),
 		"the outgoing dynamic peer must not have been written to by the reload goroutine")
 }
 
@@ -239,7 +240,7 @@ func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 // PREVENTS: a transaction budget sized for a teardown that no longer happens.
 func TestPeerDiffCountIgnoresADynamicPeerTheConfigDoesNotName(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 
 	adapter := &reactorAPIAdapter{r: r}
 	count, err := adapter.peerDiffCount(map[string]any{})
@@ -259,9 +260,9 @@ func TestPeerDiffCountIgnoresADynamicPeerTheConfigDoesNotName(t *testing.T) {
 // DISCRIMINATION: object identity, and the group is rebuilt rather than reused.
 func TestSetDynamicGroupsKeepsThePeerWhenTheTemplateIsUnchanged(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 
-	reloadDynamicGroups(t, r, dynamicReloadGroup())
+	reloadDynamicGroups(t, r, dynamicReloadGroup(t))
 
 	r.mu.RLock()
 	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
@@ -282,9 +283,9 @@ func TestSetDynamicGroupsKeepsThePeerWhenTheTemplateIsUnchanged(t *testing.T) {
 // of every session accepted under the old template.
 func TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 
-	changed := dynamicReloadGroup()
+	changed := dynamicReloadGroup(t)
 	changed.Settings.RouterID = 0x0a0a0a0a
 	reloadDynamicGroups(t, r, changed)
 
@@ -303,11 +304,11 @@ func TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges(t *testing.T) {
 // accepting more peers is the one edit an IXP makes most often.
 func TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 
 	wider := newTestDynamicGroup("ix", []string{"185.1.0.0/16"}, 500)
 	wider.Settings.Connection = ConnectionPassive
-	wider.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}
+	wider.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, filterapi.FinalAccept)
 	reloadDynamicGroups(t, r, wider)
 
 	r.mu.RLock()
@@ -325,11 +326,11 @@ func TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold(t *testing.T) {
 // address. Dynamic peers are not unconditionally immortal.
 func TestSetDynamicGroupsRemovesThePeerWhenTheRangeNoLongerCoversIt(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
-	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(t), addr, nil)
 
 	narrowed := newTestDynamicGroup("ix", []string{"185.1.69.0/28"}, 100)
 	narrowed.Settings.Connection = ConnectionPassive
-	narrowed.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}
+	narrowed.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, filterapi.FinalAccept)
 	reloadDynamicGroups(t, r, narrowed)
 
 	r.mu.RLock()

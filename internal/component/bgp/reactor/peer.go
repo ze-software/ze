@@ -496,6 +496,12 @@ type Peer struct {
 	// replayed announce of the same prefix and leave it installed here.
 	// Atomic so the hold reads it without p.mu (forward_pool.go, takeOverflowReleased).
 	initialUpdateOwed atomic.Bool
+	// policyReplayHolds extends the same live-forward fence during a final
+	// restoration on an established session. Reconciliation MUST increment it
+	// under writeMu before reading retained pages and MUST decrement it only
+	// after its replay completion marker, then wakeForwardOverflow.
+	policyReplayHolds atomic.Int32
+	policyReplayEpoch atomic.Uint64 // Identifies one outer hold, including its nested reconciliations.
 	// replayFence names the processes whose report lowers initialUpdateOwed:
 	// the reporters that declared registry.FencesLiveForwards. Protected by p.mu.
 	replayFence []string
@@ -579,17 +585,17 @@ type Peer struct {
 	// localAddrString caches settings.LocalAddress.String() for PeerInfo snapshots.
 	localAddrString string
 
-	// dynImportFilters/dynExportFilters hold a dynamic peer's unresolved filter
-	// chains, its group template's, so each establishment resolves $remote_as and
+	// dynImportPolicy/dynExportPolicy hold a dynamic peer's unresolved policies,
+	// its group template's, so each establishment resolves $remote_as and
 	// $remote_ip from the template rather than from a chain an earlier session
 	// already resolved. NewPeer captures them before the peer starts, and a
 	// reload's dynamic swap replaces them (writeDynamicTemplateLocked). Both are
 	// read and written under p.mu only, and every write bumps dynGeneration, so
 	// resolveDynamicPeerSettings, which resolves with the lock released, can tell
 	// that the pair it resolved was replaced meanwhile.
-	dynImportFilters []filterapi.FilterRef
-	dynExportFilters []filterapi.FilterRef
-	dynGeneration    uint64
+	dynImportPolicy filterapi.Policy
+	dynExportPolicy filterapi.Policy
+	dynGeneration   uint64
 
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
@@ -711,8 +717,8 @@ func NewPeer(settings *PeerSettings) *Peer {
 	// still carry $remote_as and $remote_ip, because buildDynamicPeerSettings
 	// copies them from the group template unresolved.
 	if settings.IsDynamic {
-		p.dynImportFilters = settings.ImportFilters
-		p.dynExportFilters = settings.ExportFilters
+		p.dynImportPolicy = settings.ImportPolicy
+		p.dynExportPolicy = settings.ExportPolicy
 	}
 
 	return p
@@ -722,13 +728,13 @@ func NewPeer(settings *PeerSettings) *Peer {
 //
 // The returned pointer is shared, and seven fields on the pointed-to struct are written
 // after construction, always under p.mu. resolveDynamicPeerSettings (reactor_dynamic.go)
-// writes PeerAS, ImportFilters and ExportFilters when a dynamic peer's session
-// establishes; applyHotSwappableSettings (peer_settings_apply.go) writes ImportFilters,
-// ExportFilters, PrefixUpdated, StaticRoutes and a non-strict BFD opt-in when a config
+// writes PeerAS, ImportPolicy and ExportPolicy when a dynamic peer's session
+// establishes; applyHotSwappableSettings (peer_settings_apply.go) writes ImportPolicy,
+// ExportPolicy, PrefixUpdated, StaticRoutes and a non-strict BFD opt-in when a config
 // reload delivers a hot-swappable change, and Capabilities as well when the reload
 // proved the negotiation unchanged (peer_settings_negotiation.go). A caller running on
 // a different goroutine than those writes MUST read those seven fields through
-// PeerAS()/ImportFilters()/ExportFilters()/oldestPrefixUpdated()/
+// PeerAS()/ImportPolicy()/ExportPolicy()/oldestPrefixUpdated()/
 // ConfiguredCapabilities()/staticRoutes()/bfdSettings(), not off this pointer, or it
 // races the write. ProcessBindings is written under r.mu and p.mu and read under
 // either (hotSwappableSettings). Every other PeerSettings field is set at
@@ -775,14 +781,12 @@ func (p *Peer) PeerAS() uint32 {
 	return p.settings.PeerAS
 }
 
-// ImportFilters returns the peer's import filter chain under p.mu. resolveDynamicPeerSettings
-// replaces this slice (with $-variables resolved) on a dynamic peer's establishment, so
-// cross-goroutine readers MUST use this accessor. The returned header is a snapshot; the
-// backing array is never mutated in place (resolveFilterVars always allocates a new slice).
-func (p *Peer) ImportFilters() []filterapi.FilterRef {
+// ImportPolicy returns a coherent policy snapshot under p.mu. Callers MUST use
+// this accessor across goroutines and MUST NOT mutate its borrowed references.
+func (p *Peer) ImportPolicy() filterapi.Policy {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.settings.ImportFilters
+	return p.settings.ImportPolicy
 }
 
 // staticRoutes returns the routes the configuration asks this peer to originate,
@@ -797,11 +801,11 @@ func (p *Peer) staticRoutes() []StaticRoute {
 	return p.settings.StaticRoutes
 }
 
-// ExportFilters returns the peer's export filter chain under p.mu. See ImportFilters.
-func (p *Peer) ExportFilters() []filterapi.FilterRef {
+// ExportPolicy returns a coherent policy snapshot under p.mu. See ImportPolicy.
+func (p *Peer) ExportPolicy() filterapi.Policy {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.settings.ExportFilters
+	return p.settings.ExportPolicy
 }
 
 // configuredCapabilities returns the capabilities the config asks this peer to
@@ -2223,7 +2227,7 @@ func (p *Peer) forwardOrderHold(initialUpdate bool) bool {
 	if initialUpdate {
 		return false
 	}
-	return p.initialUpdateOwed.Load()
+	return p.initialUpdateOwed.Load() || p.policyReplayHolds.Load() != 0
 }
 
 // forwardOverflowPending reports whether the forward pool still owes this peer

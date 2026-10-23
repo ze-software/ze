@@ -39,8 +39,8 @@ bgp {
 			family { ipv4/unicast { prefix { maximum 50000; warning 45000; } } }
 		}
 		filter {
-			import [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-IN ]
-			export [ bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-OUT ]
+			import { filters [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-IN ]; final accept; }
+			export { filters [ bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-OUT ]; final accept; }
 		}
 		peer cust-v4-01 { connection { remote { ip 192.0.2.11; } local { ip 192.0.2.1; } } session { asn { remote 65101; } } }
 		peer cust-v4-02 { connection { remote { ip 192.0.2.12; } local { ip 192.0.2.1; } } session { asn { remote 65102; } } }
@@ -58,8 +58,8 @@ bgp {
 			family { ipv6/unicast { prefix { maximum 50000; warning 45000; } } }
 		}
 		filter {
-			import [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-IN ]
-			export [ bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-OUT ]
+			import { filters [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-IN ]; final accept; }
+			export { filters [ bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-OUT ]; final accept; }
 		}
 		peer cust-v6-01 { connection { remote { ip 2001:db8:1::11; } local { ip 2001:db8:1::1; } } session { asn { remote 65201; } } }
 		peer cust-v6-02 { connection { remote { ip 2001:db8:1::12; } local { ip 2001:db8:1::1; } } session { asn { remote 65202; } } }

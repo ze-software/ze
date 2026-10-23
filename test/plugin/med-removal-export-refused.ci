@@ -145,7 +145,7 @@ bgp {
 		}
 		# EXPORT, which is the direction the mechanism is not honored on.
 		filter {
-			export [ modify:DROP-MED ]
+			export { filters [ modify:DROP-MED ]; final accept; }
 		}
 		attach process adj-rib-in {
 			send [ update ]

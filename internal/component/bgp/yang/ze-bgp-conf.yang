@@ -233,18 +233,17 @@ module ze-bgp-conf {
             description "The group level and the peer level append to this base chain. A name references a filter instance
                 defined in bgp/policy.";
             ze:help "Global route filter chains for import and export.";
-            leaf-list import {
-                type string;
-                description "Ze runs the global chain first, then the group chain, then the peer chain. Each name
-                    references a filter instance declared under bgp/policy. A plain name that no instance declares
-                    is refused at config load.";
-                ze:help "Global import filter chain";
+            container import {
+                presence "Configure the global import policy.";
+                description "Global filters run before group and peer filters. Every configured policy needs a final decision.";
+                ze:help "Global import policy";
+                uses filter-policy;
             }
-            leaf-list export {
-                type string;
-                description "Ze runs the global chain first, then the group chain, then the peer chain. An RFC 9234
-                    role can require this chain to name a filter that catches a transit leak.";
-                ze:help "Global export filter chain";
+            container export {
+                presence "Configure the global export policy.";
+                description "Global filters run before group and peer filters. The most specific policy supplies the final decision.";
+                ze:help "Global export policy";
+                uses filter-policy;
             }
         }
 
@@ -338,6 +337,26 @@ module ze-bgp-conf {
             }
 
             uses peer-fields;
+        }
+    }
+
+    // Policy fields are shared by the global, group and peer directions.
+    grouping filter-policy {
+        description "An ordered filter chain and its required final disposition.";
+        leaf-list filters {
+            type string { length "1..max"; }
+            ordered-by user;
+            description "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.";
+            ze:help "Ordered filter instance references";
+        }
+        leaf final {
+            type enumeration {
+                enum accept { ze:help "Accept a route that passes every filter"; }
+                enum reject { ze:help "Reject a route that passes every filter"; }
+            }
+            mandatory true;
+            description "Every present import or export policy must set final accept or final reject, even with no filters.";
+            ze:help "Decision after every filter passes";
         }
     }
 
@@ -1375,18 +1394,17 @@ module ze-bgp-conf {
         container filter {
             description "A name references a filter instance defined in bgp/policy.";
             ze:help "Route filter chains for import and export.";
-            leaf-list import {
-                type string;
-                description "Ze runs the global chain, then the group chain, then this chain. A plain name references a
-                    filter instance declared under bgp/policy. A name that carries a colon names a plugin filter,
-                    which Ze validates at runtime.";
-                ze:help "Import filter chain (filter instance names)";
+            container import {
+                presence "Configure an import policy.";
+                description "Append these filters to inherited filters and use this policy's explicit final decision.";
+                ze:help "Import policy";
+                uses filter-policy;
             }
-            leaf-list export {
-                type string;
-                description "Ze runs the global chain, then the group chain, then this chain. Prefix a name with
-                    inactive: to record that this session runs without a check an RFC 9234 role requires.";
-                ze:help "Export filter chain (filter instance names)";
+            container export {
+                presence "Configure an export policy.";
+                description "Append these filters to inherited filters and use this policy's explicit final decision.";
+                ze:help "Export policy";
+                uses filter-policy;
             }
         }
 

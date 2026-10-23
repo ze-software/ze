@@ -61,7 +61,7 @@ bgp {
 		}
 
 		filter {
-			import [ modify:TAG-CUSTOMER ]
+			import { filters [ modify:TAG-CUSTOMER ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

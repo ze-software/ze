@@ -21,6 +21,18 @@ type policyFilterRef struct {
 	Canonical string `json:"canonical"`
 }
 
+type policyChain struct {
+	Filters []policyFilterRef `json:"filters"`
+	Final   string            `json:"final,omitempty"`
+}
+
+func toPolicyChain(policy *plugin.PolicyInfo) *policyChain {
+	if policy == nil {
+		return nil
+	}
+	return &policyChain{Filters: toFilterRefs(policy.Filters), Final: policy.Final}
+}
+
 const (
 	bgpMinMessageLen = 19
 	bgpMaxMessageLen = 65535
@@ -69,10 +81,10 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, validated command.V
 	}
 
 	type peerChain struct {
-		Peer   string            `json:"peer"`
-		Name   string            `json:"name,omitempty"`
-		Import []policyFilterRef `json:"import,omitempty"`
-		Export []policyFilterRef `json:"export,omitempty"`
+		Peer   string       `json:"peer"`
+		Name   string       `json:"name,omitempty"`
+		Import *policyChain `json:"import,omitempty"`
+		Export *policyChain `json:"export,omitempty"`
 	}
 
 	chains := make([]peerChain, 0, len(matched))
@@ -83,10 +95,10 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, validated command.V
 			Name: p.Name,
 		}
 		if direction == "" || direction == "import" {
-			entry.Import = toFilterRefs(p.ImportFilters)
+			entry.Import = toPolicyChain(p.ImportPolicy)
 		}
 		if direction == "" || direction == "export" {
-			entry.Export = toFilterRefs(p.ExportFilters)
+			entry.Export = toPolicyChain(p.ExportPolicy)
 		}
 		chains = append(chains, entry)
 	}

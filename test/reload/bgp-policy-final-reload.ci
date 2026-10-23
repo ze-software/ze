@@ -1,0 +1,119 @@
+# Test: final-only export reload withdraws and restores existing advertisements.
+# VALIDATES: spec-bgp-explicit-final-policy AC-2, AC-8, AC-10, AC-11.
+# A missing-final reload must fail before changing the live policy. A second
+# source route is the permitted fence after that refusal. The source then sends
+# NOTHING: both routes must withdraw on final reject and reappear on final accept.
+# The observer checks the receive counter did not advance during reconciliation
+# and all three sessions retain connections-established=1/connections-dropped=0.
+# Runtime discrimination: disable final-only reconciliation with the new parser
+# intact; echoed routes never withdraw. Force final acceptance: withdrawal fails.
+# Then a longer permitted alternate is installed for 10.72.3.0/24. The shorter
+# preferred path carries denied ASN 65010; a later permitted source fence must
+# arrive without withdrawing the alternate. The RIB must rank the denied source
+# first. Final reject withdraws all routes; restoring accept must choose the
+# alternate again, with neither source sending an UPDATE and no session reset.
+# The destination uses the existing echo peer. The observer checks the reflected
+# wire's current route set and every announcement's original attributes, rather
+# than assuming restoration cannot include a harmless withdrawal of an absent
+# key. Echoed routes reach only the observer, never the receive store or election.
+option=timeout:value=150s
+
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4801
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4802
+expect=bgp:conn=1:seq=4:announced=18C0A803
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004102000000264001010040020A02020000FDE90000FDF2400304C000020180040400000009C00804FDE9004D180A4803
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A48FD
+EOF_SOURCE
+
+stdin=alternate:terminator=EOF_ALTERNATE
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65003
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C0A803
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002A4001010040020E02030000FDEB0000FDEB0000FDEB400304C000020380040400000009C00804FDEB0021180A4803
+EOF_ALTERNATE
+
+stdin=sink:terminator=EOF_SINK
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65000
+EOF_SINK
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal adj-rib-in { use bgp-adj-rib-in; }
+    internal rs { use bgp-rs; }
+    internal rib { use bgp-rib; }
+    external policy-final { run "le test fixture reload/bgp-policy-final-reload"; encoder json; }
+}
+bgp {
+    policy { reject-asn DENY { indirect [ 65010 ]; } }
+    peer peer-1 {
+        connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
+        session {
+            asn { local 65000; remote 65001; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final accept; } }
+        attach process policy-final { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+    peer peer-2 {
+        connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65000; }
+            # Echo is wire evidence, not an AIGP selection source. Its iBGP
+            # default would require feeding echoed routes into the selecting RIB.
+            aigp { enabled false; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { export { filters [ bgp-filter-path-asn:DENY ]; final accept; } }
+        attach process policy-final { receive [ update-received ]; send [ update ]; }
+        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+        attach process rib { receive [ update-sent state refresh ]; }
+    }
+    peer peer-3 {
+        connection { remote { ip 127.0.0.3; } local { ip 127.0.0.6; accept false; } }
+        session {
+            asn { local 65000; remote 65003; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final accept; } }
+        attach process policy-final { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT --mode echo:stdin=sink
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=alternate
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=bgp/peer/peer-2/filter/export/final
+expect=stderr:contains=write export { filters [ NAME ]; final accept; } or final reject
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=peer restart required
+reject=stderr:pattern=panic recovered

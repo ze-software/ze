@@ -61,7 +61,7 @@ bgp {
 		}
 
 		filter {
-			import [ as-path-list:CUSTOMERS ]
+			import { filters [ as-path-list:CUSTOMERS ]; final accept; }
 		}
 
 		attach process bgp-adj-rib-in {

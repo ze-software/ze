@@ -249,8 +249,11 @@ substituting a sorted one.
 <!-- source: internal/core/configorder/configorder.go -- Entries, OrderKey -->
 <!-- source: internal/component/config/tree.go -- Tree.ToPluginMap -->
 
-**Timeout:** Each stage has a 5-second timeout (configurable via `stage-timeout` in plugin config).
-If any plugin fails to complete a stage, startup aborts for all plugins.
+**Timeout:** `stage-timeout` bounds a dependency tier's period without plugin
+progress, not the total duration of a stage. A plugin's first completion
+extends that window; duplicate completions do not. If the tier makes no
+progress within the configured window, startup aborts for all its plugins.
+<!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress, StageComplete -->
 
 **Post-Startup Callback.** Stages 1-5 run per-phase. Plugins load across up to
 five phases (config-path auto-load, explicit, family, event-type, send-type) in
@@ -313,10 +316,48 @@ of default filters.
 | `filters[].on-error` | enum | `reject` (fail-closed) or `accept` (fail-open) |
 | `filters[].overrides` | list | Default filters this filter replaces (e.g., `rfc:no-self-as`) |
 
-Config references filters as `<plugin>:<filter>` in `filter { import [...] export [...] }`.
+Config references filters as `<plugin>:<filter>` in nested direction policies:
+`filter { import { filters [ name ]; final accept; } export { final reject; } }`.
+Each configured direction requires `final accept` or `final reject`. References
+accumulate global, group, then peer; the most-specific direction supplies the
+final. An absent direction retains automatic-filter behavior, not an implicit
+configured policy.
+
 The runtime uses the declaration to choose raw payload delivery, validate modify
-deltas against declared attributes, and pick fail-open or fail-closed behavior on
-filter RPC errors.
+deltas against declared attributes, and pick fail-open or fail-closed behavior
+on filter RPC errors. Accept continues to the next filter. Exhaustion applies
+the policy final, including empty and inactive-only chains. A raw full-UPDATE
+rewrite stops later filters but still receives the final. Earlier reject,
+fail-closed error and teardown remain terminal. A final-only export change
+reconciles the current session: rejection withdraws recorded advertisements;
+acceptance regenerates configured routes and replays retained received routes
+under the actual configured replay owner's send grant. Runtime claims take
+precedence over compiled claims, including aliased plugins. No new persistence
+is added for one-shot API announcements: their producer must reannounce after
+acceptance returns. API withdrawal sections are not swallowed by final rejection.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- policyReplayOwner, reconcileExportFinal -->
+
+Operational `PeerInfo` carries `ImportPolicy` and `ExportPolicy` as optional
+`PolicyInfo` values rather than bare reference lists. Each carries `filters`
+(canonical reference strings) and an optional `final` (`accept` or `reject`).
+No policy and no automatic references is absent. Automatic-only references have
+no configured final, so `final` is omitted. A configured empty policy is present
+and includes its final.
+
+`show policy chain peer <selector> [import|export]` nests `filters` (name/canonical objects) and `final` under
+`import` and `export`; peer detail nests canonical strings and final under
+`import-policy` and `export-policy`. These are whole effective policies, not
+only the references declared directly on the peer. Dry-run reports the same
+final outcome as runtime, including terminal raw rewrites.
+With `final reject`, dry-run preserves explicit withdrawals: a pure withdrawal
+reports `accept`, while a mixed UPDATE reports `modify` and renders only the
+surviving withdrawal sections. Execution failures and teardown remain `reject`
+with no resulting text.
+
+<!-- source: internal/component/plugin/types_bgp.go -- PolicyInfo, PeerInfo -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo -->
+<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyChain, toPolicyChain -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, tracePolicyFilterChain -->
 
 <!-- source: pkg/plugin/rpc/types.go -- FilterDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC filters -->
@@ -1322,9 +1363,15 @@ The order below is the order the engine emits.
 <!-- source: internal/component/bgp/reactor/filter_format.go -- attrNameToCode, appendAllAttrs, appendSingleAttr -->
 <!-- source: internal/core/bgp/attribute/text_append.go -- the AppendText method of each type -->
 
-`FilterDecl.Attributes` records the attributes a filter reads. It does not
-narrow this list: the subject is built once for the chain and carries every
-attribute the UPDATE holds.
+`FilterDecl.Attributes` limits the attributes a text delta may modify, not the
+attributes a filter may inspect. The subject carries every rendered attribute
+the UPDATE holds, even when the filter declares a different modifiable attribute.
+Live import, originated and forwarded export, and both dry-run directions use
+this same contract. Raw filters receive the full text subject too. A dry-run
+whose rejecting final retains explicit withdrawals reports only those withdrawals
+in its resulting text, while its trace retains the filter's actual decision.
+<!-- test: internal/component/bgp/reactor/filter_format_attrs_test.go TestFilterSubjectReadsUnmodifiableAttributes -->
+<!-- test: internal/component/bgp/reactor/filter_format_attrs_test.go TestFilterSubjectDryRunWithdrawalFallback -->
 
 The engine writes one warning and no pair when it holds an attribute no renderer
 names. The chain then runs on the subject it has. An operator sees the line

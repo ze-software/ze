@@ -511,7 +511,7 @@
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-      "unit-sha": "1f83ba617deaa802",
+      "unit-sha": "2f3204cd4defe4cf",
       "claim-sha": "7c0c7e5d69776934",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",

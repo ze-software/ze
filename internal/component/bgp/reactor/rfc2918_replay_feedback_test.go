@@ -71,7 +71,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 func TestRFC2918RefreshRunsCurrentExportPolicy(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.sendInitialRoutes()
-	peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "refresh-policy"}}
+	peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "refresh-policy"}}, filterapi.FinalAccept)
 	peer.refreshForwardFacts()
 	api := newSendPermissionReactor(peer)
 	api.r.api = &pluginserver.Server{}

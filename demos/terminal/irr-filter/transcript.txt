@@ -5,13 +5,15 @@ $ ze config cat ze.conf |
 > ze config set - bgp policy irr server 127.0.0.1:4343 |
 > ze config set - bgp policy irr refresh-interval 3600 |
 > ze config set - bgp peer customer-a session irr as-set AS-TEST |
-> ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |
+> ze config set - bgp peer customer-a filter import filters bgp-filter-irr:65001 |
+> ze config set - bgp peer customer-a filter import final accept |
 > ze config import --yes --name ze.conf -
 set plugin internal bgp-filter-irr use bgp-filter-irr
 set bgp policy irr server 127.0.0.1:4343
 set bgp policy irr refresh-interval 3600
 set bgp peer customer-a session irr as-set AS-TEST
-set bgp peer customer-a filter import bgp-filter-irr:65001
+set bgp peer customer-a filter import filters bgp-filter-irr:65001
+set bgp peer customer-a filter import final accept
 replaced ze.conf (... bytes)
 1 file(s) imported
 $ ze config cat ze.conf | grep -E 'bgp-filter-irr|AS-TEST|127.0.0.1:4343'

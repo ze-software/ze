@@ -68,7 +68,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-aspath:ALLOW-PEER ]
+			import { filters [ bgp-filter-aspath:ALLOW-PEER ]; final accept; }
 		}
 
 		attach process test-aspath-reject {

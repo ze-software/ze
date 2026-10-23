@@ -20,7 +20,7 @@
       "claim-sha": "7b759cd420af5a40",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
-      "producer-sha": "291f9d91e1b4155a",
+      "producer-sha": "854d2b10e5fee31d",
       "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "fd8e9f2aef23bf9e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
-      "producer-sha": "291f9d91e1b4155a",
+      "producer-sha": "854d2b10e5fee31d",
       "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "72e61e2dc7102297",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
-      "producer-sha": "291f9d91e1b4155a",
+      "producer-sha": "854d2b10e5fee31d",
       "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

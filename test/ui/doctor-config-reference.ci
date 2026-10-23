@@ -40,7 +40,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ nonexistent-policy ]
+			import { filters [ nonexistent-policy ]; final accept; }
 		}
 	}
 }

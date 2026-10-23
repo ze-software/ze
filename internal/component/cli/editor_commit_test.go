@@ -362,7 +362,7 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 	}
 }
 
-// insertConflictConfig holds a leaf-list (bgp filter import) used by the
+// insertConflictConfig holds a leaf-list (bgp filter import filters) used by the
 // ordered-insert conflict tests below.
 const insertConflictConfig = `bgp {
   router-id 1.2.3.4
@@ -372,7 +372,10 @@ const insertConflictConfig = `bgp {
   	}
   }
   filter {
-    import [ alpha bravo ];
+    import {
+      filters [ alpha bravo ];
+      final accept;
+    }
   }
   peer peer1 {
     connection {
@@ -388,6 +391,23 @@ const insertConflictConfig = `bgp {
   }
 }`
 
+// insertConflictContent changes the fixture's members through its parsed tree,
+// preserving the explicit final action and any per-member deactivation.
+func insertConflictContent(t *testing.T, members []string, inactive string) string {
+	t.Helper()
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, err := config.NewParser(schema).Parse(insertConflictConfig)
+	require.NoError(t, err)
+	policy := tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	require.NotNil(t, policy)
+	policy.SetSlice("filters", members)
+	if inactive != "" {
+		require.NoError(t, policy.DeactivateMultiValue("filters", inactive))
+	}
+	return config.Serialize(tree, schema)
+}
+
 // newInsertConflictEditor seeds insertConflictConfig, opens a session editor,
 // and records an ordered insert of "charlie" after "alpha".
 func newInsertConflictEditor(t *testing.T) (*Editor, string) {
@@ -401,7 +421,7 @@ func newInsertConflictEditor(t *testing.T) (*Editor, string) {
 	ed.SetSession(NewEditSession("thomas", "local"))
 
 	require.NoError(t, ed.InsertLeafListValue(
-		[]string{"bgp", "filter"}, "import", "charlie", config.InsertAfter, "alpha"))
+		[]string{"bgp", "filter", "import"}, "filters", "charlie", config.InsertAfter, "alpha"))
 	return ed, configPath
 }
 
@@ -416,8 +436,7 @@ func TestCommitInsertRefRemovedIsConflict(t *testing.T) {
 	ed, configPath := newInsertConflictEditor(t)
 
 	// Concurrent commit removes the reference member alpha.
-	modified := strings.Replace(insertConflictConfig,
-		"import [ alpha bravo ];", "import [ bravo ];", 1)
+	modified := insertConflictContent(t, []string{"bravo"}, "")
 	require.NoError(t, ed.store.WriteFile(configPath, []byte(modified), 0o600))
 
 	result, err := ed.CommitSession()
@@ -428,7 +447,7 @@ func TestCommitInsertRefRemovedIsConflict(t *testing.T) {
 
 	c := result.Conflicts[0]
 	assert.Equal(t, ConflictStale, c.Type)
-	assert.Contains(t, c.Path, "bgp filter import")
+	assert.Contains(t, c.Path, "bgp filter import filters")
 	assert.Contains(t, c.MyValue, "charlie")
 	assert.Equal(t, "alpha", c.PreviousValue,
 		"conflict should name the removed reference member")
@@ -442,8 +461,7 @@ func TestCommitInsertRefRemovedIsConflict(t *testing.T) {
 func TestCommitCandidateInsertRefRemovedIsConflict(t *testing.T) {
 	ed, configPath := newInsertConflictEditor(t)
 
-	modified := strings.Replace(insertConflictConfig,
-		"import [ alpha bravo ];", "import [ bravo ];", 1)
+	modified := insertConflictContent(t, []string{"bravo"}, "")
 	require.NoError(t, ed.store.WriteFile(configPath, []byte(modified), 0o600))
 
 	result, _, err := ed.CommitSessionCandidate(time.Now())
@@ -463,8 +481,7 @@ func TestCommitInsertMemberAlreadyPresentNoConflict(t *testing.T) {
 	ed, configPath := newInsertConflictEditor(t)
 
 	// Concurrent commit removed alpha but already contains charlie.
-	modified := strings.Replace(insertConflictConfig,
-		"import [ alpha bravo ];", "import [ charlie bravo ];", 1)
+	modified := insertConflictContent(t, []string{"charlie", "bravo"}, "")
 	require.NoError(t, ed.store.WriteFile(configPath, []byte(modified), 0o600))
 
 	result, err := ed.CommitSession()

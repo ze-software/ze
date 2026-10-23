@@ -64,7 +64,7 @@ bgp {
 
 		# Filter-type prefix form: `prefix-list` resolves to bgp-filter-prefix.
 		filter {
-			import [ prefix-list:CUSTOMERS ]
+			import { filters [ prefix-list:CUSTOMERS ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

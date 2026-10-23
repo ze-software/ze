@@ -45,12 +45,19 @@ bgp {
     }
     peer peer-a {
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 The chain names the list by its bare name, JunOS style. `reject-asn:NAME` and
 `bgp-filter-path-asn:NAME` also resolve, for a tree where two filter types share

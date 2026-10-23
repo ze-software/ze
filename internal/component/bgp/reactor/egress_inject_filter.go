@@ -25,7 +25,6 @@ package reactor
 
 import (
 	"encoding/binary"
-	"log/slog"
 	"net/netip"
 	"slices"
 
@@ -62,26 +61,28 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 		// No established forwarding snapshot: retain the existing admission.
 		return false, nil
 	}
-	// Inactive refs skip policy, not Section 3 normalization. Testing raw chain
-	// length would wrongly fail closed for a policy the operator switched off.
-	if hasActiveFilter(facts.exportFilters) {
-		// An active export policy needs its engine. Preserve the same fail-closed
-		// decision as policyFilterFunc and default-originate.
-		if r.api == nil {
-			slog.Warn("export filter: no API server -- fail-closed", "peer", facts.addrStr)
-			return true, nil
-		}
-		// The body is already encoded in THIS peer's SEND context. Passing 0
-		// loses ASN4 attributes from filter text and silently defeats matches.
-		wireUpdate := wireu.NewWireUpdate(body, facts.sendCtxID)
-		res := r.runEgressPolicyChainASN4(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, wireUpdate, facts.sendASN4)
+	// Final-only decisions run without transport or text formatting. Withdrawals
+	// survive rejection so an already advertised route can leave the peer.
+	if hasActiveFilter(facts.exportPolicy.Filters()) {
+		var update wireu.WireUpdate
+		wireu.InitWireUpdate(&update, body, facts.sendCtxID)
+		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, &update, facts.sendASN4)
 		if !res.accept {
+			if !res.failed && !facts.exportPolicy.AcceptsAtEnd() {
+				withdrawals := policyWithdrawals(body)
+				if withdrawals != nil {
+					return false, withdrawals
+				}
+			}
 			return true, nil
 		}
 		if res.wireOverride != nil {
 			override = res.wireOverride.Payload()
 			body = override
 		}
+	} else if !facts.exportPolicy.AcceptsAtEnd() {
+		withdrawals := policyWithdrawals(body)
+		return withdrawals == nil, withdrawals
 	}
 
 	// RFC 2545 Section 3: the common-subnet condition judges the effective

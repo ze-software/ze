@@ -20,7 +20,7 @@ func rejectASNSection(names ...string) []sdk.ConfigSection {
 		data += `"` + name + `":{"anywhere":["6939"]}`
 	}
 	data += `}},"peer":{"p":{"connection":{"remote":{"ip":"192.0.2.1"}},` +
-		`"filter":{"import":["` + names[0] + `"]}}}}}`
+		`"filter":{"import":{"filters":["` + names[0] + `"],"final":"accept"}}}}}}`
 	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
 }
 

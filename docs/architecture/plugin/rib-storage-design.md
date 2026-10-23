@@ -189,6 +189,11 @@ only in data. The RIB skips every candidate of an excluded source, the
 destination's own candidates and those of down peers, without deleting any
 received state from a possibly reconnected session. Election needs no sent
 entry for the key.
+For non-CIDR recovery, candidate lookup derives the receive-storage key from the
+validated requested NLRI after removing ADD-PATH framing. It does not reuse the
+sent-table identity: FlowSpec receive keys retain a canonical native length field,
+while the sent identity omits it. Both short and extended encodings therefore
+find the same retained candidates and use the existing election.
 
 The answer holds exactly one outcome per requested key, in request order, and
 the reactor refuses an answer that misses a key (`ribevents.CheckRecoveryAnswer`)
@@ -306,8 +311,11 @@ staged in one destination admission, each section tagged with the owed key it
 decides. The destination worker decides each key under `writeMu` against the
 record, session and epoch its round read, the movers noted since the snapshot,
 and the source generations and received-publication cuts. A stale record or
-epoch, or a chosen candidate that withdrew or re-announced the key, leaves the
-key owed for the next round. A survivor whose live source accepted more UPDATEs
+epoch, or a chosen candidate that withdrew the key, leaves the key owed without
+writing that decision. A forwarded or initial-replay re-announcement is withheld
+for election instead: the drained round may decide, but the announcement keeps
+the record owed with an advanced epoch for the next round to elect over the
+newer revision. A survivor whose live source accepted more UPDATEs
 since the round's cut is still written: an UPDATE of the key itself reaches the
 destination's writer as a mover or as a later write, so a busy source never
 postpones the decision. A survivor whose source session changed owes only its own key again,

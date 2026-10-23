@@ -20,7 +20,7 @@ import (
 // file, the view reloadSessionView rebuilds, the content
 // CommitSessionCandidate answers, and the file CommitSession writes. Two list
 // kinds run: the bracket `address` leaf-list, where `set` writes the whole
-// list, and the ordered plain `bgp filter import` leaf-list, where `set` adds
+// list, and the ordered plain `bgp filter import filters` leaf-list, where `set` adds
 // one member. A step the editor refuses is part of the sequence: the refusal
 // must leave nothing behind either.
 
@@ -33,7 +33,7 @@ type seqList struct {
 	ordered  bool
 	setWhole bool
 	starts   []seqStart
-	config   func(seqStart) string
+	config   func(*testing.T, seqStart) string
 }
 
 // seqStart is the committed list a sequence starts from.
@@ -74,15 +74,15 @@ var seqAddress = seqList{
 		{"192.0.2.1/24 192.0.2.2/30", "192.0.2.2/30"},
 		{"192.0.2.1/24", ""},
 	},
-	config: func(st seqStart) string {
+	config: func(_ *testing.T, st seqStart) string {
 		return validBGPConfig + bracketIfaceWithInactive(st.members, st.inactive)
 	},
 }
 
 var seqImport = seqList{
 	name:     "import",
-	parent:   []string{"bgp", "filter"},
-	key:      "import",
+	parent:   []string{"bgp", "filter", "import"},
+	key:      "filters",
 	universe: []string{"alpha", "bravo", "charlie", "delta"},
 	ordered:  true,
 	starts: []seqStart{
@@ -90,12 +90,8 @@ var seqImport = seqList{
 		{"alpha bravo", "bravo"},
 		{"alpha", ""},
 	},
-	config: func(st seqStart) string {
-		line := "import [ " + st.members + " ];"
-		if st.inactive != "" {
-			line += "\n    inactive: import " + st.inactive + ";"
-		}
-		return strings.Replace(insertConflictConfig, "import [ alpha bravo ];", line, 1)
+	config: func(t *testing.T, st seqStart) string {
+		return insertConflictContent(t, strings.Fields(st.members), st.inactive)
 	},
 }
 
@@ -189,7 +185,7 @@ func (l *seqList) generate(r *rand.Rand, n int) []seqOp {
 // config path, and the sequence as text with refused steps marked.
 func (l *seqList) session(t *testing.T, st seqStart, ops []seqOp) (*Editor, string, string) {
 	t.Helper()
-	ed, _, configPath := newLoadSessionEditor(t, l.config(st))
+	ed, _, configPath := newLoadSessionEditor(t, l.config(t, st))
 	desc := make([]string, 0, len(ops))
 	for _, o := range ops {
 		s := o.String()
@@ -375,7 +371,7 @@ func TestRenameRebasesMemberOps(t *testing.T) {
 			list := seqAddress
 			list.parent = eth8
 			for _, candidate := range []bool{false, true} {
-				ed, _, configPath := newLoadSessionEditor(t, seqAddress.config(seqStart{"192.0.2.1/24", ""}))
+				ed, _, configPath := newLoadSessionEditor(t, seqAddress.config(t, seqStart{"192.0.2.1/24", ""}))
 				require.NoError(t, tc.edit(ed))
 				require.Equal(t, tc.state, list.seqState(ed, ed.tree))
 				if candidate {

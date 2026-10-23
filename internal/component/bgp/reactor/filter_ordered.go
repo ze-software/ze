@@ -9,6 +9,7 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"log/slog"
 	"net/netip"
 	"sort"
@@ -16,7 +17,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // policyChainStepName is the ordering name of the reactor-bound per-peer policy
@@ -145,20 +148,13 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}
-	// Guarded read: a dynamic peer resolves its ImportFilters under p.mu on establishment.
-	// This ingress step runs on the peer's read goroutine, which after the FSM
-	// transition-queue change can process an UPDATE while the establishment callback still
-	// runs on the drainer goroutine, so the read must go through the accessor.
-	filters := peer.ImportFilters()
-	// No chain that can execute is a legitimate accept (an absent precondition,
-	// not a guard miss): a chain that is empty, or that holds only deactivated
-	// refs, runs nothing, because PolicyFilterChain skips a ref marked Inactive
-	// (filter_chain.go). Reading the raw length here would fail closed below on
-	// a chain the operator switched off and drop every inbound route, while
-	// reactorForwardRS forwards for the same peer (hasActiveFilter,
-	// forward_rs.go).
-	if !hasActiveFilter(filters) {
-		return ingressStepResult{accept: true}
+	// A settings generation carries its references and final together.
+	policy := peer.ImportPolicy()
+	if !hasActiveFilter(policy.Filters()) {
+		if policy.AcceptsAtEnd() {
+			return ingressStepResult{accept: true}
+		}
+		return ingressPolicyWithdrawals(payload)
 	}
 	// An ACTIVE import filter but the API server (the filter engine that
 	// enforces it) is absent: a guard MISS, not an accept. An import filter is
@@ -176,7 +172,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	var scratchArr [65536]byte
 	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	res := PolicyFilterChain(filters, "import", peerAddr.String(), peerAS,
+	res := PolicyFilterChain(policy, "import", peerAddr.String(), peerAS,
 		updateText, r.policyFilterFunc(payload),
 	)
 
@@ -186,6 +182,9 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		return ingressStepResult{teardown: true, notifyCode: res.NotifyCode, notifySubcode: res.NotifySubcode}
 	}
 	if res.Action == PolicyReject {
+		if !res.Failed && !policy.AcceptsAtEnd() {
+			return ingressPolicyWithdrawals(payload)
+		}
 		return ingressStepResult{} // accept == false: drop the route
 	}
 	// A raw=true filter may return a full UPDATE-body replacement (e.g.
@@ -273,18 +272,14 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
-func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate) egressStepResult {
-	// No chain that can execute is a legitimate accept (an absent precondition,
-	// not a guard miss). The r.api == nil MISS (with an active filter present) is
-	// handled by the shared body runEgressPolicyChainASN4, so the fail-closed
-	// guard lives in exactly one place and never double-warns.
-	if !hasActiveFilter(exportFilters) {
-		return egressStepResult{accept: true}
+func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate) egressStepResult {
+	if !hasActiveFilter(exportPolicy.Filters()) {
+		return egressStepResult{accept: exportPolicy.AcceptsAtEnd()}
 	}
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
 	// raw bytes are 2- or 4-octet per the source's negotiated ASN4.
 	srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-	return r.runEgressPolicyChainASN4(exportFilters, destAddrStr, destPeerAS, destLocalAS, destInternal, wireUpdate, srcCtx != nil && srcCtx.ASN4())
+	return r.runEgressPolicyChainASN4(exportPolicy, destAddrStr, destPeerAS, destLocalAS, destInternal, wireUpdate, srcCtx != nil && srcCtx.ASN4())
 }
 
 // runEgressPolicyChainASN4 is the shared body of the export policy chain. It is
@@ -309,26 +304,16 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 // destInternal is the destination session's internal verdict, which both
 // callers take from the peer's forwarding facts (!isEBGP). It decides whether
 // the AS_PATH edits of the filter's answer apply (RFC 4271 Section 5.1.2).
-func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
-	// No chain that can execute is a legitimate accept (an absent precondition,
-	// not a guard miss): a chain that is empty, or that holds only deactivated
-	// refs, runs nothing, because PolicyFilterChain skips a ref marked Inactive
-	// (filter_chain.go). This is the forwarded rail's half of the rule
-	// exportFilterForBody applies to originated routes.
-	if !hasActiveFilter(exportFilters) {
-		return egressStepResult{accept: true}
+func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
+	if !hasActiveFilter(exportPolicy.Filters()) {
+		return egressStepResult{accept: exportPolicy.AcceptsAtEnd()}
 	}
 	// An ACTIVE export filter but the API server (the filter engine that
 	// enforces it) is absent: a guard MISS, not an accept. An export chain is a
 	// guard whose purpose is to reject; silently accepting sends the route
 	// UNFILTERED and leaks whatever the policy exists to strip (e.g. RFC 6996
-	// private ASNs). Deny AND speak, matching policyFilterFunc
-	// (filter_chain.go:368-371: Warn + PolicyReject) and exportFilterForBody
-	// (egress_inject_filter.go). This is the shared body BOTH egress paths reach
-	// (forwardUpdateCore via runEgressPolicyChain, and exportFilterForBody -- the
-	// latter guards r.api itself first, so this branch fires for the forwarded
-	// path and is defense-in-depth for the originated one). See
-	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1).
+	// private ASNs). Deny AND speak, matching policyFilterFunc's failure.
+	// Both egress callers use this single transport guard.
 	if r.filterAPI() == nil {
 		slog.Warn("export filter: no API server -- fail-closed", "peer", destAddrStr)
 		// A guard MISS, not a policy decision: the chain never ran.
@@ -341,7 +326,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 	var scratchArr [65536]byte
 	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	res := PolicyFilterChain(exportFilters, "export", destAddrStr, destPeerAS,
+	res := PolicyFilterChain(exportPolicy, "export", destAddrStr, destPeerAS,
 		updateText, r.policyFilterFunc(wireUpdate.Payload()),
 	)
 	if res.Action == PolicyReject {
@@ -424,4 +409,63 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		}
 	}
 	return egressStepResult{accept: true}
+}
+
+// ingressPolicyWithdrawals keeps the withdrawal half of a denied UPDATE. The
+// returned replacement owns its bytes when announcements had to be removed.
+func ingressPolicyWithdrawals(payload []byte) ingressStepResult {
+	withdrawals := policyWithdrawals(payload)
+	if withdrawals == nil {
+		return ingressStepResult{}
+	}
+	// A projection removes announcement bytes and is strictly shorter.
+	// Pure withdrawals retain the original payload and need no consumer rebuild.
+	if len(withdrawals) == len(payload) {
+		return ingressStepResult{accept: true}
+	}
+	return ingressStepResult{accept: true, modifiedPayload: withdrawals}
+}
+
+// policyWithdrawals projects explicit withdrawals without converting denied
+// announcements into routes. Pure withdrawals borrow the original payload;
+// mixed updates need one owned replacement because receive storage is reused.
+func policyWithdrawals(payload []byte) []byte {
+	sections, err := wire.ParseUpdateSections(payload)
+	if err != nil {
+		return nil
+	}
+	attrs := sections.Attrs(payload)
+	iter := attribute.NewAttrIterator(attrs)
+	var unreach []byte
+	hasReach := false
+	for {
+		start := iter.Offset()
+		code, _, value, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if code == attribute.AttrMPReachNLRI {
+			hasReach = true
+		}
+		if code == attribute.AttrMPUnreachNLRI && len(value) >= 3 {
+			unreach = attrs[start:iter.Offset()]
+		}
+	}
+	if iter.Remaining() != 0 {
+		return nil
+	}
+	if !hasReach && sections.NLRILen(payload) == 0 {
+		return payload
+	}
+	withdrawn := sections.Withdrawn(payload)
+	if len(withdrawn) == 0 && len(unreach) == 0 {
+		return nil
+	}
+	out := make([]byte, 4+len(withdrawn)+len(unreach))
+	binary.BigEndian.PutUint16(out, uint16(len(withdrawn))) //nolint:gosec // The parsed section length is uint16.
+	copy(out[2:], withdrawn)
+	at := 2 + len(withdrawn)
+	binary.BigEndian.PutUint16(out[at:], uint16(len(unreach))) //nolint:gosec // The attribute is bounded by the parsed uint16 section length.
+	copy(out[at+2:], unreach)
+	return out
 }

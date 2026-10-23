@@ -433,7 +433,7 @@ func (f *ownershipRailFixture) send(t *testing.T, rail string, source *Peer, ctx
 			return PolicyResponse{Action: PolicyAccept}
 		}
 		f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
-		f.destination.settings.ExportFilters = []filterapi.FilterRef{{Name: "policy:ownership-rail"}}
+		f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:ownership-rail"}}, filterapi.FinalAccept)
 		f.destination.refreshForwardFacts()
 		skipped, _ := reactorForwardRS(f.r, update, f.id, source.Settings().Address, source)
 		if !reflect.DeepEqual(skipped, []netip.AddrPort{f.destination.Settings().PeerKey()}) {

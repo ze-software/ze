@@ -41,10 +41,8 @@ bgp {
 		}
 	}
 	filter {
-		import [ NO-TRANSIT ]
-		export [ NO-TRANSIT ]
-		inactive: import NO-TRANSIT
-		inactive: export NO-TRANSIT
+		import { filters [ inactive:NO-TRANSIT ]; final accept; }
+		export { filters [ inactive:NO-TRANSIT ]; final accept; }
 	}
 	peer peer1 {
 		connection {

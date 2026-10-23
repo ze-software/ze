@@ -235,7 +235,7 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 					"asn": map[string]any{"remote": "65001"},
 					"irr": map[string]any{"as-set": "AS-CUSTOMER1"},
 				},
-				"filter": map[string]any{"import": []any{"bgp-filter-irr:65001"}},
+				"filter": map[string]any{"import": map[string]any{"filters": []any{"bgp-filter-irr:65001"}, "final": "accept"}},
 			},
 		},
 	})
@@ -840,7 +840,7 @@ func irrConfigWithPeeringDB(server, peeringDBURL, asn, asSet string) map[string]
 					"asn": map[string]any{"remote": asn},
 					"irr": map[string]any{"as-set": asSet},
 				},
-				"filter": map[string]any{"import": []any{"bgp-filter-irr:" + asn}},
+				"filter": map[string]any{"import": map[string]any{"filters": []any{"bgp-filter-irr:" + asn}, "final": "accept"}},
 			},
 		},
 	}

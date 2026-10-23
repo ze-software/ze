@@ -2646,7 +2646,10 @@ func TestInsertLeafList(t *testing.T) {
   	}
   }
   filter {
-    import [ alpha bravo ];
+    import {
+      filters [ alpha bravo ];
+      final accept;
+    }
   }
   peer peer1 {
     connection {
@@ -2673,12 +2676,15 @@ func TestInsertLeafList(t *testing.T) {
 	require.NoError(t, err)
 
 	// Insert "charlie" after "alpha".
-	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "charlie", "after", "alpha"})
+	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "filters", "charlie", "after", "alpha"})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "Inserted charlie")
 
-	content := ed.WorkingContent()
-	assert.Contains(t, content, "import [ alpha charlie bravo ]")
+	policy := ed.tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	assert.Equal(t, []string{"alpha", "charlie", "bravo"}, policy.GetMultiValues("filters"))
+	final, present := policy.Get("final")
+	assert.True(t, present)
+	assert.Equal(t, "accept", final)
 }
 
 // TestInsertLeafListFirst verifies insert first places value at beginning.
@@ -2697,7 +2703,10 @@ func TestInsertLeafListFirst(t *testing.T) {
   	}
   }
   filter {
-    import [ alpha bravo ];
+    import {
+      filters [ alpha bravo ];
+      final accept;
+    }
   }
   peer peer1 {
     connection {
@@ -2723,12 +2732,15 @@ func TestInsertLeafListFirst(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "zero", "first"})
+	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "filters", "zero", "first"})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "Inserted zero")
 
-	content := ed.WorkingContent()
-	assert.Contains(t, content, "import [ zero alpha bravo ]")
+	policy := ed.tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	assert.Equal(t, []string{"zero", "alpha", "bravo"}, policy.GetMultiValues("filters"))
+	final, present := policy.Get("final")
+	assert.True(t, present)
+	assert.Equal(t, "accept", final)
 }
 
 // TestInsertBadSyntax verifies insert rejects bad syntax.
@@ -2750,11 +2762,11 @@ func TestInsertBadSyntax(t *testing.T) {
 	require.NoError(t, err)
 
 	// Too few args.
-	_, err = model.cmdInsert([]string{"filter", "import"})
+	_, err = model.cmdInsert([]string{"import", "filters"})
 	require.Error(t, err)
 
 	// Missing position keyword.
-	_, err = model.cmdInsert([]string{"filter", "import", "foo", "bar"})
+	_, err = model.cmdInsert([]string{"bgp", "filter", "import", "filters", "foo", "bar"})
 	require.Error(t, err)
 }
 
@@ -2812,7 +2824,10 @@ func TestDeactivateLeafListValue(t *testing.T) {
   	}
   }
   filter {
-    import [ no-self-as reject-bogons ];
+    import {
+      filters [ no-self-as reject-bogons ];
+      final accept;
+    }
   }
   peer peer1 {
     connection {
@@ -2838,7 +2853,7 @@ func TestDeactivateLeafListValue(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdDeactivate([]string{"bgp", "filter", "import", "no-self-as"})
+	result, err := model.cmdDeactivate([]string{"bgp", "filter", "import", "filters", "no-self-as"})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "Deactivated no-self-as")
 
@@ -2846,9 +2861,16 @@ func TestDeactivateLeafListValue(t *testing.T) {
 	// `inactive: <leaf> <member>` statement, never the internal
 	// "inactive:" prefix (which fails item validation on reparse).
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "import [ no-self-as reject-bogons ]")
-	assert.Contains(t, content, "inactive: import no-self-as")
+	assert.Contains(t, content, "filters [ no-self-as reject-bogons ]")
+	assert.Contains(t, content, "inactive: filters no-self-as")
 	assert.NotContains(t, content, "inactive:no-self-as")
+	policy := ed.tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	assert.Equal(t, []string{"reject-bogons"}, policy.GetMultiValues("filters"))
+	assert.Equal(t, []config.MemberState{{Value: "no-self-as", Inactive: true}, {Value: "reject-bogons"}},
+		policy.GetMultiValuesState("filters"))
+	final, present := policy.Get("final")
+	assert.True(t, present)
+	assert.Equal(t, "accept", final)
 }
 
 // TestActivateLeafListValue verifies activate removes inactive: prefix.
@@ -2867,7 +2889,10 @@ func TestActivateLeafListValue(t *testing.T) {
   	}
   }
   filter {
-    import [ inactive:no-self-as reject-bogons ];
+    import {
+      filters [ inactive:no-self-as reject-bogons ];
+      final accept;
+    }
   }
   peer peer1 {
     connection {
@@ -2893,18 +2918,25 @@ func TestActivateLeafListValue(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdActivate([]string{"bgp", "filter", "import", "no-self-as"})
+	result, err := model.cmdActivate([]string{"bgp", "filter", "import", "filters", "no-self-as"})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "Activated no-self-as")
 
 	content := ed.WorkingContent()
 	assert.Contains(t, content, "no-self-as")
 	assert.NotContains(t, content, "inactive:no-self-as")
+	assert.NotContains(t, content, "inactive: filters no-self-as")
+	policy := ed.tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	assert.Equal(t, []config.MemberState{{Value: "no-self-as"}, {Value: "reject-bogons"}},
+		policy.GetMultiValuesState("filters"))
+	final, present := policy.Get("final")
+	assert.True(t, present)
+	assert.Equal(t, "accept", final)
 }
 
 // TestDeactivateLeafListPerPeer verifies deactivate works through list entry paths.
 //
-// VALIDATES: deactivate bgp peer X filter import Y works (list key in path).
+// VALIDATES: deactivate bgp peer X filter import filters Y works (list key in path).
 // PREVENTS: resolveLeafListValue failing on list keys in path.
 func TestDeactivateLeafListPerPeer(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -2929,7 +2961,10 @@ func TestDeactivateLeafListPerPeer(t *testing.T) {
       }
     }
     filter {
-      import [ no-self-as reject-bogons ];
+      import {
+        filters [ no-self-as reject-bogons ];
+        final accept;
+      }
     }
   }
 }`
@@ -2944,12 +2979,12 @@ func TestDeactivateLeafListPerPeer(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdDeactivate([]string{"bgp", "peer", "peer1", "filter", "import", "no-self-as"})
+	result, err := model.cmdDeactivate([]string{"bgp", "peer", "peer1", "filter", "import", "filters", "no-self-as"})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "Deactivated no-self-as")
 
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "inactive: import no-self-as")
+	assert.Contains(t, content, "inactive: filters no-self-as")
 	assert.NotContains(t, content, "inactive:no-self-as")
 }
 
@@ -2969,7 +3004,10 @@ func TestInsertDuplicateRejected(t *testing.T) {
   	}
   }
   filter {
-    import [ alpha bravo ];
+    import {
+      filters [ alpha bravo ];
+      final accept;
+    }
   }
   peer peer1 {
     connection {
@@ -2996,7 +3034,7 @@ func TestInsertDuplicateRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	// Inserting "alpha" again should fail.
-	_, err = model.cmdInsert([]string{"bgp", "filter", "import", "alpha", "last"})
+	_, err = model.cmdInsert([]string{"bgp", "filter", "import", "filters", "alpha", "last"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
 }

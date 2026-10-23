@@ -15,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -49,12 +48,10 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
 		peer.settings.NextHopMode = NextHopSelf
 		peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}}
-		caps := &NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{family.IPv4Unicast: true}}
-		peer.negotiated.Store(caps)
+		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		peer.sendCtx.Store(ctx)
 		peer.sendCtxID, peer.recvCtxID = ctxID, ctxID
 		peer.session.sendCtxID = ctxID
-		peer.session.negotiated = &capability.Negotiated{ASN4: true}
 		peer.refreshForwardFacts()
 	}
 	cache := newRecentUpdateCache(100)

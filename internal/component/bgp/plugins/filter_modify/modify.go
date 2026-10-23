@@ -17,7 +17,7 @@
 // The plugin returns "modify" for a route that meets the definition's match
 // condition, and "accept" for one that does not. See filter_modify.go,
 // handleFilterUpdate. An earlier match filter in the chain stays available:
-// "filter import prefix-list:X modify:Y".
+// "filter { import { filters [ prefix-list:X modify:Y ]; final accept; } }".
 package filter_modify
 
 import (

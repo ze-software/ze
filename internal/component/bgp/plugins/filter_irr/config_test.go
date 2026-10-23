@@ -237,7 +237,7 @@ func TestParseIRRConfigUsesIRR(t *testing.T) {
 		for i, r := range refs {
 			anyRefs[i] = r
 		}
-		return map[string]any{"filter": map[string]any{dir: anyRefs}}
+		return map[string]any{"filter": map[string]any{dir: map[string]any{"filters": anyRefs, "final": "accept"}}}
 	}
 
 	tests := []struct {
@@ -292,7 +292,7 @@ func TestParseIRRConfigUsesIRR(t *testing.T) {
 			"group chain enrolls its peers",
 			map[string]any{"group": map[string]any{
 				"customers": map[string]any{
-					"filter": map[string]any{"import": []any{"bgp-filter-irr:65001"}},
+					"filter": map[string]any{"import": map[string]any{"filters": []any{"bgp-filter-irr:65001"}, "final": "accept"}},
 					"peer":   map[string]any{"10.0.0.1": peerWith(nil)},
 				},
 			}},
@@ -301,7 +301,7 @@ func TestParseIRRConfigUsesIRR(t *testing.T) {
 		{
 			"global chain enrolls every peer",
 			map[string]any{
-				"filter": map[string]any{"import": []any{"bgp-filter-irr:65001"}},
+				"filter": map[string]any{"import": map[string]any{"filters": []any{"bgp-filter-irr:65001"}, "final": "accept"}},
 				"peer":   map[string]any{"10.0.0.1": peerWith(nil)},
 			},
 			true,
@@ -318,5 +318,23 @@ func TestParseIRRConfigUsesIRR(t *testing.T) {
 				t.Errorf("UsesIRR = %v, want %v", cfg.Peers[0].UsesIRR, tt.want)
 			}
 		})
+	}
+}
+
+// TestIRRPolicyFinalOnlyDoesNotEnroll checks that the core-owned final is not
+// mistaken for a filter, while either final leaves real IRR references visible.
+func TestIRRPolicyFinalOnlyDoesNotEnroll(t *testing.T) {
+	for _, direction := range []string{"import", "export"} {
+		for _, final := range []string{"accept", "reject"} {
+			policy := map[string]any{"final": final}
+			level := map[string]any{"filter": map[string]any{direction: policy}}
+			if chainReferencesIRR(level) {
+				t.Fatal("final-only policy enrolled IRR")
+			}
+			policy["filters"] = []string{"bgp-filter-irr:65001"}
+			if !chainReferencesIRR(level) {
+				t.Fatalf("%s final %s hid its IRR reference", direction, final)
+			}
+		}
 	}
 }

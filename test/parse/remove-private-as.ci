@@ -28,7 +28,7 @@ bgp {
 			}
 		}
 		filter {
-			export [ remove-private-as:STRIP remove-private-as:REPLACE ]
+			export { filters [ remove-private-as:STRIP remove-private-as:REPLACE ]; final accept; }
 		}
 	}
 }

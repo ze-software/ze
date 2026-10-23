@@ -66,7 +66,7 @@ func TestConfigTxAppliesReloadedFamilyFilters(t *testing.T) {
 
 	tearDownInExport := []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{
 		"policy":{"family-filter":{"Kill":{"family":"ipv4/flow","action":"tear-down"}}},
-		"filter":{"export":["bgp-filter-family:Kill"]}}}`}}
+		"filter":{"export":{"filters":["bgp-filter-family:Kill"],"final":"accept"}}}}`}}
 	if err := tx.Verify(tearDownInExport); err == nil {
 		t.Fatal("verify of a tear-down instance in an export chain: err nil, want a refusal")
 	}

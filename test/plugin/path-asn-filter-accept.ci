@@ -68,7 +68,7 @@ bgp {
 		}
 
 		filter {
-			import [ NO-TRANSIT ]
+			import { filters [ NO-TRANSIT ]; final accept; }
 		}
 
 		attach process bgp-adj-rib-in {

@@ -60,7 +60,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-family:Kill ]
+			import { filters [ bgp-filter-family:Kill ]; final accept; }
 		}
 
 		attach process test-family-teardown {

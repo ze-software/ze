@@ -786,7 +786,7 @@ func bufferShortageDefersKeys(t *testing.T, spare int) {
 	// B's export policy denies A's routes, so A's withdrawal owes keys at C
 	// alone. Otherwise B's own recovery, which this test does not hold,
 	// returns the buffers its writes staged while the pool is meant to be dry.
-	settings[1].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	settings[1].ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "test:deny"}}, filterapi.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	policyDenyASNs(a.peer.reactor, b.peer.Settings().Address, "65002")
@@ -1025,7 +1025,7 @@ func TestOwedKeyBufferStallsCountOnlyConsecutive(t *testing.T) {
 	// B's export policy denies A's routes, so each phase's withdrawal owes
 	// keys at C alone: B's own recovery would return the buffers its writes
 	// staged while the pool is meant to be dry.
-	settings[1].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	settings[1].ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "test:deny"}}, filterapi.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	policyDenyASNs(a.peer.reactor, b.peer.Settings().Address, "65002")
@@ -1148,7 +1148,7 @@ func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 	}
 	// B's export policy denies A's routes, so A's withdrawal owes keys at C
 	// alone (bufferShortageDefersKeys).
-	settings[1].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	settings[1].ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "test:deny"}}, filterapi.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	policyDenyASNs(a.peer.reactor, b.peer.Settings().Address, "65002")
@@ -1205,7 +1205,6 @@ func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 	for _, h := range held {
 		returnReadBuffer(h)
 	}
-	held = nil
 	step.proceed <- struct{}{}
 	// Its second chunk finds the pool dry again.
 	step.next(t)

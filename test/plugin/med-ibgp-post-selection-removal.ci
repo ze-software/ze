@@ -97,7 +97,7 @@ bgp {
         }
         behavior { group-updates disable; }
         filter {
-            export [ raw-med-drop:drop-med-raw ];
+            export { filters [ raw-med-drop:drop-med-raw ]; final accept; }
         }
         attach process rs {
             receive [ update-received state open-received refresh ];

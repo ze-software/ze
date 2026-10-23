@@ -66,8 +66,8 @@ bgp {
 			}
 		}
 		filter {
-			import [ bgp-filter-prefix:V4-BOGON as-path-list:BOGON-ASN community-match:NO-EXPORT modify:IXP-IN ]
-			export [ bgp-filter-prefix:V4-BOGON modify:IXP-OUT ]
+			import { filters [ bgp-filter-prefix:V4-BOGON as-path-list:BOGON-ASN community-match:NO-EXPORT modify:IXP-IN ]; final accept; }
+			export { filters [ bgp-filter-prefix:V4-BOGON modify:IXP-OUT ]; final accept; }
 		}
 		peer rs-v4-a {
 			connection { remote { ip 192.0.2.11; } local { ip 192.0.2.1; } }
@@ -85,8 +85,8 @@ bgp {
 			}
 		}
 		filter {
-			import [ bgp-filter-prefix:V6-BOGON as-path-list:BOGON-ASN modify:IXP-IN ]
-			export [ bgp-filter-prefix:V6-BOGON modify:IXP-OUT ]
+			import { filters [ bgp-filter-prefix:V6-BOGON as-path-list:BOGON-ASN modify:IXP-IN ]; final accept; }
+			export { filters [ bgp-filter-prefix:V6-BOGON modify:IXP-OUT ]; final accept; }
 		}
 		peer rs-v6-a {
 			connection { remote { ip 2001:db8::11; } local { ip 2001:db8::1; } }
@@ -101,8 +101,8 @@ bgp {
 			}
 		}
 		filter {
-			import [ as-path-list:BOGON-ASN modify:IXP-IN ]
-			export [ modify:IXP-OUT ]
+			import { filters [ as-path-list:BOGON-ASN modify:IXP-IN ]; final accept; }
+			export { filters [ modify:IXP-OUT ]; final accept; }
 		}
 		peer transit-a {
 			connection { remote { ip 198.51.100.2; } local { ip 198.51.100.1; } }

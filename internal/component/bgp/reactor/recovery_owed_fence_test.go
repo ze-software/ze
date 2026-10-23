@@ -24,6 +24,7 @@ import (
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -357,11 +358,10 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		}
 	})
 	// (q): the chosen candidate re-announces the owed key after the round's
-	// snapshot, and its forward reaches the destination's writer before the
-	// admission, while the RIB answered with the older revision. The
-	// re-announcement is a mover, so the stale answer is not written over the
-	// newer route: the key is left owed, and the next round's answer, the
-	// newer revision, is what the destination holds.
+	// snapshot. The writer withholds those bytes for election rather than
+	// allowing them to bypass the held decision. The drained round may write
+	// its older revision, but the announcement keeps the same key owed with
+	// a new epoch. The next round must publish the newer revision.
 	t.Run("chosen-candidate-reannounced", func(t *testing.T) {
 		rail := newOwedRail(t)
 		p := []byte{24, 192, 0, 2}
@@ -370,14 +370,17 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		rail.request(t)
 		newer := ownershipRailBody(family.IPv4Unicast, false, p, 2)
 		require.NoError(t, ownershipWriterForward(t, rail.destination, rail.source, newer, false))
-		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the re-announcement is written")
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1,
+			"the re-announcement cannot bypass the outstanding election")
 		mover := rail.record(t)
 		rail.release <- owedSurvivor(rail.source.Settings().Address, p) // The older revision.
 		request := rail.request(t)
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
-			"the answer that predates the re-announcement is not written over it")
-		require.Same(t, mover.record, rail.record(t).record, "the key is left owed")
-		require.Empty(t, request.Keys[0].Excluded, "a mover excludes no source")
+			"the drained round may decide before the newer revision is elected")
+		after := rail.record(t)
+		require.Same(t, mover.record, after.record, "the announcement leaves the same key owed")
+		require.NotEqual(t, mover.epoch, after.epoch, "the newer announcement requires another election")
+		require.Empty(t, request.Keys[0].Excluded, "a re-announcement excludes no source")
 		// RFC 4271 Section 5.1.4: MULTI_EXIT_DISC, optional non-transitive,
 		// marks the newer revision the next round answers with.
 		med := []byte{0x80, 0x04, 0x04, 0, 0, 0, 2}
@@ -390,8 +393,19 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decides")
 		updates := recoveryWrittenUpdates(t, rail.conn.written())
 		require.Len(t, updates, 3)
-		require.True(t, bytes.Contains(updates[2].PathAttributes, med),
-			"the decision written is the newer revision: %x", updates[2].PathAttributes)
+		require.Equal(t, p, updates[2].NLRI)
+		for _, code := range []attribute.AttributeCode{
+			attribute.AttrOrigin, attribute.AttrASPath, attribute.AttrNextHop, attribute.AttrMED,
+		} {
+			_, _, want, present := attribute.AttrFind(newerAttrs, code)
+			require.True(t, present)
+			_, _, got, found := attribute.AttrFind(updates[2].PathAttributes, code)
+			require.True(t, found, "the elected revision retains attribute %d", code)
+			require.Equal(t, want, got, "the final advertised attribute %d is from the newer revision", code)
+		}
+		for _, update := range updates {
+			require.Empty(t, update.WithdrawnRoutes, "re-election never transiently withdraws the surviving key")
+		}
 	})
 	t.Run("survivor-gone-reowes", func(t *testing.T) {
 		rail := newOwedRail(t)

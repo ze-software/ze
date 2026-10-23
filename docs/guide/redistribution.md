@@ -31,16 +31,26 @@ bgp {
         }
     }
     filter {
-        import [ no-self-as rpki:validate ];
+        import {
+            filters [ no-self-as rpki:validate ];
+            final accept;
+        }
     }
     group customers {
         filter {
-            import [ community:scrub ];
-            export [ aspath:prepend ];
+            import {
+                filters [ community:scrub ];
+                final accept;
+            }
+            export {
+                filters [ aspath:prepend ];
+                final accept;
+            }
         }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 <!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
 
@@ -70,13 +80,14 @@ Example: `rpki:validate`, `community:scrub`.
 ### How It Works
 
 1. Filter types are defined in `bgp { policy { } }` as named instances.
-2. Per-peer `filter { import/export [ names ] }` references filter instances.
+2. Each `filter` direction block lists filter instances under `filters` and states `final accept;` or `final reject;`.
 3. Default filters (e.g., loop-detection) auto-populate in every peer's import chain.
 4. On each received UPDATE, the engine runs the import filter chain.
 5. On each forwarded UPDATE, the engine runs the export chain per destination peer.
 6. Each filter responds accept, reject, or modify (delta-only).
 
-<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, extractFilterChain -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
 
 ### Deactivating Filters
 
@@ -92,7 +103,10 @@ bgp {
     }
     peer special {
         filter {
-            import [ inactive:no-self-as ];
+            import {
+                filters [ inactive:no-self-as ];
+                final accept;
+            }
         }
     }
 }
@@ -100,19 +114,19 @@ bgp {
 
 The `inactive:` prefix is an input shorthand: it is normalized at parse time into
 an out-of-band per-member deactivation marker (the stored filter name stays
-clean), so on serialize it round-trips to the canonical `inactive: import
-no-self-as` statement form. The deactivated ref stays in the chain but is
+clean), so on serialize it round-trips to the canonical `inactive: filters
+no-self-as;` statement inside the direction block. The deactivated ref stays in the chain but is
 skipped at runtime.
 
 In the CLI editor, use `deactivate` and `activate`:
 
 ```
-deactivate bgp peer special filter import no-self-as
-activate bgp peer special filter import no-self-as
+deactivate bgp peer special filter import filters no-self-as
+activate bgp peer special filter import filters no-self-as
 ```
 
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
+<!-- source: internal/component/bgp/config/redistribution.go -- memberStatesToFilterRefs retains Inactive -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
 
 ### Chain Order
@@ -126,20 +140,33 @@ Chains are cumulative across config levels:
 | group | Appended to bgp chain |
 | peer | Appended to group chain |
 
+Each configured direction requires its own `final`, even with no active filters.
+The most specific configured direction supplies the effective final decision.
+An absent direction inherits its parent's policy without creating a new policy.
+With no configured policy at any level, operator policy stays absent.
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
+
 Use the `insert` command in the CLI editor to control position:
 
 ```
-insert filter import reject-bogons before no-self-as
-insert filter import new-filter last
+insert filter import filters reject-bogons before no-self-as
+insert filter import filters new-filter last
 ```
 
 ### Filter Responses
 
 | Response | Meaning |
 |----------|---------|
-| accept | Pass update through unchanged |
-| reject | Drop update, short-circuit chain |
-| modify | Change specific attributes (delta-only) |
+| accept | Continue to the next filter with the current update |
+| reject | Drop the update immediately and stop the chain |
+| modify | Apply attribute changes and continue to the next filter |
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+
+Neither `accept` nor `modify` grants final acceptance. After the chain completes,
+`final accept;` permits the route and `final reject;` drops it. A raw payload
+rewrite stops later filters, but the final decision still applies.
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
 
 ### Conditioning a modifier without dropping the rest
 
@@ -159,12 +186,21 @@ bgp {
     }
     policy {
         modify blackhole-to-discard {
-            match { community [ blackhole ]; }
-            set   { next-hop 192.0.2.1; }
+            match {
+                community [ blackhole ];
+            }
+            set {
+                next-hop 192.0.2.1;
+            }
         }
     }
     peer customer {
-        filter { import [ blackhole-to-discard ]; }
+        filter {
+            import {
+                filters [ blackhole-to-discard ];
+                final accept;
+            }
+        }
     }
 }
 ```
@@ -197,7 +233,8 @@ Each filter declares its own failure mode at startup:
 | Mode | Behavior on IPC error/timeout |
 |------|-------------------------------|
 | `reject` | Fail-closed: drop the update |
-| `accept` | Fail-open: pass the update through |
+| `accept` | Fail-open: continue to the next filter, then apply the policy's final decision |
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- policyFilterFunc, PolicyFilterChain -->
 
 ### Writing a Filter Plugin
 

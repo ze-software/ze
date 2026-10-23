@@ -275,7 +275,7 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			destination.session.setSendCtxID(ctxID)
 			destination.session.onMessageReceived = r.notifyMessageReceiver
 			destination.settings.NextHopMode = NextHopUnchanged
-			destination.settings.ExportFilters = []filterapi.FilterRef{{Name: "policy:mixed-raw"}}
+			destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:mixed-raw"}}, filterapi.FinalAccept)
 			destination.negotiated.Load().families[family.IPv6Unicast] = true
 			destination.refreshForwardFacts()
 			mpBody, wantMPWithdrawal := llnhLinkLocalOnlyPayload(t)

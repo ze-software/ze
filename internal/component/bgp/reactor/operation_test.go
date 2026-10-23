@@ -280,7 +280,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	settings := NewPeerSettings(mustParseAddr("203.0.113.1"), 65000, 65001, 0)
 	settings.Name = "edge"
 	settings.LocalAddress = mustParseAddr("192.0.2.1")
-	settings.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}
+	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}, filterapi.FinalAccept)
 	require.NoError(t, r.AddPeer(settings))
 	require.Len(t, r.Peers(), 1)
 	running := r.Peers()[0]
@@ -289,7 +289,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	// Reading it from the running peer is what makes that true of every OTHER
 	// field, which is what the swap decision is taken over.
 	candidate := *running.settingsSnapshot()
-	candidate.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}
+	candidate.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}, filterapi.FinalAccept)
 	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
 		return []*PeerSettings{&candidate}, Globals{}, nil, nil
 	})
@@ -316,7 +316,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	}
 	assert.Equal(t, 1, j.recordCount, "a swap journals one entry; a remove plus an add journals two")
 	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}},
-		r.Peers()[0].settingsSnapshot().ImportFilters)
+		r.Peers()[0].settingsSnapshot().ImportPolicy.Filters())
 
 	require.Empty(t, j.Rollback())
 	require.Len(t, r.Peers(), 1)
@@ -324,7 +324,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 		t.Fatal("the rollback rebuilt the peer")
 	}
 	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}},
-		r.Peers()[0].settingsSnapshot().ImportFilters)
+		r.Peers()[0].settingsSnapshot().ImportPolicy.Filters())
 }
 
 // TestApplyConfigOperationModifyPeerJournal verifies MODIFY_PEER removes the
@@ -398,8 +398,8 @@ func TestApplyConfigOperationRemovePeerRollbackRestoresAnnouncedState(t *testing
 		NextHop: bgptypes.NewNextHopExplicit(mustParseAddr("10.0.0.1")),
 	}}
 	settings.PluginRoutes = []PluginRoute{{Family: "ipv4/flow"}}
-	settings.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}
-	settings.ExportFilters = []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}
+	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}, filterapi.FinalAccept)
+	settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}, filterapi.FinalAccept)
 	settings.LoopAllowOwnAS = 2
 	require.NoError(t, r.AddPeer(settings))
 	require.Len(t, r.Peers(), 1)
@@ -435,7 +435,7 @@ func TestApplyConfigOperationRemovePeerRollbackRestoresAnnouncedState(t *testing
 	assert.Equal(t, netip.MustParsePrefix("192.168.1.0/24"), restored.StaticRoutes[0].Prefix)
 	require.Len(t, restored.PluginRoutes, 1)
 	assert.Equal(t, "ipv4/flow", restored.PluginRoutes[0].Family)
-	assert.Equal(t, settings.ImportFilters, restored.ImportFilters)
-	assert.Equal(t, settings.ExportFilters, restored.ExportFilters)
+	assert.Equal(t, settings.ImportPolicy, restored.ImportPolicy)
+	assert.Equal(t, settings.ExportPolicy, restored.ExportPolicy)
 	assert.Equal(t, uint8(2), restored.LoopAllowOwnAS)
 }

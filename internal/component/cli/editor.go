@@ -589,10 +589,10 @@ func (e *Editor) PendingChangeSummary(change config.PendingChange) string {
 }
 
 // ResolveLeafListValue checks whether fullPath terminates inside a
-// leaf-list value (e.g. `bgp filter import no-self-as`). Returns the
+// leaf-list value (e.g. `bgp filter import filters no-self-as`). Returns the
 // tree-level parent path (to the container holding the leaf-list), the
 // leaf-list field name, and true if so. Handles list keys interleaved
-// in the path (e.g. `bgp peer peer1 filter import value`).
+// in the path (e.g. `bgp peer peer1 filter import filters value`).
 //
 // The Model's TUI dispatch and the one-shot CLI verbs both call this
 // to route deactivate/activate to DeactivateLeafListValue.

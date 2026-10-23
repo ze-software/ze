@@ -59,7 +59,7 @@ func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 			t.Run(native.name+"/"+scope.name, func(t *testing.T) {
 				f := newAIGPReplayFixture(t, nil)
 				for _, peer := range []*Peer{f.source, f.destination} {
-					peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{native.fam: true}})
+					negotiateForwardTestFamilies(peer, native.fam)
 				}
 				f.destination.settings.NextHopMode = NextHopUnchanged
 				f.destination.settings.PeerAS = 65002
@@ -149,17 +149,26 @@ func TestRFC2545ReceivedUnusableGlobalRefused(t *testing.T) {
 			{"global-pair", "2001:db8:1::9", true, true},
 			{"link-local-extension", "fe80::9", false, negotiated},
 		} {
-			capability := "without-capability"
+			capabilityName := "without-capability"
 			if negotiated {
-				capability = "with-capability"
+				capabilityName = "with-capability"
 			}
-			t.Run(capability+"/"+tc.name, func(t *testing.T) {
+			t.Run(capabilityName+"/"+tc.name, func(t *testing.T) {
 				f := newAIGPReplayFixture(t, nil)
 				for _, peer := range []*Peer{f.source, f.destination} {
-					peer.negotiated.Store(&NegotiatedCapabilities{
-						ASN4: true, LinkLocalNextHop: negotiated,
-						families: map[family.Family]bool{family.IPv6Unicast: true},
+					caps := []capability.Capability{
+						&capability.ASN4{ASN: peer.settings.LocalAS},
+						&capability.Multiprotocol{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+					}
+					if negotiated {
+						caps = append(caps, &capability.LinkLocalNextHop{})
+					}
+					neg := capability.Negotiate(caps, caps, capability.PeerIdentity{
+						LocalASN: peer.settings.LocalAS, PeerASN: peer.settings.PeerAS,
+						Internal: peer.settings.IsIBGP(),
 					})
+					peer.session.negotiated = neg
+					peer.negotiated.Store(NewNegotiatedCapabilities(neg))
 				}
 				f.destination.settings.NextHopMode = NextHopUnchanged
 				f.destination.settings.PeerAS = 65002
@@ -803,7 +812,7 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 								}
 								return PolicyResponse{Action: PolicyAccept}
 							}
-							f.destination.settings.ExportFilters = []filterapi.FilterRef{{Name: "ipv6:raw-next-hop"}}
+							f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "ipv6:raw-next-hop"}}, filterapi.FinalAccept)
 							// Publish the policy without replacing this fixture's
 							// explicit connected-prefix scope with host interfaces.
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())

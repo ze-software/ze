@@ -149,7 +149,7 @@ func TestWholeSetAfterMemberOpsMatchesView(t *testing.T) {
 }
 
 // newImportSessionEditor answers a session editor over insertConflictConfig,
-// whose committed `bgp filter import` holds alpha and bravo.
+// whose committed `bgp filter import filters` holds alpha and bravo.
 func newImportSessionEditor(t *testing.T) (*Editor, string) {
 	t.Helper()
 	configPath := writeTestConfig(t, insertConflictConfig)
@@ -167,10 +167,10 @@ func newImportSessionEditor(t *testing.T) (*Editor, string) {
 // the tree after the session's entries.
 // PREVENTS: a false "insert reference removed" stale conflict.
 func TestInsertAfterSessionAddedReference(t *testing.T) {
-	filter := []string{"bgp", "filter"}
+	filter := []string{"bgp", "filter", "import"}
 	edit := func(t *testing.T, ed *Editor) {
-		require.NoError(t, ed.SetValue(filter, "import", "charlie"))
-		require.NoError(t, ed.InsertLeafListValue(filter, "import", "delta", config.InsertAfter, "charlie"))
+		require.NoError(t, ed.SetValue(filter, "filters", "charlie"))
+		require.NoError(t, ed.InsertLeafListValue(filter, "filters", "delta", config.InsertAfter, "charlie"))
 	}
 
 	t.Run("CommitSession", func(t *testing.T) {
@@ -179,7 +179,7 @@ func TestInsertAfterSessionAddedReference(t *testing.T) {
 		res, err := ed.CommitSession()
 		require.NoError(t, err)
 		require.Empty(t, res.Conflicts)
-		got := committedLoadTree(t, ed, configPath).GetContainer("bgp").GetContainer("filter").GetMultiValues("import")
+		got := committedLoadTree(t, ed, configPath).GetContainer("bgp").GetContainer("filter").GetContainer("import").GetMultiValues("filters")
 		assert.Equal(t, []string{"alpha", "bravo", "charlie", "delta"}, got)
 	})
 	t.Run("CommitSessionCandidate", func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestInsertAfterSessionAddedReference(t *testing.T) {
 		require.Empty(t, res.Conflicts)
 		tree, _, err := config.NewSetParser(ed.schema).ParseWithMeta(content)
 		require.NoError(t, err)
-		got := tree.GetContainer("bgp").GetContainer("filter").GetMultiValues("import")
+		got := tree.GetContainer("bgp").GetContainer("filter").GetContainer("import").GetMultiValues("filters")
 		assert.Equal(t, []string{"alpha", "bravo", "charlie", "delta"}, got)
 	})
 }

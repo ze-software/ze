@@ -170,7 +170,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			export [ remove-private-as:STRIP ]
+			export { filters [ remove-private-as:STRIP ]; final accept; }
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

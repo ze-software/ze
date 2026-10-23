@@ -37,7 +37,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ as-path-list:ALLOW-PEER ]
+			import { filters [ as-path-list:ALLOW-PEER ]; final accept; }
 		}
 	}
 }

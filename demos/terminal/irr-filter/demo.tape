@@ -42,7 +42,9 @@ Type "ze config set - bgp policy irr refresh-interval 3600 |"
 Enter
 Type "ze config set - bgp peer customer-a session irr as-set AS-TEST |"
 Enter
-Type "ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |"
+Type "ze config set - bgp peer customer-a filter import filters bgp-filter-irr:65001 |"
+Enter
+Type "ze config set - bgp peer customer-a filter import final accept |"
 Enter
 Type "ze config import --yes --name ze.conf -"
 Enter

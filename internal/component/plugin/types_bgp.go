@@ -22,6 +22,13 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// PolicyInfo is the operational policy after inheritance and canonicalization.
+// An empty Final means automatic filters only, with no configured operator final.
+type PolicyInfo struct {
+	Filters []string `json:"filters"`
+	Final   string   `json:"final,omitempty"`
+}
+
 // PeerState represents the high-level state of a BGP peer.
 type PeerState uint8
 
@@ -180,9 +187,9 @@ type PeerInfo struct {
 	// bus (internal/core/report), not on this struct.
 	PrefixUpdated string
 
-	// Policy filter chains (after group inheritance + canonicalization).
-	ImportFilters []string
-	ExportFilters []string
+	// Effective policies; nil means no configured policy and no automatic filters.
+	ImportPolicy *PolicyInfo
+	ExportPolicy *PolicyInfo
 
 	// Statistics (engine-level counters; NLRI-level counters live in the RIB plugin)
 	UpdatesReceived    uint32

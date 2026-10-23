@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
@@ -171,7 +172,7 @@ func bindingSend(m map[string]any) ([]string, bool) {
 	if !stated {
 		return nil, false
 	}
-	return toStringList(raw), true
+	return configvalue.LeafList(raw), true
 }
 
 func grantsRefreshWord(send []string) bool {
@@ -251,36 +252,17 @@ func chainReferencesIRR(m map[string]any) bool {
 		return false
 	}
 	for _, key := range [...]string{"import", "export"} {
-		for _, ref := range toStringList(filterBlock[key]) {
+		policy, ok := filterBlock[key].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, ref := range configvalue.LeafList(policy["filters"]) {
 			if plugin, _, found := strings.Cut(ref, ":"); found && plugin == pluginName {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-// toStringList normalises a leaf-list value to []string. The config loader may
-// pass []any (JSON round-trip), []string (multi-value), or a bare string.
-func toStringList(v any) []string {
-	switch s := v.(type) {
-	case []any:
-		out := make([]string, 0, len(s))
-		for _, item := range s {
-			if str, ok := item.(string); ok {
-				out = append(out, str)
-			}
-		}
-		return out
-	case []string:
-		return s
-	case string:
-		if s == "" {
-			return nil
-		}
-		return []string{s}
-	}
-	return nil
 }
 
 func parsePeerIRR(peerAddr string, peerMap map[string]any) peerIRRConfig {

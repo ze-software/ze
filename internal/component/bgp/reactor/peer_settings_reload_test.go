@@ -33,7 +33,7 @@ func TestPeerSettingsEqualIdenticalIsEqual(t *testing.T) {
 //
 // VALIDATES: AC-1/AC-2 -- an import-policy edit must be seen by reload.
 // PREVENTS: the reload defect. peerSettingsEqual (reactor_api.go:780) omits
-// ImportFilters, so reconcilePeersJournaled (reactor_api.go:498-513) puts the peer
+// ImportPolicy, so reconcilePeersJournaled (reactor_api.go:498-513) puts the peer
 // in neither toRemove nor toAdd; the newly parsed *PeerSettings carrying the new
 // chain is dropped, and runIngressPolicyChain (filter_ordered.go:138) keeps reading
 // the stale chain off the never-reassigned peer.settings pointer (peer.go:318)
@@ -42,7 +42,7 @@ func TestPeerSettingsEqualIdenticalIsEqual(t *testing.T) {
 func TestPeerSettingsEqualDetectsImportFilterChange(t *testing.T) {
 	a := basePeerSettingsForReload()
 	b := basePeerSettingsForReload()
-	b.ImportFilters = []filterapi.FilterRef{{Name: "block-bogons"}}
+	b.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "block-bogons"}}, filterapi.FinalAccept)
 
 	assert.False(t, peerSettingsEqual(a, b), "an import filter chain change must mark the peer changed")
 }
@@ -63,14 +63,18 @@ func TestPeerSettingsEqualDetectsEachSignificantField(t *testing.T) {
 		why    string
 	}{
 		{
-			name:   "ImportFilters",
-			mutate: func(s *PeerSettings) { s.ImportFilters = []filterapi.FilterRef{{Name: "deny-all"}} },
-			why:    "governs inbound policy at filter_ordered.go:138",
+			name: "ImportPolicy",
+			mutate: func(s *PeerSettings) {
+				s.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "deny-all"}}, filterapi.FinalAccept)
+			},
+			why: "governs inbound policy at filter_ordered.go:138",
 		},
 		{
-			name:   "ExportFilters",
-			mutate: func(s *PeerSettings) { s.ExportFilters = []filterapi.FilterRef{{Name: "deny-all"}} },
-			why:    "governs outbound policy",
+			name: "ExportPolicy",
+			mutate: func(s *PeerSettings) {
+				s.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "deny-all"}}, filterapi.FinalAccept)
+			},
+			why: "governs outbound policy",
 		},
 		{
 			name:   "RouteReflectorClient",

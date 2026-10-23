@@ -58,7 +58,7 @@ bgp {
 		}
 
 		filter {
-			import [ as-path-length:REJECT-LONG ]
+			import { filters [ as-path-length:REJECT-LONG ]; final accept; }
 		}
 
 		attach process test-aspath-len {

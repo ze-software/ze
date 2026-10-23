@@ -1124,7 +1124,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 
 	res := PolicyFilterChain(
-		[]filterapi.FilterRef{{Name: filterName}},
+		filterapi.InternalPolicy([]filterapi.FilterRef{{Name: filterName}}),
 		"export",
 		p.settings.Address.String(),
 		// Guarded PeerAS: sendInitialRoutes runs on its own goroutine and can outlive a

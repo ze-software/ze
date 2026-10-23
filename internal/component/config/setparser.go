@@ -217,7 +217,7 @@ func (p *SetParser) parseSet(tree *Tree, tokens []string, lineNum int) error {
 	}
 
 	// Walk the schema to find where to set the value
-	return p.walkAndSet(tree, p.schema.root, tokens, lineNum)
+	return p.setSyntaxRefusal(tokens, p.walkAndSet(tree, p.schema.root, tokens, lineNum))
 }
 
 // walkAndSet walks the path and sets the value at the leaf.

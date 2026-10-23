@@ -519,7 +519,14 @@ func policyChainNames(ctx context.Context, _ []string) error {
 			return fmt.Errorf("no chains in output: %v", data)
 		}
 		chain, _ := chains[0].(map[string]any)
-		exports, _ := chain["export"].([]any)
+		exportPolicy, ok := chain["export"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("no export policy object: %v", chain)
+		}
+		if exportPolicy["final"] != actionAccept {
+			return fmt.Errorf("export final=%v, want accept", exportPolicy["final"])
+		}
+		exports, _ := exportPolicy["filters"].([]any)
 		if len(exports) == 0 {
 			return fmt.Errorf("no export refs: %v", chain)
 		}

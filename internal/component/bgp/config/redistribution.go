@@ -4,6 +4,7 @@
 package bgpconfig
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -12,19 +13,93 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// extractFilterChain extracts import and export filter chains from a config
-// tree. Each ref carries the clean filter name plus its per-member deactivation
-// state (read out-of-band via GetMultiValuesState); no "inactive:" prefix is
-// ever glued into a name. Validation against the filter registry is the
-// caller's responsibility.
-func extractFilterChain(tree *config.Tree) (importFilters, exportFilters []filterapi.FilterRef) {
+// extractFilterPolicy retains member deactivation separately from the clean name.
+func extractFilterPolicy(tree *config.Tree, direction, path string) (filterapi.Policy, error) {
+	final, err := parsePolicyDisposition(tree, direction, path)
+	if err != nil {
+		return filterapi.Policy{}, err
+	}
+	if final == 0 {
+		return filterapi.Policy{}, nil
+	}
+	policy := tree.GetContainer("filter").GetContainer(direction)
+	return filterapi.NewPolicy(memberStatesToFilterRefs(policy.GetMultiValuesState("filters")), final)
+}
+
+// parsePolicyDisposition validates an original layer before inheritance can hide
+// an omitted final. Validation alone never allocates or copies filter references.
+func parsePolicyDisposition(tree *config.Tree, direction, path string) (filterapi.FinalDisposition, error) {
 	fc := tree.GetContainer("filter")
 	if fc == nil {
-		return nil, nil
+		return 0, nil
 	}
+	policy := fc.GetContainer(direction)
+	if policy == nil {
+		if len(fc.GetMultiValuesState(direction)) != 0 {
+			return 0, fmt.Errorf("%s/filter/%s: list-only policy is no longer supported; write %s { filters [ NAME ]; final accept; }", path, direction, direction)
+		}
+		if _, exists := fc.Get(direction); exists {
+			return 0, fmt.Errorf("%s/filter/%s: list-only policy is no longer supported; write %s { filters [ NAME ]; final accept; }", path, direction, direction)
+		}
+		return 0, nil
+	}
+	final, _ := policy.Get("final")
+	switch final {
+	case "accept":
+		return filterapi.FinalAccept, nil
+	case "reject":
+		return filterapi.FinalReject, nil
+	default:
+		return 0, fmt.Errorf("%s/filter/%s/final: missing or invalid final %q; every configured policy requires a final decision; write %s { filters [ NAME ]; final accept; } or final reject", path, direction, final, direction)
+	}
+}
 
-	return memberStatesToFilterRefs(fc.GetMultiValuesState("import")),
-		memberStatesToFilterRefs(fc.GetMultiValuesState("export"))
+// extractFilterPolicies reads both directions from one original configuration layer.
+func extractFilterPolicies(tree *config.Tree, path string) (filterapi.Policy, filterapi.Policy, error) {
+	importPolicy, err := extractFilterPolicy(tree, "import", path)
+	if err != nil {
+		return filterapi.Policy{}, filterapi.Policy{}, err
+	}
+	exportPolicy, err := extractFilterPolicy(tree, "export", path)
+	return importPolicy, exportPolicy, err
+}
+
+// validateFilterPolicies visits the bounded BGP/group/peer hierarchy before
+// resolving defaults, including layers that have no peer or dynamic template.
+func validateFilterPolicies(tree *config.Tree) error {
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return nil
+	}
+	if err := validatePolicyLayer(bgp, "bgp"); err != nil {
+		return err
+	}
+	for _, group := range bgp.GetListOrdered("group") {
+		path := "bgp/group/" + group.Key
+		if err := validatePolicyLayer(group.Value, path); err != nil {
+			return err
+		}
+		for _, peer := range group.Value.GetListOrdered("peer") {
+			if err := validatePolicyLayer(peer.Value, path+"/peer/"+peer.Key); err != nil {
+				return err
+			}
+		}
+	}
+	for _, peer := range bgp.GetListOrdered("peer") {
+		if err := validatePolicyLayer(peer.Value, "bgp/peer/"+peer.Key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePolicyLayer(tree *config.Tree, path string) error {
+	for _, direction := range []string{"import", "export"} {
+		if _, err := parsePolicyDisposition(tree, direction, path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // memberStatesToFilterRefs maps the config Tree's structural member view onto
@@ -98,21 +173,23 @@ func canonicalizeOne(name string, reg *FilterRegistry, typesMap map[string]strin
 	return name
 }
 
-// concatFilters concatenates multiple filter chains into a single ordered chain.
-// Nil slices are skipped. Returns nil if all inputs are empty.
-func concatFilters(chains ...[]filterapi.FilterRef) []filterapi.FilterRef {
+// concatPolicies accumulates references while the most-specific configured
+// policy supplies the final. An absent child never erases its inherited final.
+func concatPolicies(policies ...filterapi.Policy) filterapi.Policy {
 	n := 0
-	for _, c := range chains {
-		n += len(c)
+	var effective filterapi.Policy
+	for _, policy := range policies {
+		n += len(policy.Filters())
+		if policy.Configured() {
+			effective = policy
+		}
 	}
 	if n == 0 {
-		return nil
+		return effective.WithFilters(nil)
 	}
-
-	result := make([]filterapi.FilterRef, 0, n)
-	for _, c := range chains {
-		result = append(result, c...)
+	refs := make([]filterapi.FilterRef, 0, n)
+	for _, policy := range policies {
+		refs = append(refs, policy.Filters()...)
 	}
-
-	return result
+	return effective.WithFilters(refs)
 }

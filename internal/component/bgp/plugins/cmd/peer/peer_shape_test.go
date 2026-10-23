@@ -490,3 +490,19 @@ func sortedKeys(row map[string]any) []string {
 	slices.Sort(names)
 	return names
 }
+
+// TestPeerDetailShowsEmptyPolicyFinal exercises the detail handler with a
+// configured empty policy and an automatic-only policy, then reads its JSON.
+func TestPeerDetailShowsEmptyPolicyFinal(t *testing.T) {
+	peer := fullyPopulatedPeer()
+	peer.ImportPolicy = &plugin.PolicyInfo{Final: "reject"}
+	peer.ExportPolicy = &plugin.PolicyInfo{Filters: []string{"rfc:no-self-as"}}
+	ctx := newTestContext(&mockReactor{peers: []plugin.PeerInfo{peer}})
+	ctx.Peer = peer.Address.String()
+	resp, err := handleBgpPeerDetail(ctx, commandtest.Args())
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	row := keyedRowOf("peers")(t, resp)
+	require.Equal(t, map[string]any{"filters": nil, "final": "reject"}, row["import-policy"])
+	require.Equal(t, map[string]any{"filters": []any{"rfc:no-self-as"}}, row["export-policy"])
+}

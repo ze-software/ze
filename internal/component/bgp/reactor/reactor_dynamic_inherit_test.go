@@ -208,8 +208,12 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 	case reflect.TypeFor[[]capability.Code]():
 		field.Set(reflect.ValueOf([]capability.Code{capability.CodeRouteRefresh}))
 		return nil
-	case reflect.TypeFor[[]filterapi.FilterRef]():
-		field.Set(reflect.ValueOf([]filterapi.FilterRef{{Name: "bgp-filter-prefix:MEMBERS"}}))
+	case reflect.TypeFor[filterapi.Policy]():
+		policy, err := filterapi.NewPolicy([]filterapi.FilterRef{{Name: "bgp-filter-prefix:MEMBERS"}}, filterapi.FinalAccept)
+		if err != nil {
+			return err
+		}
+		field.Set(reflect.ValueOf(policy))
 		return nil
 	}
 

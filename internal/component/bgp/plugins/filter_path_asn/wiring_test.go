@@ -62,7 +62,7 @@ bgp {
             }
         }
         filter {
-            ` + chain + ` [ NO-TRANSIT ]
+            ` + chain + ` { filters [ NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -85,9 +85,9 @@ func deliverConfig(t *testing.T, chain string) string {
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 
-	got := peers[0].ImportFilters
+	got := peers[0].ImportPolicy.Filters()
 	if chain == "export" {
-		got = peers[0].ExportFilters
+		got = peers[0].ExportPolicy.Filters()
 	}
 	require.Equal(t, []filterapi.FilterRef{{Name: canonicalRef}}, got,
 		"the bare list name must canonicalize to this plugin: that resolution is the whole reachability chain")

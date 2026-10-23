@@ -26,7 +26,7 @@ bgp {
     	}
     }
     filter {
-        import [ filter-modify-test:set-localpref ];
+        import { filters [ filter-modify-test:set-localpref ]; final accept; }
     }
     peer peer1 {
         connection {

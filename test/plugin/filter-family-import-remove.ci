@@ -60,7 +60,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-family:NoFlow ]
+			import { filters [ bgp-filter-family:NoFlow ]; final accept; }
 		}
 
 		attach process test-family-remove {

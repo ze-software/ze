@@ -36,7 +36,7 @@ bgp {
 	}
 
 	filter {
-		import [ MEMBERS ];
+		import { filters [ MEMBERS ]; final accept; }
 	}
 
 	session {
@@ -74,7 +74,7 @@ bgp {
 			connect-retry 7;
 		}
 		filter {
-			import [ MEMBERS ];
+			import { filters [ MEMBERS ]; final accept; }
 		}
 		attach process rib {
 			receive [ update ];
@@ -112,7 +112,7 @@ bgp {
 			connect-retry 7;
 		}
 		filter {
-			import [ MEMBERS ];
+			import { filters [ MEMBERS ]; final accept; }
 		}
 		attach process rib {
 			receive [ update ];
@@ -140,7 +140,7 @@ bgp {
 // PREVENTS: the defect CLASS. The dynamic group had its own parser and its own
 // walk of the config tree, so a leaf read for a static peer and not for a group
 // was dropped in silence. The four bugs of 2026-08-13 were each one such leaf,
-// and the severe one is in this config: no `ImportFilters` assignment was
+// and the severe one is in this config: no import-policy assignment was
 // reachable from the dynamic path at all, so an IXP route server applied NO
 // import or export policy to any member -- no prefix filtering, no AS-path
 // filtering, no community handling, no IRR validation.
@@ -193,7 +193,7 @@ func TestDynamicGroupTemplateMatchesAStaticPeer(t *testing.T) {
 // dynamic group's members, canonicalized and with the loop-detection default
 // prepended, exactly as they reach a static peer.
 // PREVENTS: an IXP route server accepting every member and filtering none of
-// them. The config above states `filter import [ MEMBERS ]` at two levels, and
+// them. The config above states `filter import { filters [ MEMBERS ]; final accept; }` at two levels, and
 // until 2026-08-13 a dynamic member's chain was empty.
 func TestDynamicGroupInheritsTheFilterChain(t *testing.T) {
 	schema, err := config.YANGSchema()
@@ -206,8 +206,8 @@ func TestDynamicGroupInheritsTheFilterChain(t *testing.T) {
 	require.Len(t, groups, 1)
 	dyn := groups[0].Settings
 
-	names := make([]string, 0, len(dyn.ImportFilters))
-	for _, ref := range dyn.ImportFilters {
+	names := make([]string, 0, len(dyn.ImportPolicy.Filters()))
+	for _, ref := range dyn.ImportPolicy.Filters() {
 		names = append(names, ref.Name)
 	}
 

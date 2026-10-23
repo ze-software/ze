@@ -477,7 +477,7 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
-	settings[2].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	settings[2].ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "test:deny"}}, filterapi.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	denied := []string{"65003"}
@@ -568,7 +568,7 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
-	settings[2].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+	settings[2].ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "test:deny"}}, filterapi.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	a, b, c, e := peers[0], peers[1], peers[2], peers[3]
 	policyDenyASNs(a.peer.reactor, c.peer.Settings().Address, "[65003 65003]")
@@ -658,7 +658,7 @@ func synthesizedWithdrawalRecovers(t *testing.T, fastPath, nextHop bool) {
 		setting.RSFastPath = fastPath
 	}
 	if !nextHop {
-		settings[2].ExportFilters = []filterapi.FilterRef{{Name: "test:deny"}}
+		settings[2].ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "test:deny"}}, filterapi.FinalAccept)
 	}
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]

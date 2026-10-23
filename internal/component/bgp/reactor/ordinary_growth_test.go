@@ -48,7 +48,8 @@ func TestOrdinaryIPv6GrowthBoundary(t *testing.T) {
 			t.Cleanup(session.timers.StopAll)
 			peer.settings.GroupUpdates = true
 			if tc.ceiling == 65535 {
-				caps := []capability.Capability{&capability.ExtendedMessage{}}
+				// Keep route-family admission when enabling the larger message size.
+				caps := append(peerOffering(family.IPv4Unicast, family.IPv6Unicast), &capability.ExtendedMessage{})
 				session.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 				session.writeBuf.Resize(session.negotiated.ExtendedMessageSend)
 			}

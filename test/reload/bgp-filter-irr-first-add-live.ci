@@ -3,7 +3,7 @@
 #                 runs anyway: its ConfigRoots is bgp, so the engine starts it
 #                 at boot for any config with a bgp block (getConfigPathPlugins).
 # After SIGHUP:   peer1 gains `irr { as-set AS-TEST }` and
-#                 `import [ bgp-filter-irr:65001 ]`, and a sentinel route.
+#                 an IRR import policy with final accept, and a sentinel route.
 # Expected: 10.0.0.0/24, sent by the peer AFTER the reload, is judged by the IRR
 #           filter against AS-TEST and accepted.
 #
@@ -124,7 +124,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-irr:65001 ]
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 
 		update {

@@ -74,7 +74,7 @@ bgp {
 		}
 
 		filter {
-			import [ origin-policy:reject-incomplete ]
+			import { filters [ origin-policy:reject-incomplete ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

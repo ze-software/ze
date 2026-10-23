@@ -1,5 +1,5 @@
 # Test: prefix-list filter chain ref using plain (unprefixed) filter name
-# VALIDATES: ISSUE 6 fix -- user can write `filter import [ CUSTOMERS ]`
+# VALIDATES: ISSUE 6 fix -- user can write plain names in import filters.
 #   with no `<type>:` or `<plugin>:` prefix; the framework resolves plain
 #   names via the FilterRegistry + FilterTypes map at parse time.
 # PREVENTS: Regression where plain names are silently rejected or dispatched
@@ -59,7 +59,7 @@ bgp {
 		# and rewrites the ref to "bgp-filter-prefix:GLOBALLY_UNIQUE_NAME"
 		# before runtime dispatch.
 		filter {
-			import [ GLOBALLY_UNIQUE_NAME ]
+			import { filters [ GLOBALLY_UNIQUE_NAME ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

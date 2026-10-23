@@ -18,11 +18,12 @@ import (
 
 // swapTestPeerSettings is the baseline a reload starts from. Every swap test
 // changes exactly one field on a second copy and asserts what reload does with it.
-func swapTestPeerSettings() *PeerSettings {
+func swapTestPeerSettings(t testing.TB) *PeerSettings {
+	t.Helper()
 	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0x01020304)
 	ps.Connection = ConnectionPassive
-	ps.ImportFilters = []filterapi.FilterRef{{Name: "policy:old-import"}}
-	ps.ExportFilters = []filterapi.FilterRef{{Name: "policy:old-export"}}
+	ps.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:old-import"}}, filterapi.FinalAccept)
+	ps.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:old-export"}}, filterapi.FinalAccept)
 	return ps
 }
 
@@ -64,9 +65,9 @@ func newSwapTestReactor(t *testing.T, initial, next *PeerSettings) (*Reactor, *P
 // r.peerGeneration. "A peer exists at this key afterwards" would pass against the
 // bouncing code; "it is the same object and the generation did not move" cannot.
 func TestReloadImportPolicyKeepsTheSamePeer(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
-	next.ImportFilters = []filterapi.FilterRef{{Name: "policy:new-import"}}
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
+	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -85,7 +86,7 @@ func TestReloadImportPolicyKeepsTheSamePeer(t *testing.T) {
 		"peerGeneration must not advance: a restart re-adds the peer and bumps it")
 	assert.Equal(t, PeerStateEstablished, after.State(),
 		"the established session must survive an import-policy edit")
-	assert.Equal(t, next.ImportFilters, after.ImportFilters(),
+	assert.Equal(t, next.ImportPolicy, after.ImportPolicy(),
 		"the new import chain must be published to the running peer")
 }
 
@@ -96,13 +97,13 @@ func TestReloadImportPolicyKeepsTheSamePeer(t *testing.T) {
 // VALIDATES: the swap actually applies, not merely that it skipped the restart.
 // PREVENTS: the original defect in a new costume. peerForwardFacts is built once
 // per session by refreshForwardFacts (peer_forward_facts.go) and every egress
-// consumer reads facts.exportFilters (egress_inject_filter.go, forward_rs.go,
+// consumer reads facts.exportPolicy (egress_inject_filter.go, forward_rs.go,
 // reactor_api_forward.go). A swap that updated PeerSettings and left the snapshot
 // alone would stop the bounce AND silently keep enforcing the old export chain.
 func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
-	next.ExportFilters = []filterapi.FilterRef{{Name: "policy:new-export"}}
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
+	next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-export"}}, filterapi.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -115,8 +116,72 @@ func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
 
 	facts := peer.forwardFacts()
 	require.NotNil(t, facts, "the swap must not drop the forwarding facts snapshot")
-	assert.Equal(t, next.ExportFilters, facts.exportFilters,
+	assert.Equal(t, next.ExportPolicy, facts.exportPolicy,
 		"the egress datapath must see the new export chain after the swap")
+}
+
+// TestPolicyFinalSwapRollbackPreservesSession checks final-only edits and policy
+// removal through the journaled reload, including both published snapshots.
+func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
+	accept := mustPolicy(t, nil, filterapi.FinalAccept)
+	reject := mustPolicy(t, nil, filterapi.FinalReject)
+	for _, tc := range []struct {
+		name string
+		from filterapi.Policy
+		to   filterapi.Policy
+	}{
+		{name: "accept to reject", from: accept, to: reject},
+		{name: "reject to accept", from: reject, to: accept},
+		{name: "remove reject", from: reject},
+		{name: "remove accept", from: accept},
+		{name: "configure reject", to: reject},
+		{name: "configure accept", to: accept},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			initial := swapTestPeerSettings(t)
+			initial.ImportPolicy = tc.from
+			initial.ExportPolicy = tc.from
+			next := *initial
+			next.ImportPolicy = tc.to
+			next.ExportPolicy = tc.to
+			r, peer := newSwapTestReactor(t, initial, &next)
+			session := NewSession(initial)
+			peer.mu.Lock()
+			peer.session = session
+			peer.mu.Unlock()
+			peer.state.Store(int32(PeerStateEstablished))
+			peer.refreshForwardFacts()
+			before := peer.forwardFacts()
+			require.NotNil(t, before)
+			generation := r.peerGeneration.Load()
+
+			j := &internalJournal{}
+			adapter := &reactorAPIAdapter{r: r}
+			require.NoError(t, adapter.reconcilePeersJournaled(
+				[]*PeerSettings{&next}, Globals{}, dynamicGroupsNotRead, "test", j))
+			require.Equal(t, tc.to, peer.ImportPolicy())
+			require.Equal(t, tc.to, peer.ExportPolicy())
+			require.NotNil(t, peer.forwardFacts())
+			assert.Equal(t, tc.to, peer.forwardFacts().exportPolicy)
+			assert.Equal(t, tc.from, before.exportPolicy, "the old snapshot must remain immutable")
+			require.Len(t, r.Peers(), 1)
+			assert.True(t, r.Peers()[0] == peer, "a final-only edit must not replace the peer")
+			assert.True(t, peer.currentSession() == session, "a final-only edit must not replace the session")
+			assert.Equal(t, PeerStateEstablished, peer.State())
+			assert.Equal(t, generation, r.peerGeneration.Load())
+
+			require.Empty(t, j.Rollback())
+			assert.Equal(t, tc.from, peer.ImportPolicy())
+			assert.Equal(t, tc.from, peer.ExportPolicy())
+			require.NotNil(t, peer.forwardFacts())
+			assert.Equal(t, tc.from, peer.forwardFacts().exportPolicy)
+			require.Len(t, r.Peers(), 1)
+			assert.True(t, r.Peers()[0] == peer, "rollback must keep the same peer")
+			assert.True(t, peer.currentSession() == session, "rollback must keep the same session")
+			assert.Equal(t, PeerStateEstablished, peer.State())
+			assert.Equal(t, generation, r.peerGeneration.Load())
+		})
+	}
 }
 
 // TestReloadSwapDoesNotResurrectForwardFacts verifies that swapping settings on a
@@ -127,9 +192,9 @@ func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
 // (forward_rs.go skips a peer whose forwardFacts() is nil). Storing facts from the
 // reload goroutine would make a down peer look established to the RS fast path.
 func TestReloadSwapDoesNotResurrectForwardFacts(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
-	next.ExportFilters = []filterapi.FilterRef{{Name: "policy:new-export"}}
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
+	next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-export"}}, filterapi.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	require.Nil(t, peer.forwardFacts(), "a peer that never established has no facts")
@@ -139,7 +204,7 @@ func TestReloadSwapDoesNotResurrectForwardFacts(t *testing.T) {
 
 	assert.Nil(t, peer.forwardFacts(),
 		"a settings swap must not publish facts for a peer with no session")
-	assert.Equal(t, next.ExportFilters, peer.ExportFilters(),
+	assert.Equal(t, next.ExportPolicy, peer.ExportPolicy(),
 		"the new export chain is still published to the peer settings")
 }
 
@@ -150,8 +215,8 @@ func TestReloadSwapDoesNotResurrectForwardFacts(t *testing.T) {
 // PREVENTS: a hot swap that leaves a session running on stale session-scoped
 // settings — the failure this whole spec exists to fix, in the opposite direction.
 func TestReloadSessionFieldRestartsPeer(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
 	next.ReceiveHoldTime = 30 * time.Second
 
 	r, peer := newSwapTestReactor(t, initial, next)
@@ -194,8 +259,8 @@ func TestPeerSettingsRestartReasonNamesTheChangedFields(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			current := swapTestPeerSettings()
-			next := swapTestPeerSettings()
+			current := swapTestPeerSettings(t)
+			next := swapTestPeerSettings(t)
 			tc.mutate(next)
 
 			// nil session: these fields are not capability fields, so the
@@ -214,10 +279,10 @@ func TestPeerSettingsRestartReasonNamesTheChangedFields(t *testing.T) {
 // field by calling hotSwappableSettings, the same function the apply path uses, so
 // a field can never be classified swappable without also being applied.
 func TestPeerSettingsRestartReasonEmptyForHotSwappableFields(t *testing.T) {
-	current := swapTestPeerSettings()
-	next := swapTestPeerSettings()
-	next.ImportFilters = []filterapi.FilterRef{{Name: "policy:new-import"}}
-	next.ExportFilters = []filterapi.FilterRef{{Name: "policy:new-export"}}
+	current := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
+	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
+	next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-export"}}, filterapi.FinalAccept)
 	next.StaticRoutes = []StaticRoute{{Origin: 1}}
 
 	require.False(t, peerSettingsEqual(current, next), "the fixture must be a real change")
@@ -235,9 +300,9 @@ func TestPeerSettingsRestartReasonEmptyForHotSwappableFields(t *testing.T) {
 // down and re-established it, and every peer of a busy speaker re-learned its whole
 // table to receive one route.
 func TestPeerSettingsStaticRouteChangeAloneSwaps(t *testing.T) {
-	current := swapTestPeerSettings()
+	current := swapTestPeerSettings(t)
 	current.StaticRoutes = []StaticRoute{{Prefix: netip.MustParsePrefix("10.0.0.0/24")}}
-	next := swapTestPeerSettings()
+	next := swapTestPeerSettings(t)
 	next.StaticRoutes = []StaticRoute{{Prefix: netip.MustParsePrefix("10.0.1.0/24")}}
 
 	require.False(t, peerSettingsEqual(current, next), "the fixture must be a real change")
@@ -254,8 +319,8 @@ func TestPeerSettingsStaticRouteChangeAloneSwaps(t *testing.T) {
 // PREVENTS: an operator reading "changed=StaticRoutes" on a session that bounced
 // for its hold time, and fixing the wrong line of the configuration.
 func TestPeerSettingsStaticRouteBesideRestartFieldNamesTheOtherField(t *testing.T) {
-	current := swapTestPeerSettings()
-	next := swapTestPeerSettings()
+	current := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
 	next.StaticRoutes = []StaticRoute{{Prefix: netip.MustParsePrefix("10.0.1.0/24")}}
 	next.ReceiveHoldTime = 30 * time.Second
 
@@ -288,8 +353,8 @@ func TestPeerSettingsRestartRequiredIsFailClosed(t *testing.T) {
 
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
-			current := swapTestPeerSettings()
-			next := swapTestPeerSettings()
+			current := swapTestPeerSettings(t)
+			next := swapTestPeerSettings(t)
 			mutate(next)
 
 			assert.True(t, peerSettingsRestartRequired(current, next, nil),
@@ -476,12 +541,12 @@ func TestReloadStalePrefixDatesRaiseStaleAlarm(t *testing.T) {
 // remove plus a re-add, so it counts 1 rather than 2.
 //
 // DISCRIMINATION: the assertion is an exact 1, so it separates both failures. The
-// original omission (ImportFilters neutralized inside peerSettingsEqual,
+// original omission (ImportPolicy neutralized inside peerSettingsEqual,
 // reactor_api.go) reads 0, and a change delivered by a bounce reads 2.
 func TestPeerDiffCountCountsSwapAsOneChange(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
-	next.ImportFilters = []filterapi.FilterRef{{Name: "policy:new-import"}}
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
+	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
 
 	r, _ := newSwapTestReactor(t, initial, next)
 	adapter := &reactorAPIAdapter{r: r}
@@ -505,8 +570,8 @@ func TestPeerDiffCountCountsSwapAsOneChange(t *testing.T) {
 // used twice, so the maps and slices inside them are distinct allocations. A guard
 // that compared identity rather than value would report a change here.
 func TestPeerDiffCountIsZeroForAnIdenticalReload(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
 	require.False(t, initial == next, "the fixture must be two distinct structs")
 
 	r, _ := newSwapTestReactor(t, initial, next)
@@ -536,9 +601,9 @@ func TestPeerDiffCountIsZeroForAnIdenticalReload(t *testing.T) {
 // false off a peer that was never reconciled. "The peer restarted" alone would pass
 // against that mutation, because the peer does not restart at all.
 func TestReloadRouteReflectorClientReachesForwarding(t *testing.T) {
-	initial := swapTestPeerSettings()
+	initial := swapTestPeerSettings(t)
 	require.False(t, initial.RouteReflectorClient, "the fixture must start with the field off")
-	next := swapTestPeerSettings()
+	next := swapTestPeerSettings(t)
 	next.RouteReflectorClient = true
 
 	r, peer := newSwapTestReactor(t, initial, next)
@@ -568,8 +633,8 @@ func TestReloadRouteReflectorClientReachesForwarding(t *testing.T) {
 // the operator-facing display and the enforcing datapath report the SAME chain.
 //
 // VALIDATES: AC-5. The two paths are independently derived: `bgp peer <ip>` renders
-// PeerInfo.ImportFilters (plugins/cmd/peer/peer.go) built by Peers()
-// (reactor_api.go), while the ingress datapath reads Peer.ImportFilters()
+// PeerInfo.ImportPolicy (plugins/cmd/peer/peer.go) built by Peers()
+// (reactor_api.go), while the ingress datapath reads Peer.ImportPolicy()
 // (runIngressPolicyChain, filter_ordered.go).
 // PREVENTS: the facet that made the original defect invisible. The display already
 // showed the operator's new policy while the datapath enforced the old one, so the
@@ -580,9 +645,9 @@ func TestReloadRouteReflectorClientReachesForwarding(t *testing.T) {
 // both sides read the old chain; agreement ON THE NEW CHAIN passes against neither
 // the old defect nor a display re-derived from the re-parsed config.
 func TestReloadImportPolicyDisplayMatchesDatapath(t *testing.T) {
-	initial := swapTestPeerSettings()
-	next := swapTestPeerSettings()
-	next.ImportFilters = []filterapi.FilterRef{{Name: "policy:new-import"}}
+	initial := swapTestPeerSettings(t)
+	next := swapTestPeerSettings(t)
+	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -593,9 +658,11 @@ func TestReloadImportPolicyDisplayMatchesDatapath(t *testing.T) {
 	infos := adapter.Peers()
 	require.Len(t, infos, 1, "the reload must leave exactly the one configured peer")
 
-	want := filterapi.FilterRefStrings(next.ImportFilters)
-	assert.Equal(t, want, infos[0].ImportFilters,
+	want := filterapi.FilterRefStrings(next.ImportPolicy.Filters())
+	require.NotNil(t, infos[0].ImportPolicy)
+	assert.Equal(t, "accept", infos[0].ImportPolicy.Final)
+	assert.Equal(t, want, infos[0].ImportPolicy.Filters,
 		"the displayed import-policy must be the chain the operator just configured")
-	assert.Equal(t, want, filterapi.FilterRefStrings(peer.ImportFilters()),
+	assert.Equal(t, want, filterapi.FilterRefStrings(peer.ImportPolicy().Filters()),
 		"the enforcing datapath must read that same chain")
 }

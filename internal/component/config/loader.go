@@ -51,7 +51,6 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	if err != nil {
 		return nil, err
 	}
-	applyParsedEnvironment(tree)
 
 	// Apply the registered ze:validate custom validators. Until this call
 	// existed, ValidateTreeAllModules had exactly one non-test caller
@@ -67,6 +66,9 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	if err := refuseInvalidCustomSections(tree); err != nil {
 		return nil, err
 	}
+	// Validators use supplied values and registries, not candidate environment.
+	// Publish only after refusal is impossible at this validation boundary.
+	applyParsedEnvironment(tree)
 
 	// Refuse a ze:bcrypt leaf holding the display placeholder, then hash the
 	// plaintext- sibling of every such leaf. The two calls are ONE pair, and the
@@ -270,16 +272,19 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, *Sche
 // parseSetWithMigration parses set-format config, applying migrations for stale fields.
 func parseSetWithMigration(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 	sp := NewSetParser(schema)
+	var strictErr error
 	if hasMeta {
 		tree, _, err := sp.ParseWithMeta(input)
 		if err == nil {
 			return tree, nil
 		}
+		strictErr = err
 	} else {
 		tree, err := sp.Parse(input)
 		if err == nil {
 			return tree, nil
 		}
+		strictErr = err
 	}
 
 	sp2 := NewSetParser(schema)
@@ -314,7 +319,7 @@ func parseSetWithMigration(schema *Schema, input string, hasMeta bool) (*Tree, e
 	// authentication silently degrading to local auth was the concrete
 	// fail-open this closes (feature-gate-12 review).
 	if ws := sp2.Warnings(); len(ws) > 0 {
-		return nil, fmt.Errorf("config contains fields unknown to this build (a feature compiled out of this binary, or a legacy field this schema no longer defines); refusing to load a config that would silently drop them: %s", textbuf.Join(ws, "; "))
+		return nil, fmt.Errorf("config contains fields unknown to this build (a feature compiled out of this binary, or a legacy field this schema no longer defines); refusing to load a config that would silently drop them: %s: %w", textbuf.Join(ws, "; "), strictErr)
 	}
 
 	return tree, nil

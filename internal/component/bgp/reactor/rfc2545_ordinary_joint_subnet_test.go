@@ -94,7 +94,8 @@ func TestOrdinaryIPv6NormalizationPreservesAdmission(t *testing.T) {
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					r, peer, conn := newOrdinaryJointPeer(t, tc.recipient, ordinaryJointPolicyPair)
-					peer.session.negotiated = capability.Negotiate(negotiation.caps, negotiation.caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
+					caps := append(peerOffering(family.IPv4Unicast, family.IPv6Unicast), negotiation.caps...)
+					peer.session.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 					// Literal field construction bypasses builder admission so the
 					// actual policy-to-writer boundary has to judge both slots.
 					mp := []byte{0, 2, 1, 32}
@@ -279,7 +280,7 @@ func newOrdinaryJointPeer(t *testing.T, recipient netip.Addr, source ordinaryJoi
 		RouterID:     0x01020301,
 	}
 	if source == ordinaryJointPolicyPair {
-		settings.ExportFilters = []filterapi.FilterRef{{Name: "ordinary-joint:replace-next-hop"}}
+		settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "ordinary-joint:replace-next-hop"}}, filterapi.FinalAccept)
 	}
 	r := New(&Config{ListenAddr: "127.0.0.1:0", LocalAS: 65000})
 	if err := r.AddPeer(settings); err != nil {
@@ -307,7 +308,8 @@ func newOrdinaryJointPeer(t *testing.T, recipient netip.Addr, source ordinaryJoi
 	if session.fsm.State() != fsm.StateEstablished {
 		t.Fatal("recording Session did not reach Established")
 	}
-	session.negotiated = capability.Negotiate(nil, nil, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
+	caps := peerOffering(family.IPv4Unicast, family.IPv6Unicast)
+	session.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 	conn := &recordingConn{}
 	session.conn = conn
 	session.bufWriter = bufio.NewWriterSize(conn, 4096)

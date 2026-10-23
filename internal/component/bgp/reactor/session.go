@@ -391,6 +391,12 @@ type Session struct {
 	// stored-route replay, which is filtered in forwardUpdateCore.
 	egressRouteFilter func(body []byte) (suppress bool, override []byte)
 
+	// egressFinalAccepts reads the atomically published forwarding facts, falling
+	// back to the locked peer policy before those facts exist. The writer MUST
+	// check it even for pre-filtered routes under writeMu. Reload publishes first,
+	// then joins writeMu before snapshotting withdrawals, without holding p.mu.
+	egressFinalAccepts func() bool
+
 	// policyTeardownPending, when non-nil, queues a NOTIFICATION + session close
 	// requested by the import policy filter chain (e.g. filter_family tear-down).
 	// Set on the session read goroutine inside the onMessageReceived callback;
@@ -759,9 +765,9 @@ func NewSession(settings *PeerSettings) *Session {
 				"hold-time", s.timers.HoldTime())
 		}
 
-		s.mu.Lock()
+		// FSM.Event owns transition locking; callbacks may inspect s.Conn.
+		// MUST fire without s.mu held.
 		s.logFSMEvent(fsm.EventHoldTimerExpires)
-		s.mu.Unlock()
 		select {
 		case s.errChan <- ErrHoldTimerExpired:
 		default: // errChan full -- cancel goroutine already has a signal
@@ -1140,6 +1146,7 @@ func (s *Session) takePolicyTeardown() *policyTeardownRequest {
 
 // logFSMEvent fires an FSM event and logs if the transition fails.
 // FSM transition failures on error paths indicate unexpected state.
+// Callers MUST NOT hold s.mu: a transition callback may inspect the connection.
 func (s *Session) logFSMEvent(event fsm.Event) {
 	if err := s.fsm.Event(event); err != nil {
 		sessionLogger().Warn("FSM event failed",

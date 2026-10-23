@@ -64,7 +64,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:ONLY_V6 ]
+			import { filters [ bgp-filter-prefix:ONLY_V6 ]; final accept; }
 		}
 
 		attach process test-prefix-reject {

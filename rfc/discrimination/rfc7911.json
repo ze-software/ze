@@ -9,7 +9,7 @@
       "claim-sha": "b0aec10e857341c3",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "304ace729e348b12",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "483845944469c318",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "c42d540febbf9d28",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "b1f38cf941036479",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "22c7340b50ccf897",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "27a9dd5c7e8a2342",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,14 +86,14 @@
       "claim-sha": "66a29fb278373b08",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7911-2-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDFiniteNamespace",
-      "unit-sha": "afd53ca16ea99596",
+      "unit-sha": "dc9294d2f591773f",
       "claim-sha": "55d7f12184fd4974",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::mintLocked",
@@ -104,7 +104,7 @@
       "rid": "RFC7911-2-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDFiniteNamespace",
-      "unit-sha": "afd53ca16ea99596",
+      "unit-sha": "dc9294d2f591773f",
       "claim-sha": "72782c1aacae797a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::mintLocked",
@@ -119,7 +119,7 @@
       "claim-sha": "018182a8deb32eed",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "3b1ea12a5e9e2300",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generate",
-      "producer-sha": "fef8aba296cdf319",
+      "producer-sha": "53faf4865730dc76",
       "break": "body of generate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "cab37148bde5cd45",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "de6826917b89f968",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "6e127fb1c9d37123",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "95ee061b9940b3a4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "cc7930d58e115146",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "d4009dda7c9d96c0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "dd4e365c9e19edec",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::releasePath",
-      "producer-sha": "3374bea8f317f8d7",
+      "producer-sha": "4f2a19f2e85bf8ba",
       "break": "body of releasePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -216,10 +216,10 @@
       "unit": "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision",
       "unit-sha": "443ea2f6f91e6efd",
       "claim-sha": "e8cb96f0555d772e",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_path_id.go::generate",
-      "producer-sha": "fef8aba296cdf319",
-      "break": "body of generate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_ownership.go::bindSourcePath",
+      "producer-sha": "0640775328f1e98b",
+      "break": "line 345: \"!\" -\u003e \"\"",
       "citation": "5"
     },
     {
@@ -230,7 +230,7 @@
       "claim-sha": "00d7767c71441802",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-      "producer-sha": "1c4a6bc8b7728f30",
+      "producer-sha": "356be613feb08fba",
       "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000"
     },

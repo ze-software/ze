@@ -23,6 +23,23 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// negotiateForwardTestFamilies publishes the same explicit family intersection
+// to the peer and its recording session before forwarding starts. Encoding
+// contexts remain under each fixture's control for transcoding tests.
+func negotiateForwardTestFamilies(peer *Peer, families ...family.Family) {
+	caps := []capability.Capability{&capability.ASN4{ASN: peer.settings.LocalAS}}
+	for _, fam := range families {
+		caps = append(caps, &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
+	}
+	neg := capability.Negotiate(caps, caps, capability.PeerIdentity{
+		LocalASN: peer.settings.LocalAS,
+		PeerASN:  peer.settings.PeerAS,
+		Internal: peer.settings.IsIBGP(),
+	})
+	peer.session.negotiated = neg
+	peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+}
+
 func forwardSocketBarrier(t *testing.T, r *Reactor) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -235,7 +252,7 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 			return true
 		})
 	for _, peer := range []*Peer{f.source, f.destination} {
-		peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}})
+		negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
 		peer.refreshForwardFacts()
 	}
 	base := f.body(t, 100)
@@ -338,7 +355,7 @@ func TestForwardFlowSpecOnlyGatePreservesUnicastSections(t *testing.T) {
 			f.destination.settings.RSClient = true
 			fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 			for _, peer := range []*Peer{f.source, f.destination} {
-				peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{family.IPv4Unicast: true, fam: true}})
+				negotiateForwardTestFamilies(peer, family.IPv4Unicast, fam)
 				peer.refreshForwardFacts()
 			}
 			rule := []byte{5, 1, 24, 10, 0, 0}

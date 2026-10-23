@@ -81,7 +81,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-irr:65001 ]
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 
 		attach process test-filter-irr-readmit {

@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"reflect"
@@ -50,13 +51,13 @@ type peerSettingsSwap struct {
 // Six fields qualify today, and each one qualifies for a reason read at the
 // consumer:
 //
-//   - ImportFilters: the ingress datapath re-reads it per received UPDATE through
-//     the p.mu-guarded accessor Peer.ImportFilters (runIngressPolicyChain,
+//   - ImportPolicy: the ingress datapath re-reads it per received UPDATE through
+//     the p.mu-guarded accessor Peer.ImportPolicy (runIngressPolicyChain,
 //     filter_ordered.go). Nothing caches it.
-//   - ExportFilters: the egress datapath reads facts.exportFilters
+//   - ExportPolicy: the egress datapath reads facts.exportPolicy
 //     (egress_inject_filter.go, forward_rs.go, reactor_api_forward.go), a snapshot
-//     built by refreshForwardFacts. applyHotSwappableSettings rebuilds that
-//     snapshot, which is what makes the field swappable rather than inert.
+//     rebuilt by refreshForwardFacts. A final change also reconciles existing
+//     advertisements through reconcileExportFinal after publishing that snapshot.
 //   - PrefixUpdated: the per-family PeeringDB refresh dates. They feed no session
 //     and no datapath: their two consumers are the prefix-stale report bus warning
 //     and the ze_bgp_prefix_stale gauge, both published from the dates alone
@@ -100,8 +101,8 @@ type peerSettingsSwap struct {
 // and why no other field is: the rest are read off p.settings and s.settings with
 // no lock, under the immutability contract stated on Peer.Settings (peer.go).
 func hotSwappableSettings(dst, src *PeerSettings) {
-	dst.ImportFilters = src.ImportFilters
-	dst.ExportFilters = src.ExportFilters
+	dst.ImportPolicy = src.ImportPolicy
+	dst.ExportPolicy = src.ExportPolicy
 	dst.PrefixUpdated = src.PrefixUpdated
 	dst.StaticRoutes = src.StaticRoutes
 	if onlyReceiveOnlyBindingsDiffer(dst.ProcessBindings, src.ProcessBindings) {
@@ -242,12 +243,15 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 		previous := peer.hotSwappableSnapshot(apply)
 		err := j.Record(
 			func() error {
-				peer.applyHotSwappableSettings(next, apply)
+				if err := peer.applyHotSwappableSettings(next, apply); err != nil {
+					// A failed apply is not journaled, so undo this attempted
+					// transition before returning the failure to the transaction.
+					return errors.Join(err, peer.restoreHotSwappableSettings(previous, apply))
+				}
 				return nil
 			},
 			func() error {
-				peer.applyHotSwappableSettings(previous, apply)
-				return nil
+				return peer.restoreHotSwappableSettings(previous, apply)
 			},
 		)
 		if err != nil {
@@ -276,8 +280,8 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 	p.mu.RLock()
 	copy(previous, p.settings)
 	if p.settings.IsDynamic {
-		previous.ImportFilters = p.dynImportFilters
-		previous.ExportFilters = p.dynExportFilters
+		previous.ImportPolicy = p.dynImportPolicy
+		previous.ExportPolicy = p.dynExportPolicy
 	}
 	p.mu.RUnlock()
 	return previous
@@ -322,7 +326,7 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 // Only after the publish are the detached processes told down and the attached
 // ones caught up (Peer.catchUpBoundProcesses), each step with the locks
 // released, because each can block on a plugin or on the peer's socket.
-func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier) {
+func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier) error {
 	// Step 1, no write yet: the session the delivery is judged against, whether
 	// it is up, and which processes the copy attaches and detaches. The copy runs
 	// onto a probe holding the running bindings, so it decides exactly as it
@@ -339,9 +343,16 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	session := p.session
 	bindingsBefore := p.settings.ProcessBindings
 	shutdownBefore := p.settings.AdminShutdown
+	restoreFinal := !p.settings.ExportPolicy.AcceptsAtEnd() && next.ExportPolicy.AcceptsAtEnd()
 	announced := p.upPhaseLocked(session)
 	p.mu.RUnlock()
 	stateUp := p.State() == PeerStateEstablished
+	if restoreFinal && stateUp && session != nil {
+		// Cover publication itself, not only the later retained-page read.
+		// No peer/reactor lock is held while joining the session writer.
+		p.beginPolicyReplay(session)
+		defer p.endPolicyReplay()
+	}
 	established := stateUp && announced == sessionUpDelivered
 	probe := PeerSettings{ProcessBindings: bindingsBefore}
 	copy(&probe, next)
@@ -400,12 +411,14 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	successorUnannounced := currentPhase == sessionUpUnspecified || currentPhase == sessionUpClosing
 	closing := announcedAtWrite == sessionUpClosing || (session != nil && current != session && successorUnannounced)
 	before := p.settings.StaticRoutes
+	acceptedBefore := p.settings.ExportPolicy.AcceptsAtEnd()
 	bfd := bfdOptInChange{before: p.settings.BFD, requestBefore: bfdRequestFor(p.settings)}
 	copy(p.settings, next)
 	if p.settings.IsDynamic {
 		p.writeDynamicTemplateLocked(next)
 	}
 	after := p.settings.StaticRoutes
+	finalChanged := acceptedBefore != p.settings.ExportPolicy.AcceptsAtEnd()
 	bfd.after, bfd.requestAfter = p.settings.BFD, bfdRequestFor(p.settings)
 	p.mu.Unlock()
 	if r != nil {
@@ -439,7 +452,13 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// harmless, a missing one leaves it holding the session's routes. Only a
 	// session no up was announced for, at step 1 or at the publish, owes it
 	// nothing: its up reads the graph without the edge.
-	restart := len(gained) > 0 && !closing && (!sameSession || announced == sessionUpDelivering)
+	//
+	// A session in OpenConfirm whose negotiated event went out
+	// (sessionUpNegotiated) restarts for the same reason as one whose up is in
+	// flight: that event read the graph at a point no reader can place, and
+	// the attached process would otherwise be told up with no negotiated event.
+	inFlight := announced == sessionUpNegotiated || announced == sessionUpDelivering
+	restart := len(gained) > 0 && !closing && (!sameSession || inFlight)
 	if established && (restart || closing) {
 		p.unbindProcesses(r, gained)
 	}
@@ -456,6 +475,10 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	}
 
 	p.refreshForwardFactsIfLive()
+	var reconcileErr error
+	if finalChanged {
+		reconcileErr = p.reconcileExportFinal()
+	}
 	p.refreshPrefixStale()
 	if !sameStaticRouteSet(before, after) {
 		p.deliverStaticRouteDelta(after)
@@ -466,6 +489,23 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	p.applyBFDOptInChange(&bfd)
 	// Step 6: the administrative hold follows the shutdown container.
 	p.applyAdminShutdownChange(shutdownBefore, next.AdminShutdown)
+	return reconcileErr
+}
+
+// restoreHotSwappableSettings is the inverse of a journaled apply. A failed
+// inverse cannot leave a live connection advertising uncertain state: it seals
+// that connection through the existing writer-retirement path and returns the
+// failure to the transaction.
+func (p *Peer) restoreHotSwappableSettings(previous *PeerSettings, copy settingsCopier) error {
+	if err := p.applyHotSwappableSettings(previous, copy); err != nil {
+		if session := p.currentSession(); session != nil {
+			session.writeMu.Lock()
+			session.retireWrite(err)
+			session.writeMu.Unlock()
+		}
+		return fmt.Errorf("restore peer %s settings: %w", p.addrString, err)
+	}
+	return nil
 }
 
 // applyAdminShutdownChange moves the administrative hold when a reload added or

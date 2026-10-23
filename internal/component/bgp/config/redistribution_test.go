@@ -13,7 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
-// TestFilterConfigParse verifies parsing filter leaf-lists.
+// TestFilterConfigParse verifies parsing explicit filter policies.
 //
 // VALIDATES: AC-2 -- Config with filter import/export validates successfully.
 // PREVENTS: Filter config silently ignored.
@@ -27,12 +27,12 @@ bgp {
     	}
     }
     filter {
-        import [ rpki:validate ];
+        import { filters [ rpki:validate ]; final accept; }
     }
     group customers {
         filter {
-            import [ community:scrub ];
-            export [ aspath:prepend ];
+            import { filters [ community:scrub ]; final accept; }
+            export { filters [ aspath:prepend ]; final accept; }
         }
         peer customer-a {
             connection {
@@ -59,8 +59,8 @@ bgp {
 	require.Len(t, peers, 1)
 
 	ps := peers[0]
-	assert.Equal(t, refs("rpki:validate", "community:scrub"), ps.ImportFilters)
-	assert.Equal(t, refs("aspath:prepend"), ps.ExportFilters)
+	assert.Equal(t, refs("rpki:validate", "community:scrub"), ps.ImportPolicy.Filters())
+	assert.Equal(t, refs("aspath:prepend"), ps.ExportPolicy.Filters())
 }
 
 // TestFilterChainResolution verifies bgp > group > peer cumulative merging.
@@ -77,11 +77,11 @@ bgp {
     	}
     }
     filter {
-        import [ a:x ];
+        import { filters [ a:x ]; final accept; }
     }
     group g1 {
         filter {
-            import [ b:y ];
+            import { filters [ b:y ]; final accept; }
         }
         peer p1 {
             connection {
@@ -98,7 +98,7 @@ bgp {
                 }
             }
             filter {
-                import [ c:z ];
+                import { filters [ c:z ]; final accept; }
             }
         }
     }
@@ -109,7 +109,7 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Equal(t, refs("a:x", "b:y", "c:z"), peers[0].ImportFilters)
+	assert.Equal(t, refs("a:x", "b:y", "c:z"), peers[0].ImportPolicy.Filters())
 }
 
 // TestFilterStandalonePeer verifies standalone peers get bgp-level filters.
@@ -126,7 +126,7 @@ bgp {
     	}
     }
     filter {
-        import [ global:filter ];
+        import { filters [ global:filter ]; final accept; }
     }
     peer standalone {
         connection {
@@ -142,7 +142,7 @@ bgp {
                 remote 65001
             }
         }
-        filter { export [ peer:export ]; }
+        filter { export { filters [ peer:export ]; final accept; } }
     }
 }
 `
@@ -151,8 +151,8 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Equal(t, refs("global:filter"), peers[0].ImportFilters)
-	assert.Equal(t, refs("peer:export"), peers[0].ExportFilters)
+	assert.Equal(t, refs("global:filter"), peers[0].ImportPolicy.Filters())
+	assert.Equal(t, refs("peer:export"), peers[0].ExportPolicy.Filters())
 }
 
 // TestFilterEmpty verifies empty filter block is valid.
@@ -190,8 +190,8 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Empty(t, peers[0].ImportFilters)
-	assert.Empty(t, peers[0].ExportFilters)
+	assert.Empty(t, peers[0].ImportPolicy.Filters())
+	assert.Empty(t, peers[0].ExportPolicy.Filters())
 }
 
 // TestFilterPlainNames verifies that plain names (without colons) are accepted
@@ -215,8 +215,8 @@ bgp {
         }
     }
     filter {
-        import [ my-filter ];
-        export [ another-filter ];
+        import { filters [ my-filter ]; final accept; }
+        export { filters [ another-filter ]; final accept; }
     }
     peer p1 {
         connection {
@@ -240,8 +240,8 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.True(t, filterChainContains(peers[0].ImportFilters, "my-filter"))
-	assert.True(t, filterChainContains(peers[0].ExportFilters, "another-filter"))
+	assert.True(t, filterChainContains(peers[0].ImportPolicy.Filters(), "my-filter"))
+	assert.True(t, filterChainContains(peers[0].ExportPolicy.Filters(), "another-filter"))
 }
 
 // TestFilterUnknownNameRejectsAtParse verifies typos in filter names fail at parse time.
@@ -272,7 +272,7 @@ bgp {
             }
         }
         filter {
-            import [ nonexistent ];
+            import { filters [ nonexistent ]; final accept; }
         }
     }
 }
@@ -313,7 +313,7 @@ bgp {
             }
         }
         filter {
-            import [ rpki:validate ];
+            import { filters [ rpki:validate ]; final accept; }
         }
     }
 }
@@ -323,7 +323,7 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.True(t, filterChainContains(peers[0].ImportFilters, "rpki:validate"))
+	assert.True(t, filterChainContains(peers[0].ImportPolicy.Filters(), "rpki:validate"))
 }
 
 // TestCanonicalizePlainPrefixRef verifies plain filter names resolve through

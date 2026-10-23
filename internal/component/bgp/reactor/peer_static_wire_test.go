@@ -134,7 +134,7 @@ func TestReloadDeliversStaticRouteDeltaOnTheRunningSession(t *testing.T) {
 		staticRouteAt("10.0.0.0/24", "10.9.9.9"),
 		staticRouteAt("10.0.2.0/24", "10.9.9.9"),
 	}
-	peer.applyHotSwappableSettings(&next, hotSwappableSettings)
+	mustApplyHotSwappableSettings(t, peer, &next, hotSwappableSettings)
 
 	frames := bgpFrames(t, conn.written()[initial:])
 	require.Len(t, frames, 2, "one withdrawal and one announcement, and nothing for the route that did not change")

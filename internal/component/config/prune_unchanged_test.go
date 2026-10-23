@@ -315,13 +315,13 @@ func TestPruneUnchangedPerNodeKind(t *testing.T) {
 			baseline: `bgp {
     router-id 1.2.3.4
     filter {
-        import [ alpha ]
+        import { filters [ alpha ]; final accept; }
     }
 }`,
 			modified: `bgp {
     router-id 1.2.3.4
     filter {
-        import [ alpha beta ]
+        import { filters [ alpha beta ]; final accept; }
     }
 }`,
 			wantKept: "beta",
@@ -332,13 +332,13 @@ func TestPruneUnchangedPerNodeKind(t *testing.T) {
 			baseline: `bgp {
     router-id 1.2.3.4
     filter {
-        import [ alpha beta ]
+        import { filters [ alpha beta ]; final accept; }
     }
 }`,
 			modified: `bgp {
     router-id 1.2.3.4
     filter {
-        import [ alpha ]
+        import { filters [ alpha ]; final accept; }
     }
 }`,
 			wantKept: "alpha",
@@ -348,14 +348,14 @@ func TestPruneUnchangedPerNodeKind(t *testing.T) {
 			name: "one leaf-list changes, sibling leaf-list untouched",
 			baseline: `bgp {
     filter {
-        import [ alpha ]
-        export [ gamma ]
+        import { filters [ alpha ]; final accept; }
+        export { filters [ gamma ]; final accept; }
     }
 }`,
 			modified: `bgp {
     filter {
-        import [ delta ]
-        export [ gamma ]
+        import { filters [ delta ]; final accept; }
+        export { filters [ gamma ]; final accept; }
     }
 }`,
 			wantKept: "delta",

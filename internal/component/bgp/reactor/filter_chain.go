@@ -230,9 +230,9 @@ type PolicyFilterFunc func(pluginName, filterName, direction, peer string, peerA
 
 // PolicyFilterChain runs a chain of named filters on an update.
 // Filters are piped: each sees the previous filter's output.
-// Reject short-circuits. Default is accept at end of chain.
+// Reject short-circuits. Surviving filters receive the policy's final disposition.
 //
-// filterRefs is the ordered list of "<plugin>:<filter>" strings.
+// policy carries the immutable ordered filter references and effective final.
 // callFilter is the function to invoke each filter.
 // updateText is the initial text representation of the update.
 //
@@ -244,13 +244,9 @@ type PolicyFilterFunc func(pluginName, filterName, direction, peer string, peerA
 // raw rewrite cannot be composed with downstream text deltas (the text was
 // derived from the original payload). A teardown request also short-circuits and
 // drops the route.
-func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
-	if len(filterRefs) == 0 {
-		return PolicyChainResult{Action: PolicyAccept, Text: updateText}
-	}
-
+func PolicyFilterChain(policy filterapi.Policy, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
 	current := updateText
-	for _, ref := range filterRefs {
+	for _, ref := range policy.Filters() {
 		if ref.Inactive {
 			continue
 		}
@@ -274,6 +270,9 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 		case PolicyModify:
 			// A raw full-payload rewrite is terminal (see doc comment).
 			if len(result.Raw) > 0 {
+				if !policy.AcceptsAtEnd() {
+					return PolicyChainResult{Action: PolicyReject}
+				}
 				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}
 			}
 			current = applyFilterDelta(current, result.Delta)
@@ -284,6 +283,9 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 		}
 	}
 
+	if !policy.AcceptsAtEnd() {
+		return PolicyChainResult{Action: PolicyReject}
+	}
 	return PolicyChainResult{Action: PolicyAccept, Text: current}
 }
 

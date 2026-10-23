@@ -69,9 +69,13 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
 		known = parent.Children()
 	}
-	return p.parseBody("unknown keyword", known, func(name string) Node {
+	tree, err := p.parseBody("unknown keyword", known, func(name string) Node {
 		return p.schema.LookupTokenPath(append(context, name))
 	})
+	if err != nil {
+		return nil, prependSyntaxPath(err, textbuf.Join(contextPath, "/"))
+	}
+	return tree, nil
 }
 
 // parseRoot parses the top level of the config.
@@ -271,6 +275,10 @@ func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
 // parseNode dispatches parsing based on schema node type.
 // Every known node type is handled explicitly; unknown types return an error.
 func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
+	return prependSyntaxPath(p.parseNodeValue(tree, name, node), name)
+}
+
+func (p *Parser) parseNodeValue(tree *Tree, name string, node Node) error {
 	if n, ok := node.(*LeafNode); ok {
 		return p.parseLeaf(tree, name, n)
 	}
@@ -335,8 +343,8 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	var value string
 	if tok.kind != tokenWord && tok.kind != tokenString {
 		if fix := leafValueFix(node, name, ""); fix != "" {
-			return p.errorf(tok, "%s needs a value, one of %s, and is not a block or a bare word\n  write: %s",
-				name, textbuf.Join(node.Enums, ", "), fix)
+			return &syntaxRefusal{cause: p.errorf(tok, "%s needs a value, one of %s, and is not a block or a bare word\n  write: %s",
+				name, textbuf.Join(node.Enums, ", "), fix)}
 		}
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}
@@ -359,7 +367,7 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	// Validate value type and YANG restrictions (works on decoded plaintext too).
 	if err := ValidateLeafValue(node, value); err != nil {
 		if fix := leafValueFix(node, name, value); fix != "" {
-			return p.errorf(tok, "invalid value for %s: %v\n  write: %s", name, err, fix)
+			return &syntaxRefusal{cause: p.errorf(tok, "invalid value for %s: %v\n  write: %s", name, err, fix)}
 		}
 		return p.errorf(tok, "invalid value for %s: %v", name, err)
 	}
@@ -384,6 +392,9 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 // and parenthesized `name ( ... );` forms.
 func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) error {
 	tok := p.tok.peek()
+	if tok.kind == tokenLBracket {
+		return &syntaxRefusal{cause: p.errorf(tok, "%s is a container, not a leaf-list; use its named fields\n  write: %s", name, containerValueFix(node, name))}
+	}
 
 	// YANG presence containers accept flag (;), value (word;), paren (...), and block ({})
 	if node.Presence && tok.kind == tokenSemicolon {

@@ -26,7 +26,7 @@ func rfc4271ImportPolicyPayload(t *testing.T, policy bool) []byte {
 	addr := netip.MustParseAddr("203.0.113.9")
 	settings := &PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001}
 	if policy {
-		settings.ImportFilters = []filterapi.FilterRef{{Name: "set-local-pref"}}
+		settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "set-local-pref"}}, filterapi.FinalAccept)
 	}
 	r := &Reactor{
 		api:              &pluginserver.Server{}, // non-nil: past the fail-closed r.api guard

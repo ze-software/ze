@@ -95,7 +95,7 @@ bgp {
 			}
 		}
 		filter {
-			import [ bgp-filter-prefix:CUSTOMERS ]
+			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
 		}
 		behavior {
 			group-updates disable

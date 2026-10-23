@@ -1,0 +1,154 @@
+# Test: explicit final decisions on received routes and API-originated wire routes.
+# VALIDATES: spec-bgp-explicit-final-policy AC-1, AC-3, AC-4, AC-5, AC-6, AC-8.
+# Eight numbered epochs: empty accept/reject, passing filter + reject,
+# earlier reject + accept, delta accept/reject, real mixed-family raw accept/reject.
+# The observer waits for the source receive counter AND quiesce before checking
+# Adj-RIB-In. Every export refusal has a later permitted fence on the SAME TCP
+# connection after restoring accept. No route-server is attached: restoration
+# cannot replay API probes. Each epoch ends with acknowledged withdrawals before
+# the next final-reject reload. Both sessions must keep their original connection.
+# Runtime discrimination: force Policy.AcceptsAtEnd to true WITHOUT changing the
+# new parser; the empty/passing/delta/raw reject assertions must fail at runtime.
+option=timeout:value=180s
+
+tmpfs=marker.txt:terminator=EOF_MARKER
+received
+EOF_MARKER
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:contains=000201
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4701
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4702
+expect=bgp:conn=1:seq=4:announced=18C0A803
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4703
+expect=bgp:conn=1:seq=5:announced=18C0A804
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4704
+expect=bgp:conn=1:seq=6:announced=18C0A805
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4705
+expect=bgp:conn=1:seq=7:announced=18C0A806
+action=send:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4706
+expect=bgp:conn=1:seq=8:announced=18C0A807
+action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005C02000000414001010040020602010000FDE9400304C000020180040400000009C00804FDE90063800E1C0002011020010DB8000000000000000000000001003020010DB80007180A4707
+expect=bgp:conn=1:seq=9:announced=18C0A808
+action=send:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005C02000000414001010040020602010000FDE9400304C000020180040400000009C00804FDE90063800E1C0002011020010DB8000000000000000000000001003020010DB80008180A4708
+EOF_SOURCE
+
+stdin=sink:terminator=EOF_SINK
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:contains=000201
+expect=bgp:conn=1:seq=2:announced=180A4701:attribute=1,00
+expect=bgp:conn=1:seq=2:announced=180A4701:attribute=2,0000FDE9
+expect=bgp:conn=1:seq=2:announced=180A4701:attribute=3,C0000201
+expect=bgp:conn=1:seq=2:announced=180A4701:attribute=4,00000009
+expect=bgp:conn=1:seq=2:announced=180A4701:attribute=8,FDE90063
+expect=bgp:conn=1:seq=3:announced=18C0A901
+action=rewrite:conn=1:seq=3:source=marker.txt:dest=final-fence-1
+expect=bgp:conn=1:seq=4:withdrawn=180A4701
+expect=bgp:conn=1:seq=4:withdrawn=18C0A901
+action=rewrite:conn=1:seq=4:source=marker.txt:dest=final-clean-1
+reject=bgp:conn=1:scope=announced:pattern=180A4702
+expect=bgp:conn=1:seq=5:announced=18C0A902
+action=rewrite:conn=1:seq=5:source=marker.txt:dest=final-fence-2
+expect=bgp:conn=1:seq=6:withdrawn=18C0A902
+action=rewrite:conn=1:seq=6:source=marker.txt:dest=final-clean-2
+reject=bgp:conn=1:scope=announced:pattern=180A4703
+expect=bgp:conn=1:seq=7:announced=18C0A903
+action=rewrite:conn=1:seq=7:source=marker.txt:dest=final-fence-3
+expect=bgp:conn=1:seq=8:withdrawn=18C0A903
+action=rewrite:conn=1:seq=8:source=marker.txt:dest=final-clean-3
+reject=bgp:conn=1:scope=announced:pattern=180A4704
+expect=bgp:conn=1:seq=9:announced=18C0A904
+action=rewrite:conn=1:seq=9:source=marker.txt:dest=final-fence-4
+expect=bgp:conn=1:seq=10:withdrawn=18C0A904
+action=rewrite:conn=1:seq=10:source=marker.txt:dest=final-clean-4
+expect=bgp:conn=1:seq=11:announced=180A4705:attribute=1,00
+expect=bgp:conn=1:seq=11:announced=180A4705:attribute=2,0000FDE9
+expect=bgp:conn=1:seq=11:announced=180A4705:attribute=3,C0000201
+expect=bgp:conn=1:seq=11:announced=180A4705:attribute=4,0000004D
+expect=bgp:conn=1:seq=11:announced=180A4705:attribute=8,FDE90063
+expect=bgp:conn=1:seq=12:announced=18C0A905
+action=rewrite:conn=1:seq=12:source=marker.txt:dest=final-fence-5
+expect=bgp:conn=1:seq=13:withdrawn=180A4705
+expect=bgp:conn=1:seq=13:withdrawn=18C0A905
+action=rewrite:conn=1:seq=13:source=marker.txt:dest=final-clean-5
+reject=bgp:conn=1:scope=announced:pattern=180A4706
+expect=bgp:conn=1:seq=14:announced=18C0A906
+action=rewrite:conn=1:seq=14:source=marker.txt:dest=final-fence-6
+expect=bgp:conn=1:seq=15:withdrawn=18C0A906
+action=rewrite:conn=1:seq=15:source=marker.txt:dest=final-clean-6
+expect=bgp:conn=1:seq=16:announced=180A4707:attribute=1,00
+expect=bgp:conn=1:seq=16:announced=180A4707:attribute=2,0000FDE9
+expect=bgp:conn=1:seq=16:announced=180A4707:attribute=3,C0000201
+expect=bgp:conn=1:seq=16:announced=180A4707:attribute=4,00000009
+expect=bgp:conn=1:seq=16:announced=180A4707:attribute=8,FDE90063
+expect=bgp:conn=1:seq=17:announced=18C0A907
+action=rewrite:conn=1:seq=17:source=marker.txt:dest=final-fence-7
+expect=bgp:conn=1:seq=18:withdrawn=180A4707
+expect=bgp:conn=1:seq=18:withdrawn=18C0A907
+action=rewrite:conn=1:seq=18:source=marker.txt:dest=final-clean-7
+reject=bgp:conn=1:scope=announced:pattern=180A4708
+expect=bgp:conn=1:seq=19:announced=18C0A908
+action=rewrite:conn=1:seq=19:source=marker.txt:dest=final-fence-8
+expect=bgp:conn=1:seq=20:withdrawn=18C0A908
+action=rewrite:conn=1:seq=20:source=marker.txt:dest=final-clean-8
+reject=bgp:conn=1:scope=announced:pattern=3020010DB80007
+reject=bgp:conn=1:scope=announced:pattern=3020010DB80008
+EOF_SINK
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal adj-rib-in { use bgp-adj-rib-in; }
+    external policy-final { run "le test fixture plugin/policy-final-disposition"; encoder json; }
+}
+bgp {
+    policy {
+        reject-asn PASS { indirect [ 64512 ]; }
+        reject-asn DENY { direct [ 65001 ]; indirect [ 65001 ]; }
+        modify MED { set { med 77; } }
+        family-filter NoV6 { family ipv6/unicast; action remove; }
+    }
+    peer peer-1 {
+        connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
+        session {
+            asn { local 65000; remote 65001; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final accept; } }
+        attach process policy-final { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+    }
+    peer peer-2 {
+        connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65002; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { export { final accept; } }
+        attach process policy-final { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=sink
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-path-asn --plugin ze.bgp-filter-modify --plugin ze.bgp-filter-family -:stdin=ze-bgp:timeout=180s
+expect=exit:code=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=peer restart required
+reject=stderr:pattern=panic recovered

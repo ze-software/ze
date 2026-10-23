@@ -213,7 +213,7 @@ func TestParserOrderedLeafListRejectsAmbiguousDeactivation(t *testing.T) {
 // VALIDATES: AppendSlice re-syncs the scalar mirror to active members, so Get() and
 // GetSlice() agree even across repeated statements with an out-of-band deactivation.
 //
-// PREVENTS: a regression where `import inactive:X; import Y;` leaves Get()="X Y" while
+// PREVENTS: a regression where `filters inactive:X; filters Y;` leaves Get()="X Y" while
 // GetSlice()=["Y"] (the mirror leaking a deactivated member into scalar consumers).
 func TestParserLeafListRepeatedStatementsDeactivation(t *testing.T) {
 	tree, err := NewParser(testSchema()).Parse("name-server inactive:9.9.9.9;\nname-server 8.8.8.8;\n")
@@ -993,28 +993,28 @@ func TestInsertMultiValue(t *testing.T) {
 // PREVENTS: Deactivation silently ignored for missing values.
 func TestDeactivateMultiValue(t *testing.T) {
 	tree := NewTree()
-	tree.SetSlice("import", []string{"no-self-as", "reject-bogons"})
+	tree.SetSlice("filters", []string{"no-self-as", "reject-bogons"})
 
-	err := tree.DeactivateMultiValue("import", "no-self-as")
+	err := tree.DeactivateMultiValue("filters", "no-self-as")
 	require.NoError(t, err)
 	// Effective view: deactivated member excluded. No "inactive:" string.
-	require.Equal(t, []string{"reject-bogons"}, tree.GetSlice("import"))
-	if _, inactive := tree.MultiValueMemberState("import", "no-self-as"); true {
+	require.Equal(t, []string{"reject-bogons"}, tree.GetSlice("filters"))
+	if _, inactive := tree.MultiValueMemberState("filters", "no-self-as"); true {
 		require.True(t, inactive, "no-self-as recorded deactivated out-of-band")
 	}
 	require.Equal(t, []MemberState{{Value: "no-self-as", Inactive: true}, {Value: "reject-bogons"}},
-		tree.GetMultiValuesState("import"))
+		tree.GetMultiValuesState("filters"))
 
 	// Verify values map in sync (active-only join).
-	v, _ := tree.Get("import")
+	v, _ := tree.Get("filters")
 	require.Equal(t, "reject-bogons", v)
 
 	// Deactivating nonexistent value fails.
-	err = tree.DeactivateMultiValue("import", "missing")
+	err = tree.DeactivateMultiValue("filters", "missing")
 	require.Error(t, err)
 
 	// Double-deactivation fails.
-	err = tree.DeactivateMultiValue("import", "no-self-as")
+	err = tree.DeactivateMultiValue("filters", "no-self-as")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already deactivated")
 }
@@ -1023,18 +1023,18 @@ func TestDeactivateMultiValue(t *testing.T) {
 // PREVENTS: Activation silently ignored for members that are not deactivated.
 func TestActivateMultiValue(t *testing.T) {
 	tree := NewTree()
-	tree.SetSlice("import", []string{"no-self-as", "reject-bogons"})
-	require.NoError(t, tree.DeactivateMultiValue("import", "no-self-as"))
+	tree.SetSlice("filters", []string{"no-self-as", "reject-bogons"})
+	require.NoError(t, tree.DeactivateMultiValue("filters", "no-self-as"))
 
-	err := tree.ActivateMultiValue("import", "no-self-as")
+	err := tree.ActivateMultiValue("filters", "no-self-as")
 	require.NoError(t, err)
-	require.Equal(t, []string{"no-self-as", "reject-bogons"}, tree.GetSlice("import"))
-	if _, inactive := tree.MultiValueMemberState("import", "no-self-as"); true {
+	require.Equal(t, []string{"no-self-as", "reject-bogons"}, tree.GetSlice("filters"))
+	if _, inactive := tree.MultiValueMemberState("filters", "no-self-as"); true {
 		require.False(t, inactive, "no-self-as reactivated")
 	}
 
 	// Activating a member that is not deactivated fails.
-	err = tree.ActivateMultiValue("import", "reject-bogons")
+	err = tree.ActivateMultiValue("filters", "reject-bogons")
 	require.Error(t, err)
 }
 

@@ -47,7 +47,8 @@ func TestFilterReferences_NoPolicyNoRefs(t *testing.T) {
 func TestFilterReferences_DanglingGlobalRef(t *testing.T) {
 	tree := config.NewTree()
 	bgp := tree.GetOrCreateContainer("bgp")
-	bgp.GetOrCreateContainer("filter").SetSlice("import", []string{"nonexistent"})
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").SetSlice("filters", []string{"nonexistent"})
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").Set("final", "accept")
 
 	diags := filterReferenceDiags(tree)
 	require.Len(t, diags, 1)
@@ -63,7 +64,8 @@ func TestFilterReferences_DefinedPolicyPasses(t *testing.T) {
 	tree := config.NewTree()
 	bgp := tree.GetOrCreateContainer("bgp")
 	bgp.GetOrCreateContainer("policy").AddListEntry("prefix-list", "customers", config.NewTree())
-	bgp.GetOrCreateContainer("filter").SetSlice("import", []string{"customers"})
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").SetSlice("filters", []string{"customers"})
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").Set("final", "accept")
 
 	assert.Empty(t, filterReferenceDiags(tree))
 }
@@ -77,7 +79,8 @@ func TestFilterReferences_NamespacedRefPasses(t *testing.T) {
 	tree := config.NewTree()
 	bgp := tree.GetOrCreateContainer("bgp")
 	bgp.GetOrCreateContainer("policy").AddListEntry("prefix-list", "customers", config.NewTree())
-	bgp.GetOrCreateContainer("filter").SetSlice("import", []string{"bgp-filter-prefix:customers"})
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").SetSlice("filters", []string{"bgp-filter-prefix:customers"})
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").Set("final", "accept")
 
 	assert.Empty(t, filterReferenceDiags(tree))
 }
@@ -93,11 +96,12 @@ func TestFilterReferences_PeerLevelRef(t *testing.T) {
 	bgp.GetOrCreateContainer("policy").AddListEntry("prefix-list", "allowed", config.NewTree())
 
 	peerTree := config.NewTree()
-	peerTree.GetOrCreateContainer("filter").SetSlice("export", []string{"missing"})
+	peerTree.GetOrCreateContainer("filter").GetOrCreateContainer("export").SetSlice("filters", []string{"missing"})
+	peerTree.GetOrCreateContainer("filter").GetOrCreateContainer("export").Set("final", "accept")
 	bgp.AddListEntry("peer", "192.0.2.1", peerTree)
 
 	diags := filterReferenceDiags(tree)
 	require.Len(t, diags, 1)
 	assert.Contains(t, diags[0].Message, "missing")
-	assert.Contains(t, diags[0].Message, "bgp/peer/192.0.2.1/filter/export")
+	assert.Contains(t, diags[0].Message, "bgp/peer/192.0.2.1/filter/export/filters")
 }

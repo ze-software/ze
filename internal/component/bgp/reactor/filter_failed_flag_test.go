@@ -143,7 +143,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 		}}
 
 		got := PolicyFilterChain(
-			[]filterapi.FilterRef{{Name: plug + ":" + filter}},
+			mustPolicy(t, []filterapi.FilterRef{{Name: plug + ":" + filter}}, filterapi.FinalAccept),
 			directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil),
 		)
 
@@ -171,7 +171,7 @@ func TestEgressChainCarriesTheFailedFlagToTheStep(t *testing.T) {
 	t.Run("a filter that could not run", func(t *testing.T) {
 		r := &Reactor{api: liveFilterServer(t)}
 
-		got := r.runEgressPolicyChainASN4(refs, "10.0.0.2", 65002, 65000, false, wire, true)
+		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, filterapi.FinalAccept), "10.0.0.2", 65002, 65000, false, wire, true)
 
 		assert.False(t, got.accept, "fail-closed: the route is withheld")
 		assert.True(t, got.failed, "the step must report that it could not decide")
@@ -186,7 +186,7 @@ func TestEgressChainCarriesTheFailedFlagToTheStep(t *testing.T) {
 			},
 		}
 
-		got := r.runEgressPolicyChainASN4(refs, "10.0.0.2", 65002, 65000, false, wire, true)
+		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, filterapi.FinalAccept), "10.0.0.2", 65002, 65000, false, wire, true)
 
 		assert.False(t, got.accept, "the filter said no")
 		assert.False(t, got.failed, "this IS a policy decision, and the caller may count it as one")

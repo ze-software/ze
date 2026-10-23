@@ -60,7 +60,7 @@ bgp {
 		}
 
 		filter {
-			import [ community-match:ALLOW-LARGE ]
+			import { filters [ community-match:ALLOW-LARGE ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

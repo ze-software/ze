@@ -119,7 +119,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-prefix:ALLOW-$remote_as ]
+			import { filters [ bgp-filter-prefix:ALLOW-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -192,7 +192,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import [ bgp-filter-prefix:DENY-$remote_as ]
+			import { filters [ bgp-filter-prefix:DENY-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]

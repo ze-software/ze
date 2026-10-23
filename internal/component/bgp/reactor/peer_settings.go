@@ -519,15 +519,13 @@ type PeerSettings struct {
 	// Process bindings - which plugins receive messages from this peer.
 	ProcessBindings []ProcessBinding
 
-	// ImportFilters is the ordered import filter chain for this peer.
-	// Cumulative: bgp-level + group-level + peer-level, in order.
-	// Each entry carries the canonical "<plugin>:<filter>" name plus its
-	// deactivation state (deactivated refs stay in the chain but are skipped).
-	ImportFilters []filterapi.FilterRef
+	// ImportPolicy carries the cumulative import filters and the effective final.
+	// References are immutable after publication.
+	ImportPolicy filterapi.Policy
 
-	// ExportFilters is the ordered export filter chain for this peer.
-	// Cumulative: bgp-level + group-level + peer-level, in order.
-	ExportFilters []filterapi.FilterRef
+	// ExportPolicy carries the cumulative export filters and the effective final.
+	// References are immutable after publication.
+	ExportPolicy filterapi.Policy
 
 	// LoopAllowOwnAS is the number of own-AS occurrences to tolerate in AS_PATH.
 	// From loop-detection filter config. 0 = reject on first (RFC 4271 Section 9 default).

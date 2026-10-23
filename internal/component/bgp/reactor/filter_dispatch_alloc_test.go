@@ -3,6 +3,8 @@ package reactor
 import (
 	"testing"
 	"unsafe"
+
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // BenchmarkFilterDispatch_ZeroAlloc measures the full filter-dispatch path from
@@ -21,7 +23,7 @@ func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 
-	filters := frefs("test:accept")
+	policy := mustPolicy(b, frefs("test:accept"), filterapi.FinalAccept)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -29,7 +31,7 @@ func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
 	for range b.N {
 		scratch = AppendUpdateForFilter(scratch[:0], attrs, nil, nil)
 		updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain
-		action = PolicyFilterChain(filters, "import", "10.0.0.1", 65001, updateText, acceptAll).Action
+		action = PolicyFilterChain(policy, "import", "10.0.0.1", 65001, updateText, acceptAll).Action
 	}
 	_ = action
 }

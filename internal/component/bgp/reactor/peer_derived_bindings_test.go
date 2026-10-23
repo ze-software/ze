@@ -63,7 +63,7 @@ func TestDerivedFeedSwapKeepsSessionAndCatchesUp(t *testing.T) {
 	require.Empty(t, reason, "a derived feed-only binding must not restart the session")
 	require.NotNil(t, copier)
 
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	assert.Same(t, session, peer.session, "the running session must survive the swap")
 	assert.Equal(t, PeerStateEstablished, peer.State())
@@ -100,7 +100,7 @@ func TestDerivedFeedWithoutRoutesNeedsNoCatchUp(t *testing.T) {
 	next := withDerivedRIBFeed(t, peer.settings)
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, session)
 	require.Empty(t, reason, "a session with no route has nothing to catch up")
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	assert.Same(t, session, peer.session, "the running session must survive the swap")
 	require.Len(t, peer.settings.ProcessBindings, 1)
@@ -120,7 +120,7 @@ func TestDerivedFeedRouteArrivingBeforeApplyRestarts(t *testing.T) {
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	peer.session.receivedRoute.Store(true)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	frames := bgpFrames(t, conn.written())
 	require.Len(t, frames, 1, "one NOTIFICATION and no ROUTE-REFRESH")
@@ -178,7 +178,7 @@ func TestDerivedFeedRemovalSendsNoRefresh(t *testing.T) {
 
 	copier, reason := peerSettingsSwapPlan(peer.settings, &next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(&next, copier)
+	mustApplyHotSwappableSettings(t, peer, &next, copier)
 	assert.Empty(t, peer.settings.ProcessBindings)
 	assert.Empty(t, conn.written(), "a removed feed asks the peer for nothing")
 }
@@ -340,7 +340,7 @@ func TestGainedReceiveOnlyBindingGetsUpBeforeRefresh(t *testing.T) {
 	next := withBindings(peer.settings, peer.settings.ProcessBindings[0], operatorBinding(t, "monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	steps := rec.recorded()
 	require.Len(t, steps, 1, "one targeted up and nothing else")
@@ -364,7 +364,7 @@ func TestUpAcknowledgedBeforeGraphEdge(t *testing.T) {
 	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	steps := rec.recorded()
 	require.Len(t, steps, 1)
@@ -391,7 +391,7 @@ func TestChangedReceiveGrantIsDownThenUp(t *testing.T) {
 		peer.settings.ProcessBindings[1])
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason, "a changed receive-only grant swaps")
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	steps := rec.recorded()
 	require.Len(t, steps, 2, "a down then an up")
@@ -429,7 +429,7 @@ func TestSentDirectionGrantNeedsNothingAdvertised(t *testing.T) {
 			next := withBindings(peer.settings, operatorBinding(t, "monitor", receive, ""))
 			copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 			require.Empty(t, reason)
-			peer.applyHotSwappableSettings(next, copier)
+			mustApplyHotSwappableSettings(t, peer, next, copier)
 			assert.Same(t, session, peer.session, "one connection")
 			assert.Equal(t, PeerStateEstablished, peer.State())
 			assert.Empty(t, conn.written(), "no NOTIFICATION and nothing to ask for")
@@ -453,7 +453,7 @@ func TestRouteFreeGrantNeedsNoCatchUp(t *testing.T) {
 	next := withBindings(peer.settings, operatorBinding(t, "watcher", "state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason, "a route-free grant does not restart")
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 	assert.Same(t, session, peer.session)
 	assert.Empty(t, conn.written(), "no ROUTE-REFRESH and no NOTIFICATION")
 	steps := rec.recorded()
@@ -484,7 +484,7 @@ func TestBindRacesEstablished(t *testing.T) {
 	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	var events []string
 	for _, step := range rec.recorded() {
@@ -507,7 +507,7 @@ func TestIdenticalOperatorBindingReplacingDerived(t *testing.T) {
 	assert.True(t, peerSettingsEqual(peer.settings, next), "the two bindings are one")
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 	assert.Empty(t, rec.recorded())
 	assert.Empty(t, conn.written())
 }
@@ -606,8 +606,8 @@ func TestAttachBeforeEstablishedUpIsOneUp(t *testing.T) {
 	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
-	peer.announceEstablished(peer.reactor, session, nil)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
+	peer.announceEstablished(peer.reactor, session)
 
 	assert.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process is told up exactly once")
 	assert.Same(t, session, peer.session, "the session is kept")
@@ -626,9 +626,29 @@ func TestAttachWhileUpDeliveringRestarts(t *testing.T) {
 	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	assert.Empty(t, rec.recorded(), "no targeted up while the FSM up is in flight")
+	assertTeardownQueued(t, peer)
+}
+
+// TestAttachWhileNegotiatedRestarts proves the OpenConfirm window: the
+// negotiated event went out on entry to OpenConfirm and the FSM up has not
+// started, so nobody can say whether the attached process got the event. The
+// session restarts rather than hand that process an up with no negotiated
+// event before it, and the process was told nothing targeted.
+func TestAttachWhileNegotiatedRestarts(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, false, true)
+	_, rec := newBindingReactor(t, peer, conn)
+	setUpPhase(peer, sessionUpNegotiated)
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	mustApplyHotSwappableSettings(t, peer, next, copier)
+
+	assert.Empty(t, rec.recorded(), "no targeted up while the session is in OpenConfirm")
 	assertTeardownQueued(t, peer)
 }
 
@@ -655,7 +675,7 @@ func TestAttachWhileUpPhaseMovesRestarts(t *testing.T) {
 		}
 		copier(dst, src)
 	}
-	peer.applyHotSwappableSettings(next, moving)
+	mustApplyHotSwappableSettings(t, peer, next, moving)
 
 	assert.Empty(t, rec.recorded(), "no targeted up: step 1 saw no up announced")
 	assertTeardownQueued(t, peer)
@@ -685,7 +705,7 @@ func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 		}
 		copier(dst, src)
 	}
-	peer.applyHotSwappableSettings(next, closing)
+	mustApplyHotSwappableSettings(t, peer, next, closing)
 
 	var events []string
 	for _, step := range rec.recorded() {
@@ -760,7 +780,7 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 			next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
 			copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 			require.Empty(t, reason)
-			peer.applyHotSwappableSettings(next, copier)
+			mustApplyHotSwappableSettings(t, peer, next, copier)
 
 			require.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process was told up once")
 			assert.Equal(t, 1, downsTo("monitor", rec, obs), "and down once for the session that closed")

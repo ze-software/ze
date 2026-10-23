@@ -560,6 +560,26 @@ answer as good news.
 
 <!-- source: internal/component/config/validate_sections.go -- ValidatorSectionCoverage, knownUnwalkedValidatorSections -->
 
+Components can also register an original-tree validator with
+`RegisterTreeValidator`. `ValidateCustomSections` calls these on the original
+tree after inactive subtrees are pruned and before inheritance. Candidate parsing
+does not run them: successive `set` commands may build a policy before adding
+its final, but validation, commit and daemon load refuse that incomplete policy.
+BGP registers its direction policy check here: every explicitly present
+import/export container requires its
+own `final accept` or `final reject`, including a global layer with no peers.
+The peer builder repeats the check for callers that supply a tree directly.
+The schema still declares the presence containers and mandatory final enumeration;
+the registered boundary supplies the original path and corrective syntax.
+`LoadConfig` runs this gate before publishing the candidate's environment.
+The registered value validators use supplied values, schema constraints and
+registries; plugin completion registrations do not add validation functions.
+<!-- source: internal/component/config/tree_validators.go -- RegisterTreeValidator, validateOriginalTree -->
+<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections -->
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/bgp/config/register.go -- init -->
+<!-- source: internal/component/bgp/config/redistribution.go -- validateFilterPolicies -->
+
 The mandatory check (RFC 7950 Section 7.6.5) is not bound by that list.
 `mandatoryFailures` walks every other top-level section present in the config,
 the set `Validator.Sections` derives from the compiled schema, and keeps only

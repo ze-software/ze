@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -26,16 +27,24 @@ func TestDraftLinkLocalOneHopLostNextHopWithdraws(t *testing.T) {
 	dest.settings.ProcessBindings = f.destination.settings.ProcessBindings
 	dest.sendCtx.Store(f.destination.sendCtx.Load())
 	dest.sendCtxID, dest.recvCtxID = f.ctxID, f.ctxID
-	dest.negotiated.Store(f.destination.negotiated.Load())
 	dest.session.sendCtxID = f.ctxID
-	dest.session.negotiated = f.destination.session.negotiated
 	f.destination, f.conn = dest, conn
 	dest.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::254")
 	dest.settings.LinkLocal = netip.MustParseAddr("fe80::254")
 	dest.settings.NextHopMode = NextHopSelf
 	dest.settings.PeerAS = 65003
-	dest.negotiated.Load().LinkLocalNextHop = true
-	dest.negotiated.Load().families[family.IPv6Unicast] = true
+	caps := []capability.Capability{
+		&capability.ASN4{ASN: dest.settings.LocalAS},
+		&capability.Multiprotocol{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+		&capability.Multiprotocol{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+		&capability.LinkLocalNextHop{},
+	}
+	neg := capability.Negotiate(caps, caps, capability.PeerIdentity{
+		LocalASN: dest.settings.LocalAS, PeerASN: dest.settings.PeerAS,
+		Internal: dest.settings.IsIBGP(),
+	})
+	dest.session.negotiated = neg
+	dest.negotiated.Store(NewNegotiatedCapabilities(neg))
 	dest.llScope.Store(newLinkScopeFrom(llnhSegment, dest.settings.Address))
 	dest.refreshForwardFacts()
 	f.r.peers[dest.settings.PeerKey()] = dest

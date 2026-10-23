@@ -41,7 +41,7 @@ func TestFlowSpecForwardingOmitsNextHop(t *testing.T) {
 				t.Run(tc.name+"/"+mode+"/"+received, func(t *testing.T) {
 					f := newAIGPReplayFixture(t, nil)
 					for _, peer := range []*Peer{f.source, f.destination} {
-						peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{tc.fam: true}})
+						negotiateForwardTestFamilies(peer, tc.fam)
 					}
 					f.destination.settings.PeerAS = 65000
 					flowForwardNextHopSettings(f.destination.settings, mode)

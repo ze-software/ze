@@ -75,14 +75,30 @@ bgp {
             }
         }
         session {
-            asn { local 64500 }
+            asn {
+                local 64500
+            }
             router-id 198.51.100.1
-            family { ipv4/unicast { prefix { maximum 200000 } } }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 200000
+                    }
+                }
+            }
         }
-        role { import rs }
+        role {
+            import rs
+        }
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
 
         attach process rs {
@@ -100,28 +116,48 @@ The `role { import rs }` leaf makes both `filter` chains mandatory: a declared R
 
 ```
 filter {
-    import [ inactive:NO-TRANSIT ]
-    export [ inactive:NO-TRANSIT ]
+    import {
+        filters [ inactive:NO-TRANSIT ];
+        final accept;
+    }
+    export {
+        filters [ inactive:NO-TRANSIT ];
+        final accept;
+    }
 }
 ```
 
-The prefix goes on the member, inside the brackets. A separate `inactive: import NO-TRANSIT` statement deactivates a member the chain already carries; where the chain carries none, it deactivates the whole leaf, which leaves no chain and Ze refuses the config. See [config deactivation](config-deactivate.md) for both forms.
+The prefix goes on the member, inside the brackets. Inside each direction block,
+`inactive: filters NO-TRANSIT;` deactivates an existing member. Keep the
+`final accept;` decision when the member is inactive. See
+[config deactivation](config-deactivate.md) for both forms.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 A member inherits the group's whole settings, its `attach process` blocks and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.
 
 ## How It Works
 
-### Forward-All Model
+### Forwarding and Destination Election
 
-The route server forwards eligible received routes to other peers without choosing a best path. Receive validation and each destination's export policy still apply.
+Receive validation and each destination's export policy apply before a route can
+reach a client. At a destination without ADD-PATH, a competing source is deferred
+to `bgp-rib` election when that recovery owner receives the source's UPDATEs.
+The first eligible route and an uncontested owner's re-announcement can be sent
+directly; ADD-PATH destinations retain distinct paths.
 
 All forwarding paths share the destination session's final writer ownership
 check. For each native route and outgoing ADD-PATH identifier, the writer
 remembers the source peer and received path that last advertised it. A received
 withdrawal removes only that owner's route; an unknown withdrawal or a withdrawal
 from another source cannot erase a replacement or a locally originated route.
-Announcements are not best-path selection: the latest eligible advertisement
-still wins at a destination without ADD-PATH.
+Competing announcements are therefore not an unconditional latest-wins contract.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- oweAnnouncement, adjOutContests -->
+
+The competing-route election cutover remains unfinished: withdrawal and
+convergence regressions are tracked in
+`plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md` and
+`plan/handover/12-rs-replacement-phase-3-remaining.md`. Explicit-final policy
+validation does not certify that separate cutover.
 
 When the owner withdraws its route, or `bgp-rib` removes it, and `bgp-rib` is
 loaded, a destination without ADD-PATH is not sent the bare withdrawal. The

@@ -76,7 +76,7 @@ bgp {
 		}
 
 		filter {
-			import [ bgp-filter-prefix:ORDERED ]
+			import { filters [ bgp-filter-prefix:ORDERED ]; final accept; }
 		}
 
 		attach process test-prefix-order {

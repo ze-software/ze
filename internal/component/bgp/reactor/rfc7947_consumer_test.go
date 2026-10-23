@@ -100,7 +100,7 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	for _, p := range []*Peer{f.destination, other} {
 		p.settings.RSClient = true
 		p.settings.NextHopMode = NextHopUnchanged
-		p.settings.ExportFilters = []filterapi.FilterRef{{Name: "client-policy"}}
+		p.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "client-policy"}}, filterapi.FinalAccept)
 		p.refreshForwardFacts()
 	}
 	f.r.api = &pluginserver.Server{}

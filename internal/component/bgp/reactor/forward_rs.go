@@ -65,6 +65,12 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 	if !session.writeMu.TryLock() {
 		return false, false, nil
 	}
+	// A live policy restoration can raise its replay fence after dispatch
+	// admission. It raises the fence under this same write lock.
+	if peer.forwardOrderHold(item.initialUpdate) {
+		session.writeMu.Unlock()
+		return false, false, nil
+	}
 
 	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
 		session.writeMu.Unlock()
@@ -141,10 +147,9 @@ func sourceUsesCachedForward(peer *Peer, update *wireu.WireUpdate) bool {
 // number of peers it actually dispatched to. The caller stores the skipped list
 // on RawMessage.FastPathSkipped so bgp-rs can forward to them via ForwardCached.
 //
-// A peer is skipped for one of two reasons: it carries an ACTIVE export filter,
-// which this policy-agnostic rail cannot apply, or an in-process egress filter
-// PANICKED for it, which decides nothing. A policy suppression is not a skip --
-// that IS a decision, and it is final here.
+// A peer is skipped when it carries an ACTIVE export filter or a rejecting
+// final, which this policy-agnostic rail cannot apply, or an in-process egress
+// filter panicked. Genuine in-process policy suppression is decided here.
 //
 // dispatched exists so the caller can tell "the fast path delivered this UPDATE"
 // from "the fast path matched nobody". Both used to look identical to bgp-rs,
@@ -237,7 +242,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		if pf == nil {
 			continue
 		}
-		if hasActiveFilter(pf.exportFilters) {
+		if !pf.exportPolicy.AcceptsAtEnd() {
+			skipped = append(skipped, pf.peerKey)
+			continue
+		}
+		if hasActiveFilter(pf.exportPolicy.Filters()) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -258,7 +267,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		if pf == nil {
 			continue
 		}
-		if hasActiveFilter(pf.exportFilters) {
+		if hasActiveFilter(pf.exportPolicy.Filters()) {
+			continue
+		}
+		if !pf.exportPolicy.AcceptsAtEnd() {
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)

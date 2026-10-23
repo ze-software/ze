@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -169,6 +170,27 @@ func adjOutWithdrawalNLRI(key adjOutKey, entry *adjRIBOutRoute) ([]byte, error) 
 			return nil, fmt.Errorf("family %s: table key %x has no withdrawal framing: %w", key.path.family, keyBytes, err)
 		}
 		wire = wire[:head+n]
+	case ribevents.IsFlowSpec(key.path.family):
+		// RFC 8955 Section 4.1: "The length field indicates the length in
+		// octets of the variable NLRI value". Its key excludes that field.
+		// Native withdrawal: [ADD-PATH:4] [length:1 or 2] [rule/RD+rule].
+		// "The highest value that can be represented with this encoding is
+		// 4095." Rebuild the shortest framing, including a VPN key's RD.
+		if len(keyBytes) > 4095 {
+			return nil, fmt.Errorf("family %s: FlowSpec table key exceeds 4095 octets", key.path.family)
+		}
+		lengthOctets := 1
+		if len(keyBytes) >= 240 {
+			lengthOctets = 2
+		}
+		wire = make([]byte, head+lengthOctets+len(keyBytes))
+		if lengthOctets == 1 {
+			wire[head] = byte(len(keyBytes))
+		} else {
+			wire[head] = 0xf0 | byte(len(keyBytes)>>8)
+			wire[head+1] = byte(len(keyBytes))
+		}
+		copy(wire[head+lengthOctets:], keyBytes)
 	case entry.exactNLRI != nil:
 		return append([]byte(nil), entry.exactNLRI...), nil
 	default:

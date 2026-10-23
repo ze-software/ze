@@ -15,7 +15,12 @@ Every YANG node is deactivatable. No schema annotation is required.
 | Leaf | `inactive: router-id 10.0.0.1;` | leaf invisible to consumers; default applies |
 | Container | `inactive: filter { ... }` | whole subtree absent |
 | List entry | `inactive: peer peer1 { ... }` | entry absent, other entries unaffected |
-| Leaf-list value | `import [ inactive:no-self-as reject-bogons ];` | only that one value skipped |
+| Leaf-list value | `filters [ inactive:no-self-as reject-bogons ];` inside `filter { import { ... } }` | only that one value skipped |
+
+An active import or export policy still requires `final accept;` or
+`final reject;` when all its filter members are inactive. Deactivate the
+direction container to remove that policy.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 The one exception: positional list entries with all-leaf children
 (`nlri`, `nexthop`, `add-path`) are not individually deactivatable.
@@ -38,7 +43,7 @@ Examples:
 ```sh
 ze config deactivate router.conf bgp router-id
 ze config deactivate router.conf bgp peer peer1
-ze config deactivate router.conf bgp filter import no-self-as
+ze config deactivate router.conf bgp filter import filters no-self-as
 ze config activate   router.conf bgp router-id
 ```
 

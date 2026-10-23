@@ -118,27 +118,35 @@ func TestInlineInactiveMemberPrefixNormalized(t *testing.T) {
 // deactivating a filter reference directly in the chain. Complements the typed
 // name-server coverage in TestInlineInactiveMemberPrefixNormalized.
 //
-// VALIDATES: inline inactive: on `filter import` normalizes to the out-of-band
+// VALIDATES: inline inactive: on `filter import filters` normalizes to the out-of-band
 // marker and serializes to the canonical statement form.
 func TestInlineInactiveFilterMember(t *testing.T) {
 	schema := testLeafListSchema(t)
 	tree, err := NewParser(schema).Parse(
-		"bgp {\n\tfilter {\n\t\timport [ inactive:no-self-as reject-bogons ]\n\t}\n}\n")
+		"bgp {\n\tfilter {\n\t\timport {\n\t\t\tfilters [ inactive:no-self-as reject-bogons ];\n\t\t\tfinal accept;\n\t\t}\n\t}\n}\n")
 	require.NoError(t, err)
-	filter := tree.GetContainer("bgp").GetContainer("filter")
+	filter := tree.GetContainer("bgp").GetContainer("filter").GetContainer("import")
 	require.NotNil(t, filter)
 
-	assert.Equal(t, []string{"reject-bogons"}, filter.GetSlice("import"),
+	assert.Equal(t, []string{"reject-bogons"}, filter.GetSlice("filters"),
 		"deactivated filter ref is excluded from the effective chain")
-	_, inactive := filter.MultiValueMemberState("import", "no-self-as")
+	_, inactive := filter.MultiValueMemberState("filters", "no-self-as")
 	assert.True(t, inactive, "no-self-as recorded deactivated out-of-band")
 	assert.Equal(t, []MemberState{{Value: "no-self-as", Inactive: true}, {Value: "reject-bogons"}},
-		filter.GetMultiValuesState("import"))
+		filter.GetMultiValuesState("filters"))
 
 	// Serializes to the canonical statement form, never the inline prefix.
 	out := Serialize(tree, schema)
 	assert.NotContains(t, out, "inactive:no-self-as", "inline prefix must not round-trip on a value")
-	assert.Contains(t, out, "inactive: import no-self-as", "canonical statement form on serialize")
+	assert.Contains(t, out, "inactive: filters no-self-as", "canonical statement form on serialize")
+	reparsed, err := NewParser(schema).Parse(out)
+	require.NoError(t, err)
+	policy := reparsed.GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	require.NotNil(t, policy)
+	assert.Equal(t, filter.GetMultiValuesState("filters"), policy.GetMultiValuesState("filters"))
+	final, present := policy.Get("final")
+	assert.True(t, present)
+	assert.Equal(t, "accept", final)
 }
 
 // testLeafListSchema returns the full YANG schema (system name-server is the

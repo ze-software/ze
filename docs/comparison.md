@@ -172,11 +172,18 @@ through one shared control plane with a single family-neutral `graceful-restart`
 
 ## Policy & Route Manipulation
 
-Ze takes a programmable approach to policy: external plugin filters manipulate routes
-via `filter { import [...] export [...] }` chains using named filter instances or
-explicit `<plugin>:<filter>` references.
-Filters chain as piped transforms (accept/reject/modify) with delta-only output.
-RFC-mandated checks run as default filters that can be selectively overridden.
+Ze uses plugin filters to manipulate routes in ordered import and export policies.
+Each direction lists named filter instances or explicit `<plugin>:<filter>`
+references under `filters` and requires `final accept;` or `final reject;`.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
+
+An `accept` response continues the chain, and a `reject` response drops the route
+immediately. A `modify` response supplies attribute changes for the next filter.
+After the filters pass, the configured final decides whether the route proceeds.
+A raw payload rewrite stops later filters but does not bypass that final decision.
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+
 Built-in filter plugins (shipped with ze) include `bgp-filter-prefix` for
 prefix-list matching with ge/le bounds, `bgp-filter-aspath` for AS-path regex
 filtering, `bgp-filter-community-match` for community presence matching
@@ -186,7 +193,16 @@ filtering, `bgp-filter-community-match` for community presence matching
 rejecting a path that carries a named ASN at a named position (the RFC 7454
 Section 9 transit-leak check), and `bgp-role` for RFC 9234
 roles enforcement. Filters compose in ordered chains:
-`filter import [ prefix-list:X as-path-list:Y modify:Z ]`.
+
+```text
+filter {
+    import {
+        filters [ prefix-list:X as-path-list:Y modify:Z ];
+        final accept;
+    }
+}
+```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/ -- bgp-filter-prefix cmd-4 -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/ -- bgp-filter-aspath cmd-5 -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/ -- bgp-filter-community-match cmd-6 -->

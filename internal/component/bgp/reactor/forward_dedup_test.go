@@ -637,9 +637,9 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 	// override. The second runs the same chain step, finds no filters, and keeps
 	// the original payload as its base.
 	overridden := h.dests[0]
-	overridden.settings.ExportFilters = []filterapi.FilterRef{{Name: "someplugin:rewrite"}}
+	overridden.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "someplugin:rewrite"}}, filterapi.FinalAccept)
 	overridden.refreshForwardFacts()
-	require.Empty(t, h.dests[1].forwardFacts().exportFilters,
+	require.Empty(t, h.dests[1].forwardFacts().exportPolicy.Filters(),
 		"the second destination must reach the chain with no filters, so its base stays the original")
 
 	before := readFanoutCounters()

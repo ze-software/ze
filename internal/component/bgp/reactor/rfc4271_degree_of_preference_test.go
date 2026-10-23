@@ -47,7 +47,7 @@ func receiveExternalRoute(t *testing.T, policy bool) []byte {
 		RouterID:      0xcb007109,
 	}
 	if policy {
-		settings.ImportFilters = []filterapi.FilterRef{{Name: "set-local-pref"}}
+		settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "set-local-pref"}}, filterapi.FinalAccept)
 	}
 	source := NewPeer(settings)
 	source.state.Store(int32(PeerStateEstablished))

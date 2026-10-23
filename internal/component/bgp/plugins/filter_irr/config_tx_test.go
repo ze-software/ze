@@ -13,7 +13,7 @@ import (
 func irrSection(asSet string) []sdk.ConfigSection {
 	data := `{"bgp":{"peer":{"10.0.0.1":{` +
 		`"session":{"asn":{"remote":"65001"},"irr":{"as-set":"` + asSet + `"}},` +
-		`"filter":{"import":["bgp-filter-irr:65001"]}}}}}`
+		`"filter":{"import":{"filters":["bgp-filter-irr:65001"],"final":"accept"}}}}}}`
 	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
 }
 

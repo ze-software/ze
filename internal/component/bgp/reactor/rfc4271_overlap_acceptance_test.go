@@ -50,7 +50,7 @@ func receiveOverlappingRoutes(t *testing.T, decide func(updateText string) Polic
 		GlobalLocalAS: 65000,
 		PeerAS:        65001,
 		RouterID:      0xcb007109,
-		ImportFilters: []filterapi.FilterRef{{Name: "acceptance"}},
+		ImportPolicy:  mustPolicy(t, []filterapi.FilterRef{{Name: "acceptance"}}, filterapi.FinalAccept),
 	})
 	source.state.Store(int32(PeerStateEstablished))
 

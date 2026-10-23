@@ -1454,7 +1454,7 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 	}
 
 	t.Run("every filter accepts", func(t *testing.T) {
-		res := PolicyFilterChain(frefs("a:accept", "b:accept"), "import", "10.0.0.1", 65000, subject,
+		res := PolicyFilterChain(mustPolicy(t, frefs("a:accept", "b:accept"), filterapi.FinalAccept), "import", "10.0.0.1", 65000, subject,
 			func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 				return PolicyResponse{Action: PolicyAccept}
 			})
@@ -1474,7 +1474,7 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 		"cluster-list 1.1.1.1 2.2.2.2",
 	} {
 		t.Run("a filter sets "+delta, func(t *testing.T) {
-			res := PolicyFilterChain(frefs("a:set"), "import", "10.0.0.1", 65000, subject,
+			res := PolicyFilterChain(mustPolicy(t, frefs("a:set"), filterapi.FinalAccept), "import", "10.0.0.1", 65000, subject,
 				func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 					return PolicyResponse{Action: PolicyModify, Delta: delta}
 				})

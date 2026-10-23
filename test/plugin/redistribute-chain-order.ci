@@ -27,7 +27,7 @@ bgp {
     	}
     }
     filter {
-        import [ filter-chain-test:first filter-chain-test:second ];
+        import { filters [ filter-chain-test:first filter-chain-test:second ]; final accept; }
     }
     peer peer1 {
         connection {

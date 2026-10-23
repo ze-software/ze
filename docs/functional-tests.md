@@ -386,14 +386,61 @@ markers so the source peer cannot start before the intended observer releases it
 
 <!-- source: internal/test/fixture/plugin_fixture_02_events.go -- waitFileDriver02, dynamicGroupWait02, waitForMarker02 -->
 
+Test-peer idle timeouts do not discard partially received BGP frames. The reader
+retains header and body bytes until a complete frame can reach the checker or
+echo consumer, including while a check peer lingers. Cancellation still runs
+between bounded read attempts; fixtures must assert complete wire messages,
+not treat a read timeout as an acknowledgement or a message boundary.
+<!-- source: internal/test/peer/message.go -- messageReader.readMessage -->
+<!-- test: internal/test/peer/message_timeout_test.go -- TestMessageLoopPreservesPartialFrame, TestHoldSessionPreservesPartialFrame, TestPartialFrameTimeoutCancellation -->
+
+### Final-policy wire probes
+
+The fixture `plugin/policy-final-disposition` exercises import and export decisions
+separately. Its API-originated export probes name `nhop set` even when the raw
+attribute block already contains NEXT_HOP: the command's next-hop policy is a
+separate input. An accepted probe must report one announced NLRI, then satisfy
+the destination's prefix and attribute assertions. A command acknowledgement
+alone is not evidence that the peer received a route.
+
+Each epoch ends with acknowledged withdrawals of its permitted probe and fence.
+Otherwise the next final-reject reload would correctly withdraw those older
+advertisements while the peer script expected only the next epoch. The reload
+fixture `bgp-policy-final-reload` deliberately retains advertisements instead, and
+requires their withdrawal and restoration without new source UPDATEs. Its
+destination uses the existing echo peer: the observer reconstructs the received
+route set from reflected UPDATE events and checks every announcement's ORIGIN,
+AS_PATH, NEXT_HOP, MED and communities. Echoed routes are not attached to the
+receive store or the selecting RIB's receive path, so they cannot become recovery
+candidates. The echo-only iBGP endpoint explicitly disables AIGP: none of the
+probes carries it, and its default enablement would require received-route
+delivery to the selecting RIB. A denied retained candidate can send a withdrawal
+for an already absent key before the permitted alternate is elected; this is not
+a failure to restore. A denied-path announcement, wrong attributes, a missing alternate,
+withdrawal of the installed alternate during the preferred-path probe, a source
+UPDATE during reconciliation, or a session reset still fails the fixture.
+Both fixtures edit parsed configuration trees, not source-text substrings.
+
+The `bgp-policy-final-frr` interop scenario adds a community on import and
+originates MED on export. FRR must receive both changes alongside the original
+AS path and community, then lose and regain the routes across final-only reloads
+without a source UPDATE or a session reset. Its checker reads MED from the route
+path, not a next-hop metric with the same JSON field name.
+
+<!-- source: internal/le/interoplab/bgp/check_policy_final.go -- checkPolicyFinalFRR, requirePolicyFinalFRRRoute -->
+
+<!-- source: internal/test/fixture/policy_final.go -- policyFinalCase -->
+<!-- source: internal/test/fixture/policy_final_reload.go -- policyFinalReloadScenario -->
+
 ### Driving the SSH session editor from a script
 
 `le test fixture plugin/session-editor <ssh-port> <config> <script> [user <name>]`
-runs `ze init` against the daemon's SSH server as `admin`, or as the user a
-trailing `user <name>` names, with password `testpass` and a client directory
-of that user's own, opens `ze config edit <config>` over a PTY, and runs the script, so a `.ci`
-states both its typing and its assertions on the running daemon. The script is
-usually a `tmpfs=` block. One step per line, a verb then its text; blank lines
+initializes a private local client store with `ze init`, using `admin` or the user
+named by trailing `user <name>`, and password `testpass`. `ze init` does not
+contact the daemon. The driver polls `ze cli -c "show version"` over SSH until
+the daemon answers, then opens `ze config edit <config>` over a PTY and runs the
+script, so a `.ci` states both its typing and its assertions on the running daemon.
+The script is usually a `tmpfs=` block. One step per line, a verb then its text; blank lines
 and `#` lines are skipped:
 
 | Verb | Step |
@@ -422,6 +469,15 @@ terminal, and a killed client cannot exit until that output is read. With
 changes still pending, `quit` asks for confirmation and the editor never exits,
 so a script that leaves its changes pending ends with `kill`, as both users in
 `session-editor-load-conflict.ci` do. The `test/plugin/session-editor-*.ci` files use it.
+
+The client environment removes every case and separator spelling of an overridden
+key before setting it. Otherwise the runner's dotted `ze.config.dir` outranks
+`ZE_CONFIG_DIR` and sends client initialization into the daemon's locked store.
+<!-- source: internal/test/fixture/plugin_fixture_04_cli.go -- overrideEnv04 -->
+
+The IRR-over-SSH reload fixture puts SSH and its BGP peer on different loopback
+addresses so the runner's existing two-port lease also covers the IRR mock.
+<!-- source: test/reload/bgp-filter-irr-loaded-over-ssh.ci -->
 
 <!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorKeys, sessionEditorRun, killSessionEditor -->
 
@@ -2340,6 +2396,20 @@ See `docs/architecture/api/commands.md` "Quiesce Barrier".
 Plugin registration readiness is not BGP establishment. Before requesting
 shutdown, an observer waits for the peer state or sent-payload counter its wire
 assertions require. The check peer must linger while observer work remains.
+`plugin/filter-irr-update` uses the existing peer-progress wait before its manual
+refresh, then quiesces before shutdown. An IRR status reply alone must not end a
+still-opening scripted peer.
+<!-- source: internal/test/fixture/plugin_fixture_07_irr.go -- filterIRRUpdate07 -->
+
+`plugin/filter-irr-readmit` sends an End-of-RIB after its initial announcement
+and waits for `eor-received` before refreshing the missing IRR list. The session
+finishes the preceding UPDATE's synchronous filter decision and held-route
+tracking before it counts that marker; `updates-received` alone advances before
+the filter decides. The peer then checks the ROUTE-REFRESH bytes before sending
+the route again, and the observer waits for that accepted announcement before
+requesting shutdown.
+<!-- source: internal/test/fixture/plugin_fixture_07_irr.go -- filterIRRReadmit07 -->
+
 A fixture proving a plugin-originated End-of-RIB sets
 `behavior { manual-eor true }`, waits for Established, then quiesces initial
 sync before sending its marker. Disabling graceful restart does not suppress
@@ -3435,7 +3505,7 @@ cases (2026-10-18) and `old-4.2` 22 of its 34 (2026-10-20). The mock is `le`
 itself, so a run after an edit to it names a session build,
 `./le --name <name> test exabgp old-4.2 --all`, or it runs the stale shared
 binary. The spec
-`plan/immediate/spec-exabgp-6-api-compatibility.md` carries what remains.
+`plan/release/fixes/spec-exabgp-6-api-compatibility.md` carries what remains.
 
 ```bash
 ./le test exabgp old-5.0 --all

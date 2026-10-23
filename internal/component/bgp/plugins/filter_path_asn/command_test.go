@@ -54,8 +54,8 @@ bgp {
             }
         }
         filter {
-            import [ NO-TRANSIT ]
-            export [ reject-asn:NO-TRANSIT ]
+            import { filters [ NO-TRANSIT ]; final accept; }
+            export { filters [ reject-asn:NO-TRANSIT ]; final accept; }
         }
     }
     peer peer-b {
@@ -73,7 +73,7 @@ bgp {
             }
         }
         filter {
-            import [ bgp-filter-path-asn:NO-TRANSIT ]
+            import { filters [ bgp-filter-path-asn:NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -376,4 +376,22 @@ func TestShowPrintsNthPositions(t *testing.T) {
 
 	assert.Equal(t, []any{}, entries[6939]["nth"],
 		"an ASN no nth rule names prints an empty array, never a missing key")
+}
+
+// TestAttachmentCountsPreserveFinalOnlyPolicies distinguishes an empty policy
+// from its final and still counts references beneath an explicit rejecting final.
+func TestAttachmentCountsPreserveFinalOnlyPolicies(t *testing.T) {
+	cfg := map[string]any{"peer": map[string]any{"edge": map[string]any{
+		"filter": map[string]any{
+			"import": map[string]any{"final": "reject"},
+			"export": map[string]any{"filters": []string{"NO-TRANSIT"}, "final": "reject"},
+		},
+	}}}
+	counts := countAttachments(cfg)
+	if len(counts) != 1 {
+		t.Fatalf("attachment names = %+v, want only NO-TRANSIT", counts)
+	}
+	if got := counts["NO-TRANSIT"]; got.importPeers != 0 || got.exportPeers != 1 {
+		t.Fatalf("attachments = %+v, want import 0 export 1", got)
+	}
 }

@@ -81,7 +81,7 @@ func swapBFD(t *testing.T, p *Peer, next *PeerSettings) {
 	if reason != "" {
 		t.Fatalf("plan restarts (%s), want a swap", reason)
 	}
-	p.applyHotSwappableSettings(next, copier)
+	mustApplyHotSwappableSettings(t, p, next, copier)
 }
 
 // TestNonStrictBFDOptInSwaps: every change between nil, disabled and enabled
@@ -208,8 +208,8 @@ func TestBFDSwapRollbackRestoresClient(t *testing.T) {
 			t.Fatalf("%s: plan restarts (%s)", name, reason)
 		}
 		previous := p.hotSwappableSnapshot(copier)
-		p.applyHotSwappableSettings(next, copier)
-		p.applyHotSwappableSettings(previous, copier)
+		mustApplyHotSwappableSettings(t, p, next, copier)
+		mustApplyHotSwappableSettings(t, p, previous, copier)
 		if got := p.bfdSettings(); got == nil || got.Profile != "fast" {
 			t.Fatalf("%s: opt-in after rollback %+v, want fast", name, got)
 		}

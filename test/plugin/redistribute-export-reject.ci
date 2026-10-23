@@ -135,7 +135,7 @@ bgp {
             send [ update ];
         }
         filter {
-            export [ filter-export-reject-test:block-export ];
+            export { filters [ filter-export-reject-test:block-export ]; final accept; }
         }
     }
 }

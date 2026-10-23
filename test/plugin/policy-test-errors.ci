@@ -54,7 +54,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			export [ STRIP ]
+			export { filters [ STRIP ]; final accept; }
 		}
 	}
 }
