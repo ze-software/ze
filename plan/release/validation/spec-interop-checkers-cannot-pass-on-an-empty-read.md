@@ -175,6 +175,9 @@ Source files read on 2026-10-23:
 | `green-that-could-not-have-been-red.md` | 2026-10-20 | `bgp-srv6-frr` asserts only session establishment |
 | `test-against-broken-path.md` | 2026-10-14 | `ospf-ldp-sync-frr` never starts ldpd, waits only for OSPF Full |
 | `test-against-broken-path.md` | 2026-08-16 | `bgp-graceful-restart-frr` declares `bgp-gr` the peer never attaches |
+| `gate-excludes-part-of-its-population.md` | 2026-10-19 | `TestCheckerPopulationMatchesProducer`: `bgp-vpn-frr` keeps generic expectations |
+| `green-that-could-not-have-been-red.md` | 2026-09-03 | `opBIRDRouteAbsent` passes when its query fails |
+| `unwired-feature.md` | 2026-08-31 | `bgp-med-remove-configured-gobgp/inject.msg` starts an injector the checker never reads |
 
 ## Related specs
 - `plan/release/validation/spec-rfcgate-2-deferred-unrun-interop-trees.md` (ready) asks for the two IPsec fail-open checks to be fixed before a nightly tier is granted; its research names the retired Python handlers. This spec fixes the native successors.

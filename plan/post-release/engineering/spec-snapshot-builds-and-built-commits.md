@@ -274,6 +274,21 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | stale-artifact-reused.md | 2026-09-01 | `trackedAndUntrackedSourceFiles` and `assetRoot`, second occurrence |
 | tree-state-claim-published-unverified.md | 2026-09-06 | carrying a peer's hunk out of a shared file |
 | tree-state-claim-published-unverified.md | 2026-09-12 | no gate builds `cmd/ze` from HEAD content |
+| committed-tree-does-not-build.md | 2026-10-05 | FreeBSD, DragonFly and WASI census: doctor storage, `pkg/zefs`, reactor connection |
+| concurrent-rfc-gate-stale.md | 2026-08-15 | 15 next-hop fixtures red on another session's uncommitted `session_write.go` |
+| concurrent-session-corruption.md | 2026-09-03 | `./le commit create`, the window between preparing a script and running it |
+| concurrent-session-corruption.md | 2026-09-03 | doctor `codes.go` and `doctor.go` uncommitted hunks vanished under a peer |
+| concurrent-session-corruption.md | 2026-09-04 | `mustNameImportingProtocol` panic justified against a peer's uncommitted callers |
+| concurrent-session-corruption.md | 2026-09-04 | `367b0c359b` committed another session's `interop.md` and journal edits |
+| concurrent-session-corruption.md | 2026-09-06 | `0e72b398f2` swept another agent's appliance isolcpus work |
+| concurrent-session-corruption.md | 2026-09-06 | `0e72b398f2` swept `cmd/ze/hub/` edits calling an uncommitted function |
+| concurrent-session-corruption.md | 2026-09-06 | `./le session scratch ensure` returns the parent's directory to every subagent |
+| concurrent-session-corruption.md | 2026-10-14 | `./le rfc approve` writes under a different session than `./le commit session` |
+| documentation-stranded-by-a-siblings-hunk.md | 2026-09-06 | `docs/functional-tests.md` `### ze-test dns` section held by a sibling hunk |
+| documentation-stranded-by-a-siblings-hunk.md | 2026-09-06 | `command-reference.md` firewall domain-group section held by a sibling hunk |
+| documentation-stranded-by-a-siblings-hunk.md | 2026-09-09 | `command-reference.md` `### show plugin declarations` beside an unsafe sibling hunk |
+| gate-verdict-depends-on-the-machine.md | 2026-10-21 | `staticRecipe` takes compiler and musl from Alpine's live repository |
+| gate-verdict-depends-on-the-machine.md | 2026-10-21 | stale patched-GOROOT cache key widens `le repo changed scope` to `./...` |
 
 ## Rows found already fixed
 

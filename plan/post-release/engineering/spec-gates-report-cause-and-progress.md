@@ -258,6 +258,13 @@ renders no cause.
 | `lint-contract-not-applied.md` | 2026-08-29 | host flavor, 16 findings |
 | `lint-contract-not-applied.md` | 2026-08-19 | ci-dispatch call-site gate |
 | `lint-contract-not-applied.md` | 2026-08-19 | l2tp diag tools: 8 findings at HEAD |
+| `failing-gate-prints-no-cause.md` | 2026-09-01 | `Area.Sweep` renders `Sweep.Text` and drops each action's answer |
+| `failing-gate-prints-no-cause.md` | 2026-09-02 | `./le verify deps vulnerability` prints "Failed" and exit 127, not "govulncheck not on PATH" |
+| `failing-gate-prints-no-cause.md` | 2026-09-19 | `TestNoConfigFeedsSentUpdatesToAReceivedOnlyPlugin` self-check names two causes, not which |
+| `failing-gate-prints-no-cause.md` | 2026-10-10 | `ze appliance build` `os.Exit` skips cleanup, leaves `tmp/appliance-build-*` |
+| `failing-gate-prints-no-cause.md` | 2026-10-18 | `./le go lint run scope` without `./` reports a `go list` miss as lint findings |
+| `failure-report-names-a-command-that-does-not-exist.md` | 2026-09-18 | `checkObserverSentinel` reports a dead daemon as `logging-mismatch` |
+| `failure-report-names-a-command-that-does-not-exist.md` | 2026-10-10 | `DockerKernelRoute` darwin reruns a host path inside the guest |
 
 ## Rows found already fixed
 

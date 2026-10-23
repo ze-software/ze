@@ -307,6 +307,12 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 | parallel-copies-collide-on-a-deterministic-port.md | 2026-08-17 | the ipsec functional suite under the retired scripts/evidence/qemu-all-test |
 | reload-rolls-back-instead-of-applying.md | 2026-08-25 | test/traffic/traffic-reload-apply.ci fails one run in eight |
 | test-against-broken-path.md | 2026-09-17 | audit-config-commit fixture exceeds its 5-second HTTP deadline |
+| concurrent-rfc-gate-stale.md | 2026-08-15 | test/plugin/test-pipe-first-last.ci observer sees count 0 for its whole budget |
+| gate-red-where-nothing-blocks-on-it.md | 2026-09-07 | static-interface-nexthop-no-backend passes or times out at its 15s budget |
+| gate-red-where-nothing-blocks-on-it.md | 2026-10-12 | test/plugin/rpki-decorator-merge.ci fails 1 in 20 under stress-repro |
+| gate-verdict-depends-on-the-machine.md | 2026-08-15 | test/plugin/llgr-readvertise-multipeer.ci failing on an idle machine (second row) |
+| gate-verdict-depends-on-the-machine.md | 2026-09-04 | relay rail: route received on one peer never reaches the interop daemon |
+| gate-verdict-depends-on-the-machine.md | 2026-10-07 | TestWriteAnswerReleasesBufferOnError counts 28 allocations under -race |
 
 ## Rows found already fixed
 

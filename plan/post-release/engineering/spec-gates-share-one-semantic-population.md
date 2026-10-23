@@ -366,6 +366,10 @@ with the reason, instead of being matched or missed by a pattern.
 | test-against-broken-path | 2026-08-17 | `internal/component/config/infra` bare-core tests parse optional schemas |
 | test-against-broken-path | 2026-09-04 | `TestFlowSpecConfigToPlugin`, `...VPN`, `TestReservedPeerNamesSyncWithRPCs` red together |
 | test-against-broken-path | 2026-09-23 | `TestBootstrapDistancesMatchTheDeclaration` source scanner |
+| check-cannot-see-the-change-it-looks-for | 2026-09-04 | `./le rfc discriminate-record` mutant route cost scales with the package, not the change |
+| feature-test-missing-build-tag | 2026-09-17 | always-on `mtu/cmd/overhead.go` imports `ike/crypto`, kept in the bare `ze_core` binary |
+| gate-excludes-part-of-its-population | 2026-08-31 | discriminate-record revert route cannot prove a producer on a background goroutine |
+| gate-excludes-part-of-its-population | 2026-09-07 | `deriveTaglessConfig`: four lint flavors run no gocritic |
 
 ## Rows found already fixed
 

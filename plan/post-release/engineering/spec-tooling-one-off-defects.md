@@ -125,6 +125,12 @@ The verification-debt shards, the session directory, the hook registry.
 | AC-18 | le stop x4 (`runDocker`, `installStopped`, `installCommand`, unrooted verbs) | A stop ends the container or child it started, reports truthfully what changed, and a second Ctrl-C reaches le |
 | AC-19 | le test rows x5 (`demos/terminal/web-config` validator, `go run` of a non-main file, committed `zz` probes, `requireEveryJobAdvisory`, `le-discovery-answers` changed list) | Each test drives the path it claims, or is deleted with its probe; the workflow test and the workflow agree |
 | AC-20 | zero answers x3 (feature tag set, perf comparison table, `listStdlib`) | An empty feature tag set, a duplicate `dut-name` and an empty `go list std` each refuse with the cause rather than read as data |
+| AC-21 | stressrepro `runSlug` | A run of 91 selectors writes its capture under a bounded name and every invocation starts |
+| AC-22 | session state `Uncommitted:` | The section lists only paths this session changed, or is renamed to say it is the whole tree |
+| AC-23 | `rfc/not-enrolled.txt` kind | Every kind the ledger writes is one `./le rfc check` accepts; `iso-iec-10589` passes the check |
+| AC-24 | spec speaker population | The spec template asks for every reader and writer of a wire found by search, not the files opened first |
+| AC-25 | missing RFC summaries x8 | Each named document gets a summary and the retired rows return to it, or `rfc/corrections/` states why not |
+| AC-26 | standing reds x6 (site goconst, cli-grammar unblocked, post-OSPF lint, repo check/audit/doc verify, le fixtures, `pluginOwnershipGate`) | Each gate is green at HEAD or runs in a blocking set with a baseline, and the le fixtures pass |
 
 ## 🧪 TDD Test Plan
 
@@ -246,6 +252,17 @@ The verification-debt shards, the session directory, the hook registry.
 | `zero-value-as-valid-answer` | 2026-08-26 | le toolchain derived feature tag set answers empty |
 | `zero-value-as-valid-answer` | 2026-09-21 | `latestComparisonResults` keeps one of two `ze` results |
 | `zero-value-as-valid-answer` | 2026-10-15 | `listStdlib` empty listing read as no stdlib |
+| `bound-too-small-for-its-own-burst` | 2026-10-22 | stressrepro `runSlug` joins every selector into one filename |
+| `declared-format-contradicts-payload` | 2026-08-31 | session state file `Uncommitted:` section is a whole-tree `git status` |
+| `declared-format-contradicts-payload` | 2026-09-01 | `rfc/not-enrolled.txt` `source-restricted` kind refused by `./le rfc check` |
+| `gate-excludes-part-of-its-population` | 2026-08-22 | a spec's Files to Modify list read as the population of a wire's speakers |
+| `gate-excludes-part-of-its-population` | 2026-09-27 | `rfc/short/` holds no summary for eight implemented documents |
+| `gate-red-where-nothing-blocks-on-it` | 2026-08-30 | `./le verify lint run scope ./internal/le/site/...` 18 goconst findings |
+| `gate-red-where-nothing-blocks-on-it` | 2026-08-31 | `./le cli-grammar` is in no blocking set |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | lint after OSPF closure: 93 host, 104 Linux findings |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | repository check, commit audit and doc check verify red over concurrent work |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | `le-docvalid-answers.ci`, `le-evidence-answers.ci` red at HEAD |
+| `gate-red-where-nothing-blocks-on-it` | 2026-10-05 | `pluginOwnershipGate` added with no baseline, `le-placement-answers` red |
 
 ## Rows found already fixed
 

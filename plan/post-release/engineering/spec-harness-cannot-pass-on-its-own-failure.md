@@ -233,6 +233,14 @@ Each case MUST go red, and the corpus runs with the runner's own package tests.
 | `test-against-broken-path.md` | 2026-10-04 | RFC9494-4.2-2 discrimination panic re-enters the mutex |
 | `zero-value-as-valid-answer.md` | 2026-08-31 | `seq02` BFD auth-persistence probe returns 0 for four failures |
 | `zero-value-as-valid-answer.md` | 2026-09-02 | `./le rfc check` publishes zero `discrimination-*` figures over a populated corpus |
+| `balance-assertion-vacuous-without-a-loan.md` | 2026-08-16 | ze-peer `option=linger` beside `reject=bgp`: success printed before the linger |
+| `check-cannot-see-the-change-it-looks-for.md` | 2026-09-12 | `.wb` runner `expect=element:text=` over five web scenarios |
+| `gate-excludes-part-of-its-population.md` | 2026-09-19 | `readExaBGPCase` drops every `:json:` expectation in `test/exabgp-compat/` |
+| `green-that-could-not-have-been-red.md` | 2026-08-31 | memlock and hub tests read a value the host supplies, not the product |
+| `green-that-could-not-have-been-red.md` | 2026-08-31 | `./le rfc discriminate` proposes mutants that cannot touch a `&^=` producer |
+| `green-that-could-not-have-been-red.md` | 2026-09-03 | `rfc2866`: 35 tagged units, zero discrimination records, `./le rfc check` clean |
+| `green-that-could-not-have-been-red.md` | 2026-09-06 | `.ci` runner replaces the first `-` in argv with the stdin file |
+| `green-that-could-not-have-been-red.md` | 2026-09-08 | `buildOpen` in ze-peer mirrors ze's GR capability, so GR `.ci` cannot fail |
 
 ## Rows found already fixed
 

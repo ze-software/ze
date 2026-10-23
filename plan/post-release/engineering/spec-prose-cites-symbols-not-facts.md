@@ -387,6 +387,24 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | tree-state-claim-published-unverified | 2026-08-31 | a YANG description collision reported across sessions |
 | unwired-feature | 2026-08-28 | `functional` area Description advertises Docker-exec analysis |
 | zero-value-as-valid-answer | 2026-09-03 | a grep offered to a peer as an all-clear on a rename |
+| checklist-names-a-page-that-changed-role | 2026-09-07 | `website/AI.md` Phase 4 checklist and its skill copy name the dispatch `comparison.md` as the BGP mirror |
+| claim-outlives-the-evidence-it-cites | 2026-08-23 | a gate verdict quoted against HEAD in a shared checkout, stale when sent |
+| claim-outlives-the-evidence-it-cites | 2026-08-25 | a peer session's credit claim accepted and published unverified |
+| claim-outlives-the-evidence-it-cites | 2026-08-29 | `rfc/short/rfc2205.md` and `rfc4090.md` restate their RFC wrongly |
+| claim-outlives-the-evidence-it-cites | 2026-08-29 | a capability claim resting on a plugin registration, not a call path |
+| claim-outlives-the-evidence-it-cites | 2026-09-01 | `RFC5443-4-1` tag in `ospf/ldp_sync_test.go` rests on "ze originates no TE LSA" |
+| claim-outlives-the-evidence-it-cites | 2026-09-03 | commit body `1243b5974`, a negative grep passed on as an all-clear |
+| claim-outlives-the-evidence-it-cites | 2026-09-04 | uncommitted prose in `docs/architecture/core-design.md` drifting under three sessions |
+| claim-outlives-the-evidence-it-cites | 2026-09-09 | doctor inventory row `listener/ipsec` names a listener no extractor produces |
+| claim-outlives-the-evidence-it-cites | 2026-09-12 | commit message of `d5a7a8a84` misdescribes `PruneLanded` and the gate |
+| claim-outlives-the-evidence-it-cites | 2026-09-30 | `RFC4301-4.1-8` retired as "no multicast SAs" while OSPF installs them |
+| claim-outlives-the-evidence-it-cites | 2026-10-08 | `RFC9012-13-7` retired on absent consumption |
+| claim-outlives-the-evidence-it-cites | 2026-10-20 | `draft-ietf-sidrops-8210bis` rows `7-1` and `7-4` quote one sentence and disagree |
+| comment-describes-superseded-behaviour | 2026-09-01 | `checkSupportedSignoff` comment "Ten such rows sit on the page today" |
+| document-prose-breaks-ste-ratchet | 2026-09-05 | `bgp/defaults/attribute` summary is a paragraph; anchors name `getHelpExtension` |
+| documentation-shows-config-the-parser-refuses | 2026-08-15 | `docs/guide/logging.md` prints `bgp log set` and `bgp log levels`, not commands |
+| green-that-could-not-have-been-red | 2026-08-23 | a grep whose pattern was never proven able to find, reported as absence |
+| green-that-could-not-have-been-red | 2026-08-24 | `.git/index.lock` diagnosed orphaned on true signals answering another question |
 
 ## Rows found already fixed
 

@@ -267,6 +267,15 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | suite-shares-one-persistent-store.md | 2026-08-22 | DefaultConfigDir under the functional runner reaches the developer's store |
 | test-against-broken-path.md | 2026-10-22 | TestNativeImplementationFixture GOCACHE against GoCache(root) |
 | zero-value-as-valid-answer.md | 2026-10-21 | processIdentity over readHostIdentity writes empty lab identity labels |
+| failing-gate-prints-no-cause.md | 2026-09-27 | RFC 2545 link-local unit tests fail as a byte diff without `fd00::2` on loopback |
+| gate-excludes-part-of-its-population.md | 2026-10-12 | AC-5 `./le test qemu all-tests`: glibc `bin/ze` in a musl guest, 1200s timeout |
+| gate-verdict-depends-on-the-machine.md | 2026-08-22 | `TestLGHandlerGoldenOutput/ui-peer-download` gzip bytes differ per machine |
+| gate-verdict-depends-on-the-machine.md | 2026-08-23 | `golangci-lint` invoked directly panics on the host toolchain |
+| gate-verdict-depends-on-the-machine.md | 2026-08-28 | `./le setup check` golangci-lint probe answers present for an unrunnable binary |
+| gate-verdict-depends-on-the-machine.md | 2026-08-29 | tool-presence probe checks the tool, not the toolchain it was built with |
+| gate-verdict-depends-on-the-machine.md | 2026-09-03 | staticcheck feature-matrix stage exits -1 |
+| gate-verdict-depends-on-the-machine.md | 2026-10-14 | stdpatch `CacheDir` spelled through the `cache` link, read as a main-module package |
+| gate-verdict-depends-on-the-machine.md | 2026-10-14 | `./le test ui` builds only `ze`; `ze-stripped` fixtures fail |
 
 ## Rows found already fixed
 
