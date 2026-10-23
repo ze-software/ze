@@ -19,10 +19,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
@@ -109,6 +111,24 @@ type Fleet struct {
 
 	// sessions holds each peer's negotiated block for its UPDATE lines.
 	sessions bridge.Sessions
+}
+
+// EventFormat answers the format a runner subscribes to the engine's events in
+// for these scripts: `full` when some feed grants a script a message's bytes
+// (bridge.GrantsPacket), the only form that reads them, and `parsed`
+// otherwise, so the engine does not hex-encode every UPDATE for a bridge whose
+// scripts never see the bytes. A script with no feed list is written the
+// decoded line alone (script.forms), so it asks for nothing more.
+func EventFormat(scripts []Script) string {
+	for _, s := range scripts {
+		for _, feed := range s.Feeds {
+			granted := func(apiKey string) bool { return slices.Contains(feed.Events, apiKey) }
+			if bridge.GrantsPacket(granted) {
+				return plugin.FormatFull
+			}
+		}
+	}
+	return plugin.FormatParsed
 }
 
 // New builds a Fleet for the given scripts. It forks nothing: Start does.

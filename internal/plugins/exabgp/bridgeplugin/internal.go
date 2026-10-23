@@ -140,10 +140,10 @@ func runInternalBridge(conn net.Conn) int {
 	defer cancel()
 
 	// Subscribe to all events so the bridge can translate them for the scripts.
-	// Config-independent, so set before Run (Stage 5 reads it after this). The
-	// `full` format carries each message's bytes beside its parsed form, which
-	// ExaBGP's `packets` and `consolidate` renderings write (bridge.Forms).
-	p.SetStartupSubscriptions([]string{"*"}, nil, plugin.FormatFull)
+	// Set before Run in the decoded form, and set again at OnConfigure once the
+	// scripts' grants are known: Stage 5 reads it after both, and a bridge
+	// with no script, which OnConfigure does not reach, still needs the events.
+	p.SetStartupSubscriptions([]string{"*"}, nil, plugin.FormatParsed)
 
 	// ze events -> external JSON on every subprocess stdin. Registered before Run
 	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
@@ -167,6 +167,13 @@ func runInternalBridge(conn net.Conn) int {
 			if err := r.applyConfig(cfg); err != nil {
 				return err
 			}
+			// The `full` format carries each message's bytes beside its
+			// parsed form, which only the `packets` and `consolidate` forms
+			// write, so the bridge asks for it only when a script is
+			// granted one (bridgerun.EventFormat). A reload cannot change
+			// the grants (verifyReload), so the Stage 2 answer holds for the
+			// life of the plugin.
+			p.SetStartupSubscriptions([]string{"*"}, nil, bridgerun.EventFormat(cfg.Scripts))
 			return nil
 		}
 		return nil

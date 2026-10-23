@@ -6,6 +6,7 @@ package bridgerun
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
@@ -38,5 +39,44 @@ func TestScriptFormsFollowTheFeed(t *testing.T) {
 	}
 	if got := (&script{}).forms("10.0.0.2", "receive"); got != bridge.FormParsed {
 		t.Errorf("a script with no feed is written %b, want the decoded line", got)
+	}
+}
+
+// TestEventFormatAsksForBytesOnlyWhenAFormWritesThem proves a runner
+// subscribes to the engine's `full` events only when some script is granted a
+// form that writes a message's bytes, and `parsed` otherwise.
+//
+// VALIDATES: EventFormat over every grant: `packets` in either direction and a
+// received `consolidate` need the bytes; a sent `consolidate` without `packets`
+// is the decoded line (bridge.FormsFor), as are `parsed`, the message kinds
+// alone, an empty feed and a script with no feed list.
+// PREVENTS: the engine hex-encoding every UPDATE for a bridge whose scripts
+// never see the bytes, or a packets script fed events with no bytes in them.
+func TestEventFormatAsksForBytesOnlyWhenAFormWritesThem(t *testing.T) {
+	feed := func(events ...string) []Script {
+		return []Script{
+			{Name: "quiet"},
+			{Name: "fed", Feeds: []ScriptFeed{{Peer: "10.0.0.1"}, {Peer: "10.0.0.2", Events: events}}},
+		}
+	}
+	cases := []struct {
+		name    string
+		scripts []Script
+		want    string
+	}{
+		{"no script", nil, plugin.FormatParsed},
+		{"no feed list", []Script{{Name: "quiet"}}, plugin.FormatParsed},
+		{"message kinds only", feed("receive-update", "send-update"), plugin.FormatParsed},
+		{"parsed", feed("receive-update", "receive-parsed", "send-parsed"), plugin.FormatParsed},
+		{"sent consolidate alone", feed("send-update", "send-consolidate"), plugin.FormatParsed},
+		{"received packets", feed("receive-update", "receive-packets"), plugin.FormatFull},
+		{"sent packets", feed("send-update", "send-packets"), plugin.FormatFull},
+		{"received consolidate", feed("receive-update", "receive-consolidate"), plugin.FormatFull},
+		{"sent consolidate with packets", feed("send-consolidate", "send-packets"), plugin.FormatFull},
+	}
+	for _, tc := range cases {
+		if got := EventFormat(tc.scripts); got != tc.want {
+			t.Errorf("%s: EventFormat = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }

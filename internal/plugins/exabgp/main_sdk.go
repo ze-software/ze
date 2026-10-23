@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -78,10 +77,20 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// joins has nothing for it to apply.
 	p.DeclareAppliesNothing("takes its config from the command line, not from the config tree")
 
-	// Subscribe to all events, each message with its bytes beside its parsed
-	// form (the `full` format), which ExaBGP's `packets` and `consolidate`
-	// renderings write (bridge.Forms).
-	p.SetStartupSubscriptions([]string{"*"}, nil, plugin.FormatFull)
+	// The one script this runner starts, from the command line: no feed list,
+	// so it is written every event of every peer as the decoded line.
+	scripts := []bridgerun.Script{{
+		Name:    filepath.Base(pluginCmd[0]),
+		Argv:    pluginCmd,
+		Encoder: bridge.EncoderJSON,
+		Respawn: true,
+	}}
+
+	// Subscribe to all events, in the format the scripts' forms read
+	// (bridgerun.EventFormat): a script with no feed list is granted no
+	// `packets` or `consolidate`, so this runner subscribes `parsed`, and the
+	// engine writes no message's bytes it would only throw away.
+	p.SetStartupSubscriptions([]string{"*"}, nil, bridgerun.EventFormat(scripts))
 
 	// The script is NOT started here: the OnAllPluginsReady registration below
 	// starts it, and says what an early start cost.
@@ -97,12 +106,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// It gets no peer list either, so it is fed by every peer and its
 	// unaddressed commands reach every peer. One script and one command line
 	// name no relation to narrow.
-	fleet := bridgerun.New(slogutil.Logger("exabgp-bridge"), families, []bridgerun.Script{{
-		Name:    filepath.Base(pluginCmd[0]),
-		Argv:    pluginCmd,
-		Encoder: bridge.EncoderJSON,
-		Respawn: true,
-	}})
+	fleet := bridgerun.New(slogutil.Logger("exabgp-bridge"), families, scripts)
 
 	// ze events -> ExaBGP JSON on the script's stdin.
 	p.OnEvent(func(event string) error {

@@ -9,6 +9,7 @@ import (
 	// The config component registers exabgp.api.*, and the bridge reads
 	// them through env.Get, which refuses an unregistered key.
 	_ "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -353,5 +354,35 @@ func TestBridgeQueuesEventsFromConfigureNotFromStart(t *testing.T) {
 
 	if err := runner.onEvent(`{"type":"bgp","bgp":{"message":{"type":"open"}}}`); err != nil {
 		t.Fatalf("onEvent before start: %v", err)
+	}
+}
+
+// TestConfiguredGrantsChooseTheEventFormat proves the format the internal
+// runner subscribes in at OnConfigure follows the committed config: `full`
+// once a neighbor grants a script `receive-packets`, `parsed` for the same
+// config without it.
+//
+// VALIDATES: parseConfig carries the form words into the scripts that
+// bridgerun.EventFormat reads.
+// PREVENTS: a bridge that subscribes to every message's bytes whatever its
+// scripts were granted, or a packets script fed no bytes.
+func TestConfiguredGrantsChooseTheEventFormat(t *testing.T) {
+	const config = `{"exabgp":{"bridge":{"process":{
+		"public":{"run":"./public.run","encoder":"json","feed":{
+			"127.0.0.1":{"event":[%s]}}}}}}}`
+	for _, tc := range []struct {
+		events string
+		want   string
+	}{
+		{`"receive-update"`, plugin.FormatParsed},
+		{`"receive-update","receive-packets"`, plugin.FormatFull},
+	} {
+		cfg, err := parseConfig(strings.Replace(config, "%s", tc.events, 1))
+		if err != nil {
+			t.Fatalf("parseConfig(%s): %v", tc.events, err)
+		}
+		if got := bridgerun.EventFormat(cfg.Scripts); got != tc.want {
+			t.Errorf("events [%s]: EventFormat = %q, want %q", tc.events, got, tc.want)
+		}
 	}
 }

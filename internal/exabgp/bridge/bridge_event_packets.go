@@ -198,6 +198,21 @@ func FormsFor(direction string, granted func(apiKey string) bool) Forms {
 	return forms
 }
 
+// GrantsPacket answers whether an api block's words write some message as its
+// bytes, in either direction: FormsFor answers FormPackets or FormConsolidated
+// for it. Only then does a runner need the engine's `full` events, which carry
+// each message's bytes as hex beside its parsed form (readPacket); every other
+// grant is written from the parsed form alone, so the engine is spared the hex
+// of every UPDATE (ai/rules/performance.md).
+func GrantsPacket(granted func(apiKey string) bool) bool {
+	for _, direction := range []string{modeReceive, modeSend} {
+		if FormsFor(direction, granted)&(FormPackets|FormConsolidated) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Lines answers the event as the lines a script reading format is written in
 // the given forms, newlines included, or nil when it is written nothing.
 //
