@@ -632,6 +632,31 @@ the hard lifetime.
 | any other error notify, recognized or not (NO_PROPOSAL_CHOSEN, TS_UNACCEPTABLE, an unusable INVALID_KE_PAYLOAD, ...) | keeps the SA; every configured proposal is now refused, so the rekey waits `rekeyRefusedWait` (15 s less up to 10% jitter), then the record is cleared and the cycle restarts | RFC 7296 Sections 1.3.1 and 3.10.1 |
 | a response with no notify that lacks a payload | retries on the next tick | |
 
+Re-establishing is the owner loop's `reestablish` exit (`maintainSA`,
+`established.go`). Besides the two refusals above (and NO_ADDITIONAL_SAS on a
+Child SA creation), the same exit serves a peer's Delete of the live Child SA (the
+session reconnects rather than staying up childless, owner decision Q-5 of the
+childless IKE SA spec), a MOBIKE update that fails, and a rebind that cannot
+follow the peer. Each path reaches it on an authenticated message the peer just
+sent, so the peer is responding. Before the exit drops the IKE SA it sends a
+Delete for it through `sayGoodbye`, because the peer still holds that IKE SA: RFC
+7296 Section 2.4 says an endpoint closing an IKE SA "SHOULD send a Delete payload
+indicating that it has closed the IKE SA unless the other endpoint is no longer
+responding". `sayGoodbye` first waits up to `goodbyeWindowWait` (2 s) for an
+outstanding request of ours, and sends nothing if it stays unanswered. Without
+the Delete, strongSwan 6.x, which re-creates a reloaded Child SA in place with
+CREATE_CHILD_SA, drew an unprotected INVALID_IKE_SPI on an IKE SA it still
+believed in.
+
+A request that deletes the IKE SA itself never takes this exit, even when it
+also names the live Child SA: the peer has closed the IKE SA at both ends, so no
+Delete is owed. `handleInformationalOwned` (`inbound.go`) clears the reestablish
+outcome, and the `StateDead` arm ends the session with `errSADeletedByPeer`,
+which reconnects without a goodbye.
+
+<!-- source: internal/component/ike/engine/established.go -- maintainSA, sayGoodbye -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleInformationalOwned -->
+
 `rekeyRefusalRecord` (`rekey.go`), one per rekey kind on the SA, records what the
 peer refused, and no refused group is offered again on that SA, so no answer can
 loop. Ze sends every configured proposal in one SA payload, so a refusal that names

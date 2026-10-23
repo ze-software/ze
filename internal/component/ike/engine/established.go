@@ -350,7 +350,21 @@ func (ps *PeerSession) maintainSA(
 			// caller's reconnect path runs IKE_SA_INIT and IKE_AUTH again, and those
 			// build a fresh Child SA. Returning errTimeout takes the same exit the hard
 			// lifetime uses, so the backoff and the teardown are the established ones.
+			//
+			// The same exit serves a peer's Delete of the live Child SA (owner decision
+			// Q-5: such a session reconnects rather than staying up childless), a MOBIKE
+			// failure, a rebind that cannot follow the peer and CHILD_SA_NOT_FOUND. Each
+			// ENDS this IKE SA while the peer still holds it, so the peer is told. A
+			// silent drop left strongSwan 6.x re-creating its Child SA in place on an IKE
+			// SA Ze no longer knew, and drawing an unprotected INVALID_IKE_SPI it cannot
+			// authenticate (child-rekey-narrowing).
 			if out.reestablish {
+				// RFC 7296 Section 2.4: "Closing the IKE SA implicitly closes all
+				// associated Child SAs. In this case, an IKE endpoint SHOULD send a
+				// Delete payload indicating that it has closed the IKE SA unless the
+				// other endpoint is no longer responding." sayGoodbye sends nothing when
+				// the peer never answered our last request.
+				ps.sayGoodbye(sa, tr, dp, log)
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
 			}

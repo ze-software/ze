@@ -790,6 +790,15 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 			out.reestablish = true
 		}
 	}
+	// A peer that deleted the IKE SA has already closed it at both ends, so it is owed
+	// no Delete of ours. The reestablish exit says goodbye before it reconnects, and a
+	// Delete of the live Child SA riding in this same request would send that goodbye
+	// for an IKE SA the peer no longer holds. The StateDead arm of the owner loop ends
+	// this session instead, with no goodbye, and the reconnect still follows
+	// (errSADeletedByPeer).
+	if ikeDeleted {
+		out.reestablish = false
+	}
 	if isResponse {
 		// RFC 7296 Section 1.4.1 puts the second half of the crossing case here:
 		// a node that issued a Delete request deletes

@@ -949,8 +949,20 @@ func checkChildRekeyNarrowing(ctx context.Context, lab *scenarioLab) error {
 	if !strings.Contains(loaded, "loaded connection 'ze'") {
 		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan did not load narrowed connection"), loaded)
 	}
-	if err := lab.waitLog(ctx, swanPeer, "deleting IKE_SA ze[", lab.timeout); err != nil {
+	// The reload has to take the wide Child SA down, or the narrowed selectors below could
+	// never be negotiated. strongSwan 5.9 did that by deleting the whole IKE SA; 6.x
+	// (replace_children, vici_config.c) closes the Child SA and re-creates it in place
+	// with CREATE_CHILD_SA. Both close the wide child, and 6.1 logs it as this line.
+	if err := lab.waitLog(ctx, swanPeer, "closing CHILD_SA ze-child{", lab.timeout); err != nil {
 		return err
+	}
+	// Ze answers a peer Delete of its only Child SA by reconnecting (owner decision Q-5),
+	// and it MUST tell the peer it closed the IKE SA first (RFC 7296 Section 2.4), or
+	// strongSwan 6.x sends its in-place CREATE_CHILD_SA into an IKE SA Ze no longer holds
+	// and gets an unprotected INVALID_IKE_SPI back. strongSwan logs this line both when it
+	// deletes the IKE SA itself (5.9) and when it processes Ze's Delete for it (6.x).
+	if err := lab.waitLog(ctx, swanPeer, "deleting IKE_SA ze[", lab.timeout); err != nil {
+		return fmt.Errorf("strongSwan never deleted the IKE SA of the closed Child SA, so Ze dropped it without a Delete: %w", err)
 	}
 	if err := lab.waitChildSelectors(ctx, narrowLocal, wideRemote); err != nil {
 		return err

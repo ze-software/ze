@@ -262,3 +262,97 @@ func TestPeerDeleteOfTheLiveChildEndsTheOwnerLoop(t *testing.T) {
 		t.Errorf("the bus carries %v, want child-down", events)
 	}
 }
+
+// TestPeerDeleteOfTheLiveChildDeletesTheIKESA checks that the session the peer's Child SA
+// Delete ends tells the peer its IKE SA is gone, before the reconnect builds a new one.
+//
+// Goal: RFC 7296 Section 2.4: "Closing the IKE SA implicitly closes all associated Child
+// SAs. In this case, an IKE endpoint SHOULD send a Delete payload indicating that it has
+// closed the IKE SA unless the other endpoint is no longer responding." The peer just
+// sent a request, so it is responding. strongSwan 6.x re-creates a reloaded Child SA in
+// place with CREATE_CHILD_SA on the same IKE SA; a Ze that dropped the IKE SA in silence
+// answered that request with an unprotected INVALID_IKE_SPI the peer cannot
+// authenticate, and the tunnel stayed down (child-rekey-narrowing, strongSwan 6.1.0).
+//
+// Method: the owner loop runs with the session's Child SA; the peer deletes it. Every
+// datagram the peer then reads is decrypted under the IKE SA, and one of them MUST be an
+// INFORMATIONAL request carrying a Delete payload for the IKE SA.
+//
+// MUTATION: drop the sayGoodbye call from the owner loop's reestablish exit
+// (established.go) and no IKE SA Delete reaches the peer.
+func TestPeerDeleteOfTheLiveChildDeletesTheIKESA(t *testing.T) {
+	local, peer, ps, peerTr, myTr := lcyLoopback(t)
+	child := ps.getChildSA()
+	if child == nil {
+		t.Fatal("the session holds no Child SA")
+	}
+	msgID := local.ExpectedMsgID
+	bus := &sepBus{}
+	done := clfRunLoop(t, local, ps, nil, newLifetimeState(3600), newLifetimeState(3600), myTr, bus)
+
+	ps.inbound <- transport.Packet{Data: lcyRequest(t, peer, msgID, lcyESPDeleteChain(child.OutboundSPI))}
+	if err := clfLoopEnd(t, done, "a peer Delete of the live Child SA"); !errors.Is(err, errTimeout) {
+		t.Fatalf("a peer Delete of the live Child SA ended the loop with %v, want errTimeout", err)
+	}
+
+	sawResponse := false
+	for raw := rtxRecv(t, peerTr); raw != nil; raw = rtxRecv(t, peerTr) {
+		hdr := parseMsg(t, raw).Header
+		if hdr.Flags&wire.FlagResponse != 0 {
+			sawResponse = true
+			continue
+		}
+		if hdr.ExchangeType != wire.ExchangeInformational {
+			continue
+		}
+		for _, del := range lcyDeletes(lcyDecrypt(t, peer, raw)) {
+			if del.ProtocolID == wire.ProtocolIKE {
+				if !sawResponse {
+					t.Error("the IKE SA Delete went out before the answer to the peer's Child SA Delete")
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("the session ended its IKE SA and sent the peer no Delete for it")
+}
+
+// TestPeerDeleteOfTheIKESAWithItsChildSendsNoGoodbye checks that a request deleting the
+// IKE SA and the live Child SA together draws no Delete of ours for that IKE SA.
+//
+// Goal: RFC 7296 Section 2.4 asks the endpoint CLOSING an IKE SA to "send a Delete
+// payload indicating that it has closed the IKE SA". Here the peer closed it, so the IKE
+// SA no longer exists at either end and a Delete for it names nothing. The goodbye the
+// reestablish exit sends (TestPeerDeleteOfTheLiveChildDeletesTheIKESA) MUST NOT run for
+// it. The session still reconnects, by the exit a peer's IKE SA Delete takes.
+//
+// Method: the owner loop runs with the session's Child SA; the peer sends one request
+// carrying a Delete for the IKE SA and a Delete for the live Child SA. The loop MUST end
+// with errSADeletedByPeer, and no datagram the peer then reads is a request.
+//
+// MUTATION: drop the `out.reestablish = false` guard on ikeDeleted in
+// handleInformationalOwned (inbound.go) and the loop ends with errTimeout after sending
+// an IKE SA Delete.
+func TestPeerDeleteOfTheIKESAWithItsChildSendsNoGoodbye(t *testing.T) {
+	local, peer, ps, peerTr, myTr := lcyLoopback(t)
+	child := ps.getChildSA()
+	if child == nil {
+		t.Fatal("the session holds no Child SA")
+	}
+	msgID := local.ExpectedMsgID
+	bus := &sepBus{}
+	done := clfRunLoop(t, local, ps, nil, newLifetimeState(3600), newLifetimeState(3600), myTr, bus)
+
+	chain := append([]wire.PayloadEntry{{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}}},
+		lcyESPDeleteChain(child.OutboundSPI)...)
+	ps.inbound <- transport.Packet{Data: lcyRequest(t, peer, msgID, chain)}
+	if err := clfLoopEnd(t, done, "a peer Delete of the IKE SA and its Child SA"); !errors.Is(err, errSADeletedByPeer) {
+		t.Fatalf("a peer Delete of the IKE SA and its Child SA ended the loop with %v, want errSADeletedByPeer", err)
+	}
+
+	for raw := rtxRecv(t, peerTr); raw != nil; raw = rtxRecv(t, peerTr) {
+		if parseMsg(t, raw).Header.Flags&wire.FlagResponse == 0 {
+			t.Fatal("the session sent a request after the peer deleted its IKE SA")
+		}
+	}
+}
