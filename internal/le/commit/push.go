@@ -242,10 +242,8 @@ type debtStatus struct {
 
 // answerDebtStatus derives the debt for HEAD's choice of P, or for candidate,
 // and answers the exit code: 0 nothing owed, 1 something owed, 2 cannot
-// answer. With no candidate, nothing is owed only when P is HEAD with nothing
-// left behind and no item open. With a candidate, what follows it on the
-// branch does not count: it is owed only when it is not an admissible target
-// or an item is open in `<candidate> ^@{u}`.
+// answer. Whether anything is owed is derivedDebt.owed, the one rule the
+// create report and the session-start warning read too.
 func answerDebtStatus(root, candidate string) (debtStatus, int, error) {
 	derived, err := deriveDebt(root, candidate)
 	if err != nil {
@@ -259,16 +257,7 @@ func answerDebtStatus(root, candidate string) (debtStatus, int, error) {
 	for _, item := range derived.Items {
 		status.Items = append(status.Items, item.describe())
 	}
-	if !status.Applicable {
-		return status, 0, nil
-	}
-	status.Owed = len(status.Refusals) != 0 || len(status.Items) != 0
-	if candidate == "" && derived.Target != pushTargetHead {
-		status.Owed = true
-	}
-	if candidate == "" && len(status.LeftBehind) != 0 {
-		status.Owed = true
-	}
+	status.Owed = derived.owed()
 	if status.Owed {
 		return status, 1, nil
 	}
@@ -311,29 +300,25 @@ func orNone(value string) string {
 const debtWarningItemsMax = 5
 
 // DebtWarning answers the session-start warning over the derived debt: one
-// line and at most five items, or "" when HEAD's tree is covered and no
-// person act is open. An error is "cannot answer", and the caller MUST NOT
-// read it as nothing owed.
+// line and at most five items under it (the commits left behind, the reasons
+// the push is refused, then the open person acts), or "" exactly when nothing
+// is owed (derivedDebt.owed). An error is "cannot answer", and the caller MUST
+// NOT read it as nothing owed.
 func DebtWarning(root string) (string, error) {
 	derived, err := deriveDebt(root, "")
 	if err != nil {
 		return "", err
 	}
-	if len(derived.LeftBehind) == 0 && len(derived.Items) == 0 {
+	if !derived.owed() {
 		return "", nil
 	}
 	var text textbuf.Buffer
-	text.Str("verification debt: ")
-	if len(derived.LeftBehind) == 0 {
-		text.Str(strconv.Itoa(len(derived.Items))).Str(" person act(s) owed")
-	} else {
-		text.Str(strconv.Itoa(len(derived.LeftBehind))).Str(" commit(s) owe a full verify since ").Str(derived.since())
-	}
-	text.Str(", push refused until cleared\n")
-	lines := make([]string, 0, len(derived.LeftBehind)+len(derived.Items))
+	text.Str("verification debt: ").Str(derived.headline()).Str(", push refused until cleared\n")
+	lines := make([]string, 0, len(derived.LeftBehind)+len(derived.Refusals)+len(derived.Items))
 	for _, left := range derived.LeftBehind {
 		lines = append(lines, shortSHA(left.SHA)+" "+left.Subject)
 	}
+	lines = append(lines, derived.Refusals...)
 	for _, item := range derived.Items {
 		lines = append(lines, item.describe())
 	}
@@ -347,15 +332,50 @@ func DebtWarning(root string) (string, error) {
 	return text.String(), nil
 }
 
-// debtReport is the create report's `debt=` value: how many commits owe a
-// full verify, and since which green record. A derivation that cannot answer
-// says so; it never reads as zero.
+// debtReport is the create report's `debt=` value, one line: what is owed and
+// why, from the same headline and the same owed predicate as the session-start
+// warning. A derivation that cannot answer says so; neither it nor a push
+// target that does not exist ever reads as zero owed.
 func debtReport(root string) string {
 	derived, err := deriveDebt(root, "")
 	if err != nil {
 		return "cannot answer: " + commentSafe(err.Error())
 	}
-	return strconv.Itoa(len(derived.LeftBehind)) + " commit(s) owe a full verify since " + derived.since()
+	if !derived.owed() {
+		return "nothing owed: HEAD's tree is covered by the green verify of " + derived.since()
+	}
+	report := derived.headline()
+	if len(derived.Refusals) != 0 {
+		report += "; " + strings.Join(derived.Refusals, "; ")
+	}
+	return commentSafe(report)
+}
+
+// headline names what a derivation that owes something owes, most decisive
+// first: the commits a full verify must still cover; else that HEAD's own tree
+// is not covered, with the command that covers it; else the refusal or the
+// person acts. It is never a count of zero: a derivation with no push target
+// at HEAD and nothing to list says the tree is not covered.
+func (d *derivedDebt) headline() string {
+	if len(d.LeftBehind) != 0 {
+		return strconv.Itoa(len(d.LeftBehind)) + " commit(s) owe a full verify since " + d.since()
+	}
+	if d.Target != pushTargetHead {
+		return "HEAD's tree is not covered by a green verify (" + d.coverage() + "): run " + verifyWorktreeCommand
+	}
+	if len(d.Refusals) != 0 {
+		return "the push of HEAD is refused"
+	}
+	return strconv.Itoa(len(d.Items)) + " person act(s) owed"
+}
+
+// coverage names what the green record is for a headline: absent, or the
+// commit it names.
+func (d *derivedDebt) coverage() string {
+	if d.Green == "" {
+		return "no green record"
+	}
+	return "the green record names " + shortSHA(d.Green)
 }
 
 // since names the green record a debt is counted from.

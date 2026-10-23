@@ -368,6 +368,40 @@ func logCommits(root string, revisions ...string) ([]loggedCommit, error) {
 	return commits, nil
 }
 
+// owed answers whether anything stands between this derivation and a clean
+// answer. It is the one rule `debt-status`, the create report and the
+// session-start warning read, so none of them can say "nothing owed" while
+// another refuses.
+//
+// Outside the Ze checkout nothing is derived, so nothing is owed. Any refusal
+// or open person act is owed. With no push target, HEAD's tree is not covered
+// by a green verify, and that is owed even when no commit is listed. A target
+// the derivation found itself (HEAD's choice) owes a full verify when it is not
+// HEAD, or when it leaves a commit behind. A target `debt-status commit <rev>`
+// named is judged alone: what follows it on the branch does not count (AC-25).
+func (d *derivedDebt) owed() bool {
+	switch d.Target {
+	case pushTargetNotApplicable:
+		return false
+	case pushTargetUnspecified, pushTargetNone:
+		return true
+	case pushTargetHead, pushTargetGreen, pushTargetNamed:
+	}
+	if len(d.Refusals) != 0 {
+		return true
+	}
+	if len(d.Items) != 0 {
+		return true
+	}
+	if d.Target == pushTargetNamed {
+		return false
+	}
+	if d.Target != pushTargetHead {
+		return true
+	}
+	return len(d.LeftBehind) != 0
+}
+
 // pushRefusal answers why a push of the derived target is refused, or nil when
 // `./le commit push` may prepare its script: a target exists, it is ahead of
 // the upstream, the upstream fast-forwards to it, and no item is open.

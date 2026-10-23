@@ -99,6 +99,11 @@ func Create(root string, options *Options) (Prepared, error) {
 			"prepare the attestation alone with ./le commit create subject \"<subject>\" attest <commit> \"<owner words>\", " +
 			"and the files in a commit of their own")
 	}
+	if attesting {
+		if err := refuseAttestAdmission(options); err != nil {
+			return result, err
+		}
+	}
 	if !attesting && len(paths) == 0 && len(removed) == 0 {
 		return result, errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
 			`attest <commit> "<owner words>"`)
@@ -567,6 +572,30 @@ func refuseForeignReplace(script string, paths []string) error {
 		}
 	}
 	return errors.New("replace refused: script was prepared for a different commit and shares none of these files")
+}
+
+// refuseAttestAdmission refuses an attestation that also names an admission
+// keyword. Each of those records why a commit that CHANGES files was let past
+// a gate; an attestation changes no file and runs no gate, so the keyword would
+// be dropped in silence and the reason the author gave would be recorded
+// nowhere.
+func refuseAttestAdmission(options *Options) error {
+	admissions := []struct{ keyword, value string }{
+		{keywordReviewOverride, options.ReviewOverride},
+		{keywordRFCChangeOK, options.RFCChangeOK},
+		{keywordStructuralRedOK, options.StructuralRedOK},
+		{keywordBrokenHeadFix, options.BrokenHeadFix},
+	}
+	for _, admission := range admissions {
+		if strings.TrimSpace(admission.value) == "" {
+			continue
+		}
+		return errors.New("attest refused with " + admission.keyword + ": an attestation changes no file and runs no gate, " +
+			"so there is nothing for " + admission.keyword + " to admit and its reason would be recorded nowhere; " +
+			"give " + admission.keyword + " on the commit whose gate it answers, and prepare the attestation alone with " +
+			`./le commit create subject "<subject>" attest <commit> "<owner words>"`)
+	}
+	return nil
 }
 
 // scriptHeader opens every generated script, a commit script and a push-only

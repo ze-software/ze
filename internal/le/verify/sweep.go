@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -49,12 +50,20 @@ func Sweep(ctx context.Context, root string, options Options, actions verifyengi
 	report = SweepReport{Action: actionName, Of: options.Parts, Code: 1, Skipped: []int{}, Ran: []int{},
 		Failed: []int{}, Proven: []int{}, Diagnostics: []string{}}
 	var text textbuf.Buffer
+	// unrecorded is why a sweep whose every piece passed still exits non-zero:
+	// the green record, which is what the sweep exists to write, was not
+	// written. It closes the verdict line, so the exit code never stands alone.
+	unrecorded := ""
 	// The verdict line is written last, after every branch that moves Code.
 	defer func() {
-		report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-worktree: all of ").
+		text.Reset().Str("verify-worktree: all of ").
 			Int(int64(report.Of)).Str(" over ").Str(shortSHA(report.Commit)).
 			Str(": ran ").Str(pieceList(report.Ran)).Str(", skipped ").Str(pieceList(report.Skipped)).
-			Str(", red ").Str(pieceList(report.Failed)).Str(" exit=").Int(int64(report.Code)).String())
+			Str(", red ").Str(pieceList(report.Failed)).Str(" exit=").Int(int64(report.Code))
+		if unrecorded != "" {
+			text.Str(": ").Str(unrecorded)
+		}
+		report.Diagnostics = append(report.Diagnostics, text.String())
 	}()
 
 	if err := sweepValid(options); err != nil {
@@ -128,6 +137,15 @@ func Sweep(ctx context.Context, root string, options Options, actions verifyengi
 			report.Green = true
 			report.Proven = every
 		}
+	}
+	// Every piece passed, yet no green record was written: the completing
+	// piece's own diagnostic above names why (a concurrent run rewrote the
+	// certificate, the tree moved, a suite was skipped). A zero exit would read
+	// as a covered push when nothing records one.
+	if report.Code == 0 && !report.Green {
+		report.Code = 1
+		unrecorded = "every piece passed but no green record was written, so no push is covered " +
+			"(the diagnostics above say why); run le verify worktree all of " + strconv.Itoa(options.Parts) + " again"
 	}
 	return report
 }

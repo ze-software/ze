@@ -101,10 +101,12 @@ func TestPushTargetIsGreenCommitWhenHeadMovedOn(t *testing.T) {
 	}
 }
 
-// TestDerivedDebtReportsTreeMismatchWithEmptyList proves the silent zero cannot
-// happen: HEAD is the upstream (nothing local to list) and the green record
-// names another tree, so no target exists and the answer says why.
-// VALIDATES: Data Flow step 6, "never 0 owed".
+// TestDerivedDebtReportsTreeMismatchWithEmptyList proves the derivation half of
+// Data Flow step 6: HEAD is the upstream (nothing local to list) and the green
+// record names another tree, so the derivation finds no target, lists nothing,
+// records a refusal naming ./le verify worktree, and refuses the push.
+// VALIDATES: Data Flow step 6, the derivation's fields and pushRefusal only.
+// The surfaces that print the answer are TestDebtConsumersNeverSayZeroWithoutTarget.
 func TestDerivedDebtReportsTreeMismatchWithEmptyList(t *testing.T) {
 	root := newOwedRepository(t)
 	other := newOwedRepository(t)

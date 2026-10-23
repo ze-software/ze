@@ -1049,7 +1049,12 @@ run to it.
 and `./le verify worktree all of <m>` runs every piece not yet proven over one
 commit, each in its own worktree. The piece that completes 1..m over one commit
 writes the green record (`docs/architecture/testing/verify-freshness-scope.md`,
-"The green record and the cut"). `first-red` with `part` or `all` is refused
+"The green record and the cut"). A sweep whose every piece passed but that
+wrote no green record (a concurrent run rewrote the certificate, the tree
+moved) exits 1, because nothing covers a push: its verdict line ends
+`every piece passed but no green record was written, so no push is covered`,
+points at the diagnostics above it for the reason, and names the sweep to run
+again. `first-red` with `part` or `all` is refused
 with exit 2, because a piece counts towards the green record only when every
 stage of it runs.
 <!-- source: internal/le/verify/sweep.go -- Sweep -->

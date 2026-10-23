@@ -124,11 +124,17 @@ cd ../gh-pages && git -c core.quotePath=false status --porcelain |
 
 The command also checks verification freshness for the named file population,
 and never refuses a commit for a missing verification: that is owed before a
-push. Its output carries `debt=<n> commit(s) owe a full verify since <G>` (or
-`since no green record`), read from the derivation in
-`docs/architecture/testing/verify-freshness-scope.md`, and
-`debt=cannot answer: <why>` when the derivation cannot answer. Nothing is
+push. Its output carries one `debt=` line, read from the derivation in
+`docs/architecture/testing/verify-freshness-scope.md`, "Verification debt,
+derived". When nothing is owed it reads `debt=nothing owed: HEAD's tree is
+covered by the green verify of <G>`. Otherwise it carries the same headline as
+the session-start warning, such as `debt=2 commit(s) owe a full verify since
+<G>` or `debt=HEAD's tree is not covered by a green verify (no green record):
+run ./le verify worktree`, followed by each reason the push is refused,
+separated by `; `. It never reads as a count of zero.
+`debt=cannot answer: <why>` means the derivation could not answer. Nothing is
 written: no commit carries a debt file.
+<!-- source: internal/le/commit/push.go -- debtReport, headline -->
 
 The keywords `unverified` and `missing-full-verify-ok` were removed and are
 refused naming `./le verify worktree`; `push` on `create` was removed and is

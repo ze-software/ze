@@ -99,6 +99,33 @@ func TestWorktreeSweepCarriesOnPastRedPiece(t *testing.T) {
 	mustHaveNoGreenRecord(t, repo.root, "a red sweep")
 }
 
+// TestWorktreeSweepWithoutGreenRecordExitsNonZero: every piece passes, but the
+// green record is not written (here ZE_SKIP_SUITES is set, so no run can prove
+// a push), and the sweep exits non-zero with the reason on its verdict line.
+// A zero exit would read as a covered push when nothing records one.
+//
+// MUTATION: drop the not-green check after the loop and this fails: the sweep
+// answers 0.
+func TestWorktreeSweepWithoutGreenRecordExitsNonZero(t *testing.T) {
+	repo := newFixtureRepo(t)
+	t.Setenv("ZE_SKIP_SUITES", "functional")
+	report := Sweep(context.Background(), repo.root, Options{Parts: 3}, passingRunner, anyHost)
+	if len(report.Failed) != 0 || !slices.Equal(report.Ran, []int{1, 2, 3}) {
+		t.Fatalf("fixture: ran %v red %v, want every piece run and none red: %v", report.Ran, report.Failed, report.Diagnostics)
+	}
+	if report.Code == 0 {
+		t.Fatalf("a sweep that wrote no green record answered 0: %v", report.Diagnostics)
+	}
+	if report.Green {
+		t.Fatal("a sweep with suites skipped reports green")
+	}
+	verdict := report.Diagnostics[len(report.Diagnostics)-1]
+	if !strings.Contains(verdict, "no green record was written") || !strings.Contains(verdict, "all of 3") {
+		t.Errorf("the verdict line is %q, want it to say no green record was written and the command", verdict)
+	}
+	mustHaveNoGreenRecord(t, repo.root, "a sweep with suites skipped")
+}
+
 // TestWorktreeSweepOnUnreadyHostStartsNoPiece: a host that cannot run one piece
 // refuses the whole sweep before the first piece starts. The method refuses only
 // piece 3 of 3 and counts the stages the runner was handed.
