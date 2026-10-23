@@ -1315,6 +1315,17 @@ the job log rather than hiding it until the child exits; it adds no heartbeat,
 so a silent child stays silent.
 <!-- source: internal/le/rfc/discriminate_observe.go -- exec, judgeRed, excerpt -->
 
+An interop observation is judged by the scenario's own progress line, never by
+the exit code or the `interop: N passed, M failed` summary. The clean run must
+print `interop: [i/n] <scenario>: pass (`, and the run under the break must
+print `interop: [i/n] <scenario>: FAIL (` with `assertion <citation>` on that
+line, the number matched whole. A run that executed no scenario is refused as
+unobserved, and a FAIL that names another assertion is refused as not the
+record's. Before 2026-10-23 any interop red counted: a mutant whose ze
+cross-compile failed ended the run with `0 passed, 0 failed` and was sealed as
+a negative proof.
+<!-- source: internal/le/rfc/discriminate_interop.go -- interopCleanUnobserved, interopBrokenUnobserved, interopAttribution -->
+
 ## The escape, and the precondition behind each reason
 
 `no-break` says no break exists. That is a claim about the tree, so the gate

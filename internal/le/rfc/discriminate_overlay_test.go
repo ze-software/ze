@@ -94,7 +94,10 @@ func TestInteropBreakLeavesSourceUntouched(t *testing.T) {
 		}
 		// Only this deliberate nonzero exit carries the evidence marker. An
 		// earlier assertion failure must not be accepted as the native red.
-		fmt.Fprintln(os.Stderr, observed)
+		// The line is the shape interoplab.Suite prints for a failed scenario,
+		// because the recorder accepts no red its cited assertion did not name.
+		fmt.Fprintln(os.Stderr, "interop: [1/1] "+scenario+": FAIL (0s): scenario "+
+			scenario+" assertion 1: "+observed)
 		os.Exit(1)
 	}
 
@@ -115,6 +118,7 @@ func TestInteropBreakLeavesSourceUntouched(t *testing.T) {
 		tree:     tree,
 		carrier:  Carrier{Kind: kindInterop},
 		scenario: scenario,
+		record:   DiscriminationRecord{Citation: "1"},
 		self:     binary,
 		suite: interoplab.Catalog{
 			Action:           "-test.run=^TestInteropBreakLeavesSourceUntouched$/-test.v",

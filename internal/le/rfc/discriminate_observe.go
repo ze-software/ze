@@ -312,14 +312,12 @@ func (o *observationRunner) judgeRed(passed bool, output string) error {
 func (o *observationRunner) attribution(output string) string {
 	var tb textbuf.Buffer
 	if o.scenario != "" {
-		// An interop run is SELECTED down to one scenario, by a name read off
-		// the checker and confirmed against test/interop/scenarios/, so nothing
-		// else ran and there is no second failure to confuse this one with. The
-		// `./le test integration` summary names the action rather than the scenario,
-		// so there is nothing in the text to match on either. What makes the red
-		// the break's is the clean run that passed minutes earlier over the same
-		// lab, which requireCleanGreen has already demanded.
-		return ""
+		// An interop run is SELECTED down to one scenario, and
+		// brokenRunUnobserved has already demanded that scenario's FAIL line.
+		// The red is the cited assertion's only when that line names it: a
+		// setup error, a different assertion of the same checker and a build
+		// failure each fail the run without the claim's assertion firing.
+		return o.interopAttribution(output)
 	}
 	if o.readsResultLine() {
 		// brokenRunUnobserved has already refused a skip and a missing line,
@@ -756,6 +754,9 @@ func isCIOutcome(word string) bool {
 // clean run must show the PASS line itself (journal row of 2026-09-30 in
 // plan/journal/green-that-could-not-have-been-red.md).
 func (o *observationRunner) cleanRunUnobserved(output string) string {
+	if o.scenario != "" {
+		return o.interopCleanUnobserved(output)
+	}
 	if !o.readsResultLine() {
 		return ""
 	}
@@ -773,6 +774,9 @@ func (o *observationRunner) cleanRunUnobserved(output string) string {
 // brokenRunUnobserved answers why a run under the break observed nothing
 // about the .ci: it was skipped, or no line names it.
 func (o *observationRunner) brokenRunUnobserved(output string) string {
+	if o.scenario != "" {
+		return o.interopBrokenUnobserved(output)
+	}
 	if !o.readsResultLine() {
 		return ""
 	}
