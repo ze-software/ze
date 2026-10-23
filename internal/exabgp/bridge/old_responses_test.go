@@ -74,7 +74,7 @@ func oldResponseAllow(releases, encoder, event, where, reason string) oldRespons
 }
 
 // oldResponsesAllowed is the pin's ALLOWED table of qa/bin/test_old_responses
-// (ExaBGP 685f772e), reason and patterns as written there: each is a line a 4.2
+// (ExaBGP f9bfb853b), reason and patterns as written there: each is a line a 4.2
 // or 5.0 helper sees change on upgrade to ExaBGP 6.0, so it is the behavior ze
 // owes (M3).
 var oldResponsesAllowed = []oldResponseRow{

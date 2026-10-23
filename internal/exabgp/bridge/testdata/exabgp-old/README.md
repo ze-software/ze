@@ -1,8 +1,11 @@
 # ExaBGP 4.2 and 5.0 recordings
 
 Copied from ExaBGP at commit `685f772e4ede5c818d2ff5c84f4ae040afd37be6`
-(github.com/Exa-Networks/exabgp, 2026-10-14), the pin of
-`plan/immediate/spec-exabgp-6-api-compatibility.md`. Nothing here is edited.
+(github.com/Exa-Networks/exabgp, 2026-10-14). The pin of
+`plan/release/fixes/spec-exabgp-6-api-compatibility.md` is now
+`f9bfb853b924e97deba646b0bd50693ab07c4f3e` (M25), whose `qa/old/` is
+unchanged from that commit (`git diff --stat 685f772e f9bfb853b -- qa/old` is
+empty), so these copies are the pin's. Nothing here is edited.
 
 | File | Source at the pin | Read by |
 |------|-------------------|---------|
