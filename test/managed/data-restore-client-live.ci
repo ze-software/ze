@@ -4,6 +4,6 @@
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=le test fixture storage/data-restore-client-live $PORT $PORT2 $PORT3:timeout=180s
+cmd=foreground:seq=1:exec=le test fixture storage/data-restore-client-live $PORT $PORT2:timeout=180s
 expect=exit:code=0
 expect=stdout:contains=OK: data-restore-client-live

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -38,16 +39,26 @@ const (
 // so it is the client serving the restored config. A client the hub does not
 // serve is refused naming why.
 //
-// Args: <hub-ssh-port> <hub-plugin-port> <hub-managed-port>.
+// Args: <hub-ssh-port> <hub-plugin-port>.
 func storageLiveRestoreClient(ctx context.Context, args []string) (retErr error) {
-	if len(args) != 3 {
-		return errors.New("usage: storage/data-restore-client-live <hub-ssh-port> <hub-plugin-port> <hub-managed-port>")
+	if len(args) != 2 {
+		return errors.New("usage: storage/data-restore-client-live <hub-ssh-port> <hub-plugin-port>")
 	}
-	sshPort, pluginPort, managedPort := args[0], args[1], args[2]
-	managed, err := strconv.Atoi(managedPort)
+	sshPort, pluginPort := args[0], args[1]
+	plugin, err := strconv.Atoi(pluginPort)
 	if err != nil {
-		return fmt.Errorf("hub-managed-port %q: %w", managedPort, err)
+		return fmt.Errorf("hub-plugin-port %q: %w", pluginPort, err)
 	}
+
+	// The runner owns the SSH/plugin pair. Reserve the separate managed
+	// listener, keeping its lock until both deferred daemon stops have reaped.
+	ports, _, err := runner.ReservePorts(plugin+1, 1)
+	if err != nil {
+		return fmt.Errorf("reserve hub managed listener: %w", err)
+	}
+	defer ports.Release()
+
+	managedPort := strconv.Itoa(ports.Start)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -58,7 +69,7 @@ func storageLiveRestoreClient(ctx context.Context, args []string) (retErr error)
 	}
 	defer os.RemoveAll(base) //nolint:errcheck // fixture cleanup
 
-	hub, err := restoreClientDaemon(ctx, base, "hub", managed+1000, false)
+	hub, err := restoreClientDaemon(ctx, base, "hub", false)
 	if err != nil {
 		return err
 	}
@@ -78,7 +89,7 @@ func storageLiveRestoreClient(ctx context.Context, args []string) (retErr error)
 		}
 	}()
 
-	client, err := restoreClientDaemon(ctx, base, "client", managed+2000, true)
+	client, err := restoreClientDaemon(ctx, base, "client", true)
 	if err != nil {
 		return err
 	}
@@ -129,15 +140,15 @@ func storageLiveRestoreClient(ctx context.Context, args []string) (retErr error)
 // restoreClientDaemon initializes one daemon's store in base/role. A managed
 // client runs `ze init --managed` and skips hub certificate verification: this
 // scenario proves the push, and managed-hub-ca-trust.ci proves the trust.
-func restoreClientDaemon(ctx context.Context, base, role string, bgpPort int, managedClient bool) (*caTrustDaemon, error) {
+// Neither config declares peers or dynamic groups, so neither binds BGP.
+func restoreClientDaemon(ctx context.Context, base, role string, managedClient bool) (*caTrustDaemon, error) {
 	dir := filepath.Join(base, role)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	overrides := map[string]string{
-		envConfigDir:   dir,
-		envNoColor:     "1",
-		envTestBGPPort: strconv.Itoa(bgpPort),
+		envConfigDir: dir,
+		envNoColor:   "1",
 	}
 	name := caTrustHubName
 	initArgs := []string{argInit}

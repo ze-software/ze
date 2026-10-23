@@ -174,6 +174,17 @@ why the rule above is a rule.
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
 
+There is no `$PORT3` placeholder. A compiled fixture that starts additional
+listeners MUST reserve their ports with `runner.ReservePorts` or
+`runner.LeaseTestPorts`, and MUST retain the reservation until every child using
+those ports has stopped and been reaped. An offset from `$PORT` or `$PORT2` is
+only a preferred allocation address, never a reservation.
+
+The live managed-client restore fixture uses the runner's pair for the hub's
+SSH and plugin listeners and reserves a third port for its managed listener.
+Its hub and client configs declare no BGP peers or dynamic groups, so they bind
+no BGP listeners and need no BGP port offsets.
+
 
 ## Stdin Blocks
 
