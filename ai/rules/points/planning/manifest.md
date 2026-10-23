@@ -19,7 +19,9 @@ work-phases ## Work Phases and the Review Loop
   how-each-review-round-is-scoped-and-when-it-ends
   the-round-cap-and-who-authorises-a-sixth-pass
   the-commit-gate-that-needs-a-clean-review-artifact
+  rfc-proof-records-ship-with-the-code
 spec-metadata-blocking ## Spec Lifecycle
   update-spec-status-at-each-transition
   closure-takes-two-commits-from-one-script
+  a-closure-ends-closed-or-handed-back
   route-the-lesson-write-a-journal-row-only-when-nothing-governs-it

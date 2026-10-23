@@ -226,6 +226,16 @@ and never between phases, review rounds or fixes.
      Write the page edit next to the code edit, in the same phase and the same diff.
      `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
      changed behavior and touched no page has to say why in its report.
+   - **Write the RFC proof records this phase owes, IN this phase (BLOCKING,
+     `ai/rules/planning.md`, "Work Phases and the Review Loop").** For every
+     `RFC requirement:` tagged unit the phase added, or whose behavior or claim it
+     changed, run `./le rfc discriminate-record` until it records the red
+     (`docs/contributing/rfc-conformance-gates.md`, "Producing a record: the two
+     proof routes"). Then run `./le rfc check` and re-judge every audit verdict it
+     reports stale for this change: `./le rfc reseal` when the unit only shifted,
+     `/ze-rfc-audit` and `./le rfc audit-stamp ... mode rejudge` when its scope
+     changed. The records and verdicts go in the same commit as the code they
+     prove. `/ze-close` checks them and does not write them.
    - Move to next phase
 6. **Run targeted verification:** run `./le repo changed scope print both`,
    then the component group for each package it names (`./le test unit <group>`),
@@ -285,7 +295,7 @@ and never between phases, review rounds or fixes.
       `verify` and the LAST phase is green, commit the work before you stop:
       1. Set `| Status | verification |` and `| Updated |` to today.
       2. Prepare ONE commit with `./le commit create`, carrying the code, the
-         tests, the docs and the spec file. Carry NO `plan/learned/` file and no
+         tests, the docs, the step 5 RFC proof records and the spec file. Carry NO `plan/learned/` file and no
          `remove` keyword for the spec: those two make it a closure commit, and
          a closure commit needs the Review Gate artifact this session MUST NOT
          produce. Run the script path the command prints

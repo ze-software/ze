@@ -28,7 +28,7 @@ validates it on every write.
 | `ready` | Design complete, ready for implementation |
 | `in-progress` | Actively being implemented |
 | `verification` | Implementation complete and committed, awaiting an independent review and closure. Reached only under `Handoff: verify` |
-| `blocked` | Waiting on the prerequisite named in Depends |
+| `blocked` | Waiting on the prerequisite named in Depends, or on the blocker its `## Blocker` section names. A closure that cannot finish hands the spec back in this status (`/ze-close`, "How a closure ends") |
 | `deferred` | Explicitly postponed |
 | `done` | Declared complete. Closure removes the spec, so a `done` spec is one whose removal has not landed |
 

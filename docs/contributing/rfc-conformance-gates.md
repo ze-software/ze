@@ -1142,6 +1142,13 @@ fingerprints, which is what `checkAuditFreshness` already does for a verdict.
 
 ## Producing a record: the two proof routes
 
+Records are written in the implementation phase, by the agent that adds or
+changes the tagged unit, and they land in the same commit as that code
+(`/ze-implement` step 5). Spec closure only checks them with `./le rfc check`
+(`/ze-close` step 6), so a record stale at closure is a defect of the phase
+that changed the unit. The rule is in `ai/rules/planning.md`, "Work Phases and
+the Review Loop".
+
 `./le rfc discriminate-record` is the only writer of a record, and it writes one
 only after it has SEEN the red. It applies the break, runs the tagged unit,
 requires a failure that NAMES that unit, and refuses everything else. A run that

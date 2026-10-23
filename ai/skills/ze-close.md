@@ -34,8 +34,8 @@ phase itself.
 - **If you are that agent:** run the steps below yourself. Resolve symbols with
   the LSP tool if your registry carries it and with `gopls` from Bash if it does
   not (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
-  STOP-and-ask condition, halt and put the question in your report for the main
-  thread to carry.
+  STOP-and-ask condition, hand the spec back ("How a closure ends") and put the
+  question in your report for the main thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
   behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
@@ -76,6 +76,25 @@ At `verification` the code is committed, so closure adds commit A (the edited
 spec and any fixes, documentation, or warranted lesson records) and commit B
 (spec removal). The handoff commit is neither of them. Get the handoff SHA from
 `git log -1 --format=%H -- <spec-path>`, using its actual work-folder path.
+
+## How a closure ends (BLOCKING)
+
+A closure ends closed (commits A and B landed) or handed back, never anywhere
+between (`ai/rules/planning.md`, "Spec Lifecycle"). When
+you cannot finish, whatever the cause (a long run you may not start, a full
+disk, a foreign hunk, a stale RFC proof record, a STOP-and-ask question), hand
+the spec back before you stop:
+
+1. Set `| Status | blocked |` and `| Updated |` to today.
+2. Add a `## Blocker` section to the spec: what blocks, the file and symbol that
+   produce it, and what clears it.
+3. Commit with `./le commit create`: the spec, and, at entry status
+   `in-progress`, the uncommitted code, tests and docs with it, as the
+   `Handoff: verify` commit carries them (`/ze-implement` step 11). Carry no
+   `plan/learned/` file and no `remove` keyword. Run the script path it prints.
+4. Run `./le spec release`, and report the blocker and the commit SHA.
+
+The main thread sets the spec back to `in-progress` when the blocker clears.
 
 ## Spec Sections Used by Each Step
 
@@ -151,6 +170,17 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
 6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**
    Precondition: the spec's **Review Gate** section (step 5) shows a final `/ze-review` run with
    0 BLOCKER and 0 ISSUE. Do not prepare the commit script until it does.
+
+   **RFC proof records are fresh.** Run `./le rfc check` and read its
+   discrimination and audit lines for every RFC stem this spec touched. Every
+   tagged unit the diff adds or changes carries a verified record, and no audit
+   verdict is stale. You check them and do not write them
+   (`ai/rules/planning.md`, "Work Phases and the Review Loop"). A record a
+   closure fix staled is re-recorded by that fix, under `/ze-implement` step 5,
+   because a fix is implementation. A record stale or missing for any other
+   reason is an implementation-phase defect: add a Mistake Log row and hand the
+   spec back ("How a closure ends") naming the units, so `/ze-implement` writes
+   them.
 
    Two more closure sections gate the script, both checked by `./le commit create`:
    - **Pre-Commit Verification:** EVERY sub-table needs at least one evidence row.
