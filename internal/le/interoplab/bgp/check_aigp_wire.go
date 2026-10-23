@@ -77,9 +77,13 @@ func waitAIGPWire(ctx context.Context, check *interoplab.CheckContext, transitio
 
 // requireAIGPWire checks the same connection's full history. No table-only
 // observation substitutes for the exact withdrawal, metric TLV and next hop.
-// The five recovery states are unknown, 11, 7, zero, 7; direct cost stays 7.
+// The recovery states are unknown, 11, 7, zero, 7; direct cost stays 7. In the
+// unknown state the recovery route was never advertised to this recipient, so
+// Ze sends it nothing, neither announcement nor withdrawal (RFC 4271 Section
+// 3.1, since 010e649057): transitions counts the four wire transitions after
+// it, and transitions 0 requires no recovery-route frame before the fence.
 func requireAIGPWire(capture, nextHop string, transitions int) error {
-	if transitions < 1 || transitions > 5 {
+	if transitions < 0 || transitions > 4 {
 		return errors.New("invalid AIGP wire transition count")
 	}
 	hop, err := netip.ParseAddr(nextHop)
@@ -90,7 +94,7 @@ func requireAIGPWire(capture, nextHop string, transitions int) error {
 	decoder := json.NewDecoder(strings.NewReader(capture))
 	opened, eor, direct, fence := false, false, false, false
 	observed := 0
-	wantMetrics := [...]int64{-1, 111, 107, -1, 107}
+	wantMetrics := [...]int64{111, 107, -1, 107}
 	for {
 		var row extendedRelayFrame
 		if err := decoder.Decode(&row); err != nil {

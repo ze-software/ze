@@ -59,7 +59,7 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 	if err := checkAIGPRecipientFence(ctx, check, zeAddress, recipient); err != nil {
 		return fail(err)
 	}
-	if err := waitAIGPWire(ctx, check, 1); err != nil {
+	if err := waitAIGPWire(ctx, check, 0); err != nil {
 		return fail(err)
 	}
 	for index, metric := range []uint64{11, 7, 0, 7} {
@@ -94,7 +94,7 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 		if err := checkAIGPRecipientFence(ctx, check, zeAddress, recipient); err != nil {
 			return fail(err)
 		}
-		if err := waitAIGPWire(ctx, check, index+2); err != nil {
+		if err := waitAIGPWire(ctx, check, index+1); err != nil {
 			return fail(err)
 		}
 	}

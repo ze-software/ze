@@ -31,17 +31,37 @@ func aigpTestCapture(t *testing.T, frames ...string) string {
 // TestAIGPWireHistory requires actual synchronized wire receipt, not a table
 // row, a substring metric or replay through a replacement recipient session.
 func TestAIGPWireHistory(t *testing.T) {
-	initial := aigpTestCapture(t, aigpTestOpen, aigpTestEOR, aigpTestDirect, aigpTestWithdraw, aigpTestFence)
+	// The recovery route was never advertised in the unknown state, so the
+	// initial history carries no frame for it, not even a withdrawal.
+	initial := aigpTestCapture(t, aigpTestOpen, aigpTestEOR, aigpTestDirect, aigpTestFence)
 	recovered := initial + aigpTestCapture(t, aigpTestRecovery)
 	metric107 := strings.Replace(aigpTestRecovery, "006F180A0A03", "006B180A0A03", 1)
 	full := recovered + aigpTestCapture(t, metric107, aigpTestWithdraw, metric107)
 	for _, positive := range []struct {
 		capture     string
 		transitions int
-	}{{initial, 1}, {recovered, 2}, {full, 5}} {
+	}{{initial, 0}, {recovered, 1}, {full, 4}} {
 		if err := requireAIGPWire(positive.capture, "172.31.22.2", positive.transitions); err != nil {
 			t.Fatal(err)
 		}
+	}
+	neverAdvertisedWithdrawal := aigpTestCapture(t, aigpTestOpen, aigpTestEOR, aigpTestDirect, aigpTestWithdraw, aigpTestFence)
+	for name, negative := range map[string]struct {
+		capture     string
+		transitions int
+	}{
+		"never-advertised-withdrawal":         {neverAdvertisedWithdrawal, 0},
+		"never-advertised-withdrawal-later":   {neverAdvertisedWithdrawal + aigpTestCapture(t, aigpTestRecovery), 1},
+		"initial-announcement":                {recovered, 0},
+		"different-withdrawal":                {strings.Replace(full, "001B020004180A0A030000", "001B020004180A0A020000", 1), 4},
+		"missing-withdrawal":                  {strings.Replace(full, aigpTestWithdraw, aigpTestEOR, 1), 4},
+		"withdrawal-instead-of-recovery-cost": {strings.Replace(full, aigpTestCapture(t, metric107, aigpTestWithdraw), aigpTestCapture(t, aigpTestWithdraw, metric107), 1), 4},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if requireAIGPWire(negative.capture, "172.31.22.2", negative.transitions) == nil {
+				t.Fatal("accepted invalid received-wire history")
+			}
+		})
 	}
 	for name, capture := range map[string]string{
 		"empty":                  "",
@@ -51,8 +71,6 @@ func TestAIGPWireHistory(t *testing.T) {
 		"wrong-next-hop":         strings.ReplaceAll(recovered, "AC1F1602", "AC1F1609"),
 		"wrong-recovery-cost":    strings.Replace(recovered, "006F180A0A03", "006B180A0A03", 1),
 		"double-accumulated":     strings.Replace(recovered, "006F180A0A03", "0076180A0A03", 1),
-		"different-withdrawal":   strings.Replace(recovered, "001B020004180A0A030000", "001B020004180A0A020000", 1),
-		"missing-withdrawal":     strings.Replace(recovered, aigpTestWithdraw, aigpTestEOR, 1),
 		"no-eor":                 strings.Replace(recovered, aigpTestEOR, aigpTestOpen, 1),
 		"no-fifo-sentinel":       strings.Replace(recovered, aigpTestFence, aigpTestEOR, 1),
 		"reconnected":            recovered + aigpTestCapture(t, aigpTestOpen),
@@ -64,7 +82,7 @@ func TestAIGPWireHistory(t *testing.T) {
 		"packed-subject":         strings.Replace(recovered, aigpTestDirect, strings.Replace(aigpTestDirect, "003D02", "004102", 1)+"180A0A05", 1),
 	} {
 		t.Run(name, func(t *testing.T) {
-			if requireAIGPWire(capture, "172.31.22.2", 2) == nil {
+			if requireAIGPWire(capture, "172.31.22.2", 1) == nil {
 				t.Fatal("accepted invalid received-wire history")
 			}
 		})
