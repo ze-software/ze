@@ -144,13 +144,10 @@ func dispatch(
 	// this process group on purpose: the job registry's stall breaker kills
 	// verify's whole group and Ctrl-C reaches the whole foreground group, and a
 	// group of its own would let a stage outlive both.
-	// exec calls Cancel only when the context is done while the process still
-	// runs, so cutShort records that the cancel, not the stage, ended it.
+	// cutShort records that the cancel's signal, not the stage, ended the
+	// process (cancelStage); Wait returns only after Cancel has.
 	var cutShort atomic.Bool
-	cmd.Cancel = func() error {
-		cutShort.Store(true)
-		return cmd.Process.Signal(syscall.SIGTERM)
-	}
+	cmd.Cancel = cancelStage(cmd, &cutShort)
 	cmd.WaitDelay = outputDrainMax
 	// The Go runtime in the stage writes a crash to this file and to nothing
 	// else (armStageCrashOutput), so a crash is told from a stage that only
@@ -201,6 +198,26 @@ func dispatch(
 			Message: "stage process died of a Go panic or fatal error; the trace is in its log"}
 	}
 	return result
+}
+
+// cancelStage answers the Cancel function for a stage process: it asks the
+// process to stop with SIGTERM and records in cutShort that the cancel ended
+// it.
+//
+// exec's context watcher can call Cancel after Wait has already reaped the
+// process, when the context is done in the moment the stage exits. The signal
+// then answers os.ErrProcessDone and reached nothing: the stage exited on its
+// own, so its exit is a verdict and cutShort stays false. exec itself treats
+// that error as no failure.
+func cancelStage(cmd *exec.Cmd, cutShort *atomic.Bool) func() error {
+	return func() error {
+		err := cmd.Process.Signal(syscall.SIGTERM)
+		if errors.Is(err, os.ErrProcessDone) {
+			return err
+		}
+		cutShort.Store(true)
+		return err
+	}
 }
 
 // stageCrashFD is the descriptor the stage process holds its crash file at:

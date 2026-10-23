@@ -9,6 +9,9 @@ package verifydispatch
 
 import (
 	"context"
+	"errors"
+	"os"
+	"os/exec"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -33,6 +36,28 @@ func (c *lateCancel) Err() error {
 }
 
 func (c *lateCancel) Deadline() (time.Time, bool) { return time.Time{}, false }
+
+// TestCancelOfAnExitedStageDoesNotMarkItCutShort holds that the stage's
+// Cancel records a cut-short stage only when its signal reached a running
+// process. exec's context watcher can call Cancel after Wait has reaped the
+// process, and the signal then answers os.ErrProcessDone: the stage exited on
+// its own, so its exit is a verdict and MUST NOT be refused as interrupted.
+// Method: run this test binary to completion, then call the Cancel function
+// on it.
+func TestCancelOfAnExitedStageDoesNotMarkItCutShort(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^$") //nolint:gosec // the test binary itself, with no test selected
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("run the exiting process: %v", err)
+	}
+	var cutShort atomic.Bool
+	err := cancelStage(cmd, &cutShort)()
+	if !errors.Is(err, os.ErrProcessDone) {
+		t.Fatalf("Cancel on an exited process = %v, want os.ErrProcessDone", err)
+	}
+	if cutShort.Load() {
+		t.Fatal("Cancel on an exited process marked the stage cut short, discarding its exit")
+	}
+}
 
 // TestDispatchKeepsTheAnswerOfAStageThatExitedBeforeTheCancel holds that a
 // stage which exited on its own keeps its exit status and is not refused as
