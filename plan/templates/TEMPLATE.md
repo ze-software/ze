@@ -290,6 +290,12 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
      is appropriate only when no surface governs the lesson yet; closure alone
      requires no lesson artifact. -->
 
+## Owned journal rows
+<!-- Every open journal row this spec will fix, one line each; `./le commit create`
+     refuses an open row no spec lists (plan/journal/README.md, "Owned rows"). -->
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |

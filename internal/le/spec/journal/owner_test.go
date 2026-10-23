@@ -23,7 +23,9 @@ func ownerSpec(dates ...string) string {
 	var body strings.Builder
 	body.WriteString("# Spec\n\n## Owned journal rows\n\n| Class file | Date | Surface (short) |\n|---|---|---|\n")
 	for _, date := range dates {
-		body.WriteString("| `silent-default.md` | " + date + " | cli |\n")
+		body.WriteString("| `silent-default.md` | ")
+		body.WriteString(date)
+		body.WriteString(" | cli |\n")
 	}
 	body.WriteString("\n## Next section\n\n| `silent-default.md` | 2026-01-01 | outside the table |\n")
 	return body.String()
@@ -114,6 +116,63 @@ func TestUnownedOpenRows(t *testing.T) {
 			tree:    map[string]string{ownerClassPath: journalTableHead + strings.Replace(ownerFixedRow, "fixed: ", "open: ", 1)},
 			paths:   []string{ownerClassPath},
 			unowned: 1,
+		},
+		{
+			// A legacy unowned row shares the new row's date: both are named,
+			// so the printed fix clears the key rather than half of it.
+			name: "legacy unowned row on the new row's date",
+			head: map[string]string{ownerClassPath: journalTableHead + ownerOpenRow},
+			tree: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow + "| 2026-10-23 | - | web | second | open: owed |\n",
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			paths:   []string{ownerClassPath, ownerSpecPath},
+			unowned: 2,
+		},
+		{
+			name: "legacy and new row of one date, both owned",
+			head: map[string]string{ownerClassPath: journalTableHead + ownerOpenRow},
+			tree: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow + "| 2026-10-23 | - | web | second | open: owed |\n",
+				ownerSpecPath:  ownerSpec("2026-10-23", "2026-10-23"),
+			},
+			paths: []string{ownerClassPath, ownerSpecPath},
+		},
+		{
+			name: "closure removes a spec whose row is still open",
+			head: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow,
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			paths:   []string{ownerSpecPath},
+			removed: []string{ownerSpecPath},
+			unowned: 1,
+		},
+		{
+			name: "closure removes a spec whose rows are fixed",
+			head: map[string]string{
+				ownerClassPath: journalTableHead + ownerFixedRow,
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			paths:   []string{ownerSpecPath},
+			removed: []string{ownerSpecPath},
+		},
+		{
+			name: "table entry deleted from a spec",
+			head: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow,
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			tree:    map[string]string{ownerSpecPath: ownerSpec()},
+			paths:   []string{ownerSpecPath},
+			unowned: 1,
+		},
+		{
+			name: "heading inside a code fence keeps the table open",
+			head: map[string]string{ownerSpecPath: "# Spec\n\n## Owned journal rows\n\n```\n# not a heading\n```\n\n" +
+				"| `silent-default.md` | 2026-10-23 | cli |\n"},
+			tree:  map[string]string{ownerClassPath: journalTableHead + ownerOpenRow},
+			paths: []string{ownerClassPath},
 		},
 		{
 			name: "two open rows of one date, one entry",

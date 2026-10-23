@@ -268,6 +268,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `negative-test-asserts-the-verdict-not-the-reason` | 2026-10-05 | `rfc7752_length_sums_test.go` |
 | `net-pipe-deadlock` | 2026-08-15 | `TestHoldDownRefusesInboundAndEndsOnStop` |
 | `normal-state-logged-at-error` | 2026-10-22 | `updateRouteWithMeta` |
+| `normal-state-logged-at-error` | 2026-10-23 | adj-rib-in `applyDecision` WARN for a verdict on a withdrawn pending route |
 | `paraphrase-becomes-the-authority` | 2026-10-13 | `recoverySentNLRI` |
 | `queued-request-waits-for-an-unrelated-trigger` | 2026-10-21 | `flowspec-redirect-check-refused.ci` |
 | `refcount-released-outside-the-lock` | 2026-08-18 | rib route store `releaseRoute` |

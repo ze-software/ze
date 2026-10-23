@@ -16,8 +16,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 The owner's standing decisions (`ai/META-DECISIONS.md`) want a long-lived spec
-that decides how journal rows get resolved, and a spec of its own for a defect
-one row cannot express and ensure the resolution of.
+that decides how journal rows get resolved. Every open row is listed in the
+owned journal rows table of the spec that will fix it, and a commit adding or
+changing an open row no spec owns is refused (`plan/journal/README.md`, "Owned
+rows").
 
 The journal route (`ai/rules/rule-precedence.md`, `ai/rules/completion.md`) records
 a defect walked into as one row in `plan/journal/<class>.md`. Recording is fast, and
@@ -47,7 +49,7 @@ banner prints goes down rather than up.
   → Decision: a pass that cannot build a check sets a `rule` capture and says why in the commit body (README); a pass MUST NOT replace a check capture with a rule capture.
 - [ ] `ai/rules/rule-precedence.md` - the three-step journal route and the "deliberate pass over the journal"
   → Constraint: a walked-into defect gets one row, the work in hand closes, and the session stops. A pass is the deliberate later work, run as its own work item, never folded into a closing commit.
-  → Decision: the owner's journal rule adds the exception that a defect one row cannot carry gets its own spec; the point `rule-precedence/directives/close-the-work-first-then-ask-about-the-unrelated-defect` states it and points here.
+  → Decision: the owner's journal rule lists every open row in the owned journal rows table of the spec that will fix it, refused at commit when unowned; the point `rule-precedence/directives/close-the-work-first-then-ask-about-the-unrelated-defect` states it and points here.
 - [ ] `ai/rules/completion.md` - recording versus fixing
   → Constraint: a row is a record, never a fix; a row stays `open:` until code changes (`principles.md`, "Recording a defect MUST NOT be presented as fixing the product").
 - [ ] `ai/rules/planning.md` - spec lifecycle, journal row format, closure repoint
@@ -148,19 +150,21 @@ and the check-repair steps are in `plan/journal/README.md` and are not repeated.
 | The defect is fixed by the pass | `fixed: ` and what changed | the fix commit's short SHA, and the test that goes red without it |
 | The defect was fixed earlier by unrelated work | `fixed: ` | the commit that fixed it, found with `git log -S` or `git log -L` on the producer, and the test or check that now covers it |
 | The code the row names is gone at HEAD (stale) | `fixed: ` saying the producer was removed | the commit that removed it, and the search over HEAD that finds no remaining producer of the same shape; a renamed or moved producer is not stale and is followed instead |
-| One row cannot express the defect and ensure its resolution | stays `open: `, naming the spec path | the spec, written per `ai/rules/planning.md` in the bucket its own defect belongs to |
+| The defect is still open after the pass | stays `open: ` | the owned journal rows table line of the spec that will fix it, an existing spec whose mechanism fits or a new one written per `ai/rules/planning.md` |
 | The row is wrong about what happened | `fixed: ` saying the report was mistaken | the producer read at HEAD that shows the behavior is correct |
 
-The one-row test: a row is not enough when ANY of these holds.
+Choosing the owning spec: an open row is owned by an existing spec whose
+mechanism fits it; it gets a new spec of its own when no existing spec fits and
+ANY of these holds.
 
-| Condition | Why one row fails |
+| Condition | Why it needs a spec of its own |
 |-----------|-------------------|
 | The fix needs a design decision, an acceptance criterion, or more than one commit | a row holds no AC and no phase |
 | Symptom and fix do not fit in 600 characters without dropping the cause | `RowCharsMax` refuses it, and a truncated cause is a lost one |
 | The fix crosses subsystems or touches an RFC-tagged test | it needs a Files list and a review scope |
 | Its resolution cannot be proven by one named test or check | a `fixed:` row would be a claim with nothing to arbitrate it |
 
-When the promoted spec closes, its commit A rewrites the row to `fixed: ` with
+When the owning spec closes, its commit A rewrites the row to `fixed: ` with
 that commit's SHA, under the planning rule that repoints every citation.
 
 ### Resolving a class

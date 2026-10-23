@@ -18,7 +18,7 @@ import (
 // TestRelocatingManySpecsIsNotAClosure is the case that was refused. Thirty
 // specs moved in one commit named thirty closures, and the gate allows one.
 func TestRelocatingManySpecsIsNotAClosure(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	added := []string{
 		"plan/immediate/spec-ntp-server.md",
@@ -44,7 +44,7 @@ func TestRelocatingManySpecsIsNotAClosure(t *testing.T) {
 // re-files work upward as often as downward, so pre-release to plan/ and
 // immediate to pre-release are relocations exactly as plan/ to immediate is.
 func TestRelocationRunsInEveryDirection(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	added := []string{
 		"plan/spec-shipped-later.md",
@@ -68,7 +68,7 @@ func TestRelocationRunsInEveryDirection(t *testing.T) {
 // if relocatedSpecs is widened until nothing is a closure. A spec removed and
 // NOT re-filed is closed, and the review gate must still see it.
 func TestARealClosureStillCounts(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	stem, err := closureStem(root, []string{"plan/immediate/spec-elsewhere.md"},
 		[]string{"plan/spec-finished.md"})
@@ -86,7 +86,7 @@ func TestARealClosureStillCounts(t *testing.T) {
 // pre-release and immediate closure past with no review artifact.
 func TestAClosureFromAnyBucketCounts(t *testing.T) {
 	for _, removed := range []string{"plan/immediate/spec-finished.md", "plan/pre-release/spec-finished.md"} {
-		stem, err := closureStem(t.TempDir(), []string{removed}, []string{removed})
+		stem, err := closureStem(newCommitRepository(t), []string{removed}, []string{removed})
 		if err != nil {
 			t.Fatalf("closureStem over %s: %v", removed, err)
 		}
@@ -100,7 +100,7 @@ func TestAClosureFromAnyBucketCounts(t *testing.T) {
 // carve-out must not weaken: one commit may close one spec, and moving thirty
 // others alongside does not buy a second closure.
 func TestAClosureBesideRelocationsIsStillRefused(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	added := []string{"plan/immediate/spec-moved-a.md", "plan/pre-release/spec-moved-b.md"}
 	removed := []string{
@@ -171,7 +171,7 @@ func TestARemovedSpecOutranksForeignJournalRows(t *testing.T) {
 // TestOneClosureBesideRelocationsIsAllowed is the shape a real closure takes
 // when it happens to travel with bookkeeping: exactly one spec closes.
 func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	stem, err := closureStem(root,
 		[]string{"plan/immediate/spec-moved-a.md"},
@@ -188,7 +188,7 @@ func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
 // keyed on the file name rather than on the stem appearing anywhere. A spec
 // added under another bucket with a DIFFERENT name excuses nothing.
 func TestANameThatOnlyMatchesInAnotherBucketDoesNotExcuseAClosure(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	stem, err := closureStem(root,
 		[]string{"plan/immediate/spec-ntp-server-phase-2.md"},
@@ -207,7 +207,7 @@ func TestANameThatOnlyMatchesInAnotherBucketDoesNotExcuseAClosure(t *testing.T) 
 // only "is this name in another bucket entry" would read every closure as a
 // relocation of itself.
 func TestARemovalListedInBothPathsAndRemovedIsStillAClosure(t *testing.T) {
-	root := t.TempDir()
+	root := newCommitRepository(t)
 
 	stem, err := closureStem(root, []string{"plan/spec-finished.md"}, []string{"plan/spec-finished.md"})
 	if err != nil {
@@ -233,7 +233,7 @@ func TestLayoutMigrationNeverClosesWork(t *testing.T) {
 		"plan/pre-release/spec-prerelease.md",
 		"plan/to-review/spec-proposal.md",
 	}
-	root := t.TempDir()
+	root := newCommitRepository(t)
 	stem, err := closureStem(root, added, removed)
 	if err != nil || stem != "" {
 		t.Fatalf("migration closes %q: %v", stem, err)
@@ -250,7 +250,7 @@ func TestLayoutMigrationNeverClosesWork(t *testing.T) {
 func TestCurrentCategoryRelocationsNeverCloseWork(t *testing.T) {
 	for _, source := range specpath.Dirs() {
 		for _, target := range specpath.Dirs() {
-			stem, err := closureStem(t.TempDir(), []string{target + "/spec-work.md"}, []string{source + "/spec-work.md"})
+			stem, err := closureStem(newCommitRepository(t), []string{target + "/spec-work.md"}, []string{source + "/spec-work.md"})
 			want := ""
 			if source == target {
 				want = "work"
