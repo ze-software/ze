@@ -143,11 +143,11 @@ a stale recorded run; `./le site build refresh` re-records those first
   images, fonts, stylesheets, slide sources and screenshots in one HTML file.
   `RenderActivity` derives the activity table from Git history.
 - **CSS source layers.** `assets/site.css` is generated from
-  `assets/css/site.css` by `internal/le/site.RenderCSS`. The source
+  `assets/css/site.css` by `internal/le/site/assets.go`'s `renderCSS`. The source
   manifest imports `10-base.css` and the smaller token, component and
   responsive files. New CSS belongs in the smallest matching source file.
 - **JS behaviour model.** The editable script is `assets/js/site.js`;
-  `internal/le/site.RenderJS` writes the published `assets/site.js`. It
+  `internal/le/site/assets.go`'s `renderJS` writes the published `assets/site.js`. It
   loads `assets/header.html` into each page and provides navigation and search
   interactions. Page content remains useful without JavaScript.
 - **Source-evidence links.** `initSourceLinks` turns a `<code>` span that looks
@@ -332,13 +332,17 @@ template names no recording, so moving the hero is that one constant.
 
 ### Site design and content rules
 
-Before adding or restyling a page or component, read `style-guide/index.html`
-or the generated `style-guide/index.md`. Reuse the vivid candy claymation
-language already in `assets/site.css`: seven category hues, clay card depth,
-2px white "sugar coat" borders, masked grids, soft candy washes, and thin
-concentric ring ornaments. Do not add one-off shadows, filled decorative balls,
-opaque blobs, unrelated palettes, or custom components without updating the
-style guide in the same change.
+Before adding or restyling a page or component, read the
+[design principles and review requirements](style-guide/index.html#sg-design-principles).
+That section is the canonical record of the owner's approved website design
+rules. Apply it to proposals and implementation.
+
+The guide's palette and component sections describe the current candy
+claymation implementation. Reuse those components for changes within the
+current design. Prototypes can propose another treatment for review against
+the principles, but approval of the principles does not approve a replacement
+palette. Get approval for the proposed design before implementing it, then
+update the affected style-guide sections in the same change.
 
 Navigation is part of the design system. `data/nav.json` owns the top
 mega-menu and curated `llms.txt` sections. The build publishes the menu as

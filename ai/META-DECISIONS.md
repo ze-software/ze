@@ -139,6 +139,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   `./le`, API and gNMI), says what is wrong in plain words, why, and the exact
   command that fixes it (`ai/rules/user-facing-errors.md`).
 
+## Website design
+
+- Website design follows the approved principles in
+  [the website style guide](../website/style-guide/index.html#sg-design-principles),
+  including its information-preservation map and owner approval for removals.
+  This decision applies to the website only.
+
 ## How agents work
 
 - A defect you walk into while working on something else gets one journal row in
