@@ -176,10 +176,6 @@ var webHandlerGoldenCases = []webHandlerCase{
 		Form: "command=show+bgp&path=&mode=operational"},
 	{Name: "post-cli-mode", Method: http.MethodPost, Target: "/cli/mode", Form: "mode=configure&path="},
 
-	// The HTMX fragment path, in both UI modes.
-	{Name: "get-fragment-detail", Method: http.MethodGet, Target: "/fragment/detail?path=bgp", HTMX: true},
-	{Name: "get-fragment-detail-page", Method: http.MethodGet, Target: "/fragment/detail?path=bgp"},
-
 	// Configuration editing.
 	{Name: "post-config-set", Method: http.MethodPost, Target: "/config/set/bgp/",
 		Form: "leaf=router-id&value=9.9.9.9"},
@@ -220,8 +216,6 @@ var webHandlerGoldenCases = []webHandlerCase{
 
 	// The Finder shell, still reachable as a rollback.
 	{Name: "get-show-finder", Method: http.MethodGet, Target: "/show/",
-		Cookies: map[string]string{"ze-ui-mode": "finder"}},
-	{Name: "get-show-bgp-finder", Method: http.MethodGet, Target: "/show/bgp/peer/",
 		Cookies: map[string]string{"ze-ui-mode": "finder"}},
 
 	// Feature routes, which register through webroute.go rather than the hub.
@@ -301,8 +295,9 @@ func webCaseName(target string) string {
 	return "nav-" + strings.Trim(webCaseNameDrop.ReplaceAllString(strings.ToLower(target), "-"), "-")
 }
 
-// TestWebHandlerGoldenOutput captures the response bytes of a real request to
-// every route the hub serves.
+// TestWebHandlerGoldenOutput captures the response bytes of the routes below.
+// TestWebFinderHandlerBehavior covers schema-driven Finder navigation without
+// freezing the registered schema's inventory into whole-document fixtures.
 //
 // It is not the component capture with extra steps. TestWebGoldenOutput renders
 // one component against data the test writes. This one goes through
@@ -312,8 +307,8 @@ func webCaseName(target string) string {
 // differently built view model keeps the component capture green and turns this
 // one red.
 //
-// VALIDATES: every byte the web UI answers a request with.
-// PREVENTS: a rendering change reaching an operator with every test green.
+// VALIDATES: the captured routes' response bytes.
+// PREVENTS: an unreviewed rendering change on those routes.
 func TestWebHandlerGoldenOutput(t *testing.T) {
 	cases := append(append([]webHandlerCase{}, webHandlerGoldenCases...), webNavCases(t)...)
 

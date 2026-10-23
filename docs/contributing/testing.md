@@ -609,6 +609,15 @@ invalid value below, and the first invalid value above.
 | Prefix IPv4 0-32 | 32 | none | 33 |
 | Message length 19-4096 | 4096 | 18 | 4097 |
 
+## Schema-driven web tests
+
+Finder tests check rendered navigation against the live schema and peer rows
+against the configured tree, rather than pinning the whole page's HTML. They
+exercise authentication, edit permissions, full-page and HTMX responses, links,
+CLI context and escaped field values. A newly registered schema container must
+not require a snapshot rewrite; omitting a configured peer must still fail.
+<!-- source: internal/component/web/handler_finder_behavior_test.go -- TestWebFinderHandlerBehavior, TestWebFinderEscapesFieldValues -->
+
 ## Flake shapes seen in this repository
 
 Check each of these against the test before investigating a new race or
