@@ -53,6 +53,37 @@ repaired. An occurrence still broken, partly repaired, designed or owed is
 open defect. A row without a marker is `unmarked-fix`: the report refuses its
 class, and validate names the line, whether the row is new or already at HEAD.
 
+## Owned rows
+
+Every `open:` row is listed in the owned journal rows table of the spec that
+will fix it: an existing spec whose mechanism fits the defect, or a new one. The
+spec table is the only declaration of ownership; the row names no owner.
+
+```
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `silent-fall-through.md` | 2026-10-21 | `Server.appendDataPlaneWriter` starts with no FIB writer |
+```
+
+The heading is exactly `## Owned journal rows`, in a `spec-*.md` file under
+`plan/`, and the table runs to the next heading. The first cell names the class
+file, with or without backticks and `.md`; the second is the row's Date. Further
+columns are free prose for the reader and are not compared.
+
+`./le commit create` refuses a commit that adds or changes an open row no spec
+owns (`UnownedOpenRows`, `internal/le/spec/journal/owner.go`). A row whose five
+cells the same class file holds at HEAD, marker included, is never judged, so a
+commit carrying a legacy row is not refused for it. A new open row, an edited
+one, a `fixed:` row reopened and an open row moved into another class are
+judged. A row is owned when the tables list its class and date at least as often
+as the class holds open rows of that date, so each open row needs its own entry.
+The tables are read from the specs the commit carries, in the working tree, and
+from every other spec at HEAD: an owner left uncommitted owns nothing, and a
+spec the commit removes owns nothing. A `fixed:` row needs no owner. The refusal
+names each row's file and line and prints the table line to add.
+
 ## The capture line
 
 A class records what now prevents it in one line above its table:
@@ -118,9 +149,8 @@ Per-row patches without steps 2 and 3 set no capture.
 ## Resolving rows
 
 `plan/post-release/engineering/spec-journal-resolution.md` owns how rows and classes get resolved: which DUE class a pass takes next, how a session claims it, what
-evidence a `fixed:` row carries, how a row whose code is gone is closed, and when
-a row that cannot express its defect and ensure its resolution is promoted to a
-spec of its own, which the row then names. Each pass appends one row to that
+evidence a `fixed:` row carries, and how a row whose code is gone is closed. The
+spec that owns a row is the one in whose table it is listed ("Owned rows"). Each pass appends one row to that
 spec's Pass Log; the spec never closes.
 
 ## Repairing a check after a recurrence

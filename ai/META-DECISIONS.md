@@ -150,9 +150,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 
 - A defect you walk into while working on something else gets one journal row in
   `plan/journal/<class>.md`; grep `plan/journal/` first, because other sessions
-  meet the same defect. Then close the work in hand and stop, with no ask. When
-  one row cannot express the defect and ensure its resolution, it gets its own
-  spec.
+  meet the same defect. List that row in the owned journal rows table of the
+  spec that will fix it: an existing spec whose mechanism fits, or a new one.
+  Then close the work in hand and stop, with no ask. A commit that adds or
+  changes an open row no spec owns is refused.
 - Sessions share the one `main` checkout. No worktree per session: fix
   shared-checkout friction inside that model.
 - Close in-progress specs before opening new ones. The WIP cap is lowered as

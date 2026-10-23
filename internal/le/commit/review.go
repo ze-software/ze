@@ -116,7 +116,10 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // specjournal.ValidateFile, the check the post-write hook runs, so a row the
 // hook warns about refuses the commit here, where the file is in hand, however
 // it was written: a malformed row, a bad Date or Spec cell, or a row added or
-// rewritten against HEAD over specjournal.RowCharsMax.
+// rewritten against HEAD over specjournal.RowCharsMax. An open row the commit
+// adds or changes against HEAD that no spec's owned journal rows table lists is
+// refused too (specjournal.UnownedOpenRows), so every recorded defect has the
+// spec that will fix it.
 func closureStem(root string, paths, removed []string) (string, error) {
 	for _, path := range paths {
 		if !strings.HasPrefix(path, "plan/journal/") {
@@ -135,6 +138,13 @@ func closureStem(root string, paths, removed []string) (string, error) {
 		if report.ExitCode() != 0 {
 			return "", fmt.Errorf("journal is not commit-readable:\n%s", strings.TrimSuffix(report.Text(), "\n"))
 		}
+	}
+	unowned, err := specjournal.UnownedOpenRows(root, paths, removed)
+	if err != nil {
+		return "", fmt.Errorf("read journal row owners: %w", err)
+	}
+	if len(unowned) != 0 {
+		return "", errors.New(strings.TrimSuffix(specjournal.UnownedText(unowned), "\n"))
 	}
 
 	return closedSpecStem(paths, removed, workingTreeSides(root))

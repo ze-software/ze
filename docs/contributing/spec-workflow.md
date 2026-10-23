@@ -260,7 +260,7 @@ It moves to `design` when somebody picks it up.
 
 | Situation | Where it goes |
 |-----------|---------------|
-| A defect the work in hand does not depend on | One row in `plan/journal/<class>.md`, then close the work in hand (`ai/rules/completion.md`) |
+| A defect the work in hand does not depend on | One row in `plan/journal/<class>.md`, listed in the owned journal rows table of the spec that will fix it, then close the work in hand (`ai/rules/completion.md`) |
 | A defect that BLOCKS the goal this work exists to achieve | Fix it now. It is neither a row nor a spec |
 | A failure nobody could reproduce | One shard in `plan/known-failures/`, carrying the reproduction attempt and the next step |
 | Work that was never in scope | Nothing. This spec does not record it |
@@ -346,7 +346,10 @@ days later, is written to `plan/handover/NN-<slug>.md` with the same template.
 ## Journal rows
 
 `plan/journal/README.md` owns the row format. One row per occurrence, and the
-row count is the recurrence.
+row count is the recurrence. Every open row is listed in the owned journal rows
+table of the spec that will fix it, and `./le commit create` refuses a commit
+that adds or changes an open row no spec lists (`plan/journal/README.md`,
+"Owned rows").
 
 ## Creating a spec
 

@@ -722,8 +722,58 @@ func TestCreateRefusesAnUnmarkedJournalRow(t *testing.T) {
 		t.Fatalf("Create refusal = %q, want unmarked-fix at line 3", err)
 	}
 	writeCommitFixture(t, root, journalPath, header+"| 2026-08-02 | - | cli | symptom | open: not fixed |\n")
-	if _, err := Create(root, &Options{Subject: "journal: a marked row", Files: []string{journalPath}, Replace: true}); err != nil {
+	// An open row needs its owning spec in the same commit (TestCreateRefusesAnOpenJournalRowNoSpecOwns).
+	specPath := "plan/release/fixes/spec-native.md"
+	writeCommitFixture(t, root, specPath, ownedRowsSpec("native.md", "2026-08-02"))
+	if _, err := Create(root, &Options{Subject: "journal: a marked row", Files: []string{journalPath, specPath}, Replace: true}); err != nil {
 		t.Fatalf("Create refused a marked row: %v", err)
+	}
+}
+
+// ownedRowsSpec renders a spec whose owned journal rows table lists one class
+// and date.
+func ownedRowsSpec(class, date string) string {
+	return "# Spec: native\n\n## Owned journal rows\n\n| Class file | Date | Surface (short) |\n" +
+		"|------------|------|-----------------|\n| `" + class + "` | " + date + " | cli |\n"
+}
+
+// TestCreateRefusesAnOpenJournalRowNoSpecOwns drives row ownership through the
+// commit entry point. VALIDATES: a commit adding an open row that no spec's
+// owned journal rows table lists is refused with the row's line, the reason and
+// the table line to add; the same row lands once its owning spec rides in the
+// commit; a fixed row lands with no owner. PREVENTS: an open defect recorded
+// with no spec that will fix it.
+func TestCreateRefusesAnOpenJournalRowNoSpecOwns(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-journal-owner-fixture")
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "ai/.keep", "")
+	journalPath := "plan/journal/native.md"
+	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+
+	writeCommitFixture(t, root, journalPath, header+"| 2026-08-03 | - | cli | symptom | fixed: repaired |\n")
+	if _, err := Create(root, &Options{Subject: "journal: a fixed row", Files: []string{journalPath}}); err != nil {
+		t.Fatalf("Create refused a fixed row, which needs no owner: %v", err)
+	}
+
+	writeCommitFixture(t, root, journalPath, header+"| 2026-08-03 | - | cli | symptom | open: owed |\n")
+	_, err := Create(root, &Options{Subject: "journal: an unowned row", Files: []string{journalPath}, Replace: true})
+	if err == nil {
+		t.Fatal("Create accepted an open row no spec owns")
+	}
+	for _, want := range []string{
+		"plan/journal/native.md line 3",
+		"no spec owns it",
+		"| `native.md` | 2026-08-03 | cli |",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Create refusal = %q, want it to contain %q", err, want)
+		}
+	}
+
+	specPath := "plan/release/fixes/spec-native.md"
+	writeCommitFixture(t, root, specPath, ownedRowsSpec("native.md", "2026-08-03"))
+	if _, err := Create(root, &Options{Subject: "journal: an owned row", Files: []string{journalPath, specPath}, Replace: true}); err != nil {
+		t.Fatalf("Create refused an open row its spec owns: %v", err)
 	}
 }
 
