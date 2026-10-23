@@ -1,4 +1,4 @@
-// Design: website/AI.md -- the homepage is authored copy around six data slots
+// Design: website/AI.md -- the homepage is authored copy around generated data.
 // Detail: homebody.go holds the template; facts.go holds the numbers it shows.
 package site
 
@@ -17,7 +17,7 @@ func init() {
 	registerProducer(Producer{Name: homeProducerName, Render: renderHome})
 }
 
-// Where the homepage is published, and what its hero replays.
+// Where the homepage is published, and which recording it replays.
 const (
 	homeProducerName = "home"
 	homeRoute        = "/"
@@ -25,9 +25,9 @@ const (
 	// homeRoot is empty because the homepage IS the site root, so every link
 	// it carries is already relative to itself.
 	homeRoot = ""
-	// homeHeroDemo is the recording the hero replays. Its file name, caption,
+	// homeHeroDemo is the recording the homepage replays. Its file name, caption,
 	// player label and transcript link all come from its manifest entry, so
-	// pointing the hero at another recording is this one edit.
+	// pointing the homepage at another recording is this one edit.
 	homeHeroDemo = "cli-dashboard"
 	// homeTourDemo is the recording the hero's "Watch a demo" action opens.
 	homeTourDemo = "web-config"
@@ -243,9 +243,8 @@ func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 	}, nil
 }
 
-// homeBody fills the template's nineteen slots: the five hero slots
-// homeHeroSlots answers, five here, and the nine proof spans homeProofStats
-// answers.
+// homeBody fills the template's slots from manifest media, authored data and
+// generated proof spans. The same body supplies the HTML and Markdown mirror.
 func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureData,
 	articles []blogArticle, weeks []changeWeek, hero []string, stats map[string]string,
 ) (string, error) {
@@ -263,6 +262,7 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 		"{run_cards}", runCards,
 		"{who_cards}", whoCards,
 		"{category_links}", featureCategoryLinks(features),
+		"{feature_overview}", homeFeatureOverview(features),
 		"{blog_teaser_cards}", blogTeaserCards(weeks),
 	)
 	for name, span := range stats {
@@ -430,6 +430,33 @@ func featureCategoryLinks(features featureData) string {
 			strconv.Itoa(counts[category])+")</a>")
 	}
 	return strings.Join(links, "\n")
+}
+
+// homeFeatureOverview exposes every card's destination, grouped in the same
+// category order as the navigation above it. Within a category the data file's
+// order is preserved; maturity remains the feature catalog's derived answer.
+func homeFeatureOverview(features featureData) string {
+	var overview textbuf.Buffer
+	for _, category := range legendCategories {
+		overview.Str(`<article class="capability cat-`).Str(html.EscapeString(category)).Str(`">`)
+		overview.Str(`<div class="capability-title"><h3>`).
+			Str(html.EscapeString(capitalizeWord(category))).Str("</h3></div>\n")
+		overview.Str(`<div class="capability-links">`).Byte('\n')
+		for index := range features.Cards {
+			card := &features.Cards[index]
+			if card.Category != category {
+				continue
+			}
+			overview.Str(`<a href="`).Str(html.EscapeString(card.Href)).Byte('"')
+			if card.External {
+				overview.Str(` target="_blank" rel="noopener"`)
+			}
+			overview.Byte('>').Str(html.EscapeString(card.Title)).Str("</a>\n")
+		}
+		overview.Str(`</div><a class="capability-footer" href="features/#`).Str(html.EscapeString(category)).
+			Str(`">View `).Str(html.EscapeString(category)).Str(" features →</a></article>\n")
+	}
+	return overview.String()
 }
 
 // whatsNewBand renders the three slots above the proof strip: the newest

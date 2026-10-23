@@ -321,12 +321,13 @@ their public siblings. Pages built from JSON produce HTML and Markdown from the
 same typed input. Hand-authored HTML pages derive their mirror from the
 published main content, and the homepage is one of them: its copy lives in the
 build's own template, so a hand-written mirror would state that copy twice.
-The homepage hero replays the recording `homeHeroDemo` names, and its "Watch a
-demo" action opens the one `homeTourDemo` names (`internal/le/site/home.go`).
-The file name in the hero's frame, its caption, its player label and both links
+The homepage demonstration replays the recording `homeHeroDemo` names, and its
+"Watch a demo" action opens the one `homeTourDemo` names
+(`internal/le/site/home.go`). The file name in the recording's frame, its
+caption, its player label and both links
 come from those ids' entries in `demos/terminal/manifest.json`: the caption is
 the entry's `title`, and each link is the entry's `page` at its `anchor`. The
-template names no recording, so moving the hero is that one constant.
+template names no recording, so choosing another replay is that one constant.
 <!-- source: internal/le/site/home.go -- homeHeroSlots -->
 
 
@@ -337,12 +338,39 @@ Before adding or restyling a page or component, read the
 That section is the canonical record of the owner's approved website design
 rules. Apply it to proposals and implementation.
 
-The guide's palette and component sections describe the current candy
-claymation implementation. Reuse those components for changes within the
-current design. Prototypes can propose another treatment for review against
-the principles, but approval of the principles does not approve a replacement
-palette. Get approval for the proposed design before implementing it, then
-update the affected style-guide sections in the same change.
+The approved design uses the logo blue, pale blue accents, white or light
+reading surfaces and dark navy heroes and terminal panels. Poppins headings
+and Lato body text share the same hierarchy across the homepage, guides,
+catalogs and articles. The root element's `data-theme` attribute and `ze-theme`
+storage key remain the theme contract; the prepaint bootstrap and the shared
+script must agree about both. A new design treatment needs owner approval,
+followed by the matching style-guide update.
+
+The homepage keeps all of its authored sections and data slots. Its primary
+actions reach the demo gallery and BGP quickstart directly. Product screenshots
+are individually linked to their full-size files and captioned with their
+capture provenance; every panel remains available without JavaScript. The
+selector only changes which screenshot is visible, and never replaces the
+manifest-derived replay or transcript. The category overview derives every
+feature link from `features.json`, alongside the existing category counts.
+Its management explanation states that Ze runs its own SSH service and CLI,
+without relying on a host SSH service or shell.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: internal/le/site/home.go -- homeBody -->
+
+Guides retain their source heading IDs, prose, examples and demonstrations.
+`insertDocTOC` groups the complete body beside its outline after the generated
+title block. It verifies that the body starts with that block before splitting;
+untitled authored HTML stays whole. The generated title block stays flat: its
+first closing `div` marks where the reading layout begins. Articles group the byline with the title, retain their
+themed illustration, and place the section outline and related navigation
+beside the complete article and key points. Narrow screens return these parts
+to document order. Both outlines use native disclosures, open without scripts;
+the shared script initially collapses them on narrow screens and then respects
+the reader's choice. Neither layout removes content for readers without scripts.
+<!-- source: internal/le/site/markdown.go -- insertDocTOC -->
+<!-- source: internal/le/site/doctransform.go -- pageHero -->
+<!-- source: internal/le/site/blog.go -- blogArticleBody -->
 
 Navigation is part of the design system. `data/nav.json` owns the top
 mega-menu and curated `llms.txt` sections. The build publishes the menu as

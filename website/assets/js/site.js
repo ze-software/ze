@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", function () {
             themeColor.setAttribute("name", "theme-color");
             document.head.appendChild(themeColor);
         }
-        themeColor.setAttribute("content", theme === "dark" ? "#0b0910" : "#fffbfb");
+        themeColor.setAttribute("content", theme === "dark" ? "#091b2e" : "#f7f9fc");
         if (persist) {
             try {
                 window.localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -845,7 +845,7 @@ document.addEventListener("DOMContentLoaded", function () {
         var items = slice(document.querySelectorAll(config.itemSelector));
         if (!buttons.length || !items.length) return;
 
-        var containers = slice(document.querySelectorAll(config.containerSelector || ""));
+        var containers = config.containerSelector ? slice(document.querySelectorAll(config.containerSelector)) : [];
         var status = config.statusSelector ? document.querySelector(config.statusSelector) : null;
         var empty = config.emptySelector ? document.querySelector(config.emptySelector) : null;
         var categoryAttr = config.categoryAttr || "data-cat";
@@ -908,14 +908,83 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function initFeatureFilters() {
-        initCategoryFilter({
-            buttonSelector: ".legend button[data-cat]",
-            itemSelector: ".card[data-cat]",
-            containerSelector: "section[data-cards]",
-            visibleSelector: ".card[data-cat]:not(.filtered-out)",
-            statusSelector: "#feature-filter-status",
-            statusName: "features",
+        var input = document.getElementById("feature-search");
+        if (!input) {
+            initCategoryFilter({
+                buttonSelector: ".legend button[data-cat]",
+                itemSelector: ".card[data-cat]",
+                containerSelector: "section[data-cards]",
+                visibleSelector: ".card[data-cat]:not(.filtered-out)",
+                statusSelector: "#feature-filter-status",
+                statusName: "features",
+            });
+            return;
+        }
+        var cards = slice(document.querySelectorAll(".feature-card[data-cat]"));
+        var buttons = slice(document.querySelectorAll(".legend button[data-cat]"));
+        var sections = slice(document.querySelectorAll("section[data-cards]"));
+        var maturity = document.getElementById("feature-maturity");
+        var status = document.getElementById("feature-filter-status");
+        var empty = document.getElementById("feature-empty");
+        var category = "";
+        var records = cards.map(function (card) {
+            return { card: card, text: textLower(card.textContent).replace(/\s+/g, " ") };
         });
+        function apply() {
+            var terms = textLower(input.value).trim().split(/\s+/).filter(Boolean);
+            var selected = maturity ? maturity.value : "";
+            var count = 0;
+            records.forEach(function (record) {
+                var card = record.card;
+                var match = (!category || card.getAttribute("data-cat") === category)
+                    && (!selected || selected === "all" || card.getAttribute("data-maturity") === selected)
+                    && terms.every(function (term) { return record.text.indexOf(term) !== -1; });
+                card.classList.toggle("filtered-out", !match);
+                if (match) count += 1;
+            });
+            sections.forEach(function (section) {
+                section.hidden = !section.querySelector(".feature-card:not(.filtered-out)");
+            });
+            buttons.forEach(function (button) {
+                button.setAttribute("aria-pressed", button.getAttribute("data-cat") === category ? "true" : "false");
+            });
+            if (status) status.textContent = "Showing " + count + " of " + cards.length + " features.";
+            if (empty) empty.hidden = count !== 0;
+        }
+        function categoryFromHash() {
+            var value;
+            try { value = decodeURIComponent(location.hash.slice(1)); } catch (err) { return; }
+            category = buttons.some(function (button) { return button.getAttribute("data-cat") === value; }) ? value : "";
+            apply();
+        }
+        function writeHash() {
+            history.replaceState(null, "", location.pathname + location.search + (category ? "#" + encodeURIComponent(category) : ""));
+        }
+        buttons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var value = button.getAttribute("data-cat");
+                category = category === value ? "" : value;
+                writeHash();
+                apply();
+            });
+        });
+        input.addEventListener("input", apply);
+        if (maturity) maturity.addEventListener("change", apply);
+        slice(document.querySelectorAll("[data-reset-features]")).forEach(function (button) {
+            button.addEventListener("click", function () {
+                input.value = "";
+                if (maturity) maturity.value = "all";
+                category = "";
+                writeHash();
+                apply();
+                input.focus();
+            });
+        });
+        window.addEventListener("hashchange", categoryFromHash);
+        categoryFromHash();
+        slice(document.querySelectorAll(".feature-filter-controls")).forEach(function (control) { control.hidden = false; });
+        var catalog = document.querySelector(".feature-catalog");
+        if (catalog) catalog.setAttribute("data-enhanced", "true");
     }
 
     function initTimelineFilters() {
@@ -963,111 +1032,146 @@ document.addEventListener("DOMContentLoaded", function () {
         var suggestions = document.getElementById("cli-suggestions");
         var groups = slice(document.querySelectorAll(".cli-group"));
         if (!input || !groups.length) return;
-
+        var groupFilter = document.getElementById("cli-group-filter");
+        var status = document.getElementById("cli-filter-status");
+        var empty = document.getElementById("cli-empty");
+        var toolbar = document.querySelector(".cli-toolbar");
+        var disclosures = slice(document.querySelectorAll(".cli-group, .cli-command-facts, .cli-pipes"));
+        var savedDisclosures = null;
         var commands = [];
+        function normalize(text) { return textLower(text).replace(/\s+/g, " ").trim(); }
         groups.forEach(function (group) {
             var summary = group.querySelector("summary");
             var label = summary && summary.firstChild ? summary.firstChild.textContent.trim() : "";
+            if (groupFilter) group.open = false;
             slice(group.querySelectorAll("tbody tr")).forEach(function (row) {
-                commands.push({
-                    id: row.id,
-                    path: row.cells[0].textContent.trim(),
-                    desc: row.cells[2].textContent.trim(),
-                    group: label,
-                    row: row,
-                    details: group,
-                });
+                commands.push({ id: row.id, path: row.cells[0].textContent.trim(),
+                    desc: row.cells[2].textContent.trim(), text: normalize(row.textContent),
+                    group: label, row: row, details: group });
             });
         });
-
         function highlight(row) {
             row.classList.add("cli-row-highlight");
-            window.setTimeout(function () {
-                row.classList.remove("cli-row-highlight");
-            }, 2000);
+            window.setTimeout(function () { row.classList.remove("cli-row-highlight"); }, 2000);
         }
-
-        function jumpTo(command) {
-            command.details.open = true;
-            if (suggestions) suggestions.hidden = true;
-            history.replaceState(null, "", "#" + command.id);
-            command.row.scrollIntoView({ block: "center" });
-            highlight(command.row);
-        }
-
-        function applyRowFilter(query) {
-            groups.forEach(function (group) {
-                var rows = slice(group.querySelectorAll("tbody tr"));
-                var anyVisible = false;
-                rows.forEach(function (row) {
-                    var match = query === "" || row.textContent.toLowerCase().indexOf(query) !== -1;
-                    row.style.display = match ? "" : "none";
-                    if (match) anyVisible = true;
-                });
-                group.style.display = anyVisible ? "" : "none";
-                if (query !== "") group.open = anyVisible;
+        function applyRowFilter() {
+            var terms = normalize(input.value).split(" ").filter(Boolean);
+            var selected = groupFilter && groupFilter.value !== "all" ? groupFilter.value : "";
+            var filtering = terms.length > 0 || !!selected;
+            if (filtering && !savedDisclosures) {
+                savedDisclosures = disclosures.map(function (detail) { return { detail: detail, open: detail.open }; });
+            }
+            var count = 0;
+            commands.forEach(function (command) {
+                var match = (!selected || command.details.id === selected)
+                    && terms.every(function (term) { return command.text.indexOf(term) !== -1; });
+                command.row.hidden = !match;
+                if (match) count += 1;
+                if (filtering) {
+                    slice(command.row.querySelectorAll("details")).forEach(function (detail) {
+                        if (match && terms.some(function (term) { return normalize(detail.textContent).indexOf(term) !== -1; })) detail.open = true;
+                    });
+                }
             });
+            var visibleGroups = 0;
+            groups.forEach(function (group) {
+                var visible = commands.filter(function (command) { return command.details === group && !command.row.hidden; }).length;
+                group.hidden = visible === 0;
+                if (visible) visibleGroups += 1;
+                if (filtering) group.open = visible > 0;
+                var badge = group.querySelector(".cli-group-count");
+                if (badge) {
+                    if (!badge.hasAttribute("data-total")) badge.setAttribute("data-total", badge.textContent.trim());
+                    badge.textContent = filtering ? visible + " / " + badge.getAttribute("data-total") : badge.getAttribute("data-total");
+                }
+            });
+            if (!filtering && savedDisclosures) {
+                savedDisclosures.forEach(function (saved) { saved.detail.open = saved.open; });
+                savedDisclosures = null;
+            }
+            if (status) status.textContent = count + " of " + commands.length + " commands across " + visibleGroups + " groups.";
+            if (empty) empty.hidden = count !== 0;
         }
-
-        function renderSuggestions(query) {
+        function reset() {
+            input.value = "";
+            if (groupFilter) groupFilter.value = "all";
+            applyRowFilter();
+            if (suggestions) { suggestions.hidden = true; suggestions.innerHTML = ""; }
+        }
+        function reveal(target) {
+            reset();
+            var ancestor = target;
+            while (ancestor && ancestor !== document.body) {
+                if (ancestor.tagName === "DETAILS") ancestor.open = true;
+                ancestor = ancestor.parentElement;
+            }
+            slice(target.querySelectorAll("details")).forEach(function (detail) { detail.open = true; });
+            var columnHost = toolbar && toolbar.querySelector("[data-column-selector]");
+            if (columnHost) columnHost.dispatchEvent(new Event("ze:show-all-columns"));
+            target.scrollIntoView({ block: "center" });
+            if (target.tagName === "TR") highlight(target);
+        }
+        function jumpTo(command) {
+            history.replaceState(null, "", "#" + command.id);
+            reveal(command.row);
+        }
+        function renderSuggestions() {
             if (!suggestions) return;
-            if (query === "") {
-                suggestions.hidden = true;
-                suggestions.innerHTML = "";
-                return;
-            }
-            var matches = commands.filter(function (command) {
-                return command.path.toLowerCase().indexOf(query) !== -1 ||
-                    command.desc.toLowerCase().indexOf(query) !== -1;
-            }).slice(0, 20);
+            var terms = normalize(input.value).split(" ").filter(Boolean);
             suggestions.innerHTML = "";
-            if (!matches.length) {
-                suggestions.hidden = true;
-                return;
-            }
+            if (!terms.length) { suggestions.hidden = true; return; }
+            var matches = commands.filter(function (command) {
+                return !command.row.hidden && terms.every(function (term) {
+                    return normalize(command.path + " " + command.desc).indexOf(term) !== -1;
+                });
+            }).slice(0, 20);
             matches.forEach(function (command) {
                 var button = document.createElement("button");
                 button.type = "button";
-                var code = document.createElement("code");
-                code.textContent = command.path;
-                var group = document.createElement("span");
-                group.className = "cli-suggestion-group";
-                group.textContent = command.group;
-                button.appendChild(code);
-                button.appendChild(group);
-                button.addEventListener("click", function () {
-                    jumpTo(command);
-                });
+                var code = document.createElement("code"); code.textContent = command.path;
+                var group = document.createElement("span"); group.className = "cli-suggestion-group"; group.textContent = command.group;
+                button.appendChild(code); button.appendChild(group);
+                button.addEventListener("click", function () { jumpTo(command); });
                 suggestions.appendChild(button);
             });
-            suggestions.hidden = false;
+            suggestions.hidden = !matches.length;
         }
-
-        input.addEventListener("input", function () {
-            var query = input.value.trim().toLowerCase();
-            applyRowFilter(query);
-            renderSuggestions(query);
-        });
+        function filter() { applyRowFilter(); renderSuggestions(); }
+        input.addEventListener("input", filter);
+        if (groupFilter) groupFilter.addEventListener("change", filter);
         input.addEventListener("keydown", function (event) {
             if (event.key === "Escape" && suggestions) suggestions.hidden = true;
         });
         document.addEventListener("click", function (event) {
-            if (suggestions && !suggestions.hidden && event.target !== input && !suggestions.contains(event.target)) {
-                suggestions.hidden = true;
-            }
+            if (suggestions && !suggestions.hidden && event.target !== input && !suggestions.contains(event.target)) suggestions.hidden = true;
         });
-
-        if (location.hash) {
-            var target = document.getElementById(location.hash.slice(1));
-            if (target && target.tagName === "TR") {
-                var details = target.closest(".cli-group");
-                if (details) details.open = true;
-                window.setTimeout(function () {
-                    target.scrollIntoView({ block: "center" });
-                    highlight(target);
-                }, 50);
+        slice(document.querySelectorAll("[data-reset-cli]")).forEach(function (button) {
+            button.addEventListener("click", function () { reset(); input.focus(); });
+        });
+        slice(document.querySelectorAll("[data-cli-expand]")).forEach(function (button) {
+            button.addEventListener("click", function () {
+                var open = button.getAttribute("data-cli-expand") === "all";
+                groups.forEach(function (group) { if (!group.hidden) group.open = open; });
+            });
+        });
+        function revealHash() {
+            var id;
+            try { id = decodeURIComponent(location.hash.slice(1)); } catch (err) { return; }
+            var target = id && document.getElementById(id);
+            if (target && (target.tagName === "TR" || target.classList.contains("cli-group"))) {
+                window.setTimeout(function () { reveal(target); }, 0);
             }
         }
+        window.addEventListener("hashchange", revealHash);
+        slice(document.querySelectorAll('.cli-group-nav a[href^="#"]')).forEach(function (link) {
+            link.addEventListener("click", function (event) {
+                if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                if (link.getAttribute("href") === location.hash) revealHash();
+            });
+        });
+        if (toolbar) toolbar.hidden = false;
+        applyRowFilter();
+        revealHash();
     }
 
     function initCommandEquivalentFilter() {
@@ -1501,6 +1605,10 @@ document.addEventListener("DOMContentLoaded", function () {
             fieldset.appendChild(actions);
         }
 
+        host.addEventListener("ze:show-all-columns", function () {
+            order.forEach(function (label) { state[label] = true; });
+            applyColumns();
+        });
         host.insertBefore(fieldset, config.insertBefore || null);
         host.setAttribute("data-column-selector-ready", "true");
         applyColumns();
@@ -1660,7 +1768,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var input = tool.querySelector("[data-compare-search]");
                 var select = tool.querySelector("[data-compare-section]");
                 var status = tool.querySelector("[data-compare-status]");
-                var content = tool.closest(".md-content");
+                var content = tool.closest(".doc-body") || tool.closest(".md-content");
                 if (!input || !select || !status || !content) return;
                 if (!initColumnControls(tool, content, status)) {
                     initAutomaticTableColumnSelectors(content, true);
@@ -1708,8 +1816,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     var totalRows = 0;
 
                     groups.forEach(function (group) {
-                        var sectionAllowed = __omp_shell("wanted || wanted === group.value;")
-                        var groupTextMatch = __omp_shell("query || group.text.indexOf(query) !== -1;")
+                        var sectionAllowed = !wanted || wanted === group.value;
+                        var groupTextMatch = !query || group.text.indexOf(query) !== -1;
                         var groupRowsVisible = 0;
 
                         group.rows.forEach(function (row) {
@@ -1911,6 +2019,56 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function initProductShowcases() {
+        slice(document.querySelectorAll("[data-product-showcase]")).forEach(function (showcase) {
+            var buttons = slice(showcase.querySelectorAll("[data-product-target]"));
+            var panels = slice(showcase.querySelectorAll("[data-product-panel]"));
+            if (!buttons.length || !panels.length) return;
+            function select(button) {
+                var target = button.getAttribute("data-product-target");
+                if (!panels.some(function (panel) { return panel.id === target; })) return;
+                panels.forEach(function (panel) { panel.hidden = panel.id !== target; });
+                buttons.forEach(function (item) { item.setAttribute("aria-pressed", item === button ? "true" : "false"); });
+            }
+            buttons.forEach(function (button) {
+                button.addEventListener("click", function () { select(button); });
+            });
+            select(buttons.filter(function (button) { return button.getAttribute("aria-pressed") === "true"; })[0] || buttons[0]);
+            var controls = showcase.querySelector(".screen-tabs");
+            if (controls) controls.hidden = false;
+        });
+    }
+
+    function initReadingOutlines() {
+        if (!window.matchMedia || !window.matchMedia("(max-width: 850px)").matches) return;
+        slice(document.querySelectorAll("details.reading-outline, .cli-group-nav > details")).forEach(function (outline) {
+            if (!outline.contains(document.activeElement)) outline.open = false;
+        });
+    }
+
+    function initPageOutlines() {
+        var links = slice(document.querySelectorAll('.doc-toc a[href^="#"], .blog-article-toc a[href^="#"], .cli-group-nav a[href^="#"]'));
+        if (!links.length || !("IntersectionObserver" in window)) return;
+        var targets = links.map(function (link) {
+            var id;
+            try { id = decodeURIComponent(link.getAttribute("href").slice(1)); } catch (err) { return null; }
+            return { link: link, target: document.getElementById(id) };
+        }).filter(function (entry) { return entry && entry.target; });
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+                targets.forEach(function (item) {
+                    if (item.target === entry.target) item.link.setAttribute("aria-current", "location");
+                    else item.link.removeAttribute("aria-current");
+                });
+            });
+        }, { rootMargin: "-12% 0px -65% 0px", threshold: 0 });
+        targets.forEach(function (entry) { observer.observe(entry.target); });
+    }
+
+    initProductShowcases();
+    initReadingOutlines();
+    initPageOutlines();
     initBlogCards();
     initTaglineCarousel();
     initSearchPage();

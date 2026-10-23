@@ -196,21 +196,52 @@ func TestFrontMatterSplitsMetadataFromTheBody(t *testing.T) {
 	}
 }
 
-// TestDocTOCGoesAfterTheFirstClosingDiv pins the splice rule. It is literal
-// rather than structural: the retired renderer searched for the first "</div>"
-// in the body, which is where the hero block closes, and every published page
-// carries the contents list there. A body with no such tag takes it at the top.
+// TestDocTOCGoesAfterTheFirstClosingDiv keeps the hero outside the reading
+// layout and verifies that the complete body, including nested blocks, is
+// grouped beside its outline without rewriting either one.
 func TestDocTOCGoesAfterTheFirstClosingDiv(t *testing.T) {
 	const contents = `<nav class="doc-toc">list</nav>`
-	const hero = `<div class="hero"><h1>T</h1></div>`
-	if got := insertDocTOC(hero+"\n<p>after</p>", contents); !strings.HasPrefix(got, hero+"\n"+contents) {
-		t.Errorf("the contents list must follow the first </div>: %s", got)
+	const hero = `<!-- A comment can spell </div>. -->` + "\n" +
+		`<div class="journey-hero reveal"><h1>T</h1></div>`
+	const body = "\n<p>after</p><div><pre>example</pre></div>"
+	const layout = `<div class="doc-layout">` + "\n" + contents + `<div class="doc-body">`
+	if got := insertDocTOC(hero+body, contents); got != hero+"\n"+layout+body+"</div>\n</div>" {
+		t.Errorf("the outline and complete body must follow the hero: %s", got)
 	}
-	if got := insertDocTOC("<h1>T</h1>\n<p>after</p>", contents); !strings.HasPrefix(got, contents+"\n<h1>") {
-		t.Errorf("a body with no </div> must take the contents list at the top: %s", got)
+	if got := insertDocTOC("<h1>T</h1>\n<p>after</p>", contents); !strings.HasPrefix(got, layout+"<h1>") {
+		t.Errorf("a body with no hero must begin with its reading layout: %s", got)
 	}
 	if got := insertDocTOC("<h1>T</h1>", ""); got != "<h1>T</h1>" {
 		t.Errorf("a page with no headings must take no contents list: %s", got)
+	}
+}
+
+// TestDocTOCKeepsUntitledHTMLTogether exercises a page that begins with an
+// authored nested block. No generated hero exists, so no closing div inside
+// that block may become a layout boundary.
+func TestDocTOCKeepsUntitledHTMLTogether(t *testing.T) {
+	const contents = `<nav class="doc-toc">list</nav>`
+	const source = `<div class="notice"><div>Intro</div><p>Still inside</p></div><h2 id="next">Next</h2>`
+	body := wrapJourneyHero(source, "Guide")
+	want := `<div class="doc-layout">` + "\n" + contents + `<div class="doc-body">` + source + "</div>\n</div>"
+	if got := insertDocTOC(body, contents); got != want {
+		t.Errorf("the untitled HTML must remain whole inside its reading body:\n%s", got)
+	}
+}
+
+// TestDocOutlineHasANativeDisclosure keeps the complete outline available
+// without JavaScript while letting a mobile reader collapse it.
+func TestDocOutlineHasANativeDisclosure(t *testing.T) {
+	contents := renderDocTOC([]docHeading{{Level: 2, ID: "peer-settings", Label: "Peer settings"}})
+	for _, want := range []string{
+		`<details class="reading-outline" open>`,
+		`<summary><h2 id="doc-toc-title">On this page</h2></summary>`,
+		`<a href="#peer-settings">Peer settings</a>`,
+		`</details></nav>`,
+	} {
+		if !strings.Contains(contents, want) {
+			t.Errorf("the native outline is missing %q: %s", want, contents)
+		}
 	}
 }
 

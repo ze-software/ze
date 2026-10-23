@@ -483,6 +483,7 @@ func ensureAnchorRel(tag, token string) string {
 var (
 	heroTitleAndLead = regexp.MustCompile(`(?s)^((?:<!--.*?-->\s*)*)<h1([^>]*)>(.*?)</h1>\n((?:<!--.*?-->\s*)*)<p>(.*?)</p>`)
 	heroTitleOnly    = regexp.MustCompile(`(?s)^((?:<!--.*?-->\s*)*)<h1([^>]*)>(.*?)</h1>`)
+	heroBlockOpening = regexp.MustCompile(`(?s)^(?:<!--.*?-->\s*)*<div class="` + regexp.QuoteMeta(heroClasses) + `">`)
 )
 
 // wrapJourneyHero turns the page's opening title, and the paragraph under it,
@@ -508,12 +509,14 @@ func wrapJourneyHero(body, label string) string {
 // with this one because the shared layout hangs off it.
 const heroClasses = "journey-hero reveal"
 
-// pageHero renders the clay title block a page opens with. The title and the
+// pageHero renders the shared title block a page opens with. The title and the
 // lead are the renderer's own markup, already rendered from Markdown, so they
 // are spliced rather than escaped; the label is plain text.
 //
 // classes is written out at every call site rather than defaulted, so a call
 // states the hero it renders.
+// The hero MUST contain no nested div: insertDocTOC uses its first closing div
+// as the boundary between the title and the reading layout.
 func pageHero(title, lead, label, headingAttributes, classes string) string {
 	var hero textbuf.Buffer
 	hero.Reset().Str(`<div class="`).Str(html.EscapeString(classes)).Str(`">`)

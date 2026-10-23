@@ -37,7 +37,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>The core is a protocol-agnostic supervisor with an event bus, configuration provider, and plugin manager. Each subsystem registers its own YANG model. Ze uses that model to derive the CLI, completion, validation, web editor, generated reference, and MCP tools.</p>
         </div>
       </details>
-
       <details class="faq-card cat-routing" id="ready">
         <summary>Is Ze ready for production?</summary>
         <div>
@@ -45,7 +44,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>Use Ze in a lab today. Build a route server, migrate an ExaBGP configuration, run the interop labs against FRR or BIRD, and report failures. The <a href="../project/roadmap/">roadmap</a> lists the release work, while the <a href="../quality/">quality pages</a> show the evidence already available.</p>
         </div>
       </details>
-
       <details class="faq-card cat-observe" id="today">
         <summary>What can Ze actually do today?</summary>
         <div>
@@ -53,7 +51,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>OSPF, IS-IS, MPLS, firewall, VPN, PPPoE, and L2TP code also exists, but those areas remain experimental. Use the <a href="../features/">feature catalog</a> for current status instead of treating this answer as a compatibility matrix.</p>
         </div>
       </details>
-
       <details class="faq-card cat-platform" id="compare">
         <summary>Why would I use Ze instead of BIRD, FRR, or GoBGP?</summary>
         <div>
@@ -80,7 +77,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>Start with the <a href="../guides/quickstart/">quickstart</a>. Use the <a href="../labs/appliance-install/">appliance lab</a> when you want an immutable boot image for a VM or dedicated hardware.</p>
         </div>
       </details>
-
       <details class="faq-card cat-services" id="exabgp">
         <summary>I run ExaBGP. Can I move to Ze?</summary>
         <div>
@@ -88,7 +84,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>The <a href="../use-cases/exabgp-migration/">ExaBGP migration guide</a> covers conversion, known differences, and the point where a native Ze plugin becomes the better choice.</p>
         </div>
       </details>
-
       <details class="faq-card cat-operate" id="daemon-appliance">
         <summary>The daemon or the appliance: which should I run?</summary>
         <div>
@@ -96,7 +91,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>The appliance packages the same binary and configuration into a read-only system with automatic supervision, no package manager, and no interactive shell. Use it when you want a purpose-built router image rather than another managed Linux host.</p>
         </div>
       </details>
-
       <details class="faq-card cat-routing" id="config-stability">
         <summary>Will my configuration keep working as Ze changes?</summary>
         <div>
@@ -104,7 +98,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>Configuration stability is an explicit milestone on the <a href="../project/roadmap/">roadmap</a>.</p>
         </div>
       </details>
-
       <details class="faq-card cat-automate" id="ai-mcp">
         <summary>Does Ze need an LLM to run?</summary>
         <div>
@@ -130,7 +123,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>If you modify Ze and let users interact with that modified version over a network, the AGPL requires you to offer those users the corresponding source. Read the license itself when the distinction matters to a deployment.</p>
         </div>
       </details>
-
       <details class="faq-card cat-automate" id="contribute-cla">
         <summary>What does the contributor agreement grant?</summary>
         <div>
@@ -138,7 +130,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>The agreement lets the maintainer offer Ze under additional license terms, including a commercial license. Every contribution remains available to the public under AGPLv3. The <a href="../contribute/guide/">contributor guide</a> covers the submission process.</p>
         </div>
       </details>
-
       <details class="faq-card cat-services" id="funding">
         <summary>Who builds Ze, and how is it funded?</summary>
         <div>
@@ -146,7 +137,6 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>Ze currently has no subscription, paid support tier, or separate commercial entity. The <a href="../contribute/">contribute page</a> explains how the project is maintained and how to help.</p>
         </div>
       </details>
-
       <details class="faq-card cat-secure" id="help">
         <summary>How do I get help or report a security problem?</summary>
         <div>

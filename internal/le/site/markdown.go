@@ -462,8 +462,9 @@ func renderDocTOC(headings []docHeading) string {
 		return ""
 	}
 	return `<nav class="doc-toc" aria-labelledby="doc-toc-title">` +
-		`<h2 id="doc-toc-title">On this page</h2>` +
-		"<ol>\n" + items + "\n</ol></nav>"
+		`<details class="reading-outline" open>` +
+		`<summary><h2 id="doc-toc-title">On this page</h2></summary>` +
+		"<ol>\n" + items + "\n</ol></details></nav>"
 }
 
 // shallowestLevel answers the smallest heading level a page carries, which is
@@ -520,22 +521,31 @@ func tocItems(headings []docHeading, from, level int) (string, int) {
 	return strings.Join(items, "\n"), index
 }
 
-// insertDocTOC splices the navigation after the FIRST literal "</div>" of the
-// body, which is where the page's hero block closes.
-//
-// The rule is literal on purpose. The retired renderer searched for that exact
-// string, so a body whose first "</div>" belongs to something else got its
-// navigation there, and copying the rule keeps every published page where it
-// was. A body with no "</div>" takes the navigation at the top.
+// insertDocTOC places the outline beside the complete reading body, after the
+// flat title block pageHero emits. Both remain in document order on small
+// screens and without styles. The hero MUST contain no nested div: its first
+// closing div is the boundary between the title and the reading layout. An
+// authored body with no generated hero stays whole inside the reading layout.
 func insertDocTOC(body, toc string) string {
 	if toc == "" {
 		return body
 	}
-	const marker = "</div>"
-	position := strings.Index(body, marker)
-	if position < 0 {
-		return toc + "\n" + body
+	opening := heroBlockOpening.FindStringIndex(body)
+	if opening == nil {
+		return docReadingLayout(toc, body)
 	}
-	end := position + len(marker)
-	return body[:end] + "\n" + toc + body[end:]
+	const marker = "</div>"
+	position := strings.Index(body[opening[1]:], marker)
+	if position < 0 {
+		return docReadingLayout(toc, body)
+	}
+	end := opening[1] + position + len(marker)
+	return body[:end] + "\n" + docReadingLayout(toc, body[end:])
+}
+
+// docReadingLayout groups the body without changing any of its markup, so
+// headings, examples and recorded demonstrations keep their own contracts.
+func docReadingLayout(toc, body string) string {
+	return `<div class="doc-layout">` + "\n" + toc +
+		`<div class="doc-body">` + body + "</div>\n</div>"
 }

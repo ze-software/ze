@@ -216,6 +216,17 @@ declarations. The rules are in `docs/contributing/feature-maturity.md`, "The
 published surfaces".
 <!-- source: internal/le/site/datapages.go -- loadFeatureData -->
 
+The feature catalog uses the shared logo-blue design. Its filter rail combines
+text, category and maturity, with one reset action and a live result count.
+Every card states its maturity in words as well as its border treatment. Those
+labels and filter values come from the same derived state that places the card
+in its section; the page never freezes a mockup's counts. The sections, cards,
+bullets, chips and links stay in source order, and the full catalog and category
+counts remain readable without JavaScript. The Markdown mirror carries the same
+maturity labels and complete card content.
+<!-- source: internal/le/site/datapages.go -- featuresBody, featureCardHTML, featuresMirror -->
+<!-- source: website/assets/js/site.js -- initFeatureFilters -->
+
 The build does not read a local `plan/release/roadmap.md`. Source links name the selected
 commit, and an unreadable or missing `plan/` stops the build. Verify privately
 with `./le site build output <session-scratch-directory>`, then inspect the
@@ -310,6 +321,19 @@ but an unescaped tag that hides a placeholder is lost contract text.
 <!-- source: internal/le/site/commands.go -- markdownProse, commandMirrorDescription -->
 <!-- source: internal/le/site/derived.go -- writeLLMSCommands -->
 <!-- source: internal/le/doc/yangcontract/command_surfaces.go -- markdownInlineVisibleText, validatePrimaryMarkdownContract, validateLLMSCommandContract -->
+
+The command directory presents the complete catalog beside a group navigation
+rail. Search still offers command suggestions and jumps to a stable `cmd-`
+anchor; a group selector, result count, reset action and expand/collapse actions
+help narrow a long reference. Search reads the complete command row, including
+arguments and pipe details. Arguments and output details use native disclosures,
+and the four table columns retain the shared column controls. Every group is
+open in the generated HTML, so the complete catalog and its disclosures work
+without JavaScript. A direct command link opens the containing group when the
+interactive directory is active. The global pipe guide and JSON download remain
+available beside the generated commands.
+<!-- source: internal/le/site/commands.go -- cliReferenceBody, writeCommandGroup, writeCommandFacts -->
+<!-- source: website/assets/js/site.js -- initCliCatalogFilter -->
 
 `internal/le/doc/yangcontract` publishes no page. Its unexported `renderCommandSurfaces`
 writes a contract fixture into a temporary tree, and the documentation drift

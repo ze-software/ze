@@ -65,17 +65,59 @@ func cliReferenceBody(commands []catalogCommand, groups []commandGroup) string {
 	body.Reset().Str("\n            <section aria-labelledby=\"cli-title\" class=\"md-content reveal cat-operate\">\n")
 	body.Str(pageHero("CLI Reference", cliReferenceLead(len(commands), len(groups)), "Reference", ` id="cli-title"`, heroClasses))
 	body.Byte('\n')
+	body.Str(`<div class="cli-reference-layout">`).Byte('\n')
+	writeCommandNavigation(&body, groups)
+	body.Str(`<div class="cli-reference-content">`).Byte('\n')
+	writeCommandControls(&body, groups)
 	body.Str(renderOperatorGuide(commands))
-	body.Str(`                <div class="cli-search-wrap">`).Byte('\n')
-	body.Str(`                    <input id="cli-search" type="search" autocomplete="off" `).
-		Str(`placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />`).Byte('\n')
-	body.Str(`                    <div id="cli-suggestions" class="cli-suggestions" hidden></div>`).Byte('\n')
-	body.Str("                </div>\n")
 	for index := range groups {
 		writeCommandGroup(&body, &groups[index])
 	}
+	body.Str(`<div id="cli-empty" class="catalog-empty" hidden><h2>No matching commands</h2>`).
+		Str(`<p>Try another term or command group.</p><button type="button" data-reset-cli>Reset filters</button></div>`).Byte('\n')
+	body.Str("</div></div>\n")
 	body.Str("            </section>\n")
 	return body.String()
+}
+
+// writeCommandNavigation keeps every group reachable independently of search
+// and JavaScript, using the same stable ids as the command disclosures.
+func writeCommandNavigation(out *textbuf.Buffer, groups []commandGroup) {
+	out.Str(`<aside class="cli-group-nav"><details open><summary>Command groups</summary>`).
+		Str(`<nav aria-label="Command groups">`).Byte('\n')
+	for index := range groups {
+		group := &groups[index]
+		out.Str(`<a href="#cli-group-`).Str(commandSlug(group.Label)).Str(`">`).
+			Str(html.EscapeString(group.Label)).Str(` <span>`).
+			Int(int64(len(group.Commands))).Str("</span></a>\n")
+	}
+	out.Str("</nav></details></aside>\n")
+}
+
+// writeCommandControls declares the existing search and progressive catalog
+// controls together. The script reveals them only once they are wired.
+func writeCommandControls(out *textbuf.Buffer, groups []commandGroup) {
+	out.Str(`<div class="cli-toolbar" hidden><div class="cli-search-wrap">`).Byte('\n')
+	out.Str(`<label for="cli-search">Find a command</label>`).
+		Str(`<input id="cli-search" type="search" autocomplete="off" `).
+		Str(`placeholder="Search commands, arguments or pipe operators…" aria-label="Filter commands" />`).Byte('\n')
+	out.Str(`<div id="cli-suggestions" class="cli-suggestions" hidden></div></div>`).Byte('\n')
+	out.Str(`<div class="cli-group-filter"><label for="cli-group-filter">Command group</label>`).
+		Str(`<select id="cli-group-filter"><option value="all">All groups</option>`).Byte('\n')
+	for index := range groups {
+		group := &groups[index]
+		out.Str(`<option value="cli-group-`).Str(commandSlug(group.Label)).Str(`">`).
+			Str(html.EscapeString(group.Label)).Str("</option>\n")
+	}
+	out.Str(`</select></div><div class="cli-directory-actions">`).
+		Str(`<button type="button" data-reset-cli>Reset filters</button>`).
+		Str(`<button type="button" data-cli-expand="all">Expand groups</button>`).
+		Str(`<button type="button" data-cli-expand="none">Collapse groups</button></div>`).Byte('\n')
+	out.Str(`<p id="cli-filter-status" class="search-status" aria-live="polite"></p>`).Byte('\n')
+	out.Str(`<div data-column-selector data-column-selector-target=".cli-group table" `).
+		Str(`data-column-selector-columns="Command,Mode,Description,Pipes" `).
+		Str(`data-column-selector-actions="true" data-column-selector-label="Show command columns"></div>`).Byte('\n')
+	out.Str("</div>\n")
 }
 
 // cliReferenceLead is the hero paragraph. It is markup rather than plain text,
@@ -230,7 +272,7 @@ func writeCommandFacts(out *textbuf.Buffer, command *catalogCommand) {
 		command.TaskSupport == "" && len(command.Subcommands) == 0 {
 		return
 	}
-	out.Str(`<div class="cli-command-facts">`)
+	out.Str(`<details class="cli-command-facts"><summary>Arguments and execution</summary><div>`)
 	if len(command.Args) != 0 {
 		out.Str("<p><span>Arguments</span>").
 			Str(strings.Join(argumentLines(command), "<br>")).Str("</p>")
@@ -245,7 +287,7 @@ func writeCommandFacts(out *textbuf.Buffer, command *catalogCommand) {
 	if len(command.Subcommands) != 0 {
 		out.Str("<p><span>Subcommands</span>").Str(codeSpanList(command.Subcommands)).Str("</p>")
 	}
-	out.Str("</div>")
+	out.Str("</div></details>")
 }
 
 // argumentLines writes one line for each argument: its name, its type, whether

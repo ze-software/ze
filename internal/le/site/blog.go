@@ -296,22 +296,32 @@ func blogArticleBody(article *blogArticle, body string, headings []docHeading) s
 	}
 	var page textbuf.Buffer
 	page.Str(`            <section class="`).Str(shellClass).Str(`" aria-labelledby="post-title">`).Byte('\n')
+	page.Str(`                <div class="blog-article-heading">`).Byte('\n')
 	page.Str(pageHero(html.EscapeString(article.Title), html.EscapeString(article.lead()),
 		"Article", ` id="post-title"`, "journey-hero blog-article-hero reveal")).Byte('\n')
 	page.Str(blogArticleMeta(article)).Byte('\n')
+	page.Str("                </div>\n")
 	if visual := blogImage(article, blogArticleRoot, "eager", "figure", "blog-article-visual reveal"); visual != "" {
 		page.Str(visual).Byte('\n')
 	}
-	page.Str(`                <p class="post-back"><a href="../">&larr; All articles</a></p>`).Byte('\n')
 	page.Str("            </section>\n")
-	page.Str(blogKeyPoints(article.KeyPoints))
+	page.Str(`            <div class="blog-reading-layout">`).Byte('\n')
+	page.Str(`                <aside class="blog-reading-rail" aria-label="Article navigation">`).Byte('\n')
 	page.Str(blogArticleContents(headings))
+	page.Str(`                    <nav class="blog-related-links" aria-label="Related links">`).Byte('\n')
+	page.Str(`                        <p class="post-back"><a href="../">&larr; All articles</a></p>`).Byte('\n')
+	page.Str(`                        <a href="../feed.xml">Subscribe to the blog</a>`).Byte('\n')
+	page.Str(`                        <a href="../../docs/">Explore the documentation</a>`).Byte('\n')
+	page.Str("                    </nav>\n                </aside>\n")
+	page.Str(`                <div class="blog-reading-body">`).Byte('\n')
+	page.Str(blogKeyPoints(article.KeyPoints))
 	// An article is read top to bottom, so its tables take no column selector
 	// and its code blocks take no copy button.
 	page.Str(`            <section class="md-content blog-article-content reveal" `).
 		Str(`data-table-columns="off" data-code-copy="off">`).Byte('\n')
 	page.Str(body)
 	page.Str("            </section>\n")
+	page.Str("                </div>\n            </div>\n")
 	return page.String()
 }
 
@@ -404,13 +414,14 @@ func blogArticleContents(headings []docHeading) string {
 	}
 	var contents textbuf.Buffer
 	contents.Str(`            <nav class="blog-article-toc reveal" aria-label="Article sections">`).Byte('\n')
-	contents.Str(`                <p class="blog-article-toc-label">In this article</p>`).Byte('\n')
+	contents.Str(`                <details class="reading-outline" open>`).Byte('\n')
+	contents.Str(`                <summary class="blog-article-toc-label">In this article</summary>`).Byte('\n')
 	contents.Str("                <ol>\n")
 	for _, section := range sections {
 		contents.Str(`                    <li><a href="#`).Str(html.EscapeString(section.ID)).Str(`">`).
 			Str(html.EscapeString(section.Label)).Str("</a></li>\n")
 	}
-	contents.Str("                </ol>\n            </nav>\n")
+	contents.Str("                </ol>\n                </details>\n            </nav>\n")
 	return contents.String()
 }
 

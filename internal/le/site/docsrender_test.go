@@ -4,6 +4,8 @@ package site
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -234,5 +236,62 @@ func TestACodeSpanHoldingAPipeStaysInOneTableCell(t *testing.T) {
 	}
 	if strings.Contains(page, `\|`) {
 		t.Errorf("no published page shows a reader a backslash before a pipe")
+	}
+}
+
+// TestTheFAQPublishesEveryAnswerAsADisclosure covers the real authored FAQ
+// through the docs producer, including its Markdown mirror. Blank lines inside
+// indented raw HTML used to turn ten answers into three escaped code blocks.
+func TestTheFAQPublishesEveryAnswerAsADisclosure(t *testing.T) {
+	var faq sitePage
+	for _, page := range oneShotPages {
+		if page.Source == "website/faq/faq.md" {
+			faq = page
+			break
+		}
+	}
+	if faq.Source == "" {
+		t.Fatal("the FAQ must remain in the docs manifest")
+	}
+	source := string(readSource(t, faq.Source))
+	page, mirror := renderOnePage(t, faq)
+	cardPattern := regexp.MustCompile(`(?s)<details class="faq-card\b[^>]*>.*?</details>`)
+	wantCards := cardPattern.FindAllString(source, -1)
+	gotCards := cardPattern.FindAllString(page, -1)
+	if len(wantCards) != 13 {
+		t.Fatalf("the authored FAQ must carry all 13 answers, got %d", len(wantCards))
+	}
+	if len(gotCards) != len(wantCards) {
+		t.Errorf("the published FAQ must carry %d interactive answers, got %d", len(wantCards), len(gotCards))
+	}
+	if strings.Contains(page, "<pre") || strings.Contains(page, "&lt;details") {
+		t.Error("the FAQ must not publish its answer cards as escaped code")
+	}
+	mirrorHTML, _, err := renderMarkdown([]byte(mirror))
+	if err != nil {
+		t.Fatalf("render FAQ mirror: %v", err)
+	}
+	mirrorWordList, _ := readablePage(t, mirrorHTML)
+	mirrorWords := strings.Join(mirrorWordList, " ")
+	idPattern := regexp.MustCompile(`\bid="[^"]+"`)
+	for index, want := range wantCards {
+		wantWords, wantLinks := readablePage(t, want)
+		if !strings.Contains(mirrorWords, strings.Join(wantWords, " ")) {
+			t.Errorf("answer %d must remain readable in the Markdown mirror", index+1)
+		}
+		if index >= len(gotCards) {
+			continue
+		}
+		got := gotCards[index]
+		if idPattern.FindString(got) != idPattern.FindString(want) {
+			t.Errorf("answer %d must retain its authored anchor", index+1)
+		}
+		gotWords, gotLinks := readablePage(t, got)
+		if !slices.Equal(gotWords, wantWords) {
+			t.Errorf("answer %d must retain every authored word", index+1)
+		}
+		if !slices.Equal(gotLinks, wantLinks) {
+			t.Errorf("answer %d must retain every authored link", index+1)
+		}
 	}
 }

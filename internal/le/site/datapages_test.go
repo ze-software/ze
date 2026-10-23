@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	xhtml "golang.org/x/net/html"
 )
 
 // dataPagePaths lays out one source tree carrying the named data fixtures, plus
@@ -152,10 +154,34 @@ func TestTheFeatureLegendFollowsItsOwnCategoryOrder(t *testing.T) {
 			t.Errorf("the legend is missing %s", count)
 		}
 	}
+	document, err := xhtml.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for node := range document.Descendants() {
+		if node.Data != "button" {
+			continue
+		}
+		for _, attribute := range node.Attr {
+			if attribute.Key != "data-cat" {
+				continue
+			}
+			for ancestor := node; ancestor != nil; ancestor = ancestor.Parent {
+				for _, property := range ancestor.Attr {
+					if property.Key == "hidden" {
+						t.Errorf("the %s category count is hidden without JavaScript", attribute.Val)
+					}
+				}
+			}
+		}
+	}
 }
 
-// VALIDATES: the features page reads as the published page and carries the same
-// chrome, and its mirror is the published mirror byte for byte. The goldens are
+// VALIDATES: the features page retains the published information and chrome,
+// and its mirror retains the published prose byte for byte. The approved
+// catalog design adds controls and an explicit shipped label; those additions
+// are asserted separately and excluded from this original-content comparison.
+// The goldens are
 // the gh-pages 2fa8fa2ad page with one edit: spec-release-roadmap replaced the
 // four roadmap cards with a link to the release inventory, and the hero and the
 // note stopped naming them. Every shipped card reads as it was published.
@@ -187,17 +213,73 @@ func TestTheFeaturesPageReadsAsThePublishedPage(t *testing.T) {
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
+	got := featureOriginalText(t, mainContent(t, page))
 	want := visibleText(readFixture(t, "published-features-body.html"))
 	if got != want {
 		t.Errorf("the features page reads as\n  %q\nthe published page reads as\n  %q", got, want)
 	}
 
 	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
+	mirror = strings.ReplaceAll(mirror, " / Shipped in current code*", "*")
 	if mirror != readFixture(t, "published-features.md") {
 		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
 			mirror, readFixture(t, "published-features.md"))
 	}
+}
+
+// featureOriginalText removes only the new catalog controls and explicit
+// shipped labels before comparing all original content with the fixture.
+func featureOriginalText(t *testing.T, markup string) string {
+	t.Helper()
+	page, err := xhtml.Parse(strings.NewReader(markup))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var additions []*xhtml.Node
+	for node := range page.Descendants() {
+		if featureNodeAttribute(node, "class") == "feature-filter-controls" {
+			additions = append(additions, node)
+			continue
+		}
+		if featureNodeAttribute(node, "id") == "feature-empty" {
+			additions = append(additions, node)
+			continue
+		}
+		if node.Data != "span" {
+			continue
+		}
+		if featureNodeAttribute(node, "class") != "status" {
+			continue
+		}
+		if featureNodeAttribute(node.Parent, "data-maturity") != "supported" {
+			continue
+		}
+		if node.FirstChild != nil && node.FirstChild.Data == "Shipped in current code" {
+			additions = append(additions, node)
+		}
+	}
+	for _, addition := range additions {
+		addition.Parent.RemoveChild(addition)
+	}
+	var original strings.Builder
+	if err := xhtml.Render(&original, page); err != nil {
+		t.Fatal(err)
+	}
+	return visibleText(original.String())
+}
+
+// featureNodeAttribute reads the semantic attribute used by the catalog's
+// actual controls and cards, without introducing test-only production markers.
+func featureNodeAttribute(node *xhtml.Node, name string) string {
+	if node == nil {
+		return ""
+	}
+	for _, attribute := range node.Attr {
+		if attribute.Key == name {
+			return attribute.Val
+		}
+	}
+	return ""
 }
 
 // VALIDATES: every element the page labels by id keeps that link.
@@ -830,9 +912,10 @@ func copyDeclarations(t *testing.T, target string) {
 	}
 }
 
-// VALIDATES: a card is solid, in core and without a badge, exactly when every
+// VALIDATES: a card is solid, in core and labeled shipped, exactly when every
 // declaration it names is complete and supported (D-9); otherwise it is dashed,
 // in experimental, with the experimental badge, on the page and in the mirror.
+// The filter attributes describe that same derived state, never a curated one.
 // A card naming an unknown id, only future features, or nothing is refused by
 // name, and so is a card that still types its own status (AC-18, AC-19).
 func TestFeaturesProducerDerivesCardState(t *testing.T) {
@@ -879,9 +962,27 @@ func TestFeaturesProducerDerivesCardState(t *testing.T) {
 		if shipped == strings.Contains(article, `<span class="status">Experimental</span>`) {
 			t.Errorf("%q carries the wrong badge for shipped %v: %s", title, shipped, article)
 		}
+		maturity := "experimental"
+		label := "Experimental"
+		if shipped {
+			maturity = "supported"
+			label = "Shipped in current code"
+		}
+		for _, markup := range []string{`data-maturity="` + maturity + `"`,
+			`>` + label + `</span>`} {
+			if !strings.Contains(article, markup) {
+				t.Errorf("%q does not state its derived maturity through %s", title, markup)
+			}
+		}
+	}
+	for _, control := range []string{`id="feature-search"`, `id="feature-maturity"`,
+		`id="feature-filter-status"`, `data-reset-features`, `id="feature-empty"`} {
+		if !strings.Contains(page, control) {
+			t.Errorf("the feature catalog has no %s control", control)
+		}
 	}
 	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
-	for _, line := range []string{"### Solid card\n\n*routing*", "### Dashed card\n\n*operate / Experimental*"} {
+	for _, line := range []string{"### Solid card\n\n*routing / Shipped in current code*", "### Dashed card\n\n*operate / Experimental*"} {
 		if !strings.Contains(mirror, line) {
 			t.Errorf("the mirror is missing %q", line)
 		}

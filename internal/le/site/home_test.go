@@ -495,14 +495,11 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 // lost leaves its content off the page with nothing to notice, which is the
 // shape of the defect this whole spec exists to fix.
 func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
-	// Eighteen since 2026-10-10, when 7b1b2b6cd6 made the hero derive from its
-	// manifest entry: {hero_demo_file}, {hero_demo}, {hero_demo_title},
-	// {hero_demo_transcript} and {tour_demo_href} joined the template, filled by
-	// homeHeroSlots. It left this pin at fourteen, the count 02b164de51 set on
-	// 2026-09-21 when it deleted {rfc_walked}.
+	// The feature overview adds one generated inventory beside the original
+	// category navigation. The recording retains all five manifest slots.
 	names := homeSlotPattern.FindAllString(homeTemplate, -1)
-	if len(names) != 18 {
-		t.Errorf("the homepage template has %d slots, want 18: %v", len(names), names)
+	if len(names) != 19 {
+		t.Errorf("the homepage template has %d slots, want 19: %v", len(names), names)
 	}
 	pairs := make([]string, 0, 2*len(names))
 	for _, name := range names {
@@ -616,6 +613,35 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 	}
 	if strings.Contains(mirror, "<article") || strings.Contains(mirror, "<section") {
 		t.Error("the homepage mirror carries page markup rather than Markdown")
+	}
+}
+
+// TestTheHomepageShowcaseKeepsItsImagesAndRecording checks the no-script
+// consumer: every screenshot is available, while the recorded demonstration
+// and its manifest-derived transcript remain on the page.
+func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
+	page, mirror := renderHomeFixture(t)
+	for _, panel := range []string{"product-routes", "product-editor", "product-dashboard"} {
+		if !strings.Contains(page, `id="`+panel+`" data-product-panel>`) {
+			t.Errorf("the screenshot %s is absent or hidden before JavaScript runs", panel)
+		}
+		if !strings.Contains(page, `aria-controls="`+panel+`"`) {
+			t.Errorf("the screenshot %s has no labelled selector", panel)
+		}
+	}
+	for _, target := range []string{"demos/terminal/", "guides/quickstart/"} {
+		if !strings.Contains(page, `class="button primary" href="`+target+`"`) &&
+			!strings.Contains(page, `class="button ghost" href="`+target+`"`) {
+			t.Errorf("the primary actions do not reach %s directly", target)
+		}
+	}
+	if !strings.Contains(page, `data-cols="137"`) || !strings.Contains(page, `data-rows="36"`) {
+		t.Error("the product screenshots displaced the manifest-derived recording")
+	}
+	for _, phrase := range []string{"its own built-in SSH server", "without a host SSH service or shell"} {
+		if !strings.Contains(page, phrase) || !strings.Contains(mirror, phrase) {
+			t.Errorf("the page and its mirror do not explain %q", phrase)
+		}
 	}
 }
 

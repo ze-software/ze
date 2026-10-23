@@ -195,6 +195,15 @@ func (card *featureCard) status() string {
 	return feature.CardClass()
 }
 
+// maturityLabel makes both states explicit without changing the declaration's
+// definition of shipped. The card and its mirror publish this same label.
+func (card *featureCard) maturityLabel() string {
+	if card.shipped {
+		return "Shipped in current code"
+	}
+	return feature.CardLabel(card.shipped)
+}
+
 // href answers what the card's title links to: an external address as the file
 // states it, and an internal one relative to the features page.
 func (card *featureCard) href() string {
@@ -357,6 +366,16 @@ func featuresBody(data featureData, shipped []featureCard) string {
 		Str("Everything shipped runs in both daemon and appliance modes unless a card says otherwise. ").
 		Str("Click a category to filter, click again to show everything.</p>\n")
 	body.Str("                </div>\n")
+	body.Str("            </section>\n")
+	body.Str(`<div class="feature-catalog"><aside class="feature-filters" aria-label="Feature filters">`).Byte('\n')
+	body.Str(`<div class="feature-filter-controls" hidden>`).Byte('\n')
+	body.Str(`<div><label for="feature-search">Find a feature</label>`).
+		Str(`<input id="feature-search" type="search" placeholder="Search capabilities…" />`).Byte('\n')
+	body.Str(`<label for="feature-maturity">Maturity</label><select id="feature-maturity">`).
+		Str(`<option value="all">All statuses</option><option value="supported">Shipped in current code</option>`).
+		Str(`<option value="experimental">Experimental</option></select></div>`).Byte('\n')
+	body.Str(`<div><button type="button" data-reset-features>Reset filters</button></div>`).Byte('\n')
+	body.Str("</div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter features by category\">\n")
 	for _, category := range legendCategories {
 		label := capitalizeWord(category)
@@ -367,8 +386,8 @@ func featuresBody(data featureData, shipped []featureCard) string {
 			Str("</span></button>\n")
 	}
 	body.Str("                </div>\n")
+	body.Str("</aside>\n<div class=\"feature-results\">\n")
 	body.Str("                <p id=\"feature-filter-status\" class=\"feature-filter-status search-status\" aria-live=\"polite\"></p>\n")
-	body.Str("            </section>\n\n")
 
 	for _, section := range data.Sections {
 		// A section no card's derived state places in is not published: its
@@ -379,11 +398,15 @@ func featuresBody(data featureData, shipped []featureCard) string {
 		body.Str(featureSectionHTML(section))
 		body.Byte('\n')
 	}
+	body.Str(`<div id="feature-empty" class="catalog-empty" hidden>`).
+		Str(`<h2>No matching features</h2><p>Try another term, category or maturity.</p>`).
+		Str(`<button type="button" data-reset-features>Reset filters</button></div>`).Byte('\n')
 	body.Str("            <section id=\"roadmap\" aria-labelledby=\"roadmap-title\">\n").
 		Str("                <h2 id=\"roadmap-title\">Release roadmap</h2>\n").
 		Str("                <p>The <a href=\"../project/roadmap/\">release inventory</a> lists remaining ").
 		Str("release work, post-release work, and proposals from committed specs. ").
 		Str("Classification is not release-readiness proof.</p>\n            </section>\n")
+	body.Str("</div></div>\n")
 	return body.String()
 }
 
@@ -423,13 +446,17 @@ func featureCardHTML(card *featureCard) string {
 
 	var out textbuf.Buffer
 	out.Str("                    <article class=\"").Str(html.EscapeString(classes)).Str("\" data-cat=\"").
-		Str(html.EscapeString(card.Category)).Str("\">\n")
+		Str(html.EscapeString(card.Category)).Str(`" data-maturity="`)
+	if card.shipped {
+		out.Str("supported")
+	} else {
+		out.Str(feature.CardClass())
+	}
+	out.Str("\">\n")
 	out.Str("                    <span class=\"cat\">").Str(html.EscapeString(capitalizeWord(card.Category))).
 		Str("</span>\n")
-	if label := feature.CardLabel(card.shipped); label != "" {
-		out.Str("                    <span class=\"status\">").
-			Str(html.EscapeString(label)).Str("</span>\n")
-	}
+	out.Str(`                    <span class="status">`).
+		Str(html.EscapeString(card.maturityLabel())).Str("</span>\n")
 	target := ""
 	if card.External {
 		target = ` target="_blank" rel="noopener"`
@@ -477,9 +504,7 @@ func featuresMirror(data featureData, shipped int) string {
 			card := &section.Cards[index]
 			mirror.Str("### ").Str(card.Title).Str("\n\n")
 			meta := card.Category
-			if label := feature.CardLabel(card.shipped); label != "" {
-				meta += " / " + label
-			}
+			meta += " / " + card.maturityLabel()
 			line := "*" + meta + "*"
 			if len(card.Chips) != 0 {
 				chips := make([]string, 0, len(card.Chips))

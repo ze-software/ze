@@ -572,20 +572,20 @@ func healthValueText(value any) string {
 // healthStyle is the page's own stylesheet, recovered from the published page.
 // It is inline because these rules serve one page and nothing else links them.
 const healthStyle = `<style>
-.th-card { border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1rem; background: var(--surface, #fff); box-shadow: 0 2px 0 rgba(0,0,0,.06); border: 2px solid rgba(255,255,255,.8); }
+.th-card { border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1rem; background: var(--panel); box-shadow: 0 2px 0 var(--shadow); border: 1px solid var(--line); }
 .th-card h3 { margin: 0 0 .35rem; font-size: 1.05rem; }
 .th-value { font-size: 1.5rem; font-weight: 700; margin: .2rem 0 .5rem; }
 .th-status { font-size: .8rem; font-weight: 600; opacity: .7; margin-left: .5rem; }
-.th-warn { border-left: 6px solid #e2a33c; }
-.th-unknown { border-left: 6px solid #8b8b8b; }
-.th-ok { border-left: 6px solid #57a773; }
-.th-meter { display: block; height: 10px; border-radius: 6px; background: rgba(0,0,0,.08); overflow: hidden; }
+.th-warn { border-left: 6px solid var(--amber); }
+.th-unknown { border-left: 6px solid var(--dim); }
+.th-ok { border-left: 6px solid var(--green); }
+.th-meter { display: block; height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
 .th-meter-fill { display: block; height: 100%; background: currentColor; opacity: .55; }
 .th-meter-note { font-size: .85rem; opacity: .75; margin: .3rem 0 .6rem; }
 .th-action { font-size: .9rem; }
 .th-spark { vertical-align: middle; }
 .th-attention table, .th-trends table, .th-card table { width: 100%; border-collapse: collapse; }
 .th-card table { font-size: .85rem; margin-top: .6rem; }
-.th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid rgba(0,0,0,.08); }
+.th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
 </style>
 `

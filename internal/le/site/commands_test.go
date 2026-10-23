@@ -133,6 +133,41 @@ func TestTheCLIReferencePageCarriesTheFullSiteShell(t *testing.T) {
 	}
 }
 
+// TestTheCommandDirectoryKeepsEveryGroupReachable verifies that the live
+// catalog supplies both navigation and filtering, while every command remains
+// in an open native disclosure for readers without JavaScript.
+func TestTheCommandDirectoryKeepsEveryGroupReachable(t *testing.T) {
+	paths := commandSurfacePaths(t)
+	commands, err := loadCommandCatalog(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := groupCommands(commands)
+	page := cliReferenceBody(commands, groups)
+	for _, group := range groups {
+		id := "cli-group-" + commandSlug(group.Label)
+		for _, markup := range []string{
+			`href="#` + id + `"`,
+			`value="` + id + `"`,
+			`id="` + id + `" open`,
+		} {
+			if !strings.Contains(page, markup) {
+				t.Errorf("the generated group %q is missing %s", group.Label, markup)
+			}
+		}
+	}
+	if rows := len(publishedRow.FindAllString(page, -1)); rows != len(commands) {
+		t.Errorf("the directory has %d command rows, want all %d", rows, len(commands))
+	}
+	for _, hook := range []string{`id="cli-search"`, `id="cli-suggestions"`,
+		`id="cli-group-filter"`, `id="cli-filter-status"`, `data-reset-cli`,
+		`data-cli-expand="all"`, `data-cli-expand="none"`, `id="cli-empty"`} {
+		if !strings.Contains(page, hook) {
+			t.Errorf("the directory has no %s control", hook)
+		}
+	}
+}
+
 // publishedRow matches one command row of the published page, and publishedCell
 // one of its four cells, so a test can pair a rendered row with the published
 // one cell by cell.

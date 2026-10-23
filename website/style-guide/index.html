@@ -68,13 +68,16 @@
                     <p>
                         Apply these principles to website proposals and
                         implementation. The palette and component sections
-                        below describe the current implementation. A prototype
-                        can propose changes to them for review against these
-                        principles. No replacement palette is approved by this
-                        decision. Get approval for the proposed design before
-                        implementing it, and update the affected guide sections
-                        with the implementation.
+                        below describe the blue design Thomas approved on
+                        23 October 2026 after reviewing the homepage and
+                        representative inner pages. Later proposals need review
+                        against these principles before implementation. The guide
+                        changes with the implementation it describes.
                     </p>
+                    <p>Thomas approved implementation on 23 October 2026:</p>
+                    <blockquote>
+                        <p>This looks good. Please apply this style across the GitHub Pages website, keeping all the existing information and functionality.</p>
+                    </blockquote>
                     <ol>
                         <li>
                             <h3>Preserve useful information</h3>
@@ -224,67 +227,81 @@
 
             <section aria-labelledby="sg-palette">
                 <div class="section-head reveal">
-                    <h2 id="sg-palette">Palette: vivid candy claymation</h2>
-                    <p>Seven candy hues on a calm blush base.</p>
+                    <h2 id="sg-palette">Palette: logo blue and clear surfaces</h2>
+                    <p>Logo blue identifies Ze. Category accents and status colors retain their meanings.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
-                        Each hue ships four tones in
-                        <code>assets/site.css</code>: <code>-base</code> (the
-                        vivid candy color), <code>-deep</code> (text-safe
-                        dark), <code>-chip</code> (pill background), and
-                        <code>-tint</code> (card surface), plus a
-                        <code>-glow</code> for hue-tinted shadows. Never mix
-                        tones across hues on one component.
+                        <code>assets/css/00-tokens.css</code> owns the palette
+                        for both themes. <code>--brand</code> is the logo blue
+                        (#0069b4), <code>--brand-bright</code> is cyan (#009ee2),
+                        and <code>--brand-indigo</code> is indigo (#312782).
+                        Navy heroes use <code>--hero-bg</code>; body surfaces use
+                        <code>--bg</code>, <code>--panel</code> and
+                        <code>--bg-soft</code>. Text and controls use semantic
+                        tokens so the same content remains readable in either
+                        theme. Cyan is an accent on dark surfaces; small links
+                        on light surfaces use the darker blue.
+                    </p>
+                    <p>
+                        Category tokens retain their existing names for authored
+                        pages. <code>-base</code> and <code>-mid</code> mark
+                        accents, <code>-deep</code> supplies readable text,
+                        <code>-chip</code> and <code>-tint</code> supply surfaces,
+                        and <code>-glow</code> supplies a subtle shadow. Category
+                        labels accompany color. Pass, warning and failure states
+                        use <code>--green</code>, <code>--amber</code> and
+                        <code>--danger-deep</code>, with text that explains the
+                        state.
                     </p>
                 </div>
                 <div class="cards reveal">
                     <article class="card cat-operate">
                         <span class="cat">Operate</span>
-                        <h3>Sky</h3>
+                        <h3>Blue</h3>
                         <div class="chips"><span class="chip">--sky-*</span></div>
                         <p>Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.</p>
                     </article>
                     <article class="card cat-routing">
                         <span class="cat">Routing</span>
-                        <h3>Tangerine</h3>
-                        <div class="chips"><span class="chip">--tangerine-*</span></div>
+                        <h3>Warm brown</h3>
+                        <div class="chips"><span class="chip">--lemon-*</span></div>
                         <p>Control plane: BGP engine, static routes, BFD, MRT, MPLS signaling.</p>
                     </article>
                     <article class="card cat-services">
                         <span class="cat">Services</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Blue</h3>
+                        <div class="chips"><span class="chip">--gold-*</span></div>
                         <p>Network services and data plane: VPN, BNG, firewall, interfaces, VPP, DNS.</p>
                     </article>
                     <article class="card cat-automate">
                         <span class="cat">Automate</span>
-                        <h3>Grape</h3>
+                        <h3>Violet</h3>
                         <div class="chips"><span class="chip">--grape-*</span></div>
                         <p>Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.</p>
                     </article>
                     <article class="card cat-observe">
                         <span class="cat">Observe</span>
-                        <h3>Mint</h3>
+                        <h3>Steel blue</h3>
                         <div class="chips"><span class="chip">--mint-*</span></div>
                         <p>Visibility and evidence: telemetry, health, diagnostics, testing proof.</p>
                     </article>
                     <article class="card cat-secure">
                         <span class="cat">Secure</span>
-                        <h3>Pink</h3>
+                        <h3>Berry</h3>
                         <div class="chips"><span class="chip">--pink-*</span></div>
                         <p>Security: SSH and RBAC, RPKI, TACACS+, audit trail, PKI store.</p>
                     </article>
                     <article class="card cat-platform">
                         <span class="cat">Platform</span>
-                        <h3>Lemon</h3>
-                        <div class="chips"><span class="chip">--lemon-*</span></div>
+                        <h3>Ochre</h3>
+                        <div class="chips"><span class="chip">--teal-*</span></div>
                         <p>Packaging and lifecycle: appliance and daemon targets, install, Docker, tunables.</p>
                     </article>
                     <article class="card">
                         <h3>Neutrals and brand</h3>
-                        <div class="chips"><span class="chip">--bg / --text / --purple</span></div>
-                        <p>A flat dimmed-blush page background, deep plum text, grape-violet headings. Surfaces stay lighter than the page so cards float. Cards without a category stay blush-white.</p>
+                        <div class="chips"><span class="chip">--bg / --text / --brand</span></div>
+                        <p>A pale blue-gray page with white surfaces and navy text in the light theme; deep navy surfaces and pale text in the dark theme. Blue links and primary actions identify a destination. Uncategorized cards use the shared neutral surface.</p>
                     </article>
                 </div>
             </section>
@@ -300,9 +317,9 @@
                 <div class="section-note reveal">
                     <p>
                         A <code>cat-*</code> class on the card sets one accent
-                        hue for everything on it: the category chip, the
-                        title, the tech chips, the bullet markers, the bold
-                        words, and the hover glow. Do not color cards by
+                        hue for its category label, top border, technology
+                        chips and bullet markers. Titles use the shared text
+                        color so long names remain easy to read. Do not color cards by
                         position (<code>nth-child</code> cycling is banned for
                         cards) and do not mix hues within one card. Decorative
                         variety is fine only where order carries no meaning --
@@ -337,32 +354,30 @@
 
             <section aria-labelledby="sg-clay">
                 <div class="section-head reveal">
-                    <h2 id="sg-clay">The clay look</h2>
-                    <p>Molded, not just rounded with a drop shadow.</p>
+                    <h2 id="sg-clay">Surfaces and elevation</h2>
+                    <p>Borders group content; restrained shadows distinguish interactive and raised surfaces.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
-                        Every card-like surface (<code>.card</code>,
-                        <code>.button</code>, <code>.proof</code>,
-                        <code>.audience-card</code>, <code>.bird-card</code>,
-                        <code>.status-panel</code>, <code>.terminal-note</code>,
-                        <code>.closing</code>, the <code>.eyebrow</code> badge)
-                        carries <code>box-shadow: var(--clay)</code> plus a
-                        2px white "sugar coat" border: an inset top highlight,
-                        a soft inset bottom shade, and a diffuse outer shadow.
-                        Hovers lift with a bouncy cubic-bezier and a
-                        hue-tinted glow. Add all of it to any new card-like
-                        component; don't invent a one-off shadow.
+                        Cards use <code>var(--panel)</code>, a thin
+                        <code>var(--line)</code> border and the shared radius.
+                        <code>--clay</code> remains the compatibility token for
+                        the subtle card shadow. <code>--shadow-lifted</code>
+                        marks a linked card on hover, and
+                        <code>--shadow-panel</code> separates a product image or
+                        dropdown from its surroundings. Informational cards
+                        remain still. Keyboard focus remains visible without
+                        depending on hover or color alone.
                     </p>
                 </div>
                 <div class="cards reveal">
                     <article class="card">
-                        <h3>With clay</h3>
-                        <p>This card. Notice the white coat, soft top highlight, and bottom depth even before hover.</p>
+                        <h3>Raised surface</h3>
+                        <p>The shared card surface uses a fine border and a small shadow to separate it from the page.</p>
                     </article>
-                    <article class="card" style="box-shadow:none;border:1px solid var(--line);background:#fdf6f8">
-                        <h3>Without clay</h3>
-                        <p>Flat by comparison -- a plain bordered rectangle, no material feel.</p>
+                    <article class="card" style="box-shadow:none;border:1px solid var(--line);background:var(--bg-soft)">
+                        <h3>Inset surface</h3>
+                        <p>A muted surface groups supporting information without adding another raised card.</p>
                     </article>
                 </div>
             </section>
@@ -370,12 +385,12 @@
             <section aria-labelledby="sg-ornaments">
                 <div class="section-head reveal">
                     <h2 id="sg-ornaments">Page and card ornaments</h2>
-                    <p>Light linework, candy washes, and clay depth.</p>
+                    <p>Navy heroes, restrained blue light and distinct content layouts.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
                         Page heroes and dispatch cards share one ornament
-                        language: translucent candy radial washes behind the
+                        language: subtle blue gradients behind the
                         content, thin concentric circle lines in an open corner,
                         and optional masked grid lines for large hero surfaces.
                         Keep ornaments low contrast and behind the text. Avoid
@@ -391,18 +406,16 @@
                         evidence or generated text.
                     </p>
                     <p>
-                        Reuse <code>.journey-hero::before</code> for masked grid
-                        texture and <code>.journey-hero::after</code> for circle
-                        line treatment. Two-choice dispatch pages, including
+                        Use <code>.journey-hero</code> for the shared navy page
+                        opening. Two-choice dispatch pages, including
                         Compare, use <code>.compare-dispatch</code> cards with
-                        page-specific accent classes and the same concentric
-                        ring language.
+                        page-specific accent classes and restrained line decoration.
                     </p>
                 </div>
                 <div class="cards reveal">
                     <article class="card">
                         <h3>Hero pages</h3>
-                        <p>Use a soft candy wash, a masked grid, one ring ornament, and clay shadow. The content owns the foreground.</p>
+                        <p>A navy hero introduces the page with a clear title and useful context. Its background reaches the viewport edges while the content follows the shared page width.</p>
                     </article>
                     <article class="card">
                         <h3>Dispatch cards</h3>
@@ -422,12 +435,24 @@
                 </div>
                 <div class="cards reveal">
                     <article class="card">
+                        <h3>Guide and article layouts</h3>
+                        <p>The navy <code>.journey-hero</code> introduces a guide. <code>.doc-layout</code> keeps its outline beside the complete source content. Articles use <code>.blog-article-shell</code> for the opening and <code>.blog-reading-layout</code> for a narrower reading column. On small screens, native outline disclosures start collapsed after JavaScript loads and related links follow the article outline. Without JavaScript, outlines remain open. Readers can expand or collapse them at every screen size.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Catalog controls</h3>
+                        <p>Feature search combines category and maturity filters. The command reference combines text and group filters, preserves suggestions and command links, and offers expand, collapse and column controls. Reset restores the complete inventory. Without JavaScript, every card and command remains available, including category counts, arguments and pipe details.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Product screenshots</h3>
+                        <p>The homepage groups authentic screenshots with captions, provenance and full-size links. Native buttons select the interface and expose their pressed state. All screenshots remain visible when JavaScript is unavailable. Recordings retain their controls and transcript links.</p>
+                    </article>
+                    <article class="card">
                         <h3>.status-panel / .status-table</h3>
                         <p>Two-column fact panel: prose on the left, labeled rows on the right. Used for lab pages' "Proves / Requires / Source" facts.</p>
                     </article>
                     <article class="card">
                         <h3>.terminal-panel</h3>
-                        <p>Terminal (exact commands, candy traffic-light dots) + terminal-note (prerequisites, links) side by side. Used on every lab page and the homepage Try section.</p>
+                        <p>Terminal (exact commands and familiar traffic-light dots) + terminal-note (prerequisites, links) side by side. Used on every lab page and the homepage Try section.</p>
                     </article>
                     <article class="card">
                         <h3>.cards / .card + cat-*</h3>
@@ -443,11 +468,11 @@
                     </article>
                     <article class="card">
                         <h3>Maturity tiers on cards</h3>
-                        <p>Shipped cards are solid clay. .card.experimental adds a dashed border and an "Experimental" status chip. Remaining release work items are listed on the <a href="../project/roadmap/">generated roadmap</a>, an inventory preview pending owner classification.</p>
+                        <p>Shipped cards have a solid border. .card.experimental adds a dashed border and an "Experimental" status chip. Remaining release work items are listed on the <a href="../project/roadmap/">generated roadmap</a>, an inventory preview pending owner classification.</p>
                     </article>
                     <article class="card">
                         <h3>.doc-diagram</h3>
-                        <p>Full-width documentation figure with a clay frame, caption, and horizontal overflow that keeps detailed diagrams readable on narrow screens. Link the image to its standalone asset and keep a text equivalent below it.</p>
+                        <p>Full-width documentation figure with a shared surface and border, caption, and horizontal overflow that keeps detailed diagrams readable on narrow screens. Link the image to its standalone asset and keep a text equivalent below it.</p>
                     </article>
                     <article class="card">
                         <h3>.md-content</h3>
@@ -460,7 +485,7 @@
             <section aria-labelledby="sg-navigation">
                 <div class="section-head reveal">
                     <h2 id="sg-navigation">Navigation rules</h2>
-                    <p>Top menu and right menu come from shared data; footer is a license line.</p>
+                    <p>The menu and related links come from shared data. The footer retains the license and publication stamp.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
@@ -494,7 +519,7 @@
                     </article>
                     <article class="card">
                         <h3>Easy scanning</h3>
-                        <p>Prefer short labels, one-line descriptions, grouped links, and search boxes over long index pages. If a page becomes a catalogue, move details to per-item pages and keep the index as a route.</p>
+                        <p>Prefer short labels, one-line descriptions, grouped links, and search boxes over long index pages. If a page becomes a catalog, move details to per-item pages and keep the index as a route.</p>
                     </article>
                 </div>
             </section>
