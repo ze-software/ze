@@ -135,10 +135,14 @@ func TestGuestObservationCommands(t *testing.T) {
 	script := runner.guestScript(binary, profile)
 	// The binary runs from a guest-local copy: a unit that re-executes itself in a
 	// new user namespace cannot exec a path on the 9p checkout, whose owner that
-	// namespace does not map (guestScript).
-	want := "cp '/workspace/tmp/s/guest-1.test' '/tmp/guest-1.test' && cd '/workspace/internal/widget'" +
+	// namespace does not map (guestScript). A coverage run names a guest-local
+	// counter directory with -test.gocoverdir=, so a child the unit re-executes
+	// writes its counters where the parent's profile is built from.
+	want := "cp '/workspace/tmp/s/guest-1.test' '/tmp/guest-1.test' && mkdir -p '/tmp/cover-guest-1.test'" +
+		" && cd '/workspace/internal/widget'" +
 		" && exec '/tmp/guest-1.test' -test.run '^TestWidget$'" +
-		" -test.count=1 -test.v -test.timeout 20m -test.coverprofile '/workspace/tmp/s/cover-1.out'\n"
+		" -test.count=1 -test.v -test.timeout 20m -test.coverprofile '/workspace/tmp/s/cover-1.out'" +
+		" -test.gocoverdir='/tmp/cover-guest-1.test'\n"
 	if script != want {
 		t.Errorf("guest script\n got %q\nwant %q", script, want)
 	}

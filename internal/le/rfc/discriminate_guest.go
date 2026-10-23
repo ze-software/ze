@@ -194,16 +194,29 @@ func (o *observationRunner) guestBuildArgv(binary, overlay, profile string) []st
 // refused with EACCES and the unit SKIPs: a skip observes nothing. A copy owned
 // by the guest's root has an owner the child namespace maps, so the re-exec
 // works on every host whatever the checkout's modes.
+//
+// A coverage run also names its counter directory with `-test.gocoverdir=`, as
+// `go test -coverprofile` does on the host. The binary builds its profile from
+// every counter file in that directory, and a unit that re-executes itself
+// passes the flag on to its child, so the code the child runs appears in the
+// profile. Without it the binary picks a private directory the child never
+// learns, and a producer only the child reaches reads as never executed. The
+// directory is guest-local for the same ownership reason as the binary.
 func (o *observationRunner) guestScript(binary, profile string) string {
 	local := singleQuoted(path.Join(guestLocalDir, filepath.Base(binary)))
+	counters := singleQuoted(path.Join(guestLocalDir, "cover-"+filepath.Base(binary)))
 	var tb textbuf.Buffer
-	tb.Str("cp ").Str(singleQuoted(o.guestPath(binary))).Byte(' ').Str(local).
-		Str(" && cd ").Str(singleQuoted(o.guestPath(treePath(o.tree, filepath.Dir(o.tag.File))))).
+	tb.Str("cp ").Str(singleQuoted(o.guestPath(binary))).Byte(' ').Str(local)
+	if profile != "" {
+		tb.Str(" && mkdir -p ").Str(counters)
+	}
+	tb.Str(" && cd ").Str(singleQuoted(o.guestPath(treePath(o.tree, filepath.Dir(o.tag.File))))).
 		Str(" && exec ").Str(local).
 		Str(" -test.run '^").Str(o.unitName).Str("$' -test.count=1 -test.v -test.timeout ").
 		Str(o.toolchain.Timeout)
 	if profile != "" {
-		tb.Str(" -test.coverprofile ").Str(singleQuoted(o.guestPath(profile)))
+		tb.Str(" -test.coverprofile ").Str(singleQuoted(o.guestPath(profile))).
+			Str(" -test.gocoverdir=").Str(counters)
 	}
 	return tb.Byte('\n').String()
 }
