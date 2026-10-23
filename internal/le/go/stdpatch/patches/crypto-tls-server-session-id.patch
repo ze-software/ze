@@ -15,7 +15,7 @@ The stamp names the Go release whose doFullHandshake was read against this
 hunk. A toolchain of any other version refuses until the function is re-read
 and the stamp changed (page section "When the Go version changes").
 
-Ze-Reviewed-Against: go1.27.2
+Ze-Reviewed-Against: go1.27.3
 
 diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
 index a05d6c896b..f800241efd 100644

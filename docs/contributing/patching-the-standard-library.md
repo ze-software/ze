@@ -9,7 +9,7 @@ without a fork of the toolchain and without a copy of the package in the tree.
 
 RFC 5216 Section 2.1.1 says: "If the peer's sessionId is null or unrecognized by
 the server, the server MUST choose the sessionId to establish a new session."
-Ze's EAP-TLS authenticator runs on `crypto/tls`. In go1.27.2, `crypto/tls` sets
+Ze's EAP-TLS authenticator runs on `crypto/tls`. In go1.27.3, `crypto/tls` sets
 the ServerHello session_id only when it resumes a session, where it echoes the
 client's id. A TLS 1.2 full handshake therefore sends an empty session_id, and
 the server chooses no sessionId.
@@ -75,7 +75,7 @@ Linux refuses a hard link to a root-owned GOROOT file that the user does not own
 
 | Part | Location | Role |
 |------|----------|------|
-| The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text, which `git apply` skips, names this page, quotes the requirement, and carries the review stamp `Ze-Reviewed-Against: go1.27.2` (see "The review stamp") |
+| The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text, which `git apply` skips, names this page, quotes the requirement, and carries the review stamp `Ze-Reviewed-Against: go1.27.3` (see "The review stamp") |
 | The generator | `internal/le/go/stdpatch/gen` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists. `internal/le/go/stdpatch/goroot` is its bootstrap entry, which the routes that run before le exists start with `go run` |
 | The output | `cache/stdpatch/<key>/goroot` | The tree, keyed by a SHA-256 over a layout version, the `go version`, the real GOROOT path, the patch, and each original GOROOT file. The path is in the key because every symlink names an absolute path into that GOROOT and `cache/` is shared by every checkout |
 | The activation | `gen.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
@@ -292,7 +292,7 @@ any other version refuses whether or not the diff applies:
 
 | Patch | Stamp | Compared with |
 |-------|-------|---------------|
-| standard library, `internal/le/go/stdpatch/patches/` | `Ze-Reviewed-Against: go1.27.2` | the `go version` the tree is built from |
+| standard library, `internal/le/go/stdpatch/patches/` | `Ze-Reviewed-Against: go1.27.3` | the `go version` the tree is built from |
 | vendored module, `internal/le/vendorpatch/patches/` | `Ze-Reviewed-Against: <module path> <version>`, for example `github.com/vishvananda/netlink v1.3.1` | the module's line in `vendor/modules.txt` |
 
 A patch with no stamp, or a vendor stamp naming a module the vendor directory
@@ -313,6 +313,11 @@ runs it in both modes, so a stale stamp turns the verification red.
 <!-- source: internal/le/go/patchstamps/patchstamps.go -- checkPatchStamps -->
 
 ## When the Go version changes
+
+The current Go floor is 1.27.3, which fixes
+[GO-2026-6809](https://vuln.go.dev/ID/GO-2026-6809.json) in certificate
+verification. Its `doFullHandshake` still needs Ze's session-ID patch; only
+the review stamp changes.
 
 1. Change the Go version in `go.mod` as usual.
 2. The stamp still names the old version, so the generator refuses. A le that

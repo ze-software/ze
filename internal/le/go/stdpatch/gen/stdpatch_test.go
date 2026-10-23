@@ -122,16 +122,16 @@ func TestStdpatchRefusesAStaleReviewStamp(t *testing.T) {
 
 	t.Run("stale", func(t *testing.T) {
 		cache := t.TempDir()
-		stale := Toolchain{GOROOT: fixtureGOROOT(t, real, patches), Version: "go1.27.3"}
+		stale := Toolchain{GOROOT: fixtureGOROOT(t, real, patches), Version: "go0.0.0"}
 		_, err := builder{cache: cache, toolchain: stale, patches: patches, layout: layoutVersion}.build()
 		if err == nil {
-			t.Fatal("a go1.27.3 toolchain built a tree from a patch stamped for another release")
+			t.Fatal("a mismatched toolchain built a tree from a patch stamped for another release")
 		}
 		stamp, stampErr := Stamp(patches[0])
 		if stampErr != nil {
 			t.Fatal(stampErr)
 		}
-		for _, want := range []string{stamp, "go1.27.3", patches[0].Path, "When the Go version changes", "src/crypto/tls/handshake_server.go"} {
+		for _, want := range []string{stamp, stale.Version, patches[0].Path, "When the Go version changes", "src/crypto/tls/handshake_server.go"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("refusal does not name %q:\n%v", want, err)
 			}
@@ -601,14 +601,23 @@ func TestActivateSetsTheProcessEnvironment(t *testing.T) {
 	}
 
 	t.Run("refusal", func(t *testing.T) {
+		pin, err := Pin(root)
+		if err != nil {
+			t.Fatal(err)
+		}
 		fixture := t.TempDir()
-		if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte("module fixture\n\ngo 1.27.2\n"), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte("module fixture\n\ngo "+strings.TrimPrefix(pin, "go")+"\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.MkdirAll(filepath.Join(fixture, filepath.FromSlash(PatchDir)), 0o750); err != nil {
 			t.Fatal(err)
 		}
-		stale := strings.Replace(string(shippedPatches(t)[0].Body), stampKey+" go1.27.2", stampKey+" go1.26.0", 1)
+		patch := shippedPatches(t)[0]
+		stamp, err := Stamp(patch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stale := strings.Replace(string(patch.Body), stampKey+" "+stamp, stampKey+" go1.26.0", 1)
 		if err := os.WriteFile(filepath.Join(fixture, filepath.FromSlash(PatchDir), "stale.patch"), []byte(stale), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -628,9 +637,14 @@ func TestActivateSetsTheProcessEnvironment(t *testing.T) {
 			activation.Unlock()
 		})
 
-		_, err := Activate(fixture)
+		_, err = Activate(fixture)
 		if err == nil {
 			t.Fatal("a stale stamp activated")
+		}
+		for _, want := range []string{"stale.patch", "go1.26.0", pin} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("refusal does not identify %q: %v", want, err)
+			}
 		}
 		if _, set := os.LookupEnv("GOROOT"); set {
 			t.Errorf("a refusal set GOROOT=%s", os.Getenv("GOROOT"))
