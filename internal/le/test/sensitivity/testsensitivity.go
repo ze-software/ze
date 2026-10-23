@@ -145,7 +145,7 @@ func Scan(root string, population Population) (Result, error) {
 					continue
 				}
 				result.TestsScanned++
-				if hasEscape(fn, file) || canFail(fn.Body, sc.withTesting(testingIdents(fn)), 1) {
+				if hasEscape(fn, file) || canFail(fn.Body, sc.withTesting(testingIdents(fn)), helperDepth) {
 					continue
 				}
 				result.AssertNothing = append(result.AssertNothing, Finding{

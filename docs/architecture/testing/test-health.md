@@ -45,11 +45,14 @@ unconditionally. Deleting the body of the function under test would not turn it
 red.
 
 Benchmarks and fuzz targets are exempt: a benchmark measures, and a fuzz target
-delegates its oracle to the engine. Assertion helpers are followed one level;
-import aliases are resolved so `require` under a different name still counts.
+delegates its oracle to the engine. Assertion helpers are followed at most two
+calls deep, so a scenario helper can delegate to an assertion helper. Recursive
+or deeper chains stay bounded. Import aliases are resolved so `require` under
+a different name still counts.
 A helper is judged with the imports of the file that declares it, so a test
 whose own file imports only `testing` is credited when a helper in a sibling
-file asserts through testify.
+file asserts through testify. Testing-receiver names come from the helper's own
+parameters, never from its caller.
 Testing receivers include the `testing.TB` interface as well as pointers to
 `testing.T`, `testing.B` and `testing.F`. Taking that interface alone is not an
 assertion: a helper still needs a failure call. A different package's `TB` type

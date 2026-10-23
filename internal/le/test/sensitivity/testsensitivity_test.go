@@ -102,9 +102,14 @@ func TestASiblingFileHelperIsJudgedWithItsOwnImports(t *testing.T) {
 		"helper_test.go": "package x\n\nimport (\n\t\"testing\"\n\n\t\"github.com/stretchr/testify/require\"\n)\n\n" +
 			"func requireRefused(t *testing.T, err error) {\n\tt.Helper()\n\trequire.Error(t, err)\n}\n\n" +
 			"func inert(t *testing.T, err error) {\n\tt.Helper()\n\tt.Log(err)\n}\n",
+		"scenario_test.go": "package x\n\nimport \"testing\"\n\n" +
+			"func scenario(t *testing.T, err error) { requireRefused(t, err) }\n" +
+			"func inertScenario(t *testing.T, err error) { inert(t, err) }\n",
 		"caller_test.go": "package x\n\nimport (\n\t\"errors\"\n\t\"testing\"\n)\n\n" +
 			"func TestCredited(t *testing.T) {\n\trequireRefused(t, errors.New(\"x\"))\n}\n\n" +
-			"func TestFlagged(t *testing.T) {\n\tinert(t, errors.New(\"x\"))\n}\n",
+			"func TestFlagged(t *testing.T) {\n\tinert(t, errors.New(\"x\"))\n}\n\n" +
+			"func TestCreditedByScenario(t *testing.T) {\n\tscenario(t, errors.New(\"x\"))\n}\n\n" +
+			"func TestFlaggedByScenario(t *testing.T) {\n\tinertScenario(t, errors.New(\"x\"))\n}\n",
 	}
 	for name, body := range files {
 		if err := os.WriteFile(filepath.Join(pkg, name), []byte(body), 0o600); err != nil {
@@ -120,8 +125,8 @@ func TestASiblingFileHelperIsJudgedWithItsOwnImports(t *testing.T) {
 	for _, finding := range result.AssertNothing {
 		names = append(names, finding.Test)
 	}
-	if len(result.AssertNothing) != 1 || !strings.Contains(strings.Join(names, " "), "TestFlagged") {
-		t.Errorf("assert-nothing findings %q, want exactly TestFlagged", names)
+	if strings.Join(names, ",") != "TestFlagged,TestFlaggedByScenario" {
+		t.Errorf("assert-nothing findings %q, want exactly TestFlagged and TestFlaggedByScenario", names)
 	}
 }
 

@@ -394,21 +394,26 @@ type scope struct {
 	index    *pkgIndex
 }
 
-// withTesting answers a copy whose testing identifiers also hold extra, leaving
-// the receiver untouched so a sibling branch of the walk is unaffected.
 // inHelperFile is the scope a same-package helper's body is judged in: the
 // aliases and imports of the helper's own file, plus the testing identifiers
 // its parameters bind.
 func (s scope) inHelperFile(helper pkgHelper) scope {
 	s.aliases = helper.aliases
 	s.imports = helper.imports
-	return s.withTesting(testingIdents(helper.decl))
+	s.testing = testingIdents(helper.decl)
+	return s
 }
 
+// withTesting answers a copy whose testing identifiers also hold extra, leaving
+// the receiver untouched so a sibling branch of the walk is unaffected.
 func (s scope) withTesting(extra map[string]bool) scope {
 	s.testing = union(s.testing, extra)
 	return s
 }
+
+// helperDepth credits a scenario helper that delegates to an assertion helper
+// while keeping recursive and non-asserting helper walks bounded.
+const helperDepth = 2
 
 // canFail reports whether the body contains a reachable call that can fail the
 // test. ast.Inspect descends into function literals, so subtests registered
@@ -416,11 +421,10 @@ func (s scope) withTesting(extra map[string]bool) scope {
 // cases. A subtest passed to t.Run by name is followed by
 // namedSubtestCanFail.
 //
-// depth bounds helper following; 1 means "follow helpers one level", which is
-// where the cost and benefit of this detector sit. sc.testing holds the
-// identifiers bound to testing.TB or *testing.T/B/F in scope. It is passed in rather than
-// derived from body alone, because a test's own `t` parameter is declared in
-// the FuncDecl's signature, not inside its block.
+// depth bounds helper following. sc.testing holds identifiers bound to
+// testing.TB or *testing.T/B/F in scope. It is passed in rather than derived
+// from body alone, because a test's own t parameter is declared in the
+// FuncDecl's signature, not inside its block.
 func canFail(body *ast.BlockStmt, sc scope, depth int) bool {
 	if body == nil {
 		return false

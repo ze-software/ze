@@ -61,6 +61,34 @@ func TestA(t *testing.T) { t.Run("s", func(t *testing.T) { t.Errorf("x") }) }`, 
 import "testing"
 func mustEq(t *testing.T, a, b int) { if a != b { t.Fatalf("ne") } }
 func TestA(t *testing.T) { mustEq(t, 1, 1) }`, 0},
+	{"subtest scenario reaches a second helper's assertion", `package p
+import "testing"
+func assertValue(t *testing.T) { t.Error("wrong value") }
+func scenario(t *testing.T) { assertValue(t) }
+func TestA(t *testing.T) { t.Run("s", func(t *testing.T) { scenario(t) }) }`, 0},
+	{"two inert helpers still assert nothing", `package p
+import "testing"
+func observe(t *testing.T) { t.Helper(); t.Log("value") }
+func scenario(t *testing.T) { observe(t) }
+func TestA(t *testing.T) { t.Run("s", func(t *testing.T) { scenario(t) }) }`, 1},
+	{"a second helper's business receiver cannot inherit the caller's test identity", `package p
+import "testing"
+type logSink struct{}
+func (logSink) Error(string) {}
+func observe(t logSink) { t.Error("observed") }
+func scenario(t *testing.T) { observe(logSink{}) }
+func TestA(t *testing.T) { scenario(t) }`, 1},
+	{"recursive helpers without assertions end the walk", `package p
+import "testing"
+func first(t *testing.T) { second(t) }
+func second(t *testing.T) { first(t) }
+func TestA(t *testing.T) { first(t) }`, 1},
+	{"an assertion beyond two helper calls is outside the bound", `package p
+import "testing"
+func first(t *testing.T) { second(t) }
+func second(t *testing.T) { third(t) }
+func third(t *testing.T) { t.Error("wrong value") }
+func TestA(t *testing.T) { first(t) }`, 1},
 	{"testing.TB helper assertions count", `package p
 import "testing"
 func mustEq(tb testing.TB, a, b int) { if a != b { tb.Errorf("ne") } }
@@ -335,7 +363,7 @@ func countInert(src string, index *pkgIndex) (int, error) {
 		if !ok || !isTestFunc(fn) || hasEscape(fn, file) {
 			continue
 		}
-		if !canFail(fn.Body, sc.withTesting(testingIdents(fn)), 1) {
+		if !canFail(fn.Body, sc.withTesting(testingIdents(fn)), helperDepth) {
 			count++
 		}
 	}
