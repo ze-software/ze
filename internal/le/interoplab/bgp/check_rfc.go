@@ -448,13 +448,15 @@ func checkRelayWithdrawalShape(ctx context.Context, check *interoplab.CheckConte
 
 	// Assertions 1 and 2. The session, then the relayed advertisement. The prefix
 	// is read back out of the operation that waited for it, so the wait and the
-	// AS_PATH assertion can never name two routes.
+	// AS_PATH assertion can never name two routes. Each number is written out,
+	// so a discrimination record can cite it (interopCitationState).
 	session := operation{kind: opFRRSession, argument: zeAddress}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(1, err)
+	}
 	announced := operation{kind: opFRRRoute, argument: prefix, timeout: 60 * time.Second}
-	for index, step := range []*operation{&session, &announced} {
-		if err := runOperation(ctx, check.Network, check.Lab, step); err != nil {
-			return fail(index+1, err)
-		}
+	if err := runOperation(ctx, check.Network, check.Lab, &announced); err != nil {
+		return fail(2, err)
 	}
 
 	// Assertion 3. RFC 4271 Section 5.1.2 b) conditions the prepend on advertising
