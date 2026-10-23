@@ -292,3 +292,80 @@ func readParts(t *testing.T, root string) cutParts {
 	}
 	return held
 }
+
+// TestForgetPartsKeepsAnotherCommitsRecord: the green write for one commit
+// forgets the parts record only while that record still names the commit. A
+// recordPart for another commit that landed between the green write and the
+// forget holds that commit's progress, and the forget leaves it.
+//
+// MUTATION: drop the commit check in forgetParts and the other commit's piece
+// is removed, so provenParts answers nothing for it.
+func TestForgetPartsKeepsAnotherCommitsRecord(t *testing.T) {
+	root := t.TempDir()
+	at := time.Unix(0, 0)
+	if _, err := recordPart(root, "green", verifyengine.Part{Index: 1, Of: 2}, at); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := recordPart(root, "other", verifyengine.Part{Index: 1, Of: 2}, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := forgetParts(root, "green"); err != nil {
+		t.Fatalf("forget the green commit's parts: %v", err)
+	}
+	if got := provenParts(root, "other", 2); !slices.Equal(got, []int{1}) {
+		t.Fatalf("the other commit's parts after the green commit's forget = %v, want [1]", got)
+	}
+	if err := forgetParts(root, "other"); err != nil {
+		t.Fatalf("forget the other commit's parts: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(partsPath))); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the parts record survived its own commit's forget (%v)", err)
+	}
+}
+
+// TestHoldPartsRefusesARemovedFile: the interleaving the lock exists for, made
+// deterministic by running its steps in order on one goroutine. A recordPart
+// opens the parts record, a forgetParts removes it before that recordPart holds
+// the lock, and the lock then lands on a file no reader can see. holdParts
+// answers false for that file, both while the path is absent and once another
+// recordPart has created a new file there, so lockParts opens the path again
+// and the piece is written where provenParts reads.
+//
+// MUTATION: make holdParts answer true when the path is absent and the first
+// assertion fails; skip its SameFile check and the second one does.
+func TestHoldPartsRefusesARemovedFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, filepath.FromSlash(partsPath))
+	at := time.Unix(0, 0)
+	if _, err := recordPart(root, "green", verifyengine.Part{Index: 1, Of: 2}, at); err != nil {
+		t.Fatal(err)
+	}
+	early, err := os.OpenFile(path, os.O_RDWR, 0o600) //nolint:gosec // the test's own temporary record
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer early.Close() //nolint:errcheck // the test reads nothing back from it
+	if err := forgetParts(root, "green"); err != nil {
+		t.Fatalf("forget: %v", err)
+	}
+	named, err := holdParts(early, path)
+	if err != nil {
+		t.Fatalf("hold the early file: %v", err)
+	}
+	if named {
+		t.Fatal("holdParts took the lock on a removed file while the path is absent")
+	}
+	if _, err := recordPart(root, "other", verifyengine.Part{Index: 2, Of: 2}, at); err != nil {
+		t.Fatal(err)
+	}
+	named, err = holdParts(early, path)
+	if err != nil {
+		t.Fatalf("hold the early file again: %v", err)
+	}
+	if named {
+		t.Fatal("holdParts took the lock on a removed file while the path names a new one")
+	}
+	if got := provenParts(root, "other", 2); !slices.Equal(got, []int{2}) {
+		t.Errorf("the piece recorded after the forget = %v, want [2]", got)
+	}
+}

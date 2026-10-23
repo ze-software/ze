@@ -1053,8 +1053,13 @@ writes the green record (`docs/architecture/testing/verify-freshness-scope.md`,
 wrote no green record (a concurrent run rewrote the certificate, the tree
 moved) exits 1, because nothing covers a push: its verdict line ends
 `every piece passed but no green record was written, so no push is covered`,
-points at the diagnostics above it for the reason, and names the sweep to run
-again. `first-red` with `part` or `all` is refused
+then names what the sweep itself reads: the skipped suites under
+`ZE_SKIP_SUITES`, or the pieces the parts record holds, and the sweep to run
+again. A parts record that already holds every piece with no green record
+naming the commit (the green write failed after the last piece was recorded)
+runs no piece: the sweep writes the green record from the parts record, and
+when that write fails too it prints the reason on the line before its verdict.
+`first-red` with `part` or `all` is refused
 with exit 2, because a piece counts towards the green record only when every
 stage of it runs.
 <!-- source: internal/le/verify/sweep.go -- Sweep -->

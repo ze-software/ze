@@ -169,9 +169,13 @@ type logSaver func(root, worktree, name string) (string, error)
 // stage, preserves red logs, and removes and prunes the worktree unless Keep is
 // set. Git is the only subprocess boundary.
 func Run(ctx context.Context, root string, options Options, actions verifyengine.ActionRunner) Report {
-	return run(ctx, root, options, actions, dependencies{
-		git: runGit, now: time.Now, pid: os.Getpid, alive: processAlive, logs: saveLogs,
-	})
+	return run(ctx, root, options, actions, defaultDependencies())
+}
+
+// defaultDependencies is the real git, clock, process table and log saver.
+// Run and Sweep both take it, so the production set is written once.
+func defaultDependencies() dependencies {
+	return dependencies{git: runGit, now: time.Now, pid: os.Getpid, alive: processAlive, logs: saveLogs}
 }
 
 func run(ctx context.Context, root string, options Options, actions verifyengine.ActionRunner, deps dependencies) (report Report) {

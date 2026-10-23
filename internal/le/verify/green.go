@@ -272,30 +272,48 @@ func recordGreen(ctx context.Context, root string, part verifyengine.Part, repor
 		}
 		pieces = part.Of
 	}
-	tree, err := deps.git(ctx, gitTimeoutMetadata, root, "rev-parse", "--verify", "--quiet", report.Commit+"^{tree}")
+	line, written := writeGreen(ctx, root, report.Commit, pieces, part.Cut(), deps)
+	report.Green = written
+	return line
+}
+
+// writeGreen writes the green record for commit, dealt into pieces, and when
+// cut forgets the parts record, which the green record now holds. An uncut run
+// leaves the parts record alone: it may be another cut's, over another commit.
+// It answers the diagnostic to print and whether the green record was written.
+//
+// It applies no guard of its own: the caller MUST have established every guard
+// recordGreen applies (a completed full run of its own, no skipped suite, a
+// certificate naming commit, an unmoved tree). recordGreen establishes them
+// from the run it just finished; Sweep establishes them from a parts record
+// that holds every piece, because recordPart writes a piece only after those
+// same guards held for that piece's run.
+func writeGreen(ctx context.Context, root, commit string, pieces int, cut bool, deps dependencies) (string, bool) {
+	var text textbuf.Buffer
+	tree, err := deps.git(ctx, gitTimeoutMetadata, root, "rev-parse", "--verify", "--quiet", commit+"^{tree}")
 	if err != nil {
 		return text.Str("verify-worktree: green record not written: ").
-			Str(commandFailure("git rev-parse", tree, err)).String()
+			Str(commandFailure("git rev-parse", tree, err)).String(), false
 	}
 	if tree.Code != 0 {
 		return text.Str("verify-worktree: green record not written: ").
-			Str(commandFailure("git rev-parse", tree, nil)).String()
+			Str(commandFailure("git rev-parse", tree, nil)).String(), false
 	}
-	record, err := NewGreenRecord(report.Commit, strings.TrimSpace(tree.Output), pieces, deps.now())
+	record, err := NewGreenRecord(commit, strings.TrimSpace(tree.Output), pieces, deps.now())
 	if err != nil {
-		return text.Str("verify-worktree: green record not written: ").Err(err).String()
+		return text.Str("verify-worktree: green record not written: ").Err(err).String(), false
 	}
 	if err := WriteGreenRecord(root, record); err != nil {
-		return text.Str("verify-worktree: green record not written: ").Err(err).String()
+		return text.Str("verify-worktree: green record not written: ").Err(err).String(), false
 	}
-	report.Green = true
-	if part.Cut() {
-		if err := forgetParts(root); err != nil {
-			return text.Str("verify-worktree: green record written to ").Str(GreenPath).
-				Str("; the parts record was not removed: ").Err(err).String()
-		}
+	if !cut {
+		return text.Str("verify-worktree: green record written to ").Str(GreenPath).String(), true
 	}
-	return text.Str("verify-worktree: green record written to ").Str(GreenPath).String()
+	if err := forgetParts(root, commit); err != nil {
+		return text.Str("verify-worktree: green record written to ").Str(GreenPath).
+			Str("; the parts record was not removed: ").Err(err).String(), true
+	}
+	return text.Str("verify-worktree: green record written to ").Str(GreenPath).String(), true
 }
 
 // recordPart adds one piece that passed to the parts record, and answers every
@@ -307,21 +325,18 @@ func recordGreen(ctx context.Context, root string, part verifyengine.Part, repor
 // differently, so pieces of two cuts never add up to the population.
 //
 // Several sessions share this checkout, so the read, the merge and the write
-// happen under one advisory lock.
+// happen under one advisory lock, the one forgetParts takes.
 func recordPart(root, commit string, part verifyengine.Part, at time.Time) ([]int, error) {
 	path := filepath.Join(root, filepath.FromSlash(partsPath))
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, err
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // the path is this checkout's verification artifact
+	file, err := lockParts(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close() //nolint:errcheck // the explicit write/sync result owns the verdict
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
-		return nil, err
-	}
-	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // process exit releases the advisory lock
+	defer file.Close()                                   //nolint:errcheck // the explicit write/sync result owns the verdict
+	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // closing the file releases the advisory lock
 
 	content, err := os.ReadFile(path) //nolint:gosec // the path is this checkout's verification artifact
 	if err != nil {
@@ -393,12 +408,97 @@ func partsComplete(passed []int, of int) bool {
 	return true
 }
 
-// forgetParts drops the parts record once the green record holds what it
-// proved, so the next cut over this commit starts from the green record.
-func forgetParts(root string) error {
-	err := os.Remove(filepath.Join(root, filepath.FromSlash(partsPath)))
-	if errors.Is(err, os.ErrNotExist) {
+// forgetParts drops the parts record once the green record holds what commit's
+// pieces proved, so the next cut over this commit starts from the green record.
+//
+// It removes the file under the lock recordPart takes. A record that names
+// another commit once the lock is held is that commit's progress, written by a
+// recordPart that ran between the green write and this call, and it stays:
+// removing it would lose that piece's credit.
+func forgetParts(root, commit string) error {
+	path := filepath.Join(root, filepath.FromSlash(partsPath))
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	return err
+	file, err := lockParts(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()                                   //nolint:errcheck // the remove result owns the verdict
+	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // closing the file releases the advisory lock
+
+	content, err := os.ReadFile(path) //nolint:gosec // the path is this checkout's verification artifact
+	if err != nil {
+		return err
+	}
+	var held cutParts
+	// An unreadable record is a record of nothing, so it goes too.
+	if json.Unmarshal(content, &held) == nil {
+		if held.Commit != commit {
+			return nil
+		}
+	}
+	return os.Remove(path)
+}
+
+// partsLockAttempts bounds how often lockParts reopens the parts record after
+// a forgetParts removed it between the open and the lock. Each removal needs a
+// green write, so meeting this many in a row means something removes the file
+// in a loop, and an error says so rather than spinning.
+const partsLockAttempts = 8
+
+// lockParts opens the parts record, creating it, and answers it with its
+// advisory lock held. The caller MUST unlock and close it.
+//
+// The lock is on the open file, not on the path. A recordPart that opened the
+// file and then waited on the lock while forgetParts removed it would hold a
+// lock on a file nobody can read, and the piece it wrote there would be lost.
+// So the lock counts only while the path still names the locked file;
+// otherwise the file is closed and opened again.
+func lockParts(path string) (*os.File, error) {
+	for range partsLockAttempts {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // the path is this checkout's verification artifact
+		if err != nil {
+			return nil, err
+		}
+		named, err := holdParts(file, path)
+		if err != nil {
+			file.Close() //nolint:errcheck // the lock error owns the verdict
+			return nil, err
+		}
+		if named {
+			return file, nil
+		}
+		file.Close() //nolint:errcheck // a removed file holds nothing to keep; closing it drops its lock
+	}
+	return nil, errors.New("the parts record " + path + " was removed " + strconv.Itoa(partsLockAttempts) +
+		" times while waiting for its lock; find the process removing it, then run the piece again")
+}
+
+// holdParts takes file's advisory lock and reports whether path still names
+// file. When it does not, the lock is released and file holds nothing a
+// reader of path can see.
+func holdParts(file *os.File, path string) (bool, error) {
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		return false, err
+	}
+	opened, err := file.Stat()
+	if err != nil {
+		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the stat error owns the verdict
+		return false, err
+	}
+	named, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the caller closes the file
+		return false, nil
+	}
+	if err != nil {
+		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the stat error owns the verdict
+		return false, err
+	}
+	if !os.SameFile(opened, named) {
+		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the caller closes the file
+		return false, nil
+	}
+	return true, nil
 }

@@ -43,10 +43,20 @@ type SweepReport struct {
 // does not end the sweep, because the pieces are independent; the exit is then
 // the first red piece's.
 //
+// A parts record that already holds every piece for the commit, with no green
+// record naming it, is the state a piece leaves when its green write fails
+// after recordPart. The sweep writes the green record from that parts record
+// and runs nothing, because recordPart records a piece only after every guard
+// the green writer applies held for that piece's run; skipping every piece
+// and exiting 1 would repeat forever.
+//
 // options.Part MUST be zero and options.Parts at least one; first-red is
 // refused, because a piece counts only when every stage of it ran.
 func Sweep(ctx context.Context, root string, options Options, actions verifyengine.ActionRunner,
 	hostReady func(Options) error) (report SweepReport) {
+	// One set of dependencies, so a piece and the green write from a complete
+	// parts record share one git runner and one clock.
+	deps := defaultDependencies()
 	report = SweepReport{Action: actionName, Of: options.Parts, Code: 1, Skipped: []int{}, Ran: []int{},
 		Failed: []int{}, Proven: []int{}, Diagnostics: []string{}}
 	var text textbuf.Buffer
@@ -75,7 +85,7 @@ func Sweep(ctx context.Context, root string, options Options, actions verifyengi
 	if revision == "" {
 		revision = "HEAD"
 	}
-	sha, err := resolveCommit(ctx, root, revision, runGit)
+	sha, err := resolveCommit(ctx, root, revision, deps.git)
 	if err != nil {
 		report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-worktree: ").Err(err).String())
 		return report
@@ -93,6 +103,18 @@ func Sweep(ctx context.Context, root string, options Options, actions verifyengi
 		return report
 	}
 	already := provenParts(root, sha, options.Parts)
+	if partsComplete(already, options.Parts) {
+		report.Skipped, report.Proven = every, every
+		line, written := writeGreen(ctx, root, sha, options.Parts, true, deps)
+		report.Diagnostics = append(report.Diagnostics, line)
+		if !written {
+			unrecorded = "the parts record proves every piece of " + shortSHA(sha) +
+				" but the green record could not be written from it, so no push is covered (the line above says why)"
+			return report
+		}
+		report.Green, report.Code = true, 0
+		return report
+	}
 	pending := make([]int, 0, options.Parts)
 	for _, index := range every {
 		if slices.Contains(already, index) {
@@ -120,7 +142,7 @@ func Sweep(ctx context.Context, root string, options Options, actions verifyengi
 				Str("verify-worktree: sweep interrupted before piece ").Int(int64(index)).String())
 			break
 		}
-		piece := Run(ctx, root, pieceOptions(options, sha, index), actions)
+		piece := run(ctx, root, pieceOptions(options, sha, index), actions, deps)
 		report.Ran = append(report.Ran, index)
 		report.Diagnostics = append(report.Diagnostics, piece.Diagnostics...)
 		if piece.Code != 0 {
@@ -138,16 +160,31 @@ func Sweep(ctx context.Context, root string, options Options, actions verifyengi
 			report.Proven = every
 		}
 	}
-	// Every piece passed, yet no green record was written: the completing
-	// piece's own diagnostic above names why (a concurrent run rewrote the
-	// certificate, the tree moved, a suite was skipped). A zero exit would read
-	// as a covered push when nothing records one.
+	// Every piece passed, yet no green record was written. A zero exit would
+	// read as a covered push when nothing records one.
 	if report.Code == 0 && !report.Green {
 		report.Code = 1
-		unrecorded = "every piece passed but no green record was written, so no push is covered " +
-			"(the diagnostics above say why); run le verify worktree all of " + strconv.Itoa(options.Parts) + " again"
+		unrecorded = notGreenReason(root, sha, options.Parts)
 	}
 	return report
+}
+
+// notGreenReason closes the verdict of a sweep whose every piece passed and
+// that wrote no green record. It states what the sweep itself can read, rather
+// than pointing at piece diagnostics: a piece that recorded nothing (a run
+// attached to another's verdict, one that published no certificate) printed no
+// reason of its own, so "the diagnostics above" could name nothing.
+func notGreenReason(root, sha string, of int) string {
+	again := "run le verify worktree all of " + strconv.Itoa(of) + " again"
+	// A skipped suite is a property of this environment, so a rerun under it
+	// records nothing either: the advice names the variable first.
+	if skipped := verifyengine.SkippedSuites(); skipped != "" {
+		return "every piece passed but no green record was written, so no push is covered: suites are skipped " +
+			"(ZE_SKIP_SUITES=" + skipped + ") and a run that skips one proves no push; unset ZE_SKIP_SUITES and " + again
+	}
+	return "every piece passed but no green record was written, so no push is covered: the parts record holds " +
+		pieceList(provenParts(root, sha, of)) + " of " + strconv.Itoa(of) + " over " + shortSHA(sha) + "; " + again +
+		", which writes the green record once the parts record holds every piece and runs only the pieces it lacks"
 }
 
 // sweepValid refuses a sweep the grammar cannot have produced.

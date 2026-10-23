@@ -251,10 +251,13 @@ func reportTree(deadline stdcontext.Context, state *sessionStart, report *sessio
 }
 
 // reportDerivedDebt prints the derived verification debt: one line and at
-// most five items, or nothing when HEAD's tree is covered and no person act is
-// open. A derivation that cannot answer is said on stderr with its fix, and
-// is never read as nothing owed. A linked worktree is the one silence: a
-// worktree agent never pushes, so its branch having no upstream is normal.
+// most five items, or nothing when nothing is owed. What is owed is
+// commit.DebtWarning's answer, which defers to derivedDebt.owed: it warns
+// for an uncovered HEAD, an open person act, and also for a covered HEAD whose
+// push is refused (its upstream moved), naming the refusal. A derivation that
+// cannot answer is said on stderr with its fix, and is never read as nothing
+// owed. A linked worktree is the one silence: a worktree agent never pushes,
+// so its branch having no upstream is normal.
 func reportDerivedDebt(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
 	warning, err := lecommit.DebtWarning(state.ctx.root)
 	if err == nil {
