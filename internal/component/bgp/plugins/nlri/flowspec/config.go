@@ -18,20 +18,18 @@ import (
 
 // FlowSpec path attribute wire constants.
 const (
-	attrCodeCommunity     uint8 = 8  // COMMUNITIES (RFC 1997).
-	attrCodeExtComm       uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360) -- actions.
-	attrCodeIPv6ExtComm   uint8 = 25 // IPv6 Address Specific Ext-Community (RFC 5701).
-	flowFlagOptTransitive       = 0xC0
+	attrCodeExtComm       uint8 = 16   // EXTENDED_COMMUNITIES (RFC 4360) -- actions.
+	flowFlagOptTransitive uint8 = 0xC0 // Optional, Transitive.
 )
 
 var errFlowSpecMissingCriteria = errors.New("flowspec nlri requires match criteria")
 
 // parseConfigRoute implements registry.InProcessConfigRouteParser for FlowSpec.
 // It builds the RFC 8955 NLRI from the match-criteria tokens (wrapping with a
-// length prefix + RD for the VPN variant) and assembles the community /
-// extended-community / IPv6 extended-community attributes from the pre-parsed
-// attribute block. ORIGIN, AS_PATH and LOCAL_PREF are owned by BuildPlugin and
-// FlowSpec never overrides them (matches the previous BuildFlowSpec behavior).
+// length prefix + RD for the VPN variant) and emits the extended communities
+// that carry its actions (RFC 8955 Section 7). Every other attribute of the
+// update block, the IPv6 extended communities of an IPv6 redirect included, is
+// encoded by the central config dispatcher.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
 	rd, criteria, err := flowSpecCriteriaFromContent(req.Content)
 	if err != nil {
@@ -76,21 +74,9 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 
 	var attrs []registry.PluginRouteAttr
 
-	// COMMUNITIES (code 8): config order, unsorted (matches BuildFlowSpec).
-	if len(req.Community) > 0 {
-		val := make([]byte, 0, 4*len(req.Community))
-		for _, c := range req.Community {
-			val = append(val, byte(c>>24), byte(c>>16), byte(c>>8), byte(c))
-		}
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeCommunity, Flags: flowFlagOptTransitive, Value: val})
-	}
 	// EXTENDED_COMMUNITIES (code 16): actions; sorted by type (RFC 4360).
 	if len(req.ExtCommunity) > 0 {
 		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeExtComm, Flags: flowFlagOptTransitive, Value: sortExtCommunities(req.ExtCommunity)})
-	}
-	// IPv6 EXTENDED_COMMUNITIES (code 25): redirect-to-nexthop IPv6 (RFC 5701/7674).
-	if len(req.IPv6ExtCommunity) > 0 {
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeIPv6ExtComm, Flags: flowFlagOptTransitive, Value: req.IPv6ExtCommunity})
 	}
 
 	return registry.PluginRoute{
@@ -98,8 +84,6 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		NLRI:    nlri,
 		NextHop: req.NextHop,
 		Attrs:   attrs,
-		// FlowSpec does not carry a configured AS_PATH or LOCAL_PREF (BuildPlugin
-		// supplies the defaults), so both are intentionally left zero.
 	}, nil
 }
 

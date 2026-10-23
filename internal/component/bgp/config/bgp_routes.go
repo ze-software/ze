@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — BGP route extraction from config tree
 // Detail: bgp_routes_flowspec.go — FlowSpec route parsing and extraction
+// Detail: bgp_routes_plugin.go — generic attributes of a plugin family's update block
 // Note: MUP/VPLS/MVPN routes are parsed by their bgp-nlri-* plugins' config route parsers.
 
 package bgpconfig
@@ -13,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -159,7 +159,7 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 			if !known {
 				return nil, fmt.Errorf("family %s has a config route parser but no registered family, so its routes cannot be checked; this is a ze defect, report it", famName)
 			}
-			req, pathID, err := buildConfigRouteRequest(attr, contentTokens, isIPv6, fam)
+			req, generic, err := buildConfigRouteRequest(attr, contentTokens, isIPv6, fam)
 			if err != nil {
 				return nil, fmt.Errorf("%s attributes: %w", famName, err)
 			}
@@ -167,8 +167,10 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 			if err != nil {
 				return nil, fmt.Errorf("%s nlri: %w", famName, err)
 			}
-			route := pluginRouteFromRegistry(famName, pr)
-			route.PathID = uint32(pathID)
+			route, err := pluginRouteFromRegistry(famName, req, pr, generic)
+			if err != nil {
+				return nil, fmt.Errorf("%s attributes: %w", famName, err)
+			}
 			result.PluginRoutes = append(result.PluginRoutes, route)
 			continue
 		}
@@ -405,77 +407,4 @@ func extractContentTokens(parts []string) []string {
 		remaining = remaining[1:]
 	}
 	return remaining
-}
-
-// pluginRouteFromRegistry converts a registry.PluginRoute to a config-layer PluginRouteConfig.
-func pluginRouteFromRegistry(famName string, pr registry.PluginRoute) PluginRouteConfig {
-	attrs := make([]PluginRouteAttrConfig, len(pr.Attrs))
-	for i := range pr.Attrs {
-		attrs[i] = PluginRouteAttrConfig{
-			Code:  pr.Attrs[i].Code,
-			Flags: pr.Attrs[i].Flags,
-			Value: pr.Attrs[i].Value,
-		}
-	}
-	return PluginRouteConfig{
-		Family:             famName,
-		IsIPv6:             pr.IsIPv6,
-		NLRI:               pr.NLRI,
-		NextHop:            pr.NextHop,
-		Attrs:              attrs,
-		ASPath:             pr.ASPath,
-		LocalPreference:    pr.LocalPreference,
-		HasLocalPreference: pr.HasLocalPreference,
-		Group:              pr.Group,
-		MapV4NextHop:       pr.MapV4NextHop,
-	}
-}
-
-// buildConfigRouteRequest pre-parses an update block's attribute{} tree into a
-// registry.ConfigRouteRequest. It reuses the shared static-route attribute
-// parsers so plugin config parsers receive generic path attributes as typed
-// values / wire bytes without importing the config package. RD is NOT included:
-// it is carried inline with the NLRI content tokens, not the attribute block.
-// fam is the family of the nlri entry the attributes serve; the Prefix-SID is
-// judged against it (RFC 9252 Section 7). The configured path-information is
-// returned beside the request: the reactor, not the plugin parser, writes it,
-// and only on a session with ADD-PATH send for the family (RFC 7911 Section 3).
-func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool, fam family.Family) (registry.ConfigRouteRequest, PathID, error) {
-	var sr StaticRouteConfig
-	if err := applyAttributesFromTree(attr, &sr); err != nil {
-		return registry.ConfigRouteRequest{}, 0, err
-	}
-	parsed, err := ParseRouteAttributes(&sr)
-	if err != nil {
-		return registry.ConfigRouteRequest{}, 0, err
-	}
-	// RFC 9252 Section 7: no transposition where the route family has no label field.
-	if err := attribute.CheckSRv6TranspositionForFamily(parsed.PrefixSID, fam); err != nil {
-		return registry.ConfigRouteRequest{}, 0, err
-	}
-
-	nextHop, _ := attr.Get("next-hop")
-
-	// IPv6 Extended Communities (attr 25): the 20-octet communities the
-	// extended-community string produced, or a generic attribute 25, which
-	// ParseRouteAttributes decodes into the same field (RFC 5701).
-	ipv6ExtComm := parsed.ExtendedCommunity.IPv6Bytes
-
-	return registry.ConfigRouteRequest{
-		Content:            content,
-		NextHop:            nextHop,
-		IsIPv6:             isIPv6,
-		ExtCommunity:       parsed.ExtendedCommunity.Bytes,
-		IPv6ExtCommunity:   ipv6ExtComm,
-		Community:          parsed.Community.Values,
-		PrefixSID:          parsed.PrefixSID,
-		OriginatorID:       parsed.OriginatorID,
-		ClusterList:        parsed.ClusterList,
-		MED:                parsed.MED,
-		HasMED:             parsed.HasMED,
-		LocalPreference:    parsed.LocalPreference,
-		HasLocalPreference: parsed.HasLocalPreference,
-		ASPath:             parsed.ASPath.Values,
-		Origin:             uint8(parsed.Origin),
-	}, parsed.PathID, nil
 }

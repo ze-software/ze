@@ -46,7 +46,9 @@ var errSRPolicyMissingFields = errors.New("sr-policy: requires distinguisher, co
 // parseConfigRoute implements InProcessConfigRouteParser for SR-Policy.
 // req.Content is the tokens after the operation keyword (e.g., ["distinguisher","0","color","100",...]).
 // SR-Policy carries all of its attributes inside the NLRI content (Tunnel
-// Encapsulation), so it ignores the pre-parsed attribute{} fields.
+// Encapsulation). It emits no extended communities, so the config dispatcher
+// refuses a block that configures them; every other generic attribute is the
+// dispatcher's.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
 	content := req.Content
 	nextHop := req.NextHop

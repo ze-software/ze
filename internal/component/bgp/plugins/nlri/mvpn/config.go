@@ -17,16 +17,10 @@ import (
 
 // MVPN path attribute wire constants.
 const (
-	attrCodeOrigin       uint8 = 1
-	attrCodeNextHop      uint8 = 3 // NEXT_HOP, which MVPN never sends.
-	attrCodeMED          uint8 = 4
-	attrCodeOriginatorID uint8 = 9
-	attrCodeClusterList  uint8 = 10
-	attrCodeExtComm      uint8 = 16
+	attrCodeNextHop uint8 = 3 // NEXT_HOP, which MVPN never sends.
+	attrCodeExtComm uint8 = 16
 
-	flagWellKnownTrans = 0x40 // ORIGIN.
-	flagOptional       = 0x80 // MED, ORIGINATOR_ID, CLUSTER_LIST.
-	flagOptTrans       = 0xC0 // EXT_COMMUNITIES.
+	flagOptTrans = 0xC0 // EXT_COMMUNITIES.
 )
 
 var (
@@ -49,43 +43,23 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		return registry.PluginRoute{}, err
 	}
 
-	// ORIGIN (code 1) is always present (matches BuildMVPN).
-	attrs := []registry.PluginRouteAttr{{Code: attrCodeOrigin, Flags: flagWellKnownTrans, Value: []byte{req.Origin}}}
+	var attrs []registry.PluginRouteAttr
 
 	// No NEXT_HOP (code 3): the next hop rides in MP_REACH_NLRI alone.
 	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
 	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
 	// attribute."
-	// RFC 4271 Section 5.1.4: the metric is a four-octet unsigned number, 0 included.
-	if req.HasMED {
-		m := req.MED
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeMED, Flags: flagOptional, Value: []byte{byte(m >> 24), byte(m >> 16), byte(m >> 8), byte(m)}})
-	}
-	if req.OriginatorID != 0 {
-		o := req.OriginatorID
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeOriginatorID, Flags: flagOptional, Value: []byte{byte(o >> 24), byte(o >> 16), byte(o >> 8), byte(o)}})
-	}
-	if len(req.ClusterList) > 0 {
-		val := make([]byte, 0, 4*len(req.ClusterList))
-		for _, c := range req.ClusterList {
-			val = append(val, byte(c>>24), byte(c>>16), byte(c>>8), byte(c))
-		}
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeClusterList, Flags: flagOptional, Value: val})
-	}
 	// EXTENDED_COMMUNITIES (code 16): config order, unsorted (MVPN convention).
 	if len(req.ExtCommunity) > 0 {
 		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeExtComm, Flags: flagOptTrans, Value: req.ExtCommunity})
 	}
 
 	return registry.PluginRoute{
-		IsIPv6:             req.IsIPv6,
-		NLRI:               nlri,
-		NextHop:            req.NextHop,
-		Attrs:              attrs,
-		ASPath:             req.ASPath,
-		LocalPreference:    req.LocalPreference,
-		HasLocalPreference: req.HasLocalPreference,
-		Group:              true,
+		IsIPv6:  req.IsIPv6,
+		NLRI:    nlri,
+		NextHop: req.NextHop,
+		Attrs:   attrs,
+		Group:   true,
 	}, nil
 }
 

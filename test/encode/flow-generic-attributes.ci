@@ -1,0 +1,57 @@
+# Test: a FlowSpec config route sends the generic attributes of its update block.
+# VALIDATES: large-community [1:2:3], aggregator 65010:10.0.0.9, atomic-aggregate
+#            and the generic attribute [0x99 0xc0 0x00000064] reach the wire beside
+#            the RFC 8955 NLRI: ATOMIC_AGGREGATE 400600, AGGREGATOR
+#            C00708 0000FDF2 0A000009 (four-octet AS, RFC 6793), LARGE_COMMUNITIES
+#            C0200C 00000001 00000002 00000003 (RFC 8092) and C09904 00000064.
+# PREVENTS: the FlowSpec config parser's copy list leaving these attributes off the
+#           UPDATE with no error (plan/journal/config-route-request-drops-parsed-attributes.md).
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00580200000041800E0C0001850000060120C0A800054001010040020040050400000064400600C007080000FDF20A000009C0200C000000010000000200000003C0990400000064
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65500
+				remote 65500
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				large-community [ 1:2:3 ]
+				aggregator 65010:10.0.0.9
+				atomic-aggregate true
+				attribute [0x99 0xc0 0x00000064]
+			}
+			nlri {
+				ipv4/flow add destination-ipv4 192.168.0.5/32
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+# flowspec plugin auto-loaded because ipv4/flow family is configured
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

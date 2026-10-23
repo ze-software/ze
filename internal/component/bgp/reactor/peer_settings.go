@@ -190,6 +190,12 @@ type PluginRoute struct {
 	// HasLocalPreference the UPDATE carries the default 100; 0 is legal.
 	LocalPreference    uint32
 	HasLocalPreference bool
+	// HasAggregator, AggregatorASN and AggregatorIP are the configured
+	// AGGREGATOR. BuildPlugin encodes it with the session's AS width (RFC 6793
+	// Section 4.2.2), as BuildUnicast does for a static route.
+	HasAggregator bool
+	AggregatorASN uint32
+	AggregatorIP  [4]byte
 	// Group lets same-family same-attribute routes pack into one UPDATE (MVPN).
 	Group bool
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 for IPv6 families.

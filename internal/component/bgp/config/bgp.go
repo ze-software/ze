@@ -106,7 +106,7 @@ type PluginRouteConfig struct {
 	IsIPv6  bool
 	NLRI    []byte // Pre-built NLRI wire bytes.
 	NextHop string
-	Attrs   []PluginRouteAttrConfig // Extra path attributes.
+	Attrs   []PluginRouteAttrConfig // Pre-built path attributes: the generic ones, then the family's.
 	// PathID is the configured path-information (RFC 7911), 0 when none is set.
 	PathID uint32
 
@@ -116,6 +116,12 @@ type PluginRouteConfig struct {
 	// Without HasLocalPreference the UPDATE carries the default 100.
 	LocalPreference    uint32
 	HasLocalPreference bool
+	// HasAggregator, AggregatorASN and AggregatorIP are the configured
+	// AGGREGATOR, built at send time because its AS field width follows the
+	// session's four-octet AS capability (RFC 6793 Section 4.2.2).
+	HasAggregator bool
+	AggregatorASN uint32
+	AggregatorIP  [4]byte
 	// Group packs same-family same-attribute routes into one UPDATE (MVPN).
 	Group bool
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 for IPv6 families.

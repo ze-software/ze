@@ -69,6 +69,9 @@ func convertPluginRoute(pr PluginRouteConfig) (reactor.PluginRoute, error) {
 		ASPath:             pr.ASPath,
 		LocalPreference:    pr.LocalPreference,
 		HasLocalPreference: pr.HasLocalPreference,
+		HasAggregator:      pr.HasAggregator,
+		AggregatorASN:      pr.AggregatorASN,
+		AggregatorIP:       pr.AggregatorIP,
 		Group:              pr.Group,
 		MapV4NextHop:       pr.MapV4NextHop,
 	}

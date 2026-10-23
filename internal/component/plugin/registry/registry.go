@@ -334,10 +334,12 @@ type Registration struct {
 	PreservesForwardingState func(tree map[string]any) bool
 
 	// InProcessConfigRouteParser parses an update block's NLRI content tokens
-	// plus its pre-parsed attribute{} block into a PluginRoute. Replaces
-	// hardcoded family switch cases in the central config dispatcher. The plugin
-	// owns the family-specific NLRI encoding and per-family attribute assembly
-	// (e.g. extended-community sort order, NEXT_HOP code-3 for IPv4 MUP/MVPN).
+	// into a PluginRoute. Replaces hardcoded family switch cases in the central
+	// config dispatcher. The plugin owns the family-specific NLRI encoding and
+	// the family-specific attributes (FlowSpec actions and EVPN extended
+	// communities, SR Policy's Tunnel Encapsulation, NEXT_HOP code-3 for IPv4
+	// MUP/MVPN). The generic path attributes are encoded once by the central
+	// dispatcher and never pass through the plugin (ConfigRouteRequest).
 	InProcessConfigRouteParser func(req ConfigRouteRequest) (PluginRoute, error)
 
 	// DoctorChecks declares doctor readiness checks this plugin provides.
@@ -350,32 +352,26 @@ type Registration struct {
 	SupportsCapa bool   // Plugin can decode capabilities via CLI
 }
 
-// ConfigRouteRequest carries everything a plugin's config route parser needs to
-// build one route: the NLRI content tokens and the pre-parsed generic path
-// attributes from the update's attribute{} block. The central dispatcher reuses
-// the shared attribute parsers to populate the pre-parsed fields so plugins do
-// not import the config package. AS_PATH and LOCAL_PREF are NOT assembled into
-// raw attributes by the plugin: AS_PATH is session-context dependent (ASN4) and
-// LOCAL_PREF is iBGP-gated, so both are carried through typed and built by
-// BuildPlugin at send time.
+// ConfigRouteRequest carries what a plugin's config route parser needs to
+// build one route: the NLRI content tokens, the next hop, and the one generic
+// attribute a family reads as input to its own logic. Every other attribute of
+// the update's attribute{} block (ORIGIN, AS_PATH, MED, LOCAL_PREF,
+// ATOMIC_AGGREGATE, AGGREGATOR, COMMUNITIES, ORIGINATOR_ID, CLUSTER_LIST, IPv6
+// extended communities, Prefix-SID, LARGE_COMMUNITIES, AIGP and the generic
+// `attribute [ code flags value ]`) is encoded by the central dispatcher
+// (bgpconfig.buildConfigRouteRequest), so a plugin cannot drop one by leaving
+// it off a copy list.
 type ConfigRouteRequest struct {
 	Content []string // NLRI tokens after the operation keyword.
 	NextHop string   // next-hop from the attribute block (or NLRI).
 	IsIPv6  bool     // derived from the family name prefix.
 
-	// Pre-parsed generic attributes (config order, unsorted).
-	ExtCommunity       []byte   // RFC 4360 extended communities wire bytes.
-	IPv6ExtCommunity   []byte   // RFC 5701 IPv6 extended communities wire bytes (attr 25).
-	Community          []uint32 // RFC 1997 communities.
-	PrefixSID          []byte   // RFC 8669/9252 BGP Prefix-SID TLV value (attr 40).
-	OriginatorID       uint32   // RFC 4456 (0 = unset).
-	ClusterList        []uint32 // RFC 4456.
-	MED                uint32   // Meaningful only with HasMED; 0 is a legal metric.
-	HasMED             bool     // The attribute block configured med.
-	LocalPreference    uint32   // Meaningful only with HasLocalPreference; 0 is legal.
-	HasLocalPreference bool     // Configured; without it iBGP sends the default 100.
-	ASPath             []uint32 // configured AS_PATH (nil = local-origin default).
-	Origin             uint8    // 0=IGP, 1=EGP, 2=INCOMPLETE.
+	// ExtCommunity is the RFC 4360 extended communities wire bytes, in config
+	// order. A family reads them: FlowSpec's actions are extended communities
+	// (RFC 8955 Section 7), EVPN merges and validates them with its own, and
+	// each family keeps its own order. A plugin that does not emit them as
+	// attribute 16 has the route refused at load, so none is lost silently.
+	ExtCommunity []byte
 }
 
 // PluginRoute is a family-agnostic route produced by a plugin's config parser.
@@ -385,15 +381,8 @@ type PluginRoute struct {
 	IsIPv6  bool
 	NLRI    []byte            // Pre-built NLRI wire bytes.
 	NextHop string            // Next-hop address string.
-	Attrs   []PluginRouteAttr // Extra path attributes beyond ORIGIN/AS_PATH/LOCAL_PREF/MP_REACH.
+	Attrs   []PluginRouteAttr // Family-specific path attributes; the generic ones are the dispatcher's.
 
-	// ASPath is the configured AS_PATH; BuildPlugin encodes it with ASN4 context.
-	ASPath []uint32
-	// LocalPreference is the configured LOCAL_PREF value; BuildPlugin emits it
-	// only on iBGP sessions. Without HasLocalPreference it sends the default
-	// 100, and 0 is a legal value (RFC 4271 Section 5.1.5).
-	LocalPreference    uint32
-	HasLocalPreference bool
 	// Group, when true, lets the reactor pack routes of the same family that
 	// share identical attributes into a single UPDATE (one MP_REACH, multiple
 	// NLRIs) -- required for MVPN wire compatibility (RFC 6514).

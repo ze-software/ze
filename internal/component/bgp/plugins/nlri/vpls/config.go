@@ -17,16 +17,9 @@ var errMissingVplsOperation = errors.New("missing operation keyword (add/del/eor
 
 // VPLS path attribute wire constants.
 const (
-	attrCodeOrigin       uint8 = 1  // ORIGIN (RFC 4271).
-	attrCodeMED          uint8 = 4  // MULTI_EXIT_DISC (RFC 4271).
-	attrCodeCommunity    uint8 = 8  // COMMUNITIES (RFC 1997).
-	attrCodeOriginatorID uint8 = 9  // ORIGINATOR_ID (RFC 4456).
-	attrCodeClusterList  uint8 = 10 // CLUSTER_LIST (RFC 4456).
-	attrCodeExtComm      uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360).
+	attrCodeExtComm uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360).
 
-	flagWellKnownTrans = 0x40 // Well-known transitive (ORIGIN).
-	flagOptional       = 0x80 // Optional non-transitive (MED, ORIGINATOR_ID, CLUSTER_LIST).
-	flagOptTrans       = 0xC0 // Optional transitive (COMMUNITIES, EXT_COMMUNITIES).
+	flagOptTrans = 0xC0 // Optional transitive (EXT_COMMUNITIES).
 )
 
 // VPLS NLRI argument keys (forwarded to EncodeNLRIHex).
@@ -62,60 +55,16 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 
 	var attrs []registry.PluginRouteAttr
 
-	// ORIGIN (code 1): always present (matches BuildVPLS), value from config.
-	attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeOrigin, Flags: flagWellKnownTrans, Value: []byte{req.Origin}})
-
-	// MED (code 4): only when configured. RFC 4271 Section 5.1.4: the metric
-	// is a four-octet unsigned number, so 0 is configured too.
-	if req.HasMED {
-		attrs = append(attrs, registry.PluginRouteAttr{
-			Code: attrCodeMED, Flags: flagOptional,
-			Value: []byte{byte(req.MED >> 24), byte(req.MED >> 16), byte(req.MED >> 8), byte(req.MED)},
-		})
-	}
-
-	// COMMUNITIES (code 8): sorted ascending (RFC 1997 / BuildVPLS convention).
-	if len(req.Community) > 0 {
-		sorted := slices.Clone(req.Community)
-		slices.Sort(sorted)
-		val := make([]byte, 0, 4*len(sorted))
-		for _, c := range sorted {
-			val = append(val, byte(c>>24), byte(c>>16), byte(c>>8), byte(c))
-		}
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeCommunity, Flags: flagOptTrans, Value: val})
-	}
-
-	// ORIGINATOR_ID (code 9): 4-byte router-id.
-	if req.OriginatorID != 0 {
-		o := req.OriginatorID
-		attrs = append(attrs, registry.PluginRouteAttr{
-			Code: attrCodeOriginatorID, Flags: flagOptional,
-			Value: []byte{byte(o >> 24), byte(o >> 16), byte(o >> 8), byte(o)},
-		})
-	}
-
-	// CLUSTER_LIST (code 10): N x 4-byte cluster IDs (order preserved, RFC 4456).
-	if len(req.ClusterList) > 0 {
-		val := make([]byte, 0, 4*len(req.ClusterList))
-		for _, c := range req.ClusterList {
-			val = append(val, byte(c>>24), byte(c>>16), byte(c>>8), byte(c))
-		}
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeClusterList, Flags: flagOptional, Value: val})
-	}
-
 	// EXTENDED_COMMUNITIES (code 16): sorted by type for RFC 4360 compliance.
 	if len(req.ExtCommunity) > 0 {
 		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeExtComm, Flags: flagOptTrans, Value: sortExtCommunities(req.ExtCommunity)})
 	}
 
 	return registry.PluginRoute{
-		IsIPv6:             req.IsIPv6,
-		NLRI:               nlri,
-		NextHop:            req.NextHop,
-		Attrs:              attrs,
-		ASPath:             req.ASPath,
-		LocalPreference:    req.LocalPreference,
-		HasLocalPreference: req.HasLocalPreference,
+		IsIPv6:  req.IsIPv6,
+		NLRI:    nlri,
+		NextHop: req.NextHop,
+		Attrs:   attrs,
 	}, nil
 }
 

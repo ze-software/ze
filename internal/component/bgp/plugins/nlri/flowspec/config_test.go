@@ -23,15 +23,15 @@ func TestFlowSpecConfigRouteParserRegistered(t *testing.T) {
 }
 
 // TestParseConfigRoute_FlowSpec verifies the FlowSpec config parser builds the
-// RFC 8955 NLRI from match criteria and assembles community / extended-community.
+// RFC 8955 NLRI from match criteria and emits its action extended communities,
+// and nothing else: the generic attributes are the config dispatcher's.
 //
-// VALIDATES: non-VPN NLRI (length-prefixed) and that COMMUNITY (8) and
-// EXT_COMMUNITY (16) attributes are present.
-// PREVENTS: FlowSpec wire regression vs the old BuildFlowSpec path.
+// VALIDATES: non-VPN NLRI (length-prefixed), EXT_COMMUNITY (16) present, and
+// the plugin emitting EXT_COMMUNITY alone.
+// PREVENTS: a second copy of a generic attribute beside the dispatcher's.
 func TestParseConfigRoute_FlowSpec(t *testing.T) {
 	req := registry.ConfigRouteRequest{
 		Content:      strings.Fields("add source-ipv4 10.0.0.2/32"),
-		Community:    []uint32{0x77770000},
 		ExtCommunity: []byte{0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	}
 	pr, err := parseConfigRoute(req)
@@ -45,8 +45,8 @@ func TestParseConfigRoute_FlowSpec(t *testing.T) {
 	for _, a := range pr.Attrs {
 		got[a.Code] = true
 	}
-	if !got[attrCodeCommunity] || !got[attrCodeExtComm] {
-		t.Errorf("missing community (8) or ext-community (16): %v", got)
+	if !got[attrCodeExtComm] || len(got) != 1 {
+		t.Errorf("attributes = %v, want ext-community (16) alone", got)
 	}
 }
 

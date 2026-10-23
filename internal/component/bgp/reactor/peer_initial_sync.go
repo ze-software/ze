@@ -751,8 +751,8 @@ func packNLRIs(nlris [][]byte, maxSize int, measure func(batch []byte) int) [][]
 // pluginRouteGroupKey returns a grouping key: routes with the same key share an
 // UPDATE. Family encodes AFI/SAFI; PathID is the one Path Identifier every NLRI
 // of the group carries under ADD-PATH; the remaining fields are the shared path
-// attributes (next-hop, AS_PATH, LOCAL_PREF, and the pre-built raw attrs which
-// carry ORIGIN/MED/ext-community/originator/cluster/NEXT_HOP).
+// attributes (next-hop, AS_PATH, LOCAL_PREF, AGGREGATOR, and the pre-built raw
+// attrs, which carry every other attribute of the route).
 func pluginRouteGroupKey(r *PluginRoute) string {
 	var b keyBuilder
 	b.Grow(96)
@@ -768,6 +768,10 @@ func pluginRouteGroupKey(r *PluginRoute) string {
 	b.Sep()
 	b.Bool(r.HasLocalPreference)
 	b.Uint(uint64(r.LocalPreference))
+	b.Sep()
+	b.Bool(r.HasAggregator)
+	b.Uint(uint64(r.AggregatorASN))
+	b.Addr(netip.AddrFrom4(r.AggregatorIP))
 	for _, raw := range r.RawAttrs {
 		b.Sep()
 		b.Hex(raw)

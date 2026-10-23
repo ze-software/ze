@@ -22,25 +22,18 @@ func TestVPLSConfigRouteParserRegistered(t *testing.T) {
 
 // TestParseConfigRoute_VPLS verifies the VPLS config parser builds the RFC 4761
 // NLRI from "rd RD add ve-id ... ve-block-offset ... ve-block-size ... label-base ..."
-// and assembles the generic path attributes.
+// and emits its extended communities, leaving every generic attribute to the
+// config dispatcher.
 //
 // VALIDATES: NLRI byte layout (length 0x11, RD, ve-id, offset, size, label-base)
-// and that ORIGIN/MED/COMMUNITY/ORIGINATOR_ID/CLUSTER_LIST/EXT_COMMUNITIES plus
-// typed ASPath/LocalPreference are carried.
-// PREVENTS: VPLS wire regression vs the old BuildVPLS path.
+// and EXT_COMMUNITIES as the only attribute the plugin emits.
+// PREVENTS: VPLS wire regression vs the old BuildVPLS path, and a second copy
+// of a generic attribute beside the dispatcher's.
 func TestParseConfigRoute_VPLS(t *testing.T) {
 	req := registry.ConfigRouteRequest{
-		Content:            strings.Fields("rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702"),
-		NextHop:            "192.168.201.1",
-		MED:                2000,
-		HasMED:             true,
-		LocalPreference:    1,
-		HasLocalPreference: true,
-		ASPath:             []uint32{30740, 30740},
-		Community:          []uint32{0xD53F007B},
-		OriginatorID:       0xC0A81601,
-		ClusterList:        []uint32{0x03030303, 0xC0A8C901},
-		ExtCommunity:       []byte{0x00, 0x02, 0xD5, 0x3F, 0x00, 0x00, 0x00, 0x06},
+		Content:      strings.Fields("rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702"),
+		NextHop:      "192.168.201.1",
+		ExtCommunity: []byte{0x00, 0x02, 0xD5, 0x3F, 0x00, 0x00, 0x00, 0x06},
 	}
 	pr, err := parseConfigRoute(req)
 	if err != nil {
@@ -53,20 +46,12 @@ func TestParseConfigRoute_VPLS(t *testing.T) {
 		t.Errorf("NLRI = %s, want %s", got, wantNLRI)
 	}
 
-	// ASPath / LocalPreference carried through typed.
-	if len(pr.ASPath) != 2 || pr.LocalPreference != 1 {
-		t.Errorf("ASPath=%v LocalPreference=%d, want [30740 30740] / 1", pr.ASPath, pr.LocalPreference)
-	}
-
-	// Generic attributes present with expected codes.
 	got := map[uint8]bool{}
 	for _, a := range pr.Attrs {
 		got[a.Code] = true
 	}
-	for _, code := range []uint8{attrCodeOrigin, attrCodeMED, attrCodeCommunity, attrCodeOriginatorID, attrCodeClusterList, attrCodeExtComm} {
-		if !got[code] {
-			t.Errorf("missing attribute code %d", code)
-		}
+	if !got[attrCodeExtComm] || len(got) != 1 {
+		t.Errorf("attributes = %v, want ext-community (16) alone", got)
 	}
 }
 

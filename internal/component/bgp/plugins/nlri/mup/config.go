@@ -15,9 +15,8 @@ import (
 
 // MUP path attribute wire constants.
 const (
-	attrCodeNextHop   uint8 = 3  // NEXT_HOP (RFC 4271), which MUP never sends.
-	attrCodeExtComm   uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360).
-	attrCodePrefixSID uint8 = 40 // BGP Prefix-SID (RFC 8669/9252).
+	attrCodeNextHop uint8 = 3  // NEXT_HOP (RFC 4271), which MUP never sends.
+	attrCodeExtComm uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360).
 
 	flagOptTrans = 0xC0 // Optional transitive.
 )
@@ -25,10 +24,10 @@ const (
 var errMUPMissingRouteType = errors.New("mup nlri requires a route type (mup-isd/mup-dsd/mup-t1st/mup-t2st)")
 
 // parseConfigRoute implements registry.InProcessConfigRouteParser for MUP.
-// It builds the family-specific NLRI from the content tokens and assembles the
-// MUP-specific path attributes (extended-communities, Prefix-SID; never a
-// NEXT_HOP) from the pre-parsed attribute block. ORIGIN/AS_PATH/LOCAL_PREF/
-// MP_REACH are owned by BuildPlugin.
+// It builds the family-specific NLRI from the content tokens and emits the
+// extended communities in config order (never a NEXT_HOP). The central config
+// dispatcher encodes every other attribute, the SRv6 Prefix-SID included, and
+// BuildPlugin owns MP_REACH.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
 	family := IPv4MUP.String()
 	if req.IsIPv6 {
@@ -59,11 +58,6 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	// EXTENDED_COMMUNITIES (code 16): config order, unsorted (MUP convention).
 	if len(req.ExtCommunity) > 0 {
 		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeExtComm, Flags: flagOptTrans, Value: req.ExtCommunity})
-	}
-
-	// BGP Prefix-SID (code 40): SRv6 SID information.
-	if len(req.PrefixSID) > 0 {
-		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodePrefixSID, Flags: flagOptTrans, Value: req.PrefixSID})
 	}
 
 	return registry.PluginRoute{

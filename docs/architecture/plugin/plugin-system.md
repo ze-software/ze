@@ -84,7 +84,7 @@ importing its package:
 | `InProcessRouteEncoder` | `func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)` | Builds a full UPDATE for `ze bgp encode` |
 | `InProcessConfigVerifier` | `func([]rpc.ConfigSection) error` | Side-effect-free equivalent of `OnConfigVerify`, used by static, API and CLI validation |
 | `InProcessConfigNLRIBuilder` | `func(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte` | Builds NLRI bytes from config-format match criteria |
-| `InProcessConfigRouteParser` | `func(req ConfigRouteRequest) (PluginRoute, error)` | Parses an update block's NLRI tokens and attribute block into a route |
+| `InProcessConfigRouteParser` | `func(req ConfigRouteRequest) (PluginRoute, error)` | Parses an update block's NLRI tokens, next hop and extended communities into the route's NLRI and family-specific attributes. The config dispatcher encodes every other attribute of the block itself |
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration -->
 

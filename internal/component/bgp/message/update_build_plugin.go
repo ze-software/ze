@@ -14,12 +14,13 @@ import (
 
 // PluginParams contains parameters for building a generic plugin route UPDATE.
 //
-// The plugin's config parser pre-builds the family-specific NLRI and any
-// family-specific path attributes (ext-communities, prefix-sid, NEXT_HOP code-3,
-// communities, MED, originator-id, cluster-list, ...) as RawAttrs wire bytes.
-// BuildPlugin owns only the session-context attributes: ORIGIN (default IGP
-// unless the plugin supplied code 1), AS_PATH (ASN4-encoded from ASPath),
-// LOCAL_PREF (iBGP-gated), and MP_REACH_NLRI.
+// The config dispatcher pre-builds the session-independent path attributes as
+// RawAttrs wire bytes: the generic ones from the update block (ORIGIN, MED,
+// communities, ...) and the family plugin's own (extended communities, NEXT_HOP
+// code-3, Tunnel Encapsulation, ...). BuildPlugin owns only the session-context
+// attributes: ORIGIN (default IGP when no RawAttrs entry carries code 1),
+// AS_PATH (ASN4-encoded from ASPath), LOCAL_PREF (iBGP-gated), AGGREGATOR (AS
+// width from ASN4), and MP_REACH_NLRI.
 type PluginParams struct {
 	AFI    uint16
 	SAFI   byte
@@ -39,6 +40,11 @@ type PluginParams struct {
 	LocalPreference uint32
 	// HasLocalPreference says the route carries a configured LOCAL_PREF.
 	HasLocalPreference bool
+	// HasAggregator says the route carries the configured AGGREGATOR
+	// AggregatorASN and AggregatorIP, encoded with the session's AS width.
+	HasAggregator bool
+	AggregatorASN uint32
+	AggregatorIP  [4]byte
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 in MP_REACH for IPv6
 	// families (MUP). MVPN/VPLS/FlowSpec/SR-Policy leave it false.
 	MapV4NextHop bool
@@ -62,11 +68,12 @@ func PluginNLRI(nlri []byte, pathID uint32, addPath bool) []byte {
 }
 
 // pluginMaxAttrs bounds the per-route attribute count: AS_PATH + AS4_PATH +
-// ORIGIN + LOCAL_PREF + MP_REACH + up to pluginMaxRawAttrs plugin-supplied
-// attributes. An append past the bound still works; it allocates.
+// ORIGIN + LOCAL_PREF + AGGREGATOR + AS4_AGGREGATOR + MP_REACH + up to
+// pluginMaxRawAttrs pre-built attributes. An append past either bound still
+// works; it allocates.
 const (
 	pluginMaxRawAttrs = 16
-	pluginMaxAttrs    = pluginMaxRawAttrs + 5
+	pluginMaxAttrs    = pluginMaxRawAttrs + 7
 )
 
 // BuildPlugin builds an UPDATE message for a plugin-registered route.
@@ -109,7 +116,7 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 	pluginOrigin := false
 	rb := 0
 	for _, raw := range p.RawAttrs {
-		if len(raw) < 3 || rb >= len(rawBuf) {
+		if len(raw) < 3 {
 			continue
 		}
 		//exhaustive:ignore // Only session-owned attributes need special handling; other plugin bytes pass through.
@@ -119,9 +126,13 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 		case attribute.AttrOrigin:
 			pluginOrigin = true
 		}
-		rawBuf[rb] = fullRawAttribute{data: raw}
-		attrs = append(attrs, &rawBuf[rb])
-		rb++
+		if rb < len(rawBuf) {
+			rawBuf[rb] = fullRawAttribute{data: raw}
+			attrs = append(attrs, &rawBuf[rb])
+			rb++
+			continue
+		}
+		attrs = append(attrs, &fullRawAttribute{data: raw}) // past the bound: allocates, never drops
 	}
 
 	// ORIGIN (code 1): default IGP unless the plugin supplied its own.
@@ -131,6 +142,11 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 
 	// LOCAL_PREF (code 5): iBGP only (RFC 4271 Section 5.1.5).
 	attrs = ub.appendLocalPref(attrs, p.LocalPreference, p.HasLocalPreference)
+
+	// AGGREGATOR (code 7): RFC 6793 Section 4.2.2, as BuildUnicast builds it.
+	if p.HasAggregator {
+		attrs = ub.appendAggregator(attrs, p.AggregatorASN, p.AggregatorIP)
+	}
 
 	attrs = append(attrs, ub.buildMPReachPlugin(p))
 

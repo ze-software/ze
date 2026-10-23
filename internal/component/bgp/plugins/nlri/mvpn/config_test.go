@@ -54,10 +54,9 @@ func TestParseConfigRoute_MVPN(t *testing.T) {
 	for _, a := range pr.Attrs {
 		got[a.Code] = true
 	}
-	for _, code := range []uint8{attrCodeOrigin, attrCodeExtComm} {
-		if !got[code] {
-			t.Errorf("missing attribute code %d", code)
-		}
+	// ORIGIN and the other generic attributes are the config dispatcher's.
+	if !got[attrCodeExtComm] || len(got) != 1 {
+		t.Errorf("attributes = %v, want ext-community (16) alone", got)
 	}
 	if got[attrCodeNextHop] {
 		t.Error("MVPN route should not emit NEXT_HOP code-3 beside MP_REACH_NLRI")

@@ -110,6 +110,26 @@ family-specific path attributes, which flow through `reactor.PluginRoute` →
 `message.PluginParams` → `UpdateBuilder.BuildPlugin()`. There is no per-family
 `Build*()` in the message package for these families (see plugin-self-containment).
 
+The generic attributes of the update block never pass through the plugin. The
+central dispatcher (`bgpconfig.buildConfigRouteRequest`) encodes them once, for
+every family, with the attribute types `BuildUnicast` appends for a static
+route: ORIGIN, MED, ATOMIC_AGGREGATE, COMMUNITIES (sorted), ORIGINATOR_ID,
+CLUSTER_LIST, IPv6 extended communities, Prefix-SID, LARGE_COMMUNITIES, AIGP and
+the generic `attribute [ code flags value ]`. AS_PATH, LOCAL_PREF and
+AGGREGATOR depend on the session, so they stay typed until `BuildPlugin`, which
+builds AGGREGATOR with `appendAggregator` as `BuildUnicast` does. The plugin
+receives only the NLRI tokens, the next hop and the extended communities, which
+a family reads as input (FlowSpec actions, EVPN's merged set). The load refuses
+a route whose plugin does not emit configured extended communities, an
+attribute both halves wrote (RFC 4271 Section 6.3), and a generic AS_PATH
+holding a set (RFC 9774 Section 3), so no configured attribute is lost in
+silence. The session writer removes AIGP where AIGP_SESSION is disabled (RFC
+7311 Section 3.3), for these routes as for static ones.
+<!-- source: internal/component/bgp/config/bgp_routes_plugin.go -- buildConfigRouteRequest, genericPluginRouteAttrs, pluginRouteFromRegistry -->
+<!-- test: internal/component/bgp/config/bgp_routes_plugin_test.go TestPluginRouteCarriesGenericAttributes -->
+<!-- test: internal/component/bgp/config/bgp_routes_plugin_test.go TestPluginRouteRefusesWhatItCannotSend -->
+<!-- test: test/encode/flow-generic-attributes.ci -->
+
 EVPN config routes take the same path. The pre-built NLRI carries no ADD-PATH
 Path Identifier, because ADD-PATH is negotiated per session and per family.
 `BuildPlugin` copies `PluginParams.NLRI` verbatim and cannot tell where one NLRI

@@ -39,6 +39,7 @@ func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool, loc
 		AFI: uint16(fam.AFI), SAFI: byte(fam.SAFI), IsIPv6: r.IsIPv6, NLRI: r.NLRI,
 		NextHop: r.NextHop, RawAttrs: rawAttrs,
 		ASPath: r.ASPath, LocalPreference: r.LocalPreference, HasLocalPreference: r.HasLocalPreference,
+		HasAggregator: r.HasAggregator, AggregatorASN: r.AggregatorASN, AggregatorIP: r.AggregatorIP,
 		MapV4NextHop: r.MapV4NextHop,
 	}, nil
 }
