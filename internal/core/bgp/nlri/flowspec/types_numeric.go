@@ -297,30 +297,22 @@ func (c *numericComponent) CheckedWriteTo(buf []byte, off int) (int, error) {
 // RFC 8955 Section 4.2.1.1 defines the numeric operator format.
 // The component consists of a list of {operator, value} pairs.
 // Encoding: <type (1 octet), [numeric_op, value]+>.
+//
+// numericComponentEnd judges the list first, so the decode loop below reads
+// only pairs it has already admitted.
 func parseNumericComponent(t FlowComponentType, data []byte, afi AFI) (FlowComponent, []byte, error) {
-	if len(data) == 0 {
-		return nil, nil, ErrFlowSpecTruncated
+	end, err := numericComponentEnd(t, data)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	var matches []FlowMatch
 	offset := 0
 
-	for offset < len(data) {
+	for offset < end {
 		op := FlowOperator(data[offset])
 		offset++
-
-		// Determine value length from operator's len field (bits 2-3)
-		// RFC 8955 Section 4.2.1.1: length = 1 << len (1, 2, 4, or 8 octets)
-		lenCode := (op & FlowOpLenMask) >> 4
-		valueLen := 1 << lenCode
-		if (t == FlowTCPFlags && valueLen > 2) ||
-			((t == FlowDSCP || t == FlowFragment) && valueLen != 1) {
-			return nil, nil, ErrFlowSpecTruncated
-		}
-
-		if offset+valueLen > len(data) {
-			return nil, nil, ErrFlowSpecTruncated
-		}
+		valueLen := numericValueOctets(op)
 
 		// Read value in network byte order (big-endian)
 		var value uint64
@@ -345,15 +337,56 @@ func parseNumericComponent(t FlowComponentType, data []byte, afi AFI) (FlowCompo
 			Value: value,
 		})
 		offset += valueLen
+	}
+
+	return &numericComponent{compType: t, matches: matches, wireData: append([]byte(nil), data[:end]...)}, data[end:], nil
+}
+
+// numericValueOctets returns the value width an operator octet announces.
+// RFC 8955 Section 4.2.1.1: "The length of the value field for this operator
+// given as (1 << len).  This encodes 1 (len=00), 2 (len=01), 4 (len=10), and 8
+// (len=11) octets."
+func numericValueOctets(op FlowOperator) int {
+	lenCode := (op & FlowOpLenMask) >> 4
+	return 1 << lenCode
+}
+
+// numericComponentEnd checks the {operator, value} list of one numeric or
+// bitmask component and returns the octets it occupies, through the pair that
+// carries the end-of-list bit. It is the single statement of what such a list
+// must hold: parseNumericComponent decodes what it admits, and
+// validateComponents walks past it without decoding. It allocates nothing.
+//
+// The walk is bounded by len(data): every pair consumes its operator octet.
+func numericComponentEnd(t FlowComponentType, data []byte) (int, error) {
+	if len(data) == 0 {
+		return 0, ErrFlowSpecTruncated
+	}
+
+	offset := 0
+	for offset < len(data) {
+		op := FlowOperator(data[offset])
+		offset++
+
+		valueLen := numericValueOctets(op)
+		if (t == FlowTCPFlags && valueLen > 2) ||
+			((t == FlowDSCP || t == FlowFragment) && valueLen != 1) {
+			return 0, ErrFlowSpecTruncated
+		}
+
+		if offset+valueLen > len(data) {
+			return 0, ErrFlowSpecTruncated
+		}
+		offset += valueLen
 
 		// Check for end of list (RFC 8955: 'e' bit set in last pair)
 		if op&FlowOpEnd != 0 {
-			return &numericComponent{compType: t, matches: matches, wireData: append([]byte(nil), data[:offset]...)}, data[offset:], nil
+			return offset, nil
 		}
 	}
 
 	// A component without its terminating EOL bit is incomplete.
-	return nil, nil, ErrFlowSpecTruncated
+	return 0, ErrFlowSpecTruncated
 }
 
 // ============================================================================

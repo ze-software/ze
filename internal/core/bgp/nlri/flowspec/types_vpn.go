@@ -94,8 +94,8 @@ func (f *FlowSpecVPN) PathID() uint32 {
 	return 0
 }
 
-// HasPathID returns false.
-func (f *FlowSpecVPN) HasPathID() bool {
+// HasAddPath returns false.
+func (f *FlowSpecVPN) HasAddPath() bool {
 	return false
 }
 
@@ -117,32 +117,18 @@ func (f *FlowSpecVPN) String() string {
 // ParseFlowSpecVPN parses a FlowSpec VPN from wire format per RFC 8955 Section 8.
 // The NLRI consists of length + Route Distinguisher (8 octets) + FlowSpec components.
 func ParseFlowSpecVPN(fam Family, data []byte) (*FlowSpecVPN, error) {
-	if len(data) == 0 {
-		return nil, ErrFlowSpecTruncated
-	}
-
-	// Parse length per RFC 8955 Section 4.1
-	nlriLen := int(data[0])
-	offset := 1
-	if nlriLen >= 240 {
-		if len(data) < 2 {
-			return nil, ErrFlowSpecTruncated
-		}
-		nlriLen = int(data[0]&0x0F)<<8 | int(data[1])
-		offset = 2
-	}
-
-	if len(data) < offset+nlriLen {
-		return nil, ErrFlowSpecTruncated
+	value, err := flowSpecValue(data)
+	if err != nil {
+		return nil, err
 	}
 
 	// Need at least 8 bytes for RD per RFC 8955 Section 8
-	if nlriLen < 8 {
+	if len(value) < 8 {
 		return nil, ErrFlowSpecTruncated
 	}
 
 	// Parse Route Distinguisher (RFC 4364)
-	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
+	rd, err := ParseRouteDistinguisher(value[:8])
 	if err != nil {
 		return nil, err
 	}
@@ -151,8 +137,7 @@ func ParseFlowSpecVPN(fam Family, data []byte) (*FlowSpecVPN, error) {
 	fsFamily := Family{AFI: fam.AFI, SAFI: SAFIFlowSpec}
 	fs := NewFlowSpec(fsFamily)
 
-	remaining := data[offset+8 : offset+nlriLen]
-	if err := fs.parseComponents(remaining, fsFamily); err != nil {
+	if err := fs.parseComponents(value[8:], fsFamily); err != nil {
 		return nil, err
 	}
 

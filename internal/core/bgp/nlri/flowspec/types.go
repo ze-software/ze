@@ -349,8 +349,8 @@ func (f *FlowSpec) PathID() uint32 {
 	return 0
 }
 
-// HasPathID returns false.
-func (f *FlowSpec) HasPathID() bool {
+// HasAddPath returns false.
+func (f *FlowSpec) HasAddPath() bool {
 	return false
 }
 
@@ -387,15 +387,33 @@ func (f *FlowSpec) componentString() string {
 
 // ParseFlowSpec parses a FlowSpec from wire format per RFC 8955 Section 4.
 // The NLRI consists of a length field followed by component data.
-// RFC 8955 Section 4.1 defines length encoding:
-// - Single octet if < 240.
-// - Two octets (0xfnnn format) if >= 240.
+// ValidateFlowSpec refuses exactly what this refuses, without decoding.
 func ParseFlowSpec(fam Family, data []byte) (*FlowSpec, error) {
+	value, err := flowSpecValue(data)
+	if err != nil {
+		return nil, err
+	}
+
+	fs := NewFlowSpec(fam)
+	if err := fs.parseComponents(value, fam); err != nil {
+		return nil, err
+	}
+
+	return fs, nil
+}
+
+// flowSpecValue reads the length field that opens one FlowSpec NLRI and
+// returns the value it frames. It allocates nothing.
+//
+// RFC 8955 Section 4.1: "If the NLRI length is smaller than 240 (0xf0 hex)
+// octets, the length field can be encoded as a single octet." and "Otherwise,
+// it is encoded as an extended-length 2-octet value in which the most
+// significant nibble has the hex value 0xf."
+func flowSpecValue(data []byte) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, ErrFlowSpecTruncated
 	}
 
-	// Parse length per RFC 8955 Section 4.1
 	nlriLen := int(data[0])
 	offset := 1
 	if nlriLen >= 240 {
@@ -410,32 +428,19 @@ func ParseFlowSpec(fam Family, data []byte) (*FlowSpec, error) {
 	if len(data) < offset+nlriLen {
 		return nil, ErrFlowSpecTruncated
 	}
-
-	fs := NewFlowSpec(fam)
-	remaining := data[offset : offset+nlriLen]
-
-	if err := fs.parseComponents(remaining, fam); err != nil {
-		return nil, err
-	}
-
-	return fs, nil
+	return data[offset : offset+nlriLen], nil
 }
 
 // parseComponents parses the component list of an NLRI value into f.
 //
-// RFC 8955 Section 4.2: "A specific packet is considered to match the Flow
-// Specification when it matches the intersection (AND) of all the components
-// present in the Flow Specification. Components MUST follow strict type ordering
-// by increasing numerical order. A given component type MAY (exactly once) be
-// present in the Flow Specification. If present, it MUST precede any component of
-// higher numeric type value." The same section states the consequence: "An NLRI
-// value not encoded as specified here ... is considered malformed and error
-// handling according to Section 10 is performed." Section 10 defers to RFC 7606,
-// and the plugin's decode path drops a malformed NLRI, which is what every other
-// error from this walk already does.
-//
-// Strictly increasing types make one comparison against the previous type enough:
-// an equal type is a repeat, and a lower type is out of order.
+// RFC 8955 Section 4.2: "An NLRI value not encoded as specified here ... is
+// considered malformed and error handling according to Section 10 is
+// performed." Section 10 defers to RFC 7606, and every error from this walk is
+// that malformation. The receive path refuses it before this decode runs: the
+// FlowSpec plugin's NLRI syntax rule walks the same checks through
+// validateComponents and answers session reset (RFC 7606 Section 3 (j)), so a
+// peer's UPDATE never reaches this parser with a malformed NLRI. A caller that
+// parses bytes from elsewhere (a config, an API) gets the error back.
 //
 // The walk is bounded by len(data): every component consumes at least its type
 // octet, so parseFlowComponent always shortens the remainder.
@@ -447,11 +452,8 @@ func (f *FlowSpec) parseComponents(data []byte, fam Family) error {
 		if err != nil {
 			return err
 		}
-		if comp.Type() == previous {
-			return fmt.Errorf("%w: %s", ErrFlowSpecDuplicateType, comp.Type())
-		}
-		if comp.Type() < previous {
-			return fmt.Errorf("%w: %s after %s", ErrFlowSpecTypeOrder, comp.Type(), previous)
+		if err := checkComponentOrder(previous, comp.Type()); err != nil {
+			return err
 		}
 
 		previous = comp.Type()
@@ -462,34 +464,86 @@ func (f *FlowSpec) parseComponents(data []byte, fam Family) error {
 	return nil
 }
 
-// parseFlowComponent parses a single FlowSpec component.
+// checkComponentOrder refuses a component type that does not follow previous
+// in strictly increasing order. It allocates only to report a refusal.
+//
+// RFC 8955 Section 4.2: "A specific packet is considered to match the Flow
+// Specification when it matches the intersection (AND) of all the components
+// present in the Flow Specification.  Components MUST follow strict type
+// ordering by increasing numerical order.  A given component type MAY (exactly
+// once) be present in the Flow Specification.  If present, it MUST precede any
+// component of higher numeric type value."
+//
+// Strictly increasing types make one comparison against the previous type enough:
+// an equal type is a repeat, and a lower type is out of order.
+func checkComponentOrder(previous, current FlowComponentType) error {
+	if current == previous {
+		return fmt.Errorf("%w: %s", ErrFlowSpecDuplicateType, current)
+	}
+	if current < previous {
+		return fmt.Errorf("%w: %s after %s", ErrFlowSpecTypeOrder, current, previous)
+	}
+	return nil
+}
+
+// componentClass names which parameter encoding a component type uses.
+type componentClass uint8
+
+const (
+	componentClassUnspecified componentClass = iota // no encoding: the type is refused
+	componentClassPrefix                            // Types 1-2: length and prefix
+	componentClassNumeric                           // Types 3-13: {operator, value} list
+)
+
+// classifyComponent names the parameter encoding of the component that opens
+// data. It is the single list of the component types Ze reads: parseFlowComponent
+// decodes by it and validateComponents walks by it.
+//
 // RFC 8955 Section 4.2.2: "The encoding of each of the components begins
 // with a type field (1 octet) followed by a variable length parameter.".
-func parseFlowComponent(data []byte, fam Family) (FlowComponent, []byte, error) {
+func classifyComponent(data []byte, fam Family) (FlowComponentType, componentClass, error) {
 	if len(data) == 0 {
-		return nil, nil, ErrFlowSpecTruncated
+		return 0, componentClassUnspecified, ErrFlowSpecTruncated
 	}
 
 	compType := FlowComponentType(data[0])
 	if compType == FlowFlowLabel {
 		if fam.AFI != AFIIPv6 {
-			return nil, nil, ErrFlowSpecInvalidType
+			return compType, componentClassUnspecified, ErrFlowSpecInvalidType
 		}
 	}
 
 	switch compType {
 	case FlowDestPrefix, FlowSourcePrefix:
 		// Type 1-2: Prefix components (RFC 8955 Section 4.2.2.1-2)
-		return parsePrefixComponent(compType, data[1:], fam)
+		return compType, componentClassPrefix, nil
 	case FlowIPProtocol, FlowPort, FlowDestPort, FlowSourcePort,
 		FlowICMPType, FlowICMPCode, FlowTCPFlags, FlowPacketLength,
 		FlowDSCP, FlowFragment, FlowFlowLabel:
 		// Type 3-13: Numeric/bitmask components (RFC 8955 Section 4.2.2.3-12)
-		return parseNumericComponent(compType, data[1:], fam.AFI)
+		return compType, componentClassNumeric, nil
 	default: // The wire component registry is open; unknown codes remain rejected.
 		// RFC 8955 Section 4.2: unknown component type is malformed NLRI
+		return compType, componentClassUnspecified, ErrFlowSpecInvalidType
+	}
+}
+
+// parseFlowComponent parses a single FlowSpec component.
+func parseFlowComponent(data []byte, fam Family) (FlowComponent, []byte, error) {
+	compType, class, err := classifyComponent(data, fam)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	switch class {
+	case componentClassPrefix:
+		return parsePrefixComponent(compType, data[1:], fam)
+	case componentClassNumeric:
+		return parseNumericComponent(compType, data[1:], fam.AFI)
+	case componentClassUnspecified:
 		return nil, nil, ErrFlowSpecInvalidType
 	}
+	panic("BUG: classifyComponent returned an unnamed component class")
 }
 
 // componentLen returns total length of all components in wire format.

@@ -90,3 +90,64 @@ func TestFlowSpecSyntaxRuleCoversEveryFamily(t *testing.T) {
 		}
 	}
 }
+
+// wellFormedFlowSpecSections are the receive-path sections the allocation test
+// and the benchmark judge: one per family, and one under ADD-PATH.
+var wellFormedFlowSpecSections = []struct {
+	name    string
+	fam     family.Family
+	section string
+	addPath bool
+}{
+	{"ipv4 flow", IPv4FlowSpec, "060220CAFFEE01" + "0501180A0000", false},
+	{"ipv6 flow corpus 4.2 twin", IPv6FlowSpec,
+		"210180002A020B80001500007ACA39FFFEAEA87A" + "02807801" + "0381110B81650D9107DD", false},
+	{"ipv4 flow-vpn", IPv4FlowSpecVPN, "0D" + "0000FDE800000001" + "01180A0000", false},
+	{"ipv4 flow add-path", IPv4FlowSpec, "00000001" + "060220CAFFEE01", true},
+}
+
+// TestFlowSpecSyntaxRuleAllocatesNothing measures the registered rule over a
+// well-formed section of each family.
+//
+// VALIDATES: the receive path judges a well-formed FlowSpec section with zero
+// allocations (ai/rules/performance.md): no split slice, no decoded component.
+// PREVENTS: the rule going back to nlrisplit.Split and flowspec.ParseFlowSpec,
+// which allocate for every UPDATE.
+func TestFlowSpecSyntaxRuleAllocatesNothing(t *testing.T) {
+	for _, tt := range wellFormedFlowSpecSections {
+		rule, ok := nlrisyntax.Get(tt.fam)
+		if !ok || rule.Judge == nil {
+			t.Fatalf("no NLRI syntax rule registered for %s", tt.fam)
+		}
+		section, err := hex.DecodeString(tt.section)
+		if err != nil {
+			t.Fatalf("bad hex: %v", err)
+		}
+		if judged := rule.Judge(section, tt.addPath); judged.Action != nlrisyntax.ActionWellFormed {
+			t.Fatalf("%s: action %d (%q), want well-formed", tt.name, judged.Action, judged.Reason)
+		}
+		allocs := testing.AllocsPerRun(100, func() {
+			rule.Judge(section, tt.addPath)
+		})
+		if allocs != 0 {
+			t.Fatalf("%s: %v allocations per judgement, want 0", tt.name, allocs)
+		}
+	}
+}
+
+// BenchmarkFlowSpecSyntaxRule times the registered rule over the 4.2 corpus
+// twin, the well-formed IPv6 section the receive path judges.
+func BenchmarkFlowSpecSyntaxRule(b *testing.B) {
+	rule, ok := nlrisyntax.Get(IPv6FlowSpec)
+	if !ok || rule.Judge == nil {
+		b.Fatal("no NLRI syntax rule registered for ipv6/flow")
+	}
+	section, err := hex.DecodeString(wellFormedFlowSpecSections[1].section)
+	if err != nil {
+		b.Fatalf("bad hex: %v", err)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		rule.Judge(section, false)
+	}
+}

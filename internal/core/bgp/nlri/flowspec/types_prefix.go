@@ -177,26 +177,12 @@ func (c *prefixComponent) CheckedWriteTo(buf []byte, off int) (int, error) {
 //
 // The offset field in IPv6 allows matching on a portion of the prefix.
 func parsePrefixComponent(t FlowComponentType, data []byte, fam Family) (FlowComponent, []byte, error) {
-	if len(data) == 0 {
-		return nil, nil, ErrFlowSpecTruncated
+	shape, err := prefixComponentShape(data, fam)
+	if err != nil {
+		return nil, nil, err
 	}
-	prefixLen := int(data[0])
-	var offset uint8
-	headerLen, maximum := 1, 32
-	if fam.AFI == AFIIPv6 {
-		if len(data) < 2 {
-			return nil, nil, ErrFlowSpecTruncated
-		}
-		offset = data[1]
-		headerLen, maximum = 2, 128
-	}
-	if prefixLen > maximum || (offset != 0 && int(offset) >= prefixLen) {
-		return nil, nil, fmt.Errorf("flowspec: invalid prefix length %d at offset %d", prefixLen, offset)
-	}
-	prefixBytes := (prefixLen - int(offset) + 7) / 8
-	if len(data) < headerLen+prefixBytes {
-		return nil, nil, ErrFlowSpecTruncated
-	}
+	prefixLen, offset := shape.prefixLen, shape.offset
+	headerLen, prefixBytes := shape.headerLen, shape.prefixBytes
 	var addr netip.Addr
 	if fam.AFI == AFIIPv4 {
 		var ip [4]byte
@@ -221,4 +207,48 @@ func parsePrefixComponent(t FlowComponentType, data []byte, fam Family) (FlowCom
 		comp = NewFlowSourcePrefixComponentWithOffset(prefix, offset)
 	}
 	return comp, data[headerLen+prefixBytes:], nil
+}
+
+// prefixShape is the layout of one prefix component's parameter: the octets
+// after its type octet.
+type prefixShape struct {
+	prefixLen   int   // bits of prefix the component matches
+	offset      uint8 // RFC 8956 Section 3.1 Prefix Offset, zero for IPv4
+	headerLen   int   // octets of length (and offset) before the prefix
+	prefixBytes int   // octets of prefix that follow the header
+}
+
+// octets returns the octets the parameter occupies.
+func (s prefixShape) octets() int { return s.headerLen + s.prefixBytes }
+
+// prefixComponentShape checks one prefix component's parameter and returns its
+// layout. It is the single statement of what a prefix component must hold:
+// parsePrefixComponent decodes what it admits, and validateComponents walks
+// past it without decoding. It allocates only to report a malformed parameter.
+//
+// RFC 8956 Section 3.1: "This defines the destination prefix to match.  The
+// offset has been defined to allow for flexible matching to portions of an
+// IPv6 address where one is required to skip over the first N bits of the
+// address." An offset at or past the prefix length leaves no bit to match.
+func prefixComponentShape(data []byte, fam Family) (prefixShape, error) {
+	if len(data) == 0 {
+		return prefixShape{}, ErrFlowSpecTruncated
+	}
+	shape := prefixShape{prefixLen: int(data[0]), headerLen: 1}
+	maximum := 32
+	if fam.AFI == AFIIPv6 {
+		if len(data) < 2 {
+			return prefixShape{}, ErrFlowSpecTruncated
+		}
+		shape.offset = data[1]
+		shape.headerLen, maximum = 2, 128
+	}
+	if shape.prefixLen > maximum || (shape.offset != 0 && int(shape.offset) >= shape.prefixLen) {
+		return prefixShape{}, fmt.Errorf("flowspec: invalid prefix length %d at offset %d", shape.prefixLen, shape.offset)
+	}
+	shape.prefixBytes = (shape.prefixLen - int(shape.offset) + 7) / 8
+	if len(data) < shape.octets() {
+		return prefixShape{}, ErrFlowSpecTruncated
+	}
+	return shape, nil
 }

@@ -49,9 +49,11 @@ else:
 
 ### A malformed NLRI resets the session
 
-The receive path decodes every FlowSpec NLRI of an MP_REACH_NLRI or
-MP_UNREACH_NLRI before any plugin sees it, with the parser the plugin's decoder
-uses. One the parser refuses (an unknown or repeated component type, a prefix
+The receive path judges every FlowSpec NLRI of an MP_REACH_NLRI or
+MP_UNREACH_NLRI before any plugin sees it, with the checks of the parser the
+plugin's decoder uses (`flowspec.ValidateFlowSpec` and `ValidateFlowSpecVPN`
+share them with `ParseFlowSpec`), and decodes nothing: a well-formed section
+costs no allocation. One those checks refuse (an unknown or repeated component type, a prefix
 pattern of the wrong size, an operator list that runs past the NLRI) resets the
 session with UPDATE Message Error / Malformed Attribute List. RFC 8955 Section
 4.2 sends a malformed NLRI to RFC 7606 error handling, and RFC 7606 Section
@@ -63,6 +65,7 @@ this check, such an NLRI reached a script as the announce of a route named
 
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_syntax.go -- judgeFlowSpecSection -->
 <!-- source: internal/component/bgp/message/rfc7606.go -- validateMPNLRISyntax -->
+<!-- source: internal/core/bgp/nlri/flowspec/validate.go -- ValidateFlowSpec -->
 
 ---
 

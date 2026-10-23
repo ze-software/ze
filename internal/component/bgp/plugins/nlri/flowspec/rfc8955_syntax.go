@@ -47,34 +47,42 @@ func flowSpecSyntaxRule(fam family.Family) nlrisyntax.Rule {
 // flow.py), and BIRD calls bgp_parse_error for an invalid flow route
 // (proto/bgp/packets.c).
 //
-// The section is framed by the family's splitter, so the walk is bounded by
-// len(section). Allocates only on a malformed section.
+// The section is framed by nlrisplit.SplitFlowSpec, the splitter the registry
+// binds to the four FlowSpec families, so the walk is bounded by len(section).
+// Each NLRI is judged by flowspec.ValidateFlowSpec or ValidateFlowSpecVPN,
+// which run the checks of the parser decodeFlowSpecNLRI uses without decoding:
+// a well-formed section allocates nothing (TestFlowSpecSyntaxRuleAllocatesNothing).
+// A malformed one allocates its error and the Reason string. The plugin decodes
+// the admitted NLRI again later, for its event and its RIB: this walk keeps
+// nothing, because the receive path has no place to hand a decode to.
 func judgeFlowSpecSection(fam family.Family, section []byte, addPath bool) nlrisyntax.Judgement {
-	parts, err := nlrisplit.Split(fam, section, addPath)
-	if err != nil {
-		return flowSpecMalformed(fam, "the section cannot be walked: "+err.Error())
-	}
-	for _, part := range parts {
+	var refusal error
+	_, splitErr := nlrisplit.SplitFlowSpec(section, addPath, func(part []byte) bool {
 		_, value, pathErr := nlri.SplitPathID(part, addPath)
 		if pathErr != nil {
-			return flowSpecMalformed(fam, pathErr.Error())
+			refusal = pathErr
+			return false
 		}
-		if parseErr := parseFlowSpecNLRI(fam, value); parseErr != nil {
-			return flowSpecMalformed(fam, parseErr.Error())
-		}
+		refusal = validateFlowSpecNLRI(fam, value)
+		return refusal == nil
+	})
+	if splitErr != nil {
+		return flowSpecMalformed(fam, "the section cannot be walked: "+splitErr.Error())
+	}
+	if refusal != nil {
+		return flowSpecMalformed(fam, refusal.Error())
 	}
 	return nlrisyntax.WellFormed
 }
 
-// parseFlowSpecNLRI decodes one NLRI of fam with the parser decodeFlowSpecNLRI
-// uses, so the receive path refuses exactly what the decoder cannot read.
-func parseFlowSpecNLRI(fam family.Family, value []byte) error {
+// validateFlowSpecNLRI judges one NLRI of fam with the checks of the parser
+// decodeFlowSpecNLRI uses, so the receive path refuses exactly what the decoder
+// cannot read.
+func validateFlowSpecNLRI(fam family.Family, value []byte) error {
 	if fam.SAFI == flowspec.SAFIFlowSpecVPN {
-		_, err := flowspec.ParseFlowSpecVPN(fam, value)
-		return err
+		return flowspec.ValidateFlowSpecVPN(fam, value)
 	}
-	_, err := flowspec.ParseFlowSpec(fam, value)
-	return err
+	return flowspec.ValidateFlowSpec(fam, value)
 }
 
 func flowSpecMalformed(fam family.Family, why string) nlrisyntax.Judgement {
