@@ -4,12 +4,12 @@
 |-------|-------|
 | Status | in-progress |
 | Priority | P2 |
-| Release reason | The retained AC-5 requires the Mac IPsec acceptance run to pass; recorded label and cleanup proof does not discharge the remaining product validation. |
+| Release reason | The Mac lab cleanup and label proofs validate tooling every release lab run depends on; AC-5's `exit 0` half (four IPsec interop reds) now belongs to `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md`. |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-10-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -120,9 +120,9 @@ The three rows are the parent's, verbatim. Their status here starts again at `un
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-2 | Linux boot id (`/proc/sys/kernel/random/boot_id`) and macOS `kern.bootsessionuuid` are readable without privilege and change on every boot | kernel ABI; macOS sysctl | the "same machine, rebooted" verdict is unavailable; resources from before a reboot become "unknown" (skipped, reported) | AC-1, AC-3 on the owner's Mac | Linux confirmed in the parent; macOS unvalidated |
-| A-3 | A machine identity is readable on both hosts: Linux `/etc/machine-id` (as `internal/core/identity` reads it), macOS IOPlatformUUID | `identity.go` `readMachineIDFile`; macOS `ioreg -rd1 -c IOPlatformExpertDevice` | without it, "another machine" and "this machine rebooted" cannot be told apart; both become "unknown" (skipped) | AC-1, AC-2 on the owner's Mac | Linux confirmed in the parent; macOS unvalidated |
-| A-5 | Every daemon Ze labs use (Linux host, Colima, Docker Desktop, the QEMU guest's Alpine dockerd) supports `--label` and `--filter label=` on `run`, `network create`, `build`, `ps`, `network ls`, `image ls` | Docker CLI and API | the sweep cannot list; it reports a setup error naming the daemon version | AC-4 (Colima, Docker Desktop), AC-5 (the QEMU guest's dockerd) | Linux host confirmed in the parent; Colima, Docker Desktop and the guest dockerd unvalidated |
+| A-2 | Linux boot id (`/proc/sys/kernel/random/boot_id`) and macOS `kern.bootsessionuuid` are readable without privilege and change on every boot | kernel ABI; macOS sysctl | the "same machine, rebooted" verdict is unavailable; resources from before a reboot become "unknown" (skipped, reported) | AC-1, AC-3 on the owner's Mac | Linux confirmed in the parent; macOS confirmed readable without privilege (AC-1); change-on-reboot unproven on a Mac and not load-bearing (owner decision 2026-10-23, AC-3) |
+| A-3 | A machine identity is readable on both hosts: Linux `/etc/machine-id` (as `internal/core/identity` reads it), macOS IOPlatformUUID | `identity.go` `readMachineIDFile`; macOS `ioreg -rd1 -c IOPlatformExpertDevice` | without it, "another machine" and "this machine rebooted" cannot be told apart; both become "unknown" (skipped) | AC-1, AC-2 on the owner's Mac | Linux confirmed in the parent; macOS confirmed (AC-1, AC-2) |
+| A-5 | Every daemon Ze labs use (Linux host, Colima, Docker Desktop, the QEMU guest's Alpine dockerd) supports `--label` and `--filter label=` on `run`, `network create`, `build`, `ps`, `network ls`, `image ls` | Docker CLI and API | the sweep cannot list; it reports a setup error naming the daemon version | AC-4 (Colima, Docker Desktop), AC-5 (the QEMU guest's dockerd) | Linux host confirmed in the parent; Colima confirmed (AC-4), the guest dockerd confirmed on Alpine and on Ze's image (AC-5 reruns); Docker Desktop dropped by the owner 2026-10-21 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -162,7 +162,7 @@ Every AC runs on the owner's Mac. "Colima" means `DOCKER_HOST=unix://$HOME/.coli
 | AC-2 | `./le perf run dut ze` on the perf daemon; while the DUT runs, `docker ps --filter label=ze.lab --format '{{.ID}}'`, then `docker inspect --format '{{json .Config.Labels}}'` on the DUT container (A-3, A-2) | `ze.lab.machine-id` equals the lowercase AC-1 IOPlatformUUID; `ze.lab.boot-id` equals the lowercase AC-1 `kern.bootsessionuuid`; `ze.lab.os` is `darwin`; `ze.lab.pid` is the pid of the running `le` (`ps -p <pid> -o command=`); `ze.lab.pid-ns` is absent |
 | AC-3 | On one daemon: seed a dead owner (start `./le perf run dut ze`, `kill -9` the pid in the DUT's `ze.lab.pid` label once the DUT runs), reboot the Mac, start the same daemon, run `sysctl -n kern.bootsessionuuid`, then `./le test integration cleanup dry` (A-2) | the new boot id differs from the one in the seeded labels; `cleanup dry` lists each seeded container and network as "would remove", with no "unknown" line for them; `./le test integration cleanup` then removes them, exit 0 |
 | AC-4 | Against Colima, then against Docker Desktop: `./le job run label mac-orphans command env ZE_REQUIRE_DOCKER=1 go test -tags docker -count=1 -run '^TestKilledLabRunIsCleanedByNextStart$' ./internal/le/interoplab/` (A-5, and A-2, A-3 through the verdict) | PASS on each daemon: the first sweep removes the killed child's container, network and retained tag and keeps the live child's set; the second removes the live set; 0 failed and 0 unknown in both sweeps; no setup error about a listing |
-| AC-5 | On the Mac with HVF: `./le test qemu docker-lab lab "test integration interop-ipsec" timeout 3600s` (A-5, the QEMU guest's dockerd) | exit 0; the lab output carries the start sweep's `cleanup:` summary line and no "could not be listed" setup error; the run's labeled creates (`run`, `network create`, `build`) are accepted by the guest dockerd |
+| AC-5 | On the Mac with HVF: `./le test qemu docker-lab lab "test integration interop-ipsec" timeout 3600s` (A-5, the QEMU guest's dockerd) | (narrowed by the owner 2026-10-23: the `exit 0` half moved to `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md`) the lab output carries the start sweep's `cleanup:` summary line and no "could not be listed" setup error; the run's labeled creates (`run`, `network create`, `build`) are accepted by the guest dockerd |
 | AC-6 | On the perf daemon: `./le perf run dut ze`; once `docker ps --filter label=ze.lab` lists the DUT and the sender, press Ctrl-C once; then, with the run id from the DUT's `ze.lab.run` label, `docker ps -a --filter label=ze.lab.run=<id>`, `docker network ls --filter label=ze.lab.run=<id>` and `docker image ls --filter label=ze.lab.run=<id> --format '{{.Repository}}:{{.Tag}}'` | the run exits 1 after its removals; the first two commands print no resource; the third prints no `ze-interop-retained:` tag (the kept DUT image under its cache tag is allowed); `./le test integration cleanup dry` names no resource of that run |
 | AC-7 | Against Colima, then against Docker Desktop, with a FreeRtr checkout at `FREERTR_DIR` (default `../rtr`): `FREERTR_DIR=<dir> ./le perf run step build dut freertr` | exit 0 on each daemon; `docker image inspect freertr-interop --format '{{index .Config.Labels "ze.lab.kind"}}'` prints `image`; no `ze-interop-retained:` tag of that run is left (`docker image ls --filter label=ze.lab.run=<id>`) |
 | AC-8 | On the daemon R-6 names, for `vpp-test` and then for `vpp-iface-test`: start `./le test deployment <proof>` from a terminal (its own process group); once `docker ps --filter label=ze.lab` lists its container, press Ctrl-C once (SIGINT to the process group); then, with the run id from the container's `ze.lab.run` label, `docker ps -a --filter label=ze.lab.run=<id>`, `docker network ls --filter label=ze.lab.run=<id>` and `docker image ls --filter label=ze.lab.run=<id> --format '{{.Repository}}:{{.Tag}}'` | each run exits 1 and prints no verdict line (no report carrying `passed`), only the interruption; the first two commands print no resource; the third prints no `ze-interop-retained:` tag (the pulled VPP image is allowed); `./le test integration cleanup dry` names no resource of that run |
@@ -198,7 +198,11 @@ Owner decisions, 2026-10-21 ("Yes to 1, 2 and 3"): (1) a separate `ze` Colima pr
 
 ### Closure attempt, 2026-10-21 (not closed)
 
--> Decision (owner, 2026-10-22): AC-5 stays as written, exit 0 included. Asked whether to narrow it to its label and cleanup halves, Thomas answered "stay open until those IPsec bugs" are fixed. This spec closes only after `ike-padded-probe-strongswan` and `mobike-initiator` pass in the AC-5 run; their fixes are owed by the journal rows named in the AC-5 Results rows.
+-> Decision (owner, 2026-10-23): AC-5 is narrowed to its cleanup and label half, which passes on Ze's image (Results, "AC-5 (rerun 3 ...)"). This supersedes the 2026-10-22 decision below. The `exit 0` half moves to `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md`, which owns the four reds (`ike-padded-probe-strongswan`, `mobike-initiator`, `esp-integrity-only-null`, `mtu-negotiated-transform`).
+
+-> Decision (owner, 2026-10-23): AC-3 (the Mac reboot run) is not run. The start sweep's reboot verdict covers it: `ownerJudge.judge` hands a resource whose boot id differs to `ownerJudge.judgeOtherBoot` (`internal/le/interoplab/orphans.go`), which answers ownerGone when the owner started before this machine booted (`kern.boottime` on macOS, read by `readDarwinBootStarted`). If macOS kept the same boot id across a reboot, `judge`'s pid lookup still answers ownerGone (pid absent, or its start token differs). Unit tests: `TestCleanupOrphansVerdictTable` rows "AC-5c different boot", "R-1c another boot id, owner started after this boot (a clone)", "another boot id, boot time unreadable" and "macOS owner carries no pid namespace"; `TestOwnerIdentityReadsBootID` parses the darwin `kern.boottime` form. Both pass (`./le job run label close-orphans`, 2026-10-23, `ok github.com/ze-software/ze/internal/le/interoplab 0.303s`).
+
+-> Decision (owner, 2026-10-22, superseded 2026-10-23 above): AC-5 stays as written, exit 0 included. Asked whether to narrow it to its label and cleanup halves, Thomas answered "stay open until those IPsec bugs" are fixed. This spec closes only after `ike-padded-probe-strongswan` and `mobike-initiator` pass in the AC-5 run; their fixes are owed by the journal rows named in the AC-5 Results rows.
 
 A `/ze-close` agent (parent session e1f02c94, not the author f2de520e) stopped before commit A, because one AC is unmet as written.
 
@@ -382,3 +386,139 @@ A defect found by an AC gets a failing unit test in the producer's package first
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/validation/spec-lab-docker-cleanup-on-macos.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The Mac runs AC-1, AC-2, AC-4, AC-5 (cleanup and label half), AC-6, AC-7 and AC-8, recorded in Results with daemon, commit and date.
+- Fixes at the producer found by those runs (Failure Routing), each committed with its test: the lab start sweep's `cleanup:` summary line (7c4d35f36b), buildx wired by `./le setup` (AC-7 rerun), Ctrl-C forwarded to the guest le under `docker-lab` (AC-6 guest route), `vpp-iface-test` interruption (7a98e14ab6), the gok build environment restored after the in-process docker-host image build (bbee92ad8a, `dockerhost.runGokWith` and `restoreEnviron`), and the strongSwan 6.1.0 build enabling `aesni` on x86 only (ecf2804fc1, `test/interop-ipsec/Dockerfile.strongswan`).
+
+### Bugs Found/Fixed
+- Host le inherited `GOOS=linux` after the docker-host image build and failed `exec format error` on macOS: `TestDockerHostGokLeavesTheEnvironmentAsFound` (`internal/le/setup/dockerhost/gokenv_test.go`).
+- strongSwan 6.1.0 build refused on arm64 with `--enable-aesni`: the AC-5 rerun 3 image build is the proof (`interop: images ready (1m36s)`).
+- Earlier fixes are listed in the Results rows and the 2026-10-21 closure attempt table.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md` already states the aesni x86-only build (lines 1754 to 1757). No page claims the gok environment outlives the build: `grep -n -i "GOARCH\|GOOS\|environ" docs/architecture/appliance/docker-host.md docs/guide/appliance.md` shows no such claim. The `Run` and `SetGokGoEnv` comments carry the new contract.
+- `./le doc check verify`: `Documentation tests PASSED`, exit 0 (2026-10-23).
+
+### Deviations from Plan
+- AC-3 not run, owner decision 2026-10-23 (above).
+- AC-5 narrowed to its cleanup and label half, owner decision 2026-10-23; its `exit 0` half moved to `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md`.
+- Docker Desktop halves of AC-4 and AC-7 dropped, owner decision 2026-10-21 (3).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | AC-5 was held open on IPsec reds unrelated to labels or cleanup across three closure attempts | the reds belong to IPsec interop, not to this tooling validation | AC-5 reruns 1 to 3 | owner moved them to `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 labels, identity and verdicts on a Mac | Done | Results AC-1, AC-2, AC-4, AC-5 reruns | Docker Desktop dropped by the owner |
+| G-2 perf Ctrl-C leaves nothing | Done | Results AC-6 (guest route, forwarded), AC-2/AC-6/AC-8 pointer row | |
+| G-3 FreeRtr builds with `--build-context` | Done | Results AC-7 (rerun) | |
+| G-4 VPP proofs' Ctrl-C leaves nothing | Done | Results AC-2/AC-6/AC-8 pointer row, AC-8 `vpp-iface-test` closure rerun | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Results AC-1 | |
+| AC-2 | Done | Results pointer row, `ze` Colima profile | |
+| AC-3 | Changed | owner decision 2026-10-23; `TestCleanupOrphansVerdictTable` | reboot verdict unit-tested |
+| AC-4 | Done | Results AC-4 | Colima only, owner decision |
+| AC-5 | Changed | Results AC-5 (rerun 3) | narrowed by the owner; `exit 0` moved |
+| AC-6 | Done | Results AC-6 (guest route, forwarded), pointer row | |
+| AC-7 | Done | Results AC-7 (rerun) | Colima only, owner decision |
+| AC-8 | Done | Results pointer row, `vpp-iface-test` closure rerun | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestOwnerIdentityReadsBootID` | Done | `internal/le/interoplab/orphans_test.go` | pass 2026-10-23 |
+| `TestBuildRendersNamedContexts` | Done | `internal/le/interoplab/container_test.go` | existing |
+| `TestPerfInterruptedRunRemovesWhatItStarted` | Done | `internal/test/perfrunner/run_test.go` | existing |
+| `TestDockerHostGokLeavesTheEnvironmentAsFound` | Done | `internal/le/setup/dockerhost/gokenv_test.go` | added by bbee92ad8a, pass 2026-10-23 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/setup/dockerhost/build.go` | Changed | not planned; a failing AC-5 attempt routed the fix there |
+| `test/interop-ipsec/Dockerfile.strongswan` | Changed | not planned; arm64 build refusal |
+
+### Audit Summary
+- **Total items:** 8 ACs, 4 goals
+- **Done:** 6 ACs, 4 goals
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-3, AC-5), both owner decisions 2026-10-23, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 | real Mac runs | AC-1 pasted UUIDs; AC-2 labels equal them lowercased with `ze.lab.os` `darwin` and no `ze.lab.pid-ns`; AC-4 `--- PASS: TestKilledLabRunIsCleanedByNextStart (20.33s)` on Colima with `0 failed, 0 unknown`; AC-5 rerun 3 `interop: cleanup: no Ze lab resource on this Docker daemon`, labeled build/network/run accepted, `docker-lab: left behind: none` |
+| G-2 | real Mac run | AC-6: one Ctrl-C, exit 1, no container or network of the run, `cleanup dry` clean (pointer row; guest route forwarded row) |
+| G-3 | real Mac run | AC-7 rerun: exit 0, `freertr-interop` labeled `ze.lab.kind=image`, no retained tag |
+| G-4 | real Mac runs | AC-8: `vpp-test` PASS; `vpp-iface-test` closure rerun exit 1, no verdict line, nothing of run `ZSV3YXHS5QGNDI4ZQE3YWGTUCO` left |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-5's `exit 0` half: `ike-padded-probe-strongswan`, `mobike-initiator`, `esp-integrity-only-null`, `mtu-negotiated-transform` pass in the interop-ipsec run | IPsec interop defects, not cleanup or labels; moved by the owner 2026-10-23 | `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lab-docker-cleanup-on-macos-895e52ca-087b-4d00-9f7b-24de74193df6.md` |
+| `./le spec review check` | clean (4 code files, hashes match) |
+| Rounds | 2: round 1 (2026-10-21) over the production code of the earlier fix commits, 0 BLOCKER, 0 ISSUE; round 2 (2026-10-23) over bbee92ad8a and the strongSwan Dockerfile hunk of ecf2804fc1, 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | wiring (runGok has its callers), removed behavior (no guard dropped), logic (restore on success and failure, unset added variables), stale comments, style, security |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | round 2 found no BLOCKER or ISSUE | - | - |
+
+Round 2 NOTEs: (1) the inline comment in `buildgokrazy.Run` still lists GOTOOLCHAIN among the variables whose reasons are on `appliance.SetGokGoEnv`; that function checks it rather than sets it, which its own comment states, so the pointer is loose, not false. (2) Pre-checks: `./le commit audit base bbee92ad8a~1` reports 101 findings, none in this spec's files (other sessions' uncommitted `internal/le/commit` and runner deletions); `./le repo check` reports 5 unwired exports, none in this spec's files.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` | Yes | written in this commit; the spec validation hook passed it at status `design` |
+| `internal/le/setup/dockerhost/gokenv_test.go` | Yes | in HEAD since bbee92ad8a |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3 | reboot verdict covered by unit tests | `./le job run label close-orphans ... go test -run '^(TestCleanupOrphansVerdictTable\|TestOwnerIdentityReadsBootID)$' ./internal/le/interoplab/`: `ok ... 0.303s` |
+| AC-5 | label and cleanup half holds on Ze's image | Results row "AC-5 (rerun 3 ...)"; environment fix `TestDockerHostGokLeavesTheEnvironmentAsFound`: `ok .../internal/le/setup/dockerhost 0.385s` |
+| AC-1, AC-2, AC-4, AC-6, AC-7, AC-8 | Mac runs | Results rows, each naming daemon, commit and date |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test qemu docker-lab lab "test integration interop-ipsec"` | none (Go lab, `TestSuiteRunCleansOrphansBeforePreflight`) | the AC-5 rerun 3 output carries the start sweep summary and `left behind: none` |
+| `./le setup docker-host build` and `docker-lab` image build | none | `runGok` calls `runGokWith(buildgokrazy.Run, ...)` (`internal/le/setup/dockerhost/build.go`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-2 | confirmed (readable without privilege); change-on-reboot not load-bearing | AC-1 run without `sudo`; owner decision 2026-10-23: `judgeOtherBoot` answers ownerGone for an owner started before `kern.boottime`, and with an unchanged boot id `judge`'s pid lookup answers ownerGone; `TestCleanupOrphansVerdictTable` passes |
+| A-3 | confirmed | AC-1 IOPlatformUUID; AC-2 `ze.lab.machine-id` equals it lowercased |
+| A-5 | confirmed (Colima, guest dockerd); Docker Desktop dropped by the owner | AC-4 on Colima; AC-5 reruns on Alpine and on Ze's image accept labeled create and filtered listing |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| aesni built on x86 only | `docs/architecture/testing/interop.md` lines 1754 to 1757 against `test/interop-ipsec/Dockerfile.strongswan` `case "$(uname -m)"` | Yes |
+| gok environment contract | `Run` (`internal/le/build/gokrazy/gokrazy.go`) and `SetGokGoEnv` (`internal/appliance/cmd_build.go`) comments name `dockerhost.runGokWith`; no page claims otherwise | Yes |

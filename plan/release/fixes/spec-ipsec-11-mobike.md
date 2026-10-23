@@ -11,7 +11,7 @@
 
 ## Release placement
 
-The native MOBIKE implementation and tests now exist in internal/component/ike/engine/mobike.go and its callers. The historical absence/design narrative does not authorize duplicate implementation. The recorded mobike-initiator interop failure in spec-lab-docker-cleanup-on-macos remains an open supported-path obligation until dispositioned with evidence; no rerun is claimed here.
+The native MOBIKE implementation and tests now exist in internal/component/ike/engine/mobike.go and its callers. The historical absence/design narrative does not authorize duplicate implementation. The recorded mobike-initiator interop failure (first recorded by spec-lab-docker-cleanup-on-macos, closed 2026-10-23) is owned by `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2; AC-12 here cites that run and carries no fix of its own for the red. No rerun is claimed here.
 
 Anchor refresh (2026-07-22 plan review, design unchanged, feature not
 landed; Depends ipsec-8/ipsec-9 both SATISFIED, learned 742/744): the

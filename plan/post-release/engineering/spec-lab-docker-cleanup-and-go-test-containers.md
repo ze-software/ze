@@ -669,8 +669,8 @@ What blocks closing, by the rule that demands it:
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | First nightly `docker-peers` (and `live-rpki`) run id: AC-25, A-8 | needs an owner-ordered push | none yet (closure blocker) |
-| On the owner's Mac: `./le perf run dut ze` with Ctrl-C, the FreeRtr `--build-context` build, A-2 (`kern.bootsessionuuid`), A-3 (IOPlatformUUID), A-5 (Colima, Docker Desktop) | needs the owner's Mac; moved by the owner, 2026-10-19 ("2 yes") | `plan/release/validation/spec-lab-docker-cleanup-on-macos.md` (AC-1..AC-4 for A-2, A-3, A-5; AC-6 for the Ctrl-C; AC-7 for the FreeRtr build) |
-| A-5 on the QEMU guest's Alpine dockerd (`./le test qemu docker-lab`) | outlasts an agent's five-minute bound; on macOS the labs run in that guest, so the Mac run covers it | `plan/release/validation/spec-lab-docker-cleanup-on-macos.md` (AC-5) |
+| On the owner's Mac: `./le perf run dut ze` with Ctrl-C, the FreeRtr `--build-context` build, A-2 (`kern.bootsessionuuid`), A-3 (IOPlatformUUID), A-5 (Colima, Docker Desktop) | needs the owner's Mac; moved by the owner, 2026-10-19 ("2 yes") done by spec-lab-docker-cleanup-on-macos, closed 2026-10-23 (its record is in git history): AC-1, AC-2, AC-4, AC-6, AC-7 passed on the Mac; AC-3 was replaced by the unit-tested reboot verdict |
+| A-5 on the QEMU guest's Alpine dockerd (`./le test qemu docker-lab`) | outlasts an agent's five-minute bound; on macOS the labs run in that guest, so the Mac run covers it done by spec-lab-docker-cleanup-on-macos, closed 2026-10-23: its AC-5 label and cleanup half passed in the guest booting Ze's docker-host image (the guest no longer runs Alpine) |
 | Real runs stopped with Ctrl-C of `l2tp-test`, `vpp-test`, `vpp-iface-test`, `verify evidence release-candidate`, and the terminal-demo image build | not recorded in this spec or its handover | none yet (closure blocker) |
 | `./le go lint run` scoped over the packages each handover 06 section names (linux and darwin flavors), `./le test unit all`, `./le test functional gating`, `./le verify worktree` | another session owns them (owner, 2026-10-19) | owed gates, not scope |
 
@@ -705,10 +705,10 @@ What blocks closing, by the rule that demands it:
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | confirmed on Linux | `TestCleanupOrphansVerdictTable`; `TestKilledLabRunIsCleanedByNextStart` 2026-10-19 |
-| A-2 | Linux confirmed; macOS moved to `plan/release/validation/spec-lab-docker-cleanup-on-macos.md` (owner, 2026-10-19, "2 yes") | Linux: the real-daemon runs labeled with the host boot id; macOS: that spec's AC-1, AC-3 |
-| A-3 | Linux confirmed; macOS moved to `plan/release/validation/spec-lab-docker-cleanup-on-macos.md` (owner, 2026-10-19, "2 yes") | Linux: `/etc/machine-id`, same runs; macOS: that spec's AC-1, AC-2 |
+| A-2 | Linux confirmed; macOS readable without privilege, confirmed by spec-lab-docker-cleanup-on-macos (closed 2026-10-23) | Linux: the real-daemon runs labeled with the host boot id; macOS: that spec's AC-1. Change on reboot unproven on a Mac and not load-bearing: `judgeOtherBoot` and the pid lookup in `ownerJudge.judge` (`internal/le/interoplab/orphans.go`) both reach ownerGone |
+| A-3 | Linux confirmed; macOS confirmed by spec-lab-docker-cleanup-on-macos (closed 2026-10-23) | Linux: `/etc/machine-id`, same runs; macOS: that spec's AC-1, AC-2 |
 | A-4 | confirmed | distinct image ids 4eba20710da2 and b382d29fd516 (2026-10-18) |
-| A-5 | Linux host confirmed; Colima, Docker Desktop and the guest dockerd moved to `plan/release/validation/spec-lab-docker-cleanup-on-macos.md` (owner, 2026-10-19, "2 yes") | Linux: `TestKilledLabRunIsCleanedByNextStart` 2026-10-19; Colima and Docker Desktop: that spec's AC-4; the guest dockerd: its AC-5 |
+| A-5 | Linux host confirmed; Colima and the guest dockerd confirmed by spec-lab-docker-cleanup-on-macos (closed 2026-10-23); Docker Desktop dropped by the owner 2026-10-21 (Colima runs the same engine) | Linux: `TestKilledLabRunIsCleanedByNextStart` 2026-10-19; Colima and Docker Desktop: that spec's AC-4; the guest dockerd: its AC-5 |
 | A-6 | broken | the scanner moved to `internal/le/procscan` (`ffd98a4193`) |
 | A-7 | confirmed | `./le arch tier check` exit 0, 2026-10-19 |
 | A-8 | unvalidated | the first nightly run (AC-25) |
