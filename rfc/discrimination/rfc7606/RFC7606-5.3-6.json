@@ -1,0 +1,14 @@
+[
+  {
+    "rid": "RFC7606-5.3-6",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc7606-reset.ci",
+    "unit-sha": "b75a3908a82544b8",
+    "claim-sha": "9d0f9e82402e6e2e",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateMPAttrLength",
+    "producer-sha": "dbb4f2073ee8f0dc",
+    "break": "body of validateMPAttrLength replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001A030309800E020001"
+  }
+]
