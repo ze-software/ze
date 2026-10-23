@@ -493,6 +493,12 @@ func ValidateUpdateRFC7606AddPath(
 		if r := validateMPAttrLength(attrCode, pathAttrs[attrStart:pos], attrLen); r != nil {
 			return r
 		}
+		// RFC 7606 Section 7.11: the next-hop length, judged here for the same reason.
+		if attrCode == attrCodeMPReachNLRI {
+			if r := validateMPReachNextHop(pathAttrs[attrStart:pos], attrData); r != nil {
+				return r
+			}
+		}
 
 		// Validate specific attributes per RFC 7606 Section 7
 		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
@@ -717,7 +723,6 @@ func init() {
 	attrValidators[attrCodeClusterList] = validateClusterListAttr
 	attrValidators[attrCodeExtCommunity] = validateExtCommunityAttr
 	attrValidators[attrCodeLargeCommunity] = validateLargeCommunityAttr
-	attrValidators[attrCodeMPReachNLRI] = validateMPReachAttr
 	attrValidators[attribute.AttrAIGP] = validateAIGPAttr
 }
 
@@ -974,12 +979,6 @@ func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RF
 		}
 	}
 	return nil
-}
-
-// RFC 7606 Section 7.11: MP_REACH_NLRI next-hop validation. The minimum length is judged
-// earlier, by validateMPAttrLength in the walk.
-func validateMPReachAttr(_ uint8, _ int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
-	return validateMPReachNextHop(attrData)
 }
 
 // validateMPAttrLength refuses an MP_REACH_NLRI or MP_UNREACH_NLRI attribute too short to
@@ -1278,13 +1277,19 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 //
 // Valid lengths are defined by attribute.ValidNextHopLens -- the single source of truth
 // shared between encode (MPReachNLRI.WriteTo) and decode (this validator).
-func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
+//
+// attr is the whole attribute as received (flags, type code, length and value) and data its
+// value. The attribute is then incorrect, so the reset carries the RFC 4760 Section 7
+// NOTIFICATION built by MPAttributeErrorNotification from attr.
+func validateMPReachNextHop(attr, data []byte) *RFC7606ValidationResult {
 	// Need at least AFI (2) + SAFI (1) + NH_LEN (1) = 4 bytes
 	if len(data) < 4 {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    attrCodeMPReachNLRI,
 			Description: "RFC 7606 Section 7.11: MP_REACH_NLRI too short to parse next-hop",
+			// RFC 4760 Section 7.
+			Notification: MPAttributeErrorNotification(attr),
 		}
 	}
 
@@ -1300,6 +1305,8 @@ func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    attrCodeMPReachNLRI,
 			Description: b.Reset().Str("RFC 7606 Section 7.11: invalid next-hop length ").Int(int64(nhLen)).Str(" for AFI=").Int(int64(afi)).Str(" SAFI=").Int(int64(safi)).String(),
+			// RFC 4760 Section 7.
+			Notification: MPAttributeErrorNotification(attr),
 		}
 	}
 
@@ -1313,7 +1320,7 @@ func validatePrefixSIDForRoutes(pathAttrs, value []byte) *RFC7606ValidationResul
 	afi, safi, ok := attribute.PrefixSIDRouteFamily(pathAttrs)
 	if !ok {
 		// An MP_REACH_NLRI too short to name its family is a session reset in the
-		// walk (validateMPReachAttr), so this is not reached from a received
+		// walk (validateMPAttrLength), so this is not reached from a received
 		// UPDATE. Without a family no verdict can be read, so the routes are
 		// withdrawn rather than judged as some family they may not be.
 		return &RFC7606ValidationResult{

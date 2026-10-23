@@ -88,7 +88,7 @@ func TestRFC7606NLRILastPrefixExactlyFitsAccepted(t *testing.T) {
 // PREVENTS: rejecting a legitimate /128 host route.
 //
 // Driven through ValidateNLRISyntax with isIPv6=true. This is now the same code the
-// production path runs on MP attribute NLRI (validateMPReachAttr -> validateMPNLRISyntax
+// production path runs on MP attribute NLRI (validateMPNLRIField -> validateMPNLRISyntax
 // -> ValidateNLRISyntax), so this is a focused unit test of that shared helper; the
 // end-to-end §5.3-3 pair drives it through ValidateUpdateRFC7606
 // (TestRFC7606MPReachWellFormedAccepted positive, TestRFC7606NLRIPrefixLengthTooLongIPv6
@@ -112,7 +112,7 @@ func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
 // VALIDATES: an MP_REACH whose NLRI parses cleanly within the attribute is accepted.
 // PREVENTS: rejecting a well-formed multiprotocol announcement.
 //
-// Untagged: this is an IPv4 well-formed guard. validateMPReachAttr (rfc7606.go) now parses
+// Untagged: this is an IPv4 well-formed guard. validateMPNLRIField (rfc7606.go) now parses
 // the NLRI carried inside the attribute (validateMPNLRISyntax -> ValidateNLRISyntax), so a
 // last NLRI that overruns, or an IPv4 length greater than 32, is a session reset per §3(j).
 // The §5.3-3 and §5.3-4 coverage tags live on the IPv6 production-path pair in

@@ -234,6 +234,7 @@ attribute. An incorrect MP_REACH_NLRI or MP_UNREACH_NLRI sends 3/9 (Optional
 Attribute Error) with the whole MP attribute in the Data field, as RFC 4760
 Section 7 and RFC 4271 Section 6.3 ask: an MP_REACH_NLRI shorter than 5 octets
 or an MP_UNREACH_NLRI shorter than 3 (RFC 7606 Section 5.3), an MP_REACH_NLRI
+whose next-hop length its AFI/SAFI does not admit (RFC 7606 Section 7.11) or
 whose next hop overruns the attribute, and NLRI that cannot be parsed. That NLRI
 is judged by the prefix walk for unicast and multicast and by a family's
 registered syntax rule otherwise (`nlri.md`, "NLRI Receive Validation"); 3/10

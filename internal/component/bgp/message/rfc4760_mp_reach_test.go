@@ -239,11 +239,12 @@ func mpUnreachShortAttr() []byte {
 //
 // RFC requirement: RFC4760-7-1 positive -- an MP_REACH_NLRI with a next-hop length its AFI/SAFI
 // does not admit, and an MP_UNREACH_NLRI shorter than three octets, each return
-// RFC7606ActionSessionReset, the action that deletes the neighbor's routes for that AFI/SAFI
+// RFC7606ActionSessionReset, the action that deletes the neighbor's routes for that AFI/SAFI,
+// the next-hop one with NOTIFICATION 3/9 carrying the attribute
 // (internal/component/bgp/message/rfc7606.go validateMPReachNextHop, validateMPAttrLength).
 // RFC requirement: RFC4760-7-1 negative -- a well-formed MP_REACH_NLRI carrying ORIGIN and
 // AS_PATH returns RFC7606ActionNone, so a correct attribute never triggers the deletion
-// (internal/component/bgp/message/rfc7606.go validateMPReachAttr).
+// (internal/component/bgp/message/rfc7606.go validateMPReachNextHop).
 func TestRFC4760IncorrectMPAttributeResetsTheSession(t *testing.T) {
 	t.Parallel()
 
@@ -257,6 +258,29 @@ func TestRFC4760IncorrectMPAttributeResetsTheSession(t *testing.T) {
 			result.Description)
 		require.Equal(t, attrCodeMPReachNLRI, result.AttrCode,
 			"the refusal must name MP_REACH_NLRI (code 14)")
+		// RFC 4760 Section 7 names the subcode, RFC 4271 Section 6.3 the Data.
+		require.NotNil(t, result.Notification, "the reset must carry the RFC 4760 Section 7 NOTIFICATION")
+		require.Equal(t, NotifyUpdateOptionalAttr, result.Notification.ErrorSubcode)
+		require.Equal(t, NotifyUpdateMessage, result.Notification.ErrorCode)
+		require.Equal(t, mpReachBadNextHopAttr(), result.Notification.Data)
+	})
+
+	// validateMPAttrLength refuses a value shorter than 5 octets before the next-hop check
+	// runs, so this return path is reached only by a direct call. It is driven here so that
+	// every refusal validateMPReachNextHop can return carries the same NOTIFICATION.
+	t.Run("mp_reach too short for its next-hop length resets with the attribute", func(t *testing.T) {
+		t.Parallel()
+		value := []byte{0x00, 0x02, 0x01} // AFI = IPv6, SAFI = unicast, no next-hop length octet
+		attr := append([]byte{attrFlagOptional, attrCodeMPReachNLRI, byte(len(value))}, value...)
+
+		result := validateMPReachNextHop(attr, value)
+		require.NotNil(t, result, "a value with no next-hop length octet must be refused")
+		require.Equal(t, RFC7606ActionSessionReset, result.Action, result.Description)
+		// RFC 4760 Section 7 names the subcode, RFC 4271 Section 6.3 the Data.
+		require.NotNil(t, result.Notification, "the reset must carry the RFC 4760 Section 7 NOTIFICATION")
+		require.Equal(t, NotifyUpdateMessage, result.Notification.ErrorCode)
+		require.Equal(t, NotifyUpdateOptionalAttr, result.Notification.ErrorSubcode)
+		require.Equal(t, attr, result.Notification.Data)
 	})
 
 	t.Run("incorrect mp_unreach length resets", func(t *testing.T) {

@@ -3,8 +3,8 @@
     "rid": "RFC4760-7-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession",
-    "unit-sha": "7597b8e48139830d",
-    "claim-sha": "cd22d9ae5e59378c",
+    "unit-sha": "64fd9b555e3915ef",
+    "claim-sha": "bd8967eafca35b05",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateMPAttrLength",
     "producer-sha": "dbb4f2073ee8f0dc",
@@ -14,12 +14,12 @@
     "rid": "RFC4760-7-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession",
-    "unit-sha": "7597b8e48139830d",
-    "claim-sha": "5086a41664158e33",
+    "unit-sha": "64fd9b555e3915ef",
+    "claim-sha": "5bfe9e16a484454f",
     "route": "revert",
-    "producer": "internal/component/bgp/message/rfc7606.go::validateMPReachAttr",
-    "producer-sha": "3cdac3b6b91ed37f",
-    "break": "body of validateMPReachAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/message/rfc7606.go::validateMPReachNextHop",
+    "producer-sha": "e8c5b7a5ddabf3e1",
+    "break": "body of validateMPReachNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4760-7-1",

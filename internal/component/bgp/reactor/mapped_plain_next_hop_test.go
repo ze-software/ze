@@ -296,7 +296,14 @@ func TestMappedPlainNextHopForwarding(t *testing.T) {
 							if publications != 0 || len(f.conn.written()) != 0 || !bytes.Equal(body, original) {
 								t.Fatalf("reset published=%d recipient=%x original changed=%v", publications, f.conn.written(), !bytes.Equal(body, original))
 							}
-							wantNotification := mustHex(t, "ffffffffffffffffffffffffffffffff0015030301")
+							// RFC 4760 Section 7: an MP_REACH_NLRI whose next-hop length its
+							// AFI/SAFI does not admit is incorrect, so the reset is UPDATE
+							// Message Error / Optional Attribute Error (3/9) and its Data is
+							// the whole attribute (RFC 4271 Section 6.3).
+							mpAttr := append([]byte{0x80, 14, byte(len(reach))}, reach...)
+							wantNotification := mustHex(t, "ffffffffffffffffffffffffffffffff")
+							wantNotification = append(wantNotification, 0, byte(message.HeaderLen+2+len(mpAttr)), 3, 3, 9)
+							wantNotification = append(wantNotification, mpAttr...)
 							if got := sourceConn.written(); !bytes.Equal(got, wantNotification) {
 								t.Fatalf("reset notification=%x want=%x", got, wantNotification)
 							}
