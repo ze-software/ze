@@ -712,6 +712,21 @@ The block name is the ExaBGP process name, because that is the name a neighbor's
 `api { processes [ ... ] }` list refers to. A block with no `run` command is
 REFUSED and the refusal names it.
 
+The `run` leaf is one string, and the runner splits it into the script's argv
+the way a POSIX shell does, with no expansion: blanks separate words, and single
+or double quotes group them. An unclosed quote is refused. ExaBGP takes the
+program and every word after it on its `run` line, and hands that list to
+`subprocess.Popen` with no shell (4.2 and 5.0 `configuration/process/parser.py`
+`run`: `return [prg] + [_ for _ in tokeniser.generator]`). `ze exabgp migrate`
+therefore writes that list as a command line, quoting a word the way Python's
+`shlex.quote` does, so `run python3 /opt/inject.py "two words";` becomes
+`run "python3 /opt/inject.py 'two words'"` and the script runs with the argv
+ExaBGP would have given it.
+
+<!-- source: internal/exabgp/bridge/bridge_command_line.go -- JoinCommandLine -->
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- SplitCommandLine -->
+<!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- runArgv -->
+
 The bridge forks one child for each block and reads commands from EVERY child's
 stdout. It fans each event out to the children the event's peer FEEDS. The ack is
 per child: each script writes a line and blocks for its own `done`, and
