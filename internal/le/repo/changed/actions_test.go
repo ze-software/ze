@@ -24,9 +24,31 @@ import (
 // would use the DEVELOPER's own tree.
 func useCheckout(t *testing.T, root string) {
 	t.Helper()
-	t.Setenv("ZE_REPO_ROOT", root)
-	env.ResetCache()
+	useEnvironment(t, "ZE_REPO_ROOT", root)
+}
+
+// useEnvironment replaces every spelling of a fixture key, then restores the
+// inherited spellings before invalidating the cache at cleanup.
+func useEnvironment(t *testing.T, name, value string) {
+	t.Helper()
 	t.Cleanup(env.ResetCache)
+	original := os.Environ()
+	kept := env.Without(original, name)
+	// Cleanup is LIFO; remove in reverse so equivalent spellings regain their order.
+	for i := len(original) - 1; i >= 0; i-- {
+		entry := original[i]
+		if len(kept) > 0 && entry == kept[len(kept)-1] {
+			kept = kept[:len(kept)-1]
+			continue
+		}
+		key, before, _ := strings.Cut(entry, "=")
+		t.Setenv(key, before)
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("unset %s: %v", key, err)
+		}
+	}
+	t.Setenv(name, value)
+	env.ResetCache()
 }
 
 // gitFixture builds a checkout with one mapped and one unmapped change.
@@ -112,10 +134,8 @@ func TestThePackagesVerbAnswersThePrecomputedFile(t *testing.T) {
 		t.Fatalf("publish the package answer: %v", err)
 	}
 
-	t.Setenv("ZE_REPO_ROOT", root)
-	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", scope)
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
+	useCheckout(t, root)
+	useEnvironment(t, "ZE_VERIFY_SCOPE_PACKAGES", scope)
 
 	payload, code := Answer([]string{"packages"})
 	if code != 0 {
@@ -141,12 +161,37 @@ func TestTheScopeReadsThePublishedFileNameFromTheEnvironment(t *testing.T) {
 	if err := os.WriteFile(scope, []byte("./cmd/ze\n"), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", scope)
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
+	useEnvironment(t, "ZE_VERIFY_SCOPE_PACKAGES", scope)
 
 	if got := newScope(root).File; got != scope {
 		t.Errorf("the scope reads its file as %q, want %q", got, scope)
+	}
+}
+
+// TestScopeFixtureRestoresThePublishedSpellingOrder reads the scope before and
+// after nested fixture cleanup, with conflicting dotted spellings inherited.
+func TestScopeFixtureRestoresThePublishedSpellingOrder(t *testing.T) {
+	root := t.TempDir()
+	useEnvironment(t, "ZE_VERIFY_SCOPE_PACKAGES", "outer")
+	first := filepath.Join(root, "first.txt")
+	second := filepath.Join(root, "second.txt")
+	fixture := filepath.Join(root, "fixture.txt")
+	t.Setenv("ze.verify.scope.packages", first)
+	t.Setenv("Ze.Verify_Scope.Packages", second)
+	env.ResetCache()
+	if got := newScope(root).File; got != second {
+		t.Fatalf("before override: scope = %q, want %q", got, second)
+	}
+
+	t.Run("override", func(t *testing.T) {
+		useEnvironment(t, "ZE_VERIFY_SCOPE_PACKAGES", fixture)
+		if got := newScope(root).File; got != fixture {
+			t.Fatalf("overridden scope = %q, want %q", got, fixture)
+		}
+	})
+
+	if got := newScope(root).File; got != second {
+		t.Errorf("after cleanup: scope = %q, want %q", got, second)
 	}
 }
 

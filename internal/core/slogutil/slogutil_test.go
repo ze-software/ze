@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,13 +16,67 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// resetEnvCache resets the env cache so tests using t.Setenv get fresh lookups.
-// t.Setenv modifies os.Environ but env.Get reads from a cached copy. Without
-// this, tests see stale values from earlier tests that called env.Set or ApplyLogConfig.
-func resetEnvCache(t *testing.T) {
+// resetEnvCache removes inherited spellings of the requested exact keys and
+// resets cached lookups. Call it before t.Setenv so cleanup restores the
+// environment before invalidating the cache.
+func resetEnvCache(t *testing.T, keys ...string) {
 	t.Helper()
-	env.ResetCache()
 	t.Cleanup(env.ResetCache)
+	if len(keys) == 0 {
+		env.ResetCache()
+		return
+	}
+	environ := os.Environ()
+	kept := env.Without(environ, keys...)
+	remaining := len(kept)
+	// Reverse removal makes LIFO cleanup restore same-kind alias precedence.
+	for _, entry := range slices.Backward(environ) {
+		if remaining > 0 {
+			if entry == kept[remaining-1] {
+				remaining--
+				continue
+			}
+		}
+		name, value, _ := strings.Cut(entry, "=")
+		t.Setenv(name, value)
+		require.NoError(t, os.Unsetenv(name))
+	}
+	env.ResetCache()
+}
+
+// TestResetEnvCacheRestoresAliases verifies exact-key isolation, restoration,
+// and cache invalidation after a nested fixture has populated the cache.
+func TestResetEnvCacheRestoresAliases(t *testing.T) {
+	resetEnvCache(t, "ze.log.server")
+	t.Setenv("ze.log.server", "err")
+	t.Setenv("Ze.LoG_sErVeR", "warn")
+	t.Setenv("ZE_LOG_SERVER", "info")
+	t.Setenv("Ze.LoG_sErVeR.extra", "untouched")
+	require.Equal(t, "warn", env.Get("ze.log.server"))
+
+	t.Run("isolated", func(t *testing.T) {
+		resetEnvCache(t, "ze.log.server")
+		for _, name := range []string{"ze.log.server", "Ze.LoG_sErVeR", "ZE_LOG_SERVER"} {
+			_, present := os.LookupEnv(name)
+			assert.False(t, present, "%s must be absent", name)
+		}
+		value, present := os.LookupEnv("Ze.LoG_sErVeR.extra")
+		assert.True(t, present)
+		assert.Equal(t, "untouched", value)
+		t.Setenv("ze_log_server", "debug")
+		assert.Equal(t, "debug", env.Get("ze.log.server"))
+	})
+
+	for name, want := range map[string]string{
+		"ze.log.server": "err",
+		"Ze.LoG_sErVeR": "warn",
+		"ZE_LOG_SERVER": "info",
+	} {
+		value, present := os.LookupEnv(name)
+		assert.True(t, present)
+		assert.Equal(t, want, value)
+	}
+	assert.Equal(t, "warn", env.Get("ze.log.server"))
 }
 
 // TestLoggerDefaultWarn verifies WARN level when env var not set.
@@ -28,12 +84,7 @@ func resetEnvCache(t *testing.T) {
 // VALIDATES: Subsystems default to WARN level (shows warnings and errors).
 // PREVENTS: Missing important warnings/errors in production.
 func TestLoggerDefaultWarn(t *testing.T) {
-	resetEnvCache(t)
-	// Clear any existing env vars using t.Setenv (auto-restores on test end)
-	t.Setenv("ze.log.test", "")
-	t.Setenv("ze_log_test", "")
-	t.Setenv("ze.log", "")
-	t.Setenv("ze_log", "")
+	resetEnvCache(t, "ze.log.test", "ze.log")
 
 	logger := Logger("test")
 	require.NotNil(t, logger)
@@ -79,9 +130,7 @@ func TestLoggerEnabledDot(t *testing.T) {
 // VALIDATES: Underscore notation enables logging at specified level.
 // PREVENTS: Underscore notation parsing failure.
 func TestLoggerEnabledUnderscore(t *testing.T) {
-	resetEnvCache(t)
-	// Ensure dot notation not set
-	t.Setenv("ze.log.server", "")
+	resetEnvCache(t, "ze.log.server")
 	t.Setenv("ze_log_server", "debug")
 
 	logger := Logger("server")
@@ -441,11 +490,8 @@ func TestLoggerHierarchicalSpecificOverridesParent(t *testing.T) {
 // VALIDATES: Parent level applies to all child subsystems.
 // PREVENTS: Missing inheritance from parent level.
 func TestLoggerHierarchicalParentLevel(t *testing.T) {
-	resetEnvCache(t)
+	resetEnvCache(t, "ze.log.bgp", "ze.log.bgp.fsm")
 	t.Setenv("ze.log.bgp", "debug")
-	// Ensure specific is not set
-	t.Setenv("ze.log.bgp.fsm", "")
-	t.Setenv("ze_log_bgp_fsm", "")
 
 	logger := Logger("bgp.fsm")
 	require.NotNil(t, logger)
@@ -459,11 +505,8 @@ func TestLoggerHierarchicalParentLevel(t *testing.T) {
 // VALIDATES: Root ze.log level applies to all subsystems.
 // PREVENTS: Root level being ignored.
 func TestLoggerHierarchicalRootLevel(t *testing.T) {
-	resetEnvCache(t)
+	resetEnvCache(t, "ze.log", "ze.log.server")
 	t.Setenv("ze.log", "info")
-	// Ensure specific and parent are not set
-	t.Setenv("ze.log.server", "")
-	t.Setenv("ze_log_server", "")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -476,7 +519,7 @@ func TestLoggerHierarchicalRootLevel(t *testing.T) {
 // TestLoggerHierarchicalDotAndUnderscoreEquivalent verifies dot and underscore map
 // to the same env cache key (both are normalized to lowercase underscores).
 //
-// VALIDATES: ze.log.bgp.fsm and ze_log_bgp_fsm are equivalent (last-set wins in cache).
+// VALIDATES: ze.log.bgp.fsm and ze_log_bgp_fsm resolve to the same key.
 // PREVENTS: Confusion about which notation takes effect.
 func TestLoggerHierarchicalDotAndUnderscoreEquivalent(t *testing.T) {
 	resetEnvCache(t)
@@ -495,8 +538,7 @@ func TestLoggerHierarchicalDotAndUnderscoreEquivalent(t *testing.T) {
 // VALIDATES: ze_log_bgp_fsm works when ze.log.bgp.fsm is not set.
 // PREVENTS: Underscore notation being completely ignored.
 func TestLoggerHierarchicalUnderscoreFallback(t *testing.T) {
-	resetEnvCache(t)
-	t.Setenv("ze.log.bgp.fsm", "")
+	resetEnvCache(t, "ze.log.bgp.fsm")
 	t.Setenv("ze_log_bgp_fsm", "debug")
 
 	logger := Logger("bgp.fsm")

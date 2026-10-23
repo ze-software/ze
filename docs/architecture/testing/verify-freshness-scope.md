@@ -53,10 +53,11 @@ The verify runner resolves the selection once and publishes its package and feat
 
 <!-- source: internal/le/verify/engine/scope.go -- publishChangeScope -->
 
-Tests overriding a published scope must keep its dotted and uppercase
-environment spellings consistent before resetting the environment cache.
-Clearing one spelling while assigning the other makes the fixture depend on
-their inherited order: both normalize to the same cache key.
+Tests overriding a published scope must remove every equivalent case and
+separator spelling of that exact key before assigning the fixture value and
+resetting the environment cache. A dotted spelling wins over a nondotted one
+regardless of inherited order, even when the dotted value is empty. Cleanup
+restores the original environment before resetting the cache again.
 <!-- source: internal/core/env/env.go -- ensureCache -->
 <!-- source: internal/le/repo/changed/baseline_test.go -- TestRaceSelectionHonorsPublishedFullScope -->
 

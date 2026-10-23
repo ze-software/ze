@@ -487,22 +487,27 @@ func TestAnUnreadableStallWindowIsRefusedRatherThanDefaulted(t *testing.T) {
 	}
 }
 
-// unset removes one environment variable for the length of a case, and puts
-// back whatever was there.
+// unset removes every spelling of one environment key for the length of a case.
+// The cache is reset after the original environment has been restored.
 func unset(t *testing.T, name string) {
 	t.Helper()
-	before, had := os.LookupEnv(name)
-	if !had {
-		return
-	}
-	t.Cleanup(func() {
-		if err := os.Setenv(name, before); err != nil {
-			t.Logf("restore %s: %v", name, err)
+	t.Cleanup(env.ResetCache)
+	original := os.Environ()
+	kept := env.Without(original, name)
+	// Cleanup is LIFO; remove in reverse so equivalent spellings regain their order.
+	for i := len(original) - 1; i >= 0; i-- {
+		entry := original[i]
+		if len(kept) > 0 && entry == kept[len(kept)-1] {
+			kept = kept[:len(kept)-1]
+			continue
 		}
-	})
-	if err := os.Unsetenv(name); err != nil {
-		t.Fatalf("unset %s: %v", name, err)
+		key, value, _ := strings.Cut(entry, "=")
+		t.Setenv(key, value)
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("unset %s: %v", key, err)
+		}
 	}
+	env.ResetCache()
 }
 
 // TestAMalformedInvocationIsRefusedWithTheUsageCode pins the answer for a
@@ -564,9 +569,34 @@ func TestReleaseRecordsTheVerdictWhereAFollowerFindsIt(t *testing.T) {
 // both sides of the change.
 func detach(t *testing.T) {
 	t.Helper()
-	t.Setenv("ZE_RUN_JOB", "")
+	unset(t, ParentKey)
+}
+
+// TestDetachRestoresTheParentSpellingOrder drives nested fixture cleanup through
+// the admission reader, with two dotted spellings naming different parents.
+func TestDetachRestoresTheParentSpellingOrder(t *testing.T) {
+	unset(t, ParentKey)
+	root := t.TempDir()
+	first := writeEntry(t, root, "first", "LABEL=first\n")
+	second := writeEntry(t, root, "second", "LABEL=second\n")
+	t.Setenv("ze.run.job", first)
+	t.Setenv("Ze.Run_Job", second)
 	env.ResetCache()
-	t.Cleanup(env.ResetCache)
+	adm := admission(t, root)
+	if label, nested := adm.insideParent(); !nested || label != "second" {
+		t.Fatalf("before detach: parent = (%q, %v), want second", label, nested)
+	}
+
+	t.Run("detached", func(t *testing.T) {
+		detach(t)
+		if label, nested := adm.insideParent(); nested {
+			t.Fatalf("detached admission still reads parent %q", label)
+		}
+	})
+
+	if label, nested := adm.insideParent(); !nested || label != "second" {
+		t.Errorf("after cleanup: parent = (%q, %v), want second", label, nested)
+	}
 }
 
 // admission answers an admission over one fixture tree, polling fast enough

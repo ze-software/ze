@@ -242,13 +242,16 @@ name that `Get` never reads, so the value is ignored without a message
 (`plan/journal/silent-fall-through.md`, 2026-09-24). When several spellings
 occur in the inherited environment, a spelling with a dot wins over one
 without, whatever their order, which is ExaBGP's own precedence for its
-`exabgp.*` settings; among spellings of the same kind the last entry wins. This
-is separate from registered alias precedence.
+`exabgp.*` settings, even when the dotted value is empty; among spellings of the
+same kind the last entry wins. This is separate from registered alias precedence.
 `Set()` removes other spellings of the canonical key and publishes one canonical
 OS entry, so a cache reset or a child process sees the value just written.
 `ResetCache()` rereads the environment; it does not remove inherited values.
-Tests that use `t.Setenv` directly MUST replace every conflicting spelling before
-resetting the cache, and MUST reset it again after restoring the environment.
+Tests that use `t.Setenv` directly MUST remove every conflicting spelling before
+setting an alias-only fixture and resetting the cache. Setting a dotted key to
+`""` does not remove it and still overrides an underscore value. Register cache
+cleanup before the `t.Setenv` restoration callbacks: cleanup runs in reverse
+order, so the cache is invalidated only after the inherited environment is restored.
 
 `Without()` creates a child environment with all case/separator spellings of
 the requested exact keys removed. It leaves the parent environment unchanged

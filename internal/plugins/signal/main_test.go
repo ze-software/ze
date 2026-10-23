@@ -2,6 +2,7 @@ package signal
 
 import (
 	"net"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -9,6 +10,77 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 )
+
+// resetResolveEnv removes all spellings of the requested exact keys. Call it
+// before t.Setenv: cleanup restores inherited values before resetting the cache.
+func resetResolveEnv(t *testing.T, keys ...string) {
+	t.Helper()
+	t.Cleanup(env.ResetCache)
+	if len(keys) == 0 {
+		env.ResetCache()
+		return
+	}
+	environ := os.Environ()
+	kept := env.Without(environ, keys...)
+	remaining := len(kept)
+	// Reverse removal makes LIFO cleanup restore same-kind alias precedence.
+	for _, entry := range slices.Backward(environ) {
+		if remaining > 0 {
+			if entry == kept[remaining-1] {
+				remaining--
+				continue
+			}
+		}
+		name, value, _ := strings.Cut(entry, "=")
+		t.Setenv(name, value)
+		if err := os.Unsetenv(name); err != nil {
+			t.Fatalf("unset %s: %v", name, err)
+		}
+	}
+	env.ResetCache()
+}
+
+// TestResetResolveEnvRestoresAliases verifies exact-key isolation and that
+// cleanup restores inherited spellings before invalidating a populated cache.
+func TestResetResolveEnvRestoresAliases(t *testing.T) {
+	resetResolveEnv(t, "ze.ssh.host")
+	t.Setenv("ze.ssh.host", "10.0.0.7")
+	t.Setenv("Ze.SsH_hOsT", "10.0.0.9")
+	t.Setenv("ZE_SSH_HOST", "10.0.0.8")
+	t.Setenv("Ze.SsH_hOsT.extra", "untouched")
+	if got := resolveHost(""); got != "10.0.0.9" {
+		t.Fatalf("inherited host: got %q, want 10.0.0.9", got)
+	}
+
+	t.Run("isolated", func(t *testing.T) {
+		resetResolveEnv(t, "ze.ssh.host")
+		for _, name := range []string{"ze.ssh.host", "Ze.SsH_hOsT", "ZE_SSH_HOST"} {
+			if _, present := os.LookupEnv(name); present {
+				t.Errorf("%s must be absent", name)
+			}
+		}
+		if value, _ := os.LookupEnv("Ze.SsH_hOsT.extra"); value != "untouched" {
+			t.Errorf("neighboring key: got %q, want untouched", value)
+		}
+		t.Setenv("ZE_SSH_HOST", "10.0.0.5")
+		if got := resolveHost(""); got != "10.0.0.5" {
+			t.Errorf("isolated host: got %q, want 10.0.0.5", got)
+		}
+	})
+
+	for name, want := range map[string]string{
+		"ze.ssh.host": "10.0.0.7",
+		"Ze.SsH_hOsT": "10.0.0.9",
+		"ZE_SSH_HOST": "10.0.0.8",
+	} {
+		if value, _ := os.LookupEnv(name); value != want {
+			t.Errorf("restored %s: got %q, want %q", name, value, want)
+		}
+	}
+	if got := resolveHost(""); got != "10.0.0.9" {
+		t.Errorf("restored cached host: got %q, want 10.0.0.9", got)
+	}
+}
 
 // VALIDATES: resolveHost returns flag value when set
 // PREVENTS: env vars overriding explicit flag
@@ -24,8 +96,8 @@ func TestResolveHostFlag(t *testing.T) {
 // PREVENTS: env var not being read
 
 func TestResolveHostEnv(t *testing.T) {
+	resetResolveEnv(t, "ze.ssh.host")
 	t.Setenv("ze_ssh_host", "10.0.0.2")
-	env.ResetCache()
 
 	got := resolveHost("")
 	if got != "10.0.0.2" {
@@ -37,9 +109,7 @@ func TestResolveHostEnv(t *testing.T) {
 // PREVENTS: empty host causing connection failure
 
 func TestResolveHostDefault(t *testing.T) {
-	t.Setenv("ze_ssh_host", "")
-	t.Setenv("ze.ssh.host", "")
-	env.ResetCache()
+	resetResolveEnv(t, "ze.ssh.host")
 
 	got := resolveHost("")
 	if got != defaultHost {
@@ -61,8 +131,8 @@ func TestResolvePortFlag(t *testing.T) {
 // PREVENTS: env var not being read
 
 func TestResolvePortEnv(t *testing.T) {
+	resetResolveEnv(t, "ze.ssh.port")
 	t.Setenv("ze_ssh_port", "4444")
-	env.ResetCache()
 
 	got := resolvePort("")
 	if got != "4444" {
@@ -74,9 +144,7 @@ func TestResolvePortEnv(t *testing.T) {
 // PREVENTS: empty port causing connection failure
 
 func TestResolvePortDefault(t *testing.T) {
-	t.Setenv("ze_ssh_port", "")
-	t.Setenv("ze.ssh.port", "")
-	env.ResetCache()
+	resetResolveEnv(t, "ze.ssh.port")
 
 	got := resolvePort("")
 	if got != defaultPort {
@@ -130,9 +198,9 @@ func TestSignalCommandMissingArgs(t *testing.T) {
 
 func TestSignalCommandUnknown(t *testing.T) {
 	// Set env to avoid actual connections
+	resetResolveEnv(t, "ze.ssh.host", "ze.ssh.port")
 	t.Setenv("ze_ssh_host", "127.0.0.1")
 	t.Setenv("ze_ssh_port", "1")
-	env.ResetCache()
 
 	code := Run([]string{"unknown"})
 	if code != ExitNotRunning {
@@ -237,10 +305,8 @@ func TestLookupUnknown(t *testing.T) {
 // PREVENTS: only lowercase or dot notation being recognized
 
 func TestResolveHostUppercaseEnv(t *testing.T) {
-	t.Setenv("ze_ssh_host", "")
-	t.Setenv("ze.ssh.host", "")
+	resetResolveEnv(t, "ze.ssh.host")
 	t.Setenv("ZE_SSH_HOST", "10.0.0.5")
-	env.ResetCache()
 
 	got := resolveHost("")
 	if got != "10.0.0.5" {
@@ -252,10 +318,8 @@ func TestResolveHostUppercaseEnv(t *testing.T) {
 // PREVENTS: only lowercase or dot notation being recognized
 
 func TestResolvePortUppercaseEnv(t *testing.T) {
-	t.Setenv("ze_ssh_port", "")
-	t.Setenv("ze.ssh.port", "")
+	resetResolveEnv(t, "ze.ssh.port")
 	t.Setenv("ZE_SSH_PORT", "2223")
-	env.ResetCache()
 
 	got := resolvePort("")
 	if got != "2223" {
