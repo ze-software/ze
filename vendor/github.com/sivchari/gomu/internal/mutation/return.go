@@ -23,6 +23,11 @@ func (m *ReturnMutator) Name() string {
 	return returnMutatorName
 }
 
+// Description returns a human-readable summary of the mutator.
+func (m *ReturnMutator) Description() string {
+	return "Replace return values (flip bools, zero out literals)"
+}
+
 // CanMutate returns true if the node can be mutated by this mutator.
 func (m *ReturnMutator) CanMutate(node ast.Node) bool {
 	stmt, ok := node.(*ast.ReturnStmt)
@@ -40,15 +45,11 @@ func (m *ReturnMutator) CanMutate(node ast.Node) bool {
 }
 
 func (m *ReturnMutator) isMutableExpr(expr ast.Expr) bool {
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name == boolTrue || ident.Name == boolFalse
-	}
+	return len(m.mutateExpr(expr, token.Position{})) > 0
+}
 
-	if lit, ok := expr.(*ast.BasicLit); ok {
-		return lit.Kind == token.INT || lit.Kind == token.FLOAT || lit.Kind == token.STRING
-	}
-
-	return false
+func isBoolIdent(ident *ast.Ident) bool {
+	return ident.Name == boolTrue || ident.Name == boolFalse
 }
 
 // Mutate generates mutants for the given node.
@@ -70,7 +71,7 @@ func (m *ReturnMutator) Mutate(node ast.Node, fset *token.FileSet) []Mutant {
 }
 
 func (m *ReturnMutator) mutateExpr(expr ast.Expr, pos token.Position) []Mutant {
-	if ident, ok := expr.(*ast.Ident); ok {
+	if ident, ok := expr.(*ast.Ident); ok && isBoolIdent(ident) {
 		return m.mutateBoolIdent(ident, pos)
 	}
 
@@ -109,6 +110,10 @@ func (m *ReturnMutator) mutateBasicLit(lit *ast.BasicLit, pos token.Position) []
 	case token.STRING:
 		mutated = `""`
 	default:
+		return nil
+	}
+
+	if lit.Value == mutated {
 		return nil
 	}
 
@@ -151,7 +156,7 @@ func (m *ReturnMutator) applyToExpr(expr ast.Expr, mutant Mutant) bool {
 
 func (m *ReturnMutator) applyBoolIdent(expr ast.Expr, mutant Mutant) bool {
 	ident, ok := expr.(*ast.Ident)
-	if !ok {
+	if !ok || !isBoolIdent(ident) {
 		return false
 	}
 

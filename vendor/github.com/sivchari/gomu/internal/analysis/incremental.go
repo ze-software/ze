@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+const incrementalDisabledReason = "Incremental analysis disabled"
+
 // HistoryStore defines the interface for history storage.
 type HistoryStore interface {
 	GetEntry(filePath string) (HistoryEntry, bool)
@@ -20,13 +22,15 @@ type HistoryEntry struct {
 
 // IncrementalAnalyzer provides incremental analysis functionality.
 type IncrementalAnalyzer struct {
-	hasher       *FileHasher
-	git          *GitIntegration
-	history      HistoryStore
-	workDir      string
-	baseBranch   string
-	ignoreParser IgnoreParser
-	incremental  bool
+	hasher           *FileHasher
+	git              *GitIntegration
+	history          HistoryStore
+	workDir          string
+	baseBranch       string
+	baseSHA          string
+	ignoreParser     IgnoreParser
+	incremental      bool
+	includeGenerated bool
 }
 
 // IgnoreParser defines the interface for ignore file parsing.
@@ -35,6 +39,8 @@ type IgnoreParser interface {
 }
 
 // NewIncrementalAnalyzer creates a new incremental analyzer.
+//
+// When incremental is false every existing Go file is selected and history is not used to skip files.
 func NewIncrementalAnalyzer(workDir string, historyStore HistoryStore, incremental bool, baseBranch string) (*IncrementalAnalyzer, error) {
 	// Validate that the workDir exists
 	if _, err := os.Stat(workDir); err != nil {
@@ -59,10 +65,26 @@ func NewIncrementalAnalyzer(workDir string, historyStore HistoryStore, increment
 	}, nil
 }
 
+// SetBaseSHA sets the commit to diff against instead of the base branch.
+//
+// When set, changed files come from a tree diff against sha, so no git history
+// is needed and shallow clones work.
+func (a *IncrementalAnalyzer) SetBaseSHA(sha string) {
+	a.baseSHA = sha
+}
+
 // SetIgnoreParser sets the ignore parser for the analyzer.
 func (a *IncrementalAnalyzer) SetIgnoreParser(parser IgnoreParser) {
 	a.ignoreParser = parser
 	a.git.SetIgnoreParser(parser)
+}
+
+// SetIncludeGenerated controls whether files carrying the standard Go
+// generated-code marker are eligible as mutation targets. It is false by
+// default.
+func (a *IncrementalAnalyzer) SetIncludeGenerated(include bool) {
+	a.includeGenerated = include
+	a.git.SetIncludeGenerated(include)
 }
 
 // FileAnalysisResult represents the result of file analysis.
@@ -100,7 +122,10 @@ func (a *IncrementalAnalyzer) AnalyzeFiles() ([]FileAnalysisResult, error) {
 // getFilesToAnalyze returns the list of files that should be analyzed.
 func (a *IncrementalAnalyzer) getFilesToAnalyze() ([]string, error) {
 	if a.incremental && a.git.IsGitRepository() {
-		// Use Git diff to get changed files with intelligent default base branch
+		if a.baseSHA != "" {
+			return a.git.GetChangedFilesSince(a.baseSHA)
+		}
+
 		return a.git.GetChangedFiles(a.baseBranch)
 	}
 
@@ -132,14 +157,24 @@ func (a *IncrementalAnalyzer) analyzeFile(filePath string) (FileAnalysisResult, 
 
 	// Get previous entry from history
 	entry, exists := a.history.GetEntry(filePath)
+	if exists {
+		result.PreviousHash = entry.FileHash
+	}
+
+	// History-based skipping only applies when incremental analysis is enabled.
+	if !a.incremental {
+		result.NeedsUpdate = true
+		result.Reason = incrementalDisabledReason
+
+		return result, nil
+	}
+
 	if !exists {
 		result.NeedsUpdate = true
 		result.Reason = "No previous history"
 
 		return result, nil
 	}
-
-	result.PreviousHash = entry.FileHash
 
 	// Check if file has changed
 	if a.history.HasChanged(filePath, currentHash) {
@@ -165,27 +200,15 @@ func (a *IncrementalAnalyzer) analyzeFile(filePath string) (FileAnalysisResult, 
 
 // hasTestFilesChanged checks if test files related to the given file have changed.
 func (a *IncrementalAnalyzer) hasTestFilesChanged(filePath string) bool {
-	// Find related test files
-	testFiles := FindRelatedTestFiles(filePath)
+	currentHash := a.hasher.HashRelatedTests(filePath)
 
-	for _, testFile := range testFiles {
-		if _, err := os.Stat(testFile); os.IsNotExist(err) {
-			continue
-		}
-
-		currentHash, err := a.hasher.HashFile(testFile)
-		if err != nil {
-			continue
-		}
-
-		// Check if test file hash has changed
-		entry, exists := a.history.GetEntry(filePath)
-		if !exists || entry.TestHash != currentHash {
-			return true
-		}
+	entry, exists := a.history.GetEntry(filePath)
+	if !exists {
+		// Nothing to compare against; only a file that has tests counts as changed.
+		return currentHash != ""
 	}
 
-	return false
+	return entry.TestHash != currentHash
 }
 
 // GetFilesNeedingUpdate returns only the files that need mutation testing.
