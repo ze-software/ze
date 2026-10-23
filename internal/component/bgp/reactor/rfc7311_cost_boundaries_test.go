@@ -140,7 +140,9 @@ func TestRFC7311ExtendedNextHopCostRecovery(t *testing.T) {
 				0x80, 14, byte(len(mp)),
 			}
 			attrs = append(attrs, mp...)
-			f.forward(t, f.receive(t, makeUpdateBody(nil, attrs, nil)))
+			received := makeUpdateBody(nil, attrs, nil)
+			f.advertiseFirst(t, received)
+			f.forward(t, f.receive(t, received))
 			forwardSocketBarrier(t, f.r)
 			bodies := aigpSocketBodies(t, f.conn)
 			if len(bodies) != 1 {

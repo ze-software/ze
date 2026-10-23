@@ -38,8 +38,8 @@
     "rid": "RFC1997-Well-1",
     "polarity": "positive",
     "unit": "test/plugin/wellknown-no-export-egress.ci",
-    "unit-sha": "33443c676ea0169f",
-    "claim-sha": "afe9c396620c0d74",
+    "unit-sha": "a8f00941cc34916d",
+    "claim-sha": "217da1ee99c5a695",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
     "producer-sha": "1180e31db97ccb63",
@@ -50,7 +50,7 @@
     "rid": "RFC1997-Well-1",
     "polarity": "negative",
     "unit": "test/plugin/wellknown-no-export-egress.ci",
-    "unit-sha": "33443c676ea0169f",
+    "unit-sha": "a8f00941cc34916d",
     "claim-sha": "7360225e8076b216",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
@@ -62,12 +62,12 @@
     "rid": "RFC1997-Well-1",
     "polarity": "negative",
     "unit": "test/plugin/wellknown-no-export-withdraw-egress.ci",
-    "unit-sha": "ed9a4e03a062c33e",
+    "unit-sha": "115213e0c31726c5",
     "claim-sha": "90aa885c9d7f9777",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
-    "producer-sha": "215bcdb3f55a6061",
+    "producer-sha": "222f77983244b5f3",
     "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "expect=bgp:conn=1:seq=3:withdrawn=180A0000"
+    "citation": "expect=bgp:conn=1:seq=3:withdrawn=18C63364"
   }
 ]

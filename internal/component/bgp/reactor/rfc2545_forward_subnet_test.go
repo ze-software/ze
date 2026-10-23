@@ -178,7 +178,9 @@ func TestRFC2545ReceivedUnusableGlobalRefused(t *testing.T) {
 					hop = append(hop, netip.MustParseAddr("fe80::9").AsSlice()...)
 				}
 				raw := mustHex(t, "4020010db800070000")
-				id := f.receive(t, buildUpdatePayload(mixedAttrs(mixedReach(1, hop, raw)), nil))
+				body := buildUpdatePayload(mixedAttrs(mixedReach(1, hop, raw)), nil)
+				f.advertiseFirst(t, body)
+				id := f.receive(t, body)
 				if !destOnLink(f.destination) {
 					t.Fatal("fixture destination lost its on-link scope before dispatch")
 				}
@@ -463,6 +465,12 @@ func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail str
 	withdrawnAtReceipt bool) (recipient, published []*message.Update) {
 	t.Helper()
 	original := bytes.Clone(body)
+	if !withdrawnAtReceipt {
+		// A gate's withdrawal reaches only a recipient that was advertised
+		// the route, so the recipient first holds the source's earlier
+		// generation of it.
+		f.advertiseFirst(t, body)
+	}
 	t.Cleanup(func() {
 		if !bytes.Equal(body, original) {
 			t.Error("receive or forwarding changed the original UPDATE")

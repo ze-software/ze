@@ -46,6 +46,12 @@ func TestFlowSpecForwardingKeepsLegacyNextHop(t *testing.T) {
 			prefix := []byte{24, 203, 0, 113}
 			body = append(body, prefix...)
 			original := bytes.Clone(body)
+			if refused {
+				// RFC 4271 Section 3.1: only a previously advertised route is
+				// withdrawn, so the recipient first holds the unicast route
+				// whose sibling the gate then withdraws.
+				f.advertiseFirst(t, buildUpdatePayload(lowRSAttributes(), prefix))
+			}
 			id := f.receive(t, body)
 			f.forwardViaRIB(t, id)
 			forwardSocketBarrier(t, f.r)

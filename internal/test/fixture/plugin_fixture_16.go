@@ -703,24 +703,28 @@ func plugin16WellknownCounts(ctx context.Context, p *sdk.Plugin, internalWant, e
 }
 
 func plugin16WellknownNoAdvertise(ctx context.Context, p *sdk.Plugin) error {
-	// Every received route produces an announcement or a withdrawal. The peer
-	// fixture checks which NLRI field contains each prefix, not just this count.
-	if err := plugin16WellknownCounts(ctx, p, 3, 3, "internal peer was not sent the withdrawal, subconfed route and fence", "external peer was not sent both withdrawals and the fence"); err != nil {
+	// A refused route was never advertised to either session, so it produces
+	// no UPDATE at all (RFC 4271 Section 3.1): internal receives the subconfed
+	// route and the fence, external the fence alone. The peer fixture checks
+	// which NLRI field contains each prefix, not just this count.
+	if err := plugin16WellknownCounts(ctx, p, 2, 1, "internal peer was not sent the subconfed route and fence", "external peer was not sent the fence alone"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: internal peer was sent the withdrawal, subconfed route and fence")
-	fmt.Fprintln(os.Stderr, "OK: external peer was sent both withdrawals and the fence")
+	fmt.Fprintln(os.Stderr, "OK: internal peer was sent the subconfed route and fence")
+	fmt.Fprintln(os.Stderr, "OK: external peer was sent the fence alone")
 	return nil
 }
 
 func plugin16WellknownNoExport(ctx context.Context, p *sdk.Plugin) error {
-	// RFC 1997 forbids advertising the route, not withdrawing it. Both sessions
-	// receive two UPDATEs; the peer's scoped assertions distinguish their fields.
-	if err := plugin16WellknownCounts(ctx, p, 2, 2, "internal peer was not sent both routes", "external peer was not sent the withdrawal and fence"); err != nil {
+	// RFC 1997 forbids advertising the route. The external session was never
+	// advertised it, so it is owed no withdrawal either (RFC 4271 Section 3.1):
+	// it receives the fence alone, the internal session both routes. The peer's
+	// scoped assertions distinguish their fields.
+	if err := plugin16WellknownCounts(ctx, p, 2, 1, "internal peer was not sent both routes", "external peer was not sent the fence alone"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: internal peer received both routes")
-	fmt.Fprintln(os.Stderr, "OK: external peer was sent the withdrawal and fence")
+	fmt.Fprintln(os.Stderr, "OK: external peer was sent the fence alone")
 	return nil
 }
 
@@ -732,9 +736,10 @@ func plugin16WellknownWithdraw(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	// Include exactly one seed UPDATE on each destination, never a 10.0.0.0/24 seed.
-	// External: the seed, the 198.51.100.0/24 withdrawal, the 10.0.0.0/24
-	// withdrawal and the fence, each its own UPDATE.
-	if err := plugin16WellknownCounts(ctx, p, 4, 4, "internal peer was not sent the seed, both halves and the fence", "external peer was not sent the seed, both withdrawals and the fence"); err != nil {
+	// External: the seed, the 198.51.100.0/24 withdrawal and the fence, each its
+	// own UPDATE. 10.0.0.0/24 was never advertised there, so it is owed no
+	// withdrawal (RFC 4271 Section 3.1).
+	if err := plugin16WellknownCounts(ctx, p, 4, 3, "internal peer was not sent the seed, both halves and the fence", "external peer was not sent the seed, the withdrawal and the fence"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: internal peer received both halves and the fence")

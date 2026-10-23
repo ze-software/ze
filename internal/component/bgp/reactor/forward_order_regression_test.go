@@ -55,6 +55,10 @@ func TestForwardValidationOverflowRecoveryReachesSocket(t *testing.T) {
 	f.destination.settings.RSClient = true
 	f.destination.settings.NextHopMode = NextHopSelf
 	f.destination.refreshForwardFacts()
+	route := storedIPv4Route(f.source.Settings().Address.String())
+	// The validation withdrawal reaches only a destination that was advertised
+	// the path, so the destination first holds the source's announcement.
+	f.advertiseFirst(t, makeUpdateBody(nil, mustHex(t, route.AttrHex), []byte{24, 10, 0, 0}))
 	mux := newMixedBufMux()
 	mux.setByteBudget(1 << 20)
 	f.r.fwdPool.setOverflowMux(mux)
@@ -67,7 +71,6 @@ func TestForwardValidationOverflowRecoveryReachesSocket(t *testing.T) {
 	eligible := true
 	ribevents.RegisterValidationLookup(func(ribevents.ValidationRoute, uint64) bool { return eligible }, nil)
 	t.Cleanup(func() { ribevents.RegisterValidationLookup(nil, nil) })
-	route := storedIPv4Route(f.source.Settings().Address.String())
 	api := &reactorAPIAdapter{r: f.r}
 	for _, verdict := range []bool{true, false, true} {
 		eligible = verdict
@@ -364,6 +367,11 @@ func TestForwardFlowSpecOnlyGatePreservesUnicastSections(t *testing.T) {
 			}, nil, nil, nil)
 			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 			attrs := mustHex(t, storedIPv4Route(f.source.Settings().Address.String()).AttrHex)
+			// A refused rule is withdrawn only from a destination that was
+			// advertised it, so the destination first holds the rule.
+			var seed [64]byte
+			seeded := writeMPReach(seed[:], 0, fam, nil, rule)
+			f.advertiseFirst(t, makeUpdateBody(nil, append(bytes.Clone(attrs), seed[:seeded]...), nil))
 			f.forward(t, f.receive(t, makeUpdateBody(nil, attrs, []byte{24, 10, 0, 0})))
 			forwardSocketBarrier(t, f.r)
 			actions := []byte{0xc0, 16, 8, 0x80, 6, 0, 0, 0, 0, 0, 0}

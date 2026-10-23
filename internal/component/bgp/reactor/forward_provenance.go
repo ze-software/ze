@@ -165,8 +165,7 @@ func prepareFwdProvenance(item *fwdItem, original, transformed *wireu.WireUpdate
 					return err
 				}
 				_, receivedWithdrawal := p.withdrawn[key]
-				path.synthesized = !receivedWithdrawal
-				p.synthesizedWithdrawal = p.synthesizedWithdrawal || path.synthesized
+				p.synthesizedWithdrawal = p.synthesizedWithdrawal || !receivedWithdrawal
 			}
 			section.paths = append(section.paths, path)
 			return nil

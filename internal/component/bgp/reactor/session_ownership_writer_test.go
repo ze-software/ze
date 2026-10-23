@@ -269,12 +269,21 @@ func TestFinalWriterLateFlushFailureKeepsReplacement(t *testing.T) {
 }
 
 // TestFinalWriterMixedWithdrawalIntent reaches the actual withdrawal builder
-// and provenance producer: synthesized absent Q passes, original absent P does
-// not. The later unframeable source withdrawal returns an error without output.
+// and provenance producer: the synthesized withdrawal of Q, which the source
+// advertised to this destination first, passes, and the original withdrawal of
+// P, which this destination was never advertised, does not. The later
+// unframeable source withdrawal returns an error without output.
 func TestFinalWriterMixedWithdrawalIntent(t *testing.T) {
 	peer, conn, source := ownershipWriterPeer(t)
 	s := peer.session
 	q := []byte{24, 198, 51, 100}
+	// RFC 4271 Section 3.1: only a previously advertised route is withdrawn,
+	// so Q is advertised before its synthesized withdrawal is asked about.
+	announceQ := fwdPackUpdateBody(&message.Update{
+		PathAttributes: bytes.Clone(syncOrderAnnounceBody[4:24]), NLRI: q})
+	if err := ownershipWriterForward(t, peer, source, announceQ, false); err != nil {
+		t.Fatal(err)
+	}
 	original := fwdPackUpdateBody(&message.Update{WithdrawnRoutes: syncOrderPrefixWire,
 		PathAttributes: syncOrderAnnounceBody[4:24], NLRI: q})
 	converted := make([]byte, message.MaxMsgLen)
@@ -303,15 +312,15 @@ func TestFinalWriterMixedWithdrawalIntent(t *testing.T) {
 		t.Fatal(err)
 	}
 	bodies := updateBodies(t, conn.written())
-	if len(bodies) != 1 {
-		t.Fatalf("mixed synthesis wrote %d UPDATEs, want one", len(bodies))
+	if len(bodies) != 2 {
+		t.Fatalf("announcement and mixed synthesis wrote %d UPDATEs, want two", len(bodies))
 	}
-	sections, err := wire.ParseUpdateSections(bodies[0])
+	sections, err := wire.ParseUpdateSections(bodies[1])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(sections.Withdrawn(bodies[0]), q) || len(sections.NLRI(bodies[0])) != 0 {
-		t.Fatalf("original withdrawal inherited synthesized authority: %x", bodies[0])
+	if !bytes.Equal(sections.Withdrawn(bodies[1]), q) || len(sections.NLRI(bodies[1])) != 0 {
+		t.Fatalf("the withdrawal of never-advertised P was written beside Q's: %x", bodies[1])
 	}
 	// A dropped withdrawal of an owed key is noted as a mover: that guard is
 	// TestOwedKeyFenceInterleavings's, now that no destination-wide sequence
@@ -319,21 +328,21 @@ func TestFinalWriterMixedWithdrawalIntent(t *testing.T) {
 	if err := ownershipWriterForward(t, peer, source, syncOrderWithdrawBody, false); err != nil {
 		t.Fatal(err)
 	}
-	if len(updateBodies(t, conn.written())) != 1 {
+	if len(updateBodies(t, conn.written())) != 2 {
 		t.Fatal("entirely filtered withdrawal emitted an accidental EOR")
 	}
 	malformed := []byte{0, 2, 32, 192, 0, 0}
 	if err := ownershipWriterForward(t, peer, source, malformed, false); err == nil {
 		t.Fatal("unframeable source withdrawal passed wholesale")
 	}
-	if len(updateBodies(t, conn.written())) != 1 {
+	if len(updateBodies(t, conn.written())) != 2 {
 		t.Fatal("unframeable withdrawal reached the wire")
 	}
 	// The filtered malformed message did not corrupt the writer's frontier.
 	if err := peer.session.sendWithdraw(netip.MustParsePrefix(syncOrderPrefix), false); err != nil {
 		t.Fatal(err)
 	}
-	if len(updateBodies(t, conn.written())) != 2 {
+	if len(updateBodies(t, conn.written())) != 3 {
 		t.Fatal("explicit authorized local withdrawal stopped working")
 	}
 }

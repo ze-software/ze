@@ -39,9 +39,11 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:withdrawn=180A0000
-expect=bgp:conn=1:seq=3:announced=180A0900
+# peer2 was never advertised 10.0.0.0/24, so it is owed no withdrawal either
+# (RFC 4271 Section 3.1: only a previously advertised route is withdrawn).
+expect=bgp:conn=1:seq=2:announced=180A0900
 reject=bgp:conn=1:scope=announced:pattern=180A0000
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_PEER2
 
 # ze bgp configuration: the export filter sits on peer2, the peer ze forwards TO.

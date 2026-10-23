@@ -1031,8 +1031,9 @@ native route identity, outgoing ADD-PATH presence/ID and the current local or
 forwarded owner. Forwarded owners include stable source-peer identity and
 received path identity, not merely the source address. A withdrawal from another
 source cannot remove a replacement, even before a buffered batch flushes.
-Per-path synthesized withdrawals retain absent-route authority without granting
-it to received withdrawn siblings. This is a steady-state wire safeguard, not
+A withdrawal, received or synthesized by policy, is written only where the
+destination's adj-out holds a record for that route: a destination never
+advertised a route is sent no withdrawal of it (RFC 4271 Section 3.1). This is a steady-state wire safeguard, not
 a second selecting RIB.
 
 Ownership filtering runs after policy/transcoding and before PATHS-LIMIT.

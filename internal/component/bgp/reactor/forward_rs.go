@@ -418,8 +418,8 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	srcWellKnown := r.scanWellKnownEgress(wire.Payload(), sourcePeerAddr)
 
 	// A client an egress gate refuses the announcement is sent a WITHDRAWAL of
-	// every route this UPDATE names instead. The final writer preserves absent
-	// synthesized withdrawals without granting authority over another owner.
+	// every route this UPDATE names instead. The final writer sends it only
+	// where the client was advertised the route, and never over another owner.
 	var withdrawals fwdWithdrawal
 	var bySection []*Peer
 	for _, peer := range matchingPeers {

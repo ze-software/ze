@@ -14,7 +14,7 @@
     "rid": "RFC4659-3.2.1.1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4659_link_local_peering_test.go::TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair",
-    "unit-sha": "137407caa0d2ea45",
+    "unit-sha": "d9d01157a9a166c3",
     "claim-sha": "2805d4adac751e46",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",

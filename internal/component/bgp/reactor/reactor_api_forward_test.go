@@ -40,6 +40,14 @@ func (c *recordingConn) written() []byte {
 	return append([]byte(nil), c.buf.Bytes()...)
 }
 
+// reset forgets what was written so far, so a fixture's setup output is not
+// read as the output of the step under test.
+func (c *recordingConn) reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.buf.Reset()
+}
+
 func (c *recordingConn) Read([]byte) (int, error)         { return 0, io.EOF }
 func (c *recordingConn) Close() error                     { return nil }
 func (c *recordingConn) LocalAddr() net.Addr              { return testConnAddr{} }

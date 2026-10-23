@@ -232,8 +232,15 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			// is being elected may kill the chosen route, so it makes its
 			// source a mover of the record.
 			w.stageMover(key, owner)
+			// RFC 4271 Section 3.1: "the IP prefix that expresses the
+			// destination for a previously advertised route can be
+			// advertised in the WITHDRAWN ROUTES field". A key this
+			// recipient holds no record of was never advertised to it, so
+			// neither a received nor a synthesized withdrawal is sent: a
+			// path held ineligible from its first receipt, or refused by an
+			// egress gate before any announcement, stays silent.
 			if entry == nil {
-				return owner.synthesized, nil
+				return false, nil
 			}
 			if !adjOutSameOwner(entry.owner, owner) {
 				return false, nil
@@ -381,10 +388,11 @@ type adjOutOwe struct {
 // pass removes a path, writeUpdateBody materializes the shorter body and
 // copies it over the session write buffer the original sat in, so an owed
 // path that stood before an emitted one would be read back as the emitted
-// one. The route server's merged withdrawal of a mixed UPDATE is that shape
-// (test/plugin/wellknown-no-export-withdraw-egress.ci): the client was owed
-// the received withdrawal, the RIB was asked about the synthesized one, and
-// nothing reached the wire.
+// one. A mixed UPDATE that withdraws a route the source owns at this client
+// and announces another is that shape: the withdrawal is owed, the
+// announcement is written, and an owe read back from the rewritten buffer
+// would ask the RIB about the announced prefix while the withdrawn one never
+// reached the wire.
 // RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message."

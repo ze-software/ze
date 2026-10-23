@@ -287,6 +287,9 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 				f.destination.settings.PeerAS = f.destination.settings.LocalAS
 				f.destination.settings.NextHopMode = NextHopUnchanged
 				f.destination.refreshForwardFacts()
+				// A policy reject withdraws only a route the destination was
+				// advertised (RFC 4271 Section 3.1).
+				f.advertiseFirst(t, body)
 				id := f.receive(t, body)
 				f.forward(t, id)
 				f.drain(t)

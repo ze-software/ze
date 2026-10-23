@@ -156,6 +156,12 @@ func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 					}
 					if prior {
 						f.metric(7)
+					} else {
+						// RFC 4271 Section 3.1: only a previously advertised
+						// route is withdrawn, so the destination first holds
+						// an earlier generation of the route the received
+						// UPDATE is then withheld from on its first forward.
+						f.advertiseFirst(t, f.body(t, 100))
 					}
 					id := f.receive(t, f.body(t, 100))
 					if rail == "rs-cached" {
@@ -237,12 +243,15 @@ func TestRFC7311UnknownCostWithdrawsUntilMetricRecovers(t *testing.T) {
 }
 
 // A cost-withheld candidate is not permission to recover a source withdrawal or
-// an export-policy refusal. Compare the complete socket bytes after the metric
-// recovers and the export filter is removed.
+// an export-policy refusal. The destination is first advertised the route, so
+// the withhold withdraws it once (RFC 4271 Section 3.1: only a previously
+// advertised route is withdrawn). Compare the complete socket bytes after the
+// metric recovers and the export filter is removed.
 func TestAIGPCostRecoveryDoesNotReviveWithdrawnRoutes(t *testing.T) {
 	for _, boundary := range []string{"source-withdrawal", "export-withdrawal"} {
 		t.Run(boundary, func(t *testing.T) {
 			f := newAIGPReplayFixture(t, nil)
+			f.advertiseFirst(t, f.body(t, 100))
 			if boundary == "export-withdrawal" {
 				f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 					mods.SetWithdraw()

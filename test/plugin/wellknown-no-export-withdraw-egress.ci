@@ -90,15 +90,16 @@ expect=bgp:conn=1:seq=1:announced=18C63364
 action=rewrite:conn=1:seq=2:source=withdraw-seed.src:dest=withdraw-seed-3.received
 # CONTROL 1, and the point of this test: the withdrawal half REACHES the refused peer.
 expect=bgp:conn=1:seq=3:withdrawn=18C63364
-# The refused announcement also invalidates any previously advertised generation.
-expect=bgp:conn=1:seq=3:withdrawn=180A0000
 # CONTROL 2: the fence route reaches this session too, so control 1 cannot pass by way of
-# some unrelated message. It shares the withdrawals' seq group: no order is owed between them.
+# some unrelated message. It shares the withdrawal's seq group: no order is owed between them.
 expect=bgp:conn=1:seq=3:announced=18C00002
 # The final receipt, as on the internal session: the withdrawal has been received.
 action=rewrite:conn=1:seq=4:source=withdraw-seed.src:dest=wellknown-withdraw-3.received
 # THE ASSERTION: 10.0.0.0/24 is never announced to this external session.
 reject=bgp:conn=1:scope=announced:pattern=180A0000
+# Nor withdrawn: this session was never advertised 10.0.0.0/24, so the refused
+# announcement is owed no withdrawal there (RFC 4271 Section 3.1).
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_EXTERNAL
 
 tmpfs=withdraw-seed.src:terminator=EOF_SEED

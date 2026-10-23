@@ -21,7 +21,8 @@
 # destination is not up yet and says "forward matched no target ... not-yet-up",
 # which would leave the export chain unconsulted and the file asserting nothing.
 # peer1 then lingers so source teardown cannot create the subject withdrawal;
-# that withdrawal must come from the export rejection itself.
+# peer2 was never advertised the subject, so the export rejection owes it no
+# withdrawal either (RFC 4271 Section 3.1: only an advertised route is withdrawn).
 #
 # On export FilterUpdateInput.PeerAS carries the DESTINATION peer, so no token is
 # `direct` and `indirect` covers the whole path. 3356 is therefore matched at index
@@ -48,19 +49,20 @@ option=tcp_connections:value=1
 option=timeout:value=20s
 option=linger:value=true
 # The observer sees peer2's initial EOR before releasing peer1. The rejected
-# announcement becomes a withdrawal, followed by the permitted announcement.
+# subject sends nothing, neither announcement nor withdrawal; the permitted
+# fence follows it on the same stream.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:withdrawn=180A0000
-expect=bgp:conn=1:seq=3:announced=180A0900
+expect=bgp:conn=1:seq=2:announced=180A0900
 reject=bgp:conn=1:scope=announced:pattern=180A0000
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 # Publish completion only after the receiver has checked the permitted fence.
 # The observer waits on this file before shutdown; a sent-message total cannot
-# distinguish EOR plus the withdrawal from delivery of the fence.
-action=rewrite:conn=1:seq=4:source=path-asn-export-fence.src:dest=path-asn-export.received
+# distinguish EOR plus another UPDATE from delivery of the fence.
+action=rewrite:conn=1:seq=3:source=path-asn-export-fence.src:dest=path-asn-export.received
 EOF_PEER2
 
 tmpfs=path-asn-export-fence.src:terminator=EOF_FENCE
-peer2 received the rejected route's withdrawal and the permitted fence
+peer2 received the permitted fence and nothing for the rejected route
 EOF_FENCE
 
 stdin=ze-bgp:terminator=EOF_CONF
@@ -168,7 +170,7 @@ EOF_CONF
 # Both processes inherit this run's work directory; no previous run can release it.
 cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=20s
-# Export rejection withdraws the route without a NOTIFICATION, so the same
+# Export rejection suppresses the route without a NOTIFICATION, so the same
 # session remains available for the permitted fence.
 reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"
 cmd=foreground:seq=3:exec=le test fixture plugin/wait-file path-asn-export.ready:timeout=10s

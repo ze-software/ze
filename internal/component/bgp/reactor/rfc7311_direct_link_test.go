@@ -78,6 +78,14 @@ func aigpForwardToWire(t *testing.T, original, transformed []byte, synthesized b
 		t.Cleanup(established.clearEncodingContexts)
 	}
 	peer.session.settings.AIGPSession = new(true)
+	if synthesized {
+		// RFC 4271 Section 3.1: only a previously advertised route is
+		// withdrawn, so the recipient first holds the source's announcement.
+		if err := ownershipWriterForward(t, peer, source, original, false); err != nil {
+			t.Fatal(err)
+		}
+		conn.reset()
+	}
 	item := fwdItem{
 		peer: peer, session: peer.currentSession(), authority: adjOutForwarded,
 		rawBodies: [][]byte{transformed}, sourceMessageID: 1,

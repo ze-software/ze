@@ -691,8 +691,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	srcWellKnown := a.r.scanWellKnownEgress(sourceWire.Payload(), update.SourcePeerIP)
 
 	// Policy-denied announcements become source-bound synthesized withdrawals.
-	// The final writer retains absent-owner synthesis but rejects withdrawal of
-	// another source's current route. Original withdrawn siblings remain ordinary.
+	// The final writer sends one only where the destination was advertised the
+	// route, and rejects withdrawal of another source's current route.
+	// Original withdrawn siblings remain ordinary.
 	var withdrawals fwdWithdrawal
 	var sectionBase *wireu.WireUpdate
 	var sectionWires []*wireu.WireUpdate

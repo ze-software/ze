@@ -175,7 +175,10 @@ func ownershipReplayBatch(t *testing.T, f *ownershipRailFixture, body []byte) bg
 
 // TestRSWithdrawalOwnershipMixedSynthesizedIntent proves that denial of an
 // announcement cannot turn an original received withdrawal into synthesis.
-// The denied, previously unseen announcement still emits its exact withdrawal.
+// Path 2 of 203.0.113.0/24 is first advertised to the destination, so the
+// policy-denied replacement owes it exactly one synthesized withdrawal, while
+// the received withdrawn sibling, a path the source never owned there, is not
+// written (RFC 4271 Section 3.1).
 func TestRSWithdrawalOwnershipMixedSynthesizedIntent(t *testing.T) {
 	for _, rail := range []string{"cached", "direct", "pool-fallback"} {
 		t.Run(rail, func(t *testing.T) {
@@ -187,6 +190,11 @@ func TestRSWithdrawalOwnershipMixedSynthesizedIntent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			subject := []byte{24, 203, 0, 113}
+			// RFC 4271 Section 3.1: only a previously advertised route is
+			// withdrawn, so the destination is first advertised path 2.
+			f.send(t, rail, f.source, ctxID, ownershipRailBody(family.IPv4Unicast, false, pathsLimitNLRI(2, "203.0.113.0/24"), 53)) // RFC 7911 Section 3.
+			f.await(t, 53, subject)
 			body := ownershipRailBody(family.IPv4Unicast, false, pathsLimitNLRI(2, "203.0.113.0/24"), 52) // RFC 7911 Section 3.
 			mixed, err := message.UnpackUpdate(body)
 			if err != nil {
@@ -205,17 +213,25 @@ func TestRSWithdrawalOwnershipMixedSynthesizedIntent(t *testing.T) {
 			f.r.egressFilters = nil
 			f.marker(t, rail, 87)
 			f.assertHistory(t, []byte{51}, 0)
-			withdrawals := 0
+			announcements, withdrawals := 0, 0
 			for _, event := range ownershipRailRead(t, f.conn.written(), f.destination.sendCtx.Load()) { // RFC 4271 Section 4.3.
-				if event.family == family.IPv4Unicast && event.key == string([]byte{24, 203, 0, 113}) {
-					if !event.withdraw {
-						t.Fatal("policy-denied announcement escaped on the wire")
-					}
-					withdrawals++
+				if event.family != family.IPv4Unicast || event.key != string(subject) {
+					continue
 				}
+				if !event.withdraw {
+					if event.origin != 53 || withdrawals != 0 {
+						t.Fatalf("policy-denied announcement escaped on the wire (origin %d)", event.origin)
+					}
+					announcements++
+					continue
+				}
+				withdrawals++
+			}
+			if announcements != 1 {
+				t.Fatalf("advertisements of the subject = %d, want exactly the first one", announcements)
 			}
 			if withdrawals != 1 {
-				t.Fatalf("initial synthesized withdrawals = %d, want exactly one", withdrawals)
+				t.Fatalf("synthesized withdrawals = %d, want exactly one for the advertised path", withdrawals)
 			}
 		})
 	}

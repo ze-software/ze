@@ -369,18 +369,20 @@ func plugin14OTCEgressFilter(ctx context.Context, plugin *sdk.Plugin) error {
 	if plugin14Number(source["updates-received"]) < 1 {
 		return fmt.Errorf("source peer UPDATE never reached ze: %v", source)
 	}
-	// A policy refusal withdraws the previous generation. The peer fixture
-	// requires the withdrawal and rejects an announcement of the same NLRI.
+	// The destination was never advertised the route, so the refusal owes it
+	// nothing: no announcement and no withdrawal (RFC 4271 Section 3.1). The
+	// peer fixture rejects either NLRI form, and this count proves no other
+	// UPDATE was sent in their place.
 	updates := plugin14Number(dest["updates-sent"]) - plugin14Number(dest["eor-sent"])
-	if updates != 1 {
-		return fmt.Errorf("provider destination was not sent exactly one withdrawal UPDATE: %v", dest)
+	if updates != 0 {
+		return fmt.Errorf("provider destination was sent %d UPDATEs for a route it was never advertised: %v", updates, dest)
 	}
 	_, adj, _ := plugin14DispatchMap(ctx, plugin, "show bgp adj-rib-in status")
 	total := -1
 	if value, exists := adj["total-routes"]; exists {
 		total = plugin14Number(value)
 	}
-	fmt.Fprintf(os.Stderr, "OK: route accepted from the provider source (%d in adj-rib-in), %d withdrawal UPDATE sent to the provider dest\n", total, updates)
+	fmt.Fprintf(os.Stderr, "OK: route accepted from the provider source (%d in adj-rib-in), %d UPDATE sent to the provider dest\n", total, updates)
 	return nil
 }
 

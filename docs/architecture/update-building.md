@@ -557,8 +557,9 @@ did not offer; mixed UPDATEs retain their supported sections, and the existing
 negotiation rule still admits classic IPv4 when neither side advertises MP.
 
 Policy output is filtered per withdrawal path before PATHS-LIMIT mutates its
-counts. An original withdrawal requires an existing matching owner; a synthesized
-withdrawal may pass when absent, but neither can remove another owner's route.
+counts. An original or a synthesized withdrawal requires an existing matching owner, so
+a destination never advertised the route is sent neither, and neither can remove
+another owner's route.
 Surviving legacy and MP sections are preserved. Removing every route from an
 ordinary UPDATE produces no message, not an accidental End-of-RIB.
 

@@ -74,13 +74,12 @@ const (
 )
 
 // adjOutPath is borrowed producer provenance for one final native path.
-// Ordinary withdrawal equality deliberately excludes synthesized and revision.
+// Ordinary withdrawal equality deliberately excludes revision.
 type adjOutPath struct {
-	source      *Peer
-	received    uint32
-	addPath     bool
-	synthesized bool
-	revision    uint64
+	source   *Peer
+	received uint32
+	addPath  bool
+	revision uint64
 	// generation is the owner's source session generation
 	// (Peer.forwardGeneration) when the path was written. Ownership equality
 	// ignores it, so a GR-retained path stays withdrawable by the same source

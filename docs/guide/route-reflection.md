@@ -170,9 +170,11 @@ missing plugin.
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
 <!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
 
-Policy-generated withdrawals keep their per-path intent: an absent route may
-still receive a synthesized withdrawal, but an original withdrawn sibling does
-not inherit that permission. A buffered batch uses its ordered pending ownership,
+A policy-generated withdrawal is sent only to a client that was advertised the
+route: a client that never received it is sent nothing, because only a
+previously advertised route can be withdrawn (RFC 4271 Section 3.1). A received
+withdrawal follows the same rule, and is sent only where its source still owns
+the client's route. A buffered batch uses its ordered pending ownership,
 so A, B, A-withdraw preserves B before the batch flushes. A write or flush failure
 invalidates that ownership and closes only the failed destination session.
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut -->

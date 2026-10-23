@@ -118,8 +118,16 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 			}
 			return PolicyResponse{Action: PolicyReject}
 		}
-		before := []int{len(aigpSocketBodies(t, f.conn)), len(aigpSocketBodies(t, otherConn))}
 		prefix := []byte{24, 203, 0, byte(113 + round)}
+		// RFC 4271 Section 3.1: only a previously advertised route is
+		// withdrawn, so both clients first hold the source's route and the
+		// rejected one is then owed exactly its withdrawal.
+		for _, p := range []*Peer{f.destination, other} {
+			if err := ownershipWriterForward(t, p, f.source, buildUpdatePayload(lowRSAttributes(), prefix), false); err != nil {
+				t.Fatal(err)
+			}
+		}
+		before := []int{len(aigpSocketBodies(t, f.conn)), len(aigpSocketBodies(t, otherConn))}
 		id := f.receive(t, buildUpdatePayload(lowRSAttributes(), prefix))
 		update, ok := f.r.recentUpdates.Get(id)
 		if !ok {

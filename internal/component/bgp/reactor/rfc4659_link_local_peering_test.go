@@ -103,7 +103,9 @@ func TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair(t *testing.T) {
 				if tc.nonzeroRD {
 					hop[0] = 1
 				}
-				id := f.receive(t, buildUpdatePayload(mixedAttrs(mixedReach(byte(fam.SAFI), hop, raw)), nil))
+				body := buildUpdatePayload(mixedAttrs(mixedReach(byte(fam.SAFI), hop, raw)), nil)
+				f.advertiseFirst(t, body)
+				id := f.receive(t, body)
 				if rail == "rs" {
 					update, found := f.r.recentUpdates.Get(id)
 					if !found {

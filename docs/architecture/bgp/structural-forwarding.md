@@ -57,13 +57,33 @@ buffer is alive, apply once the bytes are gone.
 
 `forwardUpdateCore` queries the Adj-RIB-In validation gate for each prefix and
 received Path Identifier. A pending or ineligible path becomes a withdrawal;
-eligible sibling NLRIs retain their attributes. A generation that has already
+eligible sibling NLRIs retain their attributes. The final writer sends that
+withdrawal only to a destination it advertised the path to (see "Withheld
+routes are withdrawn"), so a path held ineligible from its first receipt
+reaches no destination, however many receipts or ValidationChange relays
+follow, and one advertised before it turned ineligible is withdrawn once. A generation that has already
 been replaced cannot advertise over its replacement. The cached received bytes
 remain unchanged, and derived forwarding buffers belong to the same cache entry.
 The forwarding API succeeds when either the eligible section or its synthesized
 withdrawal is dispatched. An ineligible announcement that becomes an accepted
 withdrawal is not reported as suppressed by every destination.
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateValidated -->
+
+A received withdrawal goes through the same engine. The live forward carries it
+only once the gate no longer answers the path eligible; while Adj-RIB-In still
+holds the path as eligible, the withdrawal leaves the live forward and is sent
+by the ValidationChange relay that Adj-RIB-In's removal wakes (`removePending`
+notes every withdrawn key, pending or installed). That relay asks for the
+current path after any revalidation relay queued before it, so the withdrawal
+is written after a queued announcement and never overtaken by one. A route
+withdrawn while still pending is cancelled at its pending record: a verdict
+that arrives later for that generation installs nothing, and the relay answers
+the explicit withdrawal. A destination never advertised the route is sent
+nothing on either rail, by the writer rule in "Withheld routes are withdrawn".
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- validationSelection.section -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- removePending, applyDecision -->
+<!-- test: internal/component/bgp/reactor/forward_validation_pending_withdrawal_test.go TestPendingRouteWithdrawnBeforeVerdictSendsNothing, TestAnnouncedRouteWithdrawalFollowsQueuedRevalidation -->
+<!-- test: internal/component/bgp/plugins/adj_rib_in/rib_validation_pending_withdrawal_test.go TestPendingWithdrawalCancelsTheVerdict, TestAnnouncedWithdrawalWakesTheRelay -->
 
 When receive validation is enabled, or an UPDATE carries FlowSpec or AIGP,
 `reactorForwardRS` defers to cached forwarding. That choice remains set on the
@@ -143,7 +163,8 @@ still checks its captured source generation and destination Session under
 Producers preserve path provenance before stripping or regenerating identifiers.
 An ordinary unframed path reuses `fwdItem`'s source fields; transformations that
 lose identity use bounded pooled source-section owner slices and output-body
-spans. Original and synthesized withdrawals remain distinct through splitting,
+spans. A synthesized withdrawal keeps its per-item mark (`fwdProvenance`
+`synthesizedWithdrawal`, read by recovery staging) through splitting,
 transcoding and overflow. Item release returns the manifest. Superseding cannot
 collapse different source/session generations or manifested ingress paths.
 Unknown ordinary withdrawals look up outgoing identifiers without minting new
@@ -556,9 +577,21 @@ Extended Next Hop, a Link-Local-only next hop without capability 77, or an
 unusable unspecified or multicast IPv6 Global, excluding the RFC 4659
 link-local-peering exception above). The
 destination may hold the previous generation of the route. The final writer
-therefore admits each synthesized withdrawal when its route is absent or still
-owned by that received source path, but refuses it when another source or a
-local advertisement replaced that owner. Original withdrawn siblings remain
+therefore admits each synthesized withdrawal only while its route is still
+owned by that received source path in the destination's `adjOut`. It refuses
+it when another source or a local advertisement replaced that owner, and when
+the destination holds no record of the route: RFC 4271 Section 3.1 withdraws "a
+previously advertised route", so a route refused before it was ever advertised
+to a destination sends that destination nothing, as FRR and BIRD do. FRR's
+`bgp_adj_out_unset_subgroup` (`bgpd/bgp_updgrp_adv.c`, commit `cd39d029`) sends a
+withdrawal only for an adj-out entry that carries an advertisement:
+`adj = adj_lookup(dest, subgrp, addpath_tx_id); if (adj != NULL) { ... if (adj->attr && withdraw) {`.
+BIRD's `rt_notify_basic` (`nest/rt-table.c`) drops an old route the channel never
+exported before deciding: on the 2.x line (`v2.19.0-4-g02d082a7`)
+`if (old && !bmap_test(&c->export_map, old->id)) old = NULL; if (!new && !old) return;`,
+and on the BIRD 3 line (`v3.2`) an old route in `export_rejected_map` is
+"Treat old rejected as never seen." `old = NULL;`, then `if (!np && !old)` returns
+as an "idempotent withdraw (filtered on export)". Original withdrawn siblings remain
 received withdrawals and require a matching owner. A filter step that could not
 run is a drop, not a reject, and sends nothing.
 

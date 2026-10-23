@@ -91,7 +91,7 @@
     "rid": "RFC8955-4-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop",
-    "unit-sha": "2fb6e07c493f6fc1",
+    "unit-sha": "3234a67e7a9ae13c",
     "claim-sha": "0c5a426726d16e25",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",

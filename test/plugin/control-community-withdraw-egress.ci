@@ -90,13 +90,14 @@ expect=bgp:conn=1:seq=1:announced=18C63364
 action=rewrite:conn=1:seq=2:source=withdraw-seed.src:dest=withdraw-seed-2.received
 # THE POINT OF THIS TEST: the withdrawal half REACHES the excluded client.
 expect=bgp:conn=1:seq=3:withdrawn=18C63364
-# The refused announcement also invalidates any previously advertised generation.
-expect=bgp:conn=1:seq=3:withdrawn=180A0000
 # CONTROL 1: the fence reaches this session too, so the assertion above cannot pass by way
 # of some unrelated message.
 expect=bgp:conn=1:seq=4:announced=18C00002
 # THE ASSERTION: 10.0.0.0/24 is never announced to this client.
 reject=bgp:conn=1:scope=announced:pattern=180A0000
+# Nor withdrawn: this client was never advertised 10.0.0.0/24, so the refused
+# announcement is owed no withdrawal (RFC 4271 Section 3.1).
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_EXCLUDED
 
 # The INCLUDED client -- AS 65003, on 127.0.0.3. CONTROL 2.
