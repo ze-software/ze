@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -132,21 +133,62 @@ func checkPluginRouteAttrs(t *testing.T, attrs, line string, want map[attribute.
 	}
 }
 
+// TestSRPolicyRouteCarriesRouteTarget verifies an SR Policy route keeps the
+// Route Target configured in its block.
+//
+// VALIDATES: the IPv4 address-specific Route Target reaches the route as
+// EXTENDED_COMMUNITIES beside the Tunnel Encapsulation (RFC 9830 Section 1).
+// PREVENTS: an SR Policy route refused at load, or sent with no Route Target,
+// so no headend recognises it (bgp-sr-policy-gobgp interop).
+func TestSRPolicyRouteCarriesRouteTarget(t *testing.T) {
+	routes, err := pluginRouteFromConfig(t,
+		"extended-community [ target:172.30.0.5:0 ];",
+		"ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("routes = %d, want 1", len(routes))
+	}
+	var extComm, tunnel int
+	for _, a := range routes[0].Attrs {
+		switch attribute.AttributeCode(a.Code) {
+		case attribute.AttrExtCommunity:
+			extComm++
+			if want := []byte{0x01, 0x02, 172, 30, 0, 5, 0, 0}; !bytes.Equal(a.Value, want) {
+				t.Errorf("extended communities = %x, want %x", a.Value, want)
+			}
+		case attribute.AttrTunnelEncap:
+			tunnel++
+		}
+	}
+	if extComm != 1 || tunnel != 1 {
+		t.Errorf("EXTENDED_COMMUNITIES x%d, TUNNEL_ENCAPSULATION x%d, want one of each", extComm, tunnel)
+	}
+}
+
+// TestPluginRouteRefusesExtCommunityItDropped verifies the dispatcher refuses
+// configured extended communities a family plugin's route left out.
+//
+// VALIDATES: the refusal names the family and the attribute.
+// PREVENTS: a future family plugin silently sending a route without them.
+func TestPluginRouteRefusesExtCommunityItDropped(t *testing.T) {
+	req := registry.ConfigRouteRequest{ExtCommunity: []byte{0x00, 0x02, 0xFD, 0xE8, 0, 0, 0, 1}}
+	_, err := pluginRouteFromRegistry("ipv4/example", req, registry.PluginRoute{}, configRouteGeneric{})
+	if err == nil || !strings.Contains(err.Error(), "extended-community is configured, but a ipv4/example route") {
+		t.Fatalf("error = %v, want the extended-community refusal", err)
+	}
+}
+
 // TestPluginRouteRefusesWhatItCannotSend verifies a configured attribute the
 // plugin route cannot carry stops the load with its reason.
 //
-// VALIDATES: extended communities on a family that emits none, and a generic
-// AS_PATH holding an AS_SET, are refused by name.
-// PREVENTS: either attribute being dropped while the route is still sent.
+// VALIDATES: a generic AS_PATH holding an AS_SET is refused by name.
+// PREVENTS: the attribute being dropped while the route is still sent.
 func TestPluginRouteRefusesWhatItCannotSend(t *testing.T) {
 	cases := map[string]struct {
 		attrs, line, want string
 	}{
-		"ext-community on sr-policy": {
-			attrs: "extended-community [ target:65000:1 ];",
-			line:  "ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
-			want:  "extended-community is configured",
-		},
 		"generic AS_SET on flow": {
 			attrs: "attribute [0x02 0x40 0x01020000FDE80000FDEA];",
 			line:  "ipv4/flow add destination-ipv4 192.168.0.5/32",

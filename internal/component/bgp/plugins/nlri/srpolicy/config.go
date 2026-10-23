@@ -37,6 +37,7 @@ const (
 	segSubTLVTypeA    uint8 = 1
 	segSubTLVTypeBSID uint8 = 13
 
+	attrCodeExtComm      uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360).
 	attrCodeTunnelEncap  uint8 = 23
 	attrFlagOptTransFlag uint8 = 0xC0 // Optional + Transitive.
 )
@@ -45,10 +46,9 @@ var errSRPolicyMissingFields = errors.New("sr-policy: requires distinguisher, co
 
 // parseConfigRoute implements InProcessConfigRouteParser for SR-Policy.
 // req.Content is the tokens after the operation keyword (e.g., ["distinguisher","0","color","100",...]).
-// SR-Policy carries all of its attributes inside the NLRI content (Tunnel
-// Encapsulation). It emits no extended communities, so the config dispatcher
-// refuses a block that configures them; every other generic attribute is the
-// dispatcher's.
+// SR-Policy builds its Tunnel Encapsulation from the NLRI content and carries
+// the block's extended communities, which hold the Route Targets naming the
+// intended headend; every other generic attribute is the dispatcher's.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
 	content := req.Content
 	nextHop := req.NextHop
@@ -251,6 +251,15 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			Flags: attrFlagOptTransFlag,
 			Value: tunnelEncapValue,
 		}}
+	}
+	// RFC 9830 Section 1: "This is done by attaching one or more Route Target
+	// extended communities to the advertisement [RFC4360]."
+	if len(req.ExtCommunity) > 0 {
+		attrs = append(attrs, registry.PluginRouteAttr{
+			Code:  attrCodeExtComm,
+			Flags: attrFlagOptTransFlag,
+			Value: req.ExtCommunity,
+		})
 	}
 
 	return registry.PluginRoute{
