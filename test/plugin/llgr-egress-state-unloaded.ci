@@ -1,44 +1,45 @@
-# Test: LLGR egress filter with the GR plugin engine in ANOTHER process.
+# Test: LLGR egress filter toward a neighbor with no LLGR Capability recorded.
 #
-# The daemon registers LLGREgressFilter from init() (bgp/plugins/gr/register.go),
-# so the filter is live in every ze_bgp build. The only writer of the state it
-# reads is setEgressState, called from RunGRPlugin's OnConfigure callback. This
-# config runs bgp-gr with `run` rather than `use`, so ExtractPluginsFromTree
-# leaves PluginConfig.Internal false, Process.StartWithContext takes
-# startExternal, and RunGRPlugin executes in the CHILD. The daemon's own egress
-# state is therefore nil for the whole life of the process while the filter keeps
-# being called on the readvertise rail.
+# bgp-gr runs in the daemon (`internal gr { use bgp-gr }`), so runGRPlugin's
+# OnConfigure stores the egress state LLGREgressFilter reads. bgp-gr is attached
+# to the source peer only (obsn carries no `attach process gr`), ze sends obsn
+# no Graceful Restart Capability, and obsn's OPEN carries no LLGR Capability, so
+# the egress state is loaded and records no LLGR Capability for this
+# destination.
+#
+# This used to run bgp-gr forked (`run "ze plugin bgp-gr"`) to reach a daemon
+# with no egress state at all. bgp-gr now refuses to start forked (gr.go,
+# runGRPlugin; test/plugin/gr-external-refuses.ci), so that arrangement no
+# longer starts. A destination with no recorded capability is the state a
+# running daemon reaches, and the filter must answer it the same way.
 #
 # RFC 9494 Section 4.3 keys the decision on whether the LLGR Capability "has been
-# received" from the neighbor. With nothing recorded in this process it has not,
-# so the filter treats the destination as LLGR-incapable and Section 4.6 applies:
-# the internal neighbor still receives the stale route, depreferenced with
-# NO_EXPORT and LOCAL_PREF 0.
+# received" from the neighbor. With nothing recorded for obsn it has not, so the
+# filter treats the destination as LLGR-incapable and Section 4.6 applies: the
+# internal neighbor still receives the stale route, depreferenced with NO_EXPORT
+# and LOCAL_PREF 0.
 #
 # RFC requirement: RFC9494-4.3-3 positive -- "The route SHOULD NOT be advertised to
 #   any neighbor from which the Long-Lived Graceful Restart Capability has not been
-#   received. The exception is described in Section 4.6." This process records no
-#   capability for any neighbor, so the stale route leaves only by the Section 4.6
+#   received. The exception is described in Section 4.6." The daemon records no
+#   capability for obsn, so the stale route leaves only by the Section 4.6
 #   exception: obsn's seq=2 expectation is the depreferenced form (NO_EXPORT,
 #   0xFFFFFF01), never the route as the source sent it. This is the daemon-level
 #   proof of the same decision the unit tests make on the filter
 #   (internal/component/bgp/plugins/gr/gr_egress_test.go).
 #
-# This is a config-only route to the unloaded state. It needs no test hook, which
-# is what plan/spec-fixit-egress-filter-non-decision-channel.md's withdrawn `.ci`
-# row wrongly claimed was impossible. `ze doctor` reports this arrangement as
-# doctor-bgp-gr-out-of-process (bgp/plugins/gr/doctor.go).
+# VALIDATES: a loaded LLGR egress state with no capability recorded for the
+#            destination depreferences a stale route toward that internal
+#            neighbor, in the daemon, on the wire.
+# PREVENTS: the daemon advertising a stale route unchanged to a neighbor it
+#           never received the LLGR Capability from.
 #
-# VALIDATES: an unloaded LLGR egress state depreferences a stale route toward a
-#            non-LLGR internal neighbor, in the daemon, on the wire.
-# PREVENTS: the daemon advertising a stale route unchanged because the GR plugin
-#           engine runs in another process.
+# Discrimination: making LLGREgressFilter accept a destination with no recorded
+# capability re-sends the route with no modification, so the NO_EXPORT
+# expectation below never arrives.
 #
-# Discrimination: reverting LLGREgressFilter to accept on a nil state re-sends the
-# route with no modification, so the NO_EXPORT expectation below never arrives.
-#
-# The state-LOADED contrast is llgr-readvertise-multipeer.ci: the same scenario
-# with `internal gr { use bgp-gr }`, which loads the state in the daemon.
+# llgr-readvertise-multipeer.ci is the same scenario with bgp-gr also attached
+# to obsn.
 
 
 # --- source: LLGR RR-client, announces 10.0.0.0/24 then waits on ze's EOR ---
@@ -71,7 +72,7 @@ option=timeout:value=20s
 option=open:value=router-id:id=1.2.3.6
 # 1. Reflected route lands (NLRI 10.0.0.0/24). EORs and keepalives auto-skip.
 expect=bgp:conn=1:seq=1:contains=180A0000
-# 2. The readvertise depreferences it with no egress state in THIS process: the
+# 2. The readvertise depreferences it, with no capability recorded for obsn: the
 #    NO_EXPORT community (well-known 0xFFFFFF01) is stamped on.
 expect=bgp:conn=1:seq=2:contains=FFFFFF01
 EOF_OBSN
@@ -89,8 +90,8 @@ plugin {
 		run "le test fixture plugin/llgr-egress-state-unloaded"
 		encoder json
 	}
-	external gr {
-		run "ze plugin bgp-gr"
+	internal gr {
+		use bgp-gr
 	}
 	internal bgp-rib {
 		use bgp-rib

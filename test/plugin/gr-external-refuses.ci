@@ -1,0 +1,71 @@
+# Test: bgp-gr refuses to start as an external plugin process
+# VALIDATES: bgp-gr's IsInternal() guard (internal/component/bgp/plugins/gr/gr.go, runGRPlugin)
+# refuses to start when bgp-gr runs as a genuine external subprocess. It
+# publishes the retention answer bgp-rr and bgp-rs read on a DOWN
+# (retention.Publish) and the state the daemon's LLGR egress filter reads
+# (setEgressState) into its own memory: forked, the daemon reads every family
+# as not retained and every neighbor as LLGR-incapable.
+# PREVENTS: an operator configuring `plugin { external gr { run ... } }` getting
+# a daemon whose route reflector or route server withdraws a restarting peer's
+# routes from every other peer, which RFC 4724 Section 4.2 requires kept, with
+# no error.
+#
+# The refusal aborts the daemon's plugin-startup coordinator, so the relayed
+# stderr line is the signal, as in rr-external-refuses.ci.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret gr-external-refuse-test-secret-0001;
+		}
+	}
+	external bgp-gr {
+		# le test plugin-external launches the registered engine's own
+		# RunEngine over a real TLS connect-back
+		# (internal/test/cli/cmd_plugin_external.go).
+		# The block carries the registered name: le test plugin-external
+		# connects back under that name (sdk.DialTLSEnvRaw), and the hub
+		# rejects a connect-back whose name no plugin block holds.
+		run "le test plugin-external bgp-gr"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# The needle names bgp-gr, so another plugin's refusal cannot satisfy it.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=bgp-gr: refusing to start as an external plugin process -- its graceful-restart state
+expect=stderr:contains=bgp-gr: refusing to start as an external plugin process -- its graceful-restart state

@@ -207,19 +207,24 @@ For example, GR value `000300010180` means three seconds and
 ### Keep the bgp-gr engine in the daemon process
 
 Load the plugin with `internal <name> { use bgp-gr; }`, as every example on this
-page does. `run "ze plugin bgp-gr"` starts the plugin engine in a child process,
-and that arrangement changes what the daemon sends to every peer.
+page does. `run "ze plugin bgp-gr"` would start the plugin engine in a child
+process, and the engine refuses to start that way: the refusal is logged as
+`bgp-gr: refusing to start as an external plugin process` and the daemon does
+not start. An internal `bgp-gr` beside the forked one does not change this.
 
-The RFC 9494 egress filter runs in the daemon. The peer capability state it reads
-is written by the plugin engine, so with `run` that state stays empty for the life
-of the daemon process. The filter then treats every neighbor as a neighbor from
-which the LLGR Capability was never received: it withdraws stale routes from
-external peers (Section 4.3) and attaches NO_EXPORT with LOCAL_PREF 0 to the
-routes it sends to internal peers (Section 4.6). Peers that negotiated LLGR with
-the child engine get that same treatment.
+The engine writes two answers the daemon reads. The RFC 9494 egress filter runs
+in the daemon and reads the peer capability state the engine records, and
+`bgp-rr` and `bgp-rs` ask the engine which families of a departed peer it
+retains (described below). From a child process neither answer reaches the
+daemon, so the filter would treat every neighbor as one from which the LLGR
+Capability was never received, and the reflector or route server would withdraw routes RFC 4724
+Section 4.2 requires kept.
 
-`ze doctor` reports the arrangement as `doctor-bgp-gr-out-of-process`. Run
+`ze doctor` reports the arrangement from the config, before the daemon starts,
+as `doctor-bgp-gr-out-of-process`. Run
 `ze show diagnostic doctor-bgp-gr-out-of-process` for the full text.
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- runGRPlugin, IsInternal refusal -->
+<!-- source: test/plugin/gr-external-refuses.ci -- a forked bgp-gr refuses to start -->
 <!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
 
@@ -243,8 +248,8 @@ plugin bgp-rr"`): no `bgp-gr` there ever publishes an answer, every family would
 read as not retained, and the restarting peer's routes would be withdrawn from
 every other peer. The refusal is logged as `refusing to start as an external
 plugin process` and the daemon does not start. A child-process `bgp-gr` cannot
-publish into the daemon either, and no check refuses that arrangement yet: an
-in-daemon reflector or route server then reads every family as not retained.
+publish into the daemon either, so it refuses to start the same way (see
+[Keep the bgp-gr engine in the daemon process](#keep-the-bgp-gr-engine-in-the-daemon-process)).
 Use internal `bgp-gr`, `bgp-rib`, and `bgp-rs` or `bgp-rr` for the coordinated
 lifecycle described here.
 <!-- source: internal/component/bgp/retention/retention.go -- Publish, Family -->
@@ -252,6 +257,7 @@ lifecycle described here.
 <!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, IsInternal refusal -->
 <!-- source: test/plugin/rr-external-refuses.ci -- a forked bgp-rr refuses to start -->
 <!-- source: test/plugin/rs-external-refuses.ci -- a forked bgp-rs refuses to start -->
+<!-- source: test/plugin/gr-external-refuses.ci -- a forked bgp-gr refuses to start -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
@@ -457,7 +463,7 @@ the received LLGR_STALE fact its own way:
 <!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- AdvertisedStaleLevel -->
 <!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, resolveRelaySource -->
 
-The one arrangement that leaves the state permanently unread is `run "ze plugin bgp-gr"`. See [Keep the bgp-gr engine in the daemon process](#keep-the-bgp-gr-engine-in-the-daemon-process).
+`run "ze plugin bgp-gr"`, which would leave the state unread by the daemon, is refused at startup. See [Keep the bgp-gr engine in the daemon process](#keep-the-bgp-gr-engine-in-the-daemon-process).
 
 ### Special Case: Skip GR
 

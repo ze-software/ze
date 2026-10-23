@@ -36,8 +36,9 @@ func init() {
 		}
 	}
 
-	// The LLGR egress filter answers from state only runGRPlugin stores, so an
-	// out-of-process engine leaves it blind. doctor.go reports that arrangement.
+	// The LLGR egress filter answers from state only runGRPlugin stores, so
+	// runGRPlugin refuses to start forked. doctor.go reports a forked bgp-gr
+	// from the config, before the daemon meets the refusal.
 	for _, m := range grDiagnosticCodes {
 		_ = diagnostic.Register(m)
 	}

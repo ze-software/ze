@@ -132,6 +132,22 @@ func runGRPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
+	// retention.Publish and setEgressState below store into the daemon's
+	// memory: bgp-rr and bgp-rs ask retention.Family on a DOWN, and the
+	// daemon's LLGREgressFilter reads the egress state. A forked bgp-gr stores
+	// both into its own process, so the daemon reads every family as not
+	// retained and withdraws routes RFC 4724 Section 4.2 requires kept, and
+	// reads every neighbor as LLGR-incapable, with no error. Refuse to start
+	// rather than leave the daemon answering wrong.
+	if !p.IsInternal() {
+		slogutil.Logger(grSubsystem).Error("bgp-gr: refusing to start as an external plugin process -- " +
+			"its graceful-restart state (retention.Publish, setEgressState) must live in the daemon's process, " +
+			"so a forked engine would let the route reflector and route server withdraw the routes " +
+			"of a restarting peer that must be kept; " +
+			"replace the `external <name> { run ... }` block with `plugin { internal <name> { use bgp-gr } }`")
+		return 1
+	}
+
 	gp := &grPlugin{
 		sdk:          p,
 		peerCaps:     make(map[string]*grPeerCap),

@@ -8,26 +8,25 @@ package gr
 import (
 	"strings"
 
-	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // codeGROutOfProcess is raised when bgp-gr is configured to run as a separate
-// process. LLGREgressFilter lives in the daemon and reads state that only
-// runGRPlugin stores, so an out-of-process engine leaves the filter blind
-// (gr_egress.go, egressState).
+// process. runGRPlugin refuses to start forked (gr.go), because the retention
+// answer bgp-rr and bgp-rs read and the state LLGREgressFilter reads must live
+// in the daemon's process, so the daemon does not start with this config.
 const codeGROutOfProcess = "doctor-bgp-gr-out-of-process"
 
 var grDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:  codeGROutOfProcess,
 		Title: "Graceful Restart plugin runs out of process",
-		Description: "The bgp-gr plugin is configured with `run`, so it runs as a separate process. " +
-			"The RFC 9494 LLGR egress filter runs in the daemon and reads the peer capability state that only the plugin engine stores, " +
-			"so in this arrangement it has no state at all. It then treats every neighbor as LLGR-incapable: " +
-			"stale routes are withdrawn from external peers and depreferenced toward internal peers, for the life of the process, " +
-			"including peers that negotiated LLGR. " +
+		Description: "The bgp-gr plugin is configured with `run`, so it would run as a separate process, and it refuses to start that way: " +
+			"the daemon does not start. " +
+			"Its graceful-restart state must live in the daemon's process: the route reflector and route server ask it which routes " +
+			"a restarting peer keeps (RFC 4724 Section 4.2), and the RFC 9494 LLGR egress filter reads the peer capabilities it records. " +
+			"In a separate process neither answer reaches the daemon, so restarting peers' routes would be withdrawn. " +
 			"Configure the plugin as `plugin { internal <name> { use bgp-gr; } }` to run it in the daemon.",
 		Examples: []string{"ze doctor --json", "ze show diagnostic doctor-bgp-gr-out-of-process"},
 	},
@@ -45,54 +44,35 @@ var grDoctorCheck = diagnostic.DoctorCheck{
 	Check:        checkGRInProcess,
 }
 
-// checkGRInProcess reports a bgp-gr plugin configured to run out of process.
+// checkGRInProcess reports every bgp-gr plugin configured to run out of
+// process.
 //
-// The LLGR egress filter is registered from init() (register.go), so it is live
-// in every daemon that links the BGP build group, while setEgressState is called
-// only from runGRPlugin's OnConfigure callback (gr.go). When the operator runs
-// bgp-gr with `run` rather than `use`, the engine forks it
-// (process.startExternal) and runGRPlugin executes in the CHILD, so the daemon's
-// filter answers every destination from a nil state. Failing closed is correct
-// with no state loaded, but it is the wrong answer for a peer that did negotiate
-// LLGR, and the filter's own WARN speaks only once the first stale route reaches
-// it. This check says so before that happens.
+// When the operator runs bgp-gr with `run` rather than `use`, the engine forks
+// it (process.startExternal) and runGRPlugin refuses to start in the child
+// (gr.go), which stops the daemon. An in-process bgp-gr beside it does not
+// help: the forked copy still refuses. This check says so before the daemon is
+// started, from the config alone.
 func checkGRInProcess(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	// One in-process bgp-gr is enough, so the whole plugin list is judged before
-	// any single `run` line. setEgressState stores into a package-level pointer
-	// (gr_egress.go), so a daemon that loads the engine once answers for every
-	// destination however many other copies run as children. Reading each `run`
-	// line on its own reported that arrangement as blind, which it is not.
-	for i := range ctx.Plugins {
-		if internalIsPlugin(ctx.Plugins[i], grPluginName) {
-			return nil
-		}
-	}
-
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	for i := range ctx.Plugins {
 		p := ctx.Plugins[i]
-		if p.Internal || !runTargetsPlugin(p.Run, grPluginName) {
+		if p.Internal {
+			continue
+		}
+		if !runTargetsPlugin(p.Run, grPluginName) {
 			continue
 		}
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     codeGROutOfProcess,
-			Severity: diagnostic.SeverityWarning,
+			Severity: diagnostic.SeverityError,
 			Message: tb.Reset().Str("plugin ").Str(p.Name).Str(": ").Str(grPluginName).
-				Str(" runs as a separate process, so the LLGR egress filter in the daemon has no peer capability state").
-				Str(" and withdraws or depreferences every stale route; use `use ").Str(grPluginName).
-				Str("` to run it in the daemon").String(),
+				Str(" runs as a separate process, which it refuses, so the daemon will not start:").
+				Str(" its graceful-restart state must live in the daemon; replace the block with `internal ").
+				Str(p.Name).Str(" { use ").Str(grPluginName).Str(" }`").String(),
 		})
 	}
 	return diags
-}
-
-// internalIsPlugin reports whether an in-process plugin entry is the named
-// bundled plugin. Which registry row a process config names is answered once,
-// by plugin.RegistryName, so `use bgp-gr`, `run ze.bgp-gr` and a bare
-// `internal bgp-gr { }` all name the same engine here.
-func internalIsPlugin(p zeplugin.PluginConfig, name string) bool {
-	return p.Internal && zeplugin.RegistryName(p) == name
 }
 
 // runTargetsPlugin reports whether a `run` command line launches the named
@@ -102,7 +82,7 @@ func internalIsPlugin(p zeplugin.PluginConfig, name string) bool {
 // where parts[0] must be exactly "ze". This check has to catch the arrangement
 // whatever binary path spells it, because a path-qualified `/usr/bin/ze plugin
 // bgp-gr` forks the engine out of the daemon exactly as `ze plugin bgp-gr`
-// does, and the LLGR egress filter is blind either way. So it matches the
+// does, and runGRPlugin refuses to start either way. So it matches the
 // `plugin <name>` verb pair anywhere in the command line.
 // The "ze.<name>" spelling never reaches here: MarkInternalPlugin
 // (config/loader.go) resolves it to an internal plugin.
