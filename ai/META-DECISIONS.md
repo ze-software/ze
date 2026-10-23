@@ -163,7 +163,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Test selectively: run only the tests the change reaches (its packages, its
   tagged units, its named functional tests). Never start a full verification
   run or a full suite on your own initiative, at closure included; while known
-  reds are open, rerun only the failing tests.
+  reds are open, rerun only the failing tests. A whole-tree check is full
+  testing too: a staticcheck matrix piece, a full lint, a repo-wide compile,
+  `./le test unit all`. The machine has neither the disk nor the capacity for
+  it.
 - Show the observed failure, trace its cause to the producing code, fix that
   code, and rerun the existing failing test without weakening its assertions.
   If the test itself is wrong, explain its exact defect and why its expectation
