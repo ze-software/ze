@@ -80,6 +80,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - No release, version, tag or user consumes `main`. A red test does not hold a
   commit: commit the work and name the red test and its cause in the body.
   Full rule: `ai/rules/pre-release.md`.
+- During development, run only the tests that cover what you changed: the
+  package test, the component group, the functional suite for the behavior.
+  The full gate (`./le verify current`, `./le verify worktree`) runs once per
+  piece of work, over its final commit, never between phases, review rounds or
+  fixes.
 - A check that ran is not re-run to reconfirm what its output said.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit. If `./le verify status check` is FRESH,
