@@ -1,6 +1,6 @@
 # BIRD 3 BGP daemon for interoperability testing.
 #
-# Owner decision M14: the lab runs BIRD's latest stable release on the BIRD 3
+# Owner decision (ai/META-DECISIONS.md): the lab runs BIRD's latest stable release on the BIRD 3
 # line only. Alpine 3.24 packages bird 3.2.4, behind upstream, so this image
 # builds the release tag from source. bird.network.cz refuses scripted
 # downloads (HTTP 403), so the source is the upstream Git repository at the tag,

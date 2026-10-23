@@ -15,9 +15,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Owner decision M28 (`ai/META-DECISIONS.md`, 2026-10-22): "we should have a long
-lived spec dealing with how to resolve the rows ... and if a row is not enough to
-express the bug and ensure its resolution then a spec is needed".
+The owner's standing decisions (`ai/META-DECISIONS.md`) want a long-lived spec
+that decides how journal rows get resolved, and a spec of its own for a defect
+one row cannot express and ensure the resolution of.
 
 The journal route (`ai/rules/rule-precedence.md`, `ai/rules/completion.md`) records
 a defect walked into as one row in `plan/journal/<class>.md`. Recording is fast, and
@@ -47,7 +47,7 @@ banner prints goes down rather than up.
   → Decision: a pass that cannot build a check sets a `rule` capture and says why in the commit body (README); a pass MUST NOT replace a check capture with a rule capture.
 - [ ] `ai/rules/rule-precedence.md` - the three-step journal route and the "deliberate pass over the journal"
   → Constraint: a walked-into defect gets one row, the work in hand closes, and the session stops. A pass is the deliberate later work, run as its own work item, never folded into a closing commit.
-  → Decision: M28 adds the exception that a defect one row cannot carry gets its own spec; the point `rule-precedence/directives/close-the-work-first-then-ask-about-the-unrelated-defect` states it and points here.
+  → Decision: the owner's journal rule adds the exception that a defect one row cannot carry gets its own spec; the point `rule-precedence/directives/close-the-work-first-then-ask-about-the-unrelated-defect` states it and points here.
 - [ ] `ai/rules/completion.md` - recording versus fixing
   → Constraint: a row is a record, never a fix; a row stays `open:` until code changes (`principles.md`, "Recording a defect MUST NOT be presented as fixing the product").
 - [ ] `ai/rules/planning.md` - spec lifecycle, journal row format, closure repoint
@@ -57,8 +57,8 @@ banner prints goes down rather than up.
   → Constraint: Status values are declared once in `Vocabulary` (`internal/le/spec/status/specstatus.go`): skeleton, design, ready, in-progress, verification, blocked, deferred, done. None means "never closes".
 - [ ] `plan/README.md` - buckets and lifecycle
   → Decision: this spec sits at `plan/` level: the release ships without the resolution process. A spec promoted from a row is bucketed by its own defect, independently.
-- [ ] `ai/META-DECISIONS.md` - M2 to M4, M28
-  → Constraint: M4 decides that a logic bug or misbehavior is fixed without asking, so running a fix pass needs no owner go-ahead per pass.
+- [ ] `ai/META-DECISIONS.md` - goal and scope, the journal rule
+  → Constraint: a logic bug or misbehavior is fixed without asking, so running a fix pass needs no owner go-ahead per pass.
 - [ ] `docs/architecture/core-design.md` - declared by the `// Design:` header of every file this spec changes (le's spec inventory, the native edit hook policy)
   → Constraint: the page describes le's tooling at the level of commands and hooks; a new status or report line is checked against it at implementation, and it is named in Documentation row 16 as affected or unaffected with the reason.
 
@@ -131,7 +131,7 @@ and the check-repair steps are in `plan/journal/README.md` and are not repeated.
 | 1 | Run `./le spec journal report`. The first DUE line not already running in the Pass Log is the next pass |
 | 2 | One pass works one class. A class that one check cannot cover is split first (README step 1), and each part is its own pass |
 | 3 | After AC-1 lands, the report lists check-gap classes first: a check with a gap is a gate reporting green on the shape it claims to refuse, so it outranks a larger uncaptured class |
-| 4 | Running a pass needs no owner question: M4 decides that a misbehavior is fixed |
+| 4 | Running a pass needs no owner question: a misbehavior is fixed without asking (`ai/META-DECISIONS.md`) |
 
 ### Claiming a pass
 
@@ -148,10 +148,10 @@ and the check-repair steps are in `plan/journal/README.md` and are not repeated.
 | The defect is fixed by the pass | `fixed: ` and what changed | the fix commit's short SHA, and the test that goes red without it |
 | The defect was fixed earlier by unrelated work | `fixed: ` | the commit that fixed it, found with `git log -S` or `git log -L` on the producer, and the test or check that now covers it |
 | The code the row names is gone at HEAD (stale) | `fixed: ` saying the producer was removed | the commit that removed it, and the search over HEAD that finds no remaining producer of the same shape; a renamed or moved producer is not stale and is followed instead |
-| One row cannot express the defect and ensure its resolution (M28) | stays `open: `, naming the spec path | the spec, written per `ai/rules/planning.md` in the bucket its own defect belongs to |
+| One row cannot express the defect and ensure its resolution | stays `open: `, naming the spec path | the spec, written per `ai/rules/planning.md` in the bucket its own defect belongs to |
 | The row is wrong about what happened | `fixed: ` saying the report was mistaken | the producer read at HEAD that shows the behavior is correct |
 
-The M28 test: a row is not enough when ANY of these holds.
+The one-row test: a row is not enough when ANY of these holds.
 
 | Condition | Why one row fails |
 |-----------|-------------------|
@@ -196,7 +196,7 @@ and the commit SHAs. The Pass Log is append-only otherwise.
 |----|------|--------------|----------------------|
 | R-1 | Passes run per-row patches without a check, so DUE never drops | Pass Log rows with result `rule` dominate | README forbids a capture without steps 2 and 3; review checks the commit body states why no check exists |
 | R-2 | Stale closure hides a live defect that moved | a `fixed:` stale row whose shape reappears in a later row | the stale rule demands a HEAD search for the same shape, and a moved producer is followed |
-| R-3 | Promotion becomes the default, recreating the 2026-08-08 spec-per-defect route M28 supersedes | promoted rows outnumber fixed rows in a pass | the M28 test is ANY-of four concrete conditions; a row passing none stays a row |
+| R-3 | Promotion becomes the default, recreating the 2026-08-08 spec-per-defect route the journal rule supersedes | promoted rows outnumber fixed rows in a pass | the one-row test is ANY-of four concrete conditions; a row passing none stays a row |
 | R-4 | A never-closing status weakens `writeSpecStatus`, letting any session edit source under this claim | source edits under the claim outside a running pass | the claim is taken only by a session holding a `running` Pass Log row (Claiming a pass, step 3) |
 | R-5 | Ordering check gaps first starves the largest classes | the same uncaptured class leads the non-gap DUE list for many passes | check gaps are few (0 at HEAD today); each repair is small |
 
@@ -355,7 +355,7 @@ and the commit SHAs. The Pass Log is append-only otherwise.
 | No third Fix marker; stale and mistaken rows close as `fixed:` with evidence | a `stale:` or `wontfix:` marker | the README says a half still broken is open; a stale row's occurrence no longer exists, so it is repaired, and a new marker would reopen every consumer of the two |
 | Pass order comes from the report, not this spec | a priority table in this spec | a rule MUST NOT copy what a command prints; the tool answers over the tree in hand |
 | Check-gap classes first | largest counted rows first for all | a check gap is a gate that is wrong today; size measures history |
-| Passes are Pass Log rows in this spec | one spec per pass | a spec per pass recreates the per-defect spec route M28 supersedes and costs a closure per pass |
+| Passes are Pass Log rows in this spec | one spec per pass | a spec per pass recreates the per-defect spec route the journal rule supersedes and costs a closure per pass |
 | A never-closing status | keep this spec `in-progress` forever | `in-progress` claims implementation is under way and counts as unfinished work; owner question below |
 
 ## Known Limitations

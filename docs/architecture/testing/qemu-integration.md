@@ -418,7 +418,7 @@ is where they run.
 
 A Docker lab that runs Ze needs a Docker daemon whose kernel carries every
 feature Ze enrolls (`docs/architecture/testing/interop.md`, "The Docker host
-kernel check"), on Ze's own system (owner M1, M10). On macOS the `ze` Colima
+kernel check"), on Ze's own system (`ai/META-DECISIONS.md`). On macOS the `ze` Colima
 profile is that daemon (`docs/architecture/appliance/docker-host.md`). The QEMU
 route serves the scheduled nightly, whose hosted runner kernel is too old, and
 is the Mac's second route (owner D-6). Both architectures use one action:

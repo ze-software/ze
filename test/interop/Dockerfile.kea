@@ -1,7 +1,7 @@
 # Kea DHCPv6 server (kea-dhcp6) for interoperability testing of ze's DHCPv6
 # client.
 #
-# Kea is built from the upstream 3.2.1 release, because owner decision M14
+# Kea is built from the upstream 3.2.1 release, because owner decision
 # (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
 # Alpine 3.24 packages 3.0.3. The build uses the paths of the Alpine package:
 # configuration under /etc/kea, the memfile lease database and the server DUID

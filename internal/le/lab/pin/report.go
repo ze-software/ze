@@ -126,7 +126,7 @@ func (u *upstream) remember(key string, ask func() (string, error)) (string, err
 // moving tags, then what could not be resolved, then a count of the rest.
 func (r Result) Text() string {
 	var tb textbuf.Buffer
-	tb.Str("# Lab peer pins against upstream latest stable (M14)\n\n")
+	tb.Str("# Lab peer pins against upstream latest stable\n\n")
 	current := 0
 	for _, state := range []string{StateBehind, StateFloating, StateUnresolved} {
 		for _, row := range r.Rows {

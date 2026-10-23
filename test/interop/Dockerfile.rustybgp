@@ -1,6 +1,6 @@
 # RustyBGP daemon for performance testing.
 # Builds the latest release tag, v0.2.0, from GitHub source using musl for
-# static linking (owner decision M14: a pinned release, never moving master).
+# static linking (a pinned release, never moving master).
 
 FROM rust:1.99.1-alpine3.24 AS builder
 

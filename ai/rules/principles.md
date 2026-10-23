@@ -22,7 +22,7 @@
 
 **The work a change owes MUST be measured by what the change can now reach, and MUST NOT be measured by the files you edited.** The other call site, the sibling path with the same shape, the test that asserts the behavior you changed, the consumer of the name you renamed: each is inside the change whether or not it appears in the diff. A set derived from `git diff` is the edited set wearing another name.
 
-**Scope MUST NOT be expanded, reduced, renamed, deferred, or tabled without the user deciding it, and an author MUST NOT review their own work.** The owner has already decided what an RFC Ze implements, an agreed design and correct behavior require (`ai/META-DECISIONS.md`, M2 to M4): that work is inside scope and MUST NOT be put back to him as a question. Independent review requires a reader who did not author the change.
+**Scope MUST NOT be expanded, reduced, renamed, deferred, or tabled without the user deciding it, and an author MUST NOT review their own work.** The owner has already decided what an RFC Ze implements, an agreed design and correct behavior require (`ai/META-DECISIONS.md`): that work is inside scope and MUST NOT be put back to him as a question. Independent review requires a reader who did not author the change.
 
 **A rule, a document or a comment MUST NOT carry a copy of what a command already prints.** The tool answers at the moment the answer is actionable, over the tree in hand, and it cannot be stale. A cached copy is stale from the first change and costs every reader who never runs that command. Run it, read what it says, and act on that.
 

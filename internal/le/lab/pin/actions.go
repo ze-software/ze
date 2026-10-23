@@ -33,7 +33,7 @@ const checkTimeout = 5 * time.Minute
 // actions is the whole command surface.
 var actions = leaction.New(area,
 	leaction.Action{Verb: "check", Why: "list every lab peer pin the tree holds (image tags, go install versions, git tags, source commits)" +
-		" and compare each with upstream's latest stable release, over the network; a report, never a commit gate (M14)",
+		" and compare each with upstream's latest stable release, over the network; a report, never a commit gate",
 		Answer: runCheck},
 	leaction.Action{Verb: "bump", Writes: true,
 		Why: "move a source-built peer's ZE_SOURCE_COMMIT and ZE_SOURCE_DATE to upstream's latest default-branch commit;" +

@@ -23,7 +23,7 @@ import (
 // sibling is kept byte for byte; an UPDATE with no -02 route is returned as received,
 // not copied; an MP_REACH_NLRI the octets push past 255 gains the Extended Length bit.
 // PREVENTS: the raw relay forwarding a -02 route as received, where ExaBGP f9bfb853b
-// re-sends it with the octet (with_source_length, t1st.py; owner decision M25).
+// re-sends it with the octet (with_source_length, t1st.py).
 func TestMUPT1ST02RelayedWithSourceLength(t *testing.T) {
 	old := mupWireNLRI(3, t1stBody(1)...)
 	current := mupWireNLRI(3, t1stBody(1, 0x00)...)

@@ -6,7 +6,7 @@
 // The rows of oldAllowed up to the marker are copied, reason and pattern, from
 // the ALLOWED table of the pin's qa/bin/test_old_commands (ExaBGP f9bfb853b):
 // each is a change ExaBGP 6.0 made on purpose, so ExaBGP 6.0 compatibility is
-// the new behavior (M3). The Python pattern
+// the new behavior. The Python pattern
 // `(?!.*\blabel\b)` has no RE2 form, so that row carries it as `unless`.
 // Rows after the marker are ze's own, each with the RFC text or the pin source
 // that justifies it.
@@ -81,7 +81,7 @@ var oldAllowed = []oldAllowedRow{
 	oldAllow("4.2 5.0", `\bas-path \[[^\]]*(\] *)?\(`, "",
 		"an AS_PATH carrying an AS_SET, written `( ... )`: RFC 9774 Section 3, BGP speakers \"MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs\". 4.2 and 5.0 sent the set, this tree refuses the line"),
 	oldAllow("4.2 5.0", `^announce operational `, "",
-		"an OPERATIONAL message (draft-ietf-idr-operational-message): 5.0 sent it, Ze does not support OPERATIONAL and the bridge refuses the line with its reason (owner decision M15, ai/META-DECISIONS.md)"),
+		"an OPERATIONAL message (draft-ietf-idr-operational-message): 5.0 sent it, Ze does not support OPERATIONAL and the bridge refuses the line with its reason (ai/META-DECISIONS.md)"),
 }
 
 // oldMalformed is the MALFORMED table of the pin's qa/bin/test_old_commands

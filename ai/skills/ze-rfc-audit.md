@@ -173,7 +173,7 @@ believe a finding was wrong, re-judge it with `mode rejudge` and record `upgrade
 
 An `unimplemented` verdict records missing behavior that is owed work.
 Record the explicit gap with its RFC source. First close testing gaps for implemented
-capabilities and fix exposed defects. An absent requirement of an implemented RFC is owed work, never an owner question (M2 in `ai/META-DECISIONS.md`).
+capabilities and fix exposed defects. An absent requirement of an implemented RFC is owed work, never an owner question (`ai/META-DECISIONS.md`).
 
 ## Why the fingerprint exists
 

@@ -95,7 +95,7 @@ func writeJointSubnetFRRFiles(plan *jointSubnetFRRPlan) error {
 	for _, file := range []struct{ name, body string }{
 		{"frr.conf", jointSubnetFRRConfig}, {"ze.conf", ze}, {"inject.peer", inject},
 	} {
-		if err := os.WriteFile(filepath.Join(plan.output, file.name), []byte(file.body), 0o644); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
+		if err := os.WriteFile(filepath.Join(plan.output, file.name), []byte(file.body), 0o644); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (ai/META-DECISIONS.md, sudo)
 			return err
 		}
 	}
@@ -396,7 +396,7 @@ func assertJointSubnetFRRRoute(route jointSubnetFRRRoute, prefix string, global 
 
 func jointSubnetFRRJSON(ctx context.Context, plan *jointSubnetFRRPlan, namespace *testNetns, orig netns.NsHandle, command, artifact string) ([]byte, error) {
 	data, err := jointSubnetFRRCommand(ctx, []string{plan.vtysh, "--vty_socket", plan.runtimeDir, "-d", "bgpd", "-c", command}, namespace, orig)
-	if writeErr := os.WriteFile(filepath.Join(plan.output, artifact), data, 0o644); writeErr != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
+	if writeErr := os.WriteFile(filepath.Join(plan.output, artifact), data, 0o644); writeErr != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (ai/META-DECISIONS.md, sudo)
 		return nil, writeErr
 	}
 	if err != nil {

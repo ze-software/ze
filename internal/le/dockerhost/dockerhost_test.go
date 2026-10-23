@@ -22,7 +22,7 @@ func homeMe() (string, error) { return "/home/me", nil }
 // METHOD: a scripted filesystem on which every socket exists, and one on which
 // only the `ze` socket exists.
 // PREVENTS: the labs running on Colima's Ubuntu `default` VM or on Docker
-// Desktop, which owner decision M10 rules out.
+// Desktop, which the owner's standing decisions rule out.
 func TestEnvironmentSelectsTheZeProfileSocket(t *testing.T) {
 	for name, socket := range map[string]func(string) bool{
 		"every socket answers": func(string) bool { return true },

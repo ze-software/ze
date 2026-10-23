@@ -261,7 +261,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 **Goal:** Produce the spec file using `plan/templates/TEMPLATE.md`.
 
-1. Choose the work-item folder FIRST using `plan/README.md`. Separate release fixes, validation and delivery from post-release features and engineering; unapproved work belongs in proposals. Record `Priority`, `Release reason` and `Depends`. Split mixed fix-and-feature obligations under M32 rather than making the whole RFC a release prerequisite.
+1. Choose the work-item folder FIRST using `plan/README.md`. Separate release fixes, validation and delivery from post-release features and engineering; unapproved work belongs in proposals. Record `Priority`, `Release reason` and `Depends`. Split mixed fix-and-feature obligations into separate specs rather than making the whole RFC a release prerequisite.
 2. Write (or update) the spec at `plan/<bucket>/spec-<name>.md` using template format
 3. Fill all sections from research and design phases:
    - Required Reading with `→ Decision:` / `→ Constraint:` annotations

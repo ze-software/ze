@@ -38,7 +38,7 @@ func canonicalT1STGrow(nlriBytes []byte, addPath bool) int {
 // t1stSourceOctetAbsent reports whether one MUP NLRI, with no path identifier, is
 // a 3gpp-5G Type 1 ST route whose Route Type specific field ends exactly at the end
 // of its Endpoint Address: the draft-mpmz-bess-mup-safi-02 encoding, read as
-// Source Address Length 0 (parseBodyT1ST, owner decision M25).
+// Source Address Length 0 (parseBodyT1ST).
 func t1stSourceOctetAbsent(nlriBytes []byte) bool {
 	if len(nlriBytes) < mupHeaderLen {
 		return false

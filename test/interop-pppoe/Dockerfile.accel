@@ -1,7 +1,7 @@
 # accel-ppp PPPoE access concentrator image.
 #
 # accel-ppp is packaged in Alpine community, and Alpine 3.24 carries 1.14.0,
-# upstream's latest stable release (owner decision M14, ai/META-DECISIONS.md).
+# upstream's latest stable release (ai/META-DECISIONS.md).
 # The QEMU evidence test installs the same package via `apk add accel-ppp`. PPPoE uses the
 # in-tree kernel `pppoe` (pppox) support of the shared host kernel, which the
 # host provides: a lab container never loads a module. No kernel driver is

@@ -1,7 +1,7 @@
 # keepalived VRRP daemon for interoperability testing.
 #
 # keepalived is built from the upstream 2.4.3 release, because owner decision
-# M14 (ai/META-DECISIONS.md) has every lab peer run its latest stable release
+# (ai/META-DECISIONS.md) has every lab peer run its latest stable release
 # and Alpine 3.24 packages 2.3.4. VRRP and VRRP_VMAC are in the default build;
 # the LVS checkers are not built, because no scenario runs one.
 #

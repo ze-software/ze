@@ -415,8 +415,8 @@ the gated denominator, so it moves no share (`docs/contributing/rfc-conformance-
 **Annotations record scope and evidence.**
 Read the RFC and the current producers before choosing a classification. Close testing
 gaps for implemented capabilities first, and record absent behavior as an explicit gap.
-An absent requirement is owed work, never an owner question (M2 in `ai/META-DECISIONS.md`). Apply `ai/rules/rfc-compliance.md`.
-Full coverage of every RFC Ze implements is the goal (M2).
+An absent requirement is owed work, never an owner question (`ai/META-DECISIONS.md`). Apply `ai/rules/rfc-compliance.md`.
+Full coverage of every RFC Ze implements is the goal.
 Re-check an existing annotation's evidence against the RFC text.
 
 ## Superseded Documents Carry Their Successor

@@ -46,7 +46,7 @@ import (
 
 const (
 	// gnmicImage is gnmic 0.49.1 from the OpenConfig project, its latest
-	// stable release (M14), pinned by digest, so the client under the test
+	// stable release, pinned by digest, so the client under the test
 	// cannot change between two runs.
 	gnmicImage = "ghcr.io/openconfig/gnmic:0.49.1" +
 		"@sha256:d148508c7ab3e5fd446759648d529409c1e37c2cc99c8b681078d120ca1a302b"

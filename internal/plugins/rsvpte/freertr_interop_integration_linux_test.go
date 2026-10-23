@@ -290,7 +290,7 @@ const rsvpFreeDockerfile = "../../../test/interop-rsvpte/Dockerfile.freertr"
 
 // rsvpFreePinnedRevision answers the commit the Dockerfile pins in its
 // ZE_SOURCE_COMMIT build argument, the one declaration of the peer revision,
-// so a monthly bump of the pin (M14) needs no edit here.
+// so a monthly bump of the pin needs no edit here.
 func rsvpFreePinnedRevision(t *testing.T) string {
 	t.Helper()
 	body, err := os.ReadFile(rsvpFreeDockerfile)

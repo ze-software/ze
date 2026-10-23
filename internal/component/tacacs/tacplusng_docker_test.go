@@ -28,7 +28,7 @@ const (
 	// tacPlusNGImage is tac_plus-ng from Marc Huber's event-driven-servers,
 	// built by this test from the upstream commit tacPlusNGDockerfile pins.
 	// Upstream publishes no stable release, so the pin follows master and the
-	// build refuses it once it is more than one month old (M14).
+	// build refuses it once it is more than one month old.
 	tacPlusNGImage = "ze-tacplusng:test"
 	// tacPlusNGDockerfile builds tacPlusNGImage, from the module root.
 	tacPlusNGDockerfile = "test/interop-tacacs/Dockerfile.tacplusng"

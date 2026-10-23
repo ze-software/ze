@@ -1,6 +1,6 @@
 # OpenBGPD (portable) for interoperability and performance testing.
 #
-# Owner decision M14: the lab runs OpenBGPD's latest stable release. Alpine 3.24
+# Owner decision (ai/META-DECISIONS.md): the lab runs OpenBGPD's latest stable release. Alpine 3.24
 # packages openbgpd 9.1, behind upstream, so this image builds the portable
 # release tarball, verified against the SHA256 OpenBSD publishes beside it
 # (https://cdn.openbsd.org/pub/OpenBSD/OpenBGPD/SHA256). The build needs no

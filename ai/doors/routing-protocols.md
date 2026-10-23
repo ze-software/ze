@@ -67,9 +67,8 @@ work, not the tests in this repository alone.
   section, and name the section at each caller (`ai/rules/rfc-compliance.md`).
 - **A tag you add or change carries a discrimination record** written by
   `./le rfc discriminate-record` (`docs/contributing/rfc-conformance-gates.md`).
-- **Every RFC Ze implements gets full coverage** (owner decision M2,
-  2026-10-20, `ai/META-DECISIONS.md`). It supersedes the 2026-10-08 freeze on
-  enrolment and new `rfc/short/` summaries: a document Ze implements is
+- **Every RFC Ze implements gets full coverage** (`ai/META-DECISIONS.md`):
+  a document Ze implements is
   enrolled, and its absent requirements get rows and code, without asking.
 - **A wire-visible change owes an interop scenario.** OSPF, OSPFv3, IS-IS, LDP
   and BFD scenarios against FRR and BIRD live in `test/interop/scenarios/`,

@@ -2,7 +2,7 @@
 # Runs xl2tpd in foreground; pppd is started by xl2tpd.
 #
 # pppd and xl2tpd are built from the upstream ppp 2.5.4 and xl2tpd 1.3.20
-# releases, because owner decision M14 (ai/META-DECISIONS.md) has every lab peer
+# releases, because owner decision (ai/META-DECISIONS.md) has every lab peer
 # run its latest stable release and Alpine 3.24 packages ppp 2.5.3. Alpine's
 # xl2tpd package depends on that ppp, so xl2tpd is built here too, against
 # nothing but libpcap. xl2tpd keeps its default kernel mode (USE_KERNEL), and

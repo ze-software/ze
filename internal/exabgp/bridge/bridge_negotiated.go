@@ -177,7 +177,7 @@ func unexchangedNegotiated() map[string]any {
 //
 // The families are in AFI then SAFI order, the order ExaBGP lists them in.
 // `multisession` and `operational` are false on every ze session: ze opens no
-// multi-session session (META-DECISIONS M16) and speaks no OPERATIONAL (M15).
+// multi-session session and speaks no OPERATIONAL (ai/META-DECISIONS.md).
 // The empty lists are written, as ExaBGP writes them, so a helper that indexes
 // `add_path["send"]` meets no KeyError.
 //

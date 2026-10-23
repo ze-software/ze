@@ -33,7 +33,7 @@ RUN curl https://codeload.github.com/${ZE_SOURCE_REPOSITORY}/tar.gz/${ZE_SOURCE_
 // VALIDATES: a pinned commit less than a month old builds, and one more than a
 // month old is refused before docker build runs, naming the pin, its age and
 // the bump command.
-// PREVENTS: a source-built peer built from source older than M14 allows.
+// PREVENTS: a source-built peer built from source more than one month old.
 func TestBuildRefusesAStaleSourcePin(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -60,7 +60,7 @@ func TestBuildRefusesAStaleSourcePin(t *testing.T) {
 			if err == nil {
 				t.Fatal("a stale pin was not refused")
 			}
-			for _, want := range []string{path, "ed3c66a89d5c", "MarcJHuber/event-driven-servers", "days ago", "M14", "Fix: ./le lab pin bump dockerfile " + path} {
+			for _, want := range []string{path, "ed3c66a89d5c", "MarcJHuber/event-driven-servers", "days ago", "less than one month old", "Fix: ./le lab pin bump dockerfile " + path} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("refusal %q does not name %q", err, want)
 				}

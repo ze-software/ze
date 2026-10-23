@@ -141,7 +141,7 @@ func jointSubnetFRRDriver(parent context.Context, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
-	if err := os.Mkdir(plan.output, 0o755); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
+	if err := os.Mkdir(plan.output, 0o755); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (ai/META-DECISIONS.md, sudo)
 		return fmt.Errorf("fresh evidence directory: %w", err)
 	}
 	if err := os.Mkdir(plan.runtimeDir, 0o750); err != nil {
@@ -177,7 +177,7 @@ func jointSubnetFRRDriver(parent context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("installed FRR version: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(plan.output, "version.txt"), version, 0o644); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
+	if err := os.WriteFile(filepath.Join(plan.output, "version.txt"), version, 0o644); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (ai/META-DECISIONS.md, sudo)
 		return err
 	}
 	return runJointSubnetFRR(ctx, plan, &topology, orig)

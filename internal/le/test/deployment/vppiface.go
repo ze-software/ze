@@ -51,7 +51,7 @@ const (
 
 // What the run uses when the operator names nothing.
 //
-// The tag names ligato's 26.06 release build, the latest stable VPP (M14), so
+// The tag names ligato's 26.06 release build, the latest stable VPP, so
 // the VPP under the proof changes only when this line does. The plugin probes
 // stay because a ligato build ships only some of VPP's plugins.
 const (

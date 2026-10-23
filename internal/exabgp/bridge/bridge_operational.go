@@ -24,7 +24,7 @@ var (
 	// operational message: <command>").
 	errOperationalUnknown = errors.New("unknown operational message")
 	// errOperationalNotSent answers a known kind: Ze does not originate the
-	// OPERATIONAL message, which Ze does not support (owner decision M15,
+	// OPERATIONAL message, which Ze does not support (owner decision,
 	// ai/META-DECISIONS.md; docs/exabgp/exabgp-differences.md).
 	errOperationalNotSent = errors.New("the OPERATIONAL message is not sent by Ze")
 )

@@ -8,7 +8,7 @@
 # default ../rtr). freeRtr publishes no stable release, so before this image is
 # built Docker.Build fast-forwards that checkout to its upstream when its HEAD
 # is more than one month old, and refuses the build when the checkout holds
-# uncommitted changes (owner decision M14, internal/le/interoplab/sourcepin.go).
+# uncommitted changes (ai/META-DECISIONS.md, internal/le/interoplab/sourcepin.go).
 ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
 ARG ZE_SOURCE_CHECKOUT=freertr
 

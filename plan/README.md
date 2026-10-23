@@ -24,7 +24,7 @@ without updating that declaration and its consumers.
 
 ## Release boundary and order
 
-Apply owner decisions M30-M33 in `ai/META-DECISIONS.md`. Full RFC coverage is
+Apply the owner's release-timing and plan-structure rules in `ai/META-DECISIONS.md`. Full RFC coverage is
 not a release prerequisite. A shipped capability still owes every requirement
 needed for its correct behavior. Partial implementation must not be announced
 as full RFC support, and disclosure does not excuse a known defect.

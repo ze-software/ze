@@ -78,7 +78,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 | Daemon | Version | Image | Query Method | What It Validates |
 |--------|---------|-------|--------------|-------------------|
 | FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
-| BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (owner decision M14); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
+| BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (`ai/META-DECISIONS.md`); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name | eBGP, route injection and verification |
 | StayRTR | 0.6.4 | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | pmacct `pmbmpd` | 1.8.0 | `pmacct/pmbmpd:v1.8.0` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
@@ -808,7 +808,7 @@ removed: they are what keeps a second run minutes long.
 <!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
 
 On macOS the daemon in hand is the `ze` Colima profile's, which boots Ze's
-docker-host image (owner decision M10). With DOCKER_HOST unset or empty, every
+docker-host image (`ai/META-DECISIONS.md`). With DOCKER_HOST unset or empty, every
 docker command le runs for a lab, the kernel check included, carries
 `DOCKER_HOST=unix://<colima home>/ze/docker.sock`, where the Colima home is
 resolved as Colima resolves it (`$HOME/.colima` by default, `COLIMA_HOME` or
@@ -1259,7 +1259,7 @@ than the suite's, or when the scenario must not follow an `FRR_IMAGE` override:
 release here that negotiates the Link-Local Next Hop capability (77), because
 without it a different gate withholds the route and the scenario cannot go red.
 The five scenarios that carry one pin the same release as the suite,
-`interoplab.FRRImage` (owner decision M14), so a run with `FRR_IMAGE` naming an
+`interoplab.FRRImage` (every lab peer runs its latest stable release), so a run with `FRR_IMAGE` naming an
 older FRR still starts them from 10.7.1. A file naming no image, or two, is an
 error.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
@@ -1754,7 +1754,9 @@ plugin is absent, and two other plugins register the algorithm instead: on an
 x86-64 host `swanctl --list-algs` in the image answers `AES_CCM_16[aesni]`,
 `AES_CCM_12[aesni]` and `AES_CCM_8[aesni]`, and with aesni not loaded it answers
 `AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and `AES_CCM_8[openssl]` (measured
-2026-10-22). The absent FILE is not an absent
+2026-10-22). The aesni plugin is built only on x86, because its sources need
+`-maes`, `-mpclmul` and `-mssse3`, which gcc refuses on arm64; there openssl is
+the only provider. The absent FILE is not an absent
 capability, and a source build of the ccm plugin would add a second provider of
 one algorithm and nothing else.
 <!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->
@@ -2618,7 +2620,7 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 
 ### Source-built peers
 
-Owner decision M14: every third-party lab peer runs its latest stable upstream
+Owner decision (`ai/META-DECISIONS.md`): every third-party lab peer runs its latest stable upstream
 release. A peer that publishes no stable release is built from source, and only
 from source less than one month old. Two do today: tac_plus-ng
 (`test/interop-tacacs/Dockerfile.tacplusng`, used by

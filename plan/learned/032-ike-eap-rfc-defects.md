@@ -34,7 +34,7 @@ an EAP-TLS 1.2 full handshake carried no session_id (RFC 5216 Section 2.1.1).
    USE_TRANSPORT_MODE strongSwan read the rekey as tunnel mode, skipped its own
    NAT selector substitution and answered TS_UNACCEPTABLE. The defect looked
    like a selector-address problem. Reading strongSwan's `child_create.c` found
-   the real cause before a wrong fix landed (M6).
+   the real cause before a wrong fix landed.
 2. **Every refusal branch of a level-triggered retry needs a hold.** The soft
    lifetime and an owed rebind rekey fire on every tick. A refusal that deletes
    the new pair without holding the next attempt turns into a rekey and Delete

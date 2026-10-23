@@ -1,6 +1,6 @@
 # rustbgpd daemon for performance testing.
-# Builds the latest stable release tag from GitHub source (owner decision
-# M14). v0.79.0 declares rust-version 1.95.
+# Builds the latest stable release tag from GitHub source.
+# v0.79.0 declares rust-version 1.95.
 
 FROM rust:1.99.1-trixie AS builder
 

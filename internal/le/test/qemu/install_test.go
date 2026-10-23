@@ -496,8 +496,8 @@ func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
 // refuses naming `./le setup docker-host start` when that socket is absent
 // (even with Colima's `default` socket present), and keeps a DOCKER_HOST the
 // operator already set.
-// PREVENTS: `ze appliance build` running Docker on a daemon owner decision M10
-// rules out, and the selection overwriting an operator's remote daemon. The
+// PREVENTS: `ze appliance build` running Docker on a daemon the owner's standing
+// decisions rule out, and the selection overwriting an operator's remote daemon. The
 // selection's own conditions are tested in internal/le/dockerhost.
 func TestApplianceEnvNamesTheDockerSocket(t *testing.T) {
 	ops := productionInstallOps()

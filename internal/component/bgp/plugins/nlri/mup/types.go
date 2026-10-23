@@ -299,7 +299,7 @@ func (m *MUP) parseBodyDSD(rest []byte) error {
 // Source Address Length is 0 bytes then the Source address is not carried
 // within the NLRI." Ze always sends the octet. A route that stops exactly at
 // the end of the endpoint address is read as Source Address Length 0, as
-// ExaBGP reads it (owner decision M25, 2026-10-22): that is the encoding of
+// ExaBGP reads it: that is the encoding of
 // draft-mpmz-bess-mup-safi-02, which carried no Source Address Length when no
 // source was given, and ExaBGP 5.0 still sends it (architecture_error and
 // with_source_length, bgp/message/update/nlri/mup/t1st.py at f9bfb853b: "the
@@ -352,7 +352,7 @@ func (m *MUP) parseBodyT1ST(rest []byte) error {
 
 	// draft-mpmz-bess-mup-safi-02 compatibility: a route ending at its
 	// endpoint address carries no Source Address Length, read as 0 and no
-	// TLVs, as ExaBGP reads it (owner decision M25).
+	// TLVs, as ExaBGP reads it.
 	if len(rest) == 0 {
 		m.sourceBits = 0
 		m.sourceOctetAbsent = true

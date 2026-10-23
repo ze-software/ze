@@ -446,8 +446,8 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	if timeout <= 0 {
 		return image, errors.New("Docker build timeout must be positive")
 	}
-	// A source-built peer is built only from source less than one month old
-	// (M14). Every lab image reaches Docker through this method, so the rule
+	// A source-built peer is built only from source less than one month old.
+	// Every lab image reaches Docker through this method, so the rule
 	// holds for a suite, a labtest and the perf DUTs alike (sourcepin.go).
 	if err := d.RequireFreshSource(ctx, build, time.Now()); err != nil {
 		return image, err

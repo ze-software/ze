@@ -754,7 +754,7 @@ among them, so every peer grants it and every line carries the block. The
 The block is ExaBGP's: `message_size`, `hold_time`, `asn4`, `refresh`,
 `families` in AFI then SAFI order, `nexthop` (one `<afi> <safi> <next-hop afi>`
 per RFC 8950 tuple) and `add_path` with both lists always written.
-`multisession` and `operational` are false on every ze session (M16, M15), so a
+`multisession` and `operational` are false on every ze session (Ze supports neither), so a
 4.2 or 5.0 line that said true is an ALLOWED difference in `TestOldResponses50`.
 
 <!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, convertNegotiated, Event.ForGrant, unexchangedNegotiated -->
@@ -795,7 +795,7 @@ The bytes come from the engine: both runners subscribe with the `full` format,
 which carries each message's body beside its parsed form (`raw.update`,
 `raw.message`, `docs/architecture/api/json-format.md`). The bridge derives the
 header from the body length and the type. An OPERATIONAL message has no
-producer (M15), so neither form is written for one.
+producer, so neither form is written for one.
 
 Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
 the neighbor, from any process that asked, and ze reads them per script, which

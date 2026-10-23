@@ -189,7 +189,7 @@ func TestMUPParseErrors(t *testing.T) {
 // encoding, which ends at its endpoint address, is read as ExaBGP reads it.
 //
 // VALIDATES: ParseMUP reads the route as Source Address Length 0 with no
-// source and no TLVs (owner decision M25; architecture_error and
+// source and no TLVs (architecture_error and
 // with_source_length, t1st.py at ExaBGP f9bfb853b), and Len, WriteTo and the
 // JSON raw member give it the octet, 0, as the current draft writes it; an
 // IPv6 route ending at its endpoint reads the same way.

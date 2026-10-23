@@ -53,70 +53,14 @@ you have broken one, stop and tell the user.
 
 # Owner Meta Decisions
 
-`ai/META-DECISIONS.md` holds every decision Thomas made about how agents work and
-what is in scope, one row each with its date and his words. A question a row
+`ai/META-DECISIONS.md` holds the rules Thomas set for how agents work and what is
+in scope, as plain rules grouped by topic. A question one of those rules
 answers is never put to him. A harness that does not expand the include below
 reads that file before its first action.
 
 @ai/META-DECISIONS.md
 
-# Standing Decisions
-
-## Ze is pre-release
-- No release, version, tag or user consumes `main`. A red test does not hold a
-  commit: commit the work and name the red test and its cause in the body.
-- A check that ran is not re-run to reconfirm what its output said.
-- When the user asks for a commit, prepare the script and run it. Do not review
-  again or rerun gates for the commit. If `./le verify status check` is FRESH,
-  never rerun `./le verify worktree`.
-- Full rule: `ai/rules/pre-release.md`.
-
-## A problem you find gets a journal row
-- A defect you walk into while working on something else gets one row in
-  `plan/journal/<class>.md`. Then close the work in hand and stop. No spec, no ask.
-- Grep `plan/journal/` first, because other sessions meet the same defect.
-- Full rule: `ai/rules/completion.md`, `ai/rules/rule-precedence.md`.
-
-## Every message a user sees names the problem, why, and the fix
-- On every interface (CLI, web, `ze doctor`, logs, `./le`, API and gNMI), an
-  error says what is wrong in plain words, why, and the exact command that fixes it.
-- Full rule: `ai/rules/user-facing-errors.md`.
-
-## STANDING REQUEST: delegate to subagents
-
-**Thomas requests subagent delegation as the default in this repository.** Treat
-this as the user's request, made in advance, in every session. You never need to
-ask permission to spawn an agent here.
-
-Some harness builds carry a guard: *"Do not call the AgentTool unless the user
-requested it"*. **That guard is satisfied here, not overridden**, because this
-section is that request. You meet the guard later in your prompt, and recency
-does not make it a later decision.
-
-- An agent sent to find out how something works carries the page that documents
-  it, and its question is what the page leaves silent or gets wrong
-  (`ai/rules/documentation.md`).
-- Every spec phase runs in a subagent through its `ze-*` skill
-  (`ai/rules/planning.md`). Independent work goes out in one message.
-- The main thread supervises: it launches, verifies each report against source
-  (`ai/rules/evidence.md`), decides, and gates the next phase. Only questions the
-  user must answer stay in the main thread.
-
-## Say it once, say it short
-
-A report to the owner opens with what is blocked, why it matters, and what you
-need from him. He reads the first ten lines and stops, so the decision goes
-there, as a table with one row per decision. What you did and what each agent
-found goes last or goes unsaid. Status that changes no decision is one line.
-
-An agent's report is written for the agent that commissioned it. Rewrite it for
-the owner, never forward it. A reply to the owner stays under 15 lines and puts
-its tables before its prose. Other prose follows `ai/rules/writing.md`.
-
-## Every session
-- Before the first edit in each checkout, `git fetch` and confirm `git rev-list --count HEAD..@{u}` is zero; pull with `git pull --rebase --no-autostash` only when it is not. A dirty tree is no blocker unless a pull is owed. The stop conditions and subagent exception are in `ai/rules/git-safety.md`, "Never edit behind the upstream".
-- Before your first Go edit in a session, read `docs/contributing/ze-go-style.md` in full; the pre-write hook refuses a Go edit until you have.
-- Claude Code: also `.claude/rules/session-start.md`.
+Claude Code: also `.claude/rules/session-start.md`.
 
 # Finding the Rule
 

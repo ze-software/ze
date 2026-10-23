@@ -2,7 +2,7 @@
 // Related: docker.go -- Docker.Build, the one place every lab image is built, calls RequireFreshSource.
 //
 // A peer that publishes no stable release (tac_plus-ng, freeRtr) is built from
-// source, and owner decision M14 builds it only from source less than one month
+// source, and the owner's standing decisions build it only from source less than one month
 // old. The Dockerfile that builds the peer is the declaration: it names the
 // upstream repository and either the pinned commit with its commit date, or the
 // named build context that holds a local checkout. No list of peers exists
@@ -114,7 +114,7 @@ func buildArgument(raw string) (string, string, bool) {
 func pinError(dockerfile, problem string) error {
 	var tb textbuf.Buffer
 	tb.Str(dockerfile).Str(": the source pin ").Str(problem).
-		Str(". A source-built peer is built only from source less than one month old (M14), so the build cannot judge it.\n").
+		Str(". A source-built peer is built only from source less than one month old, so the build cannot judge it.\n").
 		Str("Fix: declare ").Str(SourceRepositoryArg).Str(", ").Str(SourceCommitArg).Str(" and ").Str(SourceDateArg).
 		Str(" together, or ").Str(SourceRepositoryArg).Str(" with ").Str(SourceCheckoutArg).
 		Str(" (docs/architecture/testing/interop.md, \"Source-built peers\")")
@@ -137,7 +137,7 @@ func (p SourcePin) staleRefusal(now time.Time) error {
 	var tb textbuf.Buffer
 	tb.Str(p.Dockerfile).Str(" builds ").Str(p.Repository).Str(" at commit ").Str(ShortCommit(p.Commit)).
 		Str(", committed ").Str(p.Date.UTC().Format(time.DateOnly)).Str(", ").Int(AgeDays(p.Date, now)).
-		Str(" days ago. A source-built peer is built only from source less than one month old (M14), so this build is refused.\n").
+		Str(" days ago. A source-built peer is built only from source less than one month old, so this build is refused.\n").
 		Str("Fix: ").Str(SourceBumpCommand).Str(p.Dockerfile)
 	return errors.New(tb.String())
 }
@@ -204,7 +204,7 @@ func (d *Docker) freshenCheckout(ctx context.Context, pin SourcePin, path string
 
 	var tb textbuf.Buffer
 	tb.Str("its HEAD was committed ").Str(committed.UTC().Format(time.DateOnly)).Str(", ").
-		Int(AgeDays(committed, now)).Str(" days ago, more than one month (M14)")
+		Int(AgeDays(committed, now)).Str(" days ago, more than one month")
 	age := tb.String()
 	pull := "git -C " + path + " pull --ff-only"
 	status, err := d.git(ctx, path, "status", "--porcelain")

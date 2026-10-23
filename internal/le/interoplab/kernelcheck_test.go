@@ -774,7 +774,7 @@ func TestStagedZeMissingNamesTheCommandThatStagesIt(t *testing.T) {
 // profile, the image rebuild, and `./le setup docker-host start` on a line of
 // its own, never Colima's `default` profile or the QEMU guest; the Linux route
 // is unchanged, word for word.
-// PREVENTS: a Mac developer sent to a daemon owner decision M10 rules out.
+// PREVENTS: a Mac developer sent to a daemon the owner's standing decisions rule out.
 func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
 	darwin := DockerKernelRoute(hostGOOSDarwin, []string{"test", "integration", "interop-ipsec"}, nil)
 	requireCommandOnItsOwnLine(t, errors.New(darwin), "./le setup docker-host start")

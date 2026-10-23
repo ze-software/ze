@@ -3,7 +3,7 @@
 Ze's lab Docker host is a gokrazy image built from Ze's runtime kernel and a
 second instance, `gokrazy/docker-host`. It boots as a Lima/Colima guest on
 macOS (the `ze` Colima profile) and as the QEMU `docker-lab` guest, so every lab
-Docker daemon runs on Ze's kernel and Ze's system (owner decisions M1 and M10 in
+Docker daemon runs on Ze's kernel and Ze's system (owner decision in
 `ai/META-DECISIONS.md`). This page describes what is built; the design was
 spec-ze-image-docker-host, closed on 2026-10-22, whose record is in git history.
 

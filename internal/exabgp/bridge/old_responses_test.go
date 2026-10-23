@@ -76,7 +76,7 @@ func oldResponseAllow(releases, encoder, event, where, reason string) oldRespons
 // oldResponsesAllowed is the pin's ALLOWED table of qa/bin/test_old_responses
 // (ExaBGP f9bfb853b), reason and patterns as written there: each is a line a 4.2
 // or 5.0 helper sees change on upgrade to ExaBGP 6.0, so it is the behavior ze
-// owes (M3).
+// owes.
 var oldResponsesAllowed = []oldResponseRow{
 	oldResponseAllow("4.2 5.0", "json", `^open `, `/address-family-flags/`,
 		"the Forwarding and Restart State of a Graceful Restart family had their names swapped (RFC 4724 3); this tree names them right, for API 4 too (CHANGELOG)"),
@@ -114,13 +114,13 @@ var oldResponsesAllowed = []oldResponseRow{
 		"the IPv6 flow route of 4.2, as in JSON"),
 	// End of the rows copied from the pin. Ze's own rows follow.
 	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b|^(open|notification|keepalive|refresh) packets `, `/negotiated/multisession$`,
-		"a session the release negotiated multi-session on: ze does not support BGP multi-session, every ze session is the one ExaBGP names `family-allowed in-open`, so its block says false (META-DECISIONS M16, \"we do not support multisession in ze\")"),
+		"a session the release negotiated multi-session on: ze does not support BGP multi-session, every ze session is the one ExaBGP names `family-allowed in-open`, so its block says false (ai/META-DECISIONS.md)"),
 	oldResponseAllow("4.2 5.0", "json", `^(update|negotiated)\b|^(open|notification|keepalive|refresh) packets `, `/negotiated/operational$`,
-		"a session the release negotiated OPERATIONAL on: ze neither originates nor implements the OPERATIONAL message, so its block says false (META-DECISIONS M15, \"we do not support operational on ze\")"),
+		"a session the release negotiated OPERATIONAL on: ze neither originates nor implements the OPERATIONAL message, so its block says false (ai/META-DECISIONS.md)"),
 	oldResponseAllow("4.2 5.0", "json", `^operational `, `^`,
-		"an OPERATIONAL message the peer sent, in any form: ze neither originates nor implements the OPERATIONAL message, so its engine delivers no event for one and a helper is told nothing (META-DECISIONS M15, \"we do not support operational on ze\")"),
+		"an OPERATIONAL message the peer sent, in any form: ze neither originates nor implements the OPERATIONAL message, so its engine delivers no event for one and a helper is told nothing (ai/META-DECISIONS.md)"),
 	oldResponseAllow("4.2 5.0", "text", `^operational `, `^`,
-		"the OPERATIONAL message, as in JSON (META-DECISIONS M15, \"we do not support operational on ze\")"),
+		"the OPERATIONAL message, as in JSON (ai/META-DECISIONS.md)"),
 	oldResponseAllow("4.2 5.0", "json", `^down$`, `^/neighbor/reason$`,
 		`the recorder hands the encoder the reason "peer reset" (qa/bin/test_old_responses, render: `+
 			`"safe(encoder.down, neighbor, 'peer reset')"), which no reactor writes: Peer._close passes its own message `+

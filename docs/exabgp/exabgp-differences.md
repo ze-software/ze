@@ -1,8 +1,7 @@
 # ZeBGP vs ExaBGP Behavioral Differences
 
 This file lists the differences that remain between Ze and ExaBGP at
-f9bfb853b, the release the bridge and the migration follow (owner decision
-M25, `ai/META-DECISIONS.md`). Each is a design decision, not a bug. A
+f9bfb853b, the release the bridge and the migration follow (`ai/META-DECISIONS.md`). Each is a design decision, not a bug. A
 difference that has been resolved is removed from this page.
 
 **Impact on testing:** When `.ci` files from ExaBGP tests don't match ZeBGP output
@@ -52,7 +51,7 @@ keeps"). Five differences remain.
 - **OPERATIONAL is not sent.** ExaBGP sends `announce operational <kind> ...`
   for a known kind (draft-ietf-idr-operational-message). Ze does not originate
   OPERATIONAL, so the bridge refuses the line and says so: Ze does not support
-  the OPERATIONAL message (owner decision M15, 2026-10-22). An unknown kind is
+  the OPERATIONAL message (`ai/META-DECISIONS.md`). An unknown kind is
   refused as ExaBGP refuses it.
 - **More flow routes match no packet.** ExaBGP 6.0 drops a flow route that
   matches an ICMP type or code and a port (`Flow.unmatchable`,
@@ -85,8 +84,8 @@ keeps"). Five differences remain.
   "MUST NOT advertise BGP UPDATE messages containing AS_SETs or
   AS_CONFED_SETs". On receive both treat such a route as withdrawn, but ExaBGP
   offers the neighbor leaf `as-set accept` to keep it (`as_set`,
-  `src/exabgp/bgp/neighbor/settings.py`) and Ze has no such override. Owner
-  decision M25 gives ExaBGP's behavior the win here, so this difference is
+  `src/exabgp/bgp/neighbor/settings.py`) and Ze has no such override. Where ze is
+  stricter than ExaBGP without an RFC MUST behind it, ExaBGP's behavior wins, so this difference is
   owed work, not a settled design.
 - **A generic attribute must carry flags RFC 4271 allows.** `attribute [ 0x99
   0x60 0x... ]` sends an attribute Ze knows no type for as a well-known one,
@@ -150,7 +149,7 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 - A Ze selector names a peer by address, name, ASN or glob. It cannot conjoin a
   predicate onto an address, so there is nothing to translate a qualifier into.
 - The exception is `family-allowed`, whose value is the same for every Ze
-  session. Ze does not support multi-session (owner decision M16): the
+  session. Ze does not support multi-session (`ai/META-DECISIONS.md`): the
   migration drops the capability with a warning, and `create neighbor` never
   sets it, as ExaBGP's does not.
   ExaBGP names such a session `family-allowed in-open`, so `family-allowed

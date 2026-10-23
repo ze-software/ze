@@ -45,7 +45,7 @@ const (
 // Linux the labs run on the host's Docker, so the step is a kernel with the
 // feature or Ze's own (D-5) through the install action, which never reboots.
 // On macOS the labs run on the `ze` Colima profile, which boots Ze's
-// docker-host image on Ze's runtime kernel (owner decision M10,
+// docker-host image on Ze's runtime kernel (owner decision,
 // dockerhost.Environment), so the step is that profile: unset a DOCKER_HOST
 // naming another daemon, or extend the runtime kernel and rebuild the image,
 // then start the profile. Elsewhere the labs run from the host le against the

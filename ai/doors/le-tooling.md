@@ -41,7 +41,7 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 | Every concurrent agent session | The hooks run on each Bash, Write and Edit call | A hook that panics or refuses wrongly blocks every session at once (`plan/learned/HOOK-FRICTION.md`) |
 | Every session, through the shared `bin/le` | The launcher writes `<target>.new.<pid>` and renames it, so a running le keeps its inode | A build that writes in place breaks the le another session runs (`docs/contributing/running-commands.md`, "Launcher builds do not overwrite running binaries") |
 | Every session, through the shared index | `./le commit create` stages only the named files | A loose `git add` carries another session's work (`ai/rules/git-safety.md`) |
-| Sessions sharing one machine | `./le job run` admission, `./le scratch`, the shared Docker daemon | Oversubscription, lost scratch, removed containers (`running-commands.md`, `.claude/rules/docker.md`) |
+| Sessions sharing one machine | `./le job run` admission, `./le scratch`, the shared Docker daemon | Oversubscription, lost scratch, removed containers (`running-commands.md`, `ai/META-DECISIONS.md`) |
 | The owner's macOS and Linux machines | Per-platform `bin/le-<OS>-<arch>/le`. The shipped tree type-checks on darwin | A gate whose verdict depends on the host (`plan/journal/gate-verdict-depends-on-the-machine.md`, one of the largest journal classes) |
 | CI (`.github/workflows/`) | `./le test qemu`, `./le test integration`, `./le build host-driver`, `./le setup docker-kernel` | A renamed action breaks a workflow nobody runs locally |
 | A Go version bump | le activates the patched GOROOT before dispatch, and a refusal leaves hooks and the commit flow working | All sessions lose their hooks if dispatch stops (`docs/contributing/patching-the-standard-library.md`) |
@@ -94,7 +94,7 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
   (`plan/journal/guard-blocks-its-own-authors-repair.md`).
 - **Sessions corrupt each other's work in the shared tree**
   (`plan/journal/concurrent-session-corruption.md`). A tree-wide `gofmt -w`
-  reformatted another session's files (`.claude/rules/foreign-files.md`).
+  reformatted another session's files (`ai/META-DECISIONS.md`).
 - **A relative scratch path resolved against the package directory**, so a
   `go test` left `proof.json` inside `internal/le/interoplab/bgp/`
   (`plan/journal/test-artifacts-land-in-the-repository-root.md`, 2026-10-09).

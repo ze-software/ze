@@ -4,7 +4,7 @@
 # every consumer router and every Linux PPPoE dialer runs, and it is a second
 # implementation family from accel-ppp (which the Ze-as-client scenario already
 # faces). pppd is built from the upstream ppp 2.5.4 release, because owner
-# decision M14 (ai/META-DECISIONS.md) has every lab peer run its latest stable
+# decision (ai/META-DECISIONS.md) has every lab peer run its latest stable
 # release and Alpine 3.24 packages 2.5.3. The rp-pppoe plugin is part of that
 # build (/usr/lib/pppd/2.5.4/pppoe.so).
 #

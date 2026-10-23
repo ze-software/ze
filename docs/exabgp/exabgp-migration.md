@@ -137,7 +137,7 @@ ze exabgp migrate --env exabgp.env
 A capability the migration does not translate (`multi-session`, `operational`,
 or any other keyword) is dropped with one warning per peer naming each one, and
 the rest of the config is converted. Ze supports neither BGP multi-session nor
-the OPERATIONAL message (owner decisions M16 and M15).
+the OPERATIONAL message (`ai/META-DECISIONS.md`).
 <!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilities, untranslatedCapabilityWarning -->
 
 A process block's `on-exit` leaf (`keep` or `withdraw`) is carried as written,

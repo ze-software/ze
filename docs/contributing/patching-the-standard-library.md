@@ -373,7 +373,7 @@ no longer applies.
 ## Patching a vendored module
 
 A change Ze needs in a third-party Go module is a diff against the upstream
-release, never a fork (owner decision M11, `ai/META-DECISIONS.md`). `go.mod`
+release, never a fork (`ai/META-DECISIONS.md`). `go.mod`
 requires the upstream module with no `replace`, and the diff lives in
 `internal/le/vendorpatch/patches/<name>.patch`, with paths relative to the
 checkout (`a/vendor/<module>/<file>`). Its leading text names the upstream pull

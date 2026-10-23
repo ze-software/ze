@@ -1,6 +1,6 @@
 # dnsmasq DHCPv4 server for interoperability testing of ze's DHCP client.
 #
-# dnsmasq is built from the upstream 2.93 release, because owner decision M14
+# dnsmasq is built from the upstream 2.93 release, because owner decision
 # (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
 # Alpine 3.24 packages 2.92. The build uses dnsmasq's default feature set and
 # installs to /usr/sbin/dnsmasq.

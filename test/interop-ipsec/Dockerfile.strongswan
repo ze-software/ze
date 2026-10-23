@@ -1,7 +1,7 @@
 # strongSwan/charon peer for IPsec interop lab.
 # Runs charon directly in foreground (no systemd, no ipsec starter).
 #
-# strongSwan is built from the upstream 6.1.0 release, because owner decision M14
+# strongSwan is built from the upstream 6.1.0 release, because owner decision
 # (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
 # Alpine 3.24 packages 6.0.7. The configure line keeps the layout and the plugin
 # set of the Alpine package the lab ran before: charon at
@@ -37,15 +37,19 @@ ARG STRONGSWAN_SHA256=fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf028309965
 
 RUN apk add --no-cache build-base curl curl-dev gmp-dev linux-headers openssl-dev sqlite-dev
 
+# aesni is an x86 plugin: its sources compile with -maes, -mpclmul and -mssse3,
+# which gcc refuses on arm64, so it is enabled only on an x86 build, as Alpine's
+# own package does. On arm64 the openssl plugin is the only AES CCM provider.
 WORKDIR /src
-RUN curl -fsSL -o strongswan.tar.bz2 \
+RUN case "$(uname -m)" in x86_64|i?86) aesni=--enable-aesni ;; *) aesni= ;; esac \
+    && curl -fsSL -o strongswan.tar.bz2 \
         "https://download.strongswan.org/strongswan-${STRONGSWAN_VERSION}.tar.bz2" \
     && echo "${STRONGSWAN_SHA256}  strongswan.tar.bz2" | sha256sum -c - \
     && tar -xjf strongswan.tar.bz2 --strip-components=1 \
     && ./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/lib \
         --with-ipsecdir=/usr/lib/strongswan --disable-static --enable-shared \
         --disable-stroke \
-        --enable-aesni --enable-attr-sql --enable-cmd --enable-counters \
+        $aesni --enable-attr-sql --enable-cmd --enable-counters \
         --enable-curl --enable-curve25519 --enable-dhcp --enable-eap-aka \
         --enable-eap-aka-3gpp2 --enable-eap-identity --enable-eap-md5 \
         --enable-eap-mschapv2 --enable-eap-radius --enable-eap-sim \
