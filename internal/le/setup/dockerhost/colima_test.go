@@ -3,6 +3,7 @@ package dockerhost
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,10 +15,16 @@ import (
 )
 
 // recordingColima is a colimaHost whose colima records every argv and
-// plays a profile that exists once started and runs until stopped.
+// plays a profile that exists once started and runs until stopped. Each
+// Docker context switch is recorded in contexts, after the colima argvs it
+// followed, and fails with contextErr when that is set.
 type recordingColima struct {
-	argvs   [][]string
-	profile profileState
+	argvs      [][]string
+	profile    profileState
+	contexts   []string
+	contextErr error
+	// argvsAtSwitch is how many colima argvs had run at the last switch.
+	argvsAtSwitch int
 }
 
 func (r *recordingColima) host(t *testing.T, recordPath string) colimaHost {
@@ -38,6 +45,11 @@ func (r *recordingColima) host(t *testing.T, recordPath string) colimaHost {
 		state: func(context.Context) (profileState, error) {
 			r.argvs = append(r.argvs, colimaArgv("status"))
 			return r.profile, nil
+		},
+		useContext: func(_ context.Context, name string) error {
+			r.contexts = append(r.contexts, name)
+			r.argvsAtSwitch = len(r.argvs)
+			return r.contextErr
 		},
 		recordPath: recordPath,
 		progress:   &bytes.Buffer{},
@@ -181,5 +193,75 @@ func TestDockerHostStartTakesTheLock(t *testing.T) {
 	}
 	if err := again.release(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// VALIDATES: start leaves the operator's Docker context on the ze profile on
+// each of its three paths: a first start, a recreate on a new image, and the
+// no-op with the profile already running the image. The switch names
+// `colima-ze`, runs after every colima argv of that start, and the JSON
+// outcome reports it.
+// PREVENTS: a plain `docker` in the operator's shell talking to another or a
+// dead daemon after setup said the ze profile runs.
+func TestDockerHostStartSwitchesTheDockerContext(t *testing.T) {
+	recordPath := filepath.Join(t.TempDir(), colimaRecordFileName)
+	recorder := &recordingColima{}
+	host := recorder.host(t, recordPath)
+	ctx := context.Background()
+	want := "colima-" + labhost.ZeProfile
+
+	steps := []struct {
+		key    string
+		action string
+	}{
+		{"k1", startActionStart},
+		{"k2", startActionRecreate},
+		{"k2", startActionNone},
+	}
+	for i, step := range steps {
+		recorder.argvs = nil
+		outcome, err := host.start(ctx, builtImage{Path: "/cache/" + step.key, Key: step.key}, "arm64")
+		if err != nil {
+			t.Fatalf("start %d (%s): %v", i, step.key, err)
+		}
+		if outcome.Action != step.action {
+			t.Fatalf("start %d did %q, want %q", i, outcome.Action, step.action)
+		}
+		if len(recorder.contexts) != i+1 || recorder.contexts[i] != want {
+			t.Fatalf("start %d (%s) switched contexts %v, want %q appended", i, step.action, recorder.contexts, want)
+		}
+		if recorder.argvsAtSwitch != len(recorder.argvs) {
+			t.Errorf("start %d switched the context after %d of %d colima argvs, want after all", i, recorder.argvsAtSwitch, len(recorder.argvs))
+		}
+		if outcome.Context != want {
+			t.Errorf("start %d reports context %q, want %q", i, outcome.Context, want)
+		}
+	}
+}
+
+// VALIDATES: a failed context switch fails start with the switch's own
+// error, on the start path and on the no-op path, and the started key stays
+// recorded because the profile did start.
+// PREVENTS: start reporting success while the shell's `docker` still points
+// at another daemon.
+func TestDockerHostStartContextFailureSurfaces(t *testing.T) {
+	recordPath := filepath.Join(t.TempDir(), colimaRecordFileName)
+	switchErr := errors.New("context switch refused")
+	recorder := &recordingColima{contextErr: switchErr}
+	host := recorder.host(t, recordPath)
+	ctx := context.Background()
+	image := builtImage{Path: "/cache/k1", Key: "k1"}
+
+	if _, err := host.start(ctx, image, "amd64"); !errors.Is(err, switchErr) {
+		t.Fatalf("start with a failing switch answered %v, want %v", err, switchErr)
+	}
+	if key, _, err := readColimaRecord(recordPath); err != nil || key != "k1" {
+		t.Fatalf("record after the started profile: %q %v", key, err)
+	}
+	if _, err := host.start(ctx, image, "amd64"); !errors.Is(err, switchErr) {
+		t.Fatalf("no-op start with a failing switch answered %v, want %v", err, switchErr)
+	}
+	if !slices.Equal(recorder.verbs(), []string{"start"}) {
+		t.Errorf("colima verbs %v, want one start", recorder.verbs())
 	}
 }

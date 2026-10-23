@@ -33,9 +33,12 @@ func colimaArgv(verb string, options ...string) []string {
 }
 
 // colimaStartArgv is the argv that boots the image as the ze profile.
-// `--activate=false` leaves the operator's current Docker context alone: labs
-// select the ze socket themselves. `--force-disk-image` is needed because
-// Colima accepts only its own Ubuntu disk images without it.
+// `--activate=false` keeps Colima from switching the Docker context itself:
+// start switches it with useContext on every path, the no-op one included,
+// where no colima command runs, so one place owns the switch and its error.
+// Colima still creates the `colima-ze` context while it provisions the
+// runtime, activate or not. `--force-disk-image` is needed because Colima
+// accepts only its own Ubuntu disk images without it.
 func colimaStartArgv(image, arch string) []string {
 	options := []string{
 		"--vm-type", "vz",
@@ -52,6 +55,12 @@ func colimaStartArgv(image, arch string) []string {
 		options = append(options, "--vz-rosetta")
 	}
 	return colimaArgv("start", options...)
+}
+
+// zeDockerContext is the Docker context Colima creates for the ze profile:
+// Colima names a profile's context `colima-<profile>`.
+func zeDockerContext() string {
+	return "colima-" + labhost.ZeProfile
 }
 
 // colimaArch is Colima's name for a Go architecture.
@@ -77,6 +86,8 @@ type colimaHost struct {
 	run func(ctx context.Context, argv []string) error
 	// state answers whether the profile exists and runs.
 	state func(ctx context.Context) (profileState, error)
+	// useContext makes the named Docker context the operator's current one.
+	useContext func(ctx context.Context, name string) error
 	// recordPath is the file holding the started image key and path.
 	recordPath string
 	// progress receives one line per colima argv before it runs.
@@ -90,6 +101,8 @@ type startOutcome struct {
 	Key      string `json:"key"`
 	Action   string `json:"action"`
 	Recorded string `json:"recorded-key"`
+	// Context is the Docker context start left current.
+	Context string `json:"context"`
 }
 
 // Start actions, as start reports them.
@@ -103,7 +116,9 @@ const (
 // image's and the profile running it starts nothing. When the profile exists
 // with another image it stops it, deletes it and starts it afresh, because
 // Colima keeps an existing disk and would ignore the new image (spec AC-7,
-// R-5). The key is recorded only after the start succeeded.
+// R-5). The key is recorded only after the start succeeded. Every path that
+// succeeds then makes `colima-ze` the current Docker context, so a plain
+// `docker` in the operator's shell reaches the ze VM.
 func (h colimaHost) start(ctx context.Context, image builtImage, arch string) (startOutcome, error) {
 	recorded, _, err := readColimaRecord(h.recordPath)
 	if err != nil {
@@ -116,7 +131,7 @@ func (h colimaHost) start(ctx context.Context, image builtImage, arch string) (s
 	outcome := startOutcome{Profile: labhost.ZeProfile, Image: image.Path, Key: image.Key, Recorded: recorded}
 	if recorded == image.Key && state.running {
 		outcome.Action = startActionNone
-		return outcome, nil
+		return h.activate(ctx, outcome)
 	}
 	outcome.Action = startActionStart
 	if state.exists && recorded != image.Key {
@@ -136,6 +151,20 @@ func (h colimaHost) start(ctx context.Context, image builtImage, arch string) (s
 	if err := writeColimaRecord(h.recordPath, image); err != nil {
 		return startOutcome{}, err
 	}
+	return h.activate(ctx, outcome)
+}
+
+// activate makes the ze profile's Docker context current and records it in
+// the outcome.
+func (h colimaHost) activate(ctx context.Context, outcome startOutcome) (startOutcome, error) {
+	name := zeDockerContext()
+	if _, err := io.WriteString(h.progress, "runs: docker context use "+name+"\n"); err != nil {
+		return startOutcome{}, err
+	}
+	if err := h.useContext(ctx, name); err != nil {
+		return startOutcome{}, err
+	}
+	outcome.Context = name
 	return outcome, nil
 }
 
@@ -201,6 +230,7 @@ func systemColimaHost(cacheDir string) colimaHost {
 	return colimaHost{
 		run:        runColima,
 		state:      colimaProfileState,
+		useContext: useDockerContext,
 		recordPath: filepath.Join(cacheDir, colimaRecordFileName),
 		progress:   os.Stderr,
 	}
@@ -215,6 +245,21 @@ func runColima(ctx context.Context, argv []string) error {
 	if err := command.Run(); err != nil {
 		return fmt.Errorf("`%s` failed: %w (its output is above). Fix: read Colima's message, then run "+
 			"`colima delete --profile ze --force` and `./le setup docker-host start` if the profile is broken", strings.Join(argv, " "), err)
+	}
+	return nil
+}
+
+// useDockerContext runs `docker context use name` with its output on stderr
+// and no stdin.
+func useDockerContext(ctx context.Context, name string) error {
+	command := exec.CommandContext(ctx, dockerCLI, "context", "use", name) //nolint:gosec // name from zeDockerContext
+	command.Stdout = os.Stderr
+	command.Stderr = os.Stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("the ze profile runs, but `docker context use %s` failed: %w (its output is above), "+
+			"so a plain `docker` still talks to another daemon. Colima creates that context when it starts the profile. "+
+			"Fix: run `docker context use %s`; if docker says the context does not exist, run "+
+			"`colima stop --profile %s` and `./le setup docker-host start`", name, err, name, labhost.ZeProfile)
 	}
 	return nil
 }

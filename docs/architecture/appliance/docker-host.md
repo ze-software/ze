@@ -256,8 +256,15 @@ On macOS, `./le setup docker-host start` builds the host arch's image when
 needed and boots it as the Colima profile `ze`:
 `colima start --profile ze --vm-type vz --arch <aarch64|x86_64> --runtime docker
 --disk-image <image> --force-disk-image --mount-type virtiofs --cpus 4
---memory 8 --activate=false`, plus `--vz-rosetta` on arm64. `--activate=false`
-leaves the operator's current Docker context alone. The Docker socket is
+--memory 8 --activate=false`, plus `--vz-rosetta` on arm64. Every `start` that
+succeeds, the one that finds the profile already running its image included,
+then runs `docker context use colima-ze`, so a plain `docker` in the operator's
+shell reaches the ze VM, and reports the context as `context` in its JSON.
+`--activate=false` keeps Colima from making that switch itself: the no-op path
+runs no colima command, so setup's own switch is the one that covers every
+path, and its failure names `docker context use colima-ze` as the fix. Colima
+creates the `colima-ze` context whenever it starts the profile, whatever
+`--activate` says, and `colima stop` removes it again. The Docker socket is
 `ze/docker.sock` under Colima's home, which `dockerhost.ColimaHome` resolves
 as Colima 0.10.3 does: `COLIMA_HOME` when that directory exists, else
 `~/.colima` when it exists, else `$XDG_CONFIG_HOME/colima` when that variable
@@ -275,7 +282,7 @@ and `mkfs.ext4`, the recorded image, whether the profile runs and whether its
 socket exists, and exits 1 naming the fix for each failure.
 
 <!-- source: internal/le/dockerhost/dockerhost.go -- ColimaHome, ZeSocket, ZeProfile -->
-<!-- source: internal/le/setup/dockerhost/colima.go -- colimaArgv, colimaStartArgv, colimaHost.start -->
+<!-- source: internal/le/setup/dockerhost/colima.go -- colimaArgv, colimaStartArgv, colimaHost.start, colimaHost.activate, useDockerContext -->
 <!-- source: internal/le/setup/dockerhost/actions.go -- checkRows -->
 
 ## Kernel
