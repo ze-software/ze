@@ -120,6 +120,18 @@ as the rejected branch and nothing builds it.
 | Q-7 | D5 / R-6 | Toward an IBGP neighbour without LLGR whose `send-community` suppresses standard communities, the Section 4.6 NO_EXPORT the GR egress filter adds is dropped by the Suppress. Fold the fix into D5 (an egress filter's Add of a value survives a send-community Suppress), or record it as a journal row for a separate fix? | Fold into D5: same handler, same phase, and it is the Section 4.6 MUST on the very routes D4 starts sending | journal row in `plan/journal/`, this spec unchanged | **Owner, 2026-10-14: accept (recommendation)**: fold into D5. Mechanism designed in round 6: the new action `filterapi.AttrModAttach`, recorded only by the GR Section 4.6 branch (Data Flow, "Q-7: which Adds survive a Suppress") |
 | Q-8 | D5 (Q-7) | Approve the change to two RFC9494-4.6-2 tagged units in `gr/rfc9494_gr_egress_test.go` (`TestLLGREgressFilter_NilStateDepreferencesIBGP`, `TestLLGREgressFilter_IBGPPartial`): each asserts the NO_EXPORT op's action is `AttrModAdd`, and after round 6 the GR filter records it as `AttrModAttach`. The body asserts `AttrModAttach` (value 0xFFFFFF01, 4 bytes, unchanged), and the `IBGPPartial` tag prose, which quotes `mods.Op(attrCodeCommunity, AttrModAdd, communityNoExport)`, is rewritten to the new call (design round 6) | Approve: the assertion is strengthened, never relaxed: it now pins the form a `send-community` Suppress cannot drop, and a revert to `AttrModAdd` turns both red | the two units stay red against the Q-7 fix, so D5 cannot land | **open: owner** (an RFC-tagged test change needs the owner's `./le rfc approve unit`, `ai/rules/rule-precedence.md`) |
 
+## Journal rows homed here (2026-10-23)
+
+Two open journal rows are GR and LLGR defects in the code this spec already
+reads. They are homed here, not in a new spec. The next design round turns each
+into a D-row and an AC with a test that goes red first; until then they are
+owed by this spec.
+
+| Class file | Date | Surface | Defect |
+|------------|------|---------|--------|
+| `negotiated-family-lost-at-retention-boundary` | 2026-10-04 | `onSessionDownDeferred` (`gr/gr_state.go`) | A session with no GR families returns before LLGR retention runs. RFC 9494 Section 4.2: "After the session goes down, and before the session is re- established, the stale routes for an AFI/SAFI MUST be retained." |
+| `escape-hatch-scoped-wider-than-its-justification` | 2026-10-18 | `attachCommunityCommand` (`rib/rib_commands.go`) | A GR-stale route is depreferenced for any attached community. RFC 9494 Section 4.3 justifies the depreference for LLGR_STALE only; the one caller passes 0xFFFF0006, so the check must name that value |
+
 ## Required Reading
 
 ### Architecture Docs
