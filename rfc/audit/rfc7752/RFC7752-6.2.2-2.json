@@ -1,21 +1,21 @@
 {
-  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" Whole list carried by the reactor TestRFC7752 length-sum units (MP_REACH/MP_UNREACH outer and descriptor sums, code29 TLV sums, both polarities, unchanged). The ls units now assert bgpls.ErrBGPLSTruncated for the TLV-sum overrun and the 3-octet Router-ID fixed-length TLV; exact-sum walk positive unchanged.",
+  "note": "Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e). RFC 7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" followed by the five length-sum questions (BGP-LS attribute, MP_REACH_NLRI, MP_UNREACH_NLRI, descriptor Total NLRI Length, fixed-length TLVs). TestRFC7752LinkStateLengthSumsOnReceive changed only the NOTIFICATION it requires for the outer NLRI overrun: across NLRI types 1, 2 and 3, in MP_REACH_NLRI and MP_UNREACH_NLRI, an NLRI length one octet too long must give SessionReset with the RFC 9552 Section 8.2.2 length-sum error and the exact frame 3/9 whose Data is the MP attribute alone (mpAttr = attrs[7:] after the 4-octet ORIGIN and 3-octet empty AS_PATH of mpReachAttrs, or the whole of mpUnreachAttrs, checked against both helpers), leaving the session Idle with nothing dispatched; descriptor over and underruns still discard exactly one NLRI with the diagnostic and no NOTIFICATION; exact-sum controls are dispatched unchanged. The assertion is as exact as before; only the expected subcode and Data moved, per RFC 4760 Section 7. TestRFC7752AttributeLengthSumsOnReceive and the ls plugin units are unchanged. Ran green. Verdict stands. Finding recorded outside this verdict: the four discrimination records on these reactor units no longer verify (producer-changed applyRFC7606, and unit-changed for TestRFC7752LinkStateLengthSumsOnReceive).",
   "requirement_sha": "d752ea60c051e852",
   "tests": {
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "6c7da98fd78cb69c",
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6c7da98fd78cb69c",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "6f2c9e2f2b169813",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "6f2c9e2f2b169813",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "6f2c9e2f2b169813",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "6f2c9e2f2b169813"
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "536d6454cfcf133a",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "536d6454cfcf133a",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "536d6454cfcf133a",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "536d6454cfcf133a"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "bdebb291411ab9fb",
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "45729f99aa376256",
     "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "b7119d61ce285be4",
     "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "b7119d61ce285be4",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "e3944c818f8097ff",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "e3944c818f8097ff"
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "dce7ea14c9c5c097",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "dce7ea14c9c5c097"
   },
   "verdict": "enforced"
 }

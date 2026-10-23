@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-10-19 (independent auditor). Section 5.2: \"For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than \"attribute discard\", then the \"session reset\" approach MUST be used.\" TestRFC7606EmptyMPReachEscalatesToReset: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. The escalation in ValidateUpdateRFC7606AddPath (hasAttrOtherThanMPUnreach with no reachable NLRI) is unchanged by ca4eae70a0; the new capability-77 check records a treat-as-withdraw through the same recordError, so it escalates on an UPDATE with no reachable NLRI exactly like any other non-discard error, as Section 5.2 requires. The 2026-10-18 judgement of the other carriers (MP_UNREACH alone not escalated, session-level 3/1 reset, abandoned walk) stands. Five discrimination records for this id (TestRFC7606EmptyMPReachEscalatesToReset unit-changed; TestRFC7606Section52MPUnreachOnlyNotEscalated both polarities, TestRFC7606SystematicLengthCorruption both polarities, TestRFC9830NLRILengthReceiveVerdicts producer-changed) owe re-recording.",
+  "note": "Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e and 9242dcd57b). RFC 7606 Section 5.2: \"For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than \"attribute discard\", then the \"session reset\" approach MUST be used.\" The changed unit is TestRFC9830NLRILengthReceiveVerdicts: its RFC7606-5.2-1 negative still requires, through processMessage with and without ADD-PATH, that a walkable malformed SR Policy NLRI (13 octets under AFI 1) in an UPDATE whose only attribute is MP_UNREACH_NLRI stays treat-as-withdraw (Established, nothing written, nothing dispatched), and that the same NLRI beside ORIGIN, AS_PATH and LOCAL_PREF with no reachable NLRI resets the session (not Established, error returned, nothing dispatched) with exactly the NOTIFICATION 3/9 whose Data is the MP_UNREACH_NLRI attribute, located by srMPAttrError from the body. Only the expected NOTIFICATION moved (3/1 empty to 3/9 with the attribute); the escalation and its boundary are asserted as strictly as before. Producer: rfc7606.go ValidateUpdateRFC7606AddPath escalates when !hasReachableNLRI && hasAttrOtherThanMPUnreach && strongest > AttributeDiscard, attaching MPAttributeErrorNotification(strongestMPAttr) when the strongest error came from an MP attribute. The other tagged units are unchanged. Ran the reactor units green. Finding recorded outside this verdict: the discrimination record on TestRFC7606AttributeEnvelopeSession no longer verifies (producer-changed applyRFC7606).",
   "requirement_sha": "eebc85d439ba43a8",
   "tests": {
     "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "98c95aaab9c010a7",
@@ -13,7 +13,7 @@
     "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524",
     "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
     "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18",
-    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "5189635b831d2fc2"
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "0c3cbf92de701bdc"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "e37574ef29306a19",
@@ -27,7 +27,7 @@
     "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "008145acee126508",
     "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "3af9ff5f8e051dbf",
     "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "0e1529d7d8a7be8d",
-    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "917a41bcd9145c5f"
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "8a8a6991a47c3e25"
   },
   "verdict": "enforced"
 }

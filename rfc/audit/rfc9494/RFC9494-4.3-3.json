@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-10-18 (independent reviewer, over the uncommitted rfc9494_llgr_cached_forward_test.go). RFC 9494 Section 4.3: \"The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6. Note that this requirement implies that such routes should be withdrawn from any such neighbor.\" The previous verdict's gap, the live cache-forward rail, is closed on both rails: an LLGR_STALE UPDATE received through notifyMessageReceiver and forwarded from the recent-update cache must hand the egress step stale uint8(2) and leave the destination only the withdrawal, and the same UPDATE from a session that did not advertise LLGR must reach it as an announcement. Go-overlay mutants, observed: dropping `Meta: routeMeta` from the cached ReceivedUpdate reddens both advertised subtests; passing nil meta in forwardUpdateSection's egress call reddens only the cached-forward test; passing nil in reactorForwardRSSection's reddens only the route-server test; forcing llgrAdvertised true in notifyMessageReceiver reddens both not-advertised subtests. The reviewer changed the stand-in egress step to request withdrawal through mods.SetWithdraw and accept, which is what LLGREgressFilter does, instead of refusing, so the rails' withdraw conversion is the path asserted; both rails still emit the withdrawal. The other links stand as judged before: LLGREgressFilter withdraws for a non-LLGR EBGP neighbor and passes level 1, the relay, peer-up, resend and refresh rails carry the source ingress level. The stale marking of a received route is LLGRIngressFilter's, proven under RFC9494-4.3-1's tags; this row is judged on its own text, given a route already marked. Residual, not a weakness of the assertions: no daemon test shows the EBGP withdrawal on the wire, and the discrimination records are body-panic reverts, whose negative records go red at the positive subtest before the negative one runs.",
+  "note": "Re-judged 2026-10-23 (independent auditor, after c5edaea8f3). RFC 9494 Section 4.3: \"The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6.\" Section 4.6 lets stale routes go to internal neighbors only with NO_EXPORT attached and LOCAL_PREF zero. test/plugin/llgr-egress-state-unloaded.ci changed because bgp-gr now refuses to run forked: it runs bgp-gr in the daemon (internal gr { use bgp-gr }) attached to the source only, so the egress state is loaded and records no LLGR Capability for obsn, whose OPEN carries none. The assertion is unchanged: obsn, an iBGP RR client, must first receive 10.0.0.0/24 and then a second UPDATE containing NO_EXPORT (FFFFFF01). The source sends no COMMUNITY, so NO_EXPORT can only come from gr_egress.go LLGREgressFilter, whose state-loaded branch (hasLLGR false, dest.PeerAS == dest.LocalAS) adds NO_EXPORT and sets LOCAL_PREF 0. The carrier now exercises the case the sentence names (a neighbor the capability was not received from, under a running daemon) rather than a process with no state at all, which is closer to the requirement; the nil-state branch keeps its unit TestLLGREgressFilter_NilStateWithdrawsEBGP. The Go units under this row are unchanged. No discrimination record exists for the .ci and this auditor could not run a single .ci; its green under the new arrangement rests on c5edaea8f3, and the plugin functional suite is owed by the main thread. Verdict stands.",
   "requirement_sha": "76231582d0f155d2",
   "tests": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_GRStaleLevelOnePassesThrough": "d16b69ebaeeb0457",
@@ -8,17 +8,17 @@
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_StateLoadedWithdrawsEBGPNonLLGR": "d16b69ebaeeb0457",
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "02a10ecb6f38be0e",
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "02a10ecb6f38be0e",
-    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel": "04fd7ab8cc439e97",
-    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel#2": "04fd7ab8cc439e97",
-    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestRIBReplayMetaReadsSourceIngressLevel": "04fd7ab8cc439e97",
-    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestRIBReplayMetaReadsSourceIngressLevel#2": "04fd7ab8cc439e97",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel": "c2ef19cc94929848",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel#2": "c2ef19cc94929848",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestRIBReplayMetaReadsSourceIngressLevel": "c2ef19cc94929848",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestRIBReplayMetaReadsSourceIngressLevel#2": "c2ef19cc94929848",
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494CachedForwardWithholdsReceivedStale": "903e3a84718caabb",
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494CachedForwardWithholdsReceivedStale#2": "903e3a84718caabb",
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494RouteServerForwardWithholdsReceivedStale": "903e3a84718caabb",
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494RouteServerForwardWithholdsReceivedStale#2": "903e3a84718caabb",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt": "59aea5219e1f9803",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt#2": "59aea5219e1f9803",
-    "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
+    "test/plugin/llgr-egress-state-unloaded.ci": "e6527f3ab2d57bf1"
   },
   "units": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_GRStaleLevelOnePassesThrough": "cd4501060d1c3778",
@@ -37,7 +37,7 @@
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494RouteServerForwardWithholdsReceivedStale#2": "9eb645dbf47cbaae",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt": "2a48a31ae4e739bb",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt#2": "2a48a31ae4e739bb",
-    "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
+    "test/plugin/llgr-egress-state-unloaded.ci": "e6527f3ab2d57bf1"
   },
   "verdict": "enforced"
 }
