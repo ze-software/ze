@@ -288,71 +288,107 @@ func TestYANGPluginAPIRPCs(t *testing.T) {
 	}
 }
 
-// TestExtractRPCs verifies RPC metadata extraction from YANG API modules.
+// TestExtractRPCs extracts metadata from isolated, resolved YANG modules.
 //
-// VALIDATES: All RPCs from each API module are extracted with correct names and descriptions.
-// PREVENTS: Missing RPCs when building dispatch tables from YANG.
+// VALIDATES: RPC names and modules, exact independent help texts, and a module without RPCs.
+// PREVENTS: Cross-module leakage, invented help text, and truncated explanations.
 func TestExtractRPCs(t *testing.T) {
-	loader := loadAllAPIModules(t)
-
 	tests := []struct {
-		name     string
-		module   string
-		wantRPCs []string
+		module string
+		source string
+		want   []yang.RPCMeta
 	}{
 		{
-			name:   "bgp-api",
-			module: "ze-bgp-api",
-			wantRPCs: []string{
-				"help", "command-list", "command-help", "command-complete",
-				"plugin-encoding", "plugin-format", "plugin-ack",
-				"overview", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
-				"peer-list", "peer-show", "peer-create", "peer-delete", "peer-save", "peer-teardown",
-				"peer-flush", "peer-update",
-				"peer-borr", "peer-eorr", "peer-raw",
-				"cache", "commit",
-				"subscribe", "unsubscribe", "event-list",
+			module: "ze-extract-api",
+			source: `module ze-extract-api {
+    namespace "urn:test:extract:api";
+    prefix extract;
+    import ze-extensions { prefix ze; }
+
+    rpc inspect {
+        ze:help "Inspect the selected item.";
+        description "Return the selected item's state.\n\nInclude its last transition.";
+    }
+    rpc reset {
+        ze:help "Reset the selected item.";
+    }
+    rpc explain {
+        description "Return the explanation without inventing a summary.";
+    }
+}`,
+			want: []yang.RPCMeta{
+				{
+					Module:      "ze-extract-api",
+					Name:        "inspect",
+					ShortHelp:   "Inspect the selected item.",
+					Description: "Return the selected item's state.\n\nInclude its last transition.",
+				},
+				{
+					Module:    "ze-extract-api",
+					Name:      "reset",
+					ShortHelp: "Reset the selected item.",
+				},
+				{
+					Module:      "ze-extract-api",
+					Name:        "explain",
+					Description: "Return the explanation without inventing a summary.",
+				},
 			},
 		},
 		{
-			name:   "system-api",
-			module: "ze-system-api",
-			wantRPCs: []string{
-				"help", "version-software", "version-api",
-				"daemon-shutdown", "daemon-reboot", "daemon-quit", "daemon-status", "daemon-reload",
-				"subsystem-list",
-				"command-list", "command-help", "command-complete",
-				"dispatch", "quiesce",
+			module: "ze-other-api",
+			source: `module ze-other-api {
+    namespace "urn:test:other:api";
+    prefix other;
+    import ze-extensions { prefix ze; }
+
+    rpc inspect {
+        ze:help "Inspect another module's item.";
+        description "This explanation belongs to the other module.";
+    }
+}`,
+			want: []yang.RPCMeta{
+				{
+					Module:      "ze-other-api",
+					Name:        "inspect",
+					ShortHelp:   "Inspect another module's item.",
+					Description: "This explanation belongs to the other module.",
+				},
 			},
 		},
 		{
-			name:   "rib-api",
-			module: "ze-rib-api",
-			wantRPCs: []string{
-				"show", "best", "best-status", "clear-in", "clear-out", "status",
-				"inject", "withdraw",
-			},
-		},
-		{
-			name:   "plugin-api",
-			module: "ze-plugin-api",
-			wantRPCs: []string{
-				"help", "command-list", "command-help", "command-complete",
-				"session-ready", "session-peer-ready", "session-ping", "session-bye",
-			},
+			module: "ze-no-rpcs",
+			source: `module ze-no-rpcs {
+    namespace "urn:test:no-rpcs";
+    prefix no-rpcs;
+
+    container state {
+        config false;
+        leaf count { type uint32; }
+    }
+    notification changed {
+        leaf count { type uint32; }
+    }
+}`,
 		},
 	}
 
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rpcs := yang.ExtractRPCs(loader, tt.module)
-			rpcNames := make([]string, len(rpcs))
-			for i, r := range rpcs {
-				rpcNames[i] = r.Name
-				assert.Equal(t, tt.module, r.Module, "module name for %s", r.Name)
-				assert.NotEmpty(t, r.ShortHelp, "description for %s", r.Name)
+		require.NoError(t, loader.AddModuleFromText(tt.module+".yang", tt.source))
+	}
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.module, func(t *testing.T) {
+			rpcs := yang.ExtractRPCs(schema, tt.module)
+			if tt.want == nil {
+				assert.Nil(t, rpcs, "a loaded module without RPCs returns nil")
+				return
 			}
-			assert.ElementsMatch(t, tt.wantRPCs, rpcNames)
+			assert.ElementsMatch(t, tt.want, rpcs)
 		})
 	}
 }

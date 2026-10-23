@@ -889,6 +889,13 @@ because it is a summary.
 An `rpc` statement carries the same pair, in the same two statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
 `RPCMeta.ShortHelp` and `RPCMeta.Description`.
+<!-- source: internal/component/config/yang/rpc.go -- ExtractRPCs -->
+
+`TestExtractRPCs` in `internal/core/ipc/yang_test.go` uses resolved fixture
+modules to compare the extracted names, module names and exact help texts.
+It also covers identical RPC names in different modules, either help text
+being absent, and a loaded module with data and a notification but no RPCs.
+The fixture expectations do not track the installed plugins' RPC inventory.
 
 One reader serves both carriers. `GetHelpExtension` takes the extension
 statement list, which a command container reaches through `Entry.Exts` and an
@@ -896,14 +903,16 @@ rpc through `gyang.RPC.Exts()`, and returns the summary. The explanation is the
 goyang entry's own `Description`. A second reader would let the two surfaces
 drift into two spellings of one declaration.
 
-`./le doc yang-contract help-shape` holds both corpora to one shape: 601 command tree
-nodes and 211 RPCs, each summary one sentence of 25 words at most, on one line,
-with no semicolon and a full stop at the end.
+`./le doc yang-contract help-shape` checks command and RPC summaries: each is
+one sentence of 25 words at most, on one line, with no semicolon and a full stop
+at the end. The command reports the population it judges.
 
-An empty `description` means nobody has written an explanation for that
-command. That is not a defect. The help page then prints the summary alone, and
-the interactive CLI says that the command declares none.
+Extraction preserves an absent `description` as empty rather than inventing
+one. The help-shape gate refuses an operator-visible command or RPC without
+that explanation. If such a node reaches the help page, the page prints the
+summary alone, and the interactive CLI says that the command declares none.
 <!-- source: internal/component/cli/model_keys.go -- revealExplanation -->
+<!-- source: internal/le/doc/yangcontract/helpshape.go -- judgePair -->
 
 An empty `ze:help` is a defect. Every list that names the command shows a
 blank cell, and `validateNode` warns for each one by path.
