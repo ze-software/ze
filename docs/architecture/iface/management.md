@@ -29,6 +29,14 @@ non-VLAN unit above 0 is logical grouping only: its addresses go on the parent.
 Validation happens at the YANG layer, so an invalid MTU, an out-of-range VLAN
 ID or an unknown interface kind is rejected before any netlink call.
 
+The resolved schema includes only kinds available on the running OS. For
+example, `xfrm` and `pppoe-client` are declared by the interface module with
+`ze:os "linux"`, so they are absent on macOS. The MTU regression test walks
+every interface list in that resolved schema, requires an MTU leaf without a
+default on each, and fails if it finds no lists. A newly registered kind is
+therefore covered without adding its name to a test inventory. The test also
+checks that `parseIfaceEntry` leaves an omitted MTU at zero.
+
 ## Name validation is a security control, not a length check
 
 An interface name reaches a `/proc/sys/net/ipv4/conf/<name>/` path, so a name

@@ -1,3 +1,5 @@
+// Design: docs/architecture/iface/management.md — MTU schema coverage.
+
 package iface
 
 import (
@@ -10,10 +12,11 @@ import (
 )
 
 // TestMTUDefaultMatchesApplyPath proves the schema declares no MTU default
-// that the apply path never applies. It looks up the mtu leaf of every
-// interface kind and parses an entry with no mtu.
+// that the apply path never applies. It walks the resolved schema's interface
+// lists for this OS and parses an entry with no mtu.
 //
-// VALIDATES: an omitted mtu leaf carries no YANG default on any kind, and
+// VALIDATES: an omitted mtu leaf carries no YANG default on any registered
+// interface list available on this OS, and
 // parseIfaceEntry leaves MTU at 0, so applyConfig makes no SetMTU call and
 // the device keeps its kernel default (1420 for wireguard, 1476 for gre,
 // 1500 for a dummy).
@@ -25,14 +28,27 @@ func TestMTUDefaultMatchesApplyPath(t *testing.T) {
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 
-	kinds := []string{"ethernet", "dummy", "veth", "bridge", "tunnel", "wireguard", "xfrm", "pppoe-client"}
-	for _, kind := range kinds {
-		node, err := schema.Lookup("interface/" + kind + "/mtu")
-		require.NoError(t, err, kind)
-		leaf, ok := node.(*config.LeafNode)
-		require.True(t, ok, "%s mtu must resolve to a LeafNode", kind)
-		assert.Empty(t, leaf.Default, "%s mtu declares a default the apply path never applies", kind)
+	node, err := schema.Lookup(configRootInterface)
+	require.NoError(t, err)
+	interfaces, ok := node.(*config.ContainerNode)
+	require.True(t, ok, "interface must resolve to a ContainerNode")
+
+	// Schema construction prunes ze:os-restricted kinds before this walk.
+	// Derive coverage from its lists, not a second inventory of kind names.
+	checked := 0
+	for _, kind := range interfaces.Children() {
+		list, ok := interfaces.Get(kind).(*config.ListNode)
+		if !ok {
+			continue
+		}
+		t.Run(kind, func(t *testing.T) {
+			leaf, ok := list.Get("mtu").(*config.LeafNode)
+			require.True(t, ok, "%s mtu must resolve to a LeafNode", kind)
+			assert.Empty(t, leaf.Default, "%s mtu declares a default the apply path never applies", kind)
+		})
+		checked++
 	}
+	require.Positive(t, checked, "registered interface schema must expose MTU-bearing lists")
 
 	entry, err := parseIfaceEntry("wg0", map[string]any{})
 	require.NoError(t, err)
