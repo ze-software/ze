@@ -31,5 +31,17 @@
     "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
     "producer-sha": "2f371da5a96ab9b7",
     "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.2-3",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape",
+    "unit-sha": "172de98371e3bc35",
+    "claim-sha": "41397e75b8056393",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
+    "producer-sha": "2f371da5a96ab9b7",
+    "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "2"
   }
 ]
