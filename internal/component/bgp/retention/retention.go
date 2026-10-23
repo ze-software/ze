@@ -33,8 +33,12 @@ func (owner *Owner) Close() {
 }
 
 // Family reports active retention, not a capability declaration. False with no
-// owner means no in-process GR decision is available; it does not infer the state
-// of an external GR process, which cannot publish into this address space.
+// owner is correct only when no GR engine runs for this daemon: a GR process
+// forked from the daemon cannot publish into this address space, and neither can
+// one running beside a forked asker. That reliance is a guard, so the askers
+// (bgp-rr runRouteReflector, bgp-rs RunRouteServer) refuse to start as a forked
+// process. A forked bgp-gr beside an in-daemon asker is not refused, and there
+// this answer is wrong (docs/guide/graceful-restart.md).
 func Family(peer string, fam family.Family) bool {
 	owner := current.Load()
 	if owner == nil {

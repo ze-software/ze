@@ -236,11 +236,22 @@ its retention decision for a DOWN is delivered before either handler asks:
 reflector). When the Restart Time expires without a reconnect, the retained
 routes are deleted and the reflector's other peers are sent their withdrawal,
 under the Path Identifier each was sent. The query reads GR's existing family
-state; it does not keep a second route inventory. No owner means no retention.
-A child-process `bgp-gr` cannot publish that owner into the daemon, so this query
-does **not** establish external-plugin LLGR support. Use internal `bgp-gr`,
-`bgp-rib`, and `bgp-rs` or `bgp-rr` for the coordinated lifecycle described here.
+state; it does not keep a second route inventory. The query is a same-process
+call, so it answers only where `bgp-gr` runs in the same process as the asker.
+`bgp-rr` and `bgp-rs` therefore refuse to start as a child process (`run "ze
+plugin bgp-rr"`): no `bgp-gr` there ever publishes an answer, every family would
+read as not retained, and the restarting peer's routes would be withdrawn from
+every other peer. The refusal is logged as `refusing to start as an external
+plugin process` and the daemon does not start. A child-process `bgp-gr` cannot
+publish into the daemon either, and no check refuses that arrangement yet: an
+in-daemon reflector or route server then reads every family as not retained.
+Use internal `bgp-gr`, `bgp-rib`, and `bgp-rs` or `bgp-rr` for the coordinated
+lifecycle described here.
 <!-- source: internal/component/bgp/retention/retention.go -- Publish, Family -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, IsInternal refusal -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, IsInternal refusal -->
+<!-- source: test/plugin/rr-external-refuses.ci -- a forked bgp-rr refuses to start -->
+<!-- source: test/plugin/rs-external-refuses.ci -- a forked bgp-rs refuses to start -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->

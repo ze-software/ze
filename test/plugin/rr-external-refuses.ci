@@ -1,0 +1,66 @@
+# Test: bgp-rr refuses to start as an external plugin process
+# VALIDATES: bgp-rr's IsInternal() guard (internal/component/bgp/plugins/rr/rr.go, runRouteReflector)
+# refuses to start when bgp-rr runs as a genuine external subprocess. Its DOWN
+# handler asks retention.Family whether bgp-gr retains the departed peer's
+# family, a same-process call: in a forked route reflector no Graceful Restart engine
+# has published its answer, so every family reads as not retained.
+# PREVENTS: an operator configuring `plugin { external rr { run ... } }`
+# getting a route reflector that withdraws a restarting peer's routes from every
+# other peer, which RFC 4724 Section 4.2 requires kept, with no error.
+#
+# The refusal aborts the daemon's plugin-startup coordinator, so the relayed
+# stderr line is the signal, as in as112-external-refuses.ci.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret rr-external-refuse-test-secret-0001;
+		}
+	}
+	external rr {
+		# le test plugin-external launches the registered engine's own
+		# RunEngine over a real TLS connect-back
+		# (internal/test/cli/cmd_plugin_external.go).
+		run "le test plugin-external bgp-rr"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# The needle names bgp-rr, so another plugin's refusal cannot satisfy it.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=bgp-rr: refusing to start as an external plugin process -- the graceful-restart retention decision
+expect=stderr:contains=bgp-rr: refusing to start as an external plugin process -- the graceful-restart retention decision

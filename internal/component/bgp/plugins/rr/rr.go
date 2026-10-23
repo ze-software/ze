@@ -122,6 +122,20 @@ func runRouteReflector(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rr", conn)
 	defer func() { _ = p.Close() }()
 
+	// handleStateDown asks retention.Family whether bgp-gr retains a departed
+	// source's family. That is a same-process call: bgp-gr publishes its
+	// answer into the daemon's memory, so a forked bgp-rr finds no owner and
+	// reads every family as not retained. It would then send the departure
+	// recovery for routes RFC 4724 Section 4.2 requires kept, with no error
+	// and no log line. Refuse to start rather than answer wrong.
+	if !p.IsInternal() {
+		logger().Error("bgp-rr: refusing to start as an external plugin process -- " +
+			"the graceful-restart retention decision (retention.Family) is a same-process call, " +
+			"so a forked route reflector would withdraw routes a restarting peer's neighbors must keep; " +
+			"configure it as plugin { internal <name> { use bgp-rr } }")
+		return 1
+	}
+
 	downCtx, stopDown := context.WithCancel(context.Background())
 	rr := &routeReflector{
 		plugin:      p,
