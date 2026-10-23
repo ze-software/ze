@@ -126,17 +126,24 @@ var bridgeRouteAttrs = map[string]bridgeRouteAttr{
 // bridgeAttrGeneric is ExaBGP's generic attribute keyword.
 const bridgeAttrGeneric = "attribute"
 
-// genericRepeat reports whether an attribute writing a type code the line
-// already wrote is a repeat the generic attribute rule owns: one of the two is
-// ExaBGP's generic `attribute`. A typed keyword given twice is left to the
-// per-keyword rules. ExaBGP's API keeps the first of two attributes of one code
-// when either is generic (add_attribute, "attribute.GENERIC or
-// existing.GENERIC", configuration/grammar/tree/static.py at f9bfb853b).
-func genericRepeat(generic bool, holder string) bool {
+// codeRepeat reports whether an attribute writing a type code the line already
+// wrote is a repeat the per-code rule owns: one of the two is ExaBGP's generic
+// `attribute`, or two different keywords write the one code, as
+// `bgp-prefix-sid` and `bgp-prefix-sid-srv6` both write the BGP Prefix-SID
+// (code 40). The same keyword given twice is left to the per-keyword rules,
+// which merge a community list. ExaBGP's API keeps the first of two attributes
+// of one code when the code is not a list attribute or either is generic
+// (add_attribute, "attribute.ID not in LIST_ATTRIBUTES or attribute.GENERIC or
+// existing.GENERIC", configuration/grammar/tree/static.py at f9bfb853b); no two
+// keywords share a list attribute's code (textparse.KeywordAttributeCode).
+func codeRepeat(generic bool, holder, keyword string) bool {
 	if generic {
 		return true
 	}
-	return holder == bridgeAttrGeneric
+	if holder == bridgeAttrGeneric {
+		return true
+	}
+	return holder != keyword
 }
 
 // genericCode answers the type code a generic attribute value writes, zero
@@ -333,7 +340,7 @@ func parseFamilyRouteAttributes(family string, parts []string) (routeAttributes,
 		// ExaBGP drops, not more communities. Two generic attributes of
 		// different codes are two attributes.
 		holder, held := out.codes[code]
-		if held && genericRepeat(generic, holder) {
+		if held && codeRepeat(generic, holder, attr.Ze) {
 			out.Warnings = append(out.Warnings, "the line gives attribute "+hexOctet(code)+" twice, through "+holder+
 				" and through "+written+"; the first is kept and the second dropped: remove one of the two")
 			continue

@@ -221,11 +221,12 @@ func TestOperationalRefusedByKind(t *testing.T) {
 // are both forwarded; a code ze writes from a keyword is forwarded as written,
 // for ze's update text to decode into that keyword's typed form; a generic
 // attribute after the keyword of the same code, the keyword after a generic
-// one, and a second generic one of the same code are each dropped with one
-// warning naming the code in hex, as the pin's add_attribute keeps the first
-// ("attribute.GENERIC or existing.GENERIC",
-// configuration/grammar/tree/static.py at f9bfb853b); a generic NEXT_HOP never
-// drops the next-hop keyword.
+// one, a second generic one of the same code, and bgp-prefix-sid beside
+// bgp-prefix-sid-srv6 (both write code 40) are each dropped with one warning
+// naming the code in hex, as the pin's add_attribute keeps the first
+// ("attribute.ID not in LIST_ATTRIBUTES or attribute.GENERIC or
+// existing.GENERIC", configuration/grammar/tree/static.py at f9bfb853b); a
+// generic NEXT_HOP never drops the next-hop keyword.
 // PREVENTS: refusing a line ExaBGP 4.2, 5.0 and 6.0 announce, and forwarding a
 // repeat that ze's update text would refuse as an attribute given twice.
 func TestGenericAttributeTranslated(t *testing.T) {
@@ -282,6 +283,18 @@ func TestGenericAttributeTranslated(t *testing.T) {
 			line:    "announce route 10.0.0.0/24 next-hop 1.2.3.4 attribute [ 0x99 0xc0 0x01 ] attribute [ 0x99 0xc0 0x02 ]",
 			want:    "send bgp * update text nhop 1.2.3.4 attribute [ 0x99 0xc0 0x01 ] nlri add 10.0.0.0/24",
 			dropped: "attribute 0x99 twice, through attribute and through attribute [ 0x99 0xc0 0x02 ]; the first is kept and the second dropped: remove one of the two",
+		},
+		{
+			name:    "label-index prefix-sid then srv6",
+			line:    "announce route 10.0.0.0/24 next-hop 1.2.3.4 bgp-prefix-sid [ 100 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )",
+			want:    "send bgp * update text nhop 1.2.3.4 bgp-prefix-sid [ 100 ] nlri add 10.0.0.0/24",
+			dropped: "attribute 0x28 twice, through bgp-prefix-sid and through bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ); the first is kept",
+		},
+		{
+			name:    "srv6 prefix-sid then label-index",
+			line:    "announce route 10.0.0.0/24 next-hop 1.2.3.4 bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ) bgp-prefix-sid [ 100 ]",
+			want:    "send bgp * update text nhop 1.2.3.4 bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ) nlri add 10.0.0.0/24",
+			dropped: "attribute 0x28 twice, through bgp-prefix-sid-srv6 and through bgp-prefix-sid [ 100 ]; the first is kept",
 		},
 	}
 	for _, tc := range cases {

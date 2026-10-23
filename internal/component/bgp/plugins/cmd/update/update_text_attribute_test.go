@@ -217,3 +217,46 @@ func TestAttributeKeywordsPaired(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateTextPrefixSIDGivenTwiceRefused proves a second BGP Prefix-SID
+// keyword is refused instead of silently replacing the first.
+//
+// Method: bgp-prefix-sid and bgp-prefix-sid-srv6 both write attribute 40, so
+// each pair of the two, in either order, must fail with the error that names
+// both keywords and says to keep one; one of them alone must still parse.
+// RFC 4271 Section 6.3 makes an attribute given twice a Malformed Attribute
+// List.
+func TestUpdateTextPrefixSIDGivenTwiceRefused(t *testing.T) {
+	index := []string{"bgp-prefix-sid", "[", "100", "]"}
+	srv6 := []string{"bgp-prefix-sid-srv6", "(", "l3-service", "2001:db8:1:1::", "0x48", "[64,24,16,0,0,0]", ")"}
+	tail := []string{"nhop", "1.2.3.4", "nlri", "add", "10.0.0.0/24"}
+	join := func(parts ...[]string) []string {
+		var out []string
+		for _, p := range parts {
+			out = append(out, p...)
+		}
+		return out
+	}
+
+	for _, alone := range [][]string{index, srv6} {
+		_, err := ParseUpdateText(join(alone, tail))
+		require.NoError(t, err, "%v alone parses", alone[0])
+	}
+
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"index twice", join(index, index, tail)},
+		{"srv6 twice", join(srv6, srv6, tail)},
+		{"index then srv6", join(index, srv6, tail)},
+		{"srv6 then index", join(srv6, index, tail)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseUpdateText(tc.args)
+			require.ErrorIs(t, err, errPrefixSIDTwice)
+			assert.Contains(t, err.Error(), "keep one")
+		})
+	}
+}

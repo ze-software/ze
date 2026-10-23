@@ -88,6 +88,7 @@ var (
 	errMissingAIGPValue                 = errors.New("missing aigp value")
 	errMissingPrefixSIDValue            = errors.New("missing bgp-prefix-sid-srv6 value")
 	errMissingPrefixSIDIndexValue       = errors.New("missing bgp-prefix-sid value: write bgp-prefix-sid [ <label-index> ]")
+	errPrefixSIDTwice                   = errors.New("the BGP Prefix-SID attribute is given twice: bgp-prefix-sid and bgp-prefix-sid-srv6 both write attribute 40, and an UPDATE carries it once; keep one of them")
 	errEmptyClusterList                 = errors.New("cluster-list requires at least one cluster id")
 	errRestoreConfiguredAfterNLRI       = errors.New("restore-configured must precede the nlri and mp sections: it says how the whole command withdraws, so write `update text restore-configured nlri del <prefix>` or `update text restore-configured mp <family> del <prefix>`")
 	errSetDelKeywordsRemovedUseNext     = errors.New("set/del keywords removed; use: next-hop <address|self>")
@@ -577,6 +578,13 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		return 1, nil
 
 	case textparse.KWPrefixSID:
+		// RFC 4271 Section 6.3: "If any attribute appears more than once in
+		// the UPDATE message, then the Error Subcode MUST be set to Malformed
+		// Attribute List." A second Prefix-SID keyword is refused rather than
+		// silently replacing the first.
+		if attrs.PrefixSID != nil {
+			return 0, errPrefixSIDTwice
+		}
 		if idx+1 >= len(args) {
 			return 0, errMissingPrefixSIDIndexValue
 		}
@@ -596,6 +604,10 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		return consumed, nil
 
 	case textparse.KWPrefixSIDSRv6:
+		// RFC 4271 Section 6.3, as for bgp-prefix-sid above.
+		if attrs.PrefixSID != nil {
+			return 0, errPrefixSIDTwice
+		}
 		if idx+1 >= len(args) {
 			return 0, errMissingPrefixSIDValue
 		}

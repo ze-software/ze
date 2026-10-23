@@ -603,6 +603,12 @@ keyword and answers with the flat form to use.
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 | `attribute` | `[ 0x<code> 0x<flags> 0x<value> ]` | any type code, given as its wire octets | RFC 4271 Section 4.3 |
 
+`bgp-prefix-sid` and `bgp-prefix-sid-srv6` write the one BGP Prefix-SID
+attribute, so a command that gives either of them twice, or both, is refused
+with an error that says to keep one: an UPDATE carries an attribute once (RFC
+4271 Section 6.3).
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- errPrefixSIDTwice -->
+
 An `<ec>` in `extended-community` takes one of seven forms.
 
 | Form | Example | Meaning |

@@ -1023,6 +1023,13 @@ The label-index Prefix-SID, `bgp-prefix-sid [ <index> ]` or
 unchanged: update text reads the same keyword in the same spelling and writes
 the Label-Index and Originator SRGB TLVs (RFC 8669 Sections 3.1 and 3.2).
 
+`bgp-prefix-sid` and `bgp-prefix-sid-srv6` both write the Prefix-SID
+(attribute 40), which is not a list attribute, so a line that gives both keeps
+the first and warns that the second was dropped, as ExaBGP's API does
+(`add_attribute`, configuration/grammar/tree/static.py at f9bfb853b). Ze's own
+update text refuses the pair instead.
+<!-- source: internal/exabgp/bridge/bridge_attribute.go -- codeRepeat -->
+
 The generic attribute, `attribute [ 0x<code> 0x<flag> 0x<data> ]`, is passed
 through as written: update text reads the same keyword in the same spelling
 (`docs/architecture/api/update-syntax.md`, "Path Attributes"). It decodes a code
