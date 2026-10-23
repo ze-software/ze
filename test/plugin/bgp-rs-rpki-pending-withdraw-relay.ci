@@ -1,0 +1,155 @@
+# Test: bgp-rs sends nothing at all for a path withdrawn while RPKI still holds
+# it: no announcement and no withdrawal, even after the cache update that would
+# have made it Valid.
+# VALIDATES: spec-exabgp-6-api-compatibility OD-2 end to end through the
+#            route server. A withdrawal of a route still pending validation goes
+#            through the validation engine: never announced, the pending work
+#            is cancelled and nothing is sent. The writer sends a withdrawal
+#            only to a destination holding an adj-out record for the route
+#            (RFC 4271 Section 3.1; reactor/session_ownership.go,
+#            adjOutWrite.allow).
+# PREVENTS: the destination being sent a withdrawal of a route it was never
+#           advertised, once per gate event (the live forward of the held
+#           announcement, then the withdrawal's own relay), and a withdrawn
+#           path announced by a later verdict.
+#
+# Flow (observer fixture plugin/rpki-pending-withdraw-relay):
+# 1. the destination's session comes up and gets its End-of-RIB; the observer
+#    then lets the source send two UPDATEs back to back: 10.0.0.0/24 and
+#    10.0.1.0/24 origin AS 65001, then the withdrawal of 10.0.0.0/24
+# 2. both prefixes arrive pending; the VRP set is empty, so the verdict is
+#    NotFound and `not-found reject` holds them. The withdrawal lands before or
+#    after that verdict, on the RPKI batch timer; either way the destination is
+#    owed nothing, and the observer checks it was sent nothing
+# 3. the observer releases 10.0.0.0/8 maxlen 24 AS 65001: 10.0.1.0/24 becomes
+#    Valid and the revalidation relay carries it, the positive fence
+# NON-VACUITY: the fence is the destination's only UPDATE (seq=2), and the
+# observer counts exactly one UPDATE sent after the release. Proven red with
+# the adjOutWrite.allow fix reverted: the destination then receives a
+# withdrawal of 10.0.0.0/24 as its seq=2.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+# The source must outlive the relay: if it closes, ze withdraws its routes.
+option=linger:value=true
+option=await-file:path=source.go
+# ORIGIN IGP, AS_PATH [65001] (4-byte), NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
+# and 10.0.1.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE940030401010101180A0000180A0001
+# WITHDRAWN ROUTES 10.0.0.0/24, no attributes.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_SOURCE
+
+stdin=destination:terminator=EOF_DESTINATION
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=linger:value=true
+# The session comes up before the source sends: only its End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# SUBJECT, by its absence: nothing for 10.0.0.0/24 comes before this. The
+# fence, 10.0.1.0/24 revalidated, ze's AS 65000 prepended (RFC 4271 Section
+# 5.1.2). NLRI 10.0.1.0/24.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0001
+EOF_DESTINATION
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret rpki-test-secret-key-01234567890;
+		}
+	}
+	external rpki-pending-withdraw-relay-test {
+		run "le test fixture plugin/rpki-pending-withdraw-relay"
+		encoder json
+	}
+	internal relay {
+		use bgp-rs
+	}
+	internal rpki {
+		use bgp-rpki
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			trusted-network true
+			port $PORT2
+		}
+		action {
+			invalid reject
+			not-found reject
+		}
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+
+		attach process relay {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process rpki {
+			receive [ update-received state ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+
+	peer destination {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		timer { connect-retry 5; }
+
+		attach process relay {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process rpki {
+			receive [ update-received state ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# The observer releases this cache only after checking the held route.
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT2 --sync-release rpki-sync.release --vrp 10.0.0.0/8,24,65001:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destination
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=send refused
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

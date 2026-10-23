@@ -131,6 +131,7 @@ func init() {
 	Register("plugin/rpki-passthrough", plugin15Observe("rpki-passthrough-test", &sdk.Registration{}, plugin15RPKIPassthrough))
 	Register("plugin/rpki-per-peer-action", plugin15Observe("rpki-per-peer-test", &sdk.Registration{}, plugin15RPKIPerPeer))
 	Register("plugin/rpki-pipe-summary", plugin15RPKIPipeSummary)
+	Register("plugin/rpki-pending-withdraw-relay", plugin15Observe("rpki-pending-withdraw-relay-test", &sdk.Registration{}, plugin15RPKIPendingWithdrawRelay))
 	Register("plugin/rpki-revalidate-relay", plugin15Observe("rpki-revalidate-relay-test", &sdk.Registration{}, plugin15RPKIRevalidateRelay))
 	Register("plugin/rpki-revalidate-late-sync", plugin15Observe("rpki-late-sync-test", &sdk.Registration{}, plugin15RPKILateSync))
 	Register("plugin/rpki-timeout", plugin15Observe("rpki-timeout-test", &sdk.Registration{}, plugin15RPKITimeout))

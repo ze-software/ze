@@ -235,6 +235,100 @@ func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
+// plugin15RPKIPendingWithdrawRelay proves that a relay plugin (bgp-rr or
+// bgp-rs) sends nothing at all for a path withdrawn while RPKI still holds it,
+// neither the announcement nor a withdrawal, even after a cache update would
+// have made it Valid (spec-exabgp-6-api-compatibility, OD-2).
+//
+// Method: once the destination peer (127.0.0.2) has its session and its
+// End-of-RIB, the observer lets the source peer (127.0.0.1) send its two
+// UPDATEs back to back: 10.0.0.0/24 and 10.0.1.0/24 in one announcement, then
+// the withdrawal of 10.0.0.0/24 alone. Both prefixes arrive pending; the VRP
+// set is empty, so the verdict is NotFound and `not-found reject` holds them.
+// Whether the withdrawal lands before or after that verdict depends on the
+// RPKI batch timer, and the answer owed is the same: the destination was never
+// advertised 10.0.0.0/24, so it is sent no withdrawal (RFC 4271 Section 3.1),
+// and the withdrawal cancels the pending or held path, so no later verdict
+// announces it. The observer checks the destination was sent nothing, then
+// releases 10.0.0.0/8 maxlen 24 AS 65001. The cache change makes 10.0.1.0/24
+// Valid, and the revalidation relay that would carry 10.0.0.0/24 had it
+// survived carries 10.0.1.0/24: that announcement is the positive fence, and
+// the destination MUST receive exactly it. Its ze-peer pins the bytes.
+func plugin15RPKIPendingWithdrawRelay(ctx context.Context, p *sdk.Plugin) error {
+	const withdrawn, fence = "10.0.0.0/24", "10.0.1.0/24"
+	if !Poll(ctx, 60, 500*time.Millisecond, func() bool {
+		return plugin15PeerCount(ctx, p, "destination", "127.0.0.2", "connections-established") >= 1
+	}) {
+		return fmt.Errorf("the destination's session never came up")
+	}
+	if !plugin15DestinationSettled(ctx, p) {
+		return fmt.Errorf("the UPDATEs sent on the destination's session never stopped")
+	}
+	baseline := plugin15PeerSent(ctx, p)
+	if err := os.WriteFile("source.go", nil, 0o600); err != nil {
+		return fmt.Errorf("release the source UPDATEs: %w", err)
+	}
+	if !Poll(ctx, 30, 200*time.Millisecond, func() bool {
+		return plugin15PeerCount(ctx, p, "source", "127.0.0.1", "updates-received") >= 2
+	}) {
+		return fmt.Errorf("ze never received both source UPDATEs, the announcement and the withdrawal")
+	}
+	if err := plugin14AssertRouteValidation(ctx, p, fence, 2, true, "before cache synchronization"); err != nil {
+		return err
+	}
+	if err := plugin15AssertRouteAbsent(ctx, p, withdrawn, "after its withdrawal"); err != nil {
+		return err
+	}
+	if count := plugin15RPKICount(ctx, p); count != 0 {
+		return fmt.Errorf("the VRP count before release is %v, not 0, so this run does not hold the routes for RPKI", count)
+	}
+	if !plugin15DestinationSettled(ctx, p) {
+		return fmt.Errorf("the UPDATEs sent to the destination after the source UPDATEs never stopped")
+	}
+	if sent := plugin15PeerSent(ctx, p); sent != baseline {
+		return fmt.Errorf("the destination was sent %v UPDATEs for paths RPKI still held, want none", sent-baseline)
+	}
+	if err := os.WriteFile("rpki-sync.release", nil, 0o600); err != nil {
+		return fmt.Errorf("release the initial RTR synchronization: %w", err)
+	}
+	if !Poll(ctx, 24, 500*time.Millisecond, func() bool { return plugin15RPKICount(ctx, p) >= 1 }) {
+		return fmt.Errorf("the RTR cache never synced a VRP")
+	}
+	if err := plugin14AssertRouteValidation(ctx, p, fence, 1, false, "after cache synchronization"); err != nil {
+		return err
+	}
+	if !Poll(ctx, 30, 500*time.Millisecond, func() bool { return plugin15PeerSent(ctx, p) > baseline }) {
+		return fmt.Errorf("the destination never received the revalidated fence path %s", fence)
+	}
+	if !plugin15DestinationSettled(ctx, p) {
+		return fmt.Errorf("the UPDATEs sent to the destination after the cache release never stopped")
+	}
+	if sent := plugin15PeerSent(ctx, p); sent != baseline+1 {
+		return fmt.Errorf("the destination was sent %v UPDATEs after the cache release, want 1, the fence %s alone", sent-baseline, fence)
+	}
+	if err := plugin15AssertRouteAbsent(ctx, p, withdrawn, "after cache synchronization"); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "OK the destination was sent only the fence path; the withdrawn path reached it as nothing")
+	return nil
+}
+
+// plugin15AssertRouteAbsent waits for Adj-RIB-In to hold no path for prefix.
+func plugin15AssertRouteAbsent(ctx context.Context, p *sdk.Plugin, prefix, label string) error {
+	var last map[string]any
+	if Poll(ctx, 20, 250*time.Millisecond, func() bool {
+		m, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp adj-rib-in"))
+		if err != nil {
+			return false
+		}
+		last = m
+		return plugin14FindRoute(m, prefix) == nil
+	}) {
+		return nil
+	}
+	return fmt.Errorf("%s is still in adj-rib-in %s: %v", prefix, label, last)
+}
+
 // plugin15DestinationSettled reports whether the destination's UPDATE and
 // End-of-RIB counters held still for one second, within 20 seconds.
 func plugin15DestinationSettled(ctx context.Context, p *sdk.Plugin) bool {
