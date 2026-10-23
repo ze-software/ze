@@ -22,7 +22,7 @@ p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
 p.DeclareAppliesNothing("why a reload has nothing for this plugin to apply")
 p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput { ... })
-p.OnBye(func(reason string) { ... })
+p.OnBye(func(reason string) error { ... })
 
 // Post-startup callback (safe to make engine calls here)
 p.OnStarted(func(ctx context.Context) error { ... })
@@ -354,15 +354,20 @@ If no handler is registered, OPEN validation returns `{accept: true}` (no-op).
 
 ### OnBye
 
-Called when the engine sends a shutdown notification. On the pipe transport,
+Called when the engine sends `bye`: when it removes the plugin while the
+daemon keeps running (reason `removed`), and when it stops a subsystem process.
+A daemon stop sends no `bye`. It closes the connection, `Run` returns nil, and
+cleanup the plugin owes on daemon stop runs after `Run` returns
+(`docs/architecture/api/process-protocol.md`, "Shutdown"). On the pipe transport,
 the SDK responds OK before invoking this callback. On the bridge transport,
 the callback runs and then the result is sent back through the channel.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnBye -->
 
 ```go
-p.OnBye(func(reason string) {
-    log.Printf("shutting down: %s", reason)
-    // Clean up resources
+p.OnBye(func(reason string) error {
+    // Withdraw what this plugin installed. An error keeps the plugin
+    // running, and the engine keeps its dependencies for a retry.
+    return cleanUp(reason)
 })
 ```
 

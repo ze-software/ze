@@ -136,15 +136,27 @@ bgp {
     }
     policy {
         community-match SERVICE-20 {
-            entry target:65000:10 { type extended; action reject; }
-            entry target:65000:20 { type extended; action accept; }
+            entry target:65000:10 {
+                type extended;
+                action reject;
+            }
+            entry target:65000:20 {
+                type extended;
+                action accept;
+            }
         }
     }
     peer pe1 {
-        filter { export [ community-match:SERVICE-20 ]; }
+        filter {
+            export {
+                filters [ community-match:SERVICE-20 ];
+                final accept;
+            }
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 This peer receives service 20 but not service 10. Other peers can use different
 lists or no filter. Community-match lists deny unmatched routes, so include

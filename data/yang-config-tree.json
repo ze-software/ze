@@ -809,20 +809,74 @@
             "source": "config"
           },
           {
-            "description": "Ze runs the global chain first, then the group chain, then the peer chain. An RFC 9234\nrole can require this chain to name a filter that catches a transit leak.",
-            "kind": "leaf-list",
+            "children": [
+              {
+                "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "Global filters run before group and peer filters. The most specific policy supplies the final decision.",
+            "kind": "container",
             "name": "export",
-            "short-help": "Global export filter chain",
-            "source": "config",
-            "type": "string"
+            "short-help": "Global export policy",
+            "source": "config"
           },
           {
-            "description": "Ze runs the global chain first, then the group chain, then the peer chain. Each name\nreferences a filter instance declared under bgp/policy. A plain name that no instance declares\nis refused at config load.",
-            "kind": "leaf-list",
+            "children": [
+              {
+                "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "Global filters run before group and peer filters. Every configured policy needs a final decision.",
+            "kind": "container",
             "name": "import",
-            "short-help": "Global import filter chain",
-            "source": "config",
-            "type": "string"
+            "short-help": "Global import policy",
+            "source": "config"
           },
           {
             "children": [
@@ -917,6 +971,23 @@
         "kind": "container",
         "name": "filter",
         "short-help": "Global route filter chains for import and export.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "true runs the check on this session and false turns it off. The leaf has no\n    YANG default so that a peer inherits its group's value and a group the bgp\n    level's. When no level states the leaf, the check runs.",
+            "kind": "leaf",
+            "name": "enabled",
+            "short-help": "Check a FlowSpec redirect-to-IP next hop against the peer's AS.",
+            "source": "config",
+            "type": "boolean"
+          }
+        ],
+        "description": "The check Ze applies to each FlowSpec rule received from an EBGP peer whose\n    redirect-to-IP extended community (0x0800) names next hop X. Ze finds the\n    longest unicast match for X in the rule's own domain, the Route\n    Distinguisher of a flow-vpn rule, and in X's address family. When the last\n    AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches,\n    Ze discards the redirect action of that rule alone: the rule is still\n    installed and forwarded, without the 0x0800 community and with a zero\n    next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires\n    the check by default. It also requires that the check can be turned off for\n    one EBGP session, which is what this container is for. A route from an IBGP\n    peer, whose AS is the local AS, is never checked; a session whose local AS\n    is unknown is checked.",
+        "kind": "container",
+        "name": "flowspec-redirect-check",
+        "short-help": "FlowSpec redirect-to-IP origin check on this EBGP session.",
         "source": "config"
       },
       {
@@ -1417,20 +1488,74 @@
                 "source": "config"
               },
               {
-                "description": "Ze runs the global chain, then the group chain, then this chain. Prefix a name with\ninactive: to record that this session runs without a check an RFC 9234 role requires.",
-                "kind": "leaf-list",
+                "children": [
+                  {
+                    "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                    "kind": "leaf-list",
+                    "name": "filters",
+                    "short-help": "Ordered filter instance references",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                    "kind": "leaf",
+                    "name": "final",
+                    "short-help": "Decision after every filter passes",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "accept",
+                        "short-help": "Accept a route that passes every filter"
+                      },
+                      {
+                        "name": "reject",
+                        "short-help": "Reject a route that passes every filter"
+                      }
+                    ]
+                  }
+                ],
+                "description": "Append these filters to inherited filters and use this policy's explicit final decision.",
+                "kind": "container",
                 "name": "export",
-                "short-help": "Export filter chain (filter instance names)",
-                "source": "config",
-                "type": "string"
+                "short-help": "Export policy",
+                "source": "config"
               },
               {
-                "description": "Ze runs the global chain, then the group chain, then this chain. A plain name references a\nfilter instance declared under bgp/policy. A name that carries a colon names a plugin filter,\nwhich Ze validates at runtime.",
-                "kind": "leaf-list",
+                "children": [
+                  {
+                    "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                    "kind": "leaf-list",
+                    "name": "filters",
+                    "short-help": "Ordered filter instance references",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                    "kind": "leaf",
+                    "name": "final",
+                    "short-help": "Decision after every filter passes",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "accept",
+                        "short-help": "Accept a route that passes every filter"
+                      },
+                      {
+                        "name": "reject",
+                        "short-help": "Reject a route that passes every filter"
+                      }
+                    ]
+                  }
+                ],
+                "description": "Append these filters to inherited filters and use this policy's explicit final decision.",
+                "kind": "container",
                 "name": "import",
-                "short-help": "Import filter chain (filter instance names)",
-                "source": "config",
-                "type": "string"
+                "short-help": "Import policy",
+                "source": "config"
               },
               {
                 "children": [
@@ -1525,6 +1650,23 @@
             "kind": "container",
             "name": "filter",
             "short-help": "Route filter chains for import and export.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "true runs the check on this session and false turns it off. The leaf has no\n    YANG default so that a peer inherits its group's value and a group the bgp\n    level's. When no level states the leaf, the check runs.",
+                "kind": "leaf",
+                "name": "enabled",
+                "short-help": "Check a FlowSpec redirect-to-IP next hop against the peer's AS.",
+                "source": "config",
+                "type": "boolean"
+              }
+            ],
+            "description": "The check Ze applies to each FlowSpec rule received from an EBGP peer whose\n    redirect-to-IP extended community (0x0800) names next hop X. Ze finds the\n    longest unicast match for X in the rule's own domain, the Route\n    Distinguisher of a flow-vpn rule, and in X's address family. When the last\n    AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches,\n    Ze discards the redirect action of that rule alone: the rule is still\n    installed and forwarded, without the 0x0800 community and with a zero\n    next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires\n    the check by default. It also requires that the check can be turned off for\n    one EBGP session, which is what this container is for. A route from an IBGP\n    peer, whose AS is the local AS, is never checked; a session whose local AS\n    is unknown is checked.",
+            "kind": "container",
+            "name": "flowspec-redirect-check",
+            "short-help": "FlowSpec redirect-to-IP origin check on this EBGP session.",
             "source": "config"
           },
           {
@@ -2025,20 +2167,74 @@
                     "source": "config"
                   },
                   {
-                    "description": "Ze runs the global chain, then the group chain, then this chain. Prefix a name with\ninactive: to record that this session runs without a check an RFC 9234 role requires.",
-                    "kind": "leaf-list",
+                    "children": [
+                      {
+                        "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                        "kind": "leaf-list",
+                        "name": "filters",
+                        "short-help": "Ordered filter instance references",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                        "kind": "leaf",
+                        "name": "final",
+                        "short-help": "Decision after every filter passes",
+                        "source": "config",
+                        "type": "enumeration",
+                        "values": [
+                          {
+                            "name": "accept",
+                            "short-help": "Accept a route that passes every filter"
+                          },
+                          {
+                            "name": "reject",
+                            "short-help": "Reject a route that passes every filter"
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Append these filters to inherited filters and use this policy's explicit final decision.",
+                    "kind": "container",
                     "name": "export",
-                    "short-help": "Export filter chain (filter instance names)",
-                    "source": "config",
-                    "type": "string"
+                    "short-help": "Export policy",
+                    "source": "config"
                   },
                   {
-                    "description": "Ze runs the global chain, then the group chain, then this chain. A plain name references a\nfilter instance declared under bgp/policy. A name that carries a colon names a plugin filter,\nwhich Ze validates at runtime.",
-                    "kind": "leaf-list",
+                    "children": [
+                      {
+                        "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                        "kind": "leaf-list",
+                        "name": "filters",
+                        "short-help": "Ordered filter instance references",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                        "kind": "leaf",
+                        "name": "final",
+                        "short-help": "Decision after every filter passes",
+                        "source": "config",
+                        "type": "enumeration",
+                        "values": [
+                          {
+                            "name": "accept",
+                            "short-help": "Accept a route that passes every filter"
+                          },
+                          {
+                            "name": "reject",
+                            "short-help": "Reject a route that passes every filter"
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Append these filters to inherited filters and use this policy's explicit final decision.",
+                    "kind": "container",
                     "name": "import",
-                    "short-help": "Import filter chain (filter instance names)",
-                    "source": "config",
-                    "type": "string"
+                    "short-help": "Import policy",
+                    "source": "config"
                   },
                   {
                     "children": [
@@ -2133,6 +2329,23 @@
                 "kind": "container",
                 "name": "filter",
                 "short-help": "Route filter chains for import and export.",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
+                    "description": "true runs the check on this session and false turns it off. The leaf has no\n    YANG default so that a peer inherits its group's value and a group the bgp\n    level's. When no level states the leaf, the check runs.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "short-help": "Check a FlowSpec redirect-to-IP next hop against the peer's AS.",
+                    "source": "config",
+                    "type": "boolean"
+                  }
+                ],
+                "description": "The check Ze applies to each FlowSpec rule received from an EBGP peer whose\n    redirect-to-IP extended community (0x0800) names next hop X. Ze finds the\n    longest unicast match for X in the rule's own domain, the Route\n    Distinguisher of a flow-vpn rule, and in X's address family. When the last\n    AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches,\n    Ze discards the redirect action of that rule alone: the rule is still\n    installed and forwarded, without the 0x0800 community and with a zero\n    next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires\n    the check by default. It also requires that the check can be turned off for\n    one EBGP session, which is what this container is for. A route from an IBGP\n    peer, whose AS is the local AS, is never checked; a session whose local AS\n    is unknown is checked.",
+                "kind": "container",
+                "name": "flowspec-redirect-check",
+                "short-help": "FlowSpec redirect-to-IP origin check on this EBGP session.",
                 "source": "config"
               },
               {
@@ -3221,6 +3434,23 @@
               {
                 "children": [
                   {
+                    "description": "The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the\ncontainer to a peer whose session is up. Ze truncates it to the 255 octets the wire\ncarries.",
+                    "kind": "leaf",
+                    "name": "message",
+                    "short-help": "Shutdown communication sent with the Cease.",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "While the container is present Ze opens no session with the peer and answers an\ninbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4).\n'request peer \u003cselector\u003e enable' releases the hold until a commit adds or removes the\ncontainer, and 'request peer \u003cselector\u003e disable' sets it again. A commit that adds the\ncontainer to a peer whose session is up closes it with Cease subcode 2, Administrative\nShutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the\npeer connect.",
+                "kind": "container",
+                "name": "shutdown",
+                "short-help": "Hold the peer administratively down.",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
                     "description": "Ze removes a disconnected dynamic peer after this delay when no connection comes back. A\nstatic peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf\ndoes not change that backoff.",
                     "kind": "leaf",
                     "name": "connect-retry",
@@ -3291,7 +3521,7 @@
                         "description": "The list carries an attribute that no named field covers.",
                         "kind": "leaf-list",
                         "name": "attribute",
-                        "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                        "short-help": "Raw BGP attribute: [ 0x\u003ccode\u003e 0x\u003cflags\u003e 0x\u003cvalue\u003e ].",
                         "source": "config",
                         "type": "string"
                       },
@@ -4598,6 +4828,23 @@
           {
             "children": [
               {
+                "description": "The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the\ncontainer to a peer whose session is up. Ze truncates it to the 255 octets the wire\ncarries.",
+                "kind": "leaf",
+                "name": "message",
+                "short-help": "Shutdown communication sent with the Cease.",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "While the container is present Ze opens no session with the peer and answers an\ninbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4).\n'request peer \u003cselector\u003e enable' releases the hold until a commit adds or removes the\ncontainer, and 'request peer \u003cselector\u003e disable' sets it again. A commit that adds the\ncontainer to a peer whose session is up closes it with Cease subcode 2, Administrative\nShutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the\npeer connect.",
+            "kind": "container",
+            "name": "shutdown",
+            "short-help": "Hold the peer administratively down.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Ze removes a disconnected dynamic peer after this delay when no connection comes back. A\nstatic peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf\ndoes not change that backoff.",
                 "kind": "leaf",
                 "name": "connect-retry",
@@ -4668,7 +4915,7 @@
                     "description": "The list carries an attribute that no named field covers.",
                     "kind": "leaf-list",
                     "name": "attribute",
-                    "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                    "short-help": "Raw BGP attribute: [ 0x\u003ccode\u003e 0x\u003cflags\u003e 0x\u003cvalue\u003e ].",
                     "source": "config",
                     "type": "string"
                   },
@@ -5599,20 +5846,74 @@
                 "source": "config"
               },
               {
-                "description": "Ze runs the global chain, then the group chain, then this chain. Prefix a name with\ninactive: to record that this session runs without a check an RFC 9234 role requires.",
-                "kind": "leaf-list",
+                "children": [
+                  {
+                    "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                    "kind": "leaf-list",
+                    "name": "filters",
+                    "short-help": "Ordered filter instance references",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                    "kind": "leaf",
+                    "name": "final",
+                    "short-help": "Decision after every filter passes",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "accept",
+                        "short-help": "Accept a route that passes every filter"
+                      },
+                      {
+                        "name": "reject",
+                        "short-help": "Reject a route that passes every filter"
+                      }
+                    ]
+                  }
+                ],
+                "description": "Append these filters to inherited filters and use this policy's explicit final decision.",
+                "kind": "container",
                 "name": "export",
-                "short-help": "Export filter chain (filter instance names)",
-                "source": "config",
-                "type": "string"
+                "short-help": "Export policy",
+                "source": "config"
               },
               {
-                "description": "Ze runs the global chain, then the group chain, then this chain. A plain name references a\nfilter instance declared under bgp/policy. A name that carries a colon names a plugin filter,\nwhich Ze validates at runtime.",
-                "kind": "leaf-list",
+                "children": [
+                  {
+                    "description": "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.",
+                    "kind": "leaf-list",
+                    "name": "filters",
+                    "short-help": "Ordered filter instance references",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Every present import or export policy must set final accept or final reject, even with no filters.",
+                    "kind": "leaf",
+                    "name": "final",
+                    "short-help": "Decision after every filter passes",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "accept",
+                        "short-help": "Accept a route that passes every filter"
+                      },
+                      {
+                        "name": "reject",
+                        "short-help": "Reject a route that passes every filter"
+                      }
+                    ]
+                  }
+                ],
+                "description": "Append these filters to inherited filters and use this policy's explicit final decision.",
+                "kind": "container",
                 "name": "import",
-                "short-help": "Import filter chain (filter instance names)",
-                "source": "config",
-                "type": "string"
+                "short-help": "Import policy",
+                "source": "config"
               },
               {
                 "children": [
@@ -5707,6 +6008,23 @@
             "kind": "container",
             "name": "filter",
             "short-help": "Route filter chains for import and export.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "true runs the check on this session and false turns it off. The leaf has no\n    YANG default so that a peer inherits its group's value and a group the bgp\n    level's. When no level states the leaf, the check runs.",
+                "kind": "leaf",
+                "name": "enabled",
+                "short-help": "Check a FlowSpec redirect-to-IP next hop against the peer's AS.",
+                "source": "config",
+                "type": "boolean"
+              }
+            ],
+            "description": "The check Ze applies to each FlowSpec rule received from an EBGP peer whose\n    redirect-to-IP extended community (0x0800) names next hop X. Ze finds the\n    longest unicast match for X in the rule's own domain, the Route\n    Distinguisher of a flow-vpn rule, and in X's address family. When the last\n    AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches,\n    Ze discards the redirect action of that rule alone: the rule is still\n    installed and forwarded, without the 0x0800 community and with a zero\n    next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires\n    the check by default. It also requires that the check can be turned off for\n    one EBGP session, which is what this container is for. A route from an IBGP\n    peer, whose AS is the local AS, is never checked; a session whose local AS\n    is unknown is checked.",
+            "kind": "container",
+            "name": "flowspec-redirect-check",
+            "short-help": "FlowSpec redirect-to-IP origin check on this EBGP session.",
             "source": "config"
           },
           {
@@ -6795,6 +7113,23 @@
           {
             "children": [
               {
+                "description": "The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the\ncontainer to a peer whose session is up. Ze truncates it to the 255 octets the wire\ncarries.",
+                "kind": "leaf",
+                "name": "message",
+                "short-help": "Shutdown communication sent with the Cease.",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "While the container is present Ze opens no session with the peer and answers an\ninbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4).\n'request peer \u003cselector\u003e enable' releases the hold until a commit adds or removes the\ncontainer, and 'request peer \u003cselector\u003e disable' sets it again. A commit that adds the\ncontainer to a peer whose session is up closes it with Cease subcode 2, Administrative\nShutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the\npeer connect.",
+            "kind": "container",
+            "name": "shutdown",
+            "short-help": "Hold the peer administratively down.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Ze removes a disconnected dynamic peer after this delay when no connection comes back. A\nstatic peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf\ndoes not change that backoff.",
                 "kind": "leaf",
                 "name": "connect-retry",
@@ -6865,7 +7200,7 @@
                     "description": "The list carries an attribute that no named field covers.",
                     "kind": "leaf-list",
                     "name": "attribute",
-                    "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                    "short-help": "Raw BGP attribute: [ 0x\u003ccode\u003e 0x\u003cflags\u003e 0x\u003cvalue\u003e ].",
                     "source": "config",
                     "type": "string"
                   },
@@ -8066,7 +8401,7 @@
                 "description": "The list carries an attribute that no named field covers.",
                 "kind": "leaf-list",
                 "name": "attribute",
-                "short-help": "Raw BGP attributes in hex encoding, as flags:type:hex-value.",
+                "short-help": "Raw BGP attribute: [ 0x\u003ccode\u003e 0x\u003cflags\u003e 0x\u003cvalue\u003e ].",
                 "source": "config",
                 "type": "string"
               },
@@ -9403,9 +9738,31 @@
                 "short-help": "Emit done/error ack lines on plugin stdin after each dispatched command",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "description": "ExaBGP's api.version. auto holds each script to the API of the first\ncommand that tells: 'peer ...' is 6, 'announce ...' or 'neighbor ...' is 4. 4 or 6\nholds every script to that API from its start. A script held to one API is\nanswered error for a command of the other. A script's 'api version \u003cv\u003e' line moves\nthe setting for the scripts started afterwards.",
+                "kind": "leaf",
+                "name": "version",
+                "short-help": "ExaBGP API version of the bridge's scripts: auto, 4 or 6",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "4",
+                    "short-help": "Hold every script to the ExaBGP 4.x and 5.x API."
+                  },
+                  {
+                    "name": "6",
+                    "short-help": "Hold every script to the ExaBGP 6.0 API, JSON only."
+                  },
+                  {
+                    "name": "auto",
+                    "short-help": "Detect each script's API version from its commands."
+                  }
+                ]
               }
             ],
-            "description": "The container holds the ack leaf alone. The bridge reads the leaf once, when it\nstarts, so a change reaches the bridge at the next daemon start.",
+            "description": "The container holds the ack and version leaves. The bridge reads them once, when\nit starts, so a change reaches the bridge at the next daemon start.",
             "kind": "container",
             "name": "api",
             "short-help": "ExaBGP bridge API settings",
@@ -10217,7 +10574,7 @@
           {
             "children": [
               {
-                "description": "json writes one JSON object per event. text writes ExaBGP's\none-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24\nnext-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process,\nso one bridge can feed a text script and a JSON script at once. The default is json because the\nenvelope Ze declares is 6.0.0, and ExaBGP 6 answers every process in JSON.",
+                "description": "json writes one JSON object per event. text writes ExaBGP's\none-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24\nnext-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process,\nso one bridge can feed a text script and a JSON script at once. The default is text, as ExaBGP's.\nThe leaf is read with the script's API version, as ExaBGP 6.0 reads it: a script that writes\n'peer ...' reads 6.0.0 JSON whatever this says, a script that writes 'announce ...' or\n'neighbor ...' reads 5.x text or 5.x JSON (envelope 4.0.1), and a script that has written\nneither yet reads 5.x text when this is text and 6.0.0 JSON when it is json.",
                 "kind": "leaf",
                 "name": "encoder",
                 "short-help": "Format the script's events are written in.",
@@ -10237,7 +10594,7 @@
               {
                 "children": [
                   {
-                    "description": "ExaBGP's own event names: 'receive-update', 'send-update',\n'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational'\nand their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal'. An EMPTY list\nfeeds no event from this peer, which is what an ExaBGP api block that names a process and no\nmessage kind does.",
+                    "description": "ExaBGP's own event names: 'receive-update', 'send-update',\n'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational'\nand their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal', and the forms a\ndirection's messages are written in: 'receive-packets', 'receive-consolidate', 'receive-parsed'\nand their 'send-' siblings, as ExaBGP's 'packets', 'consolidate' and 'parsed'. An EMPTY list\nfeeds no event from this peer, which is what an ExaBGP api block that names a process and no\nmessage kind does.",
                     "kind": "leaf-list",
                     "name": "event",
                     "short-help": "Events this peer feeds this script.",
@@ -10250,6 +10607,24 @@
                 "name": "feed",
                 "short-help": "One peer that feeds this script, and the events it feeds.",
                 "source": "config"
+              },
+              {
+                "description": "What becomes of the routes this script announced when it exits.\nkeep leaves them; withdraw withdraws every route the script was the last to announce, before\na restarted script writes its first line. Left unset, a script that writes the ExaBGP 4 API\n('announce ...', 'neighbor ...') keeps its routes, as ExaBGP 4.x and 5.x did, and any other\nhas them withdrawn, as ExaBGP 6.0 does. Each exit is logged with the choice and its reason.\nExaBGP spells this leaf the same way.",
+                "kind": "leaf",
+                "name": "on-exit",
+                "short-help": "Keep or withdraw the script's routes when it exits.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "keep",
+                    "short-help": "Leave the routes the script announced in place."
+                  },
+                  {
+                    "name": "withdraw",
+                    "short-help": "Withdraw the routes the script announced."
+                  }
+                ]
               },
               {
                 "description": "true starts the script again the moment it exits. false leaves it\nstopped, which is what a script that does its work once and exits needs. A script that exits\nmore than five times in 64 seconds stays stopped whatever this leaf holds, and Ze logs that it\ndid. ExaBGP spells this leaf the same way and applies the same limit.",
@@ -12020,7 +12395,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -12050,6 +12425,22 @@
                     ]
                   },
                   {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
+                  },
+                  {
                     "children": [
                       {
                         "children": [
@@ -12070,7 +12461,7 @@
                             "type": "uint32"
                           },
                           {
-                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nSuch a group also keeps the RFC 5798 owner rule: its\naddress owner discards every advertisement it\nreceives, where an rfc9568 owner logs and processes it.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
                             "kind": "leaf",
                             "name": "checksum",
                             "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
@@ -12924,7 +13315,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -12954,6 +13345,22 @@
                     ]
                   },
                   {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
+                  },
+                  {
                     "children": [
                       {
                         "children": [
@@ -12974,7 +13381,7 @@
                             "type": "uint32"
                           },
                           {
-                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nSuch a group also keeps the RFC 5798 owner rule: its\naddress owner discards every advertisement it\nreceives, where an rfc9568 owner logs and processes it.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
                             "kind": "leaf",
                             "name": "checksum",
                             "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
@@ -13820,7 +14227,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -13850,6 +14257,22 @@
                     ]
                   },
                   {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
+                  },
+                  {
                     "children": [
                       {
                         "children": [
@@ -13870,7 +14293,7 @@
                             "type": "uint32"
                           },
                           {
-                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nSuch a group also keeps the RFC 5798 owner rule: its\naddress owner discards every advertisement it\nreceives, where an rfc9568 owner logs and processes it.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
                             "kind": "leaf",
                             "name": "checksum",
                             "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
@@ -14536,7 +14959,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -14564,6 +14987,22 @@
                         "short-help": "Drop a packet whose source does not route back through this interface, rp_filter 1."
                       }
                     ]
+                  },
+                  {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
                   }
                 ],
                 "description": "The container holds one unit's IPv4 state. Ze installs the addresses\nthrough netlink. Ze turns each other leaf into a net.ipv4.conf.\u003ciface\u003e\nsysctl write, which it emits on the event bus for the sysctl plugin to\nperform.",
@@ -15987,7 +16426,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -16015,6 +16454,22 @@
                         "short-help": "Drop a packet whose source does not route back through this interface, rp_filter 1."
                       }
                     ]
+                  },
+                  {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
                   }
                 ],
                 "description": "The container holds one unit's IPv4 state. Ze installs the addresses\nthrough netlink. Ze turns each other leaf into a net.ipv4.conf.\u003ciface\u003e\nsysctl write, which it emits on the event bus for the sysctl plugin to\nperform.",
@@ -16655,7 +17110,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -16685,6 +17140,22 @@
                     ]
                   },
                   {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
+                  },
+                  {
                     "children": [
                       {
                         "children": [
@@ -16705,7 +17176,7 @@
                             "type": "uint32"
                           },
                           {
-                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nSuch a group also keeps the RFC 5798 owner rule: its\naddress owner discards every advertisement it\nreceives, where an rfc9568 owner logs and processes it.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
                             "kind": "leaf",
                             "name": "checksum",
                             "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
@@ -17501,7 +17972,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -17529,6 +18000,22 @@
                         "short-help": "Drop a packet whose source does not route back through this interface, rp_filter 1."
                       }
                     ]
+                  },
+                  {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
                   }
                 ],
                 "description": "The container holds one unit's IPv4 state. Ze installs the addresses\nthrough netlink. Ze turns each other leaf into a net.ipv4.conf.\u003ciface\u003e\nsysctl write, which it emits on the event bus for the sysctl plugin to\nperform.",
@@ -18029,7 +18516,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface.",
+                    "description": "The leaf sets net.ipv4.conf.\u003ciface\u003e.proxy_arp. Use it to bridge subnets\nthat have no L2 connectivity between them, or for an unnumbered\ninterface. Ze refuses it on a unit that carries an IPv4 VRRP\ngroup, because the reply would carry the device MAC rather than\nthe virtual router MAC (RFC 9568 Section 8.1.3).",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "short-help": "Answer ARP requests for other hosts that are reachable through this router.",
@@ -18057,6 +18544,22 @@
                         "short-help": "Drop a packet whose source does not route back through this interface, rp_filter 1."
                       }
                     ]
+                  },
+                  {
+                    "description": "The value names another interface in this config, the donor, usually\nloopback or a dummy. Ze installs the donor's IPv4 address on this\nunit as a /32, so the unit has no subnet of its own (Cisco ip\nunnumbered, Junos unnumbered-address). Ze refuses the leaf together\nwith address or dhcp, and it refuses a donor that is missing, that is\nitself unnumbered, or that holds no IPv4 address. OSPF runs on such a\nunit only as a point-to-point interface.",
+                    "kind": "leaf",
+                    "name": "unnumbered",
+                    "short-help": "Borrow the IPv4 address of another interface (unnumbered point-to-point)",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "Ze installs this address of the donor as the unit's /32. The donor\nmust hold it. When the leaf is omitted, ze takes the donor's first\nIPv4 address, in unit name order and then in address order (Junos\npreferred-source-address).",
+                    "kind": "leaf",
+                    "name": "unnumbered-source",
+                    "short-help": "Which donor IPv4 address an unnumbered unit borrows",
+                    "source": "config",
+                    "type": "ipv4-address"
                   }
                 ],
                 "description": "The container holds one unit's IPv4 state. Ze installs the addresses\nthrough netlink. Ze turns each other leaf into a net.ipv4.conf.\u003ciface\u003e\nsysctl write, which it emits on the event bus for the sysctl plugin to\nperform.",
@@ -19148,7 +19651,15 @@
               {
                 "children": [
                   {
-                    "description": "The leaf is mandatory, and Ze refuses a server entry\nwithout it. Ze joins the value to port to reach the server.\nThe first entry of the list is the one Ze tries first, so\nwrite the closest server first.",
+                    "description": "The default is 1813, the port RFC 2866 Section 3 assigns\nto RADIUS accounting, and the range is 1 to 65535. Ze sends\nevery Accounting-Request of this server to this port, so a\nserver that takes accounting on the authentication port\nneeds this leaf set to the same value as port.",
+                    "kind": "leaf",
+                    "name": "accounting-port",
+                    "short-help": "RADIUS server UDP port for Accounting-Request packets.",
+                    "source": "config",
+                    "type": "port"
+                  },
+                  {
+                    "description": "The leaf is mandatory, and Ze refuses a server entry\nwithout it. Ze joins the value to port for an\nAccess-Request, and to accounting-port for an\nAccounting-Request.\nThe first entry of the list is the one Ze tries first, so\nwrite the closest server first.",
                     "kind": "leaf",
                     "name": "address",
                     "short-help": "RADIUS server IP address or hostname.",
@@ -19156,10 +19667,10 @@
                     "type": "string"
                   },
                   {
-                    "description": "The default is 1812 and the range is 1 to 65535. Ze sends\nthe Access-Request packets and the Accounting-Request\npackets of this server to this one port, because a server\nentry carries no second port.",
+                    "description": "The default is 1812 and the range is 1 to 65535. Ze sends\nthe Access-Request packets of this server to this port.\nThe Accounting-Request packets go to accounting-port\ninstead.",
                     "kind": "leaf",
                     "name": "port",
-                    "short-help": "RADIUS server UDP port.",
+                    "short-help": "RADIUS server UDP port for Access-Request packets.",
                     "source": "config",
                     "type": "uint16"
                   },
@@ -22529,7 +23040,7 @@
                     "type": "uint16"
                   },
                   {
-                    "description": "candidate enters the election, which the highest router-id\nwins. always translates whatever the election decides. never does no translation.",
+                    "description": "RFC 3101 section 3.1 election. candidate translates unless\nanother border router of the NSSA, reachable over the NSSA and as an ASBR over the\nbackbone or a regular area, has a higher router-id or sets the Nt-bit. always translates\nwhatever the election decides and sets the Nt-bit. never does no translation, and a never\nrouter with the highest router-id leaves the NSSA with no translator.",
                     "kind": "leaf",
                     "name": "translate-role",
                     "short-help": "Role of this router in the Type 7 to Type 5 translation.",
@@ -22538,15 +23049,15 @@
                     "values": [
                       {
                         "name": "always",
-                        "short-help": "Translate Type 7 LSAs whatever the election decides."
+                        "short-help": "Translate Type 7 LSAs whatever the election decides, and set the Nt-bit."
                       },
                       {
                         "name": "candidate",
-                        "short-help": "Enter the translator election, which the highest Router ID wins."
+                        "short-help": "Translate unless another border router has a higher Router ID or is an always translator."
                       },
                       {
                         "name": "never",
-                        "short-help": "Do no Type 7 to Type 5 translation."
+                        "short-help": "Do no Type 7 to Type 5 translation; the Router ID still counts in the election."
                       }
                     ]
                   }
@@ -28009,7 +28520,7 @@
               {
                 "children": [
                   {
-                    "description": "No build carries a transform for chacha20poly1305\nor 3des, so a proposal that names one is refused at\ncommit. The refusal lists the algorithms the build does\nimplement.",
+                    "description": "No build carries a transform for chacha20poly1305\nor 3des, so a proposal that names one is refused at\ncommit. The refusal lists the algorithms the build does\nimplement. null selects integrity-only ESP, which RFC 4303\nSection 1 requires to be negotiable. RFC 4303 Section 3.2\nforbids ESP with neither confidentiality nor integrity, so a\nnull proposal without a hash is refused at commit.",
                     "kind": "leaf",
                     "name": "encryption",
                     "short-help": "Encryption algorithm.",
@@ -28063,6 +28574,10 @@
                       {
                         "name": "chacha20poly1305",
                         "short-help": "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it."
+                      },
+                      {
+                        "name": "null",
+                        "short-help": "NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only."
                       }
                     ]
                   },
@@ -28214,7 +28729,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "No build carries a transform for chacha20poly1305\nor 3des, so a proposal that names one is refused at\ncommit. The refusal lists the algorithms the build does\nimplement.",
+                    "description": "No build carries a transform for chacha20poly1305\nor 3des, so a proposal that names one is refused at\ncommit. RFC 7296 Section 5 forbids ENCR_NULL for the IKE\nSA, so null is refused here too. The refusal lists the\nalgorithms the build does implement for the IKE SA.",
                     "kind": "leaf",
                     "name": "encryption",
                     "short-help": "Encryption algorithm.",
@@ -28268,6 +28783,10 @@
                       {
                         "name": "chacha20poly1305",
                         "short-help": "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it."
+                      },
+                      {
+                        "name": "null",
+                        "short-help": "NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only."
                       }
                     ]
                   },

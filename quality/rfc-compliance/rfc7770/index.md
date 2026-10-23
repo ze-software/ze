@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 75.0% | 9 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 76.9% | 10 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 11 | of 24 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 11 | of 25 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 7 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 63.6% | 7 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -54,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 24 |
+| Requirements | 25 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 7 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 12 |
-| Tagged units | 12 |
-| Recorded audit verdicts | 4 |
-| Discrimination records | 9 |
+| Test tags | 13 |
+| Tagged units | 13 |
+| Recorded audit verdicts | 5 |
+| Discrimination records | 10 |
 | Summary | `rfc/short/rfc7770.md` |
 | Requirement shard | `rfc/requirements/rfc7770.md` |
 | RFC text | `rfc/full/rfc7770.txt` |
@@ -118,6 +118,7 @@ Same OSPF experimental status.
 | `RFC7770-5.3-1` | Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
 | `RFC7770-5.2-2` | New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2) | MUST NOT | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
 | `RFC7770-2.1-1` | The first Opaque ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.1) -- Instance 0 always carries type-1 then type-2, spec-ospf-ext-3 | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7770-2.2-2` | The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.2) | SHOULD | 2.2 | **positive:** `unit/verify` [`TestRFC7770V3InstanceZeroCarriesCapabilities`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go#L44). **negative:** no negative test. **{single-polarity}:** ze originates the OSPFv3 RI LSA with Instance ID 0 leading with the type-1 Informational Capabilities TLV and then the type-2 Functional Capabilities TLV on every origination, and, being informational-only on receive, never rejects a peer whose Instance 0 lacks them, so only the positive direction is meaningful (internal/plugins/ospf/origination_v6_ri.go::v6OriginateRIScope) |
 | `RFC7770-2.7-2` | If AS-wide flooding scope is chosen, the originating router should also advertise area-scoped LSA(s) into any attached Not-So-Stubby Area (NSSA) area(s). (§2.7) -- Ze originates area-scoped RI into attached NSSAs when AS scope is selected | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7770-5.2-3` | If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. It SHOULD also describe how the Link State ID is to be assigned. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7770-3-1` | For backwards compatibility, previously advertised Router Information TLVs SHOULD continue to be advertised in the first instance, i.e., 0, of the Router Information LSA. (§3) -- Instance 0 retains the type-1 TLV; overflow spills to Instance 1+ | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -250,6 +251,16 @@ New values are assigned through RFCs that have been shepherded through the IESG 
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7770-5.2-2, so no unit is bound to it.
+
+### [`RFC7770-2.2-2`](#rfc7770-2.2-2)
+
+The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.2)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7770 Section 2.2: 'The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV.' The test originates through the real OSPFv3 producer v6OriginateRIScope, reads the installed LSA with Link State ID 0 back from the LSDB and asserts TLV type 1 then type 2; a body that dropped or displaced either TLV turns it red (Ze always advertises the functional TLV, so 'if advertised' holds). Order is stricter than the RFC asks but cannot pass a non-conforming LSA. Single-polarity positive is sound: the SHOULD binds the originator, and receive is informational. Covers area scope with no overflow; the lead placement is in the shared packRIInstances that RFC7770-2.1-1 and 3-1 exercise.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC7770V3InstanceZeroCarriesCapabilities`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go#L44) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

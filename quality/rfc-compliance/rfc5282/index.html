@@ -969,7 +969,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a></h3>
 <p>This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADOfferWithIntegrityIsRefused. ESP SA, initiator re-check: TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADESPOfferWithIntegrityIsRefused. ESP SA, responder (where Ze selects the Child SA&#39;s algorithms): TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA runs selectResponderESP over an AES-GCM-only SAi2 with Hash configured, then espProposalToWire over the selection exactly as buildAuthResponse does, and asserts one AES GCM transform and zero INTEG transforms in SAr2; TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity refuses AES-GCM + HMAC-SHA2-256 with ErrNoProposalChosen and accepts no proposal. Records revert responder.go::espProposalMatches. Re-judged 2026-09-30 after espProposalMatches gained the Section 3.3.6 emptied-type refusal: the AEAD+INTEG refusal path is untouched (the INTEG transform in the negative carries no unknown attribute), both records re-recorded and observed red, all six units pass.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: &#34;This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA.&#34; matchESP now calls acceptESPEncryption, which delegates every non-null ID to acceptEncryption unchanged, and acceptIntegrity still compares the offer to the AEAD policy&#39;s AUTH_NONE; the responder&#39;s espProposalMatches AEAD branch is untouched; lookupESPEncryption resolves AEAD IDs identically to lookupEncryption. The null branch cannot select an AEAD cipher. All six tagged units (IKE SA, ESP initiator, ESP responder; both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1009,7 +1009,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></h3>
 <p>This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform / TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform. ESP proposal: TestRFC5282AEADESPProposalCarriesNoIntegrityTransform (AES-GCM with Hash configured: zero Transform Type 3, ENCR and ESN kept) and TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform (AES-CBC: exactly one). espProposalToWire is the single ESP builder (IKE_AUTH offer, CREATE_CHILD_SA offer and answer).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: &#34;This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms.&#34; espProposalWire now resolves through lookupESPEncryption; the AEAD decision and the omission of Transform Type 3 are unchanged, and null is non-AEAD (EncryptionNull in the IsAEAD false arm), so a null proposal keeps its integrity transform as RFC 4303 Section 3.2 needs. The four tagged units (IKE and ESP proposals, both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1368,7 +1368,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -48,7 +48,8 @@ RSVP-TE transit routes can carry the LSP's path MTU only on a kernel with
 `CONFIG_MPLS_IP_MTU`, which ze's appliance kernel adds. On a stock kernel ze
 still installs every transit swap and pop, without the MTU, so the LSP comes up
 and forwards, but an oversized labeled packet is dropped rather than fragmented
-or answered with ICMP. The daemon logs this once, and `ze doctor` reports
+or answered with ICMP (Linux limitation `LL-MPLS-FORWARD-NO-PMTU`,
+`docs/architecture/linux-limitations.md`). The daemon logs this once, and `ze doctor` reports
 `doctor-mpls-transit-mtu-unenforced` at warning severity; neither refuses a
 start. Details: `docs/architecture/mpls/mpls-kernel.md`, "On a kernel without
 the patch".

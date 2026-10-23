@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.0%</strong><b>5 of 71 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>56.8%</strong><b>42 of 74 tagged units, 0 escaped and 5 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>63.5%</strong><b>47 of 74 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1892,7 +1892,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 </div>
 <h3><a href="#rfc2131-4.1-7"><code>RFC2131-4.1-7</code></a></h3>
 <p>The options in the &#39;options&#39; field MUST be interpreted first, so that any &#39;option overload&#39; options may be interpreted. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/dhcpserver/options.go::findOption moved. Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: &#34;The options in the &#39;options&#39; field MUST be interpreted first, so that any &#39;option overload&#39; options may be interpreted.  The &#39;file&#39; field MUST be interpreted next (if the &#39;option overload&#39; option indicates that the &#39;file&#39; field contains DHCP options), followed by the &#39;sname&#39; field.&#34; findOption walks pkt[240:] first and overloadValue reads option 52 from the options field only; parseMsgType and parseOptionAddr, and h.handle through them, go through findOption. ef8666639d tags the options-first assertion of TestOverloadInterpretationOrder (options, file and sname each carry option 50 under 52=3; the options copy must win) as positive, so the order clause now has a tagged, discriminating assertion beside TestOverloadFieldsCarryOptions (52 interpreted: 53 and 50 in file/sname under 1/2/3 draw a DHCPACK). Negative unchanged: a 52 planted inside file opens no sname. Overlay mutants on options.go, run under ./le job run: walking file before options reds the newly tagged line 131; ignoring 52 reds TestOverloadFieldsCarryOptions (file, sname, both); honouring a 52 found inside file reds the negative at line 150. Recorded breaks are whole-body panics proving reach; these mutants supply the deciding-logic proof. Claims are no wider than the assertions.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: &#34;The options in the &#39;options&#39; field MUST be interpreted first, so that any &#39;option overload&#39; options may be interpreted.  The &#39;file&#39; field MUST be interpreted next (if the &#39;option overload&#39; option indicates that the &#39;file&#39; field contains DHCP options), followed by the &#39;sname&#39; field.&#34; findOption walks pkt[240:] first and overloadValue reads option 52 from the options field only; parseMsgType and parseOptionAddr, and h.handle through them, go through findOption. ef8666639d tags the options-first assertion of TestOverloadInterpretationOrder (options, file and sname each carry option 50 under 52=3; the options copy must win) as positive, so the order clause now has a tagged, discriminating assertion beside TestOverloadFieldsCarryOptions (52 interpreted: 53 and 50 in file/sname under 1/2/3 draw a DHCPACK). Negative unchanged: a 52 planted inside file opens no sname. Overlay mutants on options.go, run under ./le job run: walking file before options reds the newly tagged line 131; ignoring 52 reds TestOverloadFieldsCarryOptions (file, sname, both); honouring a 52 found inside file reds the negative at line 150. Recorded breaks are whole-body panics proving reach; these mutants supply the deciding-logic proof. Claims are no wider than the assertions. Re-judged 2026-10-19 after db457cb3c2, which split findOption&#39;s sname guard (52 = 2 or 3) into two ifs with identical bodies; the tests are unchanged and the behavior is the same. Both split branches are discriminated: an overlay mutant returning nil under 52 = 2 and one returning nil under 52 = 3 each red TestOverloadFieldsCarryOptions (go test -run TestOverload ./internal/plugins/dhcpserver/ under ./le job run), and the whole-body revert records were re-observed the same day.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1905,19 +1905,19 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L97" title="internal/plugins/dhcpserver/rfc2131_overload_test.go" target="_blank" rel="noopener"><code>TestOverloadFieldsCarryOptions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L129" title="internal/plugins/dhcpserver/rfc2131_overload_test.go" target="_blank" rel="noopener"><code>TestOverloadInterpretationOrder</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2131-4.1-15"><code>RFC2131-4.1-15</code></a></h3>
 <p>The &#39;file&#39; field MUST be interpreted next (if the &#39;option overload&#39; option indicates that the &#39;file&#39; field contains DHCP options), followed by the &#39;sname&#39; field. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/dhcpserver/options.go::findOption moved. Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: &#34;The options in the &#39;options&#39; field MUST be interpreted first, so that any &#39;option overload&#39; options may be interpreted.  The &#39;file&#39; field MUST be interpreted next (if the &#39;option overload&#39; option indicates that the &#39;file&#39; field contains DHCP options), followed by the &#39;sname&#39; field.&#34; RFC 2132 Section 9.3 values: 1 file, 2 sname, 3 both. findOption reads file only under 52 = 1 or 3, then sname only under 2 or 3. The survivor named by the previous verdict is now killed: ef8666639d adds to TestOverloadAbsentFieldsIgnored a 52=2 packet whose requested address sits in file, asserting it is not read and the request draws a DHCPNAK (tagged negative). Overlay mutants, run under ./le job run: reading file under 52=2 reds that new case (line 197, and the reply turns DHCPACK instead of DHCPNAK at line 204); ignoring 52 reds the positives (TestOverloadFieldsCarryOptions file/sname/both, and line 139); walking sname before file reds TestOverloadInterpretationOrder at line 139 (file copy must win under 52=3). Each field&#39;s opening condition and the file-then-sname order are now discriminated in both polarities: 52 absent leaves both unread, 1 leaves sname unread, 2 leaves file unread. Units changed, so this is a fresh judgement, not an upgrade over unchanged units.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: &#34;The options in the &#39;options&#39; field MUST be interpreted first, so that any &#39;option overload&#39; options may be interpreted.  The &#39;file&#39; field MUST be interpreted next (if the &#39;option overload&#39; option indicates that the &#39;file&#39; field contains DHCP options), followed by the &#39;sname&#39; field.&#34; RFC 2132 Section 9.3 values: 1 file, 2 sname, 3 both. findOption reads file only under 52 = 1 or 3, then sname only under 2 or 3. The survivor named by the previous verdict is now killed: ef8666639d adds to TestOverloadAbsentFieldsIgnored a 52=2 packet whose requested address sits in file, asserting it is not read and the request draws a DHCPNAK (tagged negative). Overlay mutants, run under ./le job run: reading file under 52=2 reds that new case (line 197, and the reply turns DHCPACK instead of DHCPNAK at line 204); ignoring 52 reds the positives (TestOverloadFieldsCarryOptions file/sname/both, and line 139); walking sname before file reds TestOverloadInterpretationOrder at line 139 (file copy must win under 52=3). Each field&#39;s opening condition and the file-then-sname order are now discriminated in both polarities: 52 absent leaves both unread, 1 leaves sname unread, 2 leaves file unread. Units changed, so this is a fresh judgement, not an upgrade over unchanged units. Re-judged 2026-10-19 after db457cb3c2, which split findOption&#39;s sname guard (52 = 2 or 3) into two ifs with identical bodies; the tests are unchanged and the behavior is the same. Both split branches are discriminated: an overlay mutant returning nil under 52 = 2 and one returning nil under 52 = 3 each red TestOverloadFieldsCarryOptions (go test -run TestOverload ./internal/plugins/dhcpserver/ under ./le job run), and the whole-body revert records were re-observed the same day.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1925,17 +1925,17 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L171" title="internal/plugins/dhcpserver/rfc2131_overload_test.go" target="_blank" rel="noopener"><code>TestOverloadAbsentFieldsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L90" title="internal/plugins/dhcpserver/rfc2131_overload_test.go" target="_blank" rel="noopener"><code>TestOverloadFieldsCarryOptions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L137" title="internal/plugins/dhcpserver/rfc2131_overload_test.go" target="_blank" rel="noopener"><code>TestOverloadInterpretationOrder</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2823,7 +2823,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

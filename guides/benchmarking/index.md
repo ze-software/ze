@@ -107,7 +107,7 @@ The included test runner benchmarks all eight supported implementations in Docke
 | DUT | Image | Config | Forwarding mechanism |
 |-----|-------|--------|---------------------|
 | Ze | ze-interop (built) | `test/perf/configs/ze.conf` | bgp-rs plugin |
-| FRR | quay.io/frrouting/frr:10.3.1 | `test/perf/configs/frr.conf` | route-map PERMIT |
+| FRR | quay.io/frrouting/frr:10.7.1, pinned by digest (`interoplab.FRRImage`) | `test/perf/configs/frr.conf` | route-map PERMIT |
 | BIRD | bird-interop (built) | `test/perf/configs/bird.conf` | import/export all |
 | GoBGP | gobgp-interop (built) | `test/perf/configs/gobgp.toml` | default accept policy |
 | rustbgpd | rustbgpd-interop (built from source) | `test/perf/configs/rustbgpd.toml` | route_server_client |
@@ -151,6 +151,28 @@ A run with no `step` keyword builds the images and measures. `step build`
 records nothing, because it measured nothing. Any other `step` value exits 2
 and names the value. A run that measured records the commit, so the perf nudge
 (`./le perf suggest`) stops asking for one.
+
+An image that fails to build or pull fails the run, and the run prints an error
+naming the DUT and the cause. In a `step build` run the image is the whole
+answer, so the run names every DUT that has no image, prints the rebuild
+command, exits 1, and never reports the images as built. In a run that also
+measures, the test step still measures every DUT whose image was made, but it
+never measures a DUT whose build failed, even from an image an earlier run
+left. The summary line reads `FAIL`, counts that DUT as failed, gives its
+cause, and the run exits 1.
+
+A DUT is skipped only when the run built no image (`NO_BUILD=1`, or
+`step test`) and none exists. The summary names the skipped DUTs and the
+`./le perf run step build dut "..."` command that builds them. Under
+`NO_BUILD=1` that command is `env -u NO_BUILD ./le perf run step build dut
+"..."`, because the plain form would build nothing. Skips beside a measured DUT
+still pass, but a run that measured no DUT prints `FAIL  no DUT was measured`
+and exits 1, because a run of skips has no result.
+
+`NO_BUILD=1` with `step build` is refused: the run would build nothing, so it
+names `NO_BUILD` as the reason, prints the `env -u NO_BUILD ./le perf run step
+build` command that unsets it, and exits 1 without claiming any image was built.
+<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.summarize, measurement.failedRun -->
 
 The runner builds no host benchmark program. It cross-builds `le` for linux
 with `CGO_ENABLED=0` into `tmp/perf-run/linux-<arch>/le`, and prints how long

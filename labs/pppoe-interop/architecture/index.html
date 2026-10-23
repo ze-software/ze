@@ -95,7 +95,7 @@ session state disappeared.</p>
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
     pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
-    ipv6cp-zero-identifier/    Ze concentrator, pppd client offering a zero IPv6CP identifier
+    ipv6cp-zero-identifier/    Ze concentrator, pppd session, zero IPv6CP identifier replayed
     ipv6cp-missing-option/     Ze concentrator, pppd client whose IPv6CP request carries no identifier option
 internal/le/interoplab/pppoe/
   pppoe.go             Native images, preflight, selection, and lifecycle
@@ -105,7 +105,7 @@ internal/le/interoplab/pppoe/
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
   check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
   check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
-                         IPv6CP proof, BLOCKED until plan/spec-l2tp-ipv6-subscriber.md
+                         IPv6CP proof, BLOCKED until plan/post-release/features/spec-l2tp-ipv6-subscriber.md
                          lands (see the file's own header comment)
 </code></pre>
 <p>The Dockerfiles keep their small amount of peer initialisation in the image
@@ -233,18 +233,24 @@ discriminated unit tests in <code>pppoeclient</code>; this scenario proves the P
 interoperates. <code>spec-pppoe-client-pap-retry</code>.</p>
 <h3 id="ipv6cp-zero-identifier-and-ipv6cp-missing-option">ipv6cp-zero-identifier and ipv6cp-missing-option</h3>
 <p>Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
-and its missing-option one-shot Nak, driven by a real pppd 2.5.1 client and
+and its missing-option one-shot Nak, driven by a real pppd 2.5.4 client and
 read off the wire (<code>check_ipv6cp.go</code>), the same shape <code>pppoe-padr-replay</code>
-established. <strong>Neither can pass today.</strong> <code>poolPlugin.handle</code>
+established. pppd cannot be made to send either request: its <code>ipv6</code>
+option refuses the zero identifier ("Illegal interface identifier (local)",
+<code>setifaceid</code> in pppd's <code>ipv6cp.c</code>), and it always sends the option. So both
+checkers capture pppd's own IPv6CP Configure-Request and replay rebuilt
+copies of it: the zero-identifier checker sends the zero value, then the
+value Ze's Configure-Nak suggested, and wants a Configure-Nak and then a
+Configure-Ack from Ze's MAC. <strong>Neither can pass today.</strong> <code>poolPlugin.handle</code>
 (<code>internal/component/l2tp/plugins/pool/register.go</code>) answers every
 <code>EventIPRequest</code> whose family is not IPv4 with <code>Accept: false</code>, and
 <code>runNCPPhase</code> (<code>internal/component/l2tp/ppp/ncp.go</code>) reads that decline
 before the session reads a single client frame, so Ze's IPv6CP FSM never
-starts, on any configuration. Both scenarios run against pppd 2.5.1 only: this
+starts, on any configuration. Both scenarios run against pppd 2.5.4 only: this
 lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
 role its images support. Both checkers return a citing error at the first
 missing wire evidence rather than passing vacuously.
-<code>plan/spec-l2tp-ipv6-subscriber.md</code> is what switches them on.</p>
+<code>plan/post-release/features/spec-l2tp-ipv6-subscriber.md</code> is what switches them on.</p>
 <h2 id="relationship-to-other-evidence">Relationship to other evidence</h2>
 <table>
 <thead>
@@ -318,7 +324,7 @@ missing wire evidence rather than passing vacuously.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

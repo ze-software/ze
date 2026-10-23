@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>46 of 46 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>51 of 51 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.7%</strong><b>1 of 15 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 15 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 15 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>46</td>
+<td>51</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>46</td>
+<td>51</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>46</td>
+<td>51</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-ietf-idr-linklocal-capability.md</code></td>
@@ -529,7 +529,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L89" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityWellFormedThirtyTwoOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L617" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L232" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L47" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityMalformedThirtyTwoOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L690" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L616" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L231" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-6-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-2</code></td><td colspan="3"><span class="rfc-subject">Receivers SHOULD use the second Link-Local IPv6 address for forwarding, because the second slot is the position that carries the Link-Local address in the conforming Global-then-Link-Local layout defined by [RFC2545], and thus is the value the sender most likely intended as the Link-Local next hop. (§6)</span></td></tr>
@@ -950,7 +955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a></h3>
 <p>If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606]. (§6)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit. Re-judged 2026-10-02 (BGP c22 judge). Gap unchanged; the {gap} annotation is now aimed at the content half as the c21 judge required: on a capability-77 session no receive producer inspects the addresses of an admitted 32-octet Next Hop field, so a field that is not Global followed by Link-Local is never treated as withdrawn. A wrong Length stays an RFC 7606 Section 7.11 session reset in validateMPReachNextHop, which is correct and named here as the producer that admits the field without inspecting it. Dated correction in rfc/corrections.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-10-22 against draft-ietf-idr-linklocal-capability-06 Section 6: &#34;If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as-withdraw&#34;, as described in section 7.3 of [RFC7606].&#34; Section 6 limits these procedures: &#34;These procedures apply only when the Link-Local Next Hop Capability has been negotiated for a BGP session.&#34; Read all five tagged test functions, including helper bodies and both polarities within the receiving-pair tests. TestLinkLocalCapabilityMalformedThirtyTwoOctet requires exact TreatAsWithdraw, MP_REACH attribute code and the specific draft diagnostic for bad address roles; TestLinkLocalCapabilityWellFormedThirtyTwoOctet requires ActionNone for global/link-local, unspecified/link-local and two-link-local forms admitted by the surrounding section. TestRFC2545ReceivedPairSecondAddressValidated and TestRFC2545ReceivedPairFirstAddressValidated cross Session.processMessage with real MP and capability-77 negotiation, vary receiving and sending capability independently, and distinguish receipt-time treat-as-withdraw from later egress withholding. rfc2545ReceiveForwardPublished requires the Session to stay up, publish no announcements for malformed input and retain actual published cache entries; rfc2545AssertWithdrawnAtReceipt requires the exact native withdrawal and, for mixed input, the exact legacy withdrawal, then forbids downstream announcements. TestRFC2545EffectivePairPolicyAndMixedSibling keeps cap77-source-invalid-second-withdrawn with no replacement policy, so its negative proves withdrawal of every contained route at receipt, not an unasserted policy-ordering claim. Its other raw-policy cases now configure explicit FinalAccept but do not weaken that negative. validateRFC7606Attrs reads the receiving Session capability and calls ValidateUpdateRFC7606AddPath/validateLinkLocalNextHopPair; applyRFC7606 passes TreatAsWithdraw into processValidatedMessage, whose explicit branch calls SynthesizeWithdrawFamilies with mpFamilyDispatchable and dispatches the resulting withdrawals. Thus the producing verdict has a real consuming branch, not a no-op. The shared fixture now uses explicit MP negotiation on both Peer and Session; the dedicated pair helpers already negotiate their IPv6 and mixed-family subjects explicitly. Receipt controls are not evidence for neighbor liveness, interface association, or forwarding through the second address. The former comment-only narrative is stale, but its narrower statement about receipt rather than before-policy ordering remains correct. No new defect found. Native record freshness is separate and remains parent-owned; no build, test, discriminator or gate was run here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -960,8 +965,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L690" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L616" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L231" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L89" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityWellFormedThirtyTwoOctet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L617" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L232" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1173,7 +1203,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.0%</strong><b>6 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>71.4%</strong><b>5 of 7 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>2</strong><b>of 2 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -227,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>8</td>
+<td>7</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>8</td>
+<td>7</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6138.md</code></td>
@@ -306,9 +306,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6138-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L185" title="internal/plugins/ospf/rfc6138_broadcast_origination_test.go" target="_blank" rel="noopener"><code>TestRFC6138CutEdgeTransitLinkNotDelayed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L378" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L161" title="internal/plugins/ospf/rfc6138_broadcast_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443BroadcastCostOutCoversWholeSegment</code></a></span></div>
 </div></td>
 </tr>
@@ -319,7 +319,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6138-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L57" title="internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go" target="_blank" rel="noopener"><code>TestLDPSyncCutEdgeUsesFreshSPF</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L61" title="internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go" target="_blank" rel="noopener"><code>TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L60" title="internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go" target="_blank" rel="noopener"><code>TestLDPSyncCutEdgeUsesFreshSPF</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L74" title="internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go" target="_blank" rel="noopener"><code>TestRFC6138PendingSPFNeverLeavesStaleCutEdge</code></a></span></div>
 </div></td>
 </tr>
@@ -334,13 +333,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6138-4-1"><code>RFC6138-4-1</code></a></h3>
 <p>If the interface is a &#34;cut-edge&#34;, then the updating of the LSA MUST NOT be delayed by LDP&#39;s operational state. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). The decision now reaches the originated LSA through the real SPF graph. Positive TestRFC6138CutEdgeTransitLinkNotDelayed: not synchronized, no alternate path in the SPF computer (cut-edge) -&gt; production applyLDPSyncOverride plus OriginateRouter keep exactly 1 transit link. Negative TestRFC5443BroadcastCostOutCoversWholeSegment: the same not-synchronized segment with an alternate path (not a cut-edge) has its transit link withheld, so the cut-edge answer and not LDP alone decides. Revert records on spf IsCutEdge, observed red. Test race in the rfc6138SPF helper (field swap under the engine&#39;s own SPF goroutine) fixed by stopping the engine computer first; not a product race.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. Positive TestRFC6138CutEdgeTransitLinkNotDelayed: not synchronized, no alternate path, the originated LSA keeps exactly 1 transit link. Negative TestRFC5443BroadcastCostOutCoversWholeSegment: the same not-synchronized segment with an alternate path is withheld. Records on IsCutEdge. TestLDPSyncTECostUntouched also pins ldpSyncWithholdTransit for cut-edge and non-cut-edge directly.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L378" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -350,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -364,18 +363,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc6138-x-1"><code>RFC6138-x-1</code></a></h3>
 <p>If an SPF run was scheduled but is pending execution, that SPF MUST be executed immediately before any procedure checks whether an interface is a &#34;cut-edge&#34;. (§A)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). New spf/rfc6138_cutedge_pending_spf_test.go drives the Computer over a real LSDB: SPF run, the topology changed with newer Router-LSAs, a one-hour SPF armed through TriggerArea, then IsCutEdge on LAN 10.0.0.254. + TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss: parallel p2p withdrawn while pending -&gt; true (stale graph says false); - TestRFC6138PendingSPFNeverLeavesStaleCutEdge: p2p pair added while pending -&gt; false (stale graph says true), so a stale answer fails in each direction. Judge overlay: IsCutEdge reads lastGraphs before flushing -&gt; both new units red with the stale answer (and the HEAD unit). Revert records on flushPendingSPF observed. The HEAD &#39;negative&#39; tag on TestLDPSyncCutEdgeUsesFreshSPF#2 is that unit&#39;s precondition (snapshot empty before the query) and violates nothing; it is supplementary, the genuine negative is the new unit. The arming precondition in the new helper compares SPF state counts, which are equal in both topologies, so it is not load-bearing; the overlays prove the run stayed pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The precondition negative (SPF not yet run) is gone. Positive TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss: the P2P links are withdrawn with a one-hour SPF pending, IsCutEdge answers true from the pending graph; negative TestRFC6138PendingSPFNeverLeavesStaleCutEdge: the reverse change answers false, never the stale true. TestLDPSyncCutEdgeUsesFreshSPF: a nil graph would answer true. Records on flushPendingSPF.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L74" title="internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go" target="_blank" rel="noopener"><code>TestRFC6138PendingSPFNeverLeavesStaleCutEdge</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L60" title="internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go" target="_blank" rel="noopener"><code>TestLDPSyncCutEdgeUsesFreshSPF</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -558,7 +552,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

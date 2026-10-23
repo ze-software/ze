@@ -318,7 +318,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L857" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowSpecNegotiatesMultiprotocolCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L865" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowSpecNegotiatesMultiprotocolCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the flowspec plugin unconditionally maps its declared ipv6/flow decode family to a Multiprotocol capability during OPEN; there is no wrong input the negotiation path rejects, so no negative case exists</p></td>
 </tr>
@@ -392,8 +392,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L292" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L293" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L306" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.3-1">RFC8956-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.3)</span></td></tr>
@@ -458,7 +458,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L857" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L865" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -618,12 +618,12 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L293" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L292" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L306" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -905,7 +905,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

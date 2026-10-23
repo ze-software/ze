@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 17 | of 33 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 17 | of 34 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 0 | of 17 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 0.0% | 0 of 17 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 17 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -35,6 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 100.0% | 17 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 2 | of 17 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -53,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -61,16 +62,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Unsupported |
 | Enrolment | Enrolled |
-| Requirements | 33 |
+| Requirements | 34 |
 | Gated MUST-level | 17 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 17 |
+| Declared gaps | 19 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
 | Tagged units | 0 |
-| Recorded audit verdicts | 0 |
+| Recorded audit verdicts | 2 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7166.md` |
 | Requirement shard | `rfc/requirements/rfc7166.md` |
@@ -139,7 +140,8 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 | `RFC7166-4.2-2` | the OSPFv3 LLS data block checksum SHOULD be set to 0 prior to computation of the OSPFv3 Authentication Trailer message digest (§4.2) | SHOULD | 4.2 - Checksum handling | **positive:** no positive test. **negative:** no negative test |
 | `RFC7166-4.3-2` | SHOULD include support for HMAC-SHA-1 (§4.3) | SHOULD | 4.3 - Cryptographic Authentication algorithms | **positive:** no positive test. **negative:** no negative test |
 | `RFC7166-4.6-2` | It is RECOMMENDED that OSPFv3 routers supporting this specification fully support OSPFv3 Link-Local Signaling (§4.6) | RECOMMENDED | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test |
-| `RFC7166-4.6-4` | If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged. (§4.6) | SHOULD | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test |
+| `RFC7166-4.6-4` | If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged. (§4.6) | SHOULD | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 Authentication Trailer is received, so no sequence-number drop happens and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and the drop it guards, internal/plugins/ospf/auth_keystore.go::replayedSequence, serves the OSPFv2 trailer only |
+| `RFC7166-4.6-7` | If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged. (§4.6) | SHOULD | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 Authentication Trailer digest is computed or compared, so no mismatch is detected and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and internal/plugins/ospf/packet/auth_verify.go compares the OSPFv2 trailer digest only |
 | `RFC7166-5-1` | All OSPFv3 routers participating on a link SHOULD be migrated to OSPFv3 authentication at the same time. (§5) | SHOULD | 5 - Migration | **positive:** no positive test. **negative:** no negative test |
 | `RFC7166-6-1` | Deployments SHOULD use sufficiently long and random values for the Authentication Key so that guessing and other cryptographic attacks on the key are not feasible in their environments. (§6) | SHOULD | 6 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC7166-6-2` | it is RECOMMENDED that Authentication Keys incorporate at least 128 pseudorandom bits to minimize the risk of such attacks (§6) | RECOMMENDED | 6 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
@@ -168,6 +170,8 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 | [`RFC7166-4.6-3`](#rfc7166-4.6-3) If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped (§4.6) | {gap}, no test | the seq<=last drop at internal/plugins/ospf/auth_keystore.go:357-359 is reached only via the OSPFv2 verify path; no OSPFv3 trailer receive path exists |
 | [`RFC7166-4.6-5`](#rfc7166-4.6-5) The calculated data is compared with the received authentication data in the Authentication Trailer. If the two do not match, the packet MUST be discarded (§4.6) | {gap}, no test | the constant-time digest compare at internal/plugins/ospf/packet/auth_verify.go:242 and :263 verifies the OSPFv2 trailer only; there is no OSPFv3 trailer digest to verify |
 | [`RFC7166-4.6-6`](#rfc7166-4.6-6) After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6) | {gap}, no test | the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store |
+| [`RFC7166-4.6-4`](#rfc7166-4.6-4) If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged. (§4.6) | {gap} | no OSPFv3 Authentication Trailer is received, so no sequence-number drop happens and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and the drop it guards, internal/plugins/ospf/auth_keystore.go::replayedSequence, serves the OSPFv2 trailer only |
+| [`RFC7166-4.6-7`](#rfc7166-4.6-7) If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged. (§4.6) | {gap} | no OSPFv3 Authentication Trailer digest is computed or compared, so no mismatch is detected and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and internal/plugins/ospf/packet/auth_verify.go compares the OSPFv2 trailer digest only |
 
 ## Proof state
 
@@ -309,6 +313,22 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7166-4.6-6, so no unit is bound to it.
 
+### [`RFC7166-4.6-4`](#rfc7166-4.6-4)
+
+If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged. (§4.6)
+
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 7166 Section 4.6: 'If the cryptographic sequence number in the AT is less than or equal to the last sequence number ... the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged.' Verified absent: installAuthHooks returns when the dispatch codec is not v4Codec, so an OSPFv3 engine gets neither signer nor dispatch.authOK; it is the only caller of SetSigner and the only setter of authOK, and nothing under internal/plugins/ospf/v3 parses or verifies a trailer. No sequence check, no drop, no log. Disclosed as Unsupported on the summary.
+
+No test carries RFC7166-4.6-4, so no unit is bound to it.
+
+### [`RFC7166-4.6-7`](#rfc7166-4.6-7)
+
+If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged. (§4.6)
+
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 7166 Section 4.6: 'If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged.' Verified absent: installAuthHooks installs the verifier only for v4Codec engines and is the sole setter of dispatch.authOK, so no OSPFv3 trailer digest is computed or compared and no mismatch event exists. Disclosed as Unsupported on the summary.
+
+No test carries RFC7166-4.6-7, so no unit is bound to it.
+
 ## Extraction sign-off
 
 | Field | Value |
@@ -344,7 +364,7 @@ No test carries RFC7166-4.6-6, so no unit is bound to it.
 | `4.3` | Cryptographic Authentication algorithms | 2 | walked | Cryptographic Authentication algorithms. Two sites mapped to 4.3-1 and 4.3-4. Site 4.3:1 carries two further levels in the same sentence, the SHOULD for HMAC-SHA-1 (4.3-2) and the MAY for HMAC-SHA-384 and HMAC-SHA-512 (4.3-3), declared unsourced here. |
 | `4.4` | Cryptographic Authentication procedure | 1 | walked | Cryptographic Authentication procedure. One site, mapped to 4.4-1, which carries both the OSPFv3 Cryptographic Protocol ID appended to the Authentication Key and the same step for other protocols sharing the key. |
 | `4.5` | Packet transmission | 0 | walked | Packet transmission. The section describes how the trailer is appended and the digest computed; it carries no 2119 keyword and states no separate obligation. |
-| `4.6` | Packet reception | 4 | walked | Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Two advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2) and the SHOULD to log an error event on a dropped or digest-failed packet (4.6-4, the trailing clause of sites 4.6:2 and 4.6:3). |
+| `4.6` | Packet reception | 4 | walked | Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Three advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2), the SHOULD to log an error event on a packet dropped for its sequence number (4.6-4, the trailing clause of site 4.6:2), and the SHOULD to log an error event on a packet discarded for a digest mismatch (4.6-7, the trailing clause of site 4.6:3). |
 | `5` | Migration | 0 | walked | Migration. No MUST-level site. Two advisory directives declared unsourced: the SHOULD that all routers on a link migrate together (5-1) and the MAY transition mode that adds the trailer without verifying received packets (5-2). |
 | `6` | Security Considerations | 0 | walked | Security Considerations. No MUST-level site. Three advisory directives declared unsourced: the SHOULD for long random Authentication Key values (6-1), the RECOMMENDED 128 pseudorandom bits (6-2) and the SHOULD that management systems support hexadecimal key input (6-3). |
 | `7` | not stated | 0 | walked | not stated |

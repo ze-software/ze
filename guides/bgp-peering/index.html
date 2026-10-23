@@ -153,16 +153,30 @@ ze doctor
             }
         }
         session {
-            asn { local 64500 }
+            asn {
+                local 64500
+            }
             router-id 198.51.100.1
             family {
-                ipv4/unicast { prefix { maximum 200000 } }
+                ipv4/unicast {
+                    prefix {
+                        maximum 200000
+                    }
+                }
             }
         }
-        role { import rs }
+        role {
+            import rs
+        }
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
         attach process rs {
             receive [ update-received state open-received refresh ]
@@ -177,14 +191,22 @@ path through a transit provider, and <code>rs</code> binds both. To run a sessio
 check, name the filter with the <code>inactive:</code> member prefix. The chain records the
 decision, and the filter never executes:</p>
 <pre><code>filter {
-    import [ inactive:NO-TRANSIT ]
-    export [ inactive:NO-TRANSIT ]
+    import {
+        filters [ inactive:NO-TRANSIT ];
+        final accept;
+    }
+    export {
+        filters [ inactive:NO-TRANSIT ];
+        final accept;
+    }
 }
 </code></pre>
-<p>The prefix goes on the member, inside the brackets. A separate <code>inactive: import NO-TRANSIT</code> statement deactivates a member the chain already carries; where the
-chain carries none, it deactivates the whole leaf, which leaves no chain and Ze
-refuses the config. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both
-forms, and <a href="../bgp-role/">bgp-role.md</a> for the roles that bind.</p>
+<p>The prefix goes on the member, inside the brackets. Inside each direction block,
+<code>inactive: filters NO-TRANSIT;</code> deactivates an existing member. Keep the
+<code>final accept;</code> decision when the member is inactive. See
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both forms, and
+<a href="../bgp-role/">bgp-role.md</a> for the roles that bind.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p><code>ip dynamic</code> is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one <code>range</code>, and an explicit <code>connect false</code>. Ze only accepts on a dynamic group and never dials one, so an absent <code>connect</code> leaf, which YANG defaults to true, is refused rather than corrected.</p>
 <table>
 <thead>
@@ -373,7 +395,7 @@ forms, and <a href="../bgp-role/">bgp-role.md</a> for the roles that bind.</p>
 </tbody>
 </table>
 <p>A peer that attaches no program feeds it no peer-scoped event, and that program cannot announce to the peer. An event that carries no peer address is not peer-scoped, so an attach block describes none of them, and every subscriber still receives them.</p>
-<p>The BGP namespace registers <code>update</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>, <code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>congested</code>, <code>resumed</code>, <code>rpki</code>, <code>listener-ready</code>, and <code>update-notification</code>. Plugins register more, such as <code>update-rpki</code>.</p>
+<p>The BGP namespace registers <code>update</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>, <code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>congested</code>, <code>resumed</code>, <code>rpki</code>, <code>listener-ready</code>, <code>update-notification</code>, <code>connected</code> (a peer's TCP connection is up, before OPEN), <code>fsm</code> (each FSM state change), and <code>signal</code> (each operating-system signal the daemon takes, told per peer). Plugins register more, such as <code>update-rpki</code>.</p>
 <p>An event type carries the direction it is fed in. <code>update</code> means both directions. <code>update-received</code> and <code>update-sent</code> mean one. A type a plugin registers keeps its whole name, so a plugin type that ends in <code>-sent</code> is never read as a direction. <code>*</code> feeds every type in both directions. <code>all</code> is not accepted, and a bare <code>sent</code> or <code>received</code> is refused with a message that names the token to write instead.</p>
 <p>Both directions of <code>update</code> deadlock <code>bgp-rs</code> and <code>bgp-rr</code>, because forwarding an UPDATE raises the sent event the forward is waiting on. Give those programs <code>update-received</code>.</p>
 <p>Ze logs a warning when the two halves disagree: a grant the plugin never declared, a declaration no peer grants, a direction mismatch, and a plugin no peer attaches at all.</p>
@@ -458,7 +480,7 @@ ze cli -c "show bgp rib status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

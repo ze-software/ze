@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7606 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (1 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7606 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (1 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7606 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (1 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,11 +117,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>86.8%</strong><b>46 of 53 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>88.7%</strong><b>47 of 53 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.4%</strong><b>5 of 53 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>16.1%</strong><b>35 of 218 tagged units, 0 escaped and 22 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.9%</strong><b>59 of 228 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +132,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>1.9%</strong><b>1 of 53 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>1.9%</strong><b>1 of 53 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>53</strong><b>of 53 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 6 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 53 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -170,7 +165,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -190,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -219,10 +214,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -231,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>220</td>
+<td>230</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>218</td>
+<td>228</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>53</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>57</td>
+<td>67</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7606.md</code></td>
@@ -256,7 +251,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Revised UPDATE error handling: the error-handling contract for every UPDATE Ze parses. Pilot for this system -- ~60 near-1:1 tests already exist and the one real divergence (5.1 MP ordering, docs/architecture/wire/mp-nlri-ordering.md) proves the {gap} path is honest rather than an escape hatch.</p>
+<p>Enrolled: Revised UPDATE error handling: the error-handling contract for every UPDATE Ze parses. Pilot for this system -- ~60 near-1:1 tests already exist. Its one real divergence (5.1 MP ordering) was carried as a {gap} until it closed on 2026-10-19 (docs/architecture/wire/mp-nlri-ordering.md), which showed the {gap} path is honest rather than an escape hatch.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -264,7 +259,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Structural UPDATE validation, treat-as-withdraw (routes are synthesized into withdrawals and removed from the Adj-RIB-In), attribute-discard decisions, session-reset with NOTIFICATION UPDATE Message Error, per-attribute validation for 15 attribute codes, §3.c attribute-flags validation for every attribute whose own specification fixes an Optional or Transitive value (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/flags_spec.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/flags_spec.go</code></a>, which also carries the two attributes whose RFC mandates other handling: the MP pair and AIGP), inner MP_REACH/MP_UNREACH NLRI overrun and RFC 4760 flag-consistency validation (§5.3, session reset via §3.j) for IPv4/IPv6 unicast and multicast (ADD-PATH aware, RFC 7911 path-ids skipped when negotiated), tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7606.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc7606.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>One MUST-level gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7606.md" target="_blank" rel="noopener"><code>rfc/short/rfc7606.md</code></a> and gated by <code>./le rfc check</code>: §5.1 first bullet: Ze emits MP_UNREACH first and MP_REACH in type-code order after ORIGIN and AS_PATH, so the MP attribute of an announcement is not the very first path attribute (<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/mp-nlri-ordering.md" target="_blank" rel="noopener"><code>docs/architecture/wire/mp-nlri-ordering.md</code></a>). <code>TestRFC7606Section51MPAttributeEncodedFirst</code> demonstrates the gap and fails the day it closes.</p>
+<p>No MUST-level gap is annotated.</p>
+<p class="rfc-prose"><strong>Closed 2026-10-19:</strong> §5.1 first bullet. Every UPDATE Ze composes leads with its MP attribute, MP_UNREACH_NLRI before MP_REACH_NLRI (<code>attribute.OrderAttributes</code>), and every UPDATE Ze relays does too: a received UPDATE whose sender put the MP attribute after another attribute is relayed with the MP attribute moved to the front and every other byte unchanged, on the zero-copy branch, the re-encode branch, the per-destination rebuild and the stored-route replay, while a compliant UPDATE keeps the zero-copy forward because the order verdict shares the per-message cached shape verdict (<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/mp-nlri-ordering.md" target="_blank" rel="noopener"><code>docs/architecture/wire/mp-nlri-ordering.md</code></a>, <code>TestRFC7606Section51MPAttributeEncodedFirst</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go</code></a>). An originated UPDATE whose body a raw export filter replaced is sent the same way: the override&#39;s MP attribute is moved first, and an override that mixes NLRI-bearing fields is split on shape even when it fits (<code>writeOrdinaryUpdateBody</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go</code></a>).</p>
 <p class="rfc-prose"><strong>Closed 2026-08-01:</strong> §5.4. A route whose NLRI type Ze does not implement is now discarded at ingress, in <code>enforceRFC7606</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_validation.go</code></a>), so it reaches neither the RIB nor the forward path. The RIB alone would not have sufficed, because <code>reactorForwardRS</code> relays the received wire without consulting it. The ruling is per family, because §5.4 discards &#34;unless the relevant specification for that address family specifies otherwise&#34; and RFC 9552 §5.2 uses that clause to REQUIRE preserve-and-propagate for BGP-LS. Each NLRI plugin registers its own recognizer (<code>internal/core/bgp/nlri/nlritype</code>), so the three families §5.4 binds each carry their own ruling: EVPN discards route types outside 1..5 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/evpn/rfc7606.go</code></a>), MCAST-VPN outside 1..7 (<code>.../nlri/mvpn/rfc7606.go</code>, RFC 6514 §4), and BGP-MUP anything but Architecture Type 1 with Route Type 1..4 (<code>.../nlri/mup/rfc7606.go</code>, draft-ietf-bess-mup-safi §3.1). BGP-LS registers no recognizer and propagates unchanged, and a family nobody has ruled on keeps its previous behavior. Judging a route type needs the section carved into single NLRIs, so MCAST-VPN and BGP-MUP gained <code>nlrisplit</code> splitters, which also made <code>nlrisplit.Supported</code> true for them: ze now installs both as opaque Adj-RIB-In entries the way it already installed EVPN (<code>insertPoolNLRIs</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib.go</code></a>). This reverses the divergence disclosed here until 2026-08-01.</p>
 <p class="rfc-prose"><strong>Closed 2026-07-20:</strong> §7.13, §7.15 and §7.16 gained attribute validators for codes 24, 25 and 128, §7.15&#39;s unrecognized-type tolerance is now met by design rather than by omission (the validator reads length only), and §6&#39;s debugging facility now logs the NLRI involved and the entire malformed UPDATE.</p>
 <p class="rfc-prose"><strong>Also closed 2026-07-20:</strong> §5.1&#39;s second bullet. Ze already originated only compliant UPDATEs; the relay now splits a received mixed shape as well, in both the zero-copy same-context branch and the re-encode branch, so every UPDATE ze sends carries at most one NLRI-bearing field. A compliant single-field UPDATE keeps the zero-copy forward: the shape verdict is cached per received message and the received bytes are handed on unchanged. Receive-side tolerance of any position or combination (§5.1 third bullet) is unchanged.</p>
@@ -276,11 +272,11 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>46</strong></td>
+<td><strong>47</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>7</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -307,8 +303,8 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (46):</strong> <a href="#rfc7606-2-1"><code>RFC7606-2-1</code></a>, <a href="#rfc7606-2-2"><code>RFC7606-2-2</code></a>, <a href="#rfc7606-2-3"><code>RFC7606-2-3</code></a>, <a href="#rfc7606-3.b-1"><code>RFC7606-3.b-1</code></a>, <a href="#rfc7606-3.c-1"><code>RFC7606-3.c-1</code></a>, <a href="#rfc7606-3.d-1"><code>RFC7606-3.d-1</code></a>, <a href="#rfc7606-3.e-1"><code>RFC7606-3.e-1</code></a>, <a href="#rfc7606-3.f-1"><code>RFC7606-3.f-1</code></a>, <a href="#rfc7606-3.g-1"><code>RFC7606-3.g-1</code></a>, <a href="#rfc7606-3.i-1"><code>RFC7606-3.i-1</code></a>, <a href="#rfc7606-3.j-1"><code>RFC7606-3.j-1</code></a>, <a href="#rfc7606-4-1"><code>RFC7606-4-1</code></a>, <a href="#rfc7606-5.1-2"><code>RFC7606-5.1-2</code></a>, <a href="#rfc7606-5.2-1"><code>RFC7606-5.2-1</code></a>, <a href="#rfc7606-5.4-1"><code>RFC7606-5.4-1</code></a>, <a href="#rfc7606-7.1-1"><code>RFC7606-7.1-1</code></a>, <a href="#rfc7606-7.2-1"><code>RFC7606-7.2-1</code></a>, <a href="#rfc7606-7.3-1"><code>RFC7606-7.3-1</code></a>, <a href="#rfc7606-7.4-1"><code>RFC7606-7.4-1</code></a>, <a href="#rfc7606-7.5-1"><code>RFC7606-7.5-1</code></a>, <a href="#rfc7606-7.5-2"><code>RFC7606-7.5-2</code></a>, <a href="#rfc7606-7.6-1"><code>RFC7606-7.6-1</code></a>, <a href="#rfc7606-7.7-1"><code>RFC7606-7.7-1</code></a>, <a href="#rfc7606-7.8-1"><code>RFC7606-7.8-1</code></a>, <a href="#rfc7606-7.9-1"><code>RFC7606-7.9-1</code></a>, <a href="#rfc7606-7.9-2"><code>RFC7606-7.9-2</code></a>, <a href="#rfc7606-7.10-1"><code>RFC7606-7.10-1</code></a>, <a href="#rfc7606-7.10-2"><code>RFC7606-7.10-2</code></a>, <a href="#rfc7606-7.11-1"><code>RFC7606-7.11-1</code></a>, <a href="#rfc7606-7.13-1"><code>RFC7606-7.13-1</code></a>, <a href="#rfc7606-7.14-1"><code>RFC7606-7.14-1</code></a>, <a href="#rfc7606-7.15-1"><code>RFC7606-7.15-1</code></a>, <a href="#rfc7606-7.16-1"><code>RFC7606-7.16-1</code></a>, <a href="#rfc7606-4-3"><code>RFC7606-4-3</code></a>, <a href="#rfc7606-4-2"><code>RFC7606-4-2</code></a>, <a href="#rfc7606-3.g-2"><code>RFC7606-3.g-2</code></a>, <a href="#rfc7606-6-1"><code>RFC7606-6-1</code></a>, <a href="#rfc7606-3.a-1"><code>RFC7606-3.a-1</code></a>, <a href="#rfc7606-2-5"><code>RFC7606-2-5</code></a>, <a href="#rfc7606-5.3-1"><code>RFC7606-5.3-1</code></a>, <a href="#rfc7606-5.3-2"><code>RFC7606-5.3-2</code></a>, <a href="#rfc7606-5.3-3"><code>RFC7606-5.3-3</code></a>, <a href="#rfc7606-5.3-4"><code>RFC7606-5.3-4</code></a>, <a href="#rfc7606-5.3-5"><code>RFC7606-5.3-5</code></a>, <a href="#rfc7606-5.3-6"><code>RFC7606-5.3-6</code></a>, <a href="#rfc7606-2-6"><code>RFC7606-2-6</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc7606-3.h-1"><code>RFC7606-3.h-1</code></a>, <a href="#rfc7606-3.h-2"><code>RFC7606-3.h-2</code></a>, <a href="#rfc7606-5.1-1"><code>RFC7606-5.1-1</code></a>, <a href="#rfc7606-5.1-3"><code>RFC7606-5.1-3</code></a>, <a href="#rfc7606-7.14-2"><code>RFC7606-7.14-2</code></a>, <a href="#rfc7606-7.15-2"><code>RFC7606-7.15-2</code></a>, <a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (47):</strong> <a href="#rfc7606-2-1"><code>RFC7606-2-1</code></a>, <a href="#rfc7606-2-2"><code>RFC7606-2-2</code></a>, <a href="#rfc7606-2-3"><code>RFC7606-2-3</code></a>, <a href="#rfc7606-3.b-1"><code>RFC7606-3.b-1</code></a>, <a href="#rfc7606-3.c-1"><code>RFC7606-3.c-1</code></a>, <a href="#rfc7606-3.d-1"><code>RFC7606-3.d-1</code></a>, <a href="#rfc7606-3.e-1"><code>RFC7606-3.e-1</code></a>, <a href="#rfc7606-3.f-1"><code>RFC7606-3.f-1</code></a>, <a href="#rfc7606-3.g-1"><code>RFC7606-3.g-1</code></a>, <a href="#rfc7606-3.i-1"><code>RFC7606-3.i-1</code></a>, <a href="#rfc7606-3.j-1"><code>RFC7606-3.j-1</code></a>, <a href="#rfc7606-4-1"><code>RFC7606-4-1</code></a>, <a href="#rfc7606-5.1-1"><code>RFC7606-5.1-1</code></a>, <a href="#rfc7606-5.1-2"><code>RFC7606-5.1-2</code></a>, <a href="#rfc7606-5.2-1"><code>RFC7606-5.2-1</code></a>, <a href="#rfc7606-5.4-1"><code>RFC7606-5.4-1</code></a>, <a href="#rfc7606-7.1-1"><code>RFC7606-7.1-1</code></a>, <a href="#rfc7606-7.2-1"><code>RFC7606-7.2-1</code></a>, <a href="#rfc7606-7.3-1"><code>RFC7606-7.3-1</code></a>, <a href="#rfc7606-7.4-1"><code>RFC7606-7.4-1</code></a>, <a href="#rfc7606-7.5-1"><code>RFC7606-7.5-1</code></a>, <a href="#rfc7606-7.5-2"><code>RFC7606-7.5-2</code></a>, <a href="#rfc7606-7.6-1"><code>RFC7606-7.6-1</code></a>, <a href="#rfc7606-7.7-1"><code>RFC7606-7.7-1</code></a>, <a href="#rfc7606-7.8-1"><code>RFC7606-7.8-1</code></a>, <a href="#rfc7606-7.9-1"><code>RFC7606-7.9-1</code></a>, <a href="#rfc7606-7.9-2"><code>RFC7606-7.9-2</code></a>, <a href="#rfc7606-7.10-1"><code>RFC7606-7.10-1</code></a>, <a href="#rfc7606-7.10-2"><code>RFC7606-7.10-2</code></a>, <a href="#rfc7606-7.11-1"><code>RFC7606-7.11-1</code></a>, <a href="#rfc7606-7.13-1"><code>RFC7606-7.13-1</code></a>, <a href="#rfc7606-7.14-1"><code>RFC7606-7.14-1</code></a>, <a href="#rfc7606-7.15-1"><code>RFC7606-7.15-1</code></a>, <a href="#rfc7606-7.16-1"><code>RFC7606-7.16-1</code></a>, <a href="#rfc7606-4-3"><code>RFC7606-4-3</code></a>, <a href="#rfc7606-4-2"><code>RFC7606-4-2</code></a>, <a href="#rfc7606-3.g-2"><code>RFC7606-3.g-2</code></a>, <a href="#rfc7606-6-1"><code>RFC7606-6-1</code></a>, <a href="#rfc7606-3.a-1"><code>RFC7606-3.a-1</code></a>, <a href="#rfc7606-2-5"><code>RFC7606-2-5</code></a>, <a href="#rfc7606-5.3-1"><code>RFC7606-5.3-1</code></a>, <a href="#rfc7606-5.3-2"><code>RFC7606-5.3-2</code></a>, <a href="#rfc7606-5.3-3"><code>RFC7606-5.3-3</code></a>, <a href="#rfc7606-5.3-4"><code>RFC7606-5.3-4</code></a>, <a href="#rfc7606-5.3-5"><code>RFC7606-5.3-5</code></a>, <a href="#rfc7606-5.3-6"><code>RFC7606-5.3-6</code></a>, <a href="#rfc7606-2-6"><code>RFC7606-2-6</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc7606-3.h-1"><code>RFC7606-3.h-1</code></a>, <a href="#rfc7606-3.h-2"><code>RFC7606-3.h-2</code></a>, <a href="#rfc7606-5.1-3"><code>RFC7606-5.1-3</code></a>, <a href="#rfc7606-7.14-2"><code>RFC7606-7.14-2</code></a>, <a href="#rfc7606-7.15-2"><code>RFC7606-7.15-2</code></a>, <a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -479,15 +475,23 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze emits MP_UNREACH first and every other attribute by type code, so MP_REACH follows ORIGIN and AS_PATH and is not the very first path attribute; recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_split_mp_first_test.go#L21" title="internal/component/bgp/wireu/rfc7606_split_mp_first_test.go" target="_blank" rel="noopener"><code>TestBuildUpdatePayloadMPAttributeFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L62" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideMovesTrailingMPAttributeFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L101" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardMovesTrailingMPAttributeFirstAcrossContexts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L59" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardMovesTrailingMPAttributeFirstSameContext</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L133" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardRebuildMovesSourcedMPAttributeFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mp_first_test.go#L27" title="internal/component/bgp/message/rfc7606_mp_first_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section51MPAttributeEncodedFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_relay_payload_test.go#L168" title="internal/component/bgp/reactor/rfc7606_relay_payload_test.go" target="_blank" rel="noopener"><code>TestRelayPayloadLeadsWithMPReach</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L78" title="internal/component/bgp/message/rfc4271_update_split_attr_order_test.go" target="_blank" rel="noopener"><code>TestSplitMP_PreservesAscendingAttributeOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L82" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardLeadingMPAttributeKeepsZeroCopy</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-5.1-2">RFC7606-5.1-2</code></td><td colspan="3"><span class="rfc-subject">o An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-5.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L89" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideSplitsMixedShape</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L156" title="internal/component/bgp/reactor/rfc7606_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitsMixedShapeAcrossContextsThatFits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L51" title="internal/component/bgp/reactor/rfc7606_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitsMixedShapeSameContextThatFits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_shape_test.go#L57" title="internal/component/bgp/message/rfc7606_shape_test.go" target="_blank" rel="noopener"><code>TestNLRIBearingFieldCountEveryCombination</code></a></span></div>
@@ -513,7 +517,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-receive-combinations.ci#L3" title="test/plugin/rfc7606-receive-combinations.ci" target="_blank" rel="noopener"><code>rfc7606-receive-combinations.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L8" title="test/plugin/rfc7606-relay-one-field.ci" target="_blank" rel="noopener"><code>rfc7606-relay-one-field.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L676" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkVPNFRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L733" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7606MixedUpdate</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to accept the four named fields, non-empty Withdrawn Routes, non-empty NLRI, MP_REACH_NLRI and MP_UNREACH_NLRI, in any permitted position or combination. Rejecting a shape solely for the sender restrictions would contradict this receiver obligation, not provide a conforming negative.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-5.2-1">RFC7606-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Thus, if an UPDATE message is encountered that does contain path attributes other than MP_UNREACH_NLRI and doesn&#39;t encode any reachable NLRI, we cannot be confident that the NLRI have been successfully parsed as Section 3 (j) requires. For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than &#34;attribute discard&#34;, then the &#34;session reset&#34; approach MUST be used. (§5.2)</span></td></tr>
@@ -554,7 +558,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci#L4" title="test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci" target="_blank" rel="noopener"><code>rfc7606-54-discard-unrecognized-mup-nlri.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-discard-unrecognized-nlri.ci#L4" title="test/plugin/rfc7606-54-discard-unrecognized-nlri.ci" target="_blank" rel="noopener"><code>rfc7606-54-discard-unrecognized-nlri.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-bgpls-override-propagates.ci#L4" title="test/plugin/rfc7606-54-bgpls-override-propagates.ci" target="_blank" rel="noopener"><code>rfc7606-54-bgpls-override-propagates.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L780" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7606MixedUpdate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L837" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7606TypedNLRIDiscard</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-7.1-1">RFC7606-7.1-1</code></td><td colspan="3"><span class="rfc-subject">The attribute is considered malformed if its length is not 1 or if it has an undefined value [RFC4271]. An UPDATE message with a malformed ORIGIN attribute SHALL be handled using the approach of &#34;treat-as-withdraw&#34;. (§7.1)</span></td></tr>
@@ -877,8 +881,8 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L258" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L259" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-5.3-1">RFC7606-5.3-1</code></td><td colspan="3"><span class="rfc-subject">The NLRI field or Withdrawn Routes field SHALL be considered &#34;syntactically incorrect&#34; if either of the following are true: o The length of any of the included NLRI is greater than 32. (§5.3)</span></td></tr>
@@ -958,10 +962,6 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7606-5.1-1"><code>RFC7606-5.1-1</code></a> o The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message. (§5.1)</td>
-<td>{gap}, demonstrated by internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst</td>
-<td>Ze emits MP_UNREACH first and every other attribute by type code, so MP_REACH follows ORIGIN and AS_PATH and is not the very first path attribute; recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row</td>
-</tr>
 <tr><td><a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a> A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: an obligation on the authors of FUTURE attribute specifications, not on an implementation; Ze has no code path that could satisfy or violate it</td>
@@ -1079,7 +1079,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-3.c-1"><code>RFC7606-3.c-1</code></a></h3>
 <p>If the value of either the Optional or Transitive bits in the Attribute Flags is in conflict with their specified values, then the attribute MUST be treated as malformed and the &#34;treat-as-withdraw&#34; approach used, unless the specification for the attribute mandates different handling for incorrect Attribute Flags. (§3.c)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts moved. Current flag controls isolate Optional/Transitive conflicts from attribute-value errors and missing mandatory attributes, assert exact treat-as-withdraw, and retain accepted specified-flag controls for core optional and plugin-owned attributes; the repaired TE/ATTR_SET cases also traverse both session readers, while declared MP and AIGP exceptions retain their attribute-specific handling</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor). Section 3(c): &#34;If the value of either the Optional or Transitive bits in the Attribute Flags is in conflict with their specified values, then the attribute MUST be treated as malformed and the &#34;treat-as-withdraw&#34; approach used, unless the specification for the attribute mandates different handling for incorrect Attribute Flags.&#34; TestRFC7606ImplementedAttributeFlagConflicts: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. The prior reading stands: per attribute the correct flags give exact None and each of the Optional and Transitive conflicts gives exact TreatAsWithdraw with the attribute&#39;s own code; the other carriers are unchanged. The revert record for its negative is unit-changed and owes re-recording.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1087,7 +1087,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attribute_envelope_test.go#L52" title="internal/component/bgp/message/rfc7606_attribute_envelope_test.go" target="_blank" rel="noopener"><code>TestRFC7606ImplementedAttributeFlagConflicts</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_flags_optional_test.go#L49" title="internal/component/bgp/message/rfc7606_flags_optional_test.go" target="_blank" rel="noopener"><code>TestRFC7606FlagsOptionalAttributeConflict</code></a></td>
@@ -1112,7 +1112,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go#L20" title="internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeEnvelopeSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_flags_optional_test.go#L112" title="internal/component/bgp/message/rfc7606_flags_optional_test.go" target="_blank" rel="noopener"><code>TestRFC7606FlagsOptionalAttributeAsSpecifiedAccepted</code></a></td>
@@ -1152,7 +1152,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2318" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L192" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ValidUpdate</code></a></td>
@@ -1187,7 +1187,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1630" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1217,7 +1217,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1631" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1237,7 +1237,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2259" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go#L48" title="internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk</code></a></td>
@@ -1387,7 +1387,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L118" title="internal/component/bgp/message/rfc7606_clause_test.go" target="_blank" rel="noopener"><code>TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L237" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeLengthConflictTreatAsWithdraw</code></a></td>
@@ -1397,23 +1397,74 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L116" title="internal/component/bgp/message/rfc7606_clause_test.go" target="_blank" rel="noopener"><code>TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1632" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7606-5.1-1"><code>RFC7606-5.1-1</code></a></h3>
 <p>o The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message. (§5.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. {gap} is honest and confirmed: buildUpdatePayload (wireu/split.go:440-476) writes the attribute section as baseAttrs, then mpUnreach, then mpReach (:463-470), so MP_REACH is emitted LAST, not &#39;the very first path attribute&#39; as §5.1 SHALL requires. Disclosed in docs/architecture/wire/mp-nlri-ordering.md (&#39;MP_REACH last: Intentionally non-compliant&#39;) and rfc-status.md gap (1). 2026-07-29 (plan/spec-rfcgate-3-audit-teeth.md): the `code` map below transcribes the producing code this note already names, so the claim is falsifiable. Nothing was re-judged: with neither tests nor code fingerprinted this verdict&#39;s freshness test was `{} == {}` and it could never go stale, i.e. nobody was ever asked to look again if the gap closed. The fingerprint is the enclosing FUNCTION&#39;s span, not the file, because producer files churn far more than test files and a file-level hash here would just manufacture a new false-stale class (spec R-5). 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.</p>
-<p>No test carries RFC7606-5.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: &#34;The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message.&#34; 85deabdd81 closes the residual recorded last time: writeUpdateGated now marks a body the export filter replaced (overridden), and writeOrdinaryUpdateBody parses an override, and when message.MPAttributesTrail says the MP attribute trails, copies the attribute section MP-first via message.WriteMPAttributesFirst into a read-pool buffer before Split/SplitCompliant; a compliant fitting override is still written as returned. TestEgressOverrideMovesTrailingMPAttributeFirst drives Session.SendUpdate with an egressRouteFilter returning ORIGIN/AS_PATH/NEXT_HOP then MP_REACH and asserts exactly one UPDATE equal byte for byte to an independently built MP-first body (fwdMPFirstBodies builds both orders by concatenation, not via the producer), and that the filter&#39;s bytes were not edited in place; the claim states exactly that. TestEgressOverrideKeepsLeadingMPAttribute (untagged) pins a compliant override unchanged. Mutant record session_write.go:562 MPAttributesTrail -&gt; false; ./le rfc check reports no unverified record for rfc7606. 610939d774 tags TestBuildUpdatePayloadMPAttributeFirst: its claim (MP_REACH before ORIGIN and AS_PATH, withdrawal-only body has MP_UNREACH as its only attribute) matches the exact code-list assertions [14 1 2] and [15]; mutant split.go:495 &#39;pos += len(mpReach)&#39; -&gt; &#39;pos += 0&#39;. The relay_payload_test.go rename is byte-pure (same unit-sha and claim-sha). 55cd171a3e changes comments only (forward_validation.go, wireu/split.go) and the stale &#39;deliberate divergence&#39; prose noted last time is gone. Cost: an unreplaced body keeps the no-walk fast path (!stripAIGP &amp;&amp; !overridden &amp;&amp; fits -&gt; writeRawUpdateBody); the oversize and AIGP paths parse as before and run no shape walk; MixesNLRIFields and MPAttributesTrail run only when overridden. All tagged units pass at HEAD. Residual, not reachable in product: Session.SendAnnounce (session_write.go) applies the same egress filter and writes an override raw with no shape check, but its only caller Peer.SendAnnounce (peer_send.go) has no non-test caller. Observation outside 5.1: a fitting override that ParseUpdateSections rejects now returns an error from writeUpdateGated where it was previously written raw.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L82" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardLeadingMPAttributeKeepsZeroCopy</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L78" title="internal/component/bgp/message/rfc4271_update_split_attr_order_test.go" target="_blank" rel="noopener"><code>TestSplitMP_PreservesAscendingAttributeOrder</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mp_first_test.go#L27" title="internal/component/bgp/message/rfc7606_mp_first_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section51MPAttributeEncodedFirst</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L62" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideMovesTrailingMPAttributeFirst</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L101" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardMovesTrailingMPAttributeFirstAcrossContexts</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L59" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardMovesTrailingMPAttributeFirstSameContext</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L133" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardRebuildMovesSourcedMPAttributeFirst</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_relay_payload_test.go#L168" title="internal/component/bgp/reactor/rfc7606_relay_payload_test.go" target="_blank" rel="noopener"><code>TestRelayPayloadLeadsWithMPReach</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_split_mp_first_test.go#L21" title="internal/component/bgp/wireu/rfc7606_split_mp_first_test.go" target="_blank" rel="noopener"><code>TestBuildUpdatePayloadMPAttributeFirst</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7606-5.1-2"><code>RFC7606-5.1-2</code></a></h3>
 <p>o An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 839819ea2d). RFC 7606 Section 5.1: &#34;An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.&#34; 839819ea2d changes one comment line in test/plugin/rfc7606-relay-one-field.ci (&#34;./le verify current mode full&#34; becomes &#34;./le verify current&#34;, the verify spelling rename); no expectation, config, stimulus or assertion of the carrier changed, and no Go producer or other tagged unit of this row was touched. Mechanical shift; verdict holds. The prior judgment stands: the field-counter table covers all sixteen subsets with the greater-than-one threshold, parsed and raw splitters separate a fitting all-four-field input and keep compliant input identity, both forwarding arms enforce the split, and the native carrier requires the exact withdraw-only frame before the announcement. Recorded breaks are whole-producer halts and prove reach, not selective semantics.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: &#34;An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.&#34; The residual recorded last time is closed: for an overridden body writeOrdinaryUpdateBody computes update.MixesNLRIFields() on the final body and sends a mixed one through Splitter.SplitCompliant (which splits on shape even when the UPDATE fits) instead of Splitter.Split; any trailing MP is moved first before the split. TestEgressOverrideSplitsMixedShape sends a fitting override carrying IPv4 NLRI plus a trailing MP_REACH (asserting it fits, so only shape can split it) and asserts exactly two UPDATEs, each with NLRIBearingFieldCount == 1, the IPv4 one carrying exactly 10.0.0.0/24, the other leading with MP_REACH, and both seen; the claim states exactly that. Mutant record session_write.go:604 &#39;mixed&#39; -&gt; &#39;false&#39; (Split emits the fitting body whole). Cost: the shape walk runs only when overridden; Ze&#39;s own composed bodies keep the zero-walk path. 55cd171a3e and 610939d774 touch no 5.1-2 unit or producer. All tagged units pass at HEAD; ./le rfc check reports no unverified 5.1-2 record. Residual, not reachable in product: Session.SendAnnounce writes a filter override raw without SplitCompliant, but Peer.SendAnnounce, its only caller, has no non-test caller.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1442,6 +1493,11 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_shape_test.go#L127" title="internal/component/bgp/message/rfc7606_shape_test.go" target="_blank" rel="noopener"><code>TestSplitCompliantSplitsMixedUpdateThatFits</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L89" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideSplitsMixedShape</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L156" title="internal/component/bgp/reactor/rfc7606_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitsMixedShapeAcrossContextsThatFits</code></a></td>
@@ -1473,7 +1529,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-5.1-3"><code>RFC7606-5.1-3</code></a></h3>
 <p>Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate moved. Re-judged 2026-10-19 (independent auditor, after 839819ea2d). RFC 7606 Section 5.1: &#34;Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.&#34; 839819ea2d changes one comment line in test/plugin/rfc7606-relay-one-field.ci (&#34;./le verify current mode full&#34; becomes &#34;./le verify current&#34;, the verify spelling rename); no expectation, config, stimulus or assertion of the carrier changed, and no Go producer or other tagged unit of this row was touched. Mechanical shift; verdict holds. The prior judgment stands: exact ActionNone assertions cover late MP_REACH, late MP_UNREACH, the MP pair and each MP attribute with legacy NLRI, the native combinations carrier requires receipt of every component, and the FRR checker requires session survival and installation of the announced half. Single-polarity positive per the row annotation.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_validation.go::applyRFC7606 moved. Re-judged 2026-10-19 (independent auditor, after 839819ea2d). RFC 7606 Section 5.1: &#34;Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.&#34; 839819ea2d changes one comment line in test/plugin/rfc7606-relay-one-field.ci (&#34;./le verify current mode full&#34; becomes &#34;./le verify current&#34;, the verify spelling rename); no expectation, config, stimulus or assertion of the carrier changed, and no Go producer or other tagged unit of this row was touched. Mechanical shift; verdict holds. The prior judgment stands: exact ActionNone assertions cover late MP_REACH, late MP_UNREACH, the MP pair and each MP attribute with legacy NLRI, the native combinations carrier requires receipt of every component, and the FRR checker requires session survival and installation of the announced half. Single-polarity positive per the row annotation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1504,26 +1560,26 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L676" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkVPNFRR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L733" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7606MixedUpdate</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-receive-combinations.ci#L3" title="test/plugin/rfc7606-receive-combinations.ci" target="_blank" rel="noopener"><code>rfc7606-receive-combinations.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L8" title="test/plugin/rfc7606-relay-one-field.ci" target="_blank" rel="noopener"><code>rfc7606-relay-one-field.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7606-5.2-1"><code>RFC7606-5.2-1</code></a></h3>
 <p>Thus, if an UPDATE message is encountered that does contain path attributes other than MP_UNREACH_NLRI and doesn&#39;t encode any reachable NLRI, we cannot be confident that the NLRI have been successfully parsed as Section 3 (j) requires. For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than &#34;attribute discard&#34;, then the &#34;session reset&#34; approach MUST be used. (§5.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset moved. Re-judged 2026-10-18 (independent auditor, after e5724325c1). Section 5.2: &#34;Thus, if an UPDATE message is encountered that does contain path attributes other than MP_UNREACH_NLRI and doesn&#39;t encode any reachable NLRI, we cannot be confident that the NLRI have been successfully parsed as Section 3 (j) requires.&#34; The seam the previous verdict named is closed: TestRFC9830NLRILengthReceiveVerdicts now carries an RFC7606-5.2-1 negative tag and drives both shapes through processMessage on an Established session, with and without ADD-PATH. MP_UNREACH_NLRI alone with a walkable 13-octet SR Policy NLRI is treat-as-withdraw (session Established, nothing written, nothing dispatched), and the same NLRI beside ORIGIN, AS_PATH and LOCAL_PREF with no reachable NLRI resets with exactly NOTIFICATION 3/1 and dispatches nothing. The only error in the second body is the NLRI, so it isolates the population clause: dropping hasAttrOtherThanMPUnreach from the escalation in ValidateUpdateRFC7606AddPath reddens the alone shape, and an always-false condition reddens the reset shape. The message-level units (TestRFC7606Section52MPUnreachOnlyNotEscalated, TestRFC7606NoNLRIEscalation, TestRFC7606NoNLRIAttributeDiscardNoEscalation, TestRFC7606EmptyMPReachEscalatesToReset, the systematic length corruption and the reactor abandoned-walk and NLRI-present units) are unchanged and still cover reachable legacy and MP NLRI, discard-only errors, empty MP_REACH and abandoned walks.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor). Section 5.2: &#34;For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than &#34;attribute discard&#34;, then the &#34;session reset&#34; approach MUST be used.&#34; TestRFC7606EmptyMPReachEscalatesToReset: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. The escalation in ValidateUpdateRFC7606AddPath (hasAttrOtherThanMPUnreach with no reachable NLRI) is unchanged by ca4eae70a0; the new capability-77 check records a treat-as-withdraw through the same recordError, so it escalates on an UPDATE with no reachable NLRI exactly like any other non-discard error, as Section 5.2 requires. The 2026-10-18 judgement of the other carriers (MP_UNREACH alone not escalated, session-level 3/1 reset, abandoned walk) stands. Five discrimination records for this id (TestRFC7606EmptyMPReachEscalatesToReset unit-changed; TestRFC7606Section52MPUnreachOnlyNotEscalated both polarities, TestRFC7606SystematicLengthCorruption both polarities, TestRFC9830NLRILengthReceiveVerdicts producer-changed) owe re-recording.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1531,12 +1587,12 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attribute_envelope_test.go#L9" title="internal/component/bgp/message/rfc7606_attribute_envelope_test.go" target="_blank" rel="noopener"><code>TestRFC7606EmptyMPReachEscalatesToReset</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L48" title="internal/component/bgp/message/rfc7606_mpunreach_only_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section52MPUnreachOnlyNotEscalated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1469" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606NoNLRIEscalation</code></a></td>
@@ -1546,12 +1602,12 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2281" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go#L19" title="internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeEnvelopeSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go#L69" title="internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section52LeavesAnUpdateWithNLRIAlone</code></a></td>
@@ -1561,12 +1617,12 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L207" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L47" title="internal/component/bgp/message/rfc7606_mpunreach_only_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section52MPUnreachOnlyNotEscalated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1449" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPUnreachMinValid</code></a></td>
@@ -1581,7 +1637,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2295" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go#L40" title="internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned</code></a></td>
@@ -1593,7 +1649,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-5.4-1"><code>RFC7606-5.4-1</code></a></h3>
 <p>A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise. (§5.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard moved. Re-judged 2026-10-14 (independent auditor) after the Recognizer became a three-way verdict (spec-bgp-update-propagation-rfc-defects N-3). RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; Re-read the four changed units diff by diff: mup and mvpn TestRecognizeNLRIRejectsUnimplementedTypes now compare against nlritype.Keep and nlritype.Discard exactly, which is stricter than the old bool (a recognizer answering Withdraw for an unknown type now goes red); the one moved expectation, a one-octet T1ST body, is now Withdraw (malformed implemented type) and still never Discard. The reactor fake recognizers changed only their return type through keepIf; the survivor-byte, ActionNone and BGP-LS override assertions are unchanged. All other covers and their earlier reading stand. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The edits in TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR, TestRFC7606Section54FiltersTreatAsWithdrawSynthesis and TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned pass a nil addPath predicate to SynthesizeWithdrawFamilies; their families (EVPN, MVPN, MUP) carry no Compatibility field, so the predicate is never read and the discard/filter assertions are unchanged. RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after the Recognizer became a three-way verdict (spec-bgp-update-propagation-rfc-defects N-3). RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; Re-read the four changed units diff by diff: mup and mvpn TestRecognizeNLRIRejectsUnimplementedTypes now compare against nlritype.Keep and nlritype.Discard exactly, which is stricter than the old bool (a recognizer answering Withdraw for an unknown type now goes red); the one moved expectation, a one-octet T1ST body, is now Withdraw (malformed implemented type) and still never Discard. The reactor fake recognizers changed only their return type through keepIf; the survivor-byte, ActionNone and BGP-LS override assertions are unchanged. All other covers and their earlier reading stand. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The edits in TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR, TestRFC7606Section54FiltersTreatAsWithdrawSynthesis and TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned pass a nil addPath predicate to SynthesizeWithdrawFamilies; their families (EVPN, MVPN, MUP) carry no Compatibility field, so the predicate is never read and the discard/filter assertions are unchanged. RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1659,7 +1715,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L780" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7606MixedUpdate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L837" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7606TypedNLRIDiscard</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -1718,7 +1774,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-7.2-1"><code>RFC7606-7.2-1</code></a></h3>
 <p>An AS_PATH is considered malformed if an unrecognized segment type is encountered or if it contains a malformed segment. A segment is considered malformed if any of the following are true: o There is an overrun where the Path Segment Length field of the last segment encountered would cause the Attribute Length to be exceeded. o There is an underrun where after the last successfully parsed segment there is only a single octet remaining (that is, there is not enough unconsumed data to provide even an empty segment header). o It has a Path Segment Length field of zero. An UPDATE message with a malformed AS_PATH attribute SHALL be handled using the approach of &#34;treat-as-withdraw&#34;. (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet moved. All four §7.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 &#39;segment type&#39;), overrun (:366 &#39;overrun&#39;), underrun (:389 &#39;underrun&#39;), zero-length segment (:414 &#39;zero&#39;). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None). 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote spells out all four malformations (unrecognized segment type, overrun, underrun, zero Path Segment Length); each has an isolated tagged negative. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after ca4eae70a0). Section 7.2: &#34;An AS_PATH is considered malformed if an unrecognized segment type is encountered or if it contains a malformed segment.&#34; and &#34;An UPDATE message with a malformed AS_PATH attribute SHALL be handled using the approach of &#34;treat-as-withdraw&#34;.&#34; RFC 9774 Section 3 (owner decision: AS_SET is treat-as-withdraw) now makes validateASPath return asPathSetVerdict after the structure walk. TestRFC7606ASPathValidSet changed from asserting None to asserting TreatAsWithdraw with the exact description &#34;RFC 9774 Section 3: AS_SET in AS_PATH&#34;. As a 7.2 positive it still discriminates: a regression that read AS_SET (type 1) as an unrecognized or malformed segment returns from the walk first with a Section 7.2 description and fails the exact Equal; the input is well-framed so nothing else trips. It no longer proves acceptance, which is correct now that RFC 9774 deprecates AS_SET; TestRFC7606ASPathValidSequence remains the exact-None positive. The four isolated negatives (segment type, overrun, underrun, zero length) are unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1776,7 +1832,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1781" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L193" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ValidUpdate</code></a></td>
@@ -1796,7 +1852,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1795" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1233" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606FlagsOptionalAttributeValid</code></a></td>
@@ -1876,7 +1932,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1634" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1946,7 +2002,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1635" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2198,7 +2254,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-7.16-1"><code>RFC7606-7.16-1</code></a></h3>
 <p>An UPDATE message with a malformed ATTR_SET attribute SHALL be handled using the approach of &#34;treat as withdraw&#34;. (§7.16)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes moved. ATTR_SET controls cover short Origin AS, forbidden inner MP attributes, malformed inner attributes, nested framing and valid contexts; the corrected InnerDiscardWithdraws test preserves exact standalone AGGREGATOR discard but requires outer ATTR_SET treat-as-withdraw for the malformed inner value and accepts the valid four-octet-AS counterpart, as RFC6368 Section 5 and RFC7606 Section 7.16 require; inner NEXT_HOP is ignored semantically but framing overruns still withdraw, and both session readers assert actual withdrawal versus acceptance</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor). Section 7.16: &#34;An UPDATE message with a malformed ATTR_SET attribute SHALL be handled using the approach of &#34;treat as withdraw&#34;.&#34; TestRFC7606AttrSetMalformedInnerAttributes: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. Its cases still assert exact TreatAsWithdraw with AttrCode 128 for a 2-octet inner AGGREGATOR, an inner ORIGIN flag conflict and an inner NEXT_HOP framing overrun, and exact None for the 4-octet AGGREGATOR, correct ORIGIN, 4-octet AS_PATH (an AS_SEQUENCE, so the new RFC 9774 scan does not fire), unknown optional and framed NEXT_HOP, under both outer ASN widths. Other carriers unchanged. Observation outside this row: inner attributes are judged through validateAttribute, so an AS_SET inside an ATTR_SET&#39;s inner AS_PATH now makes the ATTR_SET malformed by way of RFC 9774; no test pins that reading either way. The negative&#39;s revert record is unit-changed and owes re-recording.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2206,7 +2262,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attribute_envelope_test.go#L89" title="internal/component/bgp/message/rfc7606_attribute_envelope_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttrSetMalformedInnerAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L79" title="internal/component/bgp/message/rfc7606_attrset_context_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttrSetInnerMalformedStillWithdraws</code></a></td>
@@ -2231,7 +2287,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go#L21" title="internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeEnvelopeSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L31" title="internal/component/bgp/message/rfc7606_attrset_context_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttrSetInnerASPathAlwaysFourOctet</code></a></td>
@@ -2286,7 +2342,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1633" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L194" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ValidUpdate</code></a></td>
@@ -2306,7 +2362,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L91" title="internal/component/bgp/message/rfc7606_clause_test.go" target="_blank" rel="noopener"><code>TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L563" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated</code></a></td>
@@ -2316,7 +2372,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L89" title="internal/component/bgp/message/rfc7606_clause_test.go" target="_blank" rel="noopener"><code>TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L542" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606DuplicateAttributeFirstOccurrenceWins</code></a></td>
@@ -2403,12 +2459,12 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L259" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L258" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2897,7 +2953,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

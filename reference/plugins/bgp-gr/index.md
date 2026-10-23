@@ -25,6 +25,13 @@ Graceful Restart capability and mechanism plugin
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`bgp-rr`](../bgp-rr/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/component/bgp/plugins/gr`

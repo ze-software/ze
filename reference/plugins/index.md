@@ -1,6 +1,6 @@
 # Plugin catalog
 
-94 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 76 ship YANG modules.
+91 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 76 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -50,6 +50,7 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 | [`bgp-softver`](bgp-softver/index.md) | Software Version capability (code 75) | `bgp` | `bgp` | `internal/component/bgp/plugins/softver` |
 | [`bgp-watchdog`](bgp-watchdog/index.md) | Watchdog route management plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/watchdog` |
 
+- [`bgp-gr`](bgp-gr/index.md): Start after `bgp-rr` (order only).
 ## BGP Filter
 
 Generated group for registry entries mapped to the BGP Filter area. Config roots: `bgp`. Source area: `internal/component/bgp`.
@@ -200,12 +201,10 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 ## Interface
 
-Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/iface`, `internal/plugins/vrrp`.
+Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/vrrp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`iface-dhcp`](iface-dhcp/index.md) | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | None | `interface` | `internal/plugins/iface/dhcp` |
-| [`iface-ra`](iface-ra/index.md) | Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) | None | `interface` | `internal/plugins/iface/ra` |
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
 | [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 
@@ -243,14 +242,6 @@ Generated group for registry entries mapped to the MRT area. Config roots: `mrt`
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`mrt`](mrt/index.md) | MRT routing information export (RFC 6396) | `mrt` | None | `internal/plugins/mrt` |
-
-## Memlock
-
-Generated group for registry entries mapped to the Memlock area. Source area: `internal/plugins/memlock`.
-
-| Plugin | Used for | Config | Depends on | Source path |
-|--------|----------|--------|------------|-------------|
-| [`memlock`](memlock/index.md) | Memory lock: keep the running executable resident under memory pressure | None | None | `internal/plugins/memlock` |
 
 ## OSPF
 

@@ -721,7 +721,7 @@ A single plugin can offer multiple named filters. Config references them as
 Filters can declare `overrides` to remove default filters from the chain
 (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as` for a specific peer).
 
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, canonicalizeFilterRefs -->
 
 ### Cross-Protocol Redistribute (`redistribute-orchestrator`)
 
@@ -887,12 +887,19 @@ bgp {
     }
     peer peer-a {
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 A list is an unordered reject SET. A route matching any leaf-list is rejected,
 and there is no first-match-wins, which is what keeps the type different from
@@ -1050,7 +1057,16 @@ filter chain is a pipe in which a reject DROPS the route. A match filter placed
 earlier therefore expresses "modify these and discard everything else", and the
 route that must keep flowing untouched has nowhere to go. Use an earlier filter
 when you want the rest dropped:
-`filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]`.
+
+```text
+filter {
+    import {
+        filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ];
+        final accept;
+    }
+}
+```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 
@@ -1104,7 +1120,10 @@ bgp {
     }
     peer transit-a {
         filter {
-            export [ STRIP ]
+            export {
+                filters [ STRIP ];
+                final accept;
+            }
         }
     }
 }

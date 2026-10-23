@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>16.7%</strong><b>2 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>78.4%</strong><b>29 of 37 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.8%</strong><b>25 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>38</td>
+<td>34</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>37</td>
+<td>33</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>29</td>
+<td>25</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7474.md</code></td>
@@ -315,9 +315,8 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L177" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L183" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L102" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC7474SequenceIncludedInDigest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L228" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L142" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC7474SequenceChangeBreaksDigest</code></a></span></div>
 </div></td>
 </tr>
@@ -326,7 +325,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L430" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L464" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the 64-bit composition (boot count in the high word, per-packet counter in the low word) is a numeric construction property with no violating input to feed a negative test</p></td>
 </tr>
@@ -335,7 +334,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L458" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L492" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L146" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474EverySentPacketIncrementsSequence</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a monotonic send-side counter increment has no observable violating case, since every sent crypto packet advances it (and bumps the boot word on wrap)</p></td>
@@ -345,7 +344,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L394" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L428" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_state_store_gate_test.go#L186" title="internal/plugins/ospf/rfc7474_state_store_gate_test.go" target="_blank" rel="noopener"><code>TestOSPFESNWrapPersistsBeforeRestart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_state_store_gate_test.go#L259" title="internal/plugins/ospf/rfc7474_state_store_gate_test.go" target="_blank" rel="noopener"><code>TestOSPFESNWrapFailureRefusesPackets</code></a></span></div>
 </div></td>
@@ -355,10 +354,8 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L69" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474GreaterExtendedSequenceAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L138" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L186" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayEqualSequenceByAuType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L185" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayEqualSequenceByAuType</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L82" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474NotGreaterExtendedSequenceDropped</code></a></span></div>
 </div></td>
 </tr>
@@ -367,9 +364,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L212" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerType</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L96" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReplayMarkPerNeighborAndType</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L110" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReplayedPacketDropped</code></a></span></div>
 </div></td>
 </tr>
@@ -380,7 +375,8 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L167" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L106" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC7474SequenceIncludedInDigest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L257" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L234" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L262" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L145" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC7474SequenceChangeBreaksDigest</code></a></span></div>
 </div></td>
 </tr>
@@ -389,8 +385,8 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L178" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L289" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTamperRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L184" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L294" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTamperRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-5-2">RFC7474-5-2</code></td><td colspan="3"><span class="rfc-subject">OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet. The remainder of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4 times, where L is the length of the hash, measured in octets. The basic idea is to incorporate the IP source address from the IP header in the cryptographic authentication computation so that any change of IP source address in a replayed packet can be detected. When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet. (§5)</span></td></tr>
@@ -398,12 +394,12 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L202" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L266" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadFromIPHeaderSource</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L216" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadIsInterfaceSource</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L198" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L275" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L226" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadNotRouterIDOrZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L208" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L278" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadFromIPHeaderSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L228" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadIsInterfaceSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L204" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L287" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L238" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadNotRouterIDOrZero</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-6-1">RFC7474-6-1</code></td><td colspan="3"><span class="rfc-subject">In order to prevent cross-protocol replay attacks for protocols sharing common keys, the two-octet OSPFv2 Cryptographic Protocol ID is appended to the authentication key prior to use. (§6)</span></td></tr>
@@ -411,8 +407,8 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L179" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L325" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L185" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L330" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-6-2">RFC7474-6-2</code></td><td colspan="3"><span class="rfc-subject">When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6)</span></td></tr>
@@ -438,8 +434,8 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>SHOULD</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L507" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L501" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L541" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L535" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-4.1-1">RFC7474-4.1-1</code></td><td colspan="3"><span class="rfc-subject">If there are still multiple keys that match, the key with the most recent SendLifetimeStart will be selected. This will facilitate graceful key rollover. (§4.1)</span></td></tr>
@@ -490,23 +486,18 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7474-2-1"><code>RFC7474-2-1</code></a></h3>
 <p>Since there is no room in the OSPFv2 packet for a 64-bit sequence number, it will occupy the 8 octets following the OSPFv2 packet and MUST be included when calculating the OSPFv2 packet digest. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c23 re-judge (independent judge). Clause &#39;occupy the 8 octets following the OSPFv2 packet&#39;: TestRFC7474SequenceIncludedInDigest asserts signed[plen:plen+8] == literal 00 00 00 05 00 00 00 09 and the total length plen+8+32. Clause &#39;MUST be included when calculating the digest&#39;: the same unit asserts the digest equals an independent HMAC-SHA-256 (Ko = key || 00 01 zero-padded, hand-built HMAC) over packet || sequence || Apad(src, 0x878FE1F3 fill); the negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet after signing and Verify refuses, unchanged control verifies. Overlay leaving the sequence out of the hash on both Sign and Verify reds both new units while TestOSPFAuthType3SequenceTrailer stays green (scratch/c23/a3), which was the earlier finding. Observed-red records on Sign and Verify. HEAD units supplementary.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Strengthened positive: TestOSPFAuthType3SequenceTrailer and TestRFC7474SequenceIncludedInDigest compare Sign&#39;s trailer with an independent HMAC-SHA-256 over packet || 8 sequence octets || Apad, so a Sign that left the sequence out of the hash fails where a round trip would not. The negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet with packet and digest untouched, and the packet is refused while the control verifies.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L228" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L142" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC7474SequenceChangeBreaksDigest</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L177" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L183" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -526,7 +517,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L430" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L464" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -541,7 +532,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L458" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L492" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -566,7 +557,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L394" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L428" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -580,28 +571,18 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 </div>
 <h3><a href="#rfc7474-2-5"><code>RFC7474-2-5</code></a></h3>
 <p>Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. AuType 3 through authStore.verify. Positive: boot 1 low 5, boot 1 low 6, then boot 2 low 1 (smaller low word, greater boot) all accepted, so the comparison is 64-bit with the boot word first. Negative: after boot 2 low 1, boot 1 low 0xFFFFFFF0, boot 2 low 0 and an equal boot 2 low 1 are each dropped with reason &#39;replay&#39;. Revert records on replayedSequence. The older AuType 2 tags stay.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The AuType 2 tags flagged last round are gone from TestOSPFAuthReplay (now RFC 2328 rows). Split confirmed against the texts: RFC 7474 Section 2 &#39;MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor&#39; binds AuType 3; RFC 2328 D.5.3 (2) discards only &#39;less than the cryptographic sequence number recorded in the sending neighbor&#39;s data structure&#39; (one field per neighbour, D.3). replayedSequence returns seq &lt;= last for AuTypeCryptographicESN. Positive TestRFC7474GreaterExtendedSequenceAccepted accepts boot 2 low 1 after boot 1 low 6; negative TestRFC7474NotGreaterExtendedSequenceDropped drops smaller-boot, smaller and equal with reason replay; TestOSPFAuthReplayEqualSequenceByAuType drops an equal AuType 3 sequence. Replacing &lt;= by &lt; or comparing the low word only reddens a named assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L138" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L186" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayEqualSequenceByAuType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L185" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayEqualSequenceByAuType</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L82" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474NotGreaterExtendedSequenceDropped</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L133" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -615,23 +596,13 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 </div>
 <h3><a href="#rfc7474-2-6"><code>RFC7474-2-6</code></a></h3>
 <p>Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor. Otherwise, the OSPF packet is considered a replayed packet and dropped. OSPF packets of different types may arrive out of order if they are prioritized as recommended in [RFC4222]. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. Row span checked: it is the verbatim RFC 7474 section 2 text from &#39;Upon reception&#39; to &#39;[RFC4222].&#39;; the last sentence is explanatory, not an obligation. Positive TestRFC7474ReplayMarkPerNeighborAndType: after 2.2.2.2 Hello 100, 3.3.3.3 Hello 5 and 2.2.2.2 LS Ack 5 are accepted (mark per neighbor and per type); TestOSPFAuthReplayPerType&#39;s prose now claims per type only. Negative TestRFC7474ReplayedPacketDropped: per-neighbor replays (lower and equal) dropped as &#39;replay&#39;, while 3.3.3.3 then accepts 6. Revert records on verify and replayedSequence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. AuType 2 tags removed from TestOSPFAuthReplay and TestOSPFAuthReplayPerType; only AuType 3 units remain. replaySlotFor keys AuType 3 by iface, neighbour and packet type, AuType 2 by neighbour only, matching RFC 7474 Section 2 (&#39;of that type ... from the sending OSPF neighbor&#39;) and RFC 2328 D.5.3/D.3. Positive TestRFC7474ReplayMarkPerNeighborAndType: after 2.2.2.2 Hello 100, 3.3.3.3 Hello 5 and 2.2.2.2 LS Ack 5 are accepted, so a mark shared across neighbours or types reddens. Negative TestRFC7474ReplayedPacketDropped: 2.2.2.2 Hello 99 and 3.3.3.3 Hello 5 again are dropped as replay, 3.3.3.3 Hello 6 accepted. The positive record is a whole-body revert of verify; the slot discrimination was judged by reading.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L110" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReplayedPacketDropped</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L212" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerType</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -645,13 +616,18 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 </div>
 <h3><a href="#rfc7474-3-1"><code>RFC7474-3-1</code></a></h3>
 <p>The sequence number is removed and the Key ID is extended to 32 bits and moved to the former position of the sequence number. Additionally, the 64-bit sequence number is moved to the first 64 bits following the OSPFv2 packet and is protected by the authentication digest. These additional 64 bits or 8 octets are included in the IP header length but not the OSPF header packet length. Finally, the 0 field at the start of the OSPFv2 header authentication is extended from 16 bits to 24 bits. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c23 re-judge (independent judge). Four sentences of sec 3, each asserted with literal octets in TestRFC7474SequenceIncludedInDigest: authentication field 00 00 00 28 01 02 03 04 (24-bit zero field, 32-bit Key ID 0x01020304 in the former sequence position); OSPF Packet Length == plen so the 8 sequence octets sit outside it; the sequence occupies the first 64 bits after the packet; &#39;protected by the authentication digest&#39; by the independent-digest comparison, with the negative TestRFC7474SequenceChangeBreaksDigest (changed sequence refused) and the a3 overlay reding both. TestOSPFAuthCryptoRejectsKeyIDMismatch stays as the Key ID negative. Caveat outside this row&#39;s quote: the unit also pins Auth Data Len = 0x28 (8 + L), which is Ze&#39;s choice (Sign af[3] = 8 + l); RFC 7474 never states the value and sec 5 leaves the RFC 5709 process unchanged, whose sec 3.1 says the field is the hash length L. The verdict does not rest on that octet; the reading is an open question for the main thread.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Positive asserts the literal auth field 00 00 00 28 01 02 03 04 and the Packet Length excluding the 8 sequence octets. The negatives are strict framing (an extra byte after seq+digest refused), a 32-bit Key ID mismatch whose IDs share the low octet so only a full 32-bit compare rejects it, and a changed sequence refused.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L257" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L234" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L262" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -675,18 +651,18 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 </div>
 <h3><a href="#rfc7474-5-1"><code>RFC7474-5-1</code></a></h3>
 <p>the 64-bit sequence number will be included in the First-Hash along with the Authentication Trailer and OSPF packet (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a First-Hash that omits the 64-bit sequence. TestOSPFAuthType3SequenceTamperRejected flips one octet of signed[plen:plen+8] and asserts Verify rejects it, red if the sequence is outside the hash; TestOSPFAuthType3SequenceTrailer asserts the untampered round trip verifies and returns the sequence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. The positive unit now holds the independent digest over packet || sequence || Apad, which is the First-Hash content, beside the round trip; the negative refuses a tampered sequence octet.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L289" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTamperRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L294" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTamperRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L178" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L184" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -701,32 +677,32 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L198" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L204" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L275" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L287" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L226" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadNotRouterIDOrZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L238" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadNotRouterIDOrZero</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L202" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L208" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L266" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadFromIPHeaderSource</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L278" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReceiveApadFromIPHeaderSource</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L216" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadIsInterfaceSource</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L228" title="internal/plugins/ospf/rfc7474_apad_source_test.go" target="_blank" rel="noopener"><code>TestRFC7474SentApadIsInterfaceSource</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -735,18 +711,18 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 </div>
 <h3><a href="#rfc7474-6-1"><code>RFC7474-6-1</code></a></h3>
 <p>In order to prevent cross-protocol replay attacks for protocols sharing common keys, the two-octet OSPFv2 Cryptographic Protocol ID is appended to the authentication key prior to use. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: hashing with the bare key. TestOSPFAuthType3RequiresProtocolIDSuffix builds a digest over the bare key and asserts Verify rejects it, with the real signer over the same key, seq and source as the verifying control; TestOSPFAuthType3SequenceTrailer round-trips the suffixed key.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. The positive unit&#39;s independent reference digest appends Protocol ID 00 01 to the key and must equal Sign&#39;s trailer, so a missing suffix fails it; the negative rejects a digest made from the bare key.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L325" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L330" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L179" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L185" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -785,12 +761,12 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L501" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L535" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L507" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L541" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1032,7 +1008,7 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

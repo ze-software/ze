@@ -122,12 +122,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.0%</strong><b>9 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.9%</strong><b>10 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 24 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -205,7 +205,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>24</td>
+<td>25</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>11</td>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>9</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7770.md</code></td>
@@ -419,6 +419,15 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-2.2-2">RFC7770-2.2-2</code></td><td colspan="3"><span class="rfc-subject">The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go#L44" title="internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go" target="_blank" rel="noopener"><code>TestRFC7770V3InstanceZeroCarriesCapabilities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze originates the OSPFv3 RI LSA with Instance ID 0 leading with the type-1 Informational Capabilities TLV and then the type-2 Functional Capabilities TLV on every origination, and, being informational-only on receive, never rejects a peer whose Instance 0 lacks them, so only the positive direction is meaningful (internal/plugins/ospf/origination_v6_ri.go::v6OriginateRIScope)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-2.7-2">RFC7770-2.7-2</code></td><td colspan="3"><span class="rfc-subject">If AS-wide flooding scope is chosen, the originating router should also advertise area-scoped LSA(s) into any attached Not-So-Stubby Area (NSSA) area(s). (§2.7) -- Ze originates area-scoped RI into attached NSSAs when AS scope is selected</span></td></tr>
 <tr><td></td>
@@ -699,6 +708,21 @@ Same OSPF experimental status.
 <p>New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7770-5.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7770-2.2-2"><code>RFC7770-2.2-2</code></a></h3>
+<p>The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7770 Section 2.2: &#39;The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV.&#39; The test originates through the real OSPFv3 producer v6OriginateRIScope, reads the installed LSA with Link State ID 0 back from the LSDB and asserts TLV type 1 then type 2; a body that dropped or displaced either TLV turns it red (Ze always advertises the functional TLV, so &#39;if advertised&#39; holds). Order is stricter than the RFC asks but cannot pass a non-conforming LSA. Single-polarity positive is sound: the SHOULD binds the originator, and receive is informational. Covers area scope with no overflow; the lead placement is in the shared packRIInstances that RFC7770-2.1-1 and 3-1 exercise.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go#L44" title="internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go" target="_blank" rel="noopener"><code>TestRFC7770V3InstanceZeroCarriesCapabilities</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -919,7 +943,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

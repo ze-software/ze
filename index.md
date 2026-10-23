@@ -37,19 +37,19 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**37,100+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,000+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**153 RFCs supported**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**154 RFCs supported**
 
-- 4,137 MUSTs to test
-- 2,717 checked with a test
-- 65.7% done
+- 4,163 MUSTs to test
+- 2,758 checked with a test
+- 66.3% done
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,400+ end to end tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,500+ end to end tests**
 
 - Peering, sessions, updates
 - Editor, commits, reloads
@@ -61,7 +61,7 @@ Every homepage number links to the page where you can inspect the test layer, tr
 - Wire formats, config files
 - Saved crashes become regression cases
 
- Fuzz crashes kept as regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**10 interop targets**
+ Fuzz crashes kept as regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**11 interop targets**
 
 - BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP
 - IPsec, L2TP, PPPoE, RADIUS

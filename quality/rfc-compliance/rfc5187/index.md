@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 100.0% | 12 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 8 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 4 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -62,17 +62,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 12 |
-| Tagged units | 12 |
+| Test tags | 8 |
+| Tagged units | 8 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 12 |
+| Discrimination records | 8 |
 | Summary | `rfc/short/rfc5187.md` |
 | Requirement shard | `rfc/requirements/rfc5187.md` |
 | RFC text | `rfc/full/rfc5187.txt` |
 
 ## Enrolment
 
-Enrolled: OSPFv3 Graceful Restart: four MUST-level requirements, all met and tested with both polarities. RFC5187-2.2-1 (Grace Period TLV always in a grace-LSA) and RFC5187-2.2-2 (Restart Reason TLV always present) via the OSPFv3 grace-LSA body codec (internal/plugins/ospf/v3/packet/lsa_grace.go, which the OSPFv3 origination v6OriginateGraceLSA in gr_preserve.go encodes and the helper's grInspectV6Update decodes): TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs (the originated LSA's body is the literal Type 1 Length 4 and Type 2 Length 1 TLVs) and TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV (a peer's grace-LSA lacking either TLV is ignored by the helper). Ze originates the OSPFv3 link-scoped grace-LSA (LS Type 0x000B). RFC5187-3.1-1 (preserve LSA-ID to prefix correspondence across restart) and RFC5187-3.2-1 (preserve OSPFv3 Interface ID across restart) via the NVS preservation maps PrefixLSIDs/InterfaceIDs (internal/plugins/ospf/gr_nvs.go:41-45): TestRestartFactPersistsAcrossRestart (maps read back intact after a restart) and TestStaleRestartFactIgnored (an expired/cleared restart fact is inactive, so stale IDs are not restored). No SHOULD/MAY requirements are gated.
+Enrolled: OSPFv3 Graceful Restart: four MUST-level requirements, all met and tested with both polarities. RFC5187-2.2-1 (Grace Period TLV always in a grace-LSA) and RFC5187-2.2-2 (Restart Reason TLV always present) via the OSPFv3 grace-LSA body codec (internal/plugins/ospf/v3/packet/lsa_grace.go, which the OSPFv3 origination v6OriginateGraceLSA in gr_preserve.go encodes and the helper's grInspectV6Update decodes): TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs (the originated LSA's body is the literal Type 1 Length 4 and Type 2 Length 1 TLVs) and TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV (a peer's grace-LSA lacking either TLV is ignored by the helper). Ze originates the OSPFv3 link-scoped grace-LSA (LS Type 0x000B). RFC5187-3.1-1 (preserve LSA-ID to prefix correspondence across restart) and RFC5187-3.2-1 (preserve OSPFv3 Interface ID across restart) via the NVS preservation maps PrefixLSIDs/InterfaceIDs (internal/plugins/ospf/gr_nvs.go:41-45): restored on resume by restorePrefixLSIDs and restoreInterfaceIDs (gr_preserve.go): TestRFC5187LSAIDToPrefixPreservedAcrossRestart (the resumed engine keeps the LSA ID of a redistributed prefix and refuses it to a new prefix) and TestRFC5187InterfaceIDPreservedAcrossRestart (the resumed engine announces the pre-restart Interface ID, not the kernel ifindex). No SHOULD/MAY requirements are gated.
 
 ## What the public ledger says
 
@@ -107,8 +107,8 @@ Same OSPF experimental status.
 |---|---|---|---|---|
 | `RFC5187-2.2-1` | Grace Period (Type=1, Length=4). The number of seconds that the router's neighbors should continue to advertise the router as fully adjacent, regardless of the state of database synchronization between the router and its neighbors. This TLV MUST always appear in a grace-LSA. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_grace_tlv_test.go#L30). **negative:** `unit/verify` [`TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_grace_tlv_test.go#L109) |
 | `RFC5187-2.2-2` | Graceful restart reason (Type=2, Length=1). Encodes the reason for the router restart, as one of the following: 0 (unknown), 1 (software restart), 2 (software reload/upgrade), or 3 (switch to redundant control processor). This TLV MUST always appear in a grace-LSA. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_grace_tlv_test.go#L33). **negative:** `unit/verify` [`TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_grace_tlv_test.go#L114) |
-| `RFC5187-3.1-1` | Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L87). **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L60). **negative:** `unit/verify` [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L100). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L110) |
-| `RFC5187-3.2-1` | Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L58). **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L63). **negative:** `unit/verify` [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L48). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L114) |
+| `RFC5187-3.1-1` | Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L87). **negative:** `unit/verify` [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L100) |
+| `RFC5187-3.2-1` | Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L58). **negative:** `unit/verify` [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L48) |
 
 ## Gaps and untested MUSTs
 
@@ -144,26 +144,22 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c22 
 
 Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c11). Now proven through the real restart path (rfc5187_preserve_restart_test.go): engine A redistributes 2001:db8:5187::/48 (v6InjectExternal), prepareRestart persists into a store; engine B over the same store resumes (inRestart asserted). TestRFC5187LSAIDToPrefixPreservedAcrossRestart +: B maps the prefix to A's LSA ID without redistributing it (only restorePrefixLSIDs can put it there; a no-op capture or restore leaves no entry -> red). - same unit: a prefix first redistributed on B does not take the preserved ID and the preserved prefix keeps its own; an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) removing the redistV6Next bump in restorePrefixLSIDs turns it red ('took the preserved LSA ID 1'). Revert records on restorePrefixLSIDs observed red. Old gr_nvs_test.go tags (store round-trip only) remain, unproven.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The store round-trip tags are gone. TestRFC5187LSAIDToPrefixPreservedAcrossRestart: after a real restart the redistributed prefix maps to its pre-restart LSA ID, and a prefix first redistributed afterwards is refused that ID while the preserved one keeps it. Records on restorePrefixLSIDs.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L110) | unit/verify | revert, verified |
 | negative | [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L100) | unit/verify | revert, verified |
-| positive | [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L87) | unit/verify | revert, verified |
 
 ### [`RFC5187-3.2-1`](#rfc5187-3.2-1)
 
 Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 711a3d1ea0: TestRFC5187InterfaceIDPreservedAcrossRestart moved byte-identical into rfc5187_preserve_restart_linux_test.go under //go:build linux, so its key changed. Re-read against Section 3.2 ("the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts"): the negative fails if grInterfaceID(lo) or the announced topology ID equals the kernel ifindex a fresh start takes, the positive pins the preserved 1041. Limit named: the unit now compiles on Linux only, so on another host the row's discrimination is not exercised and the gr_nvs_test.go tags (NVS round-trip) are supplementary. Re-judged 2026-09-30 (independent judge, c12). Section 3.2: 'the OSPFv3 Interface ID ... MUST be preserved by the restarting router across restarts.' The c11 vacuous negative is replaced: TestRFC5187InterfaceIDPreservedAcrossRestart runs on lo, whose kernel ifindex is the Interface ID a fresh start takes (grInterfaceID falls back to interfaceIndex, gr_preserve.go). - neither grInterfaceID(lo) nor the announced topology ID is the kernel ifindex; + the resumed engine announces the preserved 1041. Author overlay making restoreInterfaceIDs' maps.Copy a no-op reds the negative line ('lo resolves to its fresh-start Interface ID 1'), judge read the diff and the log. Records +/- revert on restoreInterfaceIDs observed. The unit needs a host lo interface (Linux naming) and Fatalf's without it. gr_nvs_test.go tags are supplementary (NVS round-trip).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The store round-trip tags are gone. TestRFC5187InterfaceIDPreservedAcrossRestart: the restarted router reuses the pre-restart OSPFv3 Interface ID and does not take a new one. Records on restoreInterfaceIDs.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L114) | unit/verify | revert, verified |
 | negative | [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L48) | unit/verify | revert, verified |
-| positive | [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L63) | unit/verify | revert, verified |
 | positive | [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L58) | unit/verify | revert, verified |
 
 ## Extraction sign-off

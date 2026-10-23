@@ -334,14 +334,14 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagNotInventedInterArea</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-3">RFC7684-2.1-3</code></td><td colspan="3"><span class="rfc-subject">However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-3">RFC7684-2.1-3</code></td><td colspan="3"><span class="rfc-subject">However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter-area and NSSA-external, AS for AS-external</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-2.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684EveryPrefixInAnLSAFitsItsScope</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L173" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA</code></a></span></div>
 </div></td>
 </tr>
@@ -363,7 +363,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this directive binds downstream application specifications (e.g. RFC 8665 segment routing) that define the sub-TLVs these LSAs carry, not a ze wire behavior; ze originates backward-compatible empty Extended Prefix/Link containers per RFC 5250 (internal/plugins/ospf/ext_prefix.go:72-75, internal/plugins/ospf/ext_link.go:56-59)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-1">RFC7684-5-1</code></td><td colspan="3"><span class="rfc-subject">Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-1">RFC7684-5-1</code></td><td colspan="3"><span class="rfc-subject">Additionally, implementations must assure that malformed TLV and sub-TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -592,14 +592,14 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc7684-2.1-3"><code>RFC7684-2.1-3</code></a></h3>
-<p>However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an Extended Prefix Opaque LSA whose flooding scope fails a prefix it carries. + TestRFC7684EveryPrefixInAnLSAFitsItsScope: real self LSAs (stub, two Type-3s, two Type-5s) through extPrefixOnOriginate; every TLV of every decoded body has extPrefixScope(routeType) == the LSA scope, and the counts pin 3 area-scope and 2 AS-scope TLVs (so a mapping that put externals in area scope also fails). - TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA (R1(b)): 10.0.0.0/24 as intra, inter and external never sits in an LSA whose scope fails its role, and all three roles are originated. Records on ext_prefix.go::extPrefixOnOriginate (+/-) observed red; author&#39;s overlay forcing area scope on every origination turned both red. TestExtPrefixScopeSelection keeps the per-route-type mapping.</p>
+<p>However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter-area and NSSA-external, AS for AS-external</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Product fix verified against the RFCs. RFC 7684 Section 2.1: route types &#39;correspond directly to the OSPFv2 LSAs types&#39;. RFC 5250 Section 3: type-11 LSAs are &#39;not flooded into stub areas or Not-So-Stubby Areas (NSSAs)&#39;. So an NSSA-external prefix needs area scope, and extPrefixScope now returns AS scope for AS-external only. TestExtPrefixScopeSelection asserts all four mappings (NSSA-external is area, AS-external is AS). The per-LSA pair proves real originated LSAs never mix scopes. Observation: ext_prefix.go originates only intra-area, inter-area and AS-external prefixes, so no origination path reaches the NSSA-external branch yet. The row&#39;s trailing note describes the function, not an originated case.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L173" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -609,7 +609,7 @@ Same OSPF experimental status.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -646,8 +646,8 @@ Same OSPF experimental status.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7684-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></h3>
-<p>Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: supplementary unit TestExtPrefixMalformedCounted changed only by the lookupPrefix area argument; the verdict rests unchanged on TestRFC7684MalformedPermutationsDetected (+ valid prefix and link bodies accepted by DecodeExt*LSA and ValidateExtLSABody; - nine single-fault permutations each refused by both paths, panic converted to t.Fatalf). Records on DecodeExtPrefixLSA (+) and decodeExtSubTLVs (-) observed red; older supplementary tags carry no record and are not relied on.</p>
+<p>Additionally, implementations must assure that malformed TLV and sub-TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Row text correction only (&#39;sub- TLV&#39; to &#39;sub-TLV&#39;, rfc/corrections/rfc7684.md), checked against RFC 7684 Section 5. Units unchanged: the malformed-permutation table and the fuzz targets detect without panic, and well-formed bodies decode.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -888,7 +888,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

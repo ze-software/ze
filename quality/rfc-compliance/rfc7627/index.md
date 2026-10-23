@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 11.8% | 2 of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 17 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 17 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 17 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,7 +34,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 100.0% | 17 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 88.2% | 15 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -66,12 +66,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 17 |
+| Gated with no test | 15 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 4 |
+| Tagged units | 4 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc7627.md` |
 | Requirement shard | `rfc/requirements/rfc7627.md` |
 | RFC text | `rfc/full/rfc7627.txt` |
@@ -88,16 +88,18 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
+| Positive and negative tests | 2 | one part of the gated population |
 | Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 17 | one part of the gated population |
+| No test and no annotation | 15 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **17** | every gated MUST falls in exactly one bucket above |
 
-**No test and no annotation (17):** [`RFC7627-5.1-1`](#rfc7627-5.1-1), [`RFC7627-5.2-1`](#rfc7627-5.2-1), [`RFC7627-5.2-2`](#rfc7627-5.2-2), [`RFC7627-5.2-4`](#rfc7627-5.2-4), [`RFC7627-5.2-6`](#rfc7627-5.2-6), [`RFC7627-5.3-3`](#rfc7627-5.3-3), [`RFC7627-5.3-4`](#rfc7627-5.3-4), [`RFC7627-5.3-6`](#rfc7627-5.3-6), [`RFC7627-5.3-8`](#rfc7627-5.3-8), [`RFC7627-5.3-9`](#rfc7627-5.3-9), [`RFC7627-5.3-10`](#rfc7627-5.3-10), [`RFC7627-5.4-1`](#rfc7627-5.4-1), [`RFC7627-5.4-2`](#rfc7627-5.4-2), [`RFC7627-5.4-3`](#rfc7627-5.4-3), [`RFC7627-5.4-4`](#rfc7627-5.4-4), [`RFC7627-5.4-6`](#rfc7627-5.4-6), [`RFC7627-6.4-2`](#rfc7627-6.4-2)
+**Positive and negative tests (2):** [`RFC7627-5.4-1`](#rfc7627-5.4-1), [`RFC7627-5.4-2`](#rfc7627-5.4-2)
+
+**No test and no annotation (15):** [`RFC7627-5.1-1`](#rfc7627-5.1-1), [`RFC7627-5.2-1`](#rfc7627-5.2-1), [`RFC7627-5.2-2`](#rfc7627-5.2-2), [`RFC7627-5.2-4`](#rfc7627-5.2-4), [`RFC7627-5.2-6`](#rfc7627-5.2-6), [`RFC7627-5.3-3`](#rfc7627-5.3-3), [`RFC7627-5.3-4`](#rfc7627-5.3-4), [`RFC7627-5.3-6`](#rfc7627-5.3-6), [`RFC7627-5.3-8`](#rfc7627-5.3-8), [`RFC7627-5.3-9`](#rfc7627-5.3-9), [`RFC7627-5.3-10`](#rfc7627-5.3-10), [`RFC7627-5.4-3`](#rfc7627-5.4-3), [`RFC7627-5.4-4`](#rfc7627-5.4-4), [`RFC7627-5.4-6`](#rfc7627-5.4-6), [`RFC7627-6.4-2`](#rfc7627-6.4-2)
 
 ## Requirements
 
@@ -114,8 +116,8 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC7627-5.3-8` | If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the "extended_master_secret" extension in its ServerHello message. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.3-9` | If the original session did not use the "extended_master_secret" extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.3-10` | If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7627-5.4-1` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7627-5.4-2` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7627-5.4-1` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L200). **negative:** `interop/nightly` [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L381) |
+| `RFC7627-5.4-2` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L203). **negative:** `interop/nightly` [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L386) |
 | `RFC7627-5.4-3` | If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake's "verify_data" for application-level authentication. (§5.4) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.4-4` | If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake's "verify_data" for application-level authentication. In particular, the client MUST disable renegotiation and any use of the "tls-unique" channel binding [RFC5929] on the current connection. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.4-6` | If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
@@ -146,8 +148,6 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | [`RFC7627-5.3-8`](#rfc7627-5.3-8) If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the "extended_master_secret" extension in its ServerHello message. (§5.3) | no test | no test carries this requirement id |
 | [`RFC7627-5.3-9`](#rfc7627-5.3-9) If the original session did not use the "extended_master_secret" extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3) | no test | no test carries this requirement id |
 | [`RFC7627-5.3-10`](#rfc7627-5.3-10) If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3) | no test | no test carries this requirement id |
-| [`RFC7627-5.4-1`](#rfc7627-5.4-1) If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4) | no test | no test carries this requirement id |
-| [`RFC7627-5.4-2`](#rfc7627-5.4-2) If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4) | no test | no test carries this requirement id |
 | [`RFC7627-5.4-3`](#rfc7627-5.4-3) If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake's "verify_data" for application-level authentication. (§5.4) | no test | no test carries this requirement id |
 | [`RFC7627-5.4-4`](#rfc7627-5.4-4) If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake's "verify_data" for application-level authentication. In particular, the client MUST disable renegotiation and any use of the "tls-unique" channel binding [RFC5929] on the current connection. (§5.4) | no test | no test carries this requirement id |
 | [`RFC7627-5.4-6`](#rfc7627-5.4-6) If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4) | no test | no test carries this requirement id |
@@ -251,7 +251,10 @@ If a client or server chooses to continue with a full handshake without the exte
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7627-5.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L381) | interop/nightly | mutant, verified |
+| positive | [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L200) | unit/verify | mutant, verified |
 
 ### [`RFC7627-5.4-2`](#rfc7627-5.4-2)
 
@@ -259,7 +262,10 @@ If a client or server chooses to continue with a full handshake without the exte
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7627-5.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L386) | interop/nightly | mutant, verified |
+| positive | [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L203) | unit/verify | mutant, verified |
 
 ### [`RFC7627-5.4-3`](#rfc7627-5.4-3)
 

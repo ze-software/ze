@@ -98,16 +98,26 @@ references in a <code>filter {}</code> config block. Named filter types are defi
         }
     }
     filter {
-        import [ no-self-as rpki:validate ];
+        import {
+            filters [ no-self-as rpki:validate ];
+            final accept;
+        }
     }
     group customers {
         filter {
-            import [ community:scrub ];
-            export [ aspath:prepend ];
+            import {
+                filters [ community:scrub ];
+                final accept;
+            }
+            export {
+                filters [ aspath:prepend ];
+                final accept;
+            }
         }
     }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
 <h3 id="filter-types">Filter Types</h3>
 <p>Filter types are YANG lists under <code>bgp/policy</code>, each marked with <code>ze:filter</code>.
@@ -147,13 +157,14 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <h3 id="how-it-works">How It Works</h3>
 <ol>
 <li>Filter types are defined in <code>bgp { policy { } }</code> as named instances.</li>
-<li>Per-peer <code>filter { import/export [ names ] }</code> references filter instances.</li>
+<li>Each <code>filter</code> direction block lists filter instances under <code>filters</code> and states <code>final accept;</code> or <code>final reject;</code>.</li>
 <li>Default filters (e.g., loop-detection) auto-populate in every peer's import chain.</li>
 <li>On each received UPDATE, the engine runs the import filter chain.</li>
 <li>On each forwarded UPDATE, the engine runs the export chain per destination peer.</li>
 <li>Each filter responds accept, reject, or modify (delta-only).</li>
 </ol>
-<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, extractFilterChain -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
 <h3 id="deactivating-filters">Deactivating Filters</h3>
 <p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
 <pre><code>bgp {
@@ -165,21 +176,24 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
     }
     peer special {
         filter {
-            import [ inactive:no-self-as ];
+            import {
+                filters [ inactive:no-self-as ];
+                final accept;
+            }
         }
     }
 }
 </code></pre>
 <p>The <code>inactive:</code> prefix is an input shorthand: it is normalized at parse time into
 an out-of-band per-member deactivation marker (the stored filter name stays
-clean), so on serialize it round-trips to the canonical <code>inactive: import no-self-as</code> statement form. The deactivated ref stays in the chain but is
+clean), so on serialize it round-trips to the canonical <code>inactive: filters no-self-as;</code> statement inside the direction block. The deactivated ref stays in the chain but is
 skipped at runtime.</p>
 <p>In the CLI editor, use <code>deactivate</code> and <code>activate</code>:</p>
-<pre><code>deactivate bgp peer special filter import no-self-as
-activate bgp peer special filter import no-self-as
+<pre><code>deactivate bgp peer special filter import filters no-self-as
+activate bgp peer special filter import filters no-self-as
 </code></pre>
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
+<!-- source: internal/component/bgp/config/redistribution.go -- memberStatesToFilterRefs retains Inactive -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
 <h3 id="chain-order">Chain Order</h3>
 <p>Chains are cumulative across config levels:</p>
@@ -209,9 +223,15 @@ activate bgp peer special filter import no-self-as
 </tr>
 </tbody>
 </table>
+<p>Each configured direction requires its own <code>final</code>, even with no active filters.
+The most specific configured direction supplies the effective final decision.
+An absent direction inherits its parent's policy without creating a new policy.
+With no configured policy at any level, operator policy stays absent.</p>
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
 <p>Use the <code>insert</code> command in the CLI editor to control position:</p>
-<pre><code>insert filter import reject-bogons before no-self-as
-insert filter import new-filter last
+<pre><code>insert filter import filters reject-bogons before no-self-as
+insert filter import filters new-filter last
 </code></pre>
 <h3 id="filter-responses">Filter Responses</h3>
 <table>
@@ -224,18 +244,23 @@ insert filter import new-filter last
 <tbody>
 <tr>
 <td>accept</td>
-<td>Pass update through unchanged</td>
+<td>Continue to the next filter with the current update</td>
 </tr>
 <tr>
 <td>reject</td>
-<td>Drop update, short-circuit chain</td>
+<td>Drop the update immediately and stop the chain</td>
 </tr>
 <tr>
 <td>modify</td>
-<td>Change specific attributes (delta-only)</td>
+<td>Apply attribute changes and continue to the next filter</td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<p>Neither <code>accept</code> nor <code>modify</code> grants final acceptance. After the chain completes,
+<code>final accept;</code> permits the route and <code>final reject;</code> drops it. A raw payload
+rewrite stops later filters, but the final decision still applies.</p>
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
 <h3 id="conditioning-a-modifier-without-dropping-the-rest">Conditioning a modifier without dropping the rest</h3>
 <p>A chain is a pipe in which a reject DROPS the route, so a match filter placed
 before a modifier can only express "modify these and discard everything else".
@@ -251,12 +276,21 @@ stated values returns accept and passes through unchanged.</p>
     }
     policy {
         modify blackhole-to-discard {
-            match { community [ blackhole ]; }
-            set   { next-hop 192.0.2.1; }
+            match {
+                community [ blackhole ];
+            }
+            set {
+                next-hop 192.0.2.1;
+            }
         }
     }
     peer customer {
-        filter { import [ blackhole-to-discard ]; }
+        filter {
+            import {
+                filters [ blackhole-to-discard ];
+                final accept;
+            }
+        }
     }
 }
 </code></pre>
@@ -293,10 +327,11 @@ rather than forwarding it unmodified, and increments
 </tr>
 <tr>
 <td><code>accept</code></td>
-<td>Fail-open: pass the update through</td>
+<td>Fail-open: continue to the next filter, then apply the policy's final decision</td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- policyFilterFunc, PolicyFilterChain -->
 <h3 id="writing-a-filter-plugin">Writing a Filter Plugin</h3>
 <p>A filter plugin is a normal ze plugin that includes <code>filters</code> in its stage 1
 <code>declare-registration</code>. See <a href="../plugins/">Plugin Guide</a> for general plugin
@@ -573,7 +608,7 @@ unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

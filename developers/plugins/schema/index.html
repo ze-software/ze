@@ -105,7 +105,7 @@
 is loaded, before any plugin starts: <code>ze config validate</code> reports
 <code>unknown top-level keyword: &lt;root&gt;</code>. Compiling an external plugin's module at
 startup, so its own root becomes valid config, is planned
-(<code>plan/spec-plugin-external-yang-at-startup.md</code>). The <code>acme-monitor</code> example
+(<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code>). The <code>acme-monitor</code> example
 at the end of this page shows that planned behavior for an external plugin.</p>
 <!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema; deliverConfigRPC -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
@@ -337,7 +337,7 @@ stays a string checked by a <code>ze:validate</code> function.</p>
 external process and defines its own root, <code>acme-monitor</code>. Today Ze refuses
 an <code>acme-monitor { ... }</code> block in the config (see "What works today" above),
 so the plugin never receives a section. The example becomes valid when
-<code>plan/spec-plugin-external-yang-at-startup.md</code> lands. The SDK calls it shows
+<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code> lands. The SDK calls it shows
 (<code>NewConfigTx</code>, <code>Run</code>, <code>SchemaDecl</code>) work today for roots a compiled-in module
 defines.</p>
 <p>A complete example showing YANG schema registration with the SDK. The plugin
@@ -494,7 +494,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

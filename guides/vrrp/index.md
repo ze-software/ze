@@ -17,7 +17,7 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > [RFC status](../../reference/rfcs/index.md#first-hop-redundancy).
 
 The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
-(`./le test integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(`./le test integration interop`). Ze at priority 200 and keepalived 2.4.3 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -253,7 +253,13 @@ parent never competes to answer. Ze does disable Duplicate Address Detection on
 that macvlan (`accept_dad=0`): a virtual IP lives on one router at a time, so DAD
 would only add a tentative window during which the address is unreachable right
 after a promotion. It also stops that macvlan answering ARP (`arp_ignore=8`), so
-the IPv6 virtual MAC is never offered for an IPv4 address. IPv6 interoperability is verified against keepalived under
+the IPv6 virtual MAC is never offered for an IPv4 address, and makes it a router
+on the link (`forwarding=1` on the macvlan only), so its Neighbor Advertisements
+for the virtual IP carry the Router flag RFC 9568 Section 6.4.3 requires. The
+macvlan derives no IPv6 link-local from the virtual MAC (`addr_gen_mode` none,
+RFC 9568 Section 7.4): its only link-local is the group's first virtual address,
+present while the group is Active, which is also the source of its ICMPv6
+redirects. IPv6 interoperability is verified against keepalived under
 QEMU (election, node-death failover, and virtual-MAC resolution of the virtual
 IP).
 
@@ -272,15 +278,43 @@ A second box claiming the same address therefore cannot demote it. A
 advertisement, so two owners of one address resolve by election. It still
 treats the advertisement as a sign of misconfiguration: each one is counted
 under the `owner-conflict` packet-error reason, and a warning naming the
-sender is logged at most once a minute per group.
+sender is logged at most once a minute per group. The exception is a `version 3`
+group configured `checksum rfc5798-compatible`: that group keeps RFC 5798 as
+published, so its owner discards every advertisement it receives, as RFC 5798
+Section 7.1 requires, and counts each one under the `owner` reason.
 
 A `version 2` backup that receives an advertisement whose address list differs
 from its own counts it under `address-list`. It drops it, unless the sender
 advertised priority 255: an advertisement from the address owner is still
 processed, as RFC 3768 Section 7.1 says.
 
-<!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 owner discard and the address-list carve-out -->
+<!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 and rfc5798-compatible owner discard and the address-list carve-out -->
 <!-- source: internal/plugins/vrrp/instance.go -- noteOwnerConflict, the v3 owner count and rate-limited log -->
+
+## Proxy ARP is refused
+
+RFC 9568 Section 8.1.3 says: "If Proxy ARP is to be used on a VRRP Router, then
+the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP
+message." Linux answers a proxy ARP request with the receiving device's own MAC
+([LL-PROXY-ARP-MAC](https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md#ll-proxy-arp-mac)), so
+hosts would keep a MAC that does not move on failover. `ze config verify` and
+`ze config commit` therefore refuse proxy ARP on any unit that carries an IPv4
+VRRP group, whatever turns it on: `ipv4 proxy-arp true` on the unit, a
+`sysctl-profile` on the unit that sets `proxy_arp` (the builtin `proxy` profile
+or one of your own), or a `sysctl setting` of `net.ipv4.conf.<device>.proxy_arp`,
+`net.ipv4.conf.all.proxy_arp` or `net.ipv4.conf.default.proxy_arp`. The last one
+counts because ze creates the virtual-MAC macvlan, which takes the `default`
+value. `proxy_arp_pvlan` (private VLAN proxy ARP) is the same reply path, so
+the same keys ending in `proxy_arp_pvlan` are refused alike. The device is matched under the interface name you configured and under the kernel
+device it resolves to (`os-name` or `mac-match`), and a VLAN unit's device
+matches in either spelling, `eth0.100` or sysctl's `eth0/100`. Turn proxy ARP
+off there, or run the group on an interface without it.
+
+The same check runs on a runtime write: `set sysctl <key> <value>` that turns
+proxy ARP on for a device a running IPv4 VRRP group uses, or for `all` or
+`default`, is refused with the same explanation.
+
+<!-- source: internal/plugins/vrrp/proxyarp.go -- validateNoProxyARP, refuseLiveProxyARP -->
 
 ## The virtual MAC
 

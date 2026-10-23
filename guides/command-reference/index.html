@@ -3375,6 +3375,26 @@ format is rendered in the configured default, the <code>environment cli format d
 <td>Graceful close with NOTIFICATION</td>
 </tr>
 <tr>
+<td><code>request peer &lt;sel&gt; notify &lt;code&gt; &lt;subcode&gt; [&lt;text&gt;]</code></td>
+<td>write</td>
+<td>Close one peer's session with a NOTIFICATION of exactly that error code and subcode (each 0 to 255, assigned or not). The text, as UTF-8, is the RFC 9003 Shutdown Communication under Cease 2 and 4 and the Data field under every other pair; no text sends no Data. A text that does not fit is refused and the session stays up: more than 128 octets under Cease 2 and 4 (RFC 9003 Section 3, as Ze cannot know the peer takes 255), more than 4075 octets otherwise, or text that is not valid UTF-8. Every word after the subcode is the text, so a text can hold the words <code>code</code>, <code>subcode</code>, <code>text</code> or <code>hex</code>; a text whose first word is <code>text</code> or <code>hex</code> is typed after the keyword <code>text</code>. The keyword form <code>notify code &lt;code&gt; subcode &lt;subcode&gt; [text &lt;text&gt; | hex &lt;octets&gt;]</code> is the same command, and the one MCP and the web form send. One specific peer only <!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- handlePeerNotify; internal/component/bgp/message/notification.go -- BuildTeardownData --></td>
+</tr>
+<tr>
+<td><code>request peer &lt;sel&gt; notify &lt;code&gt; &lt;subcode&gt; hex &lt;octets&gt;</code></td>
+<td>write</td>
+<td>The same, with the Data field given verbatim as one word of hexadecimal digits, two per octet (<code>request peer 192.0.2.1 notify 6 2 hex 0474657374</code>). Ze sends the octets as they are, with no encoding and no check of their content, so the form can test how a peer handles a malformed Data field. More than 4075 octets (8150 digits), an odd number of digits, or a character other than 0-9, a-f or A-F is refused and the session stays up. The ExaBGP bridge sends this form for <code>teardown</code> <!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- notifyData --></td>
+</tr>
+<tr>
+<td><code>request peer &lt;sel&gt; disable [&lt;message&gt;]</code></td>
+<td>write</td>
+<td>Hold the peer administratively down: a running session closes with Cease subcode 2 (Administrative Shutdown) carrying the words after <code>disable</code> as the RFC 9003 Shutdown Communication, and ze opens no session and answers an inbound connection with Cease subcode 5 until <code>enable</code>. It overrides the config <code>shutdown</code> container until a commit adds or removes that container <!-- source: internal/component/bgp/plugins/cmd/peer/admin.go -- disable handler; internal/component/bgp/reactor/peer_admin.go -- Peer.Disable --></td>
+</tr>
+<tr>
+<td><code>request peer &lt;sel&gt; enable</code></td>
+<td>write</td>
+<td>Release the hold of <code>disable</code> or of the config <code>shutdown</code> container; the peer connects straight away. Takes no argument <!-- source: internal/component/bgp/reactor/peer_admin.go -- Peer.Enable --></td>
+</tr>
+<tr>
 <td><code>request peer &lt;sel&gt; flush</code></td>
 <td>write</td>
 <td>Block until all queued updates for peer are on the wire <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang --></td>
@@ -3728,7 +3748,7 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>clear bgp rib out &lt;selector&gt; [family &lt;family&gt;]</code></td>
 <td>write</td>
-<td>Regenerate and re-advertise Adj-RIB-Out (<code>*</code> for all peers; the bare <code>clear bgp rib out</code> is refused). <code>family</code> limits the replay to one family, typed after its keyword: <code>clear bgp rib out * family ipv4/unicast</code>; a family with no keyword is refused</td>
+<td>Regenerate and re-advertise Adj-RIB-Out (<code>*</code> for all peers; the bare <code>clear bgp rib out</code> is refused). Each family is sent between a BoRR and an EoRR to a peer that negotiated Enhanced Route Refresh (RFC 7313). <code>family</code> limits the replay to one family, typed after its keyword: <code>clear bgp rib out * family ipv4/unicast</code>; a family with no keyword is refused</td>
 </tr>
 <tr>
 <td><code>request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs...]</code></td>
@@ -4699,7 +4719,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

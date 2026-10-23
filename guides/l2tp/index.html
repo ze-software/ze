@@ -696,12 +696,22 @@ Delegated-IPv6-Prefix.</p>
             server main {
                 address 10.0.0.10;
                 port 1812;
+                accounting-port 1813;
                 shared-key radiussecret;
             }
         }
     }
 }
 </code></pre>
+<p>Each server entry has two destination ports. <code>port</code> (default 1812) receives
+the Access-Request packets, and <code>accounting-port</code> (default 1813, the port RFC
+2866 Section 3 assigns to accounting) receives every Accounting-Request: Start,
+Interim-Update and Stop. A server that takes both kinds on one socket needs
+<code>accounting-port</code> set to the same value as <code>port</code>, because without it the
+accounting goes to 1813, where that server is not listening. The two ports share
+the entry's address, shared key and failover position.</p>
+<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
 <p><code>nas-port-id-format</code> is the template for the NAS-Port-Id attribute (RFC 2869
 Section 5.17). An LNS has no physical port to number, so the operator composes
 one from <code>{nas-id}</code>, <code>{tunnel-id}</code> and <code>{session-id}</code>. Every other character is
@@ -1570,7 +1580,7 @@ goroutine-per-tunnel.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -33,7 +33,7 @@ disagree. Nothing depends on the order: each scenario gets its own setup, check
 and teardown.
 
 A reader outside a suite asks for its scenarios through the suite's catalog.
-Each lab registers one in its `register.go` (`interoplab.RegisterCatalog`,
+Each lab registers one in its `register_catalog.go` (`interoplab.RegisterCatalog`,
 `internal/le/interoplab/catalog.go`), built on the same `Discover` call and
 checker map its runner uses, so a name cited elsewhere is a name the runner
 runs. `./le feature check` resolves a feature's Interop entry
@@ -44,6 +44,17 @@ over the lab's selector variable. `./le feature record-run` records an interop
 green run through it, against the scenario directory's git tree id, so a
 feature's Supported claim needs a current green run of each scenario it counts
 (`docs/contributing/feature-maturity.md`, "Recorded runs").
+
+The catalog is also where a lab declares where it lives and how the repository
+runs it: `Package` (the checker directory), `ScenarioRoot`, `SelectorVariable`
+and `Action` (`<command> <area>/<verb>`). The lab's own runner reads the same
+`scenarioDirectory` and `selectorVariable` constants, so the declaration and
+the run cannot disagree. `./le rfc` derives its interop carriers from these
+fields, one per registered suite, and `./le rfc discriminate-record` runs one
+scenario through the declared action and selector.
+<!-- source: internal/le/interoplab/catalog.go -- Catalog -->
+<!-- source: internal/le/rfc/carriers.go -- interopTrees -->
+
 <!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed, Catalog.RunScenario -->
 
 A scenario directory carries only declarative inputs its runner reads: `ze.conf`
@@ -63,11 +74,11 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 
 | Daemon | Version | Image | Query Method | What It Validates |
 |--------|---------|-------|--------------|-------------------|
-| FRR | 10.3.1 | `quay.io/frrouting/frr:10.3.1` | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
-| BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
-| GoBGP | 3.31.0 | Go builder | gobgp CLI | eBGP, route injection and verification |
-| StayRTR | 0.6.4 | Go builder | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
-| pmacct `pmbmpd` | latest | `pmacct/pmbmpd:latest` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
+| FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
+| BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (owner decision M14); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
+| GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name | eBGP, route injection and verification |
+| StayRTR | 0.6.4 | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
+| pmacct `pmbmpd` | 1.8.0 | `pmacct/pmbmpd:v1.8.0` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
 | ExaBGP | API 6.0.0 contract fixtures | Compiled Go wire server | Wire byte comparison | Byte-for-byte encoding across all address families |
 <!-- source: internal/le/interoplab/bgp/prepare.go -- peer helpers and scenario preparation -->
 <!-- source: internal/le/interoplab/bgp/run.go -- scenario orchestrator -->
@@ -431,6 +442,19 @@ the removal's error, and an inspect that fails too is "unknown", naming both
 errors.
 <!-- source: internal/le/interoplab/docker.go -- Docker.confirmRemoval -->
 
+A `docker rm -f` the daemon refuses with "removal of container <name> is
+already in progress" is not a failure either: the daemon is already removing
+it, as `--rm` does for a one-shot whose bound ended. The wrapper inspects the
+container at once, then every `createSettleInterval` until
+`createSettleWindow` ends (`Docker.awaitRemoval`). Gone is "removed", an
+inspect that fails is "unknown", and a container still present when the window
+ends is reported by name as still present, with `./le test integration
+cleanup`. Only a container removal gets that answer: it is the one "already in
+progress" refusal in the dockerd 29.9 binary, so a network or image removal
+keeps the single inspect above.
+<!-- source: internal/le/interoplab/startsettle.go -- removalInProgressAnswer, Docker.awaitRemoval, pendingRemovalError -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.forceRemoveContainer -->
+
 A one-shot container (`Docker.RunOneShot`: the kernel probe, a host
 preflight, a terminal-demo render) runs in the foreground with `--rm` and a
 `ze-oneshot-<random>` name. Killing the docker client stops nothing the
@@ -458,9 +482,52 @@ before its own removal is reaped like a lab's. Commands inside it run through
 `Docker.ExecAttached`, with attached streams and their own bound. Those verbs
 root on SIGINT and SIGTERM, remove their container on a context the signal
 does not reach, and name a failed removal in the report's
-`container-removal-error`, exiting 1.
+`container-removal-error`, exiting 1. The removal is owed from the moment
+`docker run -d` was issued, under the same `ContainerMayExist` test a lab uses:
+the daemon creates the container before it starts it, so a start it refuses
+(a device the host lacks, such as `/dev/vhost-net`) or a Ctrl-C during the
+start still removes the container. A run that returned an error (a step it
+could not perform, or an interrupt) reached no verdict, so it prints none: the
+error, then a removal that failed with the command that finishes it, and it
+exits 1.
 <!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
-<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
+<!-- source: internal/le/test/deployment/deployment.go -- startProofContainer, removeContainer -->
+
+Killing the docker client does not cancel a create the daemon already
+accepted, so after a Ctrl-C during `docker run` the container can appear after
+the first `docker rm -f` answered that no container has that name. Docker
+29.9 gives that answer as exit 0 with no output, and prints the name only for a
+container it removed; older releases refuse with "No such container", and both
+answers count as absent. When a start failed or was canceled, `Docker.RemoveContainer` does not accept that
+first answer. It runs `docker rm -f` again every `createSettleInterval` until
+`createSettleWindow` ends, and removes the container if it appears. If the
+container appears and cannot be removed, or the wait is stopped, the error
+names the container and `./le test integration cleanup`. This applies to every
+start that marks its name: `Docker.RunDetached` (the deployment proofs, the
+benchmark), a lab peer's run, and a one-shot container. A create that lands
+after the window still carries the owner labels, so the cleanup removes it.
+Removing a container whose start succeeded takes one `docker rm -f`. So does
+any later removal of a name: the first removal after a failed start uses the
+mark up, whatever its `docker rm -f` answered.
+<!-- source: internal/le/interoplab/startsettle.go -- createSettleWindow, Docker.removeSettlingContainer, Docker.markUnsettled -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.RemoveContainer, Docker.RunOneShot, Docker.runContainer -->
+<!-- source: internal/le/test/deployment/actions.go -- notReached, proofNotReached -->
+
+A docker command le stopped is named for what stopped it. One whose own bound
+ended reads "did not finish within <bound>" and carries exit 124, as
+`timeout(1)` answers. One whose context was canceled, by an interrupt reaching
+the verb's signal root or by the run stopping, reads "was canceled before it
+finished" and carries no exit code, because the code would be le's own kill.
+
+Every docker command runs in a process group of its own, so a terminal Ctrl-C
+reaches `le` and not the docker client: the signal root cancels the run, and
+the removals it then issues on a context the cancel does not reach are not
+killed by the same signal, or by a second Ctrl-C. A command handed a terminal
+as one of its streams stays in the group of `le`, where reading the terminal
+raises no SIGTTIN ("How a suite's child processes end" in
+`runner-architecture.md`).
+<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
+<!-- source: internal/le/interoplab/docker.go -- commandError.Error -->
 
 The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the
 other such caller. Its network goes through `Docker.CreateNetwork` and
@@ -469,6 +536,25 @@ other such caller. Its network goes through `Docker.CreateNetwork` and
 and each image through `Docker.Build` (a named build context, such as
 FreeRtr's source checkout, is a typed `NamedBuildContext`) followed by
 `Docker.ReleaseImage`, which drops the run-owned tag and keeps the DUT's own.
+Only BuildKit accepts `--build-context`, so a build that carries a named
+context first asks `docker buildx version`. When the docker CLI has no buildx
+plugin, `docker build` would run the legacy builder and answer with its usage
+text, so `Docker.Build` refuses before `docker build` runs: the error names
+BuildKit and the missing plugin, and names `./le setup install` as the fix.
+That run's `docker-buildx` step installs the plugin on macOS and names the
+package to install as root on Linux (`docs/guide/developer-setup.md`, "Docker
+labs"). The error then gives the same install by hand: `brew install
+docker-buildx` and the `cliPluginsExtraDirs` entry Homebrew prints on macOS,
+added to the config file this docker client reads (`$DOCKER_CONFIG/config.json`
+from the client's environment, else `~/.docker/config.json`, resolved by
+`setup.DockerConfigPath`, the helper the setup step edits it through), and the
+distribution's buildx package on Linux. An environment that sets
+`DOCKER_BUILDKIT` to a false value forces the legacy builder even with buildx
+installed, so that build is refused too, naming the variable and
+`unset DOCKER_BUILDKIT`; Ze never overrides the setting. The named context is
+never dropped to make the build run.
+<!-- source: internal/le/interoplab/buildkit.go -- Docker.requireBuildKit, legacyBuilderForced -->
+<!-- source: internal/le/setup/buildx.go -- BuildKitSetupCommand, DockerConfigPath -->
 `Docker.ContainerRunning` answers an inspect it cannot read as an error, never
 as "not running". It removes only a DUT or sender name it recorded, and records
 one only when `interoplab.ContainerMayExist` says its `RunDetached` may have
@@ -476,8 +562,11 @@ left a container: never for a name the daemon refused as another container's.
 <!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages, Runner.startContainer, Runner.removeContainer -->
 <!-- source: internal/le/interoplab/container.go -- Docker.ContainerRunning -->
 
-`Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
-prints each removal or skip as a progress line. A listing the daemon refuses is
+`Suite.Run` runs the cleanup after the Docker probe and before Preflight. It
+prints each removal or skip as a progress line, then the summary line that
+`./le test integration cleanup` ends with: `interop: cleanup: N removed, N kept,
+N failed, N unknown`, or `interop: cleanup: no Ze lab resource on this Docker
+daemon` when the sweep met nothing. So a sweep that ran always says so. A listing the daemon refuses is
 a setup error that names the pre-run cleanup, why the run stops, and the fix:
 run the failing docker command by hand, then `./le test integration cleanup`
 or the run again. Before a scenario creates its network and containers, its
@@ -490,7 +579,7 @@ the lab's own suffix variable, which the message names from
 verdict's own fix: stop the owner pid it names, or run the cleanup. The
 scenario's teardown then removes nothing of that name: it removes only what
 the scenario itself created.
-<!-- source: internal/le/interoplab/orphans.go -- Docker.claimName -->
+<!-- source: internal/le/interoplab/orphans.go -- Docker.claimName, OrphanReport.Summary -->
 
 `./le test integration cleanup` runs the cleanup by hand and exits 1 when a
 removal failed, naming the failing command. `./le test integration cleanup
@@ -516,7 +605,7 @@ throwaway container and reads its answer:
 
 ```bash
 docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
-  -v <staged ze>:/ze:ro alpine:3.21 /ze doctor --json kernel-capabilities
+  -v <staged ze>:/ze:ro alpine:3.24.3 /ze doctor --json kernel-capabilities
 ```
 
 `ze doctor kernel-capabilities` probes every capability a package enrolls in
@@ -541,12 +630,31 @@ same command rather than reporting an unreadable answer. Both refusals also name
 the daemon's kernel release and the kernel route below, because the profile lets
 the probe answer and adds no kernel feature: a stock kernel may still lack some
 (MOBIKE's xfrm migrate, for example), and the operator reads the whole path in
-one run. A security
-options query that fails or prints no JSON refuses, because the argv depends on
+one run. On a Mac both refusals, and a `denied` row's fix, name the same
+command and say that there it loads the profile into the Colima VM behind the
+Docker endpoint, and that the labs' `ze` profile boots Ze's kernel, which
+applies no AppArmor, so a daemon applying it is one DOCKER_HOST names
+(`appArmorColimaLoad`); then the macOS route, `./le setup docker-host start`.
+Colima's Ubuntu `default` VM applies AppArmor and holds only the profiles loaded inside it, so
+runc's "write ... attr/apparmor/exec: no such file or directory" is the
+kernel's answer for a profile it has not loaded (colima 29.5.2,
+`6.8.0-117-generic`, 2026-10-21: `docker-default` applies, an unknown name
+fails with the same text). On a client
+that is neither Linux nor macOS neither refusal names the load command, which
+refuses there (`appArmorLoadPlatform`): the refusal says so, still names the
+daemon's kernel release, and names only the kernel route. The client system is the one the `Docker` wrapper
+records in its owner labels (`ze.lab.os`); it is read from the client even when
+the machine or boot identity is not, so a host with no `/etc/machine-id` still
+gets the Linux text (`readHostFacts`).
+<!-- source: internal/le/interoplab/orphans.go -- readHostFacts -->
+
+A security options query that fails or prints no JSON refuses, because the argv depends on
 it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
 and the guest route is unchanged.
 
-<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeContainer -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, deniedFix, kernelProbeContainer -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel_apparmor.go -- appArmorLoadPlatform -->
+<!-- source: internal/le/interoplab/apparmor.go -- appArmorColimaLoad -->
 
 The probe is the first container to run under a Ze profile, and the same rule
 holds for every lab container: one that needs more than docker-default grants
@@ -560,11 +668,15 @@ profile list lacks it, the lab refuses before the container starts, naming
 `./le setup docker-kernel apparmor confirm <name>`; where that list is
 unreadable the container runs, and when runc answers "unable to apply apparmor
 profile" the lab refuses naming the same command (`labAppArmorUnapplied`); on a
+Mac both refusals name the command, which loads the profile into Colima's VM,
+and then the macOS route, `./le setup docker-host start`; on any other client they name the route
+instead of the command, which refuses there (`appArmorLoadUnreachable`); on a
 daemon that applies no AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
 4.0.1 (Ubuntu 24.04).
+<!-- source: internal/le/interoplab/apparmor.go -- labAppArmorProfileMissing, labAppArmorUnapplied, labAppArmorRefusal, appArmorLoadUnreachable -->
 
 A lab peer runs with no more than its daemon needs, never `--privileged`
-(`plan/pre-release/spec-lab-containers-least-privilege.md`). A sysctl set once
+(`plan/release/validation/spec-lab-containers-least-privilege.md`). A sysctl set once
 before the daemon starts is a `--sysctl` argument, written by Docker into the
 peer's own network namespace. A sysctl written while the peer runs takes
 `interoplab.NetSysctlWriteArguments` (`systempaths=unconfined`) together with
@@ -615,7 +727,7 @@ It refuses when:
 
 | Answer | Refusal names |
 |--------|---------------|
-| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; inside the Docker lab's QEMU guest, which exports `ZE_DOCKER_LAB_GUEST=1` before its check, the appliance kernel's own fix instead (add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry on the host with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); elsewhere the refused run's own le words inside the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
+| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; on a daemon whose kernel release already ends in `-ze` (Ze's `CONFIG_LOCALVERSION`: the QEMU guest of `./le test qemu docker-lab`, or a host after the install), on any client system but macOS, Ze's runtime kernel's own fix instead (`dockerKernelRouteFor`: add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); on macOS the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel: unset a DOCKER_HOST that names another daemon, or add the options to `gokrazy/kernel/runtime.config` and `runtime.require` and rebuild the image with `./le setup docker-host build`, then `./le setup docker-host start`; on any other system the refused run's own le words against the Docker daemon of the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
 | every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
@@ -692,15 +804,53 @@ removed: they are what keeps a second run minutes long.
 <!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, capsAltersHost, ContainerCapsDockerNames -->
 <!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
 
+On macOS the daemon in hand is the `ze` Colima profile's, which boots Ze's
+docker-host image (owner decision M10). With DOCKER_HOST unset or empty, every
+docker command le runs for a lab, the kernel check included, carries
+`DOCKER_HOST=unix://<colima home>/ze/docker.sock`, where the Colima home is
+resolved as Colima resolves it (`$HOME/.colima` by default, `COLIMA_HOME` or
+`$XDG_CONFIG_HOME/colima` when set; `dockerhost.ColimaHome`) (`dockerhost.Environment`,
+through `Docker.run`, the one route to the process runner), whatever
+`/var/run/docker.sock` or the current Docker context names. When that socket is
+absent the first docker command refuses, before any image build or container,
+naming the missing socket, that the labs on macOS run on the `ze` profile, and
+`./le setup docker-host start` on a line of its own; Colima's `default` profile
+and the context are never used in its place. A DOCKER_HOST the operator set is
+kept as it is, because it names a daemon on purpose (the QEMU docker-lab's
+forwarded socket is one), and the kernel check stays the gate that judges that
+daemon's kernel. `ze appliance build`, which every QEMU verb that builds an
+appliance runs (`./le test qemu install-test` and its siblings,
+`vpp-hugepages-test`, `mpls-boot-test`, the two `crash-capture-*` verbs), runs
+under the same selection. ffmpeg, which `le site terminal-demo` runs, is no Docker
+client and runs under le's own environment.
+<!-- source: internal/le/dockerhost/dockerhost.go -- Environment, Inherited, ZeSocket, DockerHostStart -->
+<!-- source: internal/le/interoplab/docker.go -- NewDocker, Docker.run -->
+<!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.applianceEnv -->
+
 `./le setup docker-kernel check` asks the daemon in hand the same question. With
 no `ze` it cross-builds `tmp/qemu/linux-<arch>/ze` for the daemon's architecture
 (`docker version`'s server arch) through `BuildLinuxZe`, the producer
 `./le test qemu docker-lab` uses; `ze <path>` names another. Either way the file
 must be an ELF executable for that architecture, or the check refuses before any
 container runs, naming the path, what it is instead (a directory, not ELF,
-another machine), and the build route. `./le setup docker-kernel apparmor` is Linux-only:
-it refuses where `/sys/module/apparmor/parameters/enabled` does not read `Y` or
-`apparmor_parser` is absent, installs the registered profile named after
+another machine), and the build route. `./le setup docker-kernel apparmor` runs on
+Linux, against this machine's kernel, and on macOS, against the Colima VM behind
+the client's Docker endpoint (`docker context inspect`, `dockerhost.ColimaProfile`):
+a `docker.sock` beside a `colima.yaml` names that directory's profile, under
+any Colima home (`~/.colima`, `$XDG_CONFIG_HOME/colima` or `COLIMA_HOME`), and
+the `docker.sock` at a home's root, which Colima forwards for the default
+profile (its Lima instance `_lima/colima`), names `default`. It refuses any
+other macOS endpoint, such as Docker Desktop's, naming the macOS route,
+`./le setup docker-host start`. On macOS
+every step runs inside the VM through `colima ssh --profile <profile> --`: a VM
+that does not answer `true` refuses naming `colima start --profile <profile>`, a
+missing `colima` or `docker` names its `brew install`, and a question that
+hangs for 30 s names `colima status --profile <profile>`. The profile is staged
+under the checkout's `tmp/`, which Colima's home mount shows the VM at the same
+path; a VM that cannot read it refuses before any root step, naming `colima
+start --profile <profile> --edit`. It refuses where
+`/sys/module/apparmor/parameters/enabled` does not read `Y` or
+`apparmor_parser` is absent on that machine, installs the registered profile named after
 `confirm` as `/etc/apparmor.d/<name>` (so it loads again at boot) and loads it
 with `apparmor_parser -r -W`; without `confirm` naming a registered profile it
 prints the two `sudo` steps of every registered profile, runs none, and names
@@ -733,19 +883,26 @@ run's confirming command and every rebuild it prints keep that backend. A
 reinstall replaces: it removes `/lib/modules/<release>` and
 `/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
 the new modules inside the old tree. It prints each `sudo` step before it runs
-it, and never reboots. Off Linux it refuses and names the guest
-route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
+it, and never reboots. Off Linux it refuses: on macOS it names the `ze` Colima
+profile, `./le setup docker-host start`; on any other system the guest route,
+`./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall, cachedKernelServesHost, readGrubConfig -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel_apparmor_colima.go -- appArmorDarwinHost, appArmorStagedVisible, vmCommandMissing, vmCommandHung -->
+<!-- source: internal/le/dockerhost/dockerhost.go -- ColimaProfile, ColimaSSH -->
 <!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions, readHostFacts, hostDependencies, zeKernelServesHost -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
-<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute, dockerKernelRouteFor, zeKernelReleaseSuffix -->
 
 To ask a host by hand, stage ze with any lab once and run the command above.
 `TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against
 the daemon this machine uses: it stages ze, starts the probe container and
 nothing else, and judges the verdict against the rows it read. On colima's
 `6.8.0-117-generic` (2026-10-10) the check refuses `ipsec-mobike`, `l2tp`,
-`l2tp-ppp` and `mpls` as absent and `mpls-transit-mtu` as unknown.
+`l2tp-ppp` and `mpls` as absent and `mpls-transit-mtu` as unknown, and an
+unconfined probe on 2026-10-21 answered the same five rows: that kernel's
+config leaves `CONFIG_XFRM_MIGRATE` unset, and its L2TP and MPLS routing
+modules are in `linux-modules-extra`, which Colima's image does not install. Loading
+Ze's profile there lets the probe answer; it does not make the check pass.
 
 ```bash
 ./le job run label kernel-host command go test -tags integration -count=1 \
@@ -802,6 +959,9 @@ host uses, which a guest cannot stand in for.
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
+BIRD starts with IPv6 enabled, as FRR always does, only when its `bird.conf` names a
+lab IPv6 address.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls -->
 
 **A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
@@ -1038,7 +1198,7 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
 | `dnsmasq.conf` (and optional `dnsmasq-b.conf`) | dnsmasq DHCPv4 server (172.30.0.20; second at 172.30.0.21), `test/interop/Dockerfile.dnsmasq` | Serve Ze's DHCPv4 client from an implementation Ze did not write. The checkers of `dhcpv4-renew-nak-dnsmasq` and `dhcpv4-rebind-two-servers-dnsmasq` count the DHCP messages in dnsmasq's `log-dhcp` output and read Ze's eth0 addresses. The renew-NAK checker writes a reservation into the container's own `/run/dhcp-hosts` and reloads it with SIGHUP; the rebind checker stops the server that granted the lease. |
-| `kea-dhcp6.conf` | Kea DHCPv6 server `kea-dhcp6` (IPv6 host 22 of the lab /64; the file's `fd00:1e:0::` selects an IPv6 lab network), `test/interop/Dockerfile.kea` | Serve Ze's DHCPv6 client from an implementation Ze did not write. The checker of `dhcpv6-client-renew-kea` reads Kea's INFO log, one exchange per distinct transaction id (`DHCP6_PACKET_RECEIVED`, `DHCP6_LEASE_ALLOC`, `DHCP6_LEASE_RENEW`, and `DHCP6_USING_SERVERID` at each start), and samples Ze's eth0 every 2 s: the leased /128 must be present with a finite `valid_lft` of at most the 40 s lease at every sample. Over three lease periods Kea must see one Solicit and one Request, between 10 and 16 RENEW exchanges that each extended the lease, and no Rebind: a client that never renews, renews without extending its deadlines (it loses the address after one lease and solicits again) or renews at every chance fails one of those bounds. The pool is one address (host `0x50`), so the lease is known before the run. The image deletes Kea's persisted server DUID on every start, while the memfile lease database stays in the container: the checker stops and starts Kea to change the server's identity under a live lease, so Ze's next RENEW names a server that no longer exists and only its REBIND is answered. Ze must hold the address for two lease periods after the stop, with no Solicit, and then renew with the restarted server. |
+| `kea-dhcp6.conf` | Kea DHCPv6 server `kea-dhcp6` (IPv6 host 22 of the lab /64; the file's `fd00:1e:0::` selects an IPv6 lab network), `test/interop/Dockerfile.kea` | Serve Ze's DHCPv6 client from an implementation Ze did not write. The checker of `dhcpv6-client-renew-kea` reads Kea's INFO log, one exchange per distinct transaction id (`DHCP6_PACKET_RECEIVED`, `DHCP6_LEASE_ALLOC`, `DHCP6_LEASE_RENEW`, and `DHCP6_USING_SERVERID` at each start), and samples Ze's eth0 every 2 s: the leased /128 must be present with a finite `valid_lft` of at most the 40 s lease at every sample. Over three lease periods Kea must see one Solicit and one Request, between 10 and 16 RENEW exchanges that each extended the lease, and no Rebind: a client that never renews, renews without extending its deadlines (it loses the address after one lease and solicits again) or renews at every chance fails one of those bounds. The pool is one address (host `0x50`), so the lease is known before the run. The image deletes Kea's persisted server DUID on every start, while the memfile lease database stays in the container: the checker stops and starts Kea to change the server's identity under a live lease, so Ze's next RENEW names a server that no longer exists and only its REBIND is answered. Ze must hold the address for two lease periods after the stop, with no Solicit, and then renew with the restarted server. The image runs Kea on a copy of the mounted file (`/run/kea/kea-dhcp6.conf`, written at every start), because SIGHUP re-reads the file Kea started with. A scenario that also carries `kea-dhcp6-moved.conf` mounts it at `/etc/kea/kea-dhcp6-moved.conf`: the checker of `dhcpv6-client-confirm-kea` copies it over the live file and sends SIGHUP to move Kea to another subnet under a running lease (`DHCP6_DYNAMIC_RECONFIGURATION_SUCCESS` marks the reload). That scenario's lease is long (T1 300 s), so no Renew falls inside the run, and the `kea-dhcp6.packets` logger runs at debug level 55, where `DHCP6_RESPONSE_DATA` prints each Reply's status code option. Phase one sets Ze's eth0 down and up: Kea must log one CONFIRM after the bind and answer it `Success`, with no second Solicit, no Renew and no Rebind, and Ze must hold the /128 on every 2 s sample for 20 s. Phase two reloads Kea onto `fd00:1e:0:1::/64` and sets eth0 down and up again: Kea must answer the CONFIRM `NotOnLink`, then see one Solicit and one Request that leases `fd00:1e:0:1::50`, and within 60 s Ze's eth0 must hold that /128 and no longer hold the old address. A client that ignores the NotOnLink keeps the old address until T1, far past that bound. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
 
 The `ospf-te-frr` and `ospf-te-interas-frr` scenarios keep their FRR adjacency,
@@ -1090,13 +1250,27 @@ one, the shared `test/interop/daemons` is mounted.
 It may also carry an `frr-image` file holding one image reference. Its FRR
 containers then start from that release instead of the suite's FRR (and
 `FRR_IMAGE` does not replace it), and the suite pulls each pinned release once.
-A scenario needs this when the behavior under test exists only in a later FRR:
-`bgp-linklocal-only-multihop-withdraw-frr` pins FRR 10.4.1, the first release
-here that negotiates the Link-Local Next Hop capability (77), because without it
-a different gate withholds the route and the scenario cannot go red. A file
-naming no image, or two, is an error.
+A scenario needs this when the behavior under test exists only in a later FRR
+than the suite's, or when the scenario must not follow an `FRR_IMAGE` override:
+`bgp-linklocal-only-multihop-withdraw-frr` needs FRR 10.4.1 or later, the first
+release here that negotiates the Link-Local Next Hop capability (77), because
+without it a different gate withholds the route and the scenario cannot go red.
+The five scenarios that carry one pin the same release as the suite,
+`interoplab.FRRImage` (owner decision M14), so a run with `FRR_IMAGE` naming an
+older FRR still starts them from 10.7.1. A file naming no image, or two, is an
+error.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
 <!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
+
+A scenario may carry a `ze-sysctls` file: whitespace-separated `key=value`
+assignments, each passed as `--sysctl` to Ze's container, so the runtime writes it
+into the container's own network namespace before ze starts. Docker mounts
+`/proc/sys` read-only, so a value ze would otherwise write itself is refused
+there. `ospf-sr-anycast-nexthop-frr` uses it for `net.mpls.platform_labels`,
+which fib-kernel needs non-zero before it can install a label route. Only `net.*`
+keys are accepted; any other key, a token without `=` or an empty value refuses
+the scenario before a container starts.
+<!-- source: internal/le/interoplab/bgp/prepare_ze_sysctls.go -- zeSysctlArguments -->
 
 `bgp-linklocal-only-multihop-withdraw-frr` exercises the off-connected-subnet
 gate on one lab network: FRR's session address is on its loopback (10.255.0.3),
@@ -1199,7 +1373,8 @@ Discriminator, and the zone Ze reconciles on a first packet is not what the
 scenario can tell apart. The send side cannot fail here either: every session
 of the loop names `eth0`, so the loop's socket is bound to that device
 (`resolveLoopDevices`) and the kernel puts the packet on `eth0` with no zone
-and no ifindex. Both reverts stayed Up in a smoke run. The discrimination is
+and no ifindex. Both reverts still passed the harness run on the Linux host
+(2026-10-20). The discrimination is
 `test/bfd/bfd-first-packet-link-local.ci` in the QEMU guest, and
 `bfd-link-local-two-links-frr` against FRR.
 
@@ -1225,9 +1400,11 @@ one session per link; FRR one peer per link. Two things make it discriminate:
 The checker reads the links from Ze's own `show bfd sessions` (the interfaces of
 its sessions to FRR's link-local, at least two), then runs the one-link check
 on each: FRR's peer on that link Up, Ze's session on that link Up, and the
-discriminators crossed. A smoke on colima (not evidence) held both Up with the
-code as it is, and both Down with `reconcileZone` returning its key unchanged
-and with `sendZone` returning `""` and `pinsToLink` returning false.
+discriminators crossed. On the Linux host (2026-10-20) the harness run passed
+with the code as it is and failed at assertion 2, FRR's peer on `eth1` still
+`down` with `remote-id` 0, under each break: `reconcileZone` returning its key
+unchanged, and `sendZone` returning `""` with `pinsToLink` returning false
+(Ze then logs `sendmsg: invalid argument` for every send).
 <!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, assignLinkLocal -->
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
@@ -1354,6 +1531,21 @@ its own `src`/`dst` header and takes the set of directions its caller can claim,
 and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
 
+### IPsec injected datagrams
+
+`out-of-sa-request-notified-over-sa` proves RFC 7296 Section 2.21.4 against
+strongSwan. Once the PSK tunnel is up, strongSwan sends Ze, from its own
+address and port 500, a header-only IKE datagram whose SPI pair names no IKE SA.
+`rawprobe -p udp -x` (`test/interop-ipsec/rawprobe.c`) writes it through a raw IP
+socket, as `craftedProbe` writes its probes.
+charon logs a `parsed INFORMATIONAL request` line only for a message it
+decrypted under an IKE SA, so a line carrying `N(INVAL_IKE_SPI)` shows that Ze's
+notice arrived protected over the existing SA. A copy marked as a response goes
+first and must draw no such line within five seconds, and the SA and its tunnel
+must survive both.
+
+<!-- source: internal/le/interoplab/ipsec/suspicious.go -- checkOutOfSARequestNotifiedOverSA, injectOutOfSA, countProtectedInvalidIKESPI -->
+
 ### IPsec address movement
 
 `mobike-initiator` moves Ze; `mobike-responder` moves strongSwan. Each native
@@ -1451,7 +1643,14 @@ scenario that loses the setting shows the reason in Ze's log.
 | `real-nat-port-translated-ze-responder` | tunnel mode: outbound encap dport 14500, traffic both ways; after the remap the row 1 "migrated" line, dport 14501 on the SAME SPI, traffic both ways |
 | `real-nat-port-translated-transport-ze-responder` | transport mode: after the remap the row 2 "rekeyed" line with `reason="transport mode"`, dport 14501 on a NEW SPI, traffic both ways |
 | `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
-| `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 authenticates and traffic crosses |
+| `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 completes the TLS handshake through ze's Finished, ze refuses to export the RFC 5216 Section 2.3 MSK because the session has no RFC 7627 extended master secret, charon receives EAP-Failure, and neither end installs an XFRM state (`checkResponderEAPTLS12`) |
+
+None of the open-source IKEv2 implementations surveyed sends RFC 7627 from an
+EAP-TLS initiator on TLS 1.2: strongSwan through 6.1.0 defines the extension
+constant and never sends it, Libreswan has no EAP-TLS initiator, and OpenIKED
+has no EAP-TLS. So `responder-eap-tls12` asserts the
+refusal, and the extended master secret stays required (owner decision,
+2026-10-21).
 
 All four have run in the nightly ipsec-interop suite. In the 2026-10-17 run the
 two rebind scenarios and `responder-eap-tls12` were red, and
@@ -1459,11 +1658,20 @@ two rebind scenarios and `responder-eap-tls12` were red, and
 next sentence). On 2026-10-17 the two rebind scenarios got `mobike = no`. In the same change,
 `waitZeOutboundEncap` stopped accepting an outbound state at any port: it had
 read a drained `textbuf.Buffer` inside its poll and so matched "". No run since
-these fixes is recorded, and `responder-eap-tls12` waits on an owner decision.
-Each scenario still owes a green run and its revert, rebuild and red walk.
+these fixes was recorded until 2026-10-21, when all four ran green in the
+Docker lab. The tunnel and transport rebind scenarios went red under their
+reverted fixes. `responder-eap-tls12` went red when crypto/tls was patched to
+export keying material without RFC 7627: charon then established the IKE SA,
+and assertion 3 (EAP-Failure) timed out. The EAP port scenario sets
+`mobike = no`: with MOBIKE negotiated, Ze records the observed endpoint at the
+first IKE_AUTH (RFC 4555 Section 3.3, `handleAuthRequest`), so the EAP
+responder's own adoption never set the ports and removing it stayed green. With
+MOBIKE off, removing the adoption line in `handleResponderEAP` goes red: Ze
+refuses the IKE_AUTH Child SA because the peer has no authenticated IKE
+endpoint yet.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
-<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap -->
+<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap, checkResponderEAPTLS12 -->
 <!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint, the MOBIKE refusal -->
 
 Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
@@ -1537,15 +1745,31 @@ ESP in both directions, so the agreement on the Transform ID and the verificatio
 of the encrypted ICV are separate observations.
 
 The lab image carries that transform although `/usr/lib/ipsec/plugins` holds no
-`libstrongswan-ccm.so`. Alpine 3.21 builds strongSwan 5.9.14 with no
-`--enable-ccm`, so the standalone ccm plugin is absent, and charon's openssl
-plugin registers the algorithm instead: `swanctl --list-algs` in
-`ze-ipsec-strongswan` answers `AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and
-`AES_CCM_8[openssl]` (measured 2026-09-14). The absent FILE is not an absent
+`libstrongswan-ccm.so`. `test/interop-ipsec/Dockerfile.strongswan` builds
+strongSwan 6.1.0 from source with no `--enable-ccm`, so the standalone ccm
+plugin is absent, and two other plugins register the algorithm instead: on an
+x86-64 host `swanctl --list-algs` in the image answers `AES_CCM_16[aesni]`,
+`AES_CCM_12[aesni]` and `AES_CCM_8[aesni]`, and with aesni not loaded it answers
+`AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and `AES_CCM_8[openssl]` (measured
+2026-10-22). The absent FILE is not an absent
 capability, and a source build of the ccm plugin would add a second provider of
 one algorithm and nothing else.
 <!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkIKEAESCCM16 -->
+
+### Integrity-only ESP on the strongSwan peer
+
+`esp-integrity-only-null` negotiates the Child SA as ENCR_NULL with
+HMAC-SHA2-256-128, the integrity-only ESP that RFC 4303 Section 1 requires to be
+negotiable, over an ordinary AES GCM IKE SA (RFC 7296 Section 5 keeps ENCR_NULL
+out of the IKE SA). Ze initiates and charon's `esp_proposals = null-sha256`
+accepts nothing else. The checker reads charon's
+`selected proposal: ESP:NULL/HMAC_SHA2_256_128/` line, then Ze's Child SA
+`esp-encryption` field (`null`), then both kernels' SAs and ESP in both
+directions. The ESP datapath is the Linux kernel's `ecb(cipher_null)` on both
+ends, which needs `CONFIG_CRYPTO_NULL` on the Docker host kernel.
+<!-- source: test/interop-ipsec/scenarios/esp-integrity-only-null/ -- the integrity-only ESP fixtures -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPIntegrityOnlyNull -->
 
 ### The FreeRADIUS admin-login suite
 
@@ -1620,28 +1844,44 @@ as evidence.
 
 ### The FreeRADIUS subscriber suite
 
-`./le test integration interop-radius-subscriber` puts FreeRADIUS 3.2.7, the
+`./le test integration interop-radius-subscriber` puts FreeRADIUS 3.2.10, the
 release the admin-login suite pins, in front of ze's subscriber RADIUS surface:
 the accountant and the CoA and Disconnect listener of
 `internal/component/l2tp/plugins/authradius`. Both act only on a kernel L2TP
 session, which no fixture can stand in for, so the lab carries its own LAC
 (xl2tpd and pppd), and ze and the LAC hold `NET_ADMIN` and `/dev/ppp`. That is
 why it is a suite of its own: the admin-login suite promises no capability at
-all, and the L2TP lab's RADIUS peer is a mock ze wrote. FreeRADIUS takes ze's
-Access-Requests and Accounting-Requests on one `auth+acct` listener, because a
-ze server entry carries one port, writes every accounting record to its
-`ze_detail` file, and its `radclient` is the Dynamic Authorization Client.
+all, and the L2TP lab's RADIUS peer is a mock ze wrote. FreeRADIUS writes
+every accounting record it accepts to its `ze_detail` file, and its `radclient`
+is the Dynamic Authorization Client.
 
 | Scenario | What it proves |
 |----------|----------------|
-| `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, two `radclient` processes send one request file with the same Identifier from two ports: the second is processed afresh and answered Disconnect-NAK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests differ in the port alone |
+| `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, `radclient` sends one Disconnect-Request and gets a Disconnect-ACK, then a bash process in the FreeRADIUS container sends the very octets ze received, read from the capture, out of a socket of its own, so from a new port: ze processes it afresh and answers Disconnect-NAK, where a key blind to the port would answer the cached ACK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests are the same octets from two ports |
 | `radius-acct-restart-freeradius` | RFC 2866 Section 5.5 across a real restart. The Accounting-Start before ze restarts and the one after carry ids of the form tunnel-session-tag-counter, the two boot tags differ, and each Stop carries its Start's id, all read from FreeRADIUS's detail file |
 
-Both scenarios were added on 2026-10-14 and have not run yet: this machine's
-Docker kernel refuses the lab, so neither has a recorded pass or a recorded red.
+The server listens as a stock deployment does, `type = auth` on 1812 and
+`type = acct` on 1813 (`site-default`), and ze sends accounting to a server
+entry's `accounting-port`, 1813 by default, as RFC 2866 Section 3 asks. The
+pinned `radclient` has no `-i`, which is why the two-client half replays
+radclient's own octets rather than running a second `radclient`. The LAC
+dials once (`redial = no` in `xl2tpd.conf`): each new session comes from the
+checker restarting the LAC, so the Accounting-Start a checker reads is the
+session it asked for. Ze's container sets `ze.log.l2tp.auth.radius=debug`,
+because the teardown count reads the plugin's Info line and the default level
+is WARN.
+
+Both scenarios passed on 2026-10-20, and each discriminates. With `replayKey`
+writing port 0 into the key, so blind to the source port, the two-client half fails: "ze answered Code 41,
+want a fresh Disconnect-NAK (42), not the first client's cached answer". With
+`genSessionID` writing the old tunnel-session-counter form, the restart
+scenario fails: "Acct-Session-Id "1702-33224-1" before the restart carries no
+boot tag".
 
 <!-- source: internal/le/interoplab/radiussubscriber/radiussubscriber.go -- the suite, its peers, its grants and its preflight -->
-<!-- source: internal/le/interoplab/radiussubscriber/checkers.go -- checkCoADuplicate, checkAcctRestart, judgeCapture -->
+<!-- source: internal/le/interoplab/radiussubscriber/checkers.go -- checkCoADuplicate, checkAcctRestart, judgeCapture, replayScript, capturedRequest -->
+<!-- source: test/interop-radius-subscriber/site-default -- the authentication and accounting listeners -->
+<!-- source: test/interop-radius-subscriber/xl2tpd.conf -- redial = no -->
 <!-- source: test/interop-radius-subscriber/mods-ze-detail -- the detail module the server's record comes from -->
 
 ### The freeRouter RSVP-TE suite
@@ -1791,6 +2031,20 @@ check refuses another user's process, and could not `setns` into it without
 `CAP_SYS_ADMIN`. `docker exec` already runs inside the namespace and needs
 neither.
 <!-- source: internal/le/interoplab/sendframe.go -- SendFrameInContainer -->
+
+### The octets FRR received from Ze
+
+When FRR prints nothing for the attribute a check is about, read the bytes
+instead. A scenario's `frr.conf` names `dump bgp updates <file>`, and FRR then
+writes every UPDATE it receives to that file as MRT, octet for octet as Ze sent
+it. The check runs `od -An -v -tx1 <file> | tr -d ' \n'` in the FRR container
+and asserts on the hex. `bgp-prefix-sid-malformed-frr` does this for the
+Originator SRGB TLV, which FRR parses and never shows. Its absence assertion
+names two proofs: the NLRI of the UPDATE it judges, so that UPDATE is in the
+capture, and a TLV Ze relays unchanged in another UPDATE, so the capture holds
+attribute bytes at all.
+<!-- source: internal/le/interoplab/bgp/names.go -- prefixSIDMalformedUpdateDumpHex -->
+<!-- source: test/interop/scenarios/bgp-prefix-sid-malformed-frr/frr.conf -- dump bgp updates -->
 
 ### Querying Ze
 
@@ -2020,6 +2274,12 @@ bytes for one path), the RFC 6793 mixed-width relay
 AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
 AS number and never 23456; `as-path-prepend-two-octet-peer` turns the direction around, so ze's own
 non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), the
+RFC 9774 AS_SET deprecation (`bgp-rfc9774-as-set-frr` has the raw injector announce a route whose
+AS_PATH holds an AS_SET and then a clean control, and Ze originate a static route with a configured
+AS_SET and then its clean twin; FRR, running `no bgp reject-as-sets` so it would keep a set, must
+hold both clean prefixes and neither set prefix, and Ze's own `show bgp rib` must hold the control
+and not the injected set route, because the send guard alone already keeps a relayed set off FRR
+and only Ze's own RIB can show the receive half), the
 RFC 8669 Section 6 repeated Prefix-SID TLV (`bgp-prefix-sid-duplicate-tlv-frr` gives ze an SRv6
 L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
 parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the
@@ -2064,6 +2324,40 @@ its normal zebra forwarding and BIRD exports OSPF routes through its kernel prot
 <!-- source: internal/le/interoplab/bgp/check_virtual_link.go -- checkOSPFVirtualLink -->
 <!-- source: test/interop/scenarios/ospf-virtual-link-frr/ -- OSPFv2 configurations -->
 <!-- source: test/interop/scenarios/ospfv3-vlink-frr/ -- OSPFv3 configurations -->
+
+`ospf-self-lsa-flush-frr` proves RFC 2328 Section 13.4 for an LSA Ze no
+longer wishes to originate. Two reloads leave FRR holding Ze's default
+AS-external-LSA at sequence 0x80000003 or later. FRR's `eth0` then goes down,
+Ze is stopped and started (`opStop`, then `opStart`), so it originates the
+default again at 0x80000001, and `ze-reload-withdraw.conf` withdraws it. With
+no neighbour to acknowledge the flush, Ze keeps its own copy at MaxAge,
+0x80000002, and the checker reads that copy out of `show ospf database
+external` before FRR comes back. In the database exchange that follows, FRR
+hands Ze its newer instance. Ze must flush it at MaxAge with FRR's own
+sequence number, so the LSA must leave FRR's database and the default must
+leave `show ip route ospf`. A Ze that re-originates the withdrawn body at age 0
+leaves both in place, and the absences time out. `opStop` returns only once
+Docker reports the container stopped, so the start that follows cannot race a
+container that is still shutting down.
+<!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations -->
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- opStop -->
+
+`ospf-sr-anycast-nexthop-frr` proves RFC 8665 Section 5's rule that a router
+"MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
+router if that router advertised the SID for the prefix", for a next hop that is
+not the binding's Originator. Ze and two FRRs share one broadcast LAN with SR on.
+Both FRRs bind index 100 to the anycast `10.255.255.100/32` on `lo` with PHP
+requested: `frr` (router-id 192.0.2.3) at stub cost 1, so it is Ze's only next
+hop, and `frr-sink` (192.0.2.1) at cost 50. Ze reads Extended Prefix LSAs in
+LSDB key order, and both FRRs use the same Opaque ID, so 192.0.2.1 becomes the
+Originator and the next hop is the second advertiser. The checker first requires
+that order from Ze's `show ospf database opaque-area` (a lab where the next hop
+became the Originator passes either way, so it fails instead), then reads
+`ip -f mpls route show` in Ze's container: in-label 16100 MUST be popped toward
+the next hop. A Ze applying the flags only when the next hop is the Originator
+swaps 16100 to 17100, the next hop's SRGB base plus the index.
+<!-- source: internal/le/interoplab/bgp/check_ospf_sr_anycast.go -- checkOSPFSRAnycastNextHop, ospfSRAnycastOriginatorVerdict, ospfSRAnycastPopVerdict -->
+<!-- source: test/interop/scenarios/ospf-sr-anycast-nexthop-frr/ -- configurations -->
 
 `bgp-graceful-restart-frr` retains its original session, route, GR and EOR
 checks and adds two strict input speakers with FRR as the independent receiver.
@@ -2147,6 +2441,19 @@ injector goes down, only the surviving RD may receive another withdrawal;
 the previously removed routes must not be withdrawn twice. Receiver session
 generation and a subsequent received KEEPALIVE fence the final observation.
 
+`bgp-vpn-withheld-withdraw-frr` covers the sending half of RFC 8277 Section
+2.4 on the forward rail. The injector announces two VPNv4 routes at one RD and
+two labelled-unicast routes, each under one label, then re-announces one of
+each under three labels with NO_EXPORT, which ze withholds from FRR (an
+external peer) and converts into withdrawals. FRR must lose exactly those two
+routes, keep both siblings, decode one withdrawal of each, and keep its
+session generation, having decoded only the one-label VPN announcement. A
+VPN withdrawal that copied the three-label stack would leave FRR a 72-bit
+IPv4 prefix and be refused. The labelled-unicast leg does not discriminate:
+FRR walks a copied stack to its bottom-of-stack bit.
+<!-- source: internal/le/interoplab/bgp/check_vpn_withheld_withdraw.go -- checkVPNWithheldWithdraw -->
+<!-- source: test/interop/scenarios/bgp-vpn-withheld-withdraw-frr/ -- one-label announcement, withheld three-label revision -->
+
 `bgp-flowspec-sctp-gobgp` supplies both a covering unicast route and a FlowSpec
 from GoBGP, checks the installed kernel rule, then withdraws and restores only
 the unicast route. Its checker requires the existing FlowSpec filter to
@@ -2196,13 +2503,13 @@ is not packet-forwarding evidence.
 | 19 | routes-gobgp | Ze, GoBGP | Route exchange with GoBGP |
 | 20 | role-frr | Ze, FRR | RFC 9234 Role capability negotiation |
 | 21 | role-gobgp | Ze, GoBGP | RFC 9234 Role capability negotiation |
-| 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange |
-| 23 | vpn-frr | Ze, FRR | VPN (L3VPN) route exchange |
+| 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange; FRR accepts an IP Prefix route (Type 5) whose Overlay Index is the ESI. FRR 10.3.1 prints no Type 5 ESI in any view, so evpn-gobgp asserts its octets |
+| 23 | vpn-frr | Ze, FRR, BIRD | VPN-IPv4 route exchange with FRR; RFC 4659 Section 3.2.1.1 VPN-IPv6 next hops, read at BIRD (the 48-octet field's link-local, which FRR 10.3.1 does not display) and at FRR (the off-link route's sole global) |
 | 24 | flowspec-frr | Ze, FRR | FlowSpec rule exchange |
 | 25 | ipv6-ebgp-bird | Ze, BIRD | IPv6 eBGP route exchange |
 | 26 | ipv6-ebgp-gobgp | Ze, GoBGP | IPv6 eBGP route exchange |
 | 27 | multihop-ebgp-frr | Ze, FRR | Multi-hop eBGP with outgoing-ttl |
-| 28 | evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange |
+| 28 | evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange, Ethernet A-D ESI Labels, and the IP Prefix route (Type 5) sent with overlay-index esi: GoBGP reads the non-zero ESI and a zero GW IP from the NLRI (RFC 9136 Section 3.1) |
 | 29 | vpn-gobgp | Ze, GoBGP | VPN (L3VPN) route exchange |
 | 30 | flowspec-gobgp | Ze, GoBGP | FlowSpec rule exchange |
 | 31 | multihop-ebgp-bird | Ze, BIRD | Multi-hop eBGP with outgoing-ttl |
@@ -2213,16 +2520,20 @@ is not packet-forwarding evidence.
 | 36 | remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
 | 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
 | 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
-| 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after FRR's TCP toward ze is dropped in ze's container (an `ldplab` nft table); FRR logs a received Notification naming KeepAlive Timer Expired (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
+| 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after an `ldplab` nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs `msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)` (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only `connection closed by remote end`. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
 | 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
-| 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once |
+| 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then `ValidateAttribute` in `pkg/packet/bgp/validate.go` drops each repeat). Red on GoBGP v4.10.0 with the `largeCommunityRedundant` branch of the egress normalizer disabled: GoBGP still printed each value once, and the oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
 | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
-| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.4.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
-| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
-| 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red |
-| 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
+| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.7.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
+| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.7.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
+| 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's RIB, read through `gobgp-paths` (`Dockerfile.gobgp`, a gRPC ListPath reader, because no gobgp CLI release names an SR Policy family), holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red |
+| 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up: Ze's peer detail for GoBGP shows one connection established and none dropped (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
 | 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |
 | 48 | bfd-link-local-two-links-frr | Ze, FRR bfdd | RFC 5881 Section 3: two sessions to ONE link-local address, one each on `eth1` and `eth2`, reach Up on their own link with their own discriminators crossed, while Ze's Your-Discriminator-zero sends are dropped. Discriminates the receive-side zone reconciliation and the send-side link pinning (see "BFD over link-local") |
+| 49 | bgp-exabgp-bridge-sr-policy-gobgp | Ze (exabgp bridge), GoBGP | RFC 9830: an ExaBGP API script writes `announce ipv4 sr-policy ... preference 300` with two Type A segment lists and a Route Target; the bridge hands it to `update text`, whose sr-policy section reaches the registered config-route parser, and GoBGP's RIB (through `gobgp-paths`) holds the NLRI (color 300, endpoint 10.0.0.3), the Preference sub-TLV and labels 16001 and 16002. Red with the sr-policy registration's `NLRISectionCarriesAttributes` set false, which stops the hand-off |
+| 50 | bgp-exabgp-bridge-rtc-gobgp | Ze (exabgp bridge), GoBGP | RFC 4684 Section 4: an ExaBGP API script writes `announce ipv4 rtc origin-as 65001 route-target 65001:100 next-hop ...`; the bridge hands it to `update text ... mp ipv4/rtc add`, and GoBGP's RIB (through `gobgp-paths 1 132`) holds membership `65001:65001:100`. The 0-bit default membership is not sent: GoBGP v3.31.0 panicked on it (nil Route Target in `BgpServer.propagateUpdate`); v4.10.0 handles a nil Route Target (`processRTCMembership`, `pkg/server/server.go`), and the scenario still sends the specific membership only. Red with the bridge's `rtc` row of `bridgeSAFI` removed, which refuses the line | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
+| 51 | bgp-exabgp-bridge-vpnv4-frr | Ze (exabgp bridge), FRR | RFC 4364: an ExaBGP API script writes ExaBGP 6.0's `announce ipv4 mpls-vpn 10.0.0.0/24 next-hop ... rd 65001:100 label 100`; the bridge hands it to `update text ... mp ipv4/mpls-vpn add`, and FRR holds the route under RD 65001:100 with remote label 100, its session staying up. Red with the bridge's `mpls-vpn` row of `bridgeSAFI` removed, which refuses the line |
+| 52 | bgp-flowspec-redirect-check-frr | Ze (route server, bgp-rib), FRR, raw injector | draft-simpson-idr-flowspec-redirect-02 Section 3: the injector (AS 65004) sends a cover for 192.0.2.0/24 originated in AS 65009, then a FlowSpec rule for that prefix with the 0x0800 redirect-to-IP community and next hop 192.0.2.77. The longest match for the next hop is not originated in the peer's AS, so FRR must hold the rule (`show bgp ipv4 flowspec detail json`) with no `FS:redirect` in its `ecomlist`. No lab daemon originates a 0x0800 rule, hence the raw frames; both reach FRR through Ze's peer-up replay. The plain `show bgp ipv4 flowspec json` is FRR's generic route printer and carries no extended communities, so a check on it passes either way. Red with the RIB's refusal disabled (`flowSpecRedirectRefused` answering false, by Go overlay): FRR holds `"ecomlist":"FS:redirect IP 0x0"` |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running
@@ -2240,7 +2551,7 @@ Interop tests require Docker and are not part of the offline precommit gate.
 They are a separate protocol-validation action.
 
 The first run cross-compiles the lab binaries on the host, then builds the Docker
-images. No `Dockerfile.ze` carries a Go compiler: each one is an `alpine:3.21`
+images. No `Dockerfile.ze` carries a Go compiler: each one is an Alpine (`alpine:3.24.3` in the BGP, IPsec, L2TP, PPPoE, RADIUS and RSVP-TE labs)
 base, one `apk add`, and a `COPY` of a binary the suite's preflight has already
 written into the build context (`internal/le/interoplab/zebuild.go`,
 `StageBinaries`). Each lab declares the binaries it needs beside the images it
@@ -2301,6 +2612,71 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 
+
+### Source-built peers
+
+Owner decision M14: every third-party lab peer runs its latest stable upstream
+release. A peer that publishes no stable release is built from source, and only
+from source less than one month old. Two do today: tac_plus-ng
+(`test/interop-tacacs/Dockerfile.tacplusng`, used by
+`internal/component/tacacs/tacplusng_docker_test.go`) and freeRouter
+(`test/interop-rsvpte/Dockerfile.freertr` for the RSVP-TE suite, and
+`test/interop/Dockerfile.freertr` for the perf DUT).
+
+The Dockerfile is the declaration, and no list of peers exists beside it. A
+source-built peer's Dockerfile carries Docker build arguments that its own build
+also reads:
+
+| Build argument | Meaning |
+|----------------|---------|
+| `ZE_SOURCE_REPOSITORY` | The upstream GitHub repository, `owner/name` |
+| `ZE_SOURCE_COMMIT` | The pinned upstream commit, the full hex id the codeload URL fetches |
+| `ZE_SOURCE_DATE` | That commit's committer date, RFC 3339 |
+| `ZE_SOURCE_CHECKOUT` | Instead of a pin: the named build context that holds a local checkout the build follows |
+
+`Docker.Build` is where every lab image is built (a suite, a labtest
+`Spec.Dockerfile`, the perf DUTs), and it calls `RequireFreshSource` before
+`docker build` runs:
+
+- A pinned commit more than one calendar month old refuses the build. The
+  refusal names the Dockerfile, the commit, its date and age, and the command
+  that moves it: `./le lab pin bump dockerfile <Dockerfile>`. Bump asks the
+  GitHub API for the newest commit of the default branch and rewrites
+  `ZE_SOURCE_COMMIT` and `ZE_SOURCE_DATE`. The next image build is the proof
+  that the new source still builds and that a Ze patch, such as
+  `freertr/ze-interop-resv.patch`, still applies.
+- A followed checkout (the perf DUT's `freertr` context, `FREERTR_DIR`,
+  default `../rtr`) whose HEAD commit is more than one month old is updated
+  first: `git fetch`, then `git merge --ff-only @{upstream}`. A checkout holding
+  uncommitted changes is never touched: the build is refused, naming the
+  changes and `git -C <checkout> pull --ff-only` as the fix. A fetch or a
+  fast-forward that fails refuses the build the same way.
+- A Dockerfile that declares `ZE_SOURCE_REPOSITORY` with neither a complete
+  pin nor a checkout is refused, so a half-declared pin never builds unjudged.
+<!-- source: internal/le/interoplab/sourcepin.go -- ParseSourcePin, RequireFreshSource, freshenCheckout -->
+<!-- source: internal/le/interoplab/docker.go -- Build -->
+
+### Lab pins against upstream
+
+`./le lab pin check` lists every lab peer pin the tree holds and compares each
+with upstream's latest stable release. It is a report over the network, never a
+commit gate. The pins are derived from the files that carry them, under `test/`
+and `internal/` (vendor and testdata trees skipped):
+
+| Pin | Read from | Upstream asked |
+|-----|-----------|----------------|
+| Image tag | `FROM` in a Dockerfile (not a stage name, not `scratch`), an image string literal in Go (an official image with no repository path, such as `alpine:3.24.3`, only with a dotted version tag on a line that names an image), a scenario's `*-image` file | The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io) |
+| Go module | `go install <path>@<version>` in a Dockerfile | `proxy.golang.org`, including the next major version paths, since `@latest` of a `/v3` path never names v4 |
+| Git tag | `git clone --branch <tag> https://github.com/...`, a codeload or archive tag URL | The GitHub repository's latest release |
+| Source commit | `ZE_SOURCE_COMMIT` | The newest commit of the default branch |
+
+An image tag is compared only with tags of its own shape (the same prefix,
+number count and suffix), so `golang:1.25-alpine` is judged against
+`1.27-alpine`, never `1.27.1-trixie`, and a pre-release never wins. A moving tag
+such as `latest` is reported `floating` with the newest plain release beside it.
+An upstream that does not answer leaves its row `unresolved` with the cause.
+<!-- source: internal/le/lab/pin/scan.go -- Scan -->
+<!-- source: internal/le/lab/pin/upstream.go -- registryTags, goLatest, latestTag -->
 
 ### A package test's own server container (labtest)
 
@@ -2548,10 +2924,8 @@ ExaBGP compat covers wire encoding for all supported address families.
 
 | Vendor | Limitation | Affected Scenario | Workaround |
 |--------|-----------|-------------------|------------|
-| GoBGP 3.31 | Deduplicates Multiprotocol capabilities by AFI. When two families share the same AFI (e.g., ipv4-unicast + l3vpn-ipv4-unicast, both AFI=1), GoBGP keeps only one. | bgp-vpn-gobgp | None from Ze side. Ze's OPEN is correct per RFC 4760. Families with different AFIs (e.g., ipv4-unicast + l2vpn-evpn) work fine. |
-| BIRD 2.15 | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | bgp-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
+| BIRD (observed at 2.15; unverified at 3.4.0 until `bgp-ipv6-ebgp-bird` runs) | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | bgp-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
 
-<!-- source: test/interop/scenarios/bgp-vpn-gobgp -- GoBGP same-AFI dedup -->
 <!-- source: test/interop/scenarios/bgp-ipv6-ebgp-bird -- BIRD next-hop reachability -->
 
 ## Related Documents

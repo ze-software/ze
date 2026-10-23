@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>71.4%</strong><b>15 of 21 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.0%</strong><b>17 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -369,10 +369,10 @@ None: RFC1350-5-2, which binds a host that receives an octet file and returns it
 <td>MUST</td>
 <td>4 - Initial Connection Protocol</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go#L144" title="internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go#L151" title="internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L202" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350ServerChoosesOneTIDForTheTransfer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server always allocates a fresh transfer socket via net.DialUDP per RRQ (handler.go:287), so no configuration or input reuses port 69 and there is no stale-TID negative case</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server always allocates a fresh transfer socket via net.DialUDP per RRQ (handler.go:293), so no configuration or input reuses port 69 and there is no stale-TID negative case</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-7-1">RFC1350-7-1</code></td><td colspan="3"><span class="rfc-subject">Timeouts must also be used to detect errors. (Section 7)</span></td></tr>
 <tr><td></td>
@@ -568,20 +568,20 @@ None: RFC1350-5-2, which binds a host that receives an octet file and returns it
 <p>No test carries RFC1350-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc1350-4-3"><code>RFC1350-4-3</code></a></h3>
 <p>each end of the connection chooses a TID for itself, to be used for the duration of that connection (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip moved. Re-judged 2026-10-15 after 81cd922cf3 changed TestListenTFTPLoopbackRoundTrip: the only edit passes context.Background() to serve, which now takes the transfer generation&#39;s context; the fetch, the TID fixing in tftpFetch and the byte comparison are unchanged. RFC 1350 Section 4: &#34;In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection.&#34; Forbidden: answering from the request port, or changing TID mid-transfer. TestRFC1350ServerChoosesOneTIDForTheTransfer reads the source of each of three DATA blocks and fails if any equals the listener port or differs from block 1&#39;s port. Single-polarity marker holds: the server has no input-driven refusal path; a server reusing port 69 or re-dialing per block goes red on the positive.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 49c588c14d). Section 4: &#34;In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection.&#34; 49c588c14d closes the prior finding: tftpFetch now t.Fatalf&#39;s when the first DATA&#39;s source port equals srvAddr.Port (69 in TestListenTFTPLoopbackRoundTrip), before it fixes the TID and ACKs every block to it. The rewritten claim (fresh socket per RRQ at handler.go:293, DATA from a port other than 69, asserted on the first DATA, every block ACKed to it, transfer completes) now matches the body; it does not claim later blocks share the TID, and the helper does not check that. handler.go:293 is net.DialUDP at HEAD, and the rfc/short annotation now cites the same line; the {single-polarity: positive} marker holds (no input reuses port 69). The &#39;duration of that connection&#39; half is proven by TestRFC1350ServerChoosesOneTIDForTheTransfer (unchanged, passes at HEAD): all three DATA blocks from one port that is not the request port. The new mutant (block 1 written from the listener socket) targets exactly the new assertion; its red was observed by the author in the QEMU guest, not by this judge: on this host the integration unit SKIPs (bind lo:69 permission denied), so the round-trip unit&#39;s evidence here is compile plus reading. TestListenTFTPDeviceFilter shares tftpFetch and expects no response, which the new check does not disturb.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go#L144" title="internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go#L151" title="internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L202" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350ServerChoosesOneTIDForTheTransfer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -828,7 +828,7 @@ None: RFC1350-5-2, which binds a host that receives an octet file and returns it
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8362 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 37 with no test." />
+        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
         <meta property="og:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 37 with no test." />
+        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 37 with no test." />
+        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,11 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.6%</strong><b>1 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>7.9%</strong><b>3 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2.6%</strong><b>1 of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>2 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>9 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -135,7 +135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>97.4%</strong><b>37 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>89.5%</strong><b>34 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -224,22 +224,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>37</td>
+<td>34</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>2</td>
+<td>9</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>2</td>
+<td>9</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>2</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8362.md</code></td>
@@ -255,12 +255,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; the tagged test does not yet check it on the E-Inter-Area-Prefix-LSA.</p>
+<p>Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; TestRFC8362ExtendedLSAsSetUBitOnTheWire reads it on the wire for all three Extended LSA types Ze originates (E-Router, E-Intra-Area-Prefix and, from 2026-10-21, E-Inter-Area-Prefix).</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Future</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Three of the seven Extended LSA types are framed and originated, and only under <code>segment-routing</code>: E-Router (0x2021), E-Intra-Area-Prefix (0x2029) and E-Inter-Area-Prefix (0x2023), through <code>EncodeExtendedLSABody</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/lsa_extended.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/v3/packet/lsa_extended.go</code></a>). Receipt decoding reads Prefix-SIDs and nothing else. No SPF calculation reads an Extended LSA.
+Three of the seven Extended LSA types are framed and originated, and only under <code>segment-routing</code>: E-Router (0xA021), E-Intra-Area-Prefix (0xA029) and E-Inter-Area-Prefix (0xA023), through <code>EncodeExtendedLSABody</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/lsa_extended.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/v3/packet/lsa_extended.go</code></a>). Receipt decoding reads Prefix-SIDs and nothing else. No SPF calculation reads an Extended LSA.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 Out of scope as a document by owner decision, 2026-09-01, and tracked for future development. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8362.md" target="_blank" rel="noopener"><code>rfc/short/rfc8362.md</code></a>. E-Network, E-Inter-Area-Router, E-AS-External, E-Type-7 and E-Link have no producer, nothing validates an Extended LSA body before it is installed, and there is no migration or compatibility mode. The LS types Ze emits carry the U-bit Section 2 requires (fixed in a9d0b54387, 2026-09-20).
@@ -272,11 +272,11 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>1</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,7 +284,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>37</strong></td>
+<td><strong>34</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
@@ -303,8 +303,9 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (37):</strong> <a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a>, <a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a>, <a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a>, <a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a>, <a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a>, <a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a>, <a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a>, <a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a>, <a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a>, <a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a>, <a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a>, <a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a>, <a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a>, <a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a>, <a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a>, <a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a>, <a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a>, <a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a>, <a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a>, <a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a>, <a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a>, <a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a>, <a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a>, <a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a>, <a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a>, <a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a>, <a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a>, <a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a>, <a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a>, <a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a>, <a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a>, <a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a>, <a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a>, <a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a>, <a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a>, <a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a>, <a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a>, <a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a>, <a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (34):</strong> <a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a>, <a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a>, <a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a>, <a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a>, <a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a>, <a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a>, <a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a>, <a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a>, <a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a>, <a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a>, <a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a>, <a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a>, <a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a>, <a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a>, <a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a>, <a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a>, <a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a>, <a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a>, <a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a>, <a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a>, <a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a>, <a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a>, <a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a>, <a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a>, <a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a>, <a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a>, <a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a>, <a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a>, <a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a>, <a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a>, <a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a>, <a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a>, <a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a>, <a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,8 +318,8 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8362-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362ExtendedLSAsSetUBitOnTheWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362BaseLSAsKeepUBitClearOnTheWire</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the U-bit is part of each Extended LS Type constant (internal/plugins/ospf/v3/types/lsa.go, LSTypeERouter = lsTypeUBit | ...), so no Extended LSA can be built with U clear and no violating input exists to reject; the clear-U base types are RFC 5340 Appendix A.4.2.1, a different rule</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1.1-1">RFC8362-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1)</span></td></tr>
 <tr><td></td>
@@ -334,8 +335,8 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8362-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L90" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362RouterLinkTLVReadFromERouter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L118" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362RouterLinkTLVIgnoredOutsideERouter</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.3-1">RFC8362-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</span></td></tr>
@@ -343,8 +344,8 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8362-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L143" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362AttachedRoutersTLVReadFromENetwork</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L176" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362AttachedRoutersTLVIgnoredOutsideENetwork</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.4-1">RFC8362-3.4-1</code></td><td colspan="3"><span class="rfc-subject">The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</span></td></tr>
@@ -577,8 +578,10 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>MUST</td>
 <td>6.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8362-6.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L67" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVKeepsLSAForBGPLS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L109" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVKeepsLSAForPrefixSIDs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L88" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVIgnoredByBGPLS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L129" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVIgnoredByPrefixSIDs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-6.3-2">RFC8362-6.3-2</code></td><td colspan="3"><span class="rfc-subject">Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</span></td></tr>
@@ -774,14 +777,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a> The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a> The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a> The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
@@ -882,10 +877,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a> To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a> Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
@@ -931,11 +922,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362BaseLSAsKeepUBitClearOnTheWire</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362ExtendedLSAsSetUBitOnTheWire</code></a></td>
 <td>unit/verify</td>
@@ -951,11 +937,43 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <h3><a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a></h3>
 <p>The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L118" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362RouterLinkTLVIgnoredOutsideERouter</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L90" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362RouterLinkTLVReadFromERouter</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a></h3>
 <p>The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L176" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362AttachedRoutersTLVIgnoredOutsideENetwork</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L143" title="internal/plugins/ospf/rfc8362_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestRFC8362AttachedRoutersTLVReadFromENetwork</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a></h3>
 <p>The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1059,7 +1077,33 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <h3><a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a></h3>
 <p>To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-6.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L88" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVIgnoredByBGPLS</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L129" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVIgnoredByPrefixSIDs</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L67" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVKeepsLSAForBGPLS</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L109" title="internal/plugins/ospf/rfc8362_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC8362UnknownTLVKeepsLSAForPrefixSIDs</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a></h3>
 <p>Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1128,7 +1172,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

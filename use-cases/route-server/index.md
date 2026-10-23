@@ -39,46 +39,88 @@ loopback-only Looking Glass:
 
 ```text
 plugin {
-    internal rib { use bgp-rib; }
-    internal rs { use bgp-rs; }
-    internal adj-rib-in { use bgp-adj-rib-in; }
-    internal rpki { use bgp-rpki; }
-    internal role { use bgp-role; }
-    internal transit-filter { use bgp-filter-path-asn; }
+    internal rib {
+        use bgp-rib;
+    }
+    internal rs {
+        use bgp-rs;
+    }
+    internal adj-rib-in {
+        use bgp-adj-rib-in;
+    }
+    internal rpki {
+        use bgp-rpki;
+    }
+    internal role {
+        use bgp-role;
+    }
+    internal transit-filter {
+        use bgp-filter-path-asn;
+    }
 }
 
 environment {
     looking-glass {
         enabled true;
-        server main { ip 127.0.0.1; port 8443; }
+        server main {
+            ip 127.0.0.1;
+            port 8443;
+        }
     }
 }
 
 bgp {
     router-id 192.0.2.254;
-    session { asn { local 65000; } }
+    session {
+        asn {
+            local 65000;
+        }
+    }
 
     rpki {
-        cache-server 192.0.2.100 { port 323; trusted-network true; }
-        action { invalid reject; not-found accept; }
+        cache-server 192.0.2.100 {
+            port 323;
+            trusted-network true;
+        }
+        action {
+            invalid reject;
+            not-found accept;
+        }
     }
 
     policy {
-        reject-asn NO-TRANSIT { indirect [ 174 701 3356 ]; }
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ];
+        }
     }
 
     group members {
         session {
             rs-client true;
             family {
-                ipv4/unicast { prefix { maximum 10000; } }
+                ipv4/unicast {
+                    prefix {
+                        maximum 10000;
+                    }
+                }
             }
         }
-        role { import rs; strict false; }
-        attach process rpki { receive [ update-received state ]; }
+        role {
+            import rs;
+            strict false;
+        }
+        attach process rpki {
+            receive [ update-received state ];
+        }
         filter {
-            import [ NO-TRANSIT ];
-            export [ NO-TRANSIT ];
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
         attach process adj-rib-in {
             receive [ update-received state ];
@@ -94,24 +136,48 @@ bgp {
 
         peer member-a {
             connection {
-                local { ip 192.0.2.254; }
-                remote { ip 192.0.2.1; }
+                local {
+                    ip 192.0.2.254;
+                }
+                remote {
+                    ip 192.0.2.1;
+                }
             }
-            session { asn { remote 65001; } }
+            session {
+                asn {
+                    remote 65001;
+                }
+            }
         }
         peer member-b {
             connection {
-                local { ip 192.0.2.254; }
-                remote { ip 192.0.2.2; }
+                local {
+                    ip 192.0.2.254;
+                }
+                remote {
+                    ip 192.0.2.2;
+                }
             }
-            session { asn { remote 65002; } }
+            session {
+                asn {
+                    remote 65002;
+                }
+            }
         }
         peer member-c {
             connection {
-                local { ip 192.0.2.254; }
-                remote { ip 192.0.2.3; }
+                local {
+                    ip 192.0.2.254;
+                }
+                remote {
+                    ip 192.0.2.3;
+                }
             }
-            session { asn { remote 65003; } }
+            session {
+                asn {
+                    remote 65003;
+                }
+            }
         }
     }
 }

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 100.0% | 20 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 95.0% | 19 of 20 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 9 | of 9 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -107,7 +107,7 @@ Two advisory items, neither of them a MUST. [`RFC7705-3.3-9`](#rfc7705-3.3-9), t
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7705-3.3-1` | The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L673). **negative:** `unit/verify` [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L678) |
+| `RFC7705-3.3-1` | The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L679). **negative:** `unit/verify` [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L684) |
 | `RFC7705-3.3-2` | "No Prepend Inbound": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the "Local AS" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors (§3.3) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L190). **negative:** `unit/verify` [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L191) |
 | `RFC7705-3.3-3` | it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L380). **negative:** `unit/verify` [`TestLocalASNoPrependLeavesEveryOutboundPathAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L383) |
 | `RFC7705-3.3-4` | "Replace Old AS" (outbound): When the BGP router generates outbound BGP UPDATEs toward an eBGP neighbor configured with this option, the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute. (§3.3) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L328). **negative:** `unit/verify` [`TestLocalASReplaceASSendsOnlyTheLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L331) |
@@ -141,8 +141,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L678) | unit/verify | revert, verified |
-| positive | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L673) | unit/verify | revert, verified |
+| negative | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L684) | unit/verify | revert, verified |
+| positive | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L679) | unit/verify | revert, verified |
 
 ### [`RFC7705-3.3-2`](#rfc7705-3.3-2)
 
@@ -153,7 +153,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L191) | unit/verify | revert, verified |
-| positive | [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L190) | unit/verify | revert, verified |
+| positive | [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L190) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7705-3.3-3`](#rfc7705-3.3-3)
 

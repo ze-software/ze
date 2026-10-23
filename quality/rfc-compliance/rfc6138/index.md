@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 2 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 2 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 2 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 75.0% | 6 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 71.4% | 5 of 7 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 2 | of 2 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -62,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 8 |
-| Tagged units | 8 |
+| Test tags | 7 |
+| Tagged units | 7 |
 | Recorded audit verdicts | 2 |
-| Discrimination records | 6 |
+| Discrimination records | 5 |
 | Summary | `rfc/short/rfc6138.md` |
 | Requirement shard | `rfc/requirements/rfc6138.md` |
 | RFC text | `rfc/full/rfc6138.txt` |
@@ -97,8 +97,8 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6138-4-1` | If the interface is a "cut-edge", then the updating of the LSA MUST NOT be delayed by LDP's operational state. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360). **positive:** `unit/verify` [`TestRFC6138CutEdgeTransitLinkNotDelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L185). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363). **negative:** `unit/verify` [`TestRFC5443BroadcastCostOutCoversWholeSegment`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L161) |
-| `RFC6138-x-1` | If an SPF run was scheduled but is pending execution, that SPF MUST be executed immediately before any procedure checks whether an interface is a "cut-edge". (§A) | MUST | A | **positive:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L57). **positive:** `unit/verify` [`TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L61). **negative:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L60). **negative:** `unit/verify` [`TestRFC6138PendingSPFNeverLeavesStaleCutEdge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L74) |
+| `RFC6138-4-1` | If the interface is a "cut-edge", then the updating of the LSA MUST NOT be delayed by LDP's operational state. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375). **positive:** `unit/verify` [`TestRFC6138CutEdgeTransitLinkNotDelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L185). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L378). **negative:** `unit/verify` [`TestRFC5443BroadcastCostOutCoversWholeSegment`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L161) |
+| `RFC6138-x-1` | If an SPF run was scheduled but is pending execution, that SPF MUST be executed immediately before any procedure checks whether an interface is a "cut-edge". (§A) | MUST | A | **positive:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L57). **positive:** `unit/verify` [`TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L61). **negative:** `unit/verify` [`TestRFC6138PendingSPFNeverLeavesStaleCutEdge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L74) |
 
 ## Gaps and untested MUSTs
 
@@ -112,25 +112,24 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If the interface is a "cut-edge", then the updating of the LSA MUST NOT be delayed by LDP's operational state. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). The decision now reaches the originated LSA through the real SPF graph. Positive TestRFC6138CutEdgeTransitLinkNotDelayed: not synchronized, no alternate path in the SPF computer (cut-edge) -> production applyLDPSyncOverride plus OriginateRouter keep exactly 1 transit link. Negative TestRFC5443BroadcastCostOutCoversWholeSegment: the same not-synchronized segment with an alternate path (not a cut-edge) has its transit link withheld, so the cut-edge answer and not LDP alone decides. Revert records on spf IsCutEdge, observed red. Test race in the rfc6138SPF helper (field swap under the engine's own SPF goroutine) fixed by stopping the engine computer first; not a product race.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. Positive TestRFC6138CutEdgeTransitLinkNotDelayed: not synchronized, no alternate path, the originated LSA keeps exactly 1 transit link. Negative TestRFC5443BroadcastCostOutCoversWholeSegment: the same not-synchronized segment with an alternate path is withheld. Records on IsCutEdge. TestLDPSyncTECostUntouched also pins ldpSyncWithholdTransit for cut-edge and non-cut-edge directly.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363) | unit/verify | unproven |
+| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L378) | unit/verify | unproven |
 | negative | [`TestRFC5443BroadcastCostOutCoversWholeSegment`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L161) | unit/verify | revert, verified |
-| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360) | unit/verify | unproven |
+| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375) | unit/verify | unproven |
 | positive | [`TestRFC6138CutEdgeTransitLinkNotDelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L185) | unit/verify | revert, verified |
 
 ### [`RFC6138-x-1`](#rfc6138-x-1)
 
 If an SPF run was scheduled but is pending execution, that SPF MUST be executed immediately before any procedure checks whether an interface is a "cut-edge". (§A)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). New spf/rfc6138_cutedge_pending_spf_test.go drives the Computer over a real LSDB: SPF run, the topology changed with newer Router-LSAs, a one-hour SPF armed through TriggerArea, then IsCutEdge on LAN 10.0.0.254. + TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss: parallel p2p withdrawn while pending -> true (stale graph says false); - TestRFC6138PendingSPFNeverLeavesStaleCutEdge: p2p pair added while pending -> false (stale graph says true), so a stale answer fails in each direction. Judge overlay: IsCutEdge reads lastGraphs before flushing -> both new units red with the stale answer (and the HEAD unit). Revert records on flushPendingSPF observed. The HEAD 'negative' tag on TestLDPSyncCutEdgeUsesFreshSPF#2 is that unit's precondition (snapshot empty before the query) and violates nothing; it is supplementary, the genuine negative is the new unit. The arming precondition in the new helper compares SPF state counts, which are equal in both topologies, so it is not load-bearing; the overlays prove the run stayed pending.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The precondition negative (SPF not yet run) is gone. Positive TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss: the P2P links are withdrawn with a one-hour SPF pending, IsCutEdge answers true from the pending graph; negative TestRFC6138PendingSPFNeverLeavesStaleCutEdge: the reverse change answers false, never the stale true. TestLDPSyncCutEdgeUsesFreshSPF: a nil graph would answer true. Records on flushPendingSPF.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC6138PendingSPFNeverLeavesStaleCutEdge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L74) | unit/verify | revert, verified |
-| negative | [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L57) | unit/verify | revert, verified |
 

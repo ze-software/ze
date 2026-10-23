@@ -317,7 +317,9 @@ the Macs. Every consumer asks in the same order: <code>HOMEBREW_PREFIX</code> wh
 <code>brew shellenv</code> has exported it, then the <code>brew</code> binary's own location
 (<code>&lt;prefix&gt;/bin/brew</code>), then the two documented defaults. The <code>brew</code> link is
 not followed: on Intel it points into <code>&lt;prefix&gt;/Homebrew</code>, which would answer
-with the wrong prefix.</li>
+with the wrong prefix. The <code>docker-buildx</code> step (Docker labs, below) is the
+one consumer that asks <code>brew --prefix</code>: it needs brew to install the formula
+anyway, and Homebrew's caveat for that formula names the same path.</li>
 <li><strong>e2fsprogs</strong> is keg-only on Homebrew, so none of it is linked onto <code>PATH</code> and
 <code>which</code> finds nothing however well it is installed. It is looked for under
 <code>&lt;prefix&gt;/opt/e2fsprogs/sbin</code>, the link kept at the current version, and under
@@ -332,10 +334,25 @@ a container (colima/docker). The setup action skips grub on macOS.</li>
 and that kernel has to carry every feature Ze enrolls. A lab is never judged on a
 kernel that lacks one.</p>
 <ul>
-<li><strong>macOS:</strong> the labs run inside the Alpine QEMU guest booted on Ze's own arm64
-runtime kernel under HVF, never in colima or Docker Desktop, whose Linux VMs
-lack features Ze enrolls. Build the kernel cache entry once with
-<code>./le build host-driver</code> and then
+<li><strong>macOS, the <code>ze</code> Colima profile:</strong> the labs run on the Colima profile <code>ze</code>,
+which boots Ze's docker-host image (Ze's runtime kernel, dockerd,
+containerd). <code>./le setup docker-host start</code> builds the image when needed and
+runs the profile, never touching Colima's <code>default</code> profile. With DOCKER_HOST
+unset, every lab names the profile's socket, <code>ze/docker.sock</code> under
+Colima's home (<code>$COLIMA_HOME</code> when that directory exists, else
+<code>~/.colima</code>), itself, whatever the current Docker context says; when that socket is absent
+the lab stops before it builds anything and names
+<code>./le setup docker-host start</code>. It never falls back to <code>default</code> or to
+Docker Desktop. A DOCKER_HOST you set is used as it is, and the lab's Docker
+kernel check judges that daemon. <code>./le setup docker-host check</code> names
+anything missing (colima, lima, docker, <code>brew install e2fsprogs</code> for
+<code>mkfs.ext4</code>), and <code>./le setup docker-host stop</code> stops it. The image build and
+the profile's lifecycle are in <code>docs/architecture/appliance/docker-host.md</code>.</li>
+<li><strong>macOS, the QEMU guest:</strong> the second route boots the same docker-host
+image under QEMU with HVF, on Ze's own arm64 runtime kernel, and runs the
+labs from the host le against the guest's dockerd through a forwarded
+socket. Build the kernel
+cache entry once with <code>./le build host-driver</code> and then
 <code>./ze-host appliance kernel --target runtime --arch arm64</code> (the <code>./ze</code>
 wrapper builds without <code>appliance</code>), then run a lab as
 <code>./le test qemu docker-lab lab "test integration interop-ipsec"</code>. With no
@@ -358,11 +375,38 @@ scenarios' ze, strongSwan in some IPsec scenarios) run under the one generic
 profile <code>ze-lab-net-sysctl</code> the same way, loaded with
 <code>./le setup docker-kernel apparmor confirm ze-lab-net-sysctl</code>; the action with no
 <code>confirm</code> lists every profile and the steps each one runs.</li>
+<li><strong>BuildKit:</strong> the interop labs build some images with a named build context,
+which only BuildKit accepts, and the docker CLI reaches BuildKit through its
+buildx plugin. When <code>docker</code> is on PATH, setup runs a <code>docker-buildx</code> step
+that is judged by <code>docker buildx version</code> answering, never by a package being
+present. <code>./le setup check</code> reports it <code>MISSING</code> and changes nothing. On
+macOS, <code>./le setup install</code> runs <code>brew install docker-buildx</code> when brew does
+not hold the formula. It then adds <code>$(brew --prefix)/lib/docker/cli-plugins</code>
+to <code>cliPluginsExtraDirs</code> in the docker config, because the docker CLI does
+not search the Homebrew directory until the config names it. The config is
+<code>$DOCKER_CONFIG/config.json</code> when <code>DOCKER_CONFIG</code> is set, else
+<code>~/.docker/config.json</code>. The edit keeps every other key and its value, adds
+no entry that is already there, refuses a file that is not a JSON object
+rather than replacing it, and replaces the file by rename after a sync. A
+symbolic link is followed, and a link to a file that does not exist is
+refused rather than replaced. With no home directory and no <code>DOCKER_CONFIG</code>
+the step refuses instead of writing a relative path. Each failure (brew
+cannot install, brew names no prefix, the plugin still does not answer)
+leaves the step <code>pending</code> with the reason and the next command to run. On a Mac with no
+Homebrew the step changes nothing and names <a href="https://brew.sh" target="_blank" rel="noopener">https://brew.sh</a>. On Linux the
+plugin is a root package and setup runs no <code>sudo</code> for it. The step names the
+package that matches the installed docker, <code>docker-buildx-plugin</code> beside
+Docker's <code>docker-ce</code> when dpkg reports it <code>install ok installed</code>, and
+<code>docker-buildx</code> beside the distribution's
+<code>docker.io</code>, with the <code>sudo apt-get install</code> line, and reports it <code>pending</code>.
+The lab's BuildKit refusal names <code>./le setup install</code> as its fix.
+With no docker CLI the step is <code>skipped</code>.</li>
 </ul>
+<!-- source: internal/le/setup/buildx.go -- visitBuildx, addPluginDir, DockerConfigPath, BuildKitSetupCommand -->
 <p><code>docs/architecture/testing/qemu-integration.md</code>, "Docker labs in the Ze-kernel
 guest", is the guest path; the scheduled nightly runs the same path on amd64
 under KVM (<code>docs/architecture/testing/ci-workflows.md</code>).</p>
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
@@ -512,7 +556,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

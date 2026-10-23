@@ -36,7 +36,7 @@ test/interop-pppoe/
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
     pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
-    ipv6cp-zero-identifier/    Ze concentrator, pppd client offering a zero IPv6CP identifier
+    ipv6cp-zero-identifier/    Ze concentrator, pppd session, zero IPv6CP identifier replayed
     ipv6cp-missing-option/     Ze concentrator, pppd client whose IPv6CP request carries no identifier option
 internal/le/interoplab/pppoe/
   pppoe.go             Native images, preflight, selection, and lifecycle
@@ -46,7 +46,7 @@ internal/le/interoplab/pppoe/
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
   check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
   check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
-                         IPv6CP proof, BLOCKED until plan/spec-l2tp-ipv6-subscriber.md
+                         IPv6CP proof, BLOCKED until plan/post-release/features/spec-l2tp-ipv6-subscriber.md
                          lands (see the file's own header comment)
 ```
 
@@ -208,18 +208,24 @@ interoperates. `spec-pppoe-client-pap-retry`.
 ### ipv6cp-zero-identifier and ipv6cp-missing-option
 
 Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
-and its missing-option one-shot Nak, driven by a real pppd 2.5.1 client and
+and its missing-option one-shot Nak, driven by a real pppd 2.5.4 client and
 read off the wire (`check_ipv6cp.go`), the same shape `pppoe-padr-replay`
-established. **Neither can pass today.** `poolPlugin.handle`
+established. pppd cannot be made to send either request: its `ipv6`
+option refuses the zero identifier ("Illegal interface identifier (local)",
+`setifaceid` in pppd's `ipv6cp.c`), and it always sends the option. So both
+checkers capture pppd's own IPv6CP Configure-Request and replay rebuilt
+copies of it: the zero-identifier checker sends the zero value, then the
+value Ze's Configure-Nak suggested, and wants a Configure-Nak and then a
+Configure-Ack from Ze's MAC. **Neither can pass today.** `poolPlugin.handle`
 (`internal/component/l2tp/plugins/pool/register.go`) answers every
 `EventIPRequest` whose family is not IPv4 with `Accept: false`, and
 `runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads that decline
 before the session reads a single client frame, so Ze's IPv6CP FSM never
-starts, on any configuration. Both scenarios run against pppd 2.5.1 only: this
+starts, on any configuration. Both scenarios run against pppd 2.5.4 only: this
 lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
 role its images support. Both checkers return a citing error at the first
 missing wire evidence rather than passing vacuously.
-`plan/spec-l2tp-ipv6-subscriber.md` is what switches them on.
+`plan/post-release/features/spec-l2tp-ipv6-subscriber.md` is what switches them on.
 
 ## Relationship to other evidence
 

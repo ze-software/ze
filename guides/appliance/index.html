@@ -504,8 +504,9 @@ internal/le/build/gokrazy/  # `le build gokrazy`: the vendored gokrazy command w
 <code>builddir/</code> modules pin the system-package versions.</p>
 <h3 id="builds-never-run-from-this-directory">Builds never run from this directory</h3>
 <p>The tree above is the build <em>input</em>; no build runs inside it. Every image build
-first copies <code>gokrazy/ze</code> to a fresh directory under the project <code>tmp/</code>,
-including the whole <code>builddir</code>, rewriting each filesystem-path <code>replace</code> to an
+first copies the instance it names (<code>gokrazy/ze</code> for the appliance,
+<code>gokrazy/docker-host</code> for <code>./le setup docker-host build</code>) to a fresh directory
+under the project <code>tmp/</code>, including the whole <code>builddir</code>, rewriting each filesystem-path <code>replace</code> to an
 absolute path so it still resolves from the new depth. gok is then pointed at the
 copy, and the copy is deleted afterwards.</p>
 <!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
@@ -1036,7 +1037,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

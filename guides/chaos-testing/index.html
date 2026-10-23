@@ -174,7 +174,7 @@ flag shares the host network so <code>le chaos run</code> simulators can connect
   --config-out chaos-frr.conf
 docker run --rm --network host \
   -v ./chaos-frr.conf:/etc/frr/bgpd.conf:ro \
-  quay.io/frrouting/frr:10.3.1 \
+  quay.io/frrouting/frr:10.7.1 \
   /usr/lib/frr/bgpd -f /etc/frr/bgpd.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
 
 # In another terminal: run le chaos run against the FRR instance
@@ -194,7 +194,7 @@ docker run --rm --network host \
 <pre><code class="language-bash"># FRR: -C flag checks config and exits
 ./le chaos run --config-only --application frr &gt; frr.conf
 docker run --rm -v ./frr.conf:/etc/frr/bgpd.conf:ro \
-  quay.io/frrouting/frr:10.3.1 \
+  quay.io/frrouting/frr:10.7.1 \
   /usr/lib/frr/bgpd -C -f /etc/frr/bgpd.conf -n -Z -S -p 0 -P 0
 
 # BIRD: -p flag parses config and exits
@@ -338,7 +338,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

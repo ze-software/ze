@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2.6% | 1 of 38 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 38 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 7.9% | 3 of 38 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2.6% | 1 of 38 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 38 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 38 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 9 of 9 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,7 +34,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 97.4% | 37 of 38 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 89.5% | 34 of 38 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 8 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -66,19 +66,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 37 |
+| Gated with no test | 34 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
+| Test tags | 9 |
+| Tagged units | 9 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 2 |
+| Discrimination records | 9 |
 | Summary | `rfc/short/rfc8362.md` |
 | Requirement shard | `rfc/requirements/rfc8362.md` |
 | RFC text | `rfc/full/rfc8362.txt` |
 
 ## Enrolment
 
-Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; the tagged test does not yet check it on the E-Inter-Area-Prefix-LSA.
+Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; TestRFC8362ExtendedLSAsSetUBitOnTheWire reads it on the wire for all three Extended LSA types Ze originates (E-Router, E-Intra-Area-Prefix and, from 2026-10-21, E-Inter-Area-Prefix).
 
 ## What the public ledger says
 
@@ -86,7 +86,7 @@ Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided
 
 **What the ledger says is covered**
 
-Three of the seven Extended LSA types are framed and originated, and only under `segment-routing`: E-Router (0x2021), E-Intra-Area-Prefix (0x2029) and E-Inter-Area-Prefix (0x2023), through `EncodeExtendedLSABody` ([`internal/plugins/ospf/v3/packet/lsa_extended.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/lsa_extended.go)). Receipt decoding reads Prefix-SIDs and nothing else. No SPF calculation reads an Extended LSA.
+Three of the seven Extended LSA types are framed and originated, and only under `segment-routing`: E-Router (0xA021), E-Intra-Area-Prefix (0xA029) and E-Inter-Area-Prefix (0xA023), through `EncodeExtendedLSABody` ([`internal/plugins/ospf/v3/packet/lsa_extended.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/lsa_extended.go)). Receipt decoding reads Prefix-SIDs and nothing else. No SPF calculation reads an Extended LSA.
 
 **What the ledger says remains**
 
@@ -96,27 +96,29 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 1 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
+| Positive and negative tests | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 37 | one part of the gated population |
+| No test and no annotation | 34 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **38** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (1):** [`RFC8362-2-1`](#rfc8362-2-1)
+**Positive and negative tests (3):** [`RFC8362-3.2-1`](#rfc8362-3.2-1), [`RFC8362-3.3-1`](#rfc8362-3.3-1), [`RFC8362-6.3-1`](#rfc8362-6.3-1)
 
-**No test and no annotation (37):** [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1), [`RFC8362-3.2-1`](#rfc8362-3.2-1), [`RFC8362-3.3-1`](#rfc8362-3.3-1), [`RFC8362-3.4-1`](#rfc8362-3.4-1), [`RFC8362-3.5-1`](#rfc8362-3.5-1), [`RFC8362-3.6-1`](#rfc8362-3.6-1), [`RFC8362-3.7-1`](#rfc8362-3.7-1), [`RFC8362-3.8-1`](#rfc8362-3.8-1), [`RFC8362-3.9-1`](#rfc8362-3.9-1), [`RFC8362-3.10-1`](#rfc8362-3.10-1), [`RFC8362-3.10-2`](#rfc8362-3.10-2), [`RFC8362-3.11-1`](#rfc8362-3.11-1), [`RFC8362-3.11-2`](#rfc8362-3.11-2), [`RFC8362-3.12-1`](#rfc8362-3.12-1), [`RFC8362-4.2-1`](#rfc8362-4.2-1), [`RFC8362-4.3-1`](#rfc8362-4.3-1), [`RFC8362-4.3-2`](#rfc8362-4.3-2), [`RFC8362-4.4-1`](#rfc8362-4.4-1), [`RFC8362-4.4-2`](#rfc8362-4.4-2), [`RFC8362-4.5-1`](#rfc8362-4.5-1), [`RFC8362-4.5-2`](#rfc8362-4.5-2), [`RFC8362-4.7-1`](#rfc8362-4.7-1), [`RFC8362-4.7-2`](#rfc8362-4.7-2), [`RFC8362-4.7-3`](#rfc8362-4.7-3), [`RFC8362-4.8-1`](#rfc8362-4.8-1), [`RFC8362-5-1`](#rfc8362-5-1), [`RFC8362-5-2`](#rfc8362-5-2), [`RFC8362-6.2-1`](#rfc8362-6.2-1), [`RFC8362-6.3-1`](#rfc8362-6.3-1), [`RFC8362-6.3-2`](#rfc8362-6.3-2), [`RFC8362-6.3-3`](#rfc8362-6.3-3), [`RFC8362-6.3-4`](#rfc8362-6.3-4), [`RFC8362-6.3-5`](#rfc8362-6.3-5), [`RFC8362-8.1-1`](#rfc8362-8.1-1), [`RFC8362-8.1-2`](#rfc8362-8.1-2), [`RFC8362-8.2-1`](#rfc8362-8.2-1), [`RFC8362-8.2-2`](#rfc8362-8.2-2)
+**Annotated (including scoped evidence) (1):** [`RFC8362-2-1`](#rfc8362-2-1)
+
+**No test and no annotation (34):** [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1), [`RFC8362-3.4-1`](#rfc8362-3.4-1), [`RFC8362-3.5-1`](#rfc8362-3.5-1), [`RFC8362-3.6-1`](#rfc8362-3.6-1), [`RFC8362-3.7-1`](#rfc8362-3.7-1), [`RFC8362-3.8-1`](#rfc8362-3.8-1), [`RFC8362-3.9-1`](#rfc8362-3.9-1), [`RFC8362-3.10-1`](#rfc8362-3.10-1), [`RFC8362-3.10-2`](#rfc8362-3.10-2), [`RFC8362-3.11-1`](#rfc8362-3.11-1), [`RFC8362-3.11-2`](#rfc8362-3.11-2), [`RFC8362-3.12-1`](#rfc8362-3.12-1), [`RFC8362-4.2-1`](#rfc8362-4.2-1), [`RFC8362-4.3-1`](#rfc8362-4.3-1), [`RFC8362-4.3-2`](#rfc8362-4.3-2), [`RFC8362-4.4-1`](#rfc8362-4.4-1), [`RFC8362-4.4-2`](#rfc8362-4.4-2), [`RFC8362-4.5-1`](#rfc8362-4.5-1), [`RFC8362-4.5-2`](#rfc8362-4.5-2), [`RFC8362-4.7-1`](#rfc8362-4.7-1), [`RFC8362-4.7-2`](#rfc8362-4.7-2), [`RFC8362-4.7-3`](#rfc8362-4.7-3), [`RFC8362-4.8-1`](#rfc8362-4.8-1), [`RFC8362-5-1`](#rfc8362-5-1), [`RFC8362-5-2`](#rfc8362-5-2), [`RFC8362-6.2-1`](#rfc8362-6.2-1), [`RFC8362-6.3-2`](#rfc8362-6.3-2), [`RFC8362-6.3-3`](#rfc8362-6.3-3), [`RFC8362-6.3-4`](#rfc8362-6.3-4), [`RFC8362-6.3-5`](#rfc8362-6.3-5), [`RFC8362-8.1-1`](#rfc8362-8.1-1), [`RFC8362-8.1-2`](#rfc8362-8.1-2), [`RFC8362-8.2-1`](#rfc8362-8.2-1), [`RFC8362-8.2-2`](#rfc8362-8.2-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8362-2-1` | For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66). **negative:** `unit/verify` [`TestRFC8362BaseLSAsKeepUBitClearOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98) |
+| `RFC8362-2-1` | For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66). **negative:** no negative test. **{single-polarity}:** the U-bit is part of each Extended LS Type constant (internal/plugins/ospf/v3/types/lsa.go, LSTypeERouter = lsTypeUBit \| ...), so no Extended LSA can be built with U clear and no violating input exists to reject; the clear-U base types are RFC 5340 Appendix A.4.2.1, a different rule |
 | `RFC8362-3.1.1-1` | If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1) | MUST | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.2-1` | The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-3.3-1` | The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-3.2-1` | The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8362RouterLinkTLVReadFromERouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L90). **negative:** `unit/verify` [`TestRFC8362RouterLinkTLVIgnoredOutsideERouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L118) |
+| `RFC8362-3.3-1` | The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC8362AttachedRoutersTLVReadFromENetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L143). **negative:** `unit/verify` [`TestRFC8362AttachedRoutersTLVIgnoredOutsideENetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L176) |
 | `RFC8362-3.4-1` | The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-3.5-1` | The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5) | MUST | 3.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-3.6-1` | The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test |
@@ -142,7 +144,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 | `RFC8362-5-1` | Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5) | MUST NOT | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-5-2` | Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-6.2-1` | However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8362-6.3-1` | To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-6.3-1` | To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC8362UnknownTLVKeepsLSAForBGPLS`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L67). **positive:** `unit/verify` [`TestRFC8362UnknownTLVKeepsLSAForPrefixSIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L109). **negative:** `unit/verify` [`TestRFC8362UnknownTLVIgnoredByBGPLS`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L88). **negative:** `unit/verify` [`TestRFC8362UnknownTLVIgnoredByPrefixSIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L129) |
 | `RFC8362-6.3-2` | Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-6.3-3` | If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-6.3-4` | If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
@@ -169,8 +171,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1) If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1) | no test | no test carries this requirement id |
-| [`RFC8362-3.2-1`](#rfc8362-3.2-1) The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2) | no test | no test carries this requirement id |
-| [`RFC8362-3.3-1`](#rfc8362-3.3-1) The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3) | no test | no test carries this requirement id |
 | [`RFC8362-3.4-1`](#rfc8362-3.4-1) The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4) | no test | no test carries this requirement id |
 | [`RFC8362-3.5-1`](#rfc8362-3.5-1) The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5) | no test | no test carries this requirement id |
 | [`RFC8362-3.6-1`](#rfc8362-3.6-1) The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6) | no test | no test carries this requirement id |
@@ -196,7 +196,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 | [`RFC8362-5-1`](#rfc8362-5-1) Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5) | no test | no test carries this requirement id |
 | [`RFC8362-5-2`](#rfc8362-5-2) Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5) | no test | no test carries this requirement id |
 | [`RFC8362-6.2-1`](#rfc8362-6.2-1) However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2) | no test | no test carries this requirement id |
-| [`RFC8362-6.3-1`](#rfc8362-6.3-1) To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3) | no test | no test carries this requirement id |
 | [`RFC8362-6.3-2`](#rfc8362-6.3-2) Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3) | no test | no test carries this requirement id |
 | [`RFC8362-6.3-3`](#rfc8362-6.3-3) If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | no test | no test carries this requirement id |
 | [`RFC8362-6.3-4`](#rfc8362-6.3-4) If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3) | no test | no test carries this requirement id |
@@ -218,7 +217,6 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8362BaseLSAsKeepUBitClearOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66) | unit/verify | revert, verified |
 
 ### [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1)
@@ -235,7 +233,10 @@ The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclus
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8362-3.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8362RouterLinkTLVIgnoredOutsideERouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L118) | unit/verify | mutant, verified |
+| positive | [`TestRFC8362RouterLinkTLVReadFromERouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L90) | unit/verify | mutant, verified |
 
 ### [`RFC8362-3.3-1`](#rfc8362-3.3-1)
 
@@ -243,7 +244,10 @@ The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8362-3.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8362AttachedRoutersTLVIgnoredOutsideENetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L176) | unit/verify | mutant, verified |
+| positive | [`TestRFC8362AttachedRoutersTLVReadFromENetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_tlv_applicability_test.go#L143) | unit/verify | mutant, verified |
 
 ### [`RFC8362-3.4-1`](#rfc8362-3.4-1)
 
@@ -451,7 +455,12 @@ To ensure compatibility of future TLV-based LSA extensions, all implementations 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8362-6.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8362UnknownTLVIgnoredByBGPLS`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L88) | unit/verify | mutant, verified |
+| negative | [`TestRFC8362UnknownTLVIgnoredByPrefixSIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L129) | unit/verify | mutant, verified |
+| positive | [`TestRFC8362UnknownTLVKeepsLSAForBGPLS`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L67) | unit/verify | mutant, verified |
+| positive | [`TestRFC8362UnknownTLVKeepsLSAForPrefixSIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_unknown_tlv_test.go#L109) | unit/verify | mutant, verified |
 
 ### [`RFC8362-6.3-2`](#rfc8362-6.3-2)
 

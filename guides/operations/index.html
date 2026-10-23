@@ -715,7 +715,19 @@ ze cli -c "bgp monitor event state"
 </code></pre>
 <ol>
 <li>
-<p>Check the NOTIFICATION code in monitor output:</p>
+<p><strong>Look for the <code>notification received</code> line in ze's log first.</strong> Every
+NOTIFICATION a peer sends leaves one WARN line, visible at the default log
+level with no <code>ze.log</code> override, including a peer that refuses Ze's OPEN
+before the session ever comes up. It names the peer, the FSM state the
+NOTIFICATION arrived in (<code>OPENSENT</code> or <code>OPENCONFIRM</code> when the OPEN was
+refused), the code and subcode as names and numbers, and the peer's
+shutdown message when it sent one:</p>
+<pre><code>level=WARN msg="notification received" subsystem=bgp.reactor.session peer=192.0.2.1 state=OPENCONFIRM code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0
+</code></pre>
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- logNotificationReceived -->
+</li>
+<li>
+<p>Read the code and subcode against this table (the same values appear in monitor output):</p>
 <table>
 <thead>
 <tr>
@@ -902,7 +914,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

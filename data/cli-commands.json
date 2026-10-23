@@ -99,6 +99,149 @@
     ]
   },
   {
+    "path": "clear bgp rib advertised",
+    "short-help": "Withdraw every route advertised to a peer.",
+    "description": "Withdraws every route the selected peers' sessions hold in their Adj-RIB-Out,\nconfigured routes included, and the peers are left with nothing from Ze until\nroutes are announced again. clear bgp rib out resends the same table instead.\nThe selector is mandatory: clear bgp rib advertised alone is refused, and * is\nthe explicit form for every peer. A family typed after its keyword, as family\nipv4/unicast, limits the withdrawal to that family.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-clear-advertised",
+    "task-support": "forbidden",
+    "args": [
+      {
+        "name": "selector",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001,\na glob, a comma-separated list of those, or * for every peer. A selector that\nmatches no peer is refused."
+      },
+      {
+        "name": "family",
+        "type": "string",
+        "short-help": "Address family to withdraw, such as ipv4/unicast",
+        "description": "An address family such as ipv4/unicast. Absent, every family is withdrawn."
+      }
+    ],
+    "usage": "clear bgp rib advertised <selector> [family <family>]",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "advertised",
+        "kind": "keyword"
+      },
+      {
+        "text": "selector",
+        "kind": "value"
+      },
+      {
+        "text": "family",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "clear bgp rib in",
     "short-help": "Remove all routes received from a peer.",
     "description": "Wipes the Adj-RIB-In for the peers the selector matches. They will\nneed to re-advertise everything (or you can send a route-refresh). The selector is\nmandatory: clear bgp rib in alone is refused, and * is the explicit form for every peer.",
@@ -10903,6 +11046,204 @@
     ]
   },
   {
+    "path": "request bgp watchdog forget",
+    "short-help": "Withdraw and forget the routes an owner gave watchdog groups",
+    "mode": "daemon",
+    "usage": "request bgp watchdog forget",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request bgp watchdog give",
+    "short-help": "Give a route to a watchdog group, sent now or held",
+    "mode": "daemon",
+    "usage": "request bgp watchdog give",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "request bgp watchdog withdraw",
     "short-help": "Withdraw routes in watchdog group",
     "mode": "daemon",
@@ -13508,6 +13849,272 @@
     ]
   },
   {
+    "path": "request peer disable",
+    "short-help": "Hold a peer administratively down.",
+    "description": "Ze closes a running session with Cease subcode 2, Administrative Shutdown,\nand opens none until 'request peer <selector> enable'. The words after disable\nare the RFC 9003 Shutdown Communication, and the answer echoes the text that\nfits on the wire.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:peer-disable",
+    "args": [
+      {
+        "name": "selector",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "short-help": "Shutdown communication",
+        "description": "Every word after disable, joined by one space. Absent, the Cease carries\nno communication."
+      }
+    ],
+    "usage": "request peer <selector> disable [message <message>]",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "peer",
+        "kind": "keyword"
+      },
+      {
+        "text": "selector",
+        "kind": "value"
+      },
+      {
+        "text": "disable",
+        "kind": "keyword"
+      },
+      {
+        "text": "message",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request peer enable",
+    "short-help": "Release a peer's administrative hold.",
+    "description": "Ze releases the hold of 'request peer <selector> disable' or of the peer\nshutdown container, and the peer connects straight away. It takes no argument.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:peer-enable",
+    "args": [
+      {
+        "name": "selector",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+      }
+    ],
+    "usage": "request peer <selector> enable",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "peer",
+        "kind": "keyword"
+      },
+      {
+        "text": "selector",
+        "kind": "value"
+      },
+      {
+        "text": "enable",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "request peer eorr",
     "short-help": "Finish an Enhanced Route Refresh cycle (RFC 7313).",
     "description": "The peer purges any routes not re-advertised since the matching\nBORR. Only send this after the peer has finished re-advertising.",
@@ -13667,6 +14274,176 @@
       {
         "text": "flush",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request peer notify",
+    "short-help": "Close a peer session with a NOTIFICATION of any code and subcode.",
+    "description": "Ze closes the session with a NOTIFICATION carrying the error code and error\nsubcode given, any value from 0 to 255. Under Cease (6), subcode 2 or 4, the\nwords after the subcode are the RFC 9003 Shutdown Communication; under every\nother pair they are the Data field. Both are sent as UTF-8. With no words the\nData field is empty. A text that does not fit is refused and the session stays\nup: more than 128 octets under Cease 2 or 4 (RFC 9003 Section 3), more than\n4075 octets otherwise, or text that is not UTF-8. With the word hex after the\nsubcode, the next word is the Data field itself in hexadecimal, sent octet for\noctet with no encoding, and refused over 4075 octets. teardown is the Cease-only\nform; notify is the form for testing another implementation, and the hex form\nis the one the ExaBGP bridge sends for teardown with a code.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:peer-notify",
+    "args": [
+      {
+        "name": "selector",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+      },
+      {
+        "name": "code",
+        "type": "uint",
+        "mandatory": true,
+        "short-help": "NOTIFICATION error code",
+        "description": "The NOTIFICATION error code, a whole number from 0 to 255."
+      },
+      {
+        "name": "subcode",
+        "type": "uint",
+        "mandatory": true,
+        "short-help": "NOTIFICATION error subcode",
+        "description": "The NOTIFICATION error subcode, a whole number from 0 to 255."
+      },
+      {
+        "name": "hex",
+        "type": "string",
+        "short-help": "Data field octets in hexadecimal",
+        "description": "The Data field in hexadecimal, two digits for each octet, as one word typed\nafter the keyword hex in place of a text. It is sent as it is, so it can carry\noctets that are not UTF-8 or a Shutdown Communication whose length octet is\nwrong. More than 4075 octets, an odd number of digits, or a character other\nthan 0-9, a-f or A-F is refused."
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "short-help": "Data field text",
+        "description": "Every word after the subcode, or after the keyword text, joined by one space.\nNo word in it is read as a keyword, so a text can hold the words code, subcode,\ntext or hex. Absent, the Data field is empty."
+      }
+    ],
+    "usage": "request peer <selector> notify <code> <subcode> [hex <hex>] [text <text>]",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "peer",
+        "kind": "keyword"
+      },
+      {
+        "text": "selector",
+        "kind": "value"
+      },
+      {
+        "text": "notify",
+        "kind": "keyword"
+      },
+      {
+        "text": "code",
+        "kind": "value"
+      },
+      {
+        "text": "subcode",
+        "kind": "value"
+      },
+      {
+        "text": "hex",
+        "kind": "option"
+      },
+      {
+        "text": "text",
+        "kind": "option"
       }
     ],
     "operators": [
@@ -21343,7 +22120,7 @@
   {
     "path": "show bgp peer detail",
     "short-help": "Show full detail for one or more peers.",
-    "description": "Each peer row carries the remote and local ASN, the router ID, the peer type,\nand four timers: receive hold time, send hold time, keepalive, and connect\nretry. The 'connect' and 'accept' flags say which directions this session opens.\nA 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and\nEnd-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear\nunder capabilities.paths-limit, keyed by family: send is the peer's maximum\npaths per prefix enforced on our outbound updates; receive is our advertised\nreceive request, not a locally enforced inbound limit. Zero or absent limits\nare omitted.",
+    "description": "Each peer row carries the remote and local ASN, the router ID, the peer type,\n'state' (the peer's lifecycle) and 'fsm-state' (the session's RFC 4271 Section 8.2.2\nstate, IDLE, ACTIVE, CONNECT, OPENSENT, OPENCONFIRM or ESTABLISHED),\nand four timers: receive hold time, send hold time, keepalive, and connect\nretry. The 'connect' and 'accept' flags say which directions this session opens.\nA 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and\nEnd-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear\nunder capabilities.paths-limit, keyed by family: send is the peer's maximum\npaths per prefix enforced on our outbound updates; receive is our advertised\nreceive request, not a locally enforced inbound limit. Zero or absent limits\nare omitted.",
     "mode": "read-only",
     "wire-method": "ze-bgp:peer-detail",
     "args": [

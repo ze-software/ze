@@ -461,7 +461,10 @@ on what we send THEM.</p>
             import customer
         }
         filter {
-            export [ NO-TRANSIT ]
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
     }
 }
@@ -469,10 +472,14 @@ on what we send THEM.</p>
 <p>To run a session without the check, name the filter and deactivate it. The chain
 records the decision, and the filter never executes:</p>
 <pre><code>filter {
-    export [ NO-TRANSIT ];
-    inactive: export NO-TRANSIT;
+    export {
+        filters [ NO-TRANSIT ];
+        inactive: filters NO-TRANSIT;
+        final accept;
+    }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>The obligation is independent of OTC. OTC works only where the peer implements
 RFC 9234; a reject-asn list works against any peer and needs nothing from it.</p>
 <!-- source: internal/component/bgp/config/peers.go -- validateLeakFilterObligations, leakFilterByRole -->
@@ -524,7 +531,7 @@ RFC 9234; a reject-asn list works against any peer and needs nothing from it.</p
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

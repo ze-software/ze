@@ -218,10 +218,22 @@ A peer inherits from its group defaults. A group inherits from this global level
         Each value names a set in the bgp community container. Ze removes every community of that set from the route.
       - **tag** `string[]`: Named communities to add on egress.
         Each value names a set in the bgp community container. Ze adds every community of that set to the route.
-  - **export** `string[]`: Global export filter chain
-    Ze runs the global chain first, then the group chain, then the peer chain. An RFC 9234 role can require this chain to name a filter that catches a transit leak.
-  - **import** `string[]`: Global import filter chain
-    Ze runs the global chain first, then the group chain, then the peer chain. Each name references a filter instance declared under bgp/policy. A plain name that no instance declares is refused at config load.
+  - **export** `container`: Global export policy
+    Global filters run before group and peer filters. The most specific policy supplies the final decision.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import or export policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
+  - **import** `container`: Global import policy
+    Global filters run before group and peer filters. Every configured policy needs a final decision.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import or export policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
   - **ingress** `container`: Ingress direction filters.
     The container holds the filters Ze runs over a route it receives from this peer.
     - **community** `container`: Community filter for ingress.
@@ -243,6 +255,10 @@ A peer inherits from its group defaults. A group inherits from this global level
         Each value names a set in the bgp community container. Ze removes every community of that set from the route.
       - **tag** `string[]`: Named communities to add on ingress.
         Each value names a set in the bgp community container. Ze adds every community of that set to the route.
+- **flowspec-redirect-check** `container`: FlowSpec redirect-to-IP origin check on this EBGP session.
+  The check Ze applies to each FlowSpec rule received from an EBGP peer whose redirect-to-IP extended community (0x0800) names next hop X. Ze finds the longest unicast match for X in the rule's own domain, the Route Distinguisher of a flow-vpn rule, and in X's address family. When the last AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches, Ze discards the redirect action of that rule alone: the rule is still installed and forwarded, without the 0x0800 community and with a zero next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires the check by default. It also requires that the check can be turned off for one EBGP session, which is what this container is for. A route from an IBGP peer, whose AS is the local AS, is never checked; a session whose local AS is unknown is checked.
+  - **enabled** `boolean`: Check a FlowSpec redirect-to-IP next hop against the peer's AS.
+    true runs the check on this session and false turns it off. The leaf has no YANG default so that a peer inherits its group's value and a group the bgp level's. When no level states the leaf, the check runs.
 - **group <name>** `list`: Peer group - defines shared defaults for member peers
   A member peer inherits every leaf of the group, and its own value overrides the inherited one. Routes and filter chains accumulate instead of overriding: the group entries run before the peer entries.
   - **attach** `container`: Programs this peer attaches.
@@ -365,10 +381,22 @@ A peer inherits from its group defaults. A group inherits from this global level
           Each value names a set in the bgp community container. Ze removes every community of that set from the route.
         - **tag** `string[]`: Named communities to add on egress.
           Each value names a set in the bgp community container. Ze adds every community of that set to the route.
-    - **export** `string[]`: Export filter chain (filter instance names)
-      Ze runs the global chain, then the group chain, then this chain. Prefix a name with inactive: to record that this session runs without a check an RFC 9234 role requires.
-    - **import** `string[]`: Import filter chain (filter instance names)
-      Ze runs the global chain, then the group chain, then this chain. A plain name references a filter instance declared under bgp/policy. A name that carries a colon names a plugin filter, which Ze validates at runtime.
+    - **export** `container`: Export policy
+      Append these filters to inherited filters and use this policy's explicit final decision.
+      - **filters** `string[]`: Ordered filter instance references
+        Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+      - **final** `enumeration`: Decision after every filter passes
+        Every present import or export policy must set final accept or final reject, even with no filters.
+        - `accept`: Accept a route that passes every filter
+        - `reject`: Reject a route that passes every filter
+    - **import** `container`: Import policy
+      Append these filters to inherited filters and use this policy's explicit final decision.
+      - **filters** `string[]`: Ordered filter instance references
+        Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+      - **final** `enumeration`: Decision after every filter passes
+        Every present import or export policy must set final accept or final reject, even with no filters.
+        - `accept`: Accept a route that passes every filter
+        - `reject`: Reject a route that passes every filter
     - **ingress** `container`: Ingress direction filters.
       The container holds the filters Ze runs over a route it receives from this peer.
       - **community** `container`: Community filter for ingress.
@@ -390,6 +418,10 @@ A peer inherits from its group defaults. A group inherits from this global level
           Each value names a set in the bgp community container. Ze removes every community of that set from the route.
         - **tag** `string[]`: Named communities to add on ingress.
           Each value names a set in the bgp community container. Ze adds every community of that set to the route.
+  - **flowspec-redirect-check** `container`: FlowSpec redirect-to-IP origin check on this EBGP session.
+    The check Ze applies to each FlowSpec rule received from an EBGP peer whose redirect-to-IP extended community (0x0800) names next hop X. Ze finds the longest unicast match for X in the rule's own domain, the Route Distinguisher of a flow-vpn rule, and in X's address family. When the last AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches, Ze discards the redirect action of that rule alone: the rule is still installed and forwarded, without the 0x0800 community and with a zero next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires the check by default. It also requires that the check can be turned off for one EBGP session, which is what this container is for. A route from an IBGP peer, whose AS is the local AS, is never checked; a session whose local AS is unknown is checked.
+    - **enabled** `boolean`: Check a FlowSpec redirect-to-IP next hop against the peer's AS.
+      true runs the check on this session and false turns it off. The leaf has no YANG default so that a peer inherits its group's value and a group the bgp level's. When no level states the leaf, the check runs.
   - **peer <name>** `list`: BGP peer in this group
     The list key is the peer name. connection/remote/ip must be unique over every peer, and Ze refuses the config when that address, session/asn/local or session/asn/remote is absent.
     - **attach** `container`: Programs this peer attaches.
@@ -512,10 +544,22 @@ A peer inherits from its group defaults. A group inherits from this global level
             Each value names a set in the bgp community container. Ze removes every community of that set from the route.
           - **tag** `string[]`: Named communities to add on egress.
             Each value names a set in the bgp community container. Ze adds every community of that set to the route.
-      - **export** `string[]`: Export filter chain (filter instance names)
-        Ze runs the global chain, then the group chain, then this chain. Prefix a name with inactive: to record that this session runs without a check an RFC 9234 role requires.
-      - **import** `string[]`: Import filter chain (filter instance names)
-        Ze runs the global chain, then the group chain, then this chain. A plain name references a filter instance declared under bgp/policy. A name that carries a colon names a plugin filter, which Ze validates at runtime.
+      - **export** `container`: Export policy
+        Append these filters to inherited filters and use this policy's explicit final decision.
+        - **filters** `string[]`: Ordered filter instance references
+          Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+        - **final** `enumeration`: Decision after every filter passes
+          Every present import or export policy must set final accept or final reject, even with no filters.
+          - `accept`: Accept a route that passes every filter
+          - `reject`: Reject a route that passes every filter
+      - **import** `container`: Import policy
+        Append these filters to inherited filters and use this policy's explicit final decision.
+        - **filters** `string[]`: Ordered filter instance references
+          Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+        - **final** `enumeration`: Decision after every filter passes
+          Every present import or export policy must set final accept or final reject, even with no filters.
+          - `accept`: Accept a route that passes every filter
+          - `reject`: Reject a route that passes every filter
       - **ingress** `container`: Ingress direction filters.
         The container holds the filters Ze runs over a route it receives from this peer.
         - **community** `container`: Community filter for ingress.
@@ -537,6 +581,10 @@ A peer inherits from its group defaults. A group inherits from this global level
             Each value names a set in the bgp community container. Ze removes every community of that set from the route.
           - **tag** `string[]`: Named communities to add on ingress.
             Each value names a set in the bgp community container. Ze adds every community of that set to the route.
+    - **flowspec-redirect-check** `container`: FlowSpec redirect-to-IP origin check on this EBGP session.
+      The check Ze applies to each FlowSpec rule received from an EBGP peer whose redirect-to-IP extended community (0x0800) names next hop X. Ze finds the longest unicast match for X in the rule's own domain, the Route Distinguisher of a flow-vpn rule, and in X's address family. When the last AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches, Ze discards the redirect action of that rule alone: the rule is still installed and forwarded, without the 0x0800 community and with a zero next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires the check by default. It also requires that the check can be turned off for one EBGP session, which is what this container is for. A route from an IBGP peer, whose AS is the local AS, is never checked; a session whose local AS is unknown is checked.
+      - **enabled** `boolean`: Check a FlowSpec redirect-to-IP next hop against the peer's AS.
+        true runs the check on this session and false turns it off. The leaf has no YANG default so that a peer inherits its group's value and a group the bgp level's. When no level states the leaf, the check runs.
     - **rib** `container`: Route Information Base settings for this peer.
       The container controls which RIB tables Ze maintains, and how the outbound route batching works.
       - **adj** `container`: Adjacency RIB storage for this peer.
@@ -790,6 +838,10 @@ A peer inherits from its group defaults. A group inherits from this global level
         RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override departs from that, by owner decision: a peer or group that sets it sends its own identifier in its OPEN instead of the global router-id.
       - **rs-client** `boolean`: Mark this peer as an RS-client for transparent AS-path forwarding.
         Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the reactor skips AS-path prepending for this peer on the forwarding path.
+    - **shutdown** `container`: Hold the peer administratively down.
+      While the container is present Ze opens no session with the peer and answers an inbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4). 'request peer <selector> enable' releases the hold until a commit adds or removes the container, and 'request peer <selector> disable' sets it again. A commit that adds the container to a peer whose session is up closes it with Cease subcode 2, Administrative Shutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the peer connect.
+      - **message** `string`: Shutdown communication sent with the Cease.
+        The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the container to a peer whose session is up. Ze truncates it to the 255 octets the wire carries.
     - **timer** `container`: BGP session timers: hold time, keepalive interval, and connect retry delay.
       The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two values.
       - **connect-retry** `uint16`: Connect retry interval in seconds. Ze reads it for a dynamic peer alone.
@@ -810,7 +862,7 @@ A peer inherits from its group defaults. A group inherits from this global level
           The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
         - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
           The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-        - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+        - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
           The list carries an attribute that no named field covers.
         - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
           The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -1113,6 +1165,10 @@ A peer inherits from its group defaults. A group inherits from this global level
       RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override departs from that, by owner decision: a peer or group that sets it sends its own identifier in its OPEN instead of the global router-id.
     - **rs-client** `boolean`: Mark this peer as an RS-client for transparent AS-path forwarding.
       Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the reactor skips AS-path prepending for this peer on the forwarding path.
+  - **shutdown** `container`: Hold the peer administratively down.
+    While the container is present Ze opens no session with the peer and answers an inbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4). 'request peer <selector> enable' releases the hold until a commit adds or removes the container, and 'request peer <selector> disable' sets it again. A commit that adds the container to a peer whose session is up closes it with Cease subcode 2, Administrative Shutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the peer connect.
+    - **message** `string`: Shutdown communication sent with the Cease.
+      The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the container to a peer whose session is up. Ze truncates it to the 255 octets the wire carries.
   - **timer** `container`: BGP session timers: hold time, keepalive interval, and connect retry delay.
     The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two values.
     - **connect-retry** `uint16`: Connect retry interval in seconds. Ze reads it for a dynamic peer alone.
@@ -1133,7 +1189,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
       - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
         The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-      - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+      - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
         The list carries an attribute that no named field covers.
       - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
         The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -1357,10 +1413,22 @@ A peer inherits from its group defaults. A group inherits from this global level
           Each value names a set in the bgp community container. Ze removes every community of that set from the route.
         - **tag** `string[]`: Named communities to add on egress.
           Each value names a set in the bgp community container. Ze adds every community of that set to the route.
-    - **export** `string[]`: Export filter chain (filter instance names)
-      Ze runs the global chain, then the group chain, then this chain. Prefix a name with inactive: to record that this session runs without a check an RFC 9234 role requires.
-    - **import** `string[]`: Import filter chain (filter instance names)
-      Ze runs the global chain, then the group chain, then this chain. A plain name references a filter instance declared under bgp/policy. A name that carries a colon names a plugin filter, which Ze validates at runtime.
+    - **export** `container`: Export policy
+      Append these filters to inherited filters and use this policy's explicit final decision.
+      - **filters** `string[]`: Ordered filter instance references
+        Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+      - **final** `enumeration`: Decision after every filter passes
+        Every present import or export policy must set final accept or final reject, even with no filters.
+        - `accept`: Accept a route that passes every filter
+        - `reject`: Reject a route that passes every filter
+    - **import** `container`: Import policy
+      Append these filters to inherited filters and use this policy's explicit final decision.
+      - **filters** `string[]`: Ordered filter instance references
+        Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.
+      - **final** `enumeration`: Decision after every filter passes
+        Every present import or export policy must set final accept or final reject, even with no filters.
+        - `accept`: Accept a route that passes every filter
+        - `reject`: Reject a route that passes every filter
     - **ingress** `container`: Ingress direction filters.
       The container holds the filters Ze runs over a route it receives from this peer.
       - **community** `container`: Community filter for ingress.
@@ -1382,6 +1450,10 @@ A peer inherits from its group defaults. A group inherits from this global level
           Each value names a set in the bgp community container. Ze removes every community of that set from the route.
         - **tag** `string[]`: Named communities to add on ingress.
           Each value names a set in the bgp community container. Ze adds every community of that set to the route.
+  - **flowspec-redirect-check** `container`: FlowSpec redirect-to-IP origin check on this EBGP session.
+    The check Ze applies to each FlowSpec rule received from an EBGP peer whose redirect-to-IP extended community (0x0800) names next hop X. Ze finds the longest unicast match for X in the rule's own domain, the Route Distinguisher of a flow-vpn rule, and in X's address family. When the last AS of its AS_PATH, the origin AS, is not the peer's AS, or no route matches, Ze discards the redirect action of that rule alone: the rule is still installed and forwarded, without the 0x0800 community and with a zero next-hop length. draft-simpson-idr-flowspec-redirect-02 Section 3 requires the check by default. It also requires that the check can be turned off for one EBGP session, which is what this container is for. A route from an IBGP peer, whose AS is the local AS, is never checked; a session whose local AS is unknown is checked.
+    - **enabled** `boolean`: Check a FlowSpec redirect-to-IP next hop against the peer's AS.
+      true runs the check on this session and false turns it off. The leaf has no YANG default so that a peer inherits its group's value and a group the bgp level's. When no level states the leaf, the check runs.
   - **rib** `container`: Route Information Base settings for this peer.
     The container controls which RIB tables Ze maintains, and how the outbound route batching works.
     - **adj** `container`: Adjacency RIB storage for this peer.
@@ -1635,6 +1707,10 @@ A peer inherits from its group defaults. A group inherits from this global level
       RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override departs from that, by owner decision: a peer or group that sets it sends its own identifier in its OPEN instead of the global router-id.
     - **rs-client** `boolean`: Mark this peer as an RS-client for transparent AS-path forwarding.
       Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the reactor skips AS-path prepending for this peer on the forwarding path.
+  - **shutdown** `container`: Hold the peer administratively down.
+    While the container is present Ze opens no session with the peer and answers an inbound connection with Cease subcode 5, Connection Rejected (RFC 4486 Section 4). 'request peer <selector> enable' releases the hold until a commit adds or removes the container, and 'request peer <selector> disable' sets it again. A commit that adds the container to a peer whose session is up closes it with Cease subcode 2, Administrative Shutdown, carrying the message (RFC 9003 Section 2). A commit that removes it lets the peer connect.
+    - **message** `string`: Shutdown communication sent with the Cease.
+      The RFC 9003 Shutdown Communication of the Cease a commit sends when it adds the container to a peer whose session is up. Ze truncates it to the 255 octets the wire carries.
   - **timer** `container`: BGP session timers: hold time, keepalive interval, and connect retry delay.
     The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two values.
     - **connect-retry** `uint16`: Connect retry interval in seconds. Ze reads it for a dynamic peer alone.
@@ -1655,7 +1731,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
       - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
         The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-      - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+      - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
         The list carries an attribute that no named field covers.
       - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
         The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -1938,7 +2014,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where the shorter path is preferred.
     - **atomic-aggregate** `boolean`: ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).
       The flag signals that aggregation formed the route, and that AS_PATH information was lost.
-    - **attribute** `string[]`: Raw BGP attributes in hex encoding, as flags:type:hex-value.
+    - **attribute** `string[]`: Raw BGP attribute: [ 0x<code> 0x<flags> 0x<value> ].
       The list carries an attribute that no named field covers.
     - **bgp-prefix-sid** `container`: Prefix-SID attribute (RFC 8669).
       The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its SID without a per-prefix label allocation.
@@ -2306,9 +2382,14 @@ The api-server container under it is the shared parent of the REST and gRPC tran
 - **exabgp** `container`: ExaBGP compatibility settings for the migration bridge
   The bridge runs an unchanged ExaBGP API program against Ze, and the container holds the settings of the channel to that program.
   - **api** `container`: ExaBGP bridge API settings
-    The container holds the ack leaf alone. The bridge reads the leaf once, when it starts, so a change reaches the bridge at the next daemon start.
+    The container holds the ack and version leaves. The bridge reads them once, when it starts, so a change reaches the bridge at the next daemon start.
     - **ack** `boolean`: Emit done/error ack lines on plugin stdin after each dispatched command
       true matches ExaBGP, and it lets the program wait for done before it sends the next command. false keeps the bridge silent, and a program that waits for done then stops. The bridge reads false, 0, no, off, disable and disabled as false, and every other value as true.
+    - **version** `enumeration`: ExaBGP API version of the bridge's scripts: auto, 4 or 6
+      ExaBGP's api.version. auto holds each script to the API of the first command that tells: 'peer ...' is 6, 'announce ...' or 'neighbor ...' is 4. 4 or 6 holds every script to that API from its start. A script held to one API is answered error for a command of the other. A script's 'api version <v>' line moves the setting for the scripts started afterwards.
+      - `4`: Hold every script to the ExaBGP 4.x and 5.x API.
+      - `6`: Hold every script to the ExaBGP 6.0 API, JSON only.
+      - `auto`: Detect each script's API version from its commands.
 - **gnmi** `container`: Settings of the gNMI server.
   gNMI is the gRPC Network Management Interface. The Ze gNMI server answers Get, Set, Subscribe and Capabilities over gRPC.
   - **enabled** `boolean`: Start the gNMI server.
@@ -2513,13 +2594,17 @@ The bridge itself lives in the bridge container under this root, which keeps the
   - **process <name>** `list`: One ExaBGP-format script the bridge runs as a subprocess.
     One block per script. An ExaBGP configuration declares the same set as 'process <name> { run ... }', and the migration writes one block here for each of them. Ze starts every block, sends every event to every script, and reads commands from every script. The bridge does nothing until one block names a run command.
     - **encoder** `enumeration`: Format the script's events are written in.
-      json writes one JSON object per event. text writes ExaBGP's one-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24 next-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process, so one bridge can feed a text script and a JSON script at once. The default is json because the envelope Ze declares is 6.0.0, and ExaBGP 6 answers every process in JSON.
+      json writes one JSON object per event. text writes ExaBGP's one-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24 next-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process, so one bridge can feed a text script and a JSON script at once. The default is text, as ExaBGP's. The leaf is read with the script's API version, as ExaBGP 6.0 reads it: a script that writes 'peer ...' reads 6.0.0 JSON whatever this says, a script that writes 'announce ...' or 'neighbor ...' reads 5.x text or 5.x JSON (envelope 4.0.1), and a script that has written neither yet reads 5.x text when this is text and 6.0.0 JSON when it is json.
       - `json`: Write each event as one JSON object.
       - `text`: Write each event as one line in the ExaBGP text format.
     - **feed <peer>** `list`: One peer that feeds this script, and the events it feeds.
       An ExaBGP neighbor names the processes it feeds in 'api { processes [ ... ] }' and the message kinds it feeds them in the same block, so the relation is per peer AND per script. The migration writes one block here for each neighbor that named this script. Ze also sends a command that names no neighbor to these peers alone. A process with NO feed block is fed by every peer with every event, which is what one script and one neighbor means.
       - **event** `string[]`: Events this peer feeds this script.
-        ExaBGP's own event names: 'receive-update', 'send-update', 'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational' and their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal'. An EMPTY list feeds no event from this peer, which is what an ExaBGP api block that names a process and no message kind does.
+        ExaBGP's own event names: 'receive-update', 'send-update', 'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational' and their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal', and the forms a direction's messages are written in: 'receive-packets', 'receive-consolidate', 'receive-parsed' and their 'send-' siblings, as ExaBGP's 'packets', 'consolidate' and 'parsed'. An EMPTY list feeds no event from this peer, which is what an ExaBGP api block that names a process and no message kind does.
+    - **on-exit** `enumeration`: Keep or withdraw the script's routes when it exits.
+      What becomes of the routes this script announced when it exits. keep leaves them; withdraw withdraws every route the script was the last to announce, before a restarted script writes its first line. Left unset, a script that writes the ExaBGP 4 API ('announce ...', 'neighbor ...') keeps its routes, as ExaBGP 4.x and 5.x did, and any other has them withdrawn, as ExaBGP 6.0 does. Each exit is logged with the choice and its reason. ExaBGP spells this leaf the same way.
+      - `keep`: Leave the routes the script announced in place.
+      - `withdraw`: Withdraw the routes the script announced.
     - **respawn** `boolean`: Start the script again when it exits.
       true starts the script again the moment it exits. false leaves it stopped, which is what a script that does its work once and exits needs. A script that exits more than five times in 64 seconds stays stopped whatever this leaf holds, and Ze logs that it did. ExaBGP spells this leaf the same way and applies the same limit.
     - **run** `string`: Command line of the script.
@@ -2976,12 +3061,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
       - **vrrp** `container`: VRRP virtual routers hosted on this IPv4 unit.
         Ze runs each group as its own state machine, on a macvlan device that carries the group's virtual MAC. The device name starts with zv4 and takes the parent ifindex and the VRID, inside the 15-character kernel limit. The container carries ze:backend netlink, so a tree with interface backend vpp is refused at verify with "VRRP requires the netlink interface backend". A VRID is unique for one unit and one family, so the same VRID CAN run on the IPv6 unit beside it.
         - **group <name>** `list`: One virtual router, identified by an operator-assigned name.
@@ -2991,7 +3080,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
           - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
-            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Such a group also keeps the RFC 5798 owner rule: its address owner discards every advertisement it receives, where an rfc9568 owner logs and processes it. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
             - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
             - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
@@ -3194,12 +3283,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
       - **vrrp** `container`: VRRP virtual routers hosted on this IPv4 unit.
         Ze runs each group as its own state machine, on a macvlan device that carries the group's virtual MAC. The device name starts with zv4 and takes the parent ifindex and the VRID, inside the 15-character kernel limit. The container carries ze:backend netlink, so a tree with interface backend vpp is refused at verify with "VRRP requires the netlink interface backend". A VRID is unique for one unit and one family, so the same VRID CAN run on the IPv6 unit beside it.
         - **group <name>** `list`: One virtual router, identified by an operator-assigned name.
@@ -3209,7 +3302,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
           - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
-            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Such a group also keeps the RFC 5798 owner rule: its address owner discards every advertisement it receives, where an rfc9568 owner logs and processes it. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
             - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
             - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
@@ -3410,12 +3503,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
       - **vrrp** `container`: VRRP virtual routers hosted on this IPv4 unit.
         Ze runs each group as its own state machine, on a macvlan device that carries the group's virtual MAC. The device name starts with zv4 and takes the parent ifindex and the VRID, inside the 15-character kernel limit. The container carries ze:backend netlink, so a tree with interface backend vpp is refused at verify with "VRRP requires the netlink interface backend". A VRID is unique for one unit and one family, so the same VRID CAN run on the IPv6 unit beside it.
         - **group <name>** `list`: One virtual router, identified by an operator-assigned name.
@@ -3425,7 +3522,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
           - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
-            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Such a group also keeps the RFC 5798 owner rule: its address owner discards every advertisement it receives, where an rfc9568 owner logs and processes it. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
             - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
             - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
@@ -3582,12 +3679,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
@@ -3930,12 +4031,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
@@ -4092,12 +4197,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
       - **vrrp** `container`: VRRP virtual routers hosted on this IPv4 unit.
         Ze runs each group as its own state machine, on a macvlan device that carries the group's virtual MAC. The device name starts with zv4 and takes the parent ifindex and the VRID, inside the 15-character kernel limit. The container carries ze:backend netlink, so a tree with interface backend vpp is refused at verify with "VRRP requires the netlink interface backend". A VRID is unique for one unit and one family, so the same VRID CAN run on the IPv6 unit beside it.
         - **group <name>** `list`: One virtual router, identified by an operator-assigned name.
@@ -4107,7 +4216,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
           - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
-            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Such a group also keeps the RFC 5798 owner rule: its address owner discards every advertisement it receives, where an rfc9568 owner logs and processes it. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
             - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
             - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
@@ -4296,12 +4405,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
@@ -4424,12 +4537,16 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **forwarding** `boolean`: Allow this interface to forward IPv4 packets between interfaces.
         The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When it is disabled, the kernel drops a packet that is not destined for a local address.
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
-        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
+        The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface. Ze refuses it on a unit that carries an IPv4 VRRP group, because the reply would carry the device MAC rather than the virtual router MAC (RFC 9568 Section 8.1.3).
       - **rpf-check** `enumeration`: Reverse path filtering mode
         Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
+      - **unnumbered** `node-name`: Borrow the IPv4 address of another interface (unnumbered point-to-point)
+        The value names another interface in this config, the donor, usually loopback or a dummy. Ze installs the donor's IPv4 address on this unit as a /32, so the unit has no subnet of its own (Cisco ip unnumbered, Junos unnumbered-address). Ze refuses the leaf together with address or dhcp, and it refuses a donor that is missing, that is itself unnumbered, or that holds no IPv4 address. OSPF runs on such a unit only as a point-to-point interface.
+      - **unnumbered-source** `ipv4-address`: Which donor IPv4 address an unnumbered unit borrows
+        Ze installs this address of the donor as the unit's /32. The donor must hold it. When the leaf is omitted, ze takes the donor's first IPv4 address, in unit name order and then in address order (Junos preferred-source-address).
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
@@ -4710,10 +4827,12 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
       The default is 3 and the range is 1 to 10. Ze sends the request that many times to one server, then moves to the next entry of the list. An Access-Request is replayed byte for byte. An Accounting-Request gets a new identifier and a new Acct-Delay-Time on each attempt, which RFC 2866 Section 4.1 requires.
     - **server <name>** `list`: One RADIUS server Ze sends requests to, tried in the order written.
       The operator orders the list. Ze tries the first entry, and moves to the next one when that server does not answer. Write the closest server first.
+      - **accounting-port** `port`: RADIUS server UDP port for Accounting-Request packets.
+        The default is 1813, the port RFC 2866 Section 3 assigns to RADIUS accounting, and the range is 1 to 65535. Ze sends every Accounting-Request of this server to this port, so a server that takes accounting on the authentication port needs this leaf set to the same value as port.
       - **address** `string`: RADIUS server IP address or hostname.
-        The leaf is mandatory, and Ze refuses a server entry without it. Ze joins the value to port to reach the server. The first entry of the list is the one Ze tries first, so write the closest server first.
-      - **port** `uint16`: RADIUS server UDP port.
-        The default is 1812 and the range is 1 to 65535. Ze sends the Access-Request packets and the Accounting-Request packets of this server to this one port, because a server entry carries no second port.
+        The leaf is mandatory, and Ze refuses a server entry without it. Ze joins the value to port for an Access-Request, and to accounting-port for an Accounting-Request. The first entry of the list is the one Ze tries first, so write the closest server first.
+      - **port** `uint16`: RADIUS server UDP port for Access-Request packets.
+        The default is 1812 and the range is 1 to 65535. Ze sends the Access-Request packets of this server to this port. The Accounting-Request packets go to accounting-port instead.
       - **shared-key** `string`: RADIUS shared secret.
         RFC 2865 Section 3 states that the secret MUST NOT be empty, that is length 0, because an empty secret makes a forged packet easy to build.
     - **source-address** `ipv4-address`: Source IPv4 address for outbound RADIUS packets.
@@ -5540,10 +5659,10 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
       - **stability-interval** `uint16`: Hysteresis before a translator that lost the role stops translating.
         RFC 3101 section 3.5 defines the interval. A newly elected translator keeps translating for this long after it loses the role.
       - **translate-role** `enumeration`: Role of this router in the Type 7 to Type 5 translation.
-        candidate enters the election, which the highest router-id wins. always translates whatever the election decides. never does no translation.
-        - `always`: Translate Type 7 LSAs whatever the election decides.
-        - `candidate`: Enter the translator election, which the highest Router ID wins.
-        - `never`: Do no Type 7 to Type 5 translation.
+        RFC 3101 section 3.1 election. candidate translates unless another border router of the NSSA, reachable over the NSSA and as an ASBR over the backbone or a regular area, has a higher router-id or sets the Nt-bit. always translates whatever the election decides and sets the Nt-bit. never does no translation, and a never router with the highest router-id leaves the NSSA with no translator.
+        - `always`: Translate Type 7 LSAs whatever the election decides, and set the Nt-bit.
+        - `candidate`: Translate unless another border router has a higher Router ID or is an always translator.
+        - `never`: Do no Type 7 to Type 5 translation; the Router ID still counts in the election.
     - **ranges** `container`: Inter-area summary ranges.
       RFC 2328 Appendix C.2 advertises at most one summary-LSA for each address range outside the area. A network that no range covers keeps its own summary-LSA.
       - **range <prefix>** `list`: One area summary range.
@@ -6951,7 +7070,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
     - **proposal <number>** `list`: ESP proposal, where a lower number is a higher priority.
       ESP proposal. Lower number = higher priority. One group offers at most 255 proposals, because RFC 7296 Section 3.3.1 numbers them in one octet.
       - **encryption** `encryption-algo`: Encryption algorithm.
-        No build carries a transform for chacha20poly1305 or 3des, so a proposal that names one is refused at commit. The refusal lists the algorithms the build does implement.
+        No build carries a transform for chacha20poly1305 or 3des, so a proposal that names one is refused at commit. The refusal lists the algorithms the build does implement. null selects integrity-only ESP, which RFC 4303 Section 1 requires to be negotiable. RFC 4303 Section 3.2 forbids ESP with neither confidentiality nor integrity, so a null proposal without a hash is refused at commit.
         - `3des`: Triple-DES-CBC (RFC 2451), deprecated. No build implements it.
         - `aes128`: AES-CBC-128 (RFC 3602).
         - `aes128ccm12`: AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.
@@ -6964,6 +7083,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `aes256ccm8`: AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes256gcm`: AES-GCM-256, 16-byte ICV (RFC 4106).
         - `chacha20poly1305`: ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.
+        - `null`: NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only.
       - **hash** `hash-algo`: Integrity algorithm.
         Integrity algorithm. It is required beside a non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296 Section 3.3 gives an AEAD cipher its own integrity, so an ESP proposal offers the integrity transform NONE. An ESP proposal carries no PRF transform, so this leaf never names one. No build carries a transform for sha1, so a proposal that names it is refused at commit. The refusal lists the algorithms the build does implement.
         - `sha1`: HMAC-SHA-1-96 (RFC 2404). No build implements it.
@@ -6999,7 +7119,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - **dh-group** `uint8`: Diffie-Hellman group number (RFC 7296 Section 3.3.2).
         The number is Transform Type 4 of RFC 7296 Section 3.3.2. That section lists the values current at publication, up to 18, and sends the reader to the IANA registry for later ones. Ze takes 1 to 31 and refuses a group this build carries no transform for. The refusal lists the numbers the build does carry, which stops the reserved Transform ID 0 reaching the wire.
       - **encryption** `encryption-algo`: Encryption algorithm.
-        No build carries a transform for chacha20poly1305 or 3des, so a proposal that names one is refused at commit. The refusal lists the algorithms the build does implement.
+        No build carries a transform for chacha20poly1305 or 3des, so a proposal that names one is refused at commit. RFC 7296 Section 5 forbids ENCR_NULL for the IKE SA, so null is refused here too. The refusal lists the algorithms the build does implement for the IKE SA.
         - `3des`: Triple-DES-CBC (RFC 2451), deprecated. No build implements it.
         - `aes128`: AES-CBC-128 (RFC 3602).
         - `aes128ccm12`: AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.
@@ -7012,6 +7132,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `aes256ccm8`: AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes256gcm`: AES-GCM-256, 16-byte ICV (RFC 4106).
         - `chacha20poly1305`: ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.
+        - `null`: NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only.
       - **hash** `hash-algo`: PRF and integrity algorithm.
         It is required beside every cipher, and an AEAD cipher is no exception. RFC 7296 Section 3.3.3 makes the PRF a mandatory transform for an IKE proposal, and this leaf names it. An ESP proposal reads the same leaf as integrity alone, and refuses it beside an AEAD cipher. No build carries a transform for sha1, so a proposal that names it is refused at commit. The refusal lists the algorithms the build does implement.
         - `sha1`: HMAC-SHA-1-96 (RFC 2404). No build implements it.

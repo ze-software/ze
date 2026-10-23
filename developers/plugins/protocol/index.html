@@ -138,6 +138,10 @@ three-byte word saying what the line IS:</p>
 <td>the terminator, which ends the answer</td>
 </tr>
 <tr>
+<td><code>wrn</code></td>
+<td>the terminator of a command that completed and states a warning</td>
+</tr>
+<tr>
 <td><code>nay</code></td>
 <td>the whole answer to a command text naming no command</td>
 </tr>
@@ -207,6 +211,10 @@ from what the terminator carries:</p>
 <tr>
 <td class="cell-no">✕</td>
 <td><code>done</code></td>
+</tr>
+<tr>
+<td><code>wrn</code>, no rejected row and no message</td>
+<td><code>warning</code></td>
 </tr>
 <tr>
 <td>records and rejected rows, no message</td>
@@ -1050,7 +1058,7 @@ each wire method to its registered handler.</p>
 <td><code>OnBye</code></td>
 <td><code>ByeInput</code></td>
 <td>None</td>
-<td>Notify the plugin of shutdown</td>
+<td>Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection</td>
 </tr>
 </tbody>
 </table>
@@ -1278,11 +1286,14 @@ and the Modify Answer".</p>
    |-- #43 end 1 0 0: -------------------------------&gt;|  1 produced, 0 rejected,
    |                                                  |  no message
    |                                                  |
-   |  SHUTDOWN: bye                                   |
+   |  REMOVAL: bye                                    |
    |&lt;- #99 ze-plugin-callback:bye {"reason":"..."} ---|
    |-- #99 ok ----------------------------------------&gt;|
    |  (plugin exits)                                  |
 </code></pre>
+<p>A daemon stop sends no <code>bye</code>: the engine closes the connection, and the
+plugin's <code>Run</code> returns nil (<code>docs/architecture/api/process-protocol.md</code>,
+"Shutdown").</p>
 <h2 id="error-handling">Error Handling</h2>
 <p><strong>Stage errors:</strong> If any stage RPC fails (error response or timeout), the SDK returns
 an error from <code>Run()</code> with context like <code>"stage 1 (declare-registration): ..."</code>.</p>
@@ -1326,7 +1337,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

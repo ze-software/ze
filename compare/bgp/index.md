@@ -83,7 +83,18 @@ OSPFv2 meshes with BGP in both directions like IS-IS, exports OSPF routes into B
 
 ## Policy & Route Manipulation
 
-Ze takes a programmable approach to policy: external plugin filters manipulate routes via `filter { import [...] export [...] }` chains using named filter instances or explicit `<plugin>:<filter>` references. Filters chain as piped transforms (accept/reject/modify) with delta-only output. RFC-mandated checks run as default filters that can be selectively overridden. Built-in filter plugins shipped with Ze include prefix-list matching (ge/le bounds), AS-path regex filtering, community presence matching (standard/large/extended), route attribute modification (local-preference, MED, origin, next-hop, AS-path prepend), community tag/strip, and RFC 9234 role enforcement.
+Ze uses plugin filters to manipulate routes in ordered import and export policies. Each direction lists named filter instances or explicit `<plugin>:<filter>` references under `filters` and requires `final accept;` or `final reject;`.
+
+```
+filter {
+    import {
+        filters [ prefix-list:CUSTOMERS ];
+        final accept;
+    }
+}
+```
+
+An `accept` response continues the chain, and a `reject` response drops the route immediately. A `modify` response supplies attribute changes for the next filter. After the filters pass, the configured final decides whether the route proceeds. A raw payload rewrite stops later filters but does not bypass that final decision. Built-in filter plugins shipped with Ze include prefix-list matching (ge/le bounds), AS-path regex filtering, community presence matching (standard/large/extended), route attribute modification (local-preference, MED, origin, next-hop, AS-path prepend), community tag/strip, and RFC 9234 role enforcement.
 
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -292,7 +303,7 @@ It is also pre-release, with a first release planned for 2026. It sits beside im
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by 37,100+ unit tests, 2,400+ end-to-end tests, 90 fuzz targets, and interop testing against 10 independent BGP implementations. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
+Do not take that on faith: it is backed by 38,000+ unit tests, 2,500+ end-to-end tests, 90 fuzz targets, and interop testing against 11 independent BGP implementations. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 

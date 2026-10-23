@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 92.9% | 13 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 7.1% | 1 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 14 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 76.7% | 33 of 43 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 93.3% | 14 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6.7% | 1 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0.0% | 0 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 75.0% | 30 of 40 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,13 +23,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 14 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 14 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 14 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 14 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 15 | of 17 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -54,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 16 |
-| Gated MUST-level | 14 |
+| Requirements | 17 |
+| Gated MUST-level | 15 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 43 |
-| Tagged units | 43 |
-| Recorded audit verdicts | 11 |
-| Discrimination records | 33 |
+| Test tags | 40 |
+| Tagged units | 40 |
+| Recorded audit verdicts | 12 |
+| Discrimination records | 30 |
 | Summary | `rfc/short/rfc5250.md` |
 | Requirement shard | `rfc/requirements/rfc5250.md` |
 | RFC text | `rfc/full/rfc5250.txt` |
@@ -89,16 +89,16 @@ Same OSPF experimental status.
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
+| Positive and negative tests | 14 | one part of the gated population |
 | Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **14** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (13):** [`RFC5250-3-1`](#rfc5250-3-1), [`RFC5250-3.1-1`](#rfc5250-3.1-1), [`RFC5250-3.1-2`](#rfc5250-3.1-2), [`RFC5250-3.1-3`](#rfc5250-3.1-3), [`RFC5250-3.1-4`](#rfc5250-3.1-4), [`RFC5250-3.1-5`](#rfc5250-3.1-5), [`RFC5250-5-1`](#rfc5250-5-1), [`RFC5250-5-2`](#rfc5250-5-2), [`RFC5250-5-3`](#rfc5250-5-3), [`RFC5250-3.2-1`](#rfc5250-3.2-1), [`RFC5250-3.2-2`](#rfc5250-3.2-2), [`RFC5250-3.2-3`](#rfc5250-3.2-3), [`RFC5250-3.2-4`](#rfc5250-3.2-4)
+**Positive and negative tests (14):** [`RFC5250-3-1`](#rfc5250-3-1), [`RFC5250-3.1-1`](#rfc5250-3.1-1), [`RFC5250-3.1-2`](#rfc5250-3.1-2), [`RFC5250-3.1-3`](#rfc5250-3.1-3), [`RFC5250-3.1-4`](#rfc5250-3.1-4), [`RFC5250-3.1-5`](#rfc5250-3.1-5), [`RFC5250-5-1`](#rfc5250-5-1), [`RFC5250-5-4`](#rfc5250-5-4), [`RFC5250-5-2`](#rfc5250-5-2), [`RFC5250-5-3`](#rfc5250-5-3), [`RFC5250-3.2-1`](#rfc5250-3.2-1), [`RFC5250-3.2-2`](#rfc5250-3.2-2), [`RFC5250-3.2-3`](#rfc5250-3.2-3), [`RFC5250-3.2-4`](#rfc5250-3.2-4)
 
 **Annotated (including scoped evidence) (1):** [`RFC5250-3-2`](#rfc5250-3-2)
 
@@ -112,9 +112,10 @@ Same OSPF experimental status.
 | `RFC5250-3.1-3` | If the Opaque LSA is type-11 (the LSA is flooded throughout the AS) and the target interface is associated with a stub area or NSSA, the Opaque LSA MUST NOT be flooded out the interface. A type-11 Opaque LSA that is received on an interface associated with a stub area or NSSA MUST be discarded and not acknowledged (the neighboring router has flooded the LSA in error). (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestOpaqueType11StubDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L161). **negative:** `unit/verify` [`TestOpaqueType11StubDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L152) |
 | `RFC5250-3.1-4` | Opaque LSAs are only flooded to opaque-capable neighbors. To be more precise, in Section 13.3 of [OSPF], Opaque LSAs MUST be placed on the link-state retransmission lists of opaque-capable neighbors and MUST NOT be placed on the link-state retransmission lists of non-opaque-capable neighbors. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestOpaqueFloodOnlyToOpaqueNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L38). **negative:** `unit/verify` [`TestOpaqueFloodOnlyToOpaqueNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L42) |
 | `RFC5250-3-2` | The link-state ID of the Opaque LSA is divided into an Opaque type field (the first 8 bits) and a type-specific ID (the remaining 24 bits). (§3) | MUST | 3 | **positive:** `unit/verify` [`TestOpaqueLinkStateIDSplit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go#L19). **negative:** no negative test. **{single-polarity}:** the Link State ID split is a pure bit operation (high octet is the Opaque Type, low 24 bits the Opaque ID) with no validation or reject path, so there is no negative behavior to drive |
-| `RFC5250-3.1-5` | the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74). **positive:** `unit/verify` [`TestRFC5250HelloSentWithoutOBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77). **negative:** `unit/verify` [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63). **negative:** `unit/verify` [`TestRFC5250HelloOBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94) |
-| `RFC5250-5-1` | (2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51). **positive:** `unit/verify` [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65). **negative:** `unit/verify` [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44). **negative:** `unit/verify` [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49) |
-| `RFC5250-5-2` | It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52). **positive:** `unit/verify` [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51). **negative:** `unit/verify` [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64) |
+| `RFC5250-3.1-5` | the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5250HelloSentWithoutOBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77). **negative:** `unit/verify` [`TestRFC5250HelloOBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94) |
+| `RFC5250-5-1` | (2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L67). **negative:** `unit/verify` [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49) |
+| `RFC5250-5-4` | If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L54). **negative:** `unit/verify` [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L70) |
+| `RFC5250-5-2` | It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51). **negative:** `unit/verify` [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64) |
 | `RFC5250-5-3` | (1) An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF]. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5250TwoRoutersType11OriginatorReachable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_originator_test.go#L115). **positive:** `unit/verify` [`TestRFC5250Type11OriginatorAdvertisesASBR`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L59). **negative:** `unit/verify` [`TestRFC5250Type11OriginatorAdvertisesASBR`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L45) |
 | `RFC5250-3.2-1` | The router MUST list the contents of its entire area link-state database in the neighbor Database summary list. The area link-state database consists of the Router LSAs, Network LSAs, Summary LSAs, type-9 Opaque LSAs, and type-10 Opaque LSAs contained in the area structure, along with AS External and type-11 Opaque LSAs contained in the global structure. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5250SummaryListsEntireAreaDatabase`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go#L111). **positive:** `unit/verify` [`TestRFC5250SummaryListsOpaqueAndGlobalLSAs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L24). **negative:** `unit/verify` [`TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L58). **negative:** `unit/verify` [`TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go#L124) |
 | `RFC5250-3.2-2` | AS External and type-11 Opaque LSAs MUST be omitted from a virtual neighbor's Database summary list (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5250VirtualDatabaseExchangeOmitsASScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_virtual_exchange_test.go#L68). **negative:** `unit/verify` [`TestRFC5250PhysicalDatabaseExchangeRetainsASScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_virtual_exchange_test.go#L85) |
@@ -208,39 +209,45 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). New rfc5250_obit_hello_test.go: real engine, opaque on, p2p eth0, recording transport; a wire Hello from 10.0.0.2 with Options E|O dispatched through eng.dispatch, waits for a sent Hello and a sent DD (both required, so not vacuous). + TestRFC5250HelloSentWithoutOBit (SHOULD NOT be set): every sent Hello has O clear while the DD has O set; - TestRFC5250HelloOBitIgnoredOnReceipt (MUST be ignored): neighbor 10.0.0.2 not OpaqueCapable after the O-bit Hello with no DD from it. Author overlay logs read (c28/o6, o7): Hello built with O -> + red only ('options 0x42'); neighbor Options get O on Hello -> - red only. HelloInput carries no Options, so today the received O-bit is dropped at the engine boundary; the end-to-end negative catches any future path that carries it into the neighbor. HEAD dd_opaque_test units (DD O-bit learned / Hello exchange) stay as supplementary. Revert records on buildHelloPacketLocked and neighbor/table.go hello observed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The neighbor-table tags that could not carry an O-bit Hello are gone. A real engine: TestRFC5250HelloSentWithoutOBit, every Hello sent has 0x40 clear while the DD to the same neighbor has it set (record buildHelloPacketLocked); TestRFC5250HelloOBitIgnoredOnReceipt, an O-bit Hello from 10.0.0.2 with no DD is processed (one neighbor row) and leaves it not opaque-capable (record NeighborHello).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63) | unit/verify | revert, verified |
 | negative | [`TestRFC5250HelloOBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94) | unit/verify | revert, verified |
-| positive | [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74) | unit/verify | revert, verified |
 | positive | [`TestRFC5250HelloSentWithoutOBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77) | unit/verify | revert, verified |
 
 ### [`RFC5250-5-1`](#rfc5250-5-1)
 
 (2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c12) after the D-8 fix. Section 5 (2): 'the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.' Producer: spf/reachability.go ASBRReachable reads the SPF border entries of Kind asbr (intra-area Router-LSA E-bit, interarea.go intraAreaBorderRouters; inter-area Type-4 summaries, interarea.go:157), finite metric and a next hop, the same entries the Type-5 calculation reads (external.go); Computer.ASBRReachable gates on the config generation; opaque.go spfASBRReachable is the only production caller (grep: no other RouterReachable user changed; bgpls_export and nssa keep ReachabilitySnapshot.RouterReachable/RouterReachableAny). TestRFC5250Type11LooksUpOriginatorRoutingEntry over the engine's own seam: - pending SPF, reached router without the E-bit, unreached 10.0.0.9 all delivered not usable; + the same router re-originated with the E-bit is usable. Judge overlay (go test -overlay) restoring the old RouterReachableAny answer in Computer.ASBRReachable: red at the no-E-bit negative (scratch/judge-ospf-5250mut.log); author's red at HEAD agrees. Records +/- revert on ASBRReachable observed. The inter-area Type-4 source is not driven by this unit; it feeds the same border slice. opaque_reachability_test.go tags are supplementary (injected predicate). Related defect reported to the main thread: Ze does not set its own E-bit when it originates Type-11 LSAs (lsdb selfIsASBRLocked counts only Type-5/7), against Section 5 (1), so another Ze router now treats those LSAs as unusable.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). Unit changed only by added 5-4 tag lines. Real SPF: not usable while SPF is pending, not usable for a reached router without the E-bit (no ASBR entry), not usable for an unknown originator, usable once the E-bit Router-LSA yields an ASBR entry; the verdict therefore comes from the ASBR routing table entry. Records on spf/reachability.go::ASBRReachable.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49) | unit/verify | revert, verified |
-| negative | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44) | unit/verify | revert, verified |
-| positive | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65) | unit/verify | revert, verified |
-| positive | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51) | unit/verify | revert, verified |
+| positive | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L67) | unit/verify | revert, verified |
+
+### [`RFC5250-5-4`](#rfc5250-5-4)
+
+If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA. (§5)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Row is a verbatim span of RFC 5250 Section 5 (2). Positive: a Type-11 LSA whose originator has no ASBR entry (SPF pending, reached without E-bit, unknown originator) is delivered not usable; negative: an originator with an ASBR entry is delivered usable, so the do-nothing rule is bound to the missing entry. Consumers honouring the not-usable flag (TED) are proven by the RFC5250-5-2 tests. Records on ASBRReachable.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L70) | unit/verify | revert, verified |
+| positive | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L54) | unit/verify | revert, verified |
 
 ### [`RFC5250-5-2`](#rfc5250-5-2)
 
 It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c11). D-8 fixed at the producer: the Extended Prefix receiver cached usable at delivery (extRecvEntry.usable), so a Type-11 entry stayed usable in `show` after its originator became unreachable; the entry now stores scope only and ext_prefix.go::extPrefixUsable (RFC quote above the return) judges it at every read, snapshot deriving it after releasing the receiver lock. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: + two Type-11 LSAs (Opaque IDs 1, 2) from 2.2.2.2 usable while reachable; - the seam flips unreachable, no new LSA, both rows unusable through extOpaqueDecode (the show path). An overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making extPrefixUsable return true for AS scope turns the negative red (and TestExtPrefixType11UnreachableUnusable). Revert records on extPrefixUsable observed red. The row's false {single-polarity} annotation ('never cached') was removed; the quote is unchanged. The TED consumer already judged at read time (te_ted.go usableLocked).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: two Type-11 extended-prefix LSAs from 2.2.2.2 are usable, then with no new LSA the originator becomes unreachable and both rows turn unusable (record extPrefixUsable). Detection is stubbed here and proven in 5-1. The TED consumer has its own live gate (te_ted.go usableLocked), tested by TestInterAsTEType11UnreachableUnusable, which carries no tag.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64) | unit/verify | revert, verified |
 | positive | [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51) | unit/verify | revert, verified |
-| positive | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52) | unit/verify | revert, verified |
 
 ### [`RFC5250-5-3`](#rfc5250-5-3)
 
@@ -310,8 +317,8 @@ Audit verdict: not audited: no reader has judged these tests
 | Source | rfc/full/rfc5250.txt |
 | Source fingerprint | e2fca6f42f48f835 |
 | Record | rfc/extraction/rfc5250.json |
-| Mapped sentences | 13 |
-| Declined as scope | 9 |
+| Mapped sentences | 14 |
+| Declined as scope | 8 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -350,7 +357,6 @@ Audit verdict: not audited: no reader has judged these tests
 | `3.1:8` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Editorial note explaining why the preceding sentence chose SHOULD NOT over MUST NOT ('to remain compatible with earlier specifications'); it states no obligation of its own. | The setting of the O-bit is a "SHOULD NOT" rather than a "MUST NOT" to remain compatible with earlier specifications. |
 | `3.2:5` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | Section 3.2 reproduces the ExStart/NegotiationDone action of Section 10.3 of [OSPF]; the MaxAge omission sentence is unmodified RFC 2328 text carrying no opaque-specific content. | Any advertisement whose age is equal to MaxAge MUST be omitted from the Database summary list. |
 | `3.2:6` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | Same reproduced RFC 2328 Section 10.3 paragraph: the MaxAge advertisement goes on the neighbor's retransmission list, unmodified base text with no opaque content. | It MUST instead be added to the neighbor's link-state retransmission list. |
-| `5:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Same numbered procedure (2): RFC5250-5-1 states both the routing-table lookup and 'if unreachable, do nothing with the LSA'. | If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA. |
 | `A.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Appendix A.2 restates the link-local flooding scope that Section 3/3.1 defines and RFC5250-3-1 carries. | Opaque LSAs with a link-local scope MUST NOT be flooded beyond the local (sub)network. |
 | `A.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Appendix A.2 restates the area-local flooding scope that Section 3/3.1 defines and RFC5250-3-1 carries. | Opaque LSAs with an area-local scope MUST NOT be flooded beyond their area of origin. |
 | `A.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Appendix A.2 restates the type-11 stub/NSSA flooding ban that Section 3.1 states and RFC5250-3.1-3 carries. | Opaque LSAs with AS-wide scope MUST NOT be flooded into stub areas or NSSAs. |

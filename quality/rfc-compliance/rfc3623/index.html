@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>38.5%</strong><b>5 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>92.6%</strong><b>25 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>93.3%</strong><b>28 of 30 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>27</td>
+<td>30</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>27</td>
+<td>30</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>25</td>
+<td>28</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3623.md</code></td>
@@ -349,10 +349,13 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>MUST</td>
 <td>A</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3623-A-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L18" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L19" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L201" title="internal/plugins/ospf/rfc3623_grace_helper_identity_test.go" target="_blank" rel="noopener"><code>TestRFC3623HelperFlushExitsNamedRestarter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L131" title="internal/plugins/ospf/rfc3623_grace_helper_identity_test.go" target="_blank" rel="noopener"><code>TestRFC3623HelperIdentifiesRestarterByInterfaceAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L48" title="internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go" target="_blank" rel="noopener"><code>TestRFC3623OriginatedGraceLSATLVOctets</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_origination_test.go#L58" title="internal/plugins/ospf/rfc3623_grace_origination_test.go" target="_blank" rel="noopener"><code>TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L22" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L60" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L169" title="internal/plugins/ospf/rfc3623_grace_helper_identity_test.go" target="_blank" rel="noopener"><code>TestRFC3623HelperRefusesUnmatchedInterfaceAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-5">RFC3623-A-5</code></td><td colspan="3"><span class="rfc-subject">DoNotAge is never set in a grace-LSA, even if the grace-LSA is flooded over a demand circuit [7]. (§A)</span></td></tr>
@@ -393,7 +396,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3623-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L45" title="internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go" target="_blank" rel="noopener"><code>TestRFC3623RestartGraceLSAFloodedToAllSPFRouters</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_unplanned_cold_start_test.go#L131" title="internal/plugins/ospf/rfc3623_unplanned_cold_start_test.go" target="_blank" rel="noopener"><code>TestRFC3623UnplannedColdStartOriginatesGraceLSA</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAFloodsToAllSPFRouters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L154" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAFloodsToAllSPFRouters</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> maybeUnplannedRestart enters in-restart then originates one Grace-LSA per interface before interface Hellos begin, and link-local LSAs flood to AllSPFRouters via the standard link-scope path (internal/plugins/ospf/gr_restarter.go:105, lsdb_flooding_test.go:47)</p></td>
 </tr>
@@ -403,7 +406,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3623-5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L43" title="internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go" target="_blank" rel="noopener"><code>TestRFC3623RestartGraceLSAFloodedToAllSPFRouters</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L193" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAPerActiveInterface</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L196" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAPerActiveInterface</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> grOriginateGraceLSAs walks every active (non-passive) interface and floods each Grace-LSA via OriginateOpaque&#39;s standard LSU flooding (internal/plugins/ospf/gr_restarter.go:296, :315)</p></td>
 </tr>
@@ -658,18 +661,33 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </div>
 <h3><a href="#rfc3623-a-4"><code>RFC3623-A-4</code></a></h3>
 <p>IP interface address (Type=3, length=4). The router&#39;s IP interface address on the subnet associated with the grace-LSA. Required on broadcast, NBMA and Point-to-MultiPoint segments, where the helper uses the IP interface address to identify the restarting router (see Section 3.1). (§A)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c23 re-judge under the main-thread ruling (R46 / owner ruling 5 precedent): judged on its positive. TestRFC3623OriginatedGraceLSATLVOctets: the Grace-LSA grOriginateGraceLSAs installs on a running broadcast interface is 24 octets and octets 16..19 are the literal type-3 TLV header 00 03 00 04; TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress covers broadcast, NBMA and P2MP and decodes the address value. Both hold observed-red revert records on grSharedMedia. No legitimate refusal exists: Ze&#39;s helper keys a restarting neighbour by advertising Router ID (onGraceReceived, hasFullNeighbor) and never reads the TLV, which RFC 3623 sec A does not forbid. The HEAD negative tag on TestGraceLSAv4BodyBuild (#2) is true as written (grV4Body with sharedMedia=false emits no type-3 TLV, asserted by !g2.HasInterfaceAddr) and stays supplementary: it does not violate this requirement, which forbids nothing on point-to-point. Observation for the main thread, outside this row: RFC 3623 sec 3.1 item 1 says on broadcast/NBMA/P2MP the neighbour &#39;is identified by the IP interface address in the body of the grace-LSA&#39;; Ze identifies by Router ID (no gated row carries that sentence).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. Origination: TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia requires the type-3 TLV with the address for broadcast, NBMA and P2MP through grSharedMedia. Use: gr_helper.go graceRestarterV4 matches body.InterfaceAddr against FloodNeighbors on shared media, refuses a missing TLV or unknown address, and uses the Advertising Router elsewhere. TestRFC3623HelperIdentifiesRestarterByInterfaceAddress now loops broadcast, NBMA and P2MP: Grace-LSA from A naming B&#39;s address helps B, not A, exactly one session; on P2P it helps A. TestRFC3623HelperRefusesUnmatchedInterfaceAddress: unknown address or no TLV gives zero sessions on all three. TestRFC3623HelperFlushExitsNamedRestarter: a flush from A naming B&#39;s address ends B&#39;s session and keeps A&#39;s, on all three. Keying on the Advertising Router reddens every one; the earlier broadcast-only limitation is gone.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L22" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L60" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L169" title="internal/plugins/ospf/rfc3623_grace_helper_identity_test.go" target="_blank" rel="noopener"><code>TestRFC3623HelperRefusesUnmatchedInterfaceAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L18" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L19" title="internal/plugins/ospf/rfc3623_gr_lsa_test.go" target="_blank" rel="noopener"><code>TestGraceLSAv4BodyBuild</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L201" title="internal/plugins/ospf/rfc3623_grace_helper_identity_test.go" target="_blank" rel="noopener"><code>TestRFC3623HelperFlushExitsNamedRestarter</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L131" title="internal/plugins/ospf/rfc3623_grace_helper_identity_test.go" target="_blank" rel="noopener"><code>TestRFC3623HelperIdentifiesRestarterByInterfaceAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -703,7 +721,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </div>
 <h3><a href="#rfc3623-2.1-1"><code>RFC3623-2.1-1</code></a></h3>
 <p>In preparation for the graceful restart, Router X must perform the following actions before its software is restarted/reloaded: (Note that common OSPF shutdown procedures are *not* performed, since we want the other OSPF routers to act as if Router X remains in continuous service. For example, Router X does not flush its locally originated LSAs, since we want them to remain in other routers&#39; link-state databases throughout the restart period.) 1) Router X must ensure that its forwarding table(s) is/are up- to-date and will remain in place across the restart. (§2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c12). Section 2.1: &#39;Router X must ensure that its forwarding table(s) is/are up-to-date and will remain in place across the restart.&#39; Up-to-date clause: TestRFC3623PrepareInstallsPendingSPFAndKeepsIt (c10, grRefreshFIB). Remain-in-place clause, the c11 gap (initSPF SetInstallSuppress wiring unproven): TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes drives the e.spf newEngine built through initSPF (not rebuilt), SPF installs 203.0.113.128/26, prepareRestart, the peer re-originates without the stub, Run: the route stays in the Loc-RIB. Author overlay removing only e.spf.SetInstallSuppress(e.gr.suppressInstall) from spf_wiring.go turns it red (&#39;withdrew a route from the retained forwarding table&#39;; judge read the overlay diff and the log) while the c10 unit stays green. Recorded red is the initSPF revert halt. {single-polarity: positive} kept: the requirement forbids nothing beyond failing to retain.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestPrepareRestartRetainsFIB now claims only the gate (suppressInstall after prepareRestart) and its record is on prepareRestart. Retention proof: TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes installs a route through SPF, prepares, withdraws it from the LSDB, reruns SPF and still finds it in the Loc-RIB; TestRFC3623PrepareInstallsPendingSPFAndKeepsIt (record grRefreshFIB) makes the table up to date first. Single-polarity positive.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -758,7 +776,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </div>
 <h3><a href="#rfc3623-5-2"><code>RFC3623-5-2</code></a></h3>
 <p>The grace-LSAs must be originated and be sent *before* the restarted router sends any OSPF Hello Packets. On broadcast networks, this LSA must be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting router is not aware of its previous DR state. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 7, judge): D-8 fixed per R32 and proven. openInterfaces sets helloHold, opens and registers every enrolled interface (startInterfaceLocked defers rt.Start into helloHeld), calls maybeUnplannedRestart, then releaseHelloHold starts the held runtimes under e.mu; no return path between hold and release, a runtime replaced or deleted during the hold is looked up by name at release. TestRFC3623UnplannedColdStartOriginatesGraceLSA drives the real cold start over a recording transport: in-restart, Grace-LSA held on eth0, the FIRST packet sent is an LSU carrying the Grace-LSA to 224.0.0.5, the first Hello strictly after it. Revert record on openInterfaces observed red (HEAD&#39;s order originated zero Grace-LSAs). Single-polarity positive per annotation (no refusal path); the annotation&#39;s file:line references are dated but its claim now holds.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestUnplannedGraceLSAFloodsToAllSPFRouters now makes the router a restarting DROther (self-flush suppressed) with a Full neighbor that is DR, so the ordinary destination would be AllDRouters; only the restart-grace branch of floodLink sends to 224.0.0.5. Before-Hello ordering: TestRFC3623UnplannedColdStartOriginatesGraceLSA (record openInterfaces) and the lsdb restart flood unit. Single-polarity positive.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -769,7 +787,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAFloodsToAllSPFRouters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L154" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAFloodsToAllSPFRouters</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -794,7 +812,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L193" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAPerActiveInterface</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L196" title="internal/plugins/ospf/rfc3623_gr_positive_test.go" target="_blank" rel="noopener"><code>TestUnplannedGraceLSAPerActiveInterface</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1087,7 +1105,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

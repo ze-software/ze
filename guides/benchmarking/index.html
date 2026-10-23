@@ -230,7 +230,7 @@ a pause. Longer delays give the DUT time to settle between measurements.</p>
 </tr>
 <tr>
 <td>FRR</td>
-<td>quay.io/frrouting/frr:10.3.1</td>
+<td>quay.io/frrouting/frr:10.7.1, pinned by digest (<code>interoplab.FRRImage</code>)</td>
 <td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/frr.conf</code></span></span></td>
 <td>route-map PERMIT</td>
 </tr>
@@ -304,6 +304,23 @@ DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 records nothing, because it measured nothing. Any other <code>step</code> value exits 2
 and names the value. A run that measured records the commit, so the perf nudge
 (<code>./le perf suggest</code>) stops asking for one.</p>
+<p>An image that fails to build or pull fails the run, and the run prints an error
+naming the DUT and the cause. In a <code>step build</code> run the image is the whole
+answer, so the run names every DUT that has no image, prints the rebuild
+command, exits 1, and never reports the images as built. In a run that also
+measures, the test step still measures every DUT whose image was made, but it
+never measures a DUT whose build failed, even from an image an earlier run
+left. The summary line reads <code>FAIL</code>, counts that DUT as failed, gives its
+cause, and the run exits 1.</p>
+<p>A DUT is skipped only when the run built no image (<code>NO_BUILD=1</code>, or
+<code>step test</code>) and none exists. The summary names the skipped DUTs and the
+<code>./le perf run step build dut "..."</code> command that builds them. Under
+<code>NO_BUILD=1</code> that command is <code>env -u NO_BUILD ./le perf run step build dut "..."</code>, because the plain form would build nothing. Skips beside a measured DUT
+still pass, but a run that measured no DUT prints <code>FAIL  no DUT was measured</code>
+and exits 1, because a run of skips has no result.</p>
+<p><code>NO_BUILD=1</code> with <code>step build</code> is refused: the run would build nothing, so it
+names <code>NO_BUILD</code> as the reason, prints the <code>env -u NO_BUILD ./le perf run step build</code> command that unsets it, and exits 1 without claiming any image was built.</p>
+<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.summarize, measurement.failedRun -->
 <p>The runner builds no host benchmark program. It cross-builds <code>le</code> for linux
 with <code>CGO_ENABLED=0</code> into <code>tmp/perf-run/linux-&lt;arch&gt;/le</code>, and prints how long
 that build took. It mounts the file at <code>/usr/local/bin/le</code> in the sender
@@ -582,7 +599,7 @@ result inconclusive and say which answer is missing.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -104,16 +104,30 @@ bgp {
             }
         }
         session {
-            asn { local 64500 }
+            asn {
+                local 64500
+            }
             router-id 198.51.100.1
             family {
-                ipv4/unicast { prefix { maximum 200000 } }
+                ipv4/unicast {
+                    prefix {
+                        maximum 200000
+                    }
+                }
             }
         }
-        role { import rs }
+        role {
+            import rs
+        }
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
         attach process rs {
             receive [ update-received state open-received refresh ]
@@ -131,16 +145,23 @@ decision, and the filter never executes:
 
 ```
 filter {
-    import [ inactive:NO-TRANSIT ]
-    export [ inactive:NO-TRANSIT ]
+    import {
+        filters [ inactive:NO-TRANSIT ];
+        final accept;
+    }
+    export {
+        filters [ inactive:NO-TRANSIT ];
+        final accept;
+    }
 }
 ```
 
-The prefix goes on the member, inside the brackets. A separate `inactive: import
-NO-TRANSIT` statement deactivates a member the chain already carries; where the
-chain carries none, it deactivates the whole leaf, which leaves no chain and Ze
-refuses the config. See [config-deactivate.md](https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md) for both
-forms, and [bgp-role.md](../bgp-role/index.md) for the roles that bind.
+The prefix goes on the member, inside the brackets. Inside each direction block,
+`inactive: filters NO-TRANSIT;` deactivates an existing member. Keep the
+`final accept;` decision when the member is inactive. See
+[config-deactivate.md](https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md) for both forms, and
+[bgp-role.md](../bgp-role/index.md) for the roles that bind.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 `ip dynamic` is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one `range`, and an explicit `connect false`. Ze only accepts on a dynamic group and never dials one, so an absent `connect` leaf, which YANG defaults to true, is refused rather than corrected.
 
@@ -246,7 +267,7 @@ peer transit-a {
 
 A peer that attaches no program feeds it no peer-scoped event, and that program cannot announce to the peer. An event that carries no peer address is not peer-scoped, so an attach block describes none of them, and every subscriber still receives them.
 
-The BGP namespace registers `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated`, `eor`, `congested`, `resumed`, `rpki`, `listener-ready`, and `update-notification`. Plugins register more, such as `update-rpki`.
+The BGP namespace registers `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated`, `eor`, `congested`, `resumed`, `rpki`, `listener-ready`, `update-notification`, `connected` (a peer's TCP connection is up, before OPEN), `fsm` (each FSM state change), and `signal` (each operating-system signal the daemon takes, told per peer). Plugins register more, such as `update-rpki`.
 
 An event type carries the direction it is fed in. `update` means both directions. `update-received` and `update-sent` mean one. A type a plugin registers keeps its whole name, so a plugin type that ends in `-sent` is never read as a direction. `*` feeds every type in both directions. `all` is not accepted, and a bare `sent` or `received` is refused with a message that names the token to write instead.
 

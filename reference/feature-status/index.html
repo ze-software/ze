@@ -215,6 +215,11 @@
 <td>Per-session honoring of the BLACKHOLE community, off by default. The peer names the community it uses (<code>blackhole communities</code>, the well-known 65535:666 or its own) and the prefixes it is authorized to blackhole within (<code>blackhole prefixes</code>); RFC 7999 Section 3.3 states both conditions, so a peer with a community and no covering prefix blackholes nothing. A honored route becomes a discard route directly: a Linux FIB blackhole or a VPP drop, with no next-hop to allocate and no static route to pre-create. The same list governs the send side, which is RFC 7999 Section 3.1's requirement that the two networks agree before the community is advertised: <code>send bgp &lt;sel&gt; blackhole</code> and <code>send bgp &lt;sel&gt; unicast &lt;prefix&gt; community 65535:666</code> reach only the sessions that agreed, and a session that named its own value alone is left out rather than sent the prefix untagged. A relayed route carrying BLACKHOLE follows the same agreement: it reaches an eBGP neighbor only when that session agreed, iBGP sessions and route-server clients are not refused, and a reload that removes the agreement withdraws the route from that neighbor. <!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholeReadvertiseRefused --> The leaves are augmented at the bgp, group and peer levels. <!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- grouping blackhole-honor-fields --> <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- blackholeRouteTypeForBest --></td>
 </tr>
 <tr>
+<td>RFC 9774 AS_SET and AS_CONFED_SET deprecation</td>
+<td>Experimental (partial)</td>
+<td>Ze neither accepts nor advertises an AS_SET or AS_CONFED_SET, with no configuration and no switch. A received UPDATE whose AS_PATH or AS4_PATH holds either segment type is treat-as-withdraw (RFC 7606), on every session whatever the AS width, so the route is never installed and a route the peer announced earlier is withdrawn. <!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment --> <!-- source: internal/component/bgp/message/rfc7606.go -- validateASPath --> <!-- source: internal/component/bgp/message/rfc7607.go -- validateAS4PathAttr --> On send, every UPDATE a producer hands the session (relay, API, configured static route, plugin) is checked in the one writer: when any AS_PATH or AS4_PATH occurrence holds a set, the UPDATE is written as the withdrawal of its prefixes instead, logged as a rate-limited warning naming the peer and the route count, and counted on <code>ze_bgp_as_set_withdrawn_total</code>. Only the <code>send bgp &lt;peer&gt; raw</code> test instrument writes operator bytes as given. <!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal --> <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody --> <strong>Scope gaps:</strong> RFC 9774 Sections 5.2 and 6.1 bind route aggregation; which Ze does not implement (feature-out-of-scope in rfc/extraction/rfc9774.json).</td>
+</tr>
+<tr>
 <td>RPKI ASPA Policy Enforcement</td>
 <td>Stub-backed</td>
 <td>ASPA path verification (draft-ietf-sidrops-aspa-verification-28) with configurable policy enforcement: <code>rpki/aspa/action/invalid</code> supports <code>reject</code>, <code>log-only</code>, <code>accept</code>. ASPA records use the RTR v2 format from draft-ietf-sidrops-8210bis-27. <!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig --></td>
@@ -801,7 +806,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

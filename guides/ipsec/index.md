@@ -129,7 +129,7 @@ come up.
 |---|---|
 | IKEv2, RFC 7296 | Full IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL exchange support |
 | Role | Initiator or responder per peer through `connection-type initiate` or `respond` |
-| Proposals | AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an `esp-group`; DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names `chacha20poly1305` and `3des`, which no build implements, so a proposal naming either is refused at commit |
+| Proposals | AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an `esp-group`; NULL encryption with an integrity algorithm for ESP only (integrity-only ESP, RFC 4303 Section 1), refused at commit in an `ike-group` (RFC 7296 Section 5); DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names `chacha20poly1305` and `3des`, which no build implements, so a proposal naming either is refused at commit |
 | Authentication | Pre-shared key, X.509 certificates, EAP-MSCHAPv2, and EAP-TLS; Ze acts as the EAP authenticator in responder mode |
 | NAT-T, RFC 3948 | Automatic NAT detection, UDP encapsulation on port 4500, and keepalives |
 | DPD | Dead Peer Detection through INFORMATIONAL exchanges with configurable interval and timeout |
@@ -222,7 +222,7 @@ For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }`, `eap-
 
 The `remote-access` container is not wired yet. It parses, and no session reads
 it, so a `pool` assigns no address and an `eap-user` list authenticates nobody.
-`plan/immediate/spec-ipsec-remote-access.md` owns the work.
+`plan/release/fixes/spec-ipsec-remote-access.md` owns the work.
 
 <!-- source: internal/component/ike/engine/apply.go -- reloadPool stores the pool in ikeEngineState.pool, which nothing reads -->
 
@@ -713,11 +713,13 @@ master secret. Ze cannot authenticate such a peer. It says so rather than failin
 silently: the log line names the peer, the negotiated version, RFC 7627 and the answers
 below.
 
-strongSwan 5.9.14 is such a peer, by default rather than by limitation. charon ships
-`version_max = 1.2` in `/etc/strongswan.d/charon.conf`, with the comment "default to TLS
-1.2 until 1.3 is stable for use in EAP", and it implements no extended master secret. Set
-`charon.tls.version_max = 1.3` and the same 5.9.14 build reaches an established SA, which
-is what `test/interop-ipsec/scenarios/eap-tls13` runs.
+strongSwan 6.1.0, the lab's peer, is such a peer, by default rather than by limitation.
+`src/libtls/tls.c` sets the maximum to TLS 1.2 when `charon.tls.version_max` is unset,
+with the comment "default to TLS 1.2 until 1.3 is stable for use in EAP", and the
+generated `strongswan.d/charon.conf` documents it as `# version_max = 1.2`. Its libtls
+implements no extended master secret: the extension appears only as a name in its
+extension table. Set `charon.tls.version_max = 1.3` and the same build reaches an
+established SA, which is what `test/interop-ipsec/scenarios/eap-tls13` runs.
 
 | Answer | What to change |
 |--------|----------------|
@@ -819,7 +821,7 @@ that rank matches the IKE datagrams first, which hands the exchange that builds
 and rekeys the SA to the SA itself, and the tunnel could then never
 renegotiate. Ze refuses such a value at commit.
 
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
 
@@ -1014,21 +1016,31 @@ A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
 IPsec boundary.
 
 The IKE control-plane bypass at order 100 is installed either way, so the
-tunnels can still be negotiated. The entry is re-asserted on every apply and
-removed when the engine stops.
+tunnels can still be negotiated. Ze's entries appear together on the first
+apply, the catch-all first and the IKE bypass right after it, before any IKE
+socket opens. The catch-all is re-asserted on every apply. When the engine
+stops, every tunnel is torn down first, then the IKE bypass and your `policy`
+entries are removed, and the catch-all goes last, so no Ze entry is ever in
+force without it. If any of those entries cannot be removed, the catch-all
+stays installed beneath it, and the daemon logs a warning naming each entry
+left as the exact `ip xfrm policy delete` command that removes it: direction,
+prefixes, protocol, ports and `if_id`, so two entries that differ only by port
+get two different commands.
 
 #### When the entry is not there
 
-A `discard` entry that is not installed would let the kernel pass exactly the
-traffic you asked it to drop, so Ze never reports such a configuration as
-applied:
+A catch-all that is not installed leaves a packet no entry matches meeting no
+entry at all, which RFC 4301 Section 5.2 forbids ("If there is no match,
+discard the traffic"), so Ze never reports such a configuration as applied,
+whichever value `unmatched` holds. The one exception is the VPP backend:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the kernel passes the traffic |
-| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
-| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
-| Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
+| The VPP backend, which holds no entry bound to no interface | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the traffic crosses in the clear. This is an open RFC 4301 gap on VPP |
+| A build off Linux, or a kernel without XFRM | Refused at commit, and a start fails as in the row above | The apply fails: a commit is refused, and at startup the configure step returns the error. Fix: run Ze on a Linux kernel with XFRM (`CONFIG_XFRM_USER`) |
+| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | The apply fails. Fix: the cause the daemon logged |
+| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Same as `discard`. Fix: give the daemon `CAP_NET_ADMIN` |
+| Before the first configuration is applied, and after the engine stops | The IPsec engine holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of its own; the kernel passes traffic as it does with no IPsec configured. Two exceptions: an entry the engine could not remove on stop keeps the catch-all beneath it (the warning names both), and OSPFv3 authentication with manual keys installs its own SAs and policies with no catch-all, an open RFC 4301 gap | Same |
 
 The catch-all is installed before the `policy` entries, the peers and the
 cookie threshold of the same configuration, so a refused apply leaves the
@@ -1059,9 +1071,9 @@ window.
 ## Both ESP wire forms
 
 RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
-UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form. A
-state that carries the encapsulation template refuses bare ESP, and a state without one
-refuses encapsulated ESP. Ze serves the second form beside the kernel. A raw IPPROTO_ESP
+UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form
+([LL-XFRM-STATE-ONE-ESP-FORM](https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md#ll-xfrm-state-one-esp-form)).
+Ze serves the second form beside the kernel. A raw IPPROTO_ESP
 reader takes the datagram XFRM refused. It re-presents that datagram through port 4500,
 which carries UDP_ENCAP, so the kernel hands XFRM the form its template wants. One
 established Child SA therefore keeps carrying traffic when its peer changes ESP form
@@ -1090,7 +1102,8 @@ policy RFC 7296 Section 2.9 narrows a peer's proposal against.
 ```
 vpn { ipsec { site-to-site { peer branch-1 {
     traffic-selector 1 {
-        local  { prefix 10.1.0.0/16; }
+        protocol 6
+        local  { prefix 10.3.0.0/24; port 179; }
         remote { prefix 10.2.0.0/16; }
     }
     traffic-selector 2 {
@@ -1109,8 +1122,22 @@ restricts a peer, never omitting it.
 
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->
 
+A Child SA carries every combination of its local and remote selectors. RFC 7296 Section
+3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
+selectors in TSi, and at least one of the individual selectors in TSr." So the list must
+name every combination of the local and remote selectors it uses, as the example above
+does with one local and two remote selectors. A list such as local 10.1.0.0/16 with remote
+10.2.0.0/16, then local 10.3.0.0/16 with remote 10.4.0.0/16, would be offered as
+10.1.0.0/16 with 10.4.0.0/16 as well, so `ze config verify` refuses it and names the
+missing combination. Add the missing entries, or remove the entry that brings in the
+extra prefix.
+
+<!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
+
 As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
-and leads the answer with the initiator's first choices. A proposal it cannot narrow to a
+and leads the answer with the initiator's first choices. When the pairs it accepts are not
+every combination of their own selectors, it answers the largest part that is, starting
+from the first choice, because the initiator installs every combination it is answered. A proposal it cannot narrow to a
 non-empty subset draws a `TS_UNACCEPTABLE` notification. As initiator, Ze proposes the list
 in order, because RFC 7296 reads the order as the preference order.
 
@@ -1177,10 +1204,19 @@ vpn { ipsec { site-to-site { peer host-1 {
 
 Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactly one IP
 address in TSi and in TSr, so every prefix must be a single host, and a `vti` binding is
-refused because an XFRM interface carries tunnel encapsulation. Several selectors are still
-allowed when they share that one address, for example to negotiate several ports.
+refused because an XFRM interface carries tunnel encapsulation. A transport-mode Child SA
+also carries exactly one selector pair: the kernel's transport-mode SA holds one selector
+([LL-XFRM-STATE-ONE-SELECTOR](https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md#ll-xfrm-state-one-selector)),
+and one wide enough for several pairs would admit traffic that no pair negotiated. So
+`ze config verify` and `ze config commit` refuse a transport-mode peer that configures more
+than one `traffic-selector` entry: keep one entry, or set `mode tunnel`. The far end can
+still propose several pairs. As responder Ze answers such a proposal with the first one. As
+initiator it refuses an answer of several pairs and deletes the SA, so configure one selector
+on the far end too.
 
+<!-- source: internal/component/ike/engine/config.go -- validateTransportOnePair -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectors -->
 
 A tunnel-mode peer's `vti { bind <name> }` names an `interface { xfrm <name> { if-id } }`
 block. The Child SA is installed with that interface's if_id, so the tunnel's traffic
@@ -1248,7 +1284,7 @@ override, it is compiled in only with the `ze_vpp` build tag, and no test has se
 through it. Use the XFRM backend, which is the default and the production path.
 
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
 
 ## PKI certificate store
@@ -1409,8 +1445,9 @@ carries no encrypted traffic` when this happens.
 
 ## Interop testing
 
-The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
-image. The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
+The IKE implementation includes interop tests against strongSwan 6.1.0, built from the
+upstream release on Alpine 3.24.3 (`test/interop-ipsec/Dockerfile.strongswan`).
+The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
 IKE peers. The scenarios cover:
 
 | Area | Scenarios |

@@ -255,14 +255,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Constrained Route Distribution for BGP/MPLS VPNs (Route Target Constraint): six MUST-level requirements after the 2026-09-21 extraction walk. Four are {gap}, and the two the walk added are tested: RFC4684-4-1 (the MP_REACH_NLRI Next Hop is read as IPv4 at 4 octets and IPv6 at 16) and RFC4684-5-2 (a speaker that exchanges Route Target membership uses the Multiprotocol Extensions capability to advertise the AFI/SAFI pair). Ze implements RTC as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode) with no encode/origination path and no RT-membership distribution. RFC4684-3.2-1 (Originator/Next-hop when advertising RT membership NLRI) and RFC4684-3.2-2 (best-path/client-path advertisement selection): Ze never advertises RT membership NLRI. RFC4684-3.2-3 (consider all iBGP paths for the outbound route filter): Ze builds no ORF from RT membership. RFC4684-6-1 (bound the End-of-RIB delay for VPN route advertisement): Ze gates no VPN route advertisement on RT-membership state. Disclosed in the docs/features/rfc-status.md RFC 4684 row (Partial). The 6-2/6-3/8-1 SHOULDs and 5-1 MAY are not gated.</p>
+<p>Enrolled: Constrained Route Distribution for BGP/MPLS VPNs (Route Target Constraint): six MUST-level requirements after the 2026-09-21 extraction walk. Four are {gap}, and the two the walk added are tested: RFC4684-4-1 (the MP_REACH_NLRI Next Hop is read as IPv4 at 4 octets and IPv6 at 16) and RFC4684-5-2 (a speaker that exchanges Route Target membership uses the Multiprotocol Extensions capability to advertise the AFI/SAFI pair). Ze decodes RTC NLRI (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode) and encodes one when an operator&#39;s command names it (internal/component/bgp/plugins/nlri/rtc/encode.go EncodeNLRIHex), with no RT-membership distribution. RFC4684-3.2-1 (Originator/Next-hop when advertising RT membership NLRI) and RFC4684-3.2-2 (best-path/client-path advertisement selection): Ze advertises RT membership NLRI only as a command writes it. RFC4684-3.2-3 (consider all iBGP paths for the outbound route filter): Ze builds no ORF from RT membership. RFC4684-6-1 (bound the End-of-RIB delay for VPN route advertisement): Ze gates no VPN route advertisement on RT-membership state. Disclosed in the docs/features/rfc-status.md RFC 4684 row (Partial). The 6-2/6-3/8-1 SHOULDs and 5-1 MAY are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
-RTC NLRI decode for display/analysis (<code>ze bgp decode</code>). Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc4684.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc4684.md</code></a>.
+RTC NLRI decode for display/analysis (<code>ze bgp decode</code>), and the Section 4 encoding of one membership from <code>update text mp ipv4/rtc</code> (<code>TestRTCEncodeNLRIHex</code>, <code>api-rtc</code>). Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc4684.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc4684.md</code></a>.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Decode-only: no encode/origination path and no RT-membership distribution. Four MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4684.md" target="_blank" rel="noopener"><code>rfc/short/rfc4684.md</code></a>: Ze does not advertise RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). Two further MUST rows the 2026-09-21 extraction walk added are tested: <a href="#rfc4684-4-1"><code>RFC4684-4-1</code></a> (Next Hop length decides IPv4 or IPv6, §4) and <a href="#rfc4684-5-2"><code>RFC4684-5-2</code></a> (Ze&#39;s OPEN advertises the (1, 132) pair with the Multiprotocol Extensions capability when <code>ipv4/rtc</code> is configured, §5).
+Origination only as an operator&#39;s command (<code>update text mp ipv4/rtc</code>, or an ExaBGP <code>announce ipv4 rtc</code> through the bridge) writes it; no RT-membership distribution. Four MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4684.md" target="_blank" rel="noopener"><code>rfc/short/rfc4684.md</code></a>: Ze holds no RT membership state and never reflects or re-advertises a received RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). Two further MUST rows the 2026-09-21 extraction walk added are tested: <a href="#rfc4684-4-1"><code>RFC4684-4-1</code></a> (Next Hop length decides IPv4 or IPv6, §4) and <a href="#rfc4684-5-2"><code>RFC4684-5-2</code></a> (Ze&#39;s OPEN advertises the (1, 132) pair with the Multiprotocol Extensions capability when <code>ipv4/rtc</code> is configured, §5).
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -317,7 +317,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4684-3.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze implements RTC (Route Target Constraint) as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode; there is no encode/origination path). It never advertises RT membership NLRI, so it implements none of the Section 3.2 advertisement Originator/Next-hop procedure. Disclosed in docs/features/rfc-status.md.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze decodes RTC NLRI (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex) and encodes one only when an operator&#39;s `update text mp ipv4/rtc` command or a bridged ExaBGP `announce ipv4 rtc` line names it (internal/component/bgp/plugins/nlri/rtc/encode.go EncodeNLRIHex), with the attributes that command writes. It holds no RT membership state of its own and reflects none, so it implements none of the Section 3.2 advertisement Originator/Next-hop procedure. Disclosed in docs/features/rfc-status.md.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4684-3.2-2">RFC4684-3.2-2</code></td><td colspan="3"><span class="rfc-subject">When advertising an RT membership NLRI to a non-client peer, if the best path as selected by the path selection procedure described in Section 9.1 of the base BGP specification [4] is a route received from a non-client peer, and if there is an alternative path to the same destination from a client, the attributes of the client path are advertised to the peer. (§3.2)</span></td></tr>
 <tr><td></td>
@@ -326,7 +326,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4684-3.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze advertises RT membership NLRI only as an operator&#39;s command writes it (internal/component/bgp/plugins/nlri/rtc/encode.go EncodeNLRIHex) and never selects or re-advertises a received one, so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4684-3.2-3">RFC4684-3.2-3</code></td><td colspan="3"><span class="rfc-subject">When processing RT membership NLRIs received from internal iBGP peers, it is necessary to consider all available iBGP paths for a given RT prefix, for building the outbound route filter, and not just the best path. (§3.2)</span></td></tr>
 <tr><td></td>
@@ -335,7 +335,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4684-3.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze builds no outbound route filter from RT membership -- its RTC support is a codec (internal/component/bgp/plugins/nlri/rtc/rtc.go, encode.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4684-6-1">RFC4684-6-1</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker chooses to delay the advertisement of BGP VPN route updates until it receives this End-of-RIB marker, it MUST limit that delay to an upper bound. (Section 6)</span></td></tr>
 <tr><td></td>
@@ -344,7 +344,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4684-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec is decode-only, internal/component/bgp/plugins/nlri/rtc/rtc.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec only decodes and encodes, internal/component/bgp/plugins/nlri/rtc/rtc.go, encode.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4684-4-1">RFC4684-4-1</code></td><td colspan="3"><span class="rfc-subject">The Next Hop field of MP_REACH_NLRI attribute shall be interpreted as an IPv4 address whenever the length of NextHop address is 4 octets, and as a IPv6 address whenever the length of the NextHop address is 16 octets. (Section 4)</span></td></tr>
 <tr><td></td>
@@ -413,19 +413,19 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <tbody>
 <tr><td><a href="#rfc4684-3.2-1"><code>RFC4684-3.2-1</code></a> When advertising RT membership NLRI to a route-reflector client, the Originator attribute shall be set to the router-id of the advertiser, and the Next-hop attribute shall be set of the local address for that session. (Section 3.2)</td>
 <td>{gap}, no test</td>
-<td>Ze implements RTC (Route Target Constraint) as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode; there is no encode/origination path). It never advertises RT membership NLRI, so it implements none of the Section 3.2 advertisement Originator/Next-hop procedure. Disclosed in docs/features/rfc-status.md.</td>
+<td>Ze decodes RTC NLRI (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex) and encodes one only when an operator&#39;s `update text mp ipv4/rtc` command or a bridged ExaBGP `announce ipv4 rtc` line names it (internal/component/bgp/plugins/nlri/rtc/encode.go EncodeNLRIHex), with the attributes that command writes. It holds no RT membership state of its own and reflects none, so it implements none of the Section 3.2 advertisement Originator/Next-hop procedure. Disclosed in docs/features/rfc-status.md.</td>
 </tr>
 <tr><td><a href="#rfc4684-3.2-2"><code>RFC4684-3.2-2</code></a> When advertising an RT membership NLRI to a non-client peer, if the best path as selected by the path selection procedure described in Section 9.1 of the base BGP specification [4] is a route received from a non-client peer, and if there is an alternative path to the same destination from a client, the attributes of the client path are advertised to the peer. (§3.2)</td>
 <td>{gap}, no test</td>
-<td>Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md.</td>
+<td>Ze advertises RT membership NLRI only as an operator&#39;s command writes it (internal/component/bgp/plugins/nlri/rtc/encode.go EncodeNLRIHex) and never selects or re-advertises a received one, so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md.</td>
 </tr>
 <tr><td><a href="#rfc4684-3.2-3"><code>RFC4684-3.2-3</code></a> When processing RT membership NLRIs received from internal iBGP peers, it is necessary to consider all available iBGP paths for a given RT prefix, for building the outbound route filter, and not just the best path. (§3.2)</td>
 <td>{gap}, no test</td>
-<td>Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md.</td>
+<td>Ze builds no outbound route filter from RT membership -- its RTC support is a codec (internal/component/bgp/plugins/nlri/rtc/rtc.go, encode.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md.</td>
 </tr>
 <tr><td><a href="#rfc4684-6-1"><code>RFC4684-6-1</code></a> If a BGP speaker chooses to delay the advertisement of BGP VPN route updates until it receives this End-of-RIB marker, it MUST limit that delay to an upper bound. (Section 6)</td>
 <td>{gap}, no test</td>
-<td>Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec is decode-only, internal/component/bgp/plugins/nlri/rtc/rtc.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md.</td>
+<td>Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec only decodes and encodes, internal/component/bgp/plugins/nlri/rtc/rtc.go, encode.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md.</td>
 </tr>
 </tbody>
 </table>
@@ -708,7 +708,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

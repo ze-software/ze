@@ -34,6 +34,7 @@ three-byte word saying what the line IS:
 | `row` | one record the command produced |
 | `bad` | one record it rejected. The walk goes on |
 | `end` | the terminator, which ends the answer |
+| `wrn` | the terminator of a command that completed and states a warning |
 | `nay` | the whole answer to a command text naming no command |
 
 The head carries a second three-byte word saying how the records read:
@@ -81,6 +82,7 @@ from what the terminator carries:
 | The terminator | Verdict |
 |----------------|---------|
 | no rejected row and no message | `done` |
+| `wrn`, no rejected row and no message | `warning` |
 | records and rejected rows, no message | `partial` |
 | a message over no record | `error` |
 | a message over records | `aborted` |
@@ -502,7 +504,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
 | No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |
-| `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of shutdown |
+| `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection |
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 
@@ -599,11 +601,15 @@ Plugin                                             Engine
    |-- #43 end 1 0 0: ------------------------------->|  1 produced, 0 rejected,
    |                                                  |  no message
    |                                                  |
-   |  SHUTDOWN: bye                                   |
+   |  REMOVAL: bye                                    |
    |<- #99 ze-plugin-callback:bye {"reason":"..."} ---|
    |-- #99 ok ---------------------------------------->|
    |  (plugin exits)                                  |
 ```
+
+A daemon stop sends no `bye`: the engine closes the connection, and the
+plugin's `Run` returns nil (`docs/architecture/api/process-protocol.md`,
+"Shutdown").
 
 ## Error Handling
 

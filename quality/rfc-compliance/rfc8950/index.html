@@ -310,15 +310,15 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1162" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1205" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L36" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L137" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L42" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go#L211" title="internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L36" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_static_group_next_hop_test.go#L30" title="internal/component/bgp/reactor/peer_static_group_next_hop_test.go" target="_blank" rel="noopener"><code>TestStaticGroupedResolvedNextHopWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1193" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1217" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1236" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1260" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L38" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L43" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go#L212" title="internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair</code></a></span></div>
@@ -415,12 +415,12 @@ No tracked gap in current source anchors.
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1193" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1236" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1217" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1260" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -450,7 +450,7 @@ No tracked gap in current source anchors.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1162" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1205" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -776,7 +776,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

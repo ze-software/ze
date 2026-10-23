@@ -305,7 +305,7 @@ Same OSPF experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-1-1">RFC3630-1-1</code></td><td colspan="3"><span class="rfc-subject">if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer; Ze: spec-ospf-ext-2</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3630-1-1">RFC3630-1-1</code></td><td colspan="3"><span class="rfc-subject">if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1</td>
@@ -427,8 +427,8 @@ Same OSPF experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3630-1-1"><code>RFC3630-1-1</code></a></h3>
-<p>if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer; Ze: spec-ospf-ext-2</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-TE capable nodes MUST flood TE LSAs as any other type 10 opaque LSA. TestRFC3630NonTECapableFloodsTELSAByScope (ospf/lsdb) asserts the TE LSA reaches the retransmit list of the same-area opaque-capable neighbour. That goes red if the carrier drops or withholds TE LSAs. It also asserts the LSA is absent from the other area&#39;s neighbour, which goes red if TE LSAs were flooded beyond area-local scope, unlike any other type 10.</p>
+<p>if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Row text correction only (trailing implementation note dropped, rfc/corrections/rfc3630.md); the quoted sentence &#39;they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs&#39; is unchanged and the units are unchanged: the TE Type-10 LSA reaches the same-area retransmit list and is not flooded outside the area.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -748,7 +748,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

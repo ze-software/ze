@@ -1,6 +1,6 @@
 # Command Equivalents
 
-481 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+487 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -65,6 +65,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `clear bgp healthcheck` | Daemon | - | - | - | - | [details](clear-bgp-healthcheck/) |
+| `clear bgp rib advertised` | Daemon | - | - | - | - | [details](clear-bgp-rib-advertised/) |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
 | `clear cymru cache address` | Daemon | - | - | - | - | [details](clear-cymru-cache-address/) |
@@ -197,6 +198,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request bgp rib withdraw-router` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-router/) |
 | `request bgp rpki validate` | Daemon | - | - | - | - | [details](request-bgp-rpki-validate/) |
 | `request bgp watchdog announce` | Daemon | - | - | - | - | [details](request-bgp-watchdog-announce/) |
+| `request bgp watchdog forget` | Daemon | - | - | - | - | [details](request-bgp-watchdog-forget/) |
+| `request bgp watchdog give` | Daemon | - | - | - | - | [details](request-bgp-watchdog-give/) |
 | `request bgp watchdog withdraw` | Daemon | - | - | - | - | [details](request-bgp-watchdog-withdraw/) |
 | `request cache expire` | Daemon | - | - | - | - | [details](request-cache-expire/) |
 | `request cache release` | Daemon | - | - | - | - | [details](request-cache-release/) |
@@ -217,8 +220,11 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request ospf graceful-restart` | Daemon | - | - | - | - | [details](request-ospf-graceful-restart/) |
 | `request peer borr` | Daemon | - | - | - | - | [details](request-peer-borr/) |
 | `request peer clear soft` | Daemon | - | - | - | - | [details](request-peer-clear-soft/) |
+| `request peer disable` | Daemon | - | - | - | - | [details](request-peer-disable/) |
+| `request peer enable` | Daemon | - | - | - | - | [details](request-peer-enable/) |
 | `request peer eorr` | Daemon | - | - | - | - | [details](request-peer-eorr/) |
 | `request peer flush` | Daemon | - | - | - | - | [details](request-peer-flush/) |
+| `request peer notify` | Daemon | - | - | - | - | [details](request-peer-notify/) |
 | `request peer pause` | Daemon | - | - | - | - | [details](request-peer-pause/) |
 | `request peer plugin session ready` | Daemon | - | - | - | - | [details](request-peer-plugin-session-ready/) |
 | `request peer refresh` | Daemon | `clear bgp neighbor <peer> soft-inbound` | `clear bgp ipv4 unicast <peer> soft in` | - | `reset bgp <peer> soft in` | [details](request-peer-refresh/) |

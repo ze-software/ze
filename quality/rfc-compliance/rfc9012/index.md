@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.3% | 1 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 76.4% | 68 of 89 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 84.3% | 75 of 89 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 55.3% | 42 of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 31 | of 76 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 31 | of 76 gated MUSTs judged | 3 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 76 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -72,7 +72,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 89 |
 | Tagged units | 89 |
 | Recorded audit verdicts | 31 |
-| Discrimination records | 68 |
+| Discrimination records | 75 |
 | Summary | `rfc/short/rfc9012.md` |
 | Requirement shard | `rfc/requirements/rfc9012.md` |
 | RFC text | `rfc/full/rfc9012.txt` |
@@ -296,9 +296,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L352) | unit/verify | revert, verified |
-| negative | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L336) | unit/verify | unproven |
+| negative | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L336) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L351) | unit/verify | revert, verified |
-| positive | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L333) | unit/verify | unproven |
+| positive | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L333) | unit/verify | revert, verified |
 
 ### [`RFC9012-3.1-4`](#rfc9012-3.1-4)
 
@@ -369,9 +369,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L354) | unit/verify | revert, verified |
-| negative | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L349) | unit/verify | unproven |
+| negative | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L349) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L353) | unit/verify | revert, verified |
-| positive | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L346) | unit/verify | unproven |
+| positive | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L346) | unit/verify | revert, verified |
 
 ### [`RFC9012-3.2.1-3`](#rfc9012-3.2.1-3)
 
@@ -582,7 +582,7 @@ No test carries RFC9012-3.6-13, so no unit is bound to it.
 
 [RFC8669] only defines behavior when the BGP Prefix-SID attribute is attached to routes of type IPv4/IPv6 Labeled Unicast [RFC4760][RFC8277], and it only defines values of the BGP Prefix-SID attribute for those cases. Therefore, similar limitations exist for the Prefix-SID sub-TLV: it SHOULD only be included in a BGP UPDATE message for one of the address families for which [RFC8669] has a defined behavior, namely BGP IPv4/IPv6 Labeled Unicast [RFC4760] [RFC8277]. If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 9012 Section 3.7 limits Prefix-SID sub-TLV inclusion to address families defined by RFC8669, namely IPv4/IPv6 labeled unicast, and states: "If included in a BGP UPDATE for any other address family, it MUST be ignored." The subject is type11 inside attribute23, not standalone attribute40. SubTLVs preserves its opaque bytes; tunnelTLVLayout processes framing, carriers and endpoints but does not implement Prefix-SID family-conditioned consumer semantics. checkRouteBestChange obtains labeled-unicast labels from the winning NLRI and SRv6 information from attribute40, not attribute23. Opaque receipt and propagation are not evidence of the missing consumer. Retain the gap under plan/spec-bgp-tunnel-encapsulation-consumption.md without an exclusion or new implementation authorization.
+Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 3.7 limits Prefix-SID sub-TLV inclusion to address families defined by RFC8669, namely IPv4/IPv6 labeled unicast, and states: "If included in a BGP UPDATE for any other address family, it MUST be ignored." The subject is type11 inside attribute23, not standalone attribute40. SubTLVs preserves its opaque bytes; tunnelTLVLayout processes framing, carriers and endpoints but does not implement Prefix-SID family-conditioned consumer semantics. checkRouteBestChange obtains labeled-unicast labels from the winning NLRI and SRv6 information from attribute40, not attribute23. Opaque receipt and propagation are not evidence of the missing consumer. Retain the gap under plan/spec-bgp-tunnel-encapsulation-consumption.md without an exclusion or new implementation authorization.
 
 No test carries RFC9012-3.7-2, so no unit is bound to it.
 
@@ -630,7 +630,7 @@ No test carries RFC9012-4.1-3, so no unit is bound to it.
 
 [EVPN-INTER-SUBNET] defines a router's MAC Extended Community. This extended community, as its name implies, carries the MAC address of the advertising router. Since the VXLAN and NVGRE Encapsulation sub-TLVs can also optionally carry a router's MAC, a conflict can arise if both the Router's MAC Extended Community and such an Encapsulation sub-TLV are present at the same time but have different values. In case of such a conflict, the information in the Router's MAC Extended Community MUST be used. (§4.2)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 9012 Section 4.2 states: "In case of such a conflict, the information in the Router's MAC Extended Community MUST be used." The conflict is between that community and a different router MAC in a VXLAN/NVGRE Encapsulation sub-TLV. Received values can disagree even when stored opaquely. SubTLVs retains tunnel bytes, and the receive/forwarding boundary does not compare or select these MAC sources. checkRouteBestChange exports next-hop, metrics, NLRI labels and attribute40 SRv6 information, not an attribute23-derived encapsulation MAC. This is an absent consumer, not an impossible input or another role. Preserve the explicit gap under plan/spec-bgp-tunnel-encapsulation-consumption.md AC-3/AC-6; no opaque-propagation test establishes selected forwarding MAC or packet headers.
+Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 4.2 states: "In case of such a conflict, the information in the Router's MAC Extended Community MUST be used." The conflict is between that community and a different router MAC in a VXLAN/NVGRE Encapsulation sub-TLV. Received values can disagree even when stored opaquely. SubTLVs retains tunnel bytes, and the receive/forwarding boundary does not compare or select these MAC sources. checkRouteBestChange exports next-hop, metrics, NLRI labels and attribute40 SRv6 information, not an attribute23-derived encapsulation MAC. This is an absent consumer, not an impossible input or another role. Preserve the explicit gap under plan/spec-bgp-tunnel-encapsulation-consumption.md AC-3/AC-6; no opaque-propagation test establishes selected forwarding MAC or packet headers.
 
 No test carries RFC9012-4.2-1, so no unit is bound to it.
 
@@ -651,9 +651,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L358) | unit/verify | revert, verified |
-| negative | [`TestRFC9012ColorExtendedCommunityUnchangedOnPropagation`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L400) | unit/verify | unproven |
+| negative | [`TestRFC9012ColorExtendedCommunityUnchangedOnPropagation`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L400) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L357) | unit/verify | revert, verified |
-| positive | [`TestRFC9012ColorExtendedCommunityUnchangedOnPropagation`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L397) | unit/verify | unproven |
+| positive | [`TestRFC9012ColorExtendedCommunityUnchangedOnPropagation`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L397) | unit/verify | revert, verified |
 
 ### [`RFC9012-6-2`](#rfc9012-6-2)
 
@@ -842,7 +842,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L339) | unit/verify | revert, verified |
 | negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L160) | unit/verify | unproven |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L338) | unit/verify | revert, verified |
-| positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L269) | unit/verify | unproven |
+| positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L269) | unit/verify | revert, verified |
 
 ### [`RFC9012-13-9`](#rfc9012-13-9)
 
@@ -942,7 +942,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Miss
 
 A TLV identifying a particular tunnel type may contain a sub-TLV that is meaningless for that tunnel type. For example, perhaps the TLV contains a UDP Destination Port sub-TLV, but the identified tunnel type does not use UDP encapsulation at all, or a tunnel of the form "X-in-Y" contains a Protocol Type sub-TLV that specifies something other than "X". Sub-TLVs of this sort MUST be disregarded. (§13)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Section 13 defines disregard of tunnel-type-meaningless sub-TLVs in terms of encapsulation-header construction. Existing opaque carry and Preference-readback tests do not observe that consumer. checkRouteBestChange exports no attribute-23 tunnel parameters; the absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md AC-2/AC-6. The applied owner-ruling annotation and removal of the four obsolete 13-16 carry tags preserve their assertions and existing 13-18/-19/RFC9830 identities. Preserve the complete quote and MUST applicability, with no whole-requirement credit.
+Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. Section 13 defines disregard of tunnel-type-meaningless sub-TLVs in terms of encapsulation-header construction. Existing opaque carry and Preference-readback tests do not observe that consumer. checkRouteBestChange exports no attribute-23 tunnel parameters; the absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md AC-2/AC-6. The applied owner-ruling annotation and removal of the four obsolete 13-16 carry tags preserve their assertions and existing 13-18/-19/RFC9830 identities. Preserve the complete quote and MUST applicability, with no whole-requirement credit.
 
 No test carries RFC9012-13-16, so no unit is bound to it.
 
@@ -1000,7 +1000,7 @@ No test carries RFC9012-15-1, so no unit is bound to it.
 
 This filtering SHOULD be possible on a per-BGP-session basis. (§11) Context: outgoing Tunnel Encapsulation attribute filtering; RFC9012-11-6 owns the preceding filter-capability MUST.
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. RFC 9012 §11 says, “In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages. This filtering SHOULD be possible on a per-BGP-session basis.” This identity owns the per-session SHOULD, not the preceding capability MUST or default EBGP filtering. TestRFC9012TunnelFilterSelectedSession and TestRFC9012TunnelFilterDoesNotAffectOtherSession pass one valid received attribute-23 announcement through production Session receipt, dispatch, the recent-update cache and one ForwardUpdate fanout to two established-session unit fixtures. Each destination has independently populated ExportFilters and refreshed forwarding facts; the second test swaps which destination strips the attribute. The external-plugin transport fixture transforms the actual raw request produced by policyFilterFunc, removing only attribute 23 rather than returning a precomputed expected body. Production PolicyFilterChain, runEgressPolicyChainASN4 and the destination-specific forwarding loop apply its response. Both production session writers write through recordingConn, and the captured bodies are consumed by downstream Session.processMessage. Exact assertions require removal only for the configured destination, full original attribute-23 preservation for its sibling, unchanged NLRI and unrelated attribute encodings except mandatory IBGP LOCAL_PREF, no synthesized withdrawal, exactly one downstream dispatch, unchanged downstream payloads, and preservation of both the retained cached source and original receive buffer. Both unchanged tagged tests passed twenty race-enabled iterations. A selective omission of the raw replacement for destination 192.0.2.2 failed the selected-session test's actual output and downstream attribute-23 removal assertions while the swapped test passed; a separate selective substitution of the stripping chain for that destination failed the swapped test's sibling-preservation assertions while the selected-session test passed. These observed semantic failures demonstrate removal and session isolation separately. Both exact tags also have native revert records in rfc/discrimination/rfc9012.json bound to filter_ordered.go::runEgressPolicyChainASN4; their producer-halting failures establish binding and are not substituted for the semantic cuts. Evidence is bounded to production unit-level session-writer/downstream-receive paths using recordingConn and a simulated external-plugin transport: it is not a live external plugin, daemon, TCP-socket, FRR interoperability or tunnel-dataplane result.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-22 by independent route-policy auditor. RFC 9012 Section 11: "In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages." "This filtering SHOULD be possible on a per-BGP-session basis." This row owns the latter per-session SHOULD, not the outgoing-capability MUST, EBGP defaults, ingress filtering or dataplane. Read both current tagged tests TestRFC9012TunnelFilterSelectedSession and TestRFC9012TunnelFilterDoesNotAffectOtherSession, plus teSessionFilterRoundTrip, teSessionFilterTransport.CallFilterUpdate, teSessionFilterAssertBody and teSessionFilterDownstream in reactor/rfc9012_session_filter_test.go. The fixture transforms the actual raw request by removing only attribute 23, rather than returning precomputed output. Each round sends one received/cached UPDATE to two independently configured session writers, swaps which destination filters, asserts exactly one written UPDATE, exact attribute removal/preservation and unrelated encodings (with mandatory IBGP LOCAL_PREF), unchanged NLRI/withdrawals, one downstream production Session.processMessage dispatch with unchanged output, and original/cache immutability. Producers: filter_chain.go::PolicyFilterChain honors a raw modification and FinalAccept; filter_ordered.go::runEgressPolicyChainASN4 returns wireOverride; reactor_api_forward.go::forwardUpdateSection selects each snapshot exportPolicy and consumes the override for that destination only. The cutover replaces only the export filter value with typed Policy plus FinalAccept and renames the mutation comment; transformations and assertions are preserved. Retain enforced with the original unit-session/simulated-plugin-transport evidence boundary, not live daemon/TCP/FRR evidence. Old native record metadata is not a new observation; renewal and stamping remain parent-owned.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -1226,7 +1226,7 @@ for the names and their value shapes. Filters respond accept, reject, or modify
 </table>
 <p>Filters can declare <code>overrides</code> to remove default filters from the chain
 (e.g., <code>allow-own-as:relaxed</code> overrides <code>rfc:no-self-as</code> for a specific peer).</p>
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, canonicalizeFilterRefs -->
 <h3 id="cross-protocol-redistribute-redistribute-orchestrator">Cross-Protocol Redistribute (<code>redistribute-orchestrator</code>)</h3>
 <p><code>redistribute-orchestrator</code> is the single subscriber that dispatches non-consumer
 protocol route-change events to registered <code>RedistConsumer</code> implementations.
@@ -1411,12 +1411,19 @@ whole session.</p>
     }
     peer peer-a {
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
     }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>A list is an unordered reject SET. A route matching any leaf-list is rejected,
 and there is no first-match-wins, which is what keeps the type different from
 <code>as-path-list</code>. Both types stay and can sit in one chain.</p>
@@ -1586,8 +1593,15 @@ container did.</p>
 filter chain is a pipe in which a reject DROPS the route. A match filter placed
 earlier therefore expresses "modify these and discard everything else", and the
 route that must keep flowing untouched has nowhere to go. Use an earlier filter
-when you want the rest dropped:
-<code>filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]</code>.</p>
+when you want the rest dropped:</p>
+<pre><code class="language-text">filter {
+    import {
+        filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ];
+        final accept;
+    }
+}
+</code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>Chain references: <code>bgp-filter-modify:NAME</code> or <code>modify:NAME</code>.</p>
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
@@ -1630,7 +1644,10 @@ AS on export, or the source peer AS on import.</p>
     }
     peer transit-a {
         filter {
-            export [ STRIP ]
+            export {
+                filters [ STRIP ];
+                final accept;
+            }
         }
     }
 }
@@ -2036,7 +2053,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

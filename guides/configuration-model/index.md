@@ -18,7 +18,7 @@ Ze uses a JUNOS-like hierarchical configuration format.
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
 
 A block written twice, such as two `filter { ... }` blocks, is read as one.
-A list both blocks set, such as `import [ a b ]` and then `import [ b c ]`,
+A list both blocks set, such as `filters [ a b ]` and then `filters [ b c ]`,
 holds the members of both: `[ a b c ]`. An ordered list keeps every copy in
 order, so it can hold a member twice. A member deactivated with `inactive:` in
 either block stays deactivated. Ze refuses the file when an ordered list ends
@@ -493,9 +493,11 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `ttl-security` | Minimum TTL for incoming packets | No |
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer that carries an ACTIVE export filter is excluded from this path, and the `bgp-rs` plugin relays to it instead, so both peers must name that plugin in an `attach process` block or the peer receives nothing | No (default: disable) |
+| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer with active export filters or an explicit export final reject is excluded; `bgp-rs` relays to it instead, so both peers must name that plugin in an `attach process` block | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
+| `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
 
 ## Startup Convergence Hold (`update-delay`)
 
@@ -905,7 +907,7 @@ bgp {
         }
     }
     peer transit-a {
-        filter import prefix-list:AUTHORIZED modify:RTBH;
+        filter { import { filters [ prefix-list:AUTHORIZED modify:RTBH ]; final accept; } }
     }
 }
 ```
@@ -957,6 +959,30 @@ exemption reads the communities THAT SESSION agreed to, so a peer running RTBH o
 `65001:666` gets it for `65001:666`. On a session that names no community at all
 the exemption does nothing, and Ze logs that at configure time naming the peer.
 <!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- blackhole-honor-fields; internal/component/bgp/blackholecfg/blackholecfg.go -- Rule, Parse, Carries, Agreed; internal/component/bgp/plugins/rib/rib_blackhole.go -- coveredByAuthorized, blackholeRouteType; internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go -- agreedSelector; internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- match; internal/component/bgp/plugins/filter_modify/match.go -- matchCond; internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
+
+## Holding a peer administratively down
+
+The peer `shutdown` container holds the peer down while it is present. Ze opens
+no session, answers an inbound connection with Cease subcode 5 (Connection
+Rejected, RFC 4486 Section 4), and the peer state reads `idle-hold`. A commit
+that adds the container to a peer whose session is up closes it with Cease
+subcode 2 (Administrative Shutdown) carrying `message` as the RFC 9003
+Shutdown Communication. A commit that removes it lets the peer connect.
+
+```
+peer edge1 {
+    ...
+    shutdown {
+        message "planned maintenance"
+    }
+}
+```
+
+`request peer <selector> enable` releases the hold without a commit, and
+`request peer <selector> disable [<message>]` sets it again; a runtime change
+lasts until a commit adds or removes the container. ExaBGP's `shutdown true`
+migrates to this container.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- shutdown; internal/component/bgp/reactor/peer_admin.go -- holdAdminDown, rejectAdminDownConnection; internal/component/bgp/reactor/peer_settings_apply.go -- applyAdminShutdownChange -->
 
 ## Capabilities
 
@@ -1421,35 +1447,43 @@ produces, peer by peer.
 ## Route Filters
 
 Route filtering is configured via `filter` blocks at bgp, group, or peer level.
-Values are named filter instances from `bgp policy` or explicit `<plugin>:<filter>`
-references to plugin-declared filters.
+Each direction is a presence container with an ordered `filters` list and a
+required `final accept` or `final reject`. References name instances from
+`bgp policy` or explicit `<plugin>:<filter>` plugin filters.
 
 ```
 bgp {
     filter {
-        import [ rpki:validate ]
+        import { filters [ rpki:validate ]; final accept; }
     }
     group customers {
         filter {
-            import [ community:scrub ]
+            import { filters [ community:scrub ]; final accept; }
         }
         peer customer-a {
             remote { ip 10.0.0.1; as 65001; }
             filter {
-                export [ aspath:prepend ]
+                export { filters [ aspath:prepend ]; final accept; }
             }
         }
     }
 }
 ```
 
-Chains are cumulative: bgp-level filters run first, then group, then peer.
-Mandatory filters (e.g., `rfc:otc`) always run before user filters and cannot
-be removed. Default filters (e.g., `rfc:no-self-as`) run unless overridden by
-a filter that declares `overrides`.
+Filters accumulate in order: bgp, then group, then peer. The most-specific
+present direction supplies the effective final; an absent child inherits.
+Every explicitly configured layer needs its own final, even if a child sets
+one or the layer has no peers. Old list-only direction syntax is refused.
+
+A filter's accept continues the chain; reject stops it. A route that passes all
+filters receives the final decision. An empty policy such as
+`export { final reject; }` rejects without calling a filter. No configured policy
+keeps the existing behavior, including automatic loop-detection filters.
+Loop-detection entries are prepended unless the chain already names them;
+`inactive: filters NAME;` retains the reference but disables its execution.
 
 See [Route Filters](../redistribution/index.md) for details.
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies, canonicalizeFilterRefs -->
 
 ## Cross-Protocol Redistribute
 
@@ -1527,7 +1561,7 @@ bgp {
     peer customer-a {
         connection { remote { ip 10.0.0.1; as 65001; } }
         filter {
-            import [ CUSTOMERS ]
+            import { filters [ CUSTOMERS ]; final accept; }
         }
     }
 }
@@ -1548,10 +1582,11 @@ that matches no entry is implicitly rejected.
 
 **Multi-prefix UPDATEs.** When an UPDATE carries several prefixes and the
 prefix-list accepts some but rejects others, the filter returns `modify`:
-the UPDATE is rewritten to carry only the accepted prefixes. The rejected
-ones are silently removed. In v1 this applies to the legacy IPv4 unicast
-NLRI only; IPv6 and labeled families still use whole-update accept/reject
-semantics.
+the UPDATE is rewritten to carry only the accepted prefixes in each rewritable
+CIDR-family block, including legacy NLRI and MP_REACH/MP_UNREACH sections.
+A rejected prefix in a non-rewritable family, such as a FlowSpec destination
+component, rejects the whole UPDATE. The rewritten result still receives the
+policy's final decision; `modify` does not grant acceptance.
 
 Filter instance names are globally unique under `bgp policy`. Use the plain
 name as the primary reference form. Prefixed forms are accepted for
@@ -1591,7 +1626,7 @@ bgp {
             }
         }
         filter {
-            import [ bgp-filter-irr:65001 ]
+            import { filters [ bgp-filter-irr:65001 ]; final accept; }
         }
     }
 }
@@ -1663,7 +1698,7 @@ bgp {
     }
 
     peer customer-a {
-        filter { import [ as-path-list:ALLOW-PEER ] }
+        filter { import { filters [ as-path-list:ALLOW-PEER ]; final accept; } }
     }
 }
 ```
@@ -1699,8 +1734,8 @@ bgp {
 
     peer peer-a {
         filter {
-            import [ NO-TRANSIT ]
-            export [ NO-TRANSIT ]
+            import { filters [ NO-TRANSIT ]; final accept; }
+            export { filters [ NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -1783,7 +1818,7 @@ bgp {
     }
 
     peer transit-a {
-        filter { import [ community-match:BLOCK-NO-EXPORT ] }
+        filter { import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; } }
     }
 }
 ```
@@ -1801,6 +1836,10 @@ A definition applies to every route that reaches it. A definition that states a
 condition, and every other route leaves the filter unchanged. Use a match filter
 earlier in the chain when you want the rest dropped, because a rejected route
 leaves the pipe.
+
+An attribute change does not accept the route. Both attribute deltas and full
+payload rewrites receive the policy's final decision. A full rewrite ends filter
+traversal, but it does not bypass `final reject`.
 
 ```
 bgp {
@@ -1825,8 +1864,8 @@ bgp {
 
     peer transit-a {
         filter {
-            import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]
-            export [ modify:PREPEND-3 ]
+            import { filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]; final accept; }
+            export { filters [ modify:PREPEND-3 ]; final accept; }
         }
     }
 }
@@ -2225,6 +2264,14 @@ Transform ID. Section 7.2 recommends the 16 octet ICV for IKE.
 
 The AES CCM set is for an `ike-group` only. An `esp-group` proposal that names one is
 refused at commit, because no dataplane backend installs an AES CCM Security Association.
+
+`null` is the reverse: it is for an `esp-group` only. It selects integrity-only ESP, the
+ENCR_NULL transform, which RFC 4303 Section 1 requires to be negotiable. Ze offers it in
+IKE_AUTH and CREATE_CHILD_SA and accepts it from a peer that offers it, and the Child SA is
+installed with the null cipher and the proposal's integrity algorithm. A `null` proposal
+needs `hash`, because RFC 4303 Section 3.2 forbids ESP with neither confidentiality nor
+integrity. An `ike-group` proposal that names `null` is refused at commit, because RFC 7296
+Section 5 forbids ENCR_NULL for the IKE SA.
 
 The schema also names `chacha20poly1305` and `3des`, and no build carries a transform for
 either. A proposal that names one is refused at commit, and the refusal lists the
@@ -2814,7 +2861,11 @@ lookup in prerouting instead. Ze owns one table for it, `ip6 ze_iface_rpf`, and
 rebuilds it whole on every interface commit: each checked interface is a member
 of the `strict` or `loose` set, and a unit whose leaf, unit or interface leaves
 the config leaves the set with it. With no IPv6 `rpf-check` left, the table is
-deleted.
+deleted. nftables refuses that deletion to a ze running without CAP_NET_ADMIN:
+the interfaces still apply, and ze logs a warning that names the
+`nft delete table ip6 ze_iface_rpf` command to remove a table a privileged run
+left behind. A configured IPv6 check still fails to apply without the
+capability.
 
 | Value | nftables rule | Behavior |
 |-------|---------------|----------|

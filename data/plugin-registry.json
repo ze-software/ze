@@ -328,7 +328,9 @@
     "optional_dependencies": [
       "bgp-rs"
     ],
-    "start_after": [],
+    "start_after": [
+      "bgp-rr"
+    ],
     "source_dir": "internal/component/bgp/plugins/gr",
     "yang_files": [
       "internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang"
@@ -951,30 +953,6 @@
     ]
   },
   {
-    "name": "iface-dhcp",
-    "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
-    "config_roots": [],
-    "dependencies": [
-      "interface"
-    ],
-    "optional_dependencies": [],
-    "start_after": [],
-    "source_dir": "internal/plugins/iface/dhcp",
-    "yang_files": []
-  },
-  {
-    "name": "iface-ra",
-    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
-    "config_roots": [],
-    "dependencies": [
-      "interface"
-    ],
-    "optional_dependencies": [],
-    "start_after": [],
-    "source_dir": "internal/plugins/iface/ra",
-    "yang_files": []
-  },
-  {
     "name": "ike",
     "description": "IKEv2 engine for native IPsec VPN",
     "config_roots": [
@@ -1141,16 +1119,6 @@
     "yang_files": [
       "internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang"
     ]
-  },
-  {
-    "name": "memlock",
-    "description": "Memory lock: keep the running executable resident under memory pressure",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "start_after": [],
-    "source_dir": "internal/plugins/memlock",
-    "yang_files": []
   },
   {
     "name": "mrt",

@@ -230,12 +230,15 @@ daemon therefore cannot make a failed replacement look like a successful restart
 
 `vpp-test` and `vpp-iface-test` start their container through the lab Docker
 wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the
-run and still removes the container. When the removal fails, the report's
+run and still removes the container. A scenario the interruption caught ends at
+once with the interruption as the run's error, never a FAIL for a feature the
+run did not finish probing. When the removal fails, the report's
 `container-removal-error` names the reason and the verb exits 1; run
 `./le test integration cleanup` to remove it. A run killed outright leaves a
 labeled container that the next lab start or that cleanup removes.
 <!-- source: internal/le/test/deployment/actions.go -- signalRooted -->
 <!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
+<!-- source: internal/le/test/deployment/vppiface.go -- awaitFeature -->
 
 ## Configuring VPP
 

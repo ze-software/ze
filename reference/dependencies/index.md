@@ -50,7 +50,7 @@ Ze is Go, and Go code leans on packages. 52 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `github.com/openconfig/goyang` | `v1.6.3` | Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine. |
+| `github.com/openconfig/goyang` | `v1.6.4-0.20251113201521-a80f2799d7b9` | Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine. |
 | `github.com/openconfig/gnmi` | `v0.14.1` | Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities. |
 | `google.golang.org/grpc` | `v1.83.2` | Backs Ze's gRPC servers: gNMI and Ze's own management API. |
 | `google.golang.org/protobuf` | `v1.36.12` | Runtime support for the generated protobuf message types behind Ze's gRPC API. |

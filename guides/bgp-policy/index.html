@@ -68,7 +68,7 @@
 <p>Policy has two parts:</p>
 <ol>
 <li>Named filter instances under <code>bgp { policy { ... } }</code>.</li>
-<li>Ordered references under <code>filter { import [...] export [...] }</code>.</li>
+<li>Direction policies under <code>filter</code>, each with ordered <code>filters</code> and a required <code>final accept</code> or <code>final reject</code>.</li>
 </ol>
 <pre><code class="language-text">bgp {
     router-id 192.0.2.1
@@ -84,18 +84,46 @@
     }
 
     filter {
-        import [ no-self-as rpki:validate ]
+        import { filters [ no-self-as rpki:validate ]; final accept; }
     }
 
     group customers {
         filter {
-            import [ community:scrub ]
-            export [ prefix:customer-export ]
+            import { filters [ community:scrub ]; final accept; }
+            export { filters [ prefix:customer-export ]; final accept; }
         }
     }
 }
 </code></pre>
-<p>The effective chain is cumulative: automatic safety filters run first, followed by global, group, and peer references. Use <code>insert</code> in the editor when order matters.</p>
+<p>The effective references are cumulative: automatic safety filters run first,
+followed by global, group, and peer references. The most-specific configured
+direction supplies its final decision; references inherited from less-specific
+levels are not replaced. Each configured direction must state its own final,
+even if it has no references. Use <code>insert</code> in the editor when order matters.</p>
+<p>For example, <code>filter { import { filters [ name ]; final accept; } export { final reject; } }</code> runs <code>name</code> on import and rejects every export that reaches
+the policy final. An absent direction keeps the existing automatic-filter
+behavior and accepts when those filters finish; it is not a configured empty
+policy.</p>
+<p>A reload compares the whole effective policy. Changing only the export <code>final</code>
+therefore reconciles advertisements on the existing session without a source
+UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance,
+including removal of the direction, regenerates configured static, default and
+plugin routes and replays retained received routes through the configured replay
+owner. Ordinary received-route restoration requires the receive store and that
+owner's existing send permission. FlowSpec instead restores the selecting RIB's
+currently authorized paths through the same owner. A destination negotiating only
+FlowSpec does not require the optional receive store; negotiated ordinary families
+still require their retained source.
+An already accepting direction can be removed without replay or resetting the
+delivered static-route set; routes removed in the same reload are still withdrawn.
+If required restoration fails, reload returns the error and rolls back the policy
+instead of committing an accepting configuration with stale rejected state.</p>
+<p>One-shot API announcements have no retained desired source. They are withdrawn
+on rejection, but their producer must reannounce them after acceptance returns.
+This preserves the existing API ownership contract rather than introducing a
+second route store. Explicit withdrawals remain effective under <code>final reject</code>.
+Reloading a filter definition without changing the final is a separate operation.</p>
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
 <h2 id="filter-outcomes">Filter outcomes</h2>
 <p>A filter can:</p>
 <ul>
@@ -103,6 +131,11 @@
 <li>reject it and stop the chain;</li>
 <li>modify selected attributes and pass the changed update onward.</li>
 </ul>
+<p>A filter's <code>accept</code> means continue, not bypass the remaining policy. After the
+last active reference, Ze applies <code>final</code>. An empty policy, or one whose
+references are all inactive, still applies it. A raw full-UPDATE rewrite stops
+later filters, but still receives the policy final. An earlier reject,
+fail-closed error, or teardown cannot be turned into acceptance by <code>final accept</code>.</p>
 <p>Each plugin declares whether an internal error fails open or closed. Security filters should normally reject on failure. Operational policy should make that choice explicit rather than depending on an unavailable external service.</p>
 <h2 id="common-policy-building-blocks">Common policy building blocks</h2>
 <p>Ze ships filters for:</p>
@@ -138,8 +171,8 @@ those routes while the session stays up.</p>
     peer ix-member {
         role   { import peer; }
         filter {
-            import [ NO-TRANSIT ];
-            export [ NO-TRANSIT ];
+            import { filters [ NO-TRANSIT ]; final accept; }
+            export { filters [ NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -394,6 +427,15 @@ violating the arity contract and that an attribute went out unchanged.</p>
 <p>Use named destinations and specify the source protocols deliberately. Avoid broad two-way redistribution unless the topology and loop controls have been proven. Connected, static, kernel, OSPF, IS-IS, and BGP route sources have different ownership and withdrawal behaviour.</p>
 <p>See <a href="../redistribution/">Route filters and redistribution</a> for the current chain rules and configuration syntax.</p>
 <h2 id="verify-policy">Verify policy</h2>
+<p><code>show policy chain peer &lt;selector&gt; [import|export]</code> reports each effective direction as an object containing
+<code>filters</code> and <code>final</code>, including a configured direction with no filters.
+Peer detail reports the same policy under <code>import-policy</code> and <code>export-policy</code>.
+Automatic-only filters have no configured <code>final</code>; an entirely absent policy
+is omitted. Policy dry-run applies the same final as live execution.
+With <code>final reject</code>, a pure withdrawal remains <code>accept</code> with unchanged resulting
+text. A mixed announcement and withdrawal reports <code>modify</code>, with only its explicit
+withdrawals in the resulting text. A filter execution failure or teardown still
+reports <code>reject</code> without resulting text; neither is a successful withdrawal.</p>
 <p>Use the same route at each boundary:</p>
 <pre><code class="language-console">ze cli -c "show bgp rib peer transit-a"
 ze cli -c "show bgp rib best"
@@ -458,7 +500,7 @@ ze cli -c "show bgp peer transit-b rib"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

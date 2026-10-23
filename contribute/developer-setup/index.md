@@ -216,7 +216,9 @@ The target and its checked feature population are documented in
   `brew shellenv` has exported it, then the `brew` binary's own location
   (`<prefix>/bin/brew`), then the two documented defaults. The `brew` link is
   not followed: on Intel it points into `<prefix>/Homebrew`, which would answer
-  with the wrong prefix.
+  with the wrong prefix. The `docker-buildx` step (Docker labs, below) is the
+  one consumer that asks `brew --prefix`: it needs brew to install the formula
+  anyway, and Homebrew's caveat for that formula names the same path.
 - **e2fsprogs** is keg-only on Homebrew, so none of it is linked onto `PATH` and
   `which` finds nothing however well it is installed. It is looked for under
   `<prefix>/opt/e2fsprogs/sbin`, the link kept at the current version, and under
@@ -232,10 +234,25 @@ A Docker lab runs Ze in containers, so the kernel it tests is the Docker host's,
 and that kernel has to carry every feature Ze enrolls. A lab is never judged on a
 kernel that lacks one.
 
-- **macOS:** the labs run inside the Alpine QEMU guest booted on Ze's own arm64
-  runtime kernel under HVF, never in colima or Docker Desktop, whose Linux VMs
-  lack features Ze enrolls. Build the kernel cache entry once with
-  `./le build host-driver` and then
+- **macOS, the `ze` Colima profile:** the labs run on the Colima profile `ze`,
+  which boots Ze's docker-host image (Ze's runtime kernel, dockerd,
+  containerd). `./le setup docker-host start` builds the image when needed and
+  runs the profile, never touching Colima's `default` profile. With DOCKER_HOST
+  unset, every lab names the profile's socket, `ze/docker.sock` under
+  Colima's home (`$COLIMA_HOME` when that directory exists, else
+  `~/.colima`), itself, whatever the current Docker context says; when that socket is absent
+  the lab stops before it builds anything and names
+  `./le setup docker-host start`. It never falls back to `default` or to
+  Docker Desktop. A DOCKER_HOST you set is used as it is, and the lab's Docker
+  kernel check judges that daemon. `./le setup docker-host check` names
+  anything missing (colima, lima, docker, `brew install e2fsprogs` for
+  `mkfs.ext4`), and `./le setup docker-host stop` stops it. The image build and
+  the profile's lifecycle are in `docs/architecture/appliance/docker-host.md`.
+- **macOS, the QEMU guest:** the second route boots the same docker-host
+  image under QEMU with HVF, on Ze's own arm64 runtime kernel, and runs the
+  labs from the host le against the guest's dockerd through a forwarded
+  socket. Build the kernel
+  cache entry once with `./le build host-driver` and then
   `./ze-host appliance kernel --target runtime --arch arm64` (the `./ze`
   wrapper builds without `appliance`), then run a lab as
   `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
@@ -259,12 +276,39 @@ kernel that lacks one.
   profile `ze-lab-net-sysctl` the same way, loaded with
   `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`; the action with no
   `confirm` lists every profile and the steps each one runs.
+- **BuildKit:** the interop labs build some images with a named build context,
+  which only BuildKit accepts, and the docker CLI reaches BuildKit through its
+  buildx plugin. When `docker` is on PATH, setup runs a `docker-buildx` step
+  that is judged by `docker buildx version` answering, never by a package being
+  present. `./le setup check` reports it `MISSING` and changes nothing. On
+  macOS, `./le setup install` runs `brew install docker-buildx` when brew does
+  not hold the formula. It then adds `$(brew --prefix)/lib/docker/cli-plugins`
+  to `cliPluginsExtraDirs` in the docker config, because the docker CLI does
+  not search the Homebrew directory until the config names it. The config is
+  `$DOCKER_CONFIG/config.json` when `DOCKER_CONFIG` is set, else
+  `~/.docker/config.json`. The edit keeps every other key and its value, adds
+  no entry that is already there, refuses a file that is not a JSON object
+  rather than replacing it, and replaces the file by rename after a sync. A
+  symbolic link is followed, and a link to a file that does not exist is
+  refused rather than replaced. With no home directory and no `DOCKER_CONFIG`
+  the step refuses instead of writing a relative path. Each failure (brew
+  cannot install, brew names no prefix, the plugin still does not answer)
+  leaves the step `pending` with the reason and the next command to run. On a Mac with no
+  Homebrew the step changes nothing and names <https://brew.sh>. On Linux the
+  plugin is a root package and setup runs no `sudo` for it. The step names the
+  package that matches the installed docker, `docker-buildx-plugin` beside
+  Docker's `docker-ce` when dpkg reports it `install ok installed`, and
+  `docker-buildx` beside the distribution's
+  `docker.io`, with the `sudo apt-get install` line, and reports it `pending`.
+  The lab's BuildKit refusal names `./le setup install` as its fix.
+  With no docker CLI the step is `skipped`.
+<!-- source: internal/le/setup/buildx.go -- visitBuildx, addPluginDir, DockerConfigPath, BuildKitSetupCommand -->
 
 `docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
 guest", is the guest path; the scheduled nightly runs the same path on amd64
 under KVM (`docs/architecture/testing/ci-workflows.md`).
 
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->

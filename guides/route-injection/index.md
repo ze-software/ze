@@ -286,13 +286,19 @@ ze cli -c "send bgp upstream1 update hex \
     nlri ipv4/unicast add 180a0000"
 ```
 
+`nhop set` is separate from `attr set`: the attribute block's NEXT_HOP does not
+set the announce command's next-hop policy. Supply `nhop set` for a family that
+needs a next hop, even when the raw block already includes it.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- ParseUpdateWire -->
+
 ## Base64 Format
 
 Compact encoding for scripts:
 
 ```bash
 ze cli -c "send bgp upstream1 update b64 \
-    attr set QAEBAAQDAsCoBQE= \
+    attr set QAEBAA== \
+    nhop set wKgBAQ== \
     nlri ipv4/unicast add GAoAAA=="
 ```
 

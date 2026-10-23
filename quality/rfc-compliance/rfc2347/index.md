@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 3 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 25.0% | 2 of 8 tagged units, 0 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 8 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 3 | of 3 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -131,8 +131,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2347OnlyTheClientInitiatesNegotiation`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L94) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L82) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2347OnlyTheClientInitiatesNegotiation`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L94) | unit/verify | revert, verified |
+| negative | [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L82) | unit/verify | revert, verified |
 | positive | [`TestRFC2347OnlyTheClientInitiatesNegotiation`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L92) | unit/verify | revert, verified |
 | positive | [`TestRFC2347ServerOACKOnlyRequestedOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L78) | unit/verify | revert, verified |
 
@@ -144,10 +144,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Serv
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2347UnacknowledgedOptionIsNotUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L132) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L108) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2347UnacknowledgedOptionIsNotUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L127) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L103) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2347UnacknowledgedOptionIsNotUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L132) | unit/verify | revert, verified |
+| negative | [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L108) | unit/verify | revert, verified |
+| positive | [`TestRFC2347UnacknowledgedOptionIsNotUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L127) | unit/verify | revert, verified |
+| positive | [`TestRFC2347ServerIgnoresUnacknowledgedOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L103) | unit/verify | revert, verified |
 
 ### [`RFC2347-x-4`](#rfc2347-x-4)
 

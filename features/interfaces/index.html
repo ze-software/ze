@@ -54,6 +54,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <li><a href="#capability-table">Capability Table</a>
 <ol>
 <li><a href="#creating-a-device">Creating a device</a></li>
+<li><a href="#unnumbered-ipv4-units">Unnumbered IPv4 units</a></li>
 <li><a href="#reverse-path-check">Reverse-path check</a></li>
 </ol></li>
 <li><a href="#architecture">Architecture</a></li>
@@ -959,11 +960,40 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <h3 id="creating-a-device">Creating a device</h3>
 <p>Each apply creates the devices the config names: dummy, veth, bridge, tunnel,
 wireguard, xfrm, and the VLAN of each unit with a <code>vlan-id</code>. Whether a device
-exists is read before its create, never after. A device that existed is kept,
+exists is read before its create, never after, and it is read from the link
+alone (<code>GetLink</code>), as are the MTU and admin state the undo puts back: a failed
+address read cannot make a present device read as absent. A device that existed is kept,
 and the undo of a failed apply leaves it in place. A create that fails for a
 device that did not exist fails the commit, even when the backend left a
 partial device behind, and the undo deletes only the devices the apply created.</p>
 <!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
+<!-- source: internal/component/iface/backend.go — Backend.GetLink -->
+<h3 id="unnumbered-ipv4-units">Unnumbered IPv4 units</h3>
+<p>A unit can borrow the IPv4 address of another interface instead of holding a
+subnet of its own (Cisco <code>ip unnumbered</code>, Junos <code>unnumbered-address</code>):</p>
+<pre><code>interface {
+	loopback { unit 0 { ipv4 { address [ 192.0.2.1/32 ]; } } }
+	ethernet eth0 { unit 0 { ipv4 { unnumbered loopback; } } }
+}
+</code></pre>
+<p>The value names the donor, any interface in the config, or <code>loopback</code> for the
+loopback block. Ze installs the donor's address on the unit as a /32, the shape
+FRR and the Linux kernel use for an unnumbered point-to-point link. When the
+donor holds several IPv4 addresses, <code>unnumbered-source &lt;a.b.c.d&gt;</code> picks one;
+without it ze takes the donor's first address, in unit name order and then in
+address order (Junos <code>preferred-source-address</code>).</p>
+<p>The commit is refused when the unit also sets <code>address</code> or enables <code>dhcp</code>, when
+the donor is not in the config, is disabled, is itself unnumbered or holds no
+IPv4 address, when <code>unnumbered-source</code> names an address the donor does not
+hold, and when <code>unnumbered-source</code> is set without <code>unnumbered</code>.</p>
+<p>The /32 is a copy of the donor's address, so Ze keeps it only while the donor
+holds that address on a device that is up. When the donor goes down or loses
+the address, Ze removes the /32 from the unnumbered unit; when the donor
+recovers, Ze installs it again. Every interface link or address event, and
+every config apply, re-checks this. A protocol on the unit sees the address go:
+OSPF takes the link out of service until the address returns.</p>
+<!-- source: internal/component/iface/unnumbered.go -- parseIPv4Unnumbered, resolveUnnumbered, pickDonorAddress -->
+<!-- source: internal/component/iface/unnumbered_donor.go -- reconcileUnnumbered, donorLive -->
 <h3 id="reverse-path-check">Reverse-path check</h3>
 <p>Each apply builds the complete set of reverse-path checks the config asks for,
 one per unit and address family, and hands it to the backend whole:
@@ -1176,13 +1206,17 @@ have moved to a new link: with a delegated prefix held it sends a Rebind for eve
 lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
 and it installs every leased address again with what is left of its lifetimes,
 because the kernel deletes them when the interface is set down, then runs DAD on
-them again. A lease of addresses alone sends nothing on a
-move, because Ze does not send Confirm.</p>
-<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.goneDuplicates, v6Worker.goneWhileUp, v6Worker.warnLinkState, v6Worker.dadUnreported, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
+them again. A lease of addresses alone sends a Confirm instead, after a random
+delay of up to 1 s and under the same 30 s limit, carrying every leased address with its
+lifetimes set to 0. A Reply with Success, stated or implied by a missing Status Code,
+keeps the lease, and so does no answer at all. When every Reply that arrives in a
+listen window says NotOnLink, the client removes every leased address, publishes
+one <code>dhcp-expired</code> for each, and solicits again.</p>
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.goneDuplicates, v6Worker.goneWhileUp, v6Worker.warnLinkState, v6Worker.dadUnreported, v6Worker.decline, v6Worker.noteMove, v6Worker.startMoveExchange, v6Worker.rebindAfterMove, v6Worker.confirmAfterMove, v6Worker.dropAddresses -->
 <!-- source: internal/component/iface/resolve.go -- ReadAddressState -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf duid pattern -->
-<!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6ConfirmCollector, v6Worker.buildConfirm, v6Worker.setConfirmIAs, v6Worker.emptyIAPD -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go -- v6Lease.apply, v6Lease.renewTimes -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- installV4Lease, v4AddressLifetime, teardownV4 -->
 <ul>
@@ -1945,6 +1979,11 @@ macvlan carrying a caller-chosen unicast MAC on a parent interface; iface
 creates it, keeps it reconciled, and deletes it on release or after a crash. The
 one consumer today is VRRP (one macvlan per group carrying the RFC virtual MAC),
 but the mechanism is generic and carries zero VRRP knowledge.</p>
+<p>An owned macvlan derives no IPv6 link-local of its own: iface sets its IPv6
+address generation mode to none before bringing it up, because the MAC it
+carries is the caller's choice (for VRRP, a MAC every router of the group
+shares) and Linux would otherwise build the link-local's identifier from it. The
+owner installs whatever IPv6 address the device needs.</p>
 <p>The API is a small value struct plus three calls (mirroring the address
 registry):</p>
 <ul>
@@ -1956,9 +1995,15 @@ IFNAMSIZ budget, rejecting (never truncating) an over-budget candidate.</li>
 <li><code>RegisterOwnedMacvlan(owner, spec)</code>, <code>UnregisterOwnedMacvlan(owner, name)</code>,
 <code>UnregisterOwnedMacvlans(owner)</code>.</li>
 </ul>
-<p><strong>Ownership marker.</strong> At create, the device's kernel link alias (IFLA_IFALIAS)
-is set to <code>ze:owned:&lt;owner&gt;</code>, atomically with the MAC in one RTM_NEWLINK. The
-reconcile pass reads ownership back from the kernel rather than remembering
+<p><strong>Ownership marker.</strong> The device's kernel link alias (IFLA_IFALIAS) carries
+<code>ze:owned:&lt;owner&gt;</code>. The kernel ignores the alias in the RTM_NEWLINK that
+creates a device (Linux limitation <code>LL-RTNL-NEWLINK-NO-ALIAS</code>,
+<code>docs/architecture/linux-limitations.md</code>), so <code>CreateMacvlanDevice</code> creates the
+device with its MAC, then sets the alias with a second message, and deletes the
+device if that fails, before it sets the IPv6 address generation mode to none
+and brings the device up. A crash between the two messages can leave an
+unmarked device under a registered name; the reconcile pass adopts and re-marks
+it. The reconcile pass reads ownership back from the kernel rather than remembering
 history, so orphan cleanup works across restarts and crashes -- the one
 structural difference from the address registry (which must track its own stale
 interfaces because an address carries no owner).</p>
@@ -2316,14 +2361,21 @@ underlying mechanism. Cells with a footnote carry a caveat.</p>
 <td><code>ListInterfaces</code></td>
 <td>real</td>
 <td>real (SwInterfaceDump)</td>
-<td>err</td>
+<td>real (net.Interfaces)</td>
 </tr>
 <tr>
 <td></td>
 <td><code>GetInterface</code></td>
 <td>real</td>
 <td>real (SwInterfaceDump)</td>
-<td>err</td>
+<td>real (net.InterfaceByName)</td>
+</tr>
+<tr>
+<td></td>
+<td><code>GetLink</code></td>
+<td>real (no address dump)</td>
+<td>real (SwInterfaceDump)</td>
+<td>real (net.InterfaceByName)</td>
 </tr>
 <tr>
 <td></td>
@@ -2523,8 +2575,8 @@ main gaps against feature parity.</p>
 <!-- source: internal/plugins/iface/vpp/naming.go -- ze short name <-> VPP SwIfIndex map -->
 <h3 id="stub-non-linux">Stub (non-Linux)</h3>
 <p>On darwin, macOS, BSD, and Windows the netlink backend package compiles
-to a stub whose constructor succeeds. <code>ListInterfaces</code> and <code>GetInterface</code>
-read the host's interfaces through the Go standard library, so <code>ze init</code>
+to a stub whose constructor succeeds. <code>ListInterfaces</code>, <code>GetInterface</code> and
+<code>GetLink</code> read the host's interfaces through the Go standard library, so <code>ze init</code>
 discovers them and writes an initial config: the loopback is typed by its
 flag, and any other interface with a hardware address is classified as
 ethernet. Every other method returns
@@ -2537,7 +2589,7 @@ can list its interfaces, but any config-driven reconciliation that
 creates, addresses or changes one sees the explicit error and rejects
 under exact-or-reject.</p>
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
-<!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface via net.Interfaces -->
+<!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface/GetLink via net.Interfaces -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -2572,7 +2624,7 @@ under exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

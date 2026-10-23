@@ -479,7 +479,12 @@ and `test/exabgp-compat` uses `parseExaBGPCI`. The latter's
 `option=file:<name>` selects a predecessor configuration relative to the
 population's own `etc/` when it has one (`old-4.2`, `old-5.0`), else the shared
 `test/exabgp-compat/etc/`; it is
-not the native `option=file:path=<name>` directive. Those populations are chosen
+not the native `option=file:path=<name>` directive. Its `option=env:<key>=<value>`
+sets one variable in the environment of the daemon under test, ze and
+`--dut exabgp` alike, appended after the runner's own variables so a case can
+override one: `api-version-env.ci` writes `option=env:exabgp.api.version=4` to
+hold every script to API 4 from its start. A line naming no key or no `=` is
+refused at discovery. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
 `.ci` itself must still parse.
@@ -487,7 +492,8 @@ The shared draft boundary also excludes `test/draft` before discovery; a
 malformed unpromoted fixture must not redden repository gates.
 <!-- source: internal/test/runner/peer_asn_corpus_test.go -- peerASCorpus, TestPeerASCorpusRejectsNativeParseFailures, TestPeerASCorpusUsesExecutionParsers -->
 <!-- source: internal/test/runner/decoding_ci.go -- DecodingTests.parseCIFile -->
-<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI, exaBGPClientEnv -->
+<!-- test: internal/test/cli/cmd_exabgp_test.go -- TestParseExaBGPCIEnvOption -->
 
 #### Observer completion barriers
 
@@ -504,6 +510,16 @@ before requesting shutdown.
 <!-- source: internal/test/peer/reject.go -- Peer.completed -->
 <!-- source: internal/test/peer/checker.go -- Checker.consumeMatches -->
 <!-- source: internal/test/fixture/register_initial_sync_barrier.go -- initialSyncBarrierRaw -->
+
+The test peer's 100-millisecond read deadline is a cancellation poll, not a
+frame boundary. Check, sink, echo and post-success linger consumers MUST retain
+any partial BGP header or body across a recoverable idle timeout and resume the
+same frame. Only a complete frame reaches expectations, rejections or echo
+output; the following frame starts at its own header. Each retry returns through
+the context check, so an unfinished frame cannot prevent teardown.
+<!-- source: internal/test/peer/message.go -- messageReader.readMessage -->
+<!-- source: internal/test/peer/peer.go -- Peer.runMessageLoop -->
+<!-- source: internal/test/peer/reject.go -- Peer.holdSession -->
 
 #### Choosing between `needs-linux`, `caps=`, and `skip-os`
 
@@ -549,7 +565,7 @@ wearing a skip's clothing.
 | Value | Description |
 |-------|-------------|
 | `send-unknown-capability` | Add unknown capability (code 66) to OPEN |
-| `inspect-open-message` | Validate received OPEN against expectations |
+| `inspect-open-message` | Validate received OPEN against expectations. A NOTIFICATION ze sends in place of the OPEN (a held-down peer refusing a connection) is judged the same way and gets no reply (`test/plugin/peer-admin-shutdown-inbound.ci`) |
 | `send-unknown-message` | Send unknown message type (255) after OPEN |
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |

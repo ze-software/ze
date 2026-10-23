@@ -25,42 +25,84 @@ or exported.
 
 ```text
 plugin {
-    internal rib { use bgp-rib; }
-    internal adj-rib-in { use bgp-adj-rib-in; }
-    internal rpki { use bgp-rpki; }
-    internal role { use bgp-role; }
-    internal modify { use bgp-filter-modify; }
-    internal transit-filter { use bgp-filter-path-asn; }
+    internal rib {
+        use bgp-rib;
+    }
+    internal adj-rib-in {
+        use bgp-adj-rib-in;
+    }
+    internal rpki {
+        use bgp-rpki;
+    }
+    internal role {
+        use bgp-role;
+    }
+    internal modify {
+        use bgp-filter-modify;
+    }
+    internal transit-filter {
+        use bgp-filter-path-asn;
+    }
 }
 
 bgp {
     router-id 192.0.2.10;
-    session { asn { local 64500; } }
+    session {
+        asn {
+            local 64500;
+        }
+    }
 
     rpki {
-        cache-server 203.0.113.53 { port 323; trusted-network true; }
-        action { invalid reject; not-found accept; }
+        cache-server 203.0.113.53 {
+            port 323;
+            trusted-network true;
+        }
+        action {
+            invalid reject;
+            not-found accept;
+        }
     }
 
     policy {
-        reject-asn NO-TRANSIT { indirect [ 174 701 3356 ]; }
+        reject-asn NO-TRANSIT {
+            indirect [ 174 701 3356 ];
+        }
         modify TRANSIT-A-PREF {
-            set { local-preference 200; }
+            set {
+                local-preference 200;
+            }
         }
         modify TRANSIT-B-PREF {
-            set { local-preference 100; }
+            set {
+                local-preference 100;
+            }
         }
     }
 
     group transit {
         session {
             family {
-                ipv4/unicast { prefix { maximum 1000000; } }
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000;
+                    }
+                }
             }
         }
-        role { import customer; strict false; }
-        attach process rpki { receive [ update-received state ]; }
-        filter { export [ NO-TRANSIT ]; }
+        role {
+            import customer;
+            strict false;
+        }
+        attach process rpki {
+            receive [ update-received state ];
+        }
+        filter {
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
+        }
         attach process adj-rib-in {
             receive [ update-received state ];
             send [ update ];
@@ -71,20 +113,46 @@ bgp {
 
         peer transit-a {
             connection {
-                local { ip 192.0.2.10; }
-                remote { ip 192.0.2.1; }
+                local {
+                    ip 192.0.2.10;
+                }
+                remote {
+                    ip 192.0.2.1;
+                }
             }
-            session { asn { remote 64496; } }
-            filter { import [ modify:TRANSIT-A-PREF ]; }
+            session {
+                asn {
+                    remote 64496;
+                }
+            }
+            filter {
+                import {
+                    filters [ modify:TRANSIT-A-PREF ];
+                    final accept;
+                }
+            }
         }
 
         peer transit-b {
             connection {
-                local { ip 198.51.100.10; }
-                remote { ip 198.51.100.1; }
+                local {
+                    ip 198.51.100.10;
+                }
+                remote {
+                    ip 198.51.100.1;
+                }
             }
-            session { asn { remote 64497; } }
-            filter { import [ modify:TRANSIT-B-PREF ]; }
+            session {
+                asn {
+                    remote 64497;
+                }
+            }
+            filter {
+                import {
+                    filters [ modify:TRANSIT-B-PREF ];
+                    final accept;
+                }
+            }
         }
     }
 }

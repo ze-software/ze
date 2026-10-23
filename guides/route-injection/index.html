@@ -451,10 +451,15 @@ mp ipv6/unicast add 2001:db8::/32
     nhop set c0a80101 \
     nlri ipv4/unicast add 180a0000"
 </code></pre>
+<p><code>nhop set</code> is separate from <code>attr set</code>: the attribute block's NEXT_HOP does not
+set the announce command's next-hop policy. Supply <code>nhop set</code> for a family that
+needs a next hop, even when the raw block already includes it.</p>
+<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- ParseUpdateWire -->
 <h2 id="base64-format">Base64 Format</h2>
 <p>Compact encoding for scripts:</p>
 <pre><code class="language-bash">ze cli -c "send bgp upstream1 update b64 \
-    attr set QAEBAAQDAsCoBQE= \
+    attr set QAEBAA== \
+    nhop set wKgBAQ== \
     nlri ipv4/unicast add GAoAAA=="
 </code></pre>
 <h2 id="peer-selector">Peer Selector</h2>
@@ -564,7 +569,7 @@ ships a Python launcher or helper.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -826,16 +826,27 @@ Per-interface authentication covers simple password, keyed-MD5 (RFC 2328),
 HMAC-SHA (RFC 5709), and the RFC 7474 extended-sequence variant, with key
 chains for hitless rotation and sequence-number replay protection.</p>
 <h2 id="policy-route-manipulation">Policy &amp; Route Manipulation</h2>
-<p>Ze takes a programmable approach to policy: external plugin filters
-manipulate routes via <code>filter { import [...] export [...] }</code> chains using
-named filter instances or explicit <code>&lt;plugin&gt;:&lt;filter&gt;</code> references. Filters
-chain as piped transforms (accept/reject/modify) with delta-only output.
-RFC-mandated checks run as default filters that can be selectively
-overridden. Built-in filter plugins shipped with Ze include prefix-list
-matching (ge/le bounds), AS-path regex filtering, community presence
-matching (standard/large/extended), route attribute modification
-(local-preference, MED, origin, next-hop, AS-path prepend), community
-tag/strip, and RFC 9234 role enforcement.</p>
+<p>Ze uses plugin filters to manipulate routes in ordered import and export policies.
+Each direction lists named filter instances or explicit <code>&lt;plugin&gt;:&lt;filter&gt;</code>
+references under <code>filters</code> and requires <code>final accept;</code> or <code>final reject;</code>.</p>
+<pre><code class="language-text">filter {
+    import {
+        filters [ prefix-list:CUSTOMERS ];
+        final accept;
+    }
+}
+</code></pre>
+<p>An <code>accept</code> response continues the chain, and a <code>reject</code> response drops the route
+immediately. A <code>modify</code> response supplies attribute changes for the next filter.
+After the filters pass, the configured final decides whether the route proceeds.
+A raw payload rewrite stops later filters but does not bypass that final decision.
+Built-in filter plugins shipped with Ze include prefix-list matching (ge/le
+bounds), AS-path regex filtering, community presence matching
+(standard/large/extended), route attribute modification (local-preference, MED,
+origin, next-hop, AS-path prepend), community tag/strip, and RFC 9234 role
+enforcement.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
 <table>
 <thead>
 <tr>
@@ -2383,9 +2394,9 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">37,100+</span> unit tests,
-<span data-ze-stat="tests.e2e_display">2,400+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">90</span> fuzz targets, and
-interop testing against <span data-ze-stat="interop.target_display">10</span> independent BGP
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">38,000+</span> unit tests,
+<span data-ze-stat="tests.e2e_display">2,500+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">90</span> fuzz targets, and
+interop testing against <span data-ze-stat="interop.target_display">11</span> independent BGP
 implementations. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
 on real networks. Use it in labs first.</p>
@@ -2494,7 +2505,7 @@ embeddable library mode. The full-router comparison belongs on the
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

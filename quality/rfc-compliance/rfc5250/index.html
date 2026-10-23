@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5250 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 15 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 15 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 15 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,23 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>92.9%</strong><b>13 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.1%</strong><b>1 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.7%</strong><b>33 of 43 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>93.3%</strong><b>14 of 15 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6.7%</strong><b>1 of 15 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.0%</strong><b>30 of 40 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>15</strong><b>of 17 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 15 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -205,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>16</td>
+<td>17</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>14</td>
+<td>15</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>43</td>
+<td>40</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>43</td>
+<td>40</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>11</td>
+<td>12</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>33</td>
+<td>30</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5250.md</code></td>
@@ -266,7 +266,7 @@ Same OSPF experimental status.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>13</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
@@ -293,11 +293,11 @@ Same OSPF experimental status.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>15</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a>, <a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a>, <a href="#rfc5250-3.1-2"><code>RFC5250-3.1-2</code></a>, <a href="#rfc5250-3.1-3"><code>RFC5250-3.1-3</code></a>, <a href="#rfc5250-3.1-4"><code>RFC5250-3.1-4</code></a>, <a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a>, <a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a>, <a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a>, <a href="#rfc5250-5-3"><code>RFC5250-5-3</code></a>, <a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a>, <a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a>, <a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a>, <a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (14):</strong> <a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a>, <a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a>, <a href="#rfc5250-3.1-2"><code>RFC5250-3.1-2</code></a>, <a href="#rfc5250-3.1-3"><code>RFC5250-3.1-3</code></a>, <a href="#rfc5250-3.1-4"><code>RFC5250-3.1-4</code></a>, <a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a>, <a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a>, <a href="#rfc5250-5-4"><code>RFC5250-5-4</code></a>, <a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a>, <a href="#rfc5250-5-3"><code>RFC5250-5-3</code></a>, <a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a>, <a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a>, <a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a>, <a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc5250-3-2"><code>RFC5250-3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -372,9 +372,7 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloSentWithoutOBit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloOBitIgnoredOnReceipt</code></a></span></div>
 </div></td>
 </tr>
@@ -383,10 +381,17 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L67" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-5-4">RFC5250-5-4</code></td><td colspan="3"><span class="rfc-subject">If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L54" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L70" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-5-2">RFC5250-5-2</code></td><td colspan="3"><span class="rfc-subject">It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5)</span></td></tr>
@@ -394,7 +399,6 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></span></div>
 </div></td>
@@ -631,23 +635,13 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a></h3>
 <p>the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). New rfc5250_obit_hello_test.go: real engine, opaque on, p2p eth0, recording transport; a wire Hello from 10.0.0.2 with Options E|O dispatched through eng.dispatch, waits for a sent Hello and a sent DD (both required, so not vacuous). + TestRFC5250HelloSentWithoutOBit (SHOULD NOT be set): every sent Hello has O clear while the DD has O set; - TestRFC5250HelloOBitIgnoredOnReceipt (MUST be ignored): neighbor 10.0.0.2 not OpaqueCapable after the O-bit Hello with no DD from it. Author overlay logs read (c28/o6, o7): Hello built with O -&gt; + red only (&#39;options 0x42&#39;); neighbor Options get O on Hello -&gt; - red only. HelloInput carries no Options, so today the received O-bit is dropped at the engine boundary; the end-to-end negative catches any future path that carries it into the neighbor. HEAD dd_opaque_test units (DD O-bit learned / Hello exchange) stay as supplementary. Revert records on buildHelloPacketLocked and neighbor/table.go hello observed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The neighbor-table tags that could not carry an O-bit Hello are gone. A real engine: TestRFC5250HelloSentWithoutOBit, every Hello sent has 0x40 clear while the DD to the same neighbor has it set (record buildHelloPacketLocked); TestRFC5250HelloOBitIgnoredOnReceipt, an O-bit Hello from 10.0.0.2 with no DD is processed (one neighbor row) and leaves it not opaque-capable (record NeighborHello).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloOBitIgnoredOnReceipt</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -661,7 +655,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a></h3>
 <p>(2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c12) after the D-8 fix. Section 5 (2): &#39;the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.&#39; Producer: spf/reachability.go ASBRReachable reads the SPF border entries of Kind asbr (intra-area Router-LSA E-bit, interarea.go intraAreaBorderRouters; inter-area Type-4 summaries, interarea.go:157), finite metric and a next hop, the same entries the Type-5 calculation reads (external.go); Computer.ASBRReachable gates on the config generation; opaque.go spfASBRReachable is the only production caller (grep: no other RouterReachable user changed; bgpls_export and nssa keep ReachabilitySnapshot.RouterReachable/RouterReachableAny). TestRFC5250Type11LooksUpOriginatorRoutingEntry over the engine&#39;s own seam: - pending SPF, reached router without the E-bit, unreached 10.0.0.9 all delivered not usable; + the same router re-originated with the E-bit is usable. Judge overlay (go test -overlay) restoring the old RouterReachableAny answer in Computer.ASBRReachable: red at the no-E-bit negative (scratch/judge-ospf-5250mut.log); author&#39;s red at HEAD agrees. Records +/- revert on ASBRReachable observed. The inter-area Type-4 source is not driven by this unit; it feeds the same border slice. opaque_reachability_test.go tags are supplementary (injected predicate). Related defect reported to the main thread: Ze does not set its own E-bit when it originates Type-11 LSAs (lsdb selfIsASBRLocked counts only Type-5/7), against Section 5 (1), so another Ze router now treats those LSAs as unusable.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). Unit changed only by added 5-4 tag lines. Real SPF: not usable while SPF is pending, not usable for a reached router without the E-bit (no ASBR entry), not usable for an unknown originator, usable once the E-bit Router-LSA yields an ASBR entry; the verdict therefore comes from the ASBR routing table entry. Records on spf/reachability.go::ASBRReachable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -671,18 +665,28 @@ Same OSPF experimental status.
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L67" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5250-5-4"><code>RFC5250-5-4</code></a></h3>
+<p>If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Row is a verbatim span of RFC 5250 Section 5 (2). Positive: a Type-11 LSA whose originator has no ASBR entry (SPF pending, reached without E-bit, unknown originator) is delivered not usable; negative: an originator with an ASBR entry is delivered usable, so the do-nothing rule is bound to the missing entry. Consumers honouring the not-usable flag (TED) are proven by the RFC5250-5-2 tests. Records on ASBRReachable.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L70" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L54" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -691,7 +695,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a></h3>
 <p>It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c11). D-8 fixed at the producer: the Extended Prefix receiver cached usable at delivery (extRecvEntry.usable), so a Type-11 entry stayed usable in `show` after its originator became unreachable; the entry now stores scope only and ext_prefix.go::extPrefixUsable (RFC quote above the return) judges it at every read, snapshot deriving it after releasing the receiver lock. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: + two Type-11 LSAs (Opaque IDs 1, 2) from 2.2.2.2 usable while reachable; - the seam flips unreachable, no new LSA, both rows unusable through extOpaqueDecode (the show path). An overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making extPrefixUsable return true for AS scope turns the negative red (and TestExtPrefixType11UnreachableUnusable). Revert records on extPrefixUsable observed red. The row&#39;s false {single-polarity} annotation (&#39;never cached&#39;) was removed; the quote is unchanged. The TED consumer already judged at read time (te_ted.go usableLocked).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: two Type-11 extended-prefix LSAs from 2.2.2.2 are usable, then with no new LSA the originator becomes unreachable and both rows turn unusable (record extPrefixUsable). Detection is stubbed here and proven in 5-1. The TED consumer has its own live gate (te_ted.go usableLocked), tested by TestInterAsTEType11UnreachableUnusable, which carries no tag.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -703,11 +707,6 @@ Same OSPF experimental status.
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -854,10 +853,10 @@ Same OSPF experimental status.
 <td>rfc/extraction/rfc5250.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>9</td>
+<td>8</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1032,11 +1031,6 @@ Same OSPF experimental status.
 <td>Same reproduced RFC 2328 Section 10.3 paragraph: the MaxAge advertisement goes on the neighbor&#39;s retransmission list, unmodified base text with no opaque content.</td>
 <td>It MUST instead be added to the neighbor&#39;s link-state retransmission list.</td>
 </tr>
-<tr><td><code>5:3</code></td>
-<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>Same numbered procedure (2): RFC5250-5-1 states both the routing-table lookup and &#39;if unreachable, do nothing with the LSA&#39;.</td>
-<td>If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.</td>
-</tr>
 <tr><td><code>A.2:1</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Appendix A.2 restates the link-local flooding scope that Section 3/3.1 defines and RFC5250-3-1 carries.</td>
@@ -1088,7 +1082,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

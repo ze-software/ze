@@ -340,11 +340,11 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5308-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L30" title="internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISIIHTLV232LinkLocal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L60" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L72" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L211" title="internal/plugins/isis/circuit/rfc5303_sent_iih_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L103" title="internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISIIHTLV232OmittedNoLinkLocal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L130" title="internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISIIHTLV232RejectsNonLinkLocal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L64" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L76" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-3-2">RFC5308-3-2</code></td><td colspan="3"><span class="rfc-subject">For LSPs, the &#34;Interface Address&#34; TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS. (§3)</span></td></tr>
@@ -353,9 +353,9 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5308-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L110" title="internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISOriginateTLV232Scope</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L116" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L128" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L111" title="internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go" target="_blank" rel="noopener"><code>TestISISOriginateTLV232Scope</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L119" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L131" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5308-4-1">RFC5308-4-1</code></td><td colspan="3"><span class="rfc-subject">The value of the IPv6 Network Layer Protocol ID (NLPID) is 142 (0x8E). As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the &#34;NLPID&#34; TLV by adding the IPv6 NLPID. (§4)</span></td></tr>
@@ -497,7 +497,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L64" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L76" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -512,7 +512,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L60" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L72" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308HelloAddressIsTheInterfaceLinkLocal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -532,7 +532,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L119" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L131" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -542,7 +542,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L116" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L128" title="internal/plugins/isis/rfc5308_hello_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC5308LSPInterfaceAddressesAreNonLinkLocal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -803,7 +803,7 @@ Same IS-IS experimental status. <a href="#rfc5308-2-3"><code>RFC5308-2-3</code><
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

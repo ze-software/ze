@@ -461,7 +461,20 @@ Symptom: peer stays in Connect/Active state
 Symptom: session establishes briefly then NOTIFICATION received
 ```
 
-1. Check the NOTIFICATION code in monitor output:
+1. **Look for the `notification received` line in ze's log first.** Every
+   NOTIFICATION a peer sends leaves one WARN line, visible at the default log
+   level with no `ze.log` override, including a peer that refuses Ze's OPEN
+   before the session ever comes up. It names the peer, the FSM state the
+   NOTIFICATION arrived in (`OPENSENT` or `OPENCONFIRM` when the OPEN was
+   refused), the code and subcode as names and numbers, and the peer's
+   shutdown message when it sent one:
+
+   ```
+   level=WARN msg="notification received" subsystem=bgp.reactor.session peer=192.0.2.1 state=OPENCONFIRM code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0
+   ```
+   <!-- source: internal/component/bgp/reactor/session_handlers.go -- logNotificationReceived -->
+
+2. Read the code and subcode against this table (the same values appear in monitor output):
 
    | Code | Subcode | Meaning |
    |------|---------|---------|
@@ -472,9 +485,9 @@ Symptom: session establishes briefly then NOTIFICATION received
    | 6 | 2 | Administrative Shutdown |
    | 6 | 5 | Connection Rejected |
 
-2. **Role mismatch:** If using `role { import customer; strict true; }`, both peers must advertise compatible roles.
+3. **Role mismatch:** If using `role { import customer; strict true; }`, both peers must advertise compatible roles.
 
-3. **Capability issues:** Enable debug to see negotiated vs offered capabilities:
+4. **Capability issues:** Enable debug to see negotiated vs offered capabilities:
    ```bash
    ze cli -c "request log level bgp.reactor debug"
    ```

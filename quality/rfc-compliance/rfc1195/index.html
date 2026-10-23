@@ -548,9 +548,9 @@ Experimental pending current integration, discrimination and deployment evidence
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go#L31" title="internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go" target="_blank" rel="noopener"><code>TestRFC1195InterfaceAddrTLV63Addresses</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L124" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborForwarding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L136" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborForwarding</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go#L54" title="internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go" target="_blank" rel="noopener"><code>TestRFC1195InterfaceAddrTLVTruncatedAddressRefused</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L145" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborRenumbered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L157" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborRenumbered</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-1">RFC1195-4.4-1</code></td><td colspan="3"><span class="rfc-subject">IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet. (Section 4.4)</span></td></tr>
@@ -559,9 +559,9 @@ Experimental pending current integration, discrimination and deployment evidence
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L36" title="internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L168" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborIsOnLinkNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L180" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborIsOnLinkNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L37" title="internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L190" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborNotResolvedBySubnet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L202" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborNotResolvedBySubnet</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-2">RFC1195-4.4-2</code></td><td colspan="3"><span class="rfc-subject">All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4)</span></td></tr>
@@ -1195,7 +1195,7 @@ Experimental pending current integration, discrimination and deployment evidence
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L145" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborRenumbered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L157" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborRenumbered</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1205,7 +1205,7 @@ Experimental pending current integration, discrimination and deployment evidence
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L124" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborForwarding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L136" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195MultiAddressNeighborForwarding</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1225,7 +1225,7 @@ Experimental pending current integration, discrimination and deployment evidence
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L190" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborNotResolvedBySubnet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L202" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborNotResolvedBySubnet</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1235,7 +1235,7 @@ Experimental pending current integration, discrimination and deployment evidence
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L168" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborIsOnLinkNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L180" title="internal/plugins/isis/rfc1195_neighbor_addresses_test.go" target="_blank" rel="noopener"><code>TestRFC1195OffSubnetNeighborIsOnLinkNextHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2342,7 +2342,7 @@ Experimental pending current integration, discrimination and deployment evidence
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

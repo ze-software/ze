@@ -257,7 +257,7 @@ come up.</p>
 </tr>
 <tr>
 <td>Proposals</td>
-<td>AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an <code>esp-group</code>; DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names <code>chacha20poly1305</code> and <code>3des</code>, which no build implements, so a proposal naming either is refused at commit</td>
+<td>AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an <code>esp-group</code>; NULL encryption with an integrity algorithm for ESP only (integrity-only ESP, RFC 4303 Section 1), refused at commit in an <code>ike-group</code> (RFC 7296 Section 5); DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names <code>chacha20poly1305</code> and <code>3des</code>, which no build implements, so a proposal naming either is refused at commit</td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -361,7 +361,7 @@ restart instead of waiting for Dead Peer Detection.</p>
 <p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code>, <code>eap-tls</code> or <code>eap-md5</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. Configure the client as a <code>site-to-site</code> peer. Read the EAP MD5-Challenge section below before you select <code>eap-md5</code>.</p>
 <p>The <code>remote-access</code> container is not wired yet. It parses, and no session reads
 it, so a <code>pool</code> assigns no address and an <code>eap-user</code> list authenticates nobody.
-<code>plan/immediate/spec-ipsec-remote-access.md</code> owns the work.</p>
+<code>plan/release/fixes/spec-ipsec-remote-access.md</code> owns the work.</p>
 <!-- source: internal/component/ike/engine/apply.go -- reloadPool stores the pool in ikeEngineState.pool, which nothing reads -->
 <p>Every EAP mode and X.509 needs a <code>ca-certificate</code>. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor
@@ -943,11 +943,13 @@ refuses that export on a TLS 1.2 session that did not negotiate the RFC 7627 ext
 master secret. Ze cannot authenticate such a peer. It says so rather than failing
 silently: the log line names the peer, the negotiated version, RFC 7627 and the answers
 below.</p>
-<p>strongSwan 5.9.14 is such a peer, by default rather than by limitation. charon ships
-<code>version_max = 1.2</code> in <code>/etc/strongswan.d/charon.conf</code>, with the comment "default to TLS
-1.2 until 1.3 is stable for use in EAP", and it implements no extended master secret. Set
-<code>charon.tls.version_max = 1.3</code> and the same 5.9.14 build reaches an established SA, which
-is what <code>test/interop-ipsec/scenarios/eap-tls13</code> runs.</p>
+<p>strongSwan 6.1.0, the lab's peer, is such a peer, by default rather than by limitation.
+<code>src/libtls/tls.c</code> sets the maximum to TLS 1.2 when <code>charon.tls.version_max</code> is unset,
+with the comment "default to TLS 1.2 until 1.3 is stable for use in EAP", and the
+generated <code>strongswan.d/charon.conf</code> documents it as <code># version_max = 1.2</code>. Its libtls
+implements no extended master secret: the extension appears only as a name in its
+extension table. Set <code>charon.tls.version_max = 1.3</code> and the same build reaches an
+established SA, which is what <code>test/interop-ipsec/scenarios/eap-tls13</code> runs.</p>
 <table>
 <thead>
 <tr>
@@ -1070,7 +1072,7 @@ unordered configuration installs what it installed before. The range starts at
 that rank matches the IKE datagrams first, which hands the exchange that builds
 and rekeys the SA to the SA itself, and the tunnel could then never
 renegotiate. Ze refuses such a value at commit.</p>
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
 <h2 id="security-policy-database-entries">Security Policy Database entries</h2>
@@ -1310,12 +1312,21 @@ says why BGP or SSH went quiet:</p>
 <p>A box with no <code>vpn ipsec</code> block keeps a <code>bypass</code> catch-all: it configured no
 IPsec boundary.</p>
 <p>The IKE control-plane bypass at order 100 is installed either way, so the
-tunnels can still be negotiated. The entry is re-asserted on every apply and
-removed when the engine stops.</p>
+tunnels can still be negotiated. Ze's entries appear together on the first
+apply, the catch-all first and the IKE bypass right after it, before any IKE
+socket opens. The catch-all is re-asserted on every apply. When the engine
+stops, every tunnel is torn down first, then the IKE bypass and your <code>policy</code>
+entries are removed, and the catch-all goes last, so no Ze entry is ever in
+force without it. If any of those entries cannot be removed, the catch-all
+stays installed beneath it, and the daemon logs a warning naming each entry
+left as the exact <code>ip xfrm policy delete</code> command that removes it: direction,
+prefixes, protocol, ports and <code>if_id</code>, so two entries that differ only by port
+get two different commands.</p>
 <h4 id="when-the-entry-is-not-there">When the entry is not there</h4>
-<p>A <code>discard</code> entry that is not installed would let the kernel pass exactly the
-traffic you asked it to drop, so Ze never reports such a configuration as
-applied:</p>
+<p>A catch-all that is not installed leaves a packet no entry matches meeting no
+entry at all, which RFC 4301 Section 5.2 forbids ("If there is no match,
+discard the traffic"), so Ze never reports such a configuration as applied,
+whichever value <code>unmatched</code> holds. The one exception is the VPP backend:</p>
 <table>
 <thead>
 <tr>
@@ -1326,23 +1337,28 @@ applied:</p>
 </thead>
 <tbody>
 <tr>
-<td>The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM</td>
+<td>The VPP backend, which holds no entry bound to no interface</td>
 <td>Refused at commit. A configuration the daemon starts with is not verified, so a start with <code>unmatched</code> unset (or <code>discard</code>) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: <code>set vpn ipsec unmatched bypass</code> in the configuration file, then start again</td>
-<td>Accepted; no entry is installed, and the kernel passes the traffic</td>
+<td>Accepted; no entry is installed, and the traffic crosses in the clear. This is an open RFC 4301 gap on VPP</td>
+</tr>
+<tr>
+<td>A build off Linux, or a kernel without XFRM</td>
+<td>Refused at commit, and a start fails as in the row above</td>
+<td>The apply fails: a commit is refused, and at startup the configure step returns the error. Fix: run Ze on a Linux kernel with XFRM (<code>CONFIG_XFRM_USER</code>)</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
 <td>Refused at commit</td>
-<td>Accepted; no entry is installed</td>
+<td>The apply fails. Fix: the cause the daemon logged</td>
 </tr>
 <tr>
 <td>The install itself fails when the configuration is applied, which includes a daemon without <code>CAP_NET_ADMIN</code>: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install</td>
 <td>The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error</td>
-<td>Logged as a warning; the kernel passes the traffic</td>
+<td>Same as <code>discard</code>. Fix: give the daemon <code>CAP_NET_ADMIN</code></td>
 </tr>
 <tr>
 <td>Before the first configuration is applied, and after the engine stops</td>
-<td class="cell-no">✕</td>
+<td>The IPsec engine holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of its own; the kernel passes traffic as it does with no IPsec configured. Two exceptions: an entry the engine could not remove on stop keeps the catch-all beneath it (the warning names both), and OSPFv3 authentication with manual keys installs its own SAs and policies with no catch-all, an open RFC 4301 gap</td>
 <td>Same</td>
 </tr>
 </tbody>
@@ -1372,9 +1388,9 @@ window.</p>
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 <h2 id="both-esp-wire-forms">Both ESP wire forms</h2>
 <p>RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
-UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form. A
-state that carries the encapsulation template refuses bare ESP, and a state without one
-refuses encapsulated ESP. Ze serves the second form beside the kernel. A raw IPPROTO_ESP
+UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form
+(<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md#ll-xfrm-state-one-esp-form" target="_blank" rel="noopener">LL-XFRM-STATE-ONE-ESP-FORM</a>).
+Ze serves the second form beside the kernel. A raw IPPROTO_ESP
 reader takes the datagram XFRM refused. It re-presents that datagram through port 4500,
 which carries UDP_ENCAP, so the kernel hands XFRM the form its template wants. One
 established Child SA therefore keeps carrying traffic when its peer changes ESP form
@@ -1395,7 +1411,8 @@ the NAT verdict alone: Ze encapsulates when it detected a NAT.</p>
 policy RFC 7296 Section 2.9 narrows a peer's proposal against.</p>
 <pre><code>vpn { ipsec { site-to-site { peer branch-1 {
     traffic-selector 1 {
-        local  { prefix 10.1.0.0/16; }
+        protocol 6
+        local  { prefix 10.3.0.0/24; port 179; }
         remote { prefix 10.2.0.0/16; }
     }
     traffic-selector 2 {
@@ -1410,8 +1427,20 @@ policy RFC 7296 Section 2.9 narrows a peer's proposal against.</p>
 behaviour of every configuration written before the list existed, so adding the list is what
 restricts a peer, never omitting it.</p>
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->
+<p>A Child SA carries every combination of its local and remote selectors. RFC 7296 Section
+3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
+selectors in TSi, and at least one of the individual selectors in TSr." So the list must
+name every combination of the local and remote selectors it uses, as the example above
+does with one local and two remote selectors. A list such as local 10.1.0.0/16 with remote
+10.2.0.0/16, then local 10.3.0.0/16 with remote 10.4.0.0/16, would be offered as
+10.1.0.0/16 with 10.4.0.0/16 as well, so <code>ze config verify</code> refuses it and names the
+missing combination. Add the missing entries, or remove the entry that brings in the
+extra prefix.</p>
+<!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
 <p>As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
-and leads the answer with the initiator's first choices. A proposal it cannot narrow to a
+and leads the answer with the initiator's first choices. When the pairs it accepts are not
+every combination of their own selectors, it answers the largest part that is, starting
+from the first choice, because the initiator installs every combination it is answered. A proposal it cannot narrow to a
 non-empty subset draws a <code>TS_UNACCEPTABLE</code> notification. As initiator, Ze proposes the list
 in order, because RFC 7296 reads the order as the preference order.</p>
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectors -->
@@ -1480,9 +1509,18 @@ default.</p>
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- mode, transport-required -->
 <p>Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactly one IP
 address in TSi and in TSr, so every prefix must be a single host, and a <code>vti</code> binding is
-refused because an XFRM interface carries tunnel encapsulation. Several selectors are still
-allowed when they share that one address, for example to negotiate several ports.</p>
+refused because an XFRM interface carries tunnel encapsulation. A transport-mode Child SA
+also carries exactly one selector pair: the kernel's transport-mode SA holds one selector
+(<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md#ll-xfrm-state-one-selector" target="_blank" rel="noopener">LL-XFRM-STATE-ONE-SELECTOR</a>),
+and one wide enough for several pairs would admit traffic that no pair negotiated. So
+<code>ze config verify</code> and <code>ze config commit</code> refuse a transport-mode peer that configures more
+than one <code>traffic-selector</code> entry: keep one entry, or set <code>mode tunnel</code>. The far end can
+still propose several pairs. As responder Ze answers such a proposal with the first one. As
+initiator it refuses an answer of several pairs and deletes the SA, so configure one selector
+on the far end too.</p>
+<!-- source: internal/component/ike/engine/config.go -- validateTransportOnePair -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectors -->
 <p>A tunnel-mode peer's <code>vti { bind &lt;name&gt; }</code> names an <code>interface { xfrm &lt;name&gt; { if-id } }</code>
 block. The Child SA is installed with that interface's if_id, so the tunnel's traffic
 enters and leaves through the named interface and the interface's MTU is the tunnel's.
@@ -1535,7 +1573,7 @@ backend which interface to use. The backend is reached only through a private te
 override, it is compiled in only with the <code>ze_vpp</code> build tag, and no test has sent ESP
 through it. Use the XFRM backend, which is the default and the production path.</p>
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
 <h2 id="pki-certificate-store">PKI certificate store</h2>
 <p>The <code>pki { }</code> block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
@@ -1704,8 +1742,9 @@ the two gauges together separate a lost session from a session with no ESP.</p>
 <!-- source: internal/component/ike/engine/child.go -- ChildSA.ESPInstalled -->
 <p>The daemon logs <code>child-sa: dataplane refused the ESP state, tunnel is degraded and carries no encrypted traffic</code> when this happens.</p>
 <h2 id="interop-testing">Interop testing</h2>
-<p>The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
-image. The infrastructure in <code>test/interop-ipsec/</code> drives strongSwan containers as remote
+<p>The IKE implementation includes interop tests against strongSwan 6.1.0, built from the
+upstream release on Alpine 3.24.3 (<code>test/interop-ipsec/Dockerfile.strongswan</code>).
+The infrastructure in <code>test/interop-ipsec/</code> drives strongSwan containers as remote
 IKE peers. The scenarios cover:</p>
 <table>
 <thead>
@@ -1809,7 +1848,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

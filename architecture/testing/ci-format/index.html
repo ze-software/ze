@@ -895,7 +895,12 @@ and <code>test/exabgp-compat</code> uses <code>parseExaBGPCI</code>. The latter'
 <code>option=file:&lt;name&gt;</code> selects a predecessor configuration relative to the
 population's own <code>etc/</code> when it has one (<code>old-4.2</code>, <code>old-5.0</code>), else the shared
 <code>test/exabgp-compat/etc/</code>; it is
-not the native <code>option=file:path=&lt;name&gt;</code> directive. Those populations are chosen
+not the native <code>option=file:path=&lt;name&gt;</code> directive. Its <code>option=env:&lt;key&gt;=&lt;value&gt;</code>
+sets one variable in the environment of the daemon under test, ze and
+<code>--dut exabgp</code> alike, appended after the runner's own variables so a case can
+override one: <code>api-version-env.ci</code> writes <code>option=env:exabgp.api.version=4</code> to
+hold every script to API 4 from its start. A line naming no key or no <code>=</code> is
+refused at discovery. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
 <code>.ci</code> itself must still parse.
@@ -903,7 +908,8 @@ The shared draft boundary also excludes <code>test/draft</code> before discovery
 malformed unpromoted fixture must not redden repository gates.</p>
 <!-- source: internal/test/runner/peer_asn_corpus_test.go -- peerASCorpus, TestPeerASCorpusRejectsNativeParseFailures, TestPeerASCorpusUsesExecutionParsers -->
 <!-- source: internal/test/runner/decoding_ci.go -- DecodingTests.parseCIFile -->
-<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI, exaBGPClientEnv -->
+<!-- test: internal/test/cli/cmd_exabgp_test.go -- TestParseExaBGPCIEnvOption -->
 <h4 id="observer-completion-barriers">Observer completion barriers</h4>
 <p>A peer's last wire expectation is not the observer's completion barrier. In
 <code>cursor-replay.ci</code>, the observer starts injecting only after <code>eor-sent</code>; the
@@ -918,6 +924,15 @@ before requesting shutdown.</p>
 <!-- source: internal/test/peer/reject.go -- Peer.completed -->
 <!-- source: internal/test/peer/checker.go -- Checker.consumeMatches -->
 <!-- source: internal/test/fixture/register_initial_sync_barrier.go -- initialSyncBarrierRaw -->
+<p>The test peer's 100-millisecond read deadline is a cancellation poll, not a
+frame boundary. Check, sink, echo and post-success linger consumers MUST retain
+any partial BGP header or body across a recoverable idle timeout and resume the
+same frame. Only a complete frame reaches expectations, rejections or echo
+output; the following frame starts at its own header. Each retry returns through
+the context check, so an unfinished frame cannot prevent teardown.</p>
+<!-- source: internal/test/peer/message.go -- messageReader.readMessage -->
+<!-- source: internal/test/peer/peer.go -- Peer.runMessageLoop -->
+<!-- source: internal/test/peer/reject.go -- Peer.holdSession -->
 <h4 id="choosing-between-needs-linux-caps-and-skip-os">Choosing between <code>needs-linux</code>, <code>caps=</code>, and <code>skip-os</code></h4>
 <table>
 <thead>
@@ -1001,7 +1016,7 @@ wearing a skip's clothing.</p>
 </tr>
 <tr>
 <td><code>inspect-open-message</code></td>
-<td>Validate received OPEN against expectations</td>
+<td>Validate received OPEN against expectations. A NOTIFICATION ze sends in place of the OPEN (a held-down peer refusing a connection) is judged the same way and gets no reply. <span class="ev-src"><span class="ev-ref"><code>test/plugin/peer-admin-shutdown-inbound.ci</code></span></span></td>
 </tr>
 <tr>
 <td><code>send-unknown-message</code></td>
@@ -3290,7 +3305,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

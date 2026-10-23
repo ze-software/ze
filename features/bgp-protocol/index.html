@@ -223,7 +223,7 @@
 <td>IPv4 RTC</td>
 <td><code>ipv4/rtc</code></td>
 <td>1/132</td>
-<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 </tr>
@@ -336,6 +336,7 @@ announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 <!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- VPLS family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- RTC family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex -->
 <h3 id="capabilities">Capabilities</h3>
 <table>
 <thead>
@@ -683,6 +684,16 @@ rail did not.</p>
 <td>A route reflector withholds such a route from a client that shares no connected subnet with the original advertiser, and logs the suppression. A client the operator configured next-hop-self for receives it with this speaker's address instead, which is the other answer Section 4 allows. A link-local prefix is never read as evidence of a shared segment.</td>
 </tr>
 <tr>
+<td class="cell-no">✕</td>
+<td>9774 Section 3</td>
+<td>Asked of the built body on every rail except raw injection, after the export chain: an UPDATE whose AS_PATH or AS4_PATH, in any occurrence, holds a set segment is written as the withdrawal of its prefixes instead, logged as a rate-limited warning that names the peer and the route count, and counted on <code>ze_bgp_as_set_withdrawn_total</code>. Proven against FRR by the interop scenario <code>bgp-rfc9774-as-set-frr</code>.</td>
+</tr>
+<tr>
+<td>A received AS_SET or AS_CONFED_SET is treat-as-withdraw</td>
+<td>9774 Section 3</td>
+<td>An UPDATE whose AS_PATH or AS4_PATH holds a set segment is handled as a withdrawal of its prefixes (RFC 7606), on every session whatever the AS width. The log line carries <code>RFC 9774 Section 3: AS_SET in AS_PATH</code>. Proven by <code>bgp-rfc9774-as-set-frr</code>, where Ze's own RIB never holds the injected set route. <span class="ev-src"><span class="ev-ref"><code>test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci</code></span></span></td>
+</tr>
+<tr>
 <td>A modification that cannot be applied suppresses the route</td>
 <td>none</td>
 <td>The route is withheld from that destination rather than forwarded unmodified. Counted on <code>ze_bgp_update_modify_failed_total{reason}</code>.</td>
@@ -698,6 +709,8 @@ rail did not.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
+<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 <h3 id="unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</h3>
 <p>RFC 7606 Section 5.4 requires a speaker advertising a typed address family to
@@ -747,6 +760,21 @@ session stays up. A malformed route whose route key cannot form is discarded
 instead, because no withdrawal can name it. Both are logged at debug with the
 NLRI bytes and counted in <code>ze_bgp_update_nlri_malformed_total</code>
 (<code>docs/guide/monitoring.md</code>).</p>
+<p>The withdrawal never carries the malformed bytes. A receiver decodes every field
+of a withdrawn NLRI, so for a family whose recognizer judges the body
+(<code>nlritype.RegisterBodyRecognizer</code>) each peer keeps the last well-formed
+generation it announced for each route key, and the withdrawal of a malformed
+route names that generation. When no generation is held, the peer never
+installed the route and nothing is relayed for it. The same rule applies to a
+malformed or unkeyable NLRI a peer sends in an MP_UNREACH_NLRI. FRR and BIRD
+build their withdrawals the same way, from the route they hold.</p>
+<p>A held generation can be longer than the malformed NLRI it replaces, so the
+replacements join the UPDATE only while it carries no other MP_UNREACH_NLRI and
+still fits the session's message limit; otherwise they leave in withdraw-only
+UPDATEs sized to that limit. The hold lives as long as the routes it mirrors
+(RFC 4724 Section 4.2): it survives a reconnect that negotiates Graceful
+Restart, is emptied by one that does not, and an End-of-RIB drops the
+generations of its family the new session did not announce again.</p>
 <p>A family can also register an UPDATE-level check beside its recognizer, for a
 rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
 draft-ietf-bess-mup-safi Section 3.3.6: a Direct Segment Discovery route in an
@@ -757,13 +785,14 @@ configured to accept the Prefix-SID (RFC 8669 Section 4) is withdrawn too.</p>
 <p>When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
 Section 5.3 resets the session.</p>
-<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain -->
+<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain, RegisterBodyRecognizer, JudgesBody -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
 <!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable, typedNLRIWithdrawBodies, typedNLRIHeldRoutes -->
 <h3 id="rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</h3>
 <p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its
 own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
@@ -949,7 +978,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

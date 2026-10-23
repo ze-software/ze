@@ -22,7 +22,7 @@
 | BGP-LS VPN | `bgp-ls/bgp-ls-vpn` | 16388/72 | No | Yes | No |
 | IPv4 MVPN | `ipv4/mvpn` | 1/5 | Yes | Yes | Partial |
 | IPv6 MVPN | `ipv6/mvpn` | 2/5 | Yes | Yes | Partial |
-| IPv4 RTC | `ipv4/rtc` | 1/132 | No | Yes | No |
+| IPv4 RTC | `ipv4/rtc` | 1/132 | Yes | Yes | No |
 | IPv4 MUP | `ipv4/mup` | 1/85 | Yes | Yes | Yes |
 | IPv6 MUP | `ipv6/mup` | 2/85 | Yes | Yes | Yes |
 | IPv4 SR-Policy | `ipv4/sr-policy` | 1/73 | Yes | Yes | Yes |
@@ -87,6 +87,7 @@ announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 <!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- VPLS family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- RTC family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex -->
 
 ### Capabilities
 
@@ -315,6 +316,8 @@ rail did not.
 | A 16-octet link-local next hop needs capability 77 | draft-ietf-idr-linklocal-capability Sections 2, 3 and 5 | The Link-Local-only form is sent only where the session negotiated the capability, and for IPv4 NLRI only where RFC 8950 Extended Next Hop Encoding was negotiated as well. A route whose next hop is link-local is left out of the announcement on any other session, and logged, rather than encoded in a form RFC 2545 Section 3 forbids. This holds for originated and forwarded routes alike, including `next-hop self` on a session that runs over a link-local address. |
 | A malformed 32-octet next hop on a capability-77 session is withdrawn | draft-ietf-idr-linklocal-capability Section 6 | A received Next Hop field of 32 octets must be a Global (or `::`) followed by a Link-Local, or two Link-Locals. Any other pair makes the UPDATE treat-as-withdraw (RFC 7606 Section 7.3). Without the capability, only the length is judged |
 | A reflected link-local-only next hop stays on its own segment | draft-ietf-idr-linklocal-capability Section 4 | A route reflector withholds such a route from a client that shares no connected subnet with the original advertiser, and logs the suppression. A client the operator configured next-hop-self for receives it with this speaker's address instead, which is the other answer Section 4 allows. A link-local prefix is never read as evidence of a shared segment. |
+| No AS_SET or AS_CONFED_SET is advertised | 9774 Section 3 | Asked of the built body on every rail except raw injection, after the export chain: an UPDATE whose AS_PATH or AS4_PATH, in any occurrence, holds a set segment is written as the withdrawal of its prefixes instead, logged as a rate-limited warning that names the peer and the route count, and counted on `ze_bgp_as_set_withdrawn_total`. Proven against FRR by the interop scenario `bgp-rfc9774-as-set-frr`. |
+| A received AS_SET or AS_CONFED_SET is treat-as-withdraw | 9774 Section 3 | An UPDATE whose AS_PATH or AS4_PATH holds a set segment is handled as a withdrawal of its prefixes (RFC 7606), on every session whatever the AS width. The log line carries `RFC 9774 Section 3: AS_SET in AS_PATH`. Proven by `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci` and by `bgp-rfc9774-as-set-frr`, where Ze's own RIB never holds the injected set route. |
 | A modification that cannot be applied suppresses the route | none | The route is withheld from that destination rather than forwarded unmodified. Counted on `ze_bgp_update_modify_failed_total{reason}`. |
 
 <!-- source: internal/component/bgp/reactor/forward_local_pref.go -- localPrefAllowedTo, applyFactsLocalPref -->
@@ -326,6 +329,8 @@ rail did not.
 <!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
+<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 
 ### Unrecognized NLRI types in a typed family
@@ -357,6 +362,23 @@ instead, because no withdrawal can name it. Both are logged at debug with the
 NLRI bytes and counted in `ze_bgp_update_nlri_malformed_total`
 (`docs/guide/monitoring.md`).
 
+The withdrawal never carries the malformed bytes. A receiver decodes every field
+of a withdrawn NLRI, so for a family whose recognizer judges the body
+(`nlritype.RegisterBodyRecognizer`) each peer keeps the last well-formed
+generation it announced for each route key, and the withdrawal of a malformed
+route names that generation. When no generation is held, the peer never
+installed the route and nothing is relayed for it. The same rule applies to a
+malformed or unkeyable NLRI a peer sends in an MP_UNREACH_NLRI. FRR and BIRD
+build their withdrawals the same way, from the route they hold.
+
+A held generation can be longer than the malformed NLRI it replaces, so the
+replacements join the UPDATE only while it carries no other MP_UNREACH_NLRI and
+still fits the session's message limit; otherwise they leave in withdraw-only
+UPDATEs sized to that limit. The hold lives as long as the routes it mirrors
+(RFC 4724 Section 4.2): it survives a reconnect that negotiates Graceful
+Restart, is emptied by one that does not, and an End-of-RIB drops the
+generations of its family the new session did not announce again.
+
 A family can also register an UPDATE-level check beside its recognizer, for a
 rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
 draft-ietf-bess-mup-safi Section 3.3.6: a Direct Segment Discovery route in an
@@ -369,13 +391,14 @@ When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
 Section 5.3 resets the session.
 
-<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain -->
+<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain, RegisterBodyRecognizer, JudgesBody -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
 <!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable, typedNLRIWithdrawBodies, typedNLRIHeldRoutes -->
 
 ### RFC 7911 Path Identifier regeneration
 

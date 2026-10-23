@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 3.1% | 3 of 97 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 97 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 97 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 49.3% | 113 of 229 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 50.7% | 116 of 229 tagged units, 0 escaped and 36 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 230 |
 | Tagged units | 229 |
 | Recorded audit verdicts | 61 |
-| Discrimination records | 115 |
+| Discrimination records | 152 |
 | Summary | `rfc/short/rfc9830.md` |
 | Requirement shard | `rfc/requirements/rfc9830.md` |
 | RFC text | `rfc/full/rfc9830.txt` |
@@ -388,8 +388,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L278) | unit/verify | unproven |
-| positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L264) | unit/verify | unproven |
+| negative | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L278) | unit/verify | revert, verified |
+| positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L264) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4-2`](#rfc9830-2.4-2)
 
@@ -400,7 +400,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L156) | unit/verify | unproven |
-| positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L270) | unit/verify | unproven |
+| positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L270) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.1-2`](#rfc9830-2.4.1-2)
 
@@ -444,10 +444,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L25) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L444) | unit/verify | revert, verified |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L444) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L265) | unit/verify | unproven |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L24) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L443) | unit/verify | revert, verified |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L443) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L255) | unit/verify | unproven |
 
 ### [`RFC9830-2.4.1-6`](#rfc9830-2.4.1-6)
@@ -470,10 +470,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L27) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L446) | unit/verify | revert, verified |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L446) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L266) | unit/verify | unproven |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L26) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L445) | unit/verify | revert, verified |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L445) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L260) | unit/verify | unproven |
 
 ### [`RFC9830-2.4.2-2`](#rfc9830-2.4.2-2)
@@ -531,9 +531,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L31) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L205) | unit/verify | unproven |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L205) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L30) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L118) | unit/verify | unproven |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L118) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.2-7`](#rfc9830-2.4.2-7)
 
@@ -555,11 +555,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L33) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L448) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L206) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L448) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L206) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L32) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L447) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L120) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L447) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L120) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.2-9`](#rfc9830-2.4.2-9)
 
@@ -581,11 +581,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L35) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L450) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L207) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L450) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L207) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L34) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L449) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L122) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L449) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L122) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.2-11`](#rfc9830-2.4.2-11)
 
@@ -628,11 +628,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L37) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L452) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L208) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L452) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L208) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L451) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L124) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L451) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L124) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.3-6`](#rfc9830-2.4.3-6)
 
@@ -654,11 +654,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L39) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L454) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L209) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L454) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L209) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L38) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L453) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L128) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L453) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.3-9`](#rfc9830-2.4.3-9)
 
@@ -690,11 +690,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L41) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L456) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L210) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L456) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L210) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L40) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L455) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L130) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L455) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L130) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.1-2`](#rfc9830-2.4.4.1-2)
 
@@ -738,11 +738,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L43) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L458) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L211) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L458) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L211) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L42) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L457) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L134) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L457) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L134) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.1-6`](#rfc9830-2.4.4.1-6)
 
@@ -764,11 +764,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L45) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L460) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L212) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L460) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L212) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L44) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L459) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L138) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L459) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L138) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.1-1`](#rfc9830-2.4.4.2.1-1)
 
@@ -801,11 +801,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L47) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L462) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L213) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L462) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L213) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L46) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L461) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L142) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L461) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L142) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.1-4`](#rfc9830-2.4.4.2.1-4)
 
@@ -827,11 +827,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L49) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L464) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L214) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L464) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L48) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L463) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L146) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L463) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L146) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.2-1`](#rfc9830-2.4.4.2.2-1)
 
@@ -864,11 +864,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L51) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L466) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L215) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L466) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L215) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L50) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L465) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L161) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L465) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L161) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.2-4`](#rfc9830-2.4.4.2.2-4)
 
@@ -902,11 +902,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L53) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L468) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L216) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L468) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L216) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L52) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L467) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L150) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L467) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L150) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.3-3`](#rfc9830-2.4.4.2.3-3)
 
@@ -916,10 +916,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L470) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L217) | unit/verify | unproven |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L469) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L157) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L470) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L217) | unit/verify | revert, verified |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L469) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L157) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.4-2`](#rfc9830-2.4.4.2.4-2)
 
@@ -945,11 +945,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L55) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L472) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L218) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L472) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L218) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L54) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L471) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L165) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L471) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L165) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.4.2.4-4`](#rfc9830-2.4.4.2.4-4)
 
@@ -1057,11 +1057,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L57) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L474) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L219) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L474) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L219) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L56) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L473) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L169) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L473) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L169) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.7-5`](#rfc9830-2.4.7-5)
 
@@ -1096,11 +1096,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L59) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L476) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L220) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L476) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L220) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L475) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L171) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L475) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L171) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.8-5`](#rfc9830-2.4.8-5)
 
@@ -1135,11 +1135,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L61) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L478) | unit/verify | revert, verified |
-| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L221) | unit/verify | unproven |
+| negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L478) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L221) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L60) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L477) | unit/verify | revert, verified |
-| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L173) | unit/verify | unproven |
+| positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L477) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L173) | unit/verify | revert, verified |
 
 ### [`RFC9830-3-3`](#rfc9830-3-3)
 
@@ -1314,8 +1314,8 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L191) | unit/verify | revert, verified |
-| positive | [`TestRFC7606Section52MPUnreachOnlyNotEscalated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L49) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L177) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7606Section52MPUnreachOnlyNotEscalated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L177) | unit/verify | revert, verified |
 
 ### [`RFC9830-5-4`](#rfc9830-5-4)
 

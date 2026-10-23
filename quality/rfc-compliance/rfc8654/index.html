@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>62.5%</strong><b>40 of 64 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>53.1%</strong><b>34 of 64 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -316,14 +316,14 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L381" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateAttributes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L449" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateMPResets</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L248" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L382" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L463" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L32" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654TreatAsWithdrawRemovesInstalledRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeLengthConflictTreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L307" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedAttributeDiscard</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L382" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateAttributes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L450" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateMPResets</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L250" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L383" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L464" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L33" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654TreatAsWithdrawRemovesInstalledRoutes</code></a></span></div>
 </div></td>
 </tr>
@@ -363,13 +363,13 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1621" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_Fits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1632" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_Fits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendPluginRoutesLeavesAFittingGroupWhole</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendPluginRoutesTracksTheNegotiatedMaximum</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithSplitLeavesAFittingPayloadWhole</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L224" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithSplitTracksTheNegotiatedMaximum</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_update_split_test.go#L1417" title="internal/component/bgp/message/rfc8654_update_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdate_VPNChunksFitMaxMessageSize</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1593" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_TooLarge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1604" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_TooLarge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendPluginRoutesBoundsAnOversizeGroup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithSplitBoundsAnOversizePayload</code></a></span></div>
 </div></td>
@@ -526,10 +526,10 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeLengthConflictTreatAsWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L383" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L464" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -541,30 +541,30 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L307" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedAttributeDiscard</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L382" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L450" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateMPResets</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L250" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L382" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L463" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -576,22 +576,22 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L306" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedAttributeDiscard</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L381" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L449" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateMPResets</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L248" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -679,7 +679,7 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1593" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_TooLarge</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1604" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_TooLarge</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -699,7 +699,7 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1621" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_Fits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1632" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_Fits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -813,7 +813,7 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 </div>
 <h3><a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a></h3>
 <p>A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor) after 5252a8d5f7 changed the cited producer negotiateWith. RFC 8654 Section 5 (rfc/full/rfc8654.txt): &#34;A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.&#34; The only change to negotiateWith is one added call, s.retainAdvertisedLLGR(localCaps), under writeMu after the Role scan: it writes Session.localLLGR alone and reads nothing the extended-message path uses. Negotiate is still computed under mu before writeMu, s.extendedMessage is still set from negotiated.ExtendedMessageRecv, and writeBuf.Resize still follows ExtendedMessageSend, so the receive admission the tests pin is unchanged. Every tagged unit is byte-identical to the earlier judgement: TestRFC8654ReceiveLimitFollowsLocalOPEN exchanges actual OPENs for all four local/peer combinations at Length 4096, 4097 and 65535, requiring rejection with NOTIFICATION 1/2 carrying the offending Length and zero dispatch when Ze did not advertise the capability, with local-only advertisement as the accepting control; TestValidateLengthWithMax pins the header bound both ways; the FRR carriers checkExtendedNeitherRejectFRR and checkExtendedRemoteOnlyRejectFRR require a real oversized FRR UPDATE refused with the exact NOTIFICATION. Their current execution is parent-owned and not inferred here. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_negotiate.go::negotiateWith moved. Re-judged 2026-10-18 (independent auditor) after 5252a8d5f7 changed the cited producer negotiateWith. RFC 8654 Section 5 (rfc/full/rfc8654.txt): &#34;A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.&#34; The only change to negotiateWith is one added call, s.retainAdvertisedLLGR(localCaps), under writeMu after the Role scan: it writes Session.localLLGR alone and reads nothing the extended-message path uses. Negotiate is still computed under mu before writeMu, s.extendedMessage is still set from negotiated.ExtendedMessageRecv, and writeBuf.Resize still follows ExtendedMessageSend, so the receive admission the tests pin is unchanged. Every tagged unit is byte-identical to the earlier judgement: TestRFC8654ReceiveLimitFollowsLocalOPEN exchanges actual OPENs for all four local/peer combinations at Length 4096, 4097 and 65535, requiring rejection with NOTIFICATION 1/2 carrying the offending Length and zero dispatch when Ze did not advertise the capability, with local-only advertisement as the accepting control; TestValidateLengthWithMax pins the header bound both ways; the FRR carriers checkExtendedNeitherRejectFRR and checkExtendedRemoteOnlyRejectFRR require a real oversized FRR UPDATE refused with the exact NOTIFICATION. Their current execution is parent-owned and not inferred here. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -877,7 +877,7 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <p>No test carries RFC8654-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></h3>
 <p>Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after e30abc5e48). RFC 8654 Section 5: &#34;Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].&#34; e30abc5e48 rewrites departure recovery (oweDeparture owes only keys whose adj-out entry the departed source owns through a non-current session; departedOwner decides it) and, with owner approval recorded in the commit (2026-10-18), narrows TestRFC8654FatalLengthReelectsAlternateBest: it no longer requires the alternate to be re-advertised after the fatal header, and instead requires, before the fatal event, that the recipient already holds the alternate&#39;s own AS_PATH and NEXT_HOP 192.0.2.3, and after it that nothing carrying the alternate&#39;s AS_PATH is re-sent, the route with no survivor is withdrawn, the surviving prefix is never withdrawn, Loc-RIB shows exactly one ChangeUpdate and the alternate&#39;s stored attributes are exact. This matches RFC 4271 behaviour: the recipient&#39;s last UPDATE for that prefix already advertises the alternate, so re-election changes nothing it must be told. Independent overlay mutant (HEAD baseline for foreign dirty files, tags ze_core ze_bgp): disabling the departedOwner test in oweDeparture (owe every key) turned the unit red at the new assertion (&#34;Should be zero, but was 1&#34;); baseline green. So the narrowed claim is discriminated by the deciding logic, beyond the recorded readAndProcessCoalesced halt (reach only). The other tagged units (NOTIFICATION 1/2 with Length 0x1001 then EOF, resource release, valid-4096 retention) were not touched by the commit. Verdict holds over the narrowed claim; the re-advertisement of a changed best to a recipient that does not already hold it is no longer asserted by this row&#39;s tests.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-10-22 from current source; no execution or stamping. RFC 8654 Section 5: &#34;Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].&#34; RFC 4271 Section 6: &#34;The phrase &#34;the BGP connection is closed&#34; means the TCP connection has been closed, the associated Adj-RIB-In has been cleared, and all resources for that BGP connection have been deallocated.&#34; &#34;The local system recalculates its best routes for the destinations of the routes marked as invalid.&#34; &#34;Before the invalid routes are deleted from the system, it advertises, to its peers, either withdraws for the routes marked as invalid, or the new best routes before the invalid routes are deleted from the system.&#34; Read every tagged carrier: message/header_test.go::TestValidateLengthWithMax, message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability, reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling, reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes and TestRFC8654ValidLengthRetainsInstalledRoutes, and reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest (all under internal/component/bgp). Length 4097 with an all-ones marker and UPDATE type isolates the fatal-length boundary; the cleanup carrier asserts exact NOTIFICATION 1/2 Data 1001 followed by EOF, actual Adj-RIB-In/Loc-RIB removal, recipient withdrawals and resource release. The valid 4096 control waits for changed MED in actual storage and recipient TCP, then requires the original live session and resources with no notification or withdrawal. The owner-approved preferred-first replacement proof supersedes the stored alternate-already-installed note: the test first observes both preferred advertisements, installs the longer-AS_PATH alternate, waits for a contested adj-out entry still owned by the preferred source with no recovery owed, and requires all pre-failure route advertisements to carry the preferred AS_PATH and NEXT_HOP. After fatal failure it requires both alternate attributes together in every surviving-prefix replacement, forbids any withdrawal of that prefix, waits for both recovery outcomes and an empty owed set, then reads through a fresh native TCP marker. It asserts exactly one Loc-RIB ChangeUpdate, exact alternate stored attributes, withdrawal only of the prefix without a survivor, and both remaining sessions Established. Producer/consumer read: session_coalesce.go::readAndProcessCoalesced refuses length before body-read and fires EventBGPHeaderErr; reactor_notify.go::notifyPeerClosed delivers peer closure; plugins/rib/rib_bestchange.go::emitPurgedWithdraws re-elects before publishing replacement or withdrawal; reactor/relay_recovery.go::oweDeparture only owes entries owned by the departed source. The previous note saying no alternate re-advertisement is required is stale and must be replaced, not carried forward. Preserve the existing conformance scope: these carriers observe completed cleanup and replacement, not socket-delivery ordering against an unrelated plugin storage release or the lifetime of the last advertisement owner. The parent reports refreshed discrimination; the supplied native metadata identifies the emitPurgedWithdraws producer break, which establishes that recorded break only, not every RFC clause. No discrimination was rerun. Producer freshness guards retained after explicitly rereading all six existing code boundaries; none is obsolete. ValidateLengthWithMax enforces the per-type minimum and capability-dependent maximum and returns exact header-error code/subcode/Length data. Both readAndProcessMessage and readAndProcessCoalesced consume that gate before reading the body, send the error, fire EventBGPHeaderErr and close the socket. notifyPeerClosed invokes the registered closure observers. oweDeparture checks the destination session and uses departedOwner to exclude absent entries, another source and still-current ownership before creating recovery work. The stronger preferred-first proof still relies on these admission and recovery boundaries. Add emitPurgedWithdraws as a seventh empty-valued code key because its re-election-before-publication and Add-to-Update conversion are directly asserted by the exact single Loc-RIB ChangeUpdate proof. Parent computes every fingerprint at stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1145,7 +1145,7 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

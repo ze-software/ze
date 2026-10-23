@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.4%</strong><b>53 of 81 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>43.2%</strong><b>35 of 81 tagged units, 0 escaped and 18 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -532,14 +532,14 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>3.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.4.3-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L82" title="internal/component/bgp/plugins/rib/rfc7311_selection_test.go" target="_blank" rel="noopener"><code>TestAIGPDistanceChangeReselectsRetainedRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L169" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L166" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L16" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L99" title="internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go" target="_blank" rel="noopener"><code>TestRFC7311ExtendedNextHopCostRecovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L87" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311ReceivedRecursiveAIGPChangeReachesWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L23" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L26" title="internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveZeroCostRemainsAnnounced</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L83" title="internal/component/bgp/plugins/rib/rfc7311_selection_test.go" target="_blank" rel="noopener"><code>TestAIGPDistanceChangeReselectsRetainedRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L170" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L167" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L17" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L100" title="internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go" target="_blank" rel="noopener"><code>TestRFC7311ExtendedNextHopCostRecovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L88" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311ReceivedRecursiveAIGPChangeReachesWire</code></a></span></div>
@@ -927,19 +927,19 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L165" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L164" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7311-3.4.3-2"><code>RFC7311-3.4.3-2</code></a></h3>
 <p>In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. independently re-read RFC7311 §3.4.3, “In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff”; the four-carrier composition covers each accumulation site rather than merely testing Add—TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire cover finite/overflowing source additions through applyFactsAIGP and the final writer, TestAIGPRecursiveDistanceUsesReceivedMetrics covers BGP-hop accumulation in igpcost.Resolve with exact finite 330/530 and overflowing maximum, and the corrected recursive-wire carrier covers terminal accumulation at MaxUint64−5 plus 7, source-only overflow at MaxUint64−50 plus 7 plus received 100, and exact 507 recovery after each; execution evidence inspected is Main&#39;s after.sh and job-aigp-wire-readiness-after-race20-bfa85e8a.log, showing controlled-overlay root20 plus ordinary changed-root20 and received-recursive-root20 with both depth subcases passing and status 0, while the original full-reactor census remains 2446 roots, 48919 passes and one failure—not a green full run The corrected controlled-schedule carrier passed twenty race iterations, and the ordinary corrected carrier and received-recursive companion each passed twenty race iterations in job-aigp-wire-readiness-after-race20-bfa85e8a.log. Native job-aigp-wire-readiness-native-renewals-391566bc.log successfully renews both polarities of both changed claims: Resolve for RFC7311-3.4.3-2 and readvertiseAIGP for RFC7311-3.4.3-7. These producer-halting bindings are distinct from the controlled-schedule synchronization proof. The original full-reactor run remains red; no whole-corpus freshness or terminal-IGP threshold implementation is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. independently re-read RFC7311 §3.4.3, “In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff”; the four-carrier composition covers each accumulation site rather than merely testing Add—TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire cover finite/overflowing source additions through applyFactsAIGP and the final writer, TestAIGPRecursiveDistanceUsesReceivedMetrics covers BGP-hop accumulation in igpcost.Resolve with exact finite 330/530 and overflowing maximum, and the corrected recursive-wire carrier covers terminal accumulation at MaxUint64−5 plus 7, source-only overflow at MaxUint64−50 plus 7 plus received 100, and exact 507 recovery after each; execution evidence inspected is Main&#39;s after.sh and job-aigp-wire-readiness-after-race20-bfa85e8a.log, showing controlled-overlay root20 plus ordinary changed-root20 and received-recursive-root20 with both depth subcases passing and status 0, while the original full-reactor census remains 2446 roots, 48919 passes and one failure—not a green full run The corrected controlled-schedule carrier passed twenty race iterations, and the ordinary corrected carrier and received-recursive companion each passed twenty race iterations in job-aigp-wire-readiness-after-race20-bfa85e8a.log. Native job-aigp-wire-readiness-native-renewals-391566bc.log successfully renews both polarities of both changed claims: Resolve for RFC7311-3.4.3-2 and readvertiseAIGP for RFC7311-3.4.3-7. These producer-halting bindings are distinct from the controlled-schedule synchronization proof. The original full-reactor run remains red; no whole-corpus freshness or terminal-IGP threshold implementation is claimed. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -947,12 +947,12 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L22" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L167" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L26" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
@@ -967,12 +967,12 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L21" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L166" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L25" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
@@ -997,19 +997,19 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L169" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L168" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7311-3.4.3-4"><code>RFC7311-3.4.3-4</code></a></h3>
 <p>If R1&#39;s route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 Section 3.4.3: &#39;If R1&#39;s route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2.&#39; Read in its preceding next-hop-self condition and following policy-distance sentence. All three tagged units were re-read. TestAIGPForwardedMetricsReachFinalWire&#39;s interior case asserts final metric 130 from received 100 plus resolved 30 and asserts the announcement NLRI; its unchanged-next-hop case pins 100 despite policy replacement. TestAIGPRecursiveDistanceUsesReceivedMetrics proves actual resolver terminal metric 30 is counted once rather than following its gateway or importing BGP MED; TestAIGPRecursiveStaticDistance separately asserts nonrecursive static distance 25, recursive static distance 30 and unresolved refusal. Producers nhResolver.IGPMetric -&gt; igpcost.Resolve and applyFactsAIGP -&gt; aigpIncrement compose the resolved distance with the received metric; final forwarding writer keeps AIGP on an enabled session. The mocked distance in the socket carrier is not credited as resolver proof: the separately tagged actual-RIB tests supply it. Exact finite values, valid TLVs and transparent control isolate and discriminate both route classes and the conditional whole obligation.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 Section 3.4.3: &#39;If R1&#39;s route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2.&#39; Read in its preceding next-hop-self condition and following policy-distance sentence. All three tagged units were re-read. TestAIGPForwardedMetricsReachFinalWire&#39;s interior case asserts final metric 130 from received 100 plus resolved 30 and asserts the announcement NLRI; its unchanged-next-hop case pins 100 despite policy replacement. TestAIGPRecursiveDistanceUsesReceivedMetrics proves actual resolver terminal metric 30 is counted once rather than following its gateway or importing BGP MED; TestAIGPRecursiveStaticDistance separately asserts nonrecursive static distance 25, recursive static distance 30 and unresolved refusal. Producers nhResolver.IGPMetric -&gt; igpcost.Resolve and applyFactsAIGP -&gt; aigpIncrement compose the resolved distance with the received metric; final forwarding writer keeps AIGP on an enabled session. The mocked distance in the socket carrier is not credited as resolver proof: the separately tagged actual-RIB tests supply it. Exact finite values, valid TLVs and transparent control isolate and discriminate both route classes and the conditional whole obligation. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1017,7 +1017,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L171" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L15" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></td>
@@ -1032,7 +1032,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L170" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L14" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></td>
@@ -1057,19 +1057,19 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L173" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L172" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7311-3.4.3-6"><code>RFC7311-3.4.3-6</code></a></h3>
 <p>Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 Section 3.4.3: &#39;Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.&#39; Read with the preceding directly linked EBGP-neighbor/no-IGP condition. All four tagged units were re-read. TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire assert configured-link sum 107 and a real withdrawal, not an attribute-free announcement, when no increment exists. TestRFC7311SourceLinkCostReachesRecipient exercises general ForwardUpdate and RS cached forwarding with source costs 7/19 versus destination cost 43; final AIGP bytes, next-hop-self bytes and exact NLRI pin 107/119, while transparent controls preserve 100. TestRFC7311UnknownCostWithdrawsUntilMetricRecovers asserts exact recipient withdrawal for missing/zero cost, both initially and after prior advertisement, then recovery as 111 from received 100 plus known 11. Producers sourceAIGPLinkMetric, forwardUpdateSection, aigpIncrement and applyFactsAIGP select the received-next-hop link, require nonzero direct cost and withhold rather than invent distance; final writer propagates their result. Fixtures rule out an IGP route for configured-link cases. Exact recipient outputs would fail omitted or destination-derived increments. The absent-cost withdrawal is the implementation&#39;s safe refusal, not an RFC mandate to withdraw; the required nonzero increment is proven on actual advertisements.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 Section 3.4.3: &#39;Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.&#39; Read with the preceding directly linked EBGP-neighbor/no-IGP condition. All four tagged units were re-read. TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire assert configured-link sum 107 and a real withdrawal, not an attribute-free announcement, when no increment exists. TestRFC7311SourceLinkCostReachesRecipient exercises general ForwardUpdate and RS cached forwarding with source costs 7/19 versus destination cost 43; final AIGP bytes, next-hop-self bytes and exact NLRI pin 107/119, while transparent controls preserve 100. TestRFC7311UnknownCostWithdrawsUntilMetricRecovers asserts exact recipient withdrawal for missing/zero cost, both initially and after prior advertisement, then recovery as 111 from received 100 plus known 11. Producers sourceAIGPLinkMetric, forwardUpdateSection, aigpIncrement and applyFactsAIGP select the received-next-hop link, require nonzero direct cost and withhold rather than invent distance; final writer propagates their result. Fixtures rule out an IGP route for configured-link cases. Exact recipient outputs would fail omitted or destination-derived increments. The absent-cost withdrawal is the implementation&#39;s safe refusal, not an RFC mandate to withdraw; the required nonzero increment is proven on actual advertisements. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1077,12 +1077,12 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L20" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L175" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_source_cost_test.go#L30" title="internal/component/bgp/reactor/rfc7311_source_cost_test.go" target="_blank" rel="noopener"><code>TestRFC7311SourceLinkCostReachesRecipient</code></a></td>
@@ -1097,12 +1097,12 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L19" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L174" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_source_cost_test.go#L29" title="internal/component/bgp/reactor/rfc7311_source_cost_test.go" target="_blank" rel="noopener"><code>TestRFC7311SourceLinkCostReachesRecipient</code></a></td>
@@ -1130,7 +1130,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L170" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L167" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1147,7 +1147,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L88" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311ReceivedRecursiveAIGPChangeReachesWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L24" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
@@ -1165,7 +1165,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L169" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L166" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1182,7 +1182,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L87" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311ReceivedRecursiveAIGPChangeReachesWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L23" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
@@ -1441,7 +1441,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -208,7 +208,10 @@ bgp {
             import customer
         }
         filter {
-            export [ NO-TRANSIT ]
+            export {
+                filters [ NO-TRANSIT ];
+                final accept;
+            }
         }
     }
 }
@@ -219,10 +222,14 @@ records the decision, and the filter never executes:
 
 ```
 filter {
-    export [ NO-TRANSIT ];
-    inactive: export NO-TRANSIT;
+    export {
+        filters [ NO-TRANSIT ];
+        inactive: filters NO-TRANSIT;
+        final accept;
+    }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 The obligation is independent of OTC. OTC works only where the peer implements
 RFC 9234; a reject-asn list works against any peer and needs nothing from it.

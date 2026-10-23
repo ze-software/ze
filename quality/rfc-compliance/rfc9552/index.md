@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 10.2% | 6 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 68.1% | 111 of 163 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 70.6% | 115 of 163 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -72,7 +72,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 163 |
 | Tagged units | 163 |
 | Recorded audit verdicts | 43 |
-| Discrimination records | 111 |
+| Discrimination records | 115 |
 | Summary | `rfc/short/rfc9552.md` |
 | Requirement shard | `rfc/requirements/rfc9552.md` |
 | RFC text | `rfc/full/rfc9552.txt` |
@@ -267,7 +267,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 r
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L101) | unit/verify | unproven |
+| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L101) | unit/verify | revert, verified |
 | negative | [`TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L299) | unit/verify | revert, verified |
 | positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L55) | unit/verify | unproven |
 | positive | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L55) | unit/verify | revert, verified |
@@ -293,7 +293,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L100) | unit/verify | unproven |
+| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L100) | unit/verify | revert, verified |
 | positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L54) | unit/verify | unproven |
 
 ### [`RFC9552-5.2-1`](#rfc9552-5.2-1)
@@ -619,7 +619,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 r
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L102) | unit/verify | unproven |
+| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L102) | unit/verify | revert, verified |
 | negative | [`TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L213) | unit/verify | revert, verified |
 | positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L56) | unit/verify | unproven |
 | positive | [`TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L186) | unit/verify | revert, verified |
@@ -632,7 +632,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 r
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L103) | unit/verify | unproven |
+| negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L214) | unit/verify | revert, verified |
 | negative | [`TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L115) | unit/verify | revert, verified |
 | negative | [`TestRFC9552NLRIFramingErrorsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_test.go#L102) | unit/verify | revert, verified |

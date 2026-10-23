@@ -250,15 +250,27 @@ whole route, not just its Prefix-SID attribute:</p>
     }
     policy {
         community-match SERVICE-20 {
-            entry target:65000:10 { type extended; action reject; }
-            entry target:65000:20 { type extended; action accept; }
+            entry target:65000:10 {
+                type extended;
+                action reject;
+            }
+            entry target:65000:20 {
+                type extended;
+                action accept;
+            }
         }
     }
     peer pe1 {
-        filter { export [ community-match:SERVICE-20 ]; }
+        filter {
+            export {
+                filters [ community-match:SERVICE-20 ];
+                final accept;
+            }
+        }
     }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>This peer receives service 20 but not service 10. Other peers can use different
 lists or no filter. Community-match lists deny unmatched routes, so include
 each service the peer should receive. This route-level control is separate from
@@ -576,7 +588,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

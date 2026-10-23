@@ -150,6 +150,10 @@ three-byte word saying what the line IS:</p>
 <td>the terminator, which ends the answer</td>
 </tr>
 <tr>
+<td><code>wrn</code></td>
+<td>the terminator of a command that completed and states a warning</td>
+</tr>
+<tr>
 <td><code>nay</code></td>
 <td>the whole answer to a command text naming no command</td>
 </tr>
@@ -210,7 +214,8 @@ line's field count never varies.</p>
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
 <p>The engine reads that sequence back into one <code>ExecuteCommandOutput</code>: the record
 is its <code>data</code>, and its <code>status</code> is derived from the terminator, which is the one
-line an answer states an outcome on.</p>
+line an answer states an outcome on. A handler that returns status <code>warning</code>
+has its terminator spelled <code>wrn</code>, and the engine reads <code>warning</code> back.</p>
 <!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 <h3 id="error-response-plugin-to-engine">Error Response (plugin to engine)</h3>
@@ -644,7 +649,7 @@ if command == "my-plugin help" {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

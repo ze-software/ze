@@ -126,7 +126,10 @@ bgp {
             }
         }
         filter {
-            import [ bgp-filter-irr:65001 ]
+            import {
+                filters [ bgp-filter-irr:65001 ];
+                final accept;
+            }
         }
         attach process bgp-adj-rib-in {
             receive [ update-received state ]
@@ -134,20 +137,22 @@ bgp {
     }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is not required to make the filter decision, but it provides <code>show bgp adj-rib-in</code> so you can verify which routes passed.</p>
 <p>The suffix in <code>bgp-filter-irr:65001</code> is the peer's remote ASN. It selects the dynamic list associated with AS 65001. Use the corresponding ASN in each peer's filter reference. Prefixes that do not match that list are rejected by the implicit deny.</p>
 <p>No <code>attach process bgp-filter-irr</code> block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.</p>
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
 <h2 id="add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</h2>
-<p>If the stored <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add the five required settings to the stored configuration. An offline <code>ze config set</code> writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: <code>ze config cat</code> reads it, one <code>ze config set -</code> stage applies each setting, and <code>ze config import</code> stores the result as a new version.</p>
+<p>If the stored <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add these settings to the stored configuration. An offline <code>ze config set</code> writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: <code>ze config cat</code> reads it, one <code>ze config set -</code> stage applies each setting, and <code>ze config import</code> stores the result as a new version.</p>
 <pre><code class="language-console">$ sudo systemctl stop ze.service
 $ ze config cat ze.conf |
 &gt; ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
 &gt; ze config set - bgp policy irr server whois.radb.net |
 &gt; ze config set - bgp policy irr refresh-interval 3600 |
 &gt; ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
-&gt; ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |
+&gt; ze config set - bgp peer customer-a filter import filters bgp-filter-irr:65001 |
+&gt; ze config set - bgp peer customer-a filter import final accept |
 &gt; ze config import --yes --name ze.conf -
 $ sudo systemctl start ze.service
 </code></pre>
@@ -167,7 +172,7 @@ $ sudo systemctl start ze.service
 </code></pre>
 <h2 id="changing-irr-settings-on-a-running-router">Changing IRR settings on a running router</h2>
 <p>A commit that changes a peer's <code>as-set</code>, the IRR <code>server</code>, or a peer's
-<code>import [ bgp-filter-irr:&lt;asn&gt; ]</code> takes effect on the running filter. A changed
+<code>filter import filters</code> reference takes effect on the running filter. A changed
 as-set does not inherit the list of the old one: the next UPDATE from that peer
 waits a few seconds for the new set to resolve, then is filtered against it.
 Deleting the <code>as-set</code> counts as a change: Ze asks PeeringDB again, as it would
@@ -333,7 +338,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
 <tr>
 <td><code>show bgp irr</code> has no entry for the ASN</td>
 <td>Plugin and filter reference</td>
-<td>Load <code>bgp-filter-irr</code> and use <code>import [ bgp-filter-irr:&lt;remote-asn&gt; ]</code> on the peer.</td>
+<td>Load <code>bgp-filter-irr</code> and configure <code>filter { import { filters [ bgp-filter-irr:&lt;remote-asn&gt; ]; final accept; } }</code> on the peer.</td>
 </tr>
 <tr>
 <td>Status stays <code>pending</code></td>
@@ -419,7 +424,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

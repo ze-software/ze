@@ -290,13 +290,27 @@ the child engine get that same treatment.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
 <p>The route-server DOWN handler also uses an in-process query owned by <code>bgp-gr</code>.
 After draining that source's forwarding worker it asks which families are still
-retained, and withdraws only the others. The query reads GR's existing family
+retained, and withdraws only the others. The route reflector's DOWN handler asks
+the same query, synchronously, before it hands the source's routes to the
+engine's departure recovery, and leaves a retained family's routes out. Without
+that filter a reflector would withdraw every retained route from its other
+peers during the restart window. <code>bgp-gr</code> orders itself against both owners so
+its retention decision for a DOWN is delivered before either handler asks:
+<code>bgp-rs</code> is an optional dependency of <code>bgp-gr</code>, and <code>bgp-rr</code> is named in its
+<code>StartAfter</code> (order only, since a GR configuration does not load the
+reflector). When the Restart Time expires without a reconnect, the retained
+routes are deleted and the reflector's other peers are sent their withdrawal,
+under the Path Identifier each was sent. The query reads GR's existing family
 state; it does not keep a second route inventory. No owner means no retention.
 A child-process <code>bgp-gr</code> cannot publish that owner into the daemon, so this query
 does <strong>not</strong> establish external-plugin LLGR support. Use internal <code>bgp-gr</code>,
-<code>bgp-rib</code>, and <code>bgp-rs</code> for the coordinated lifecycle described here.</p>
+<code>bgp-rib</code>, and <code>bgp-rs</code> or <code>bgp-rr</code> for the coordinated lifecycle described here.</p>
 <!-- source: internal/component/bgp/retention/retention.go -- Publish, Family -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
+<!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
+<!-- source: test/plugin/addpath-departure-rr-gr-retained.ci -- a retained family is not withdrawn by the reflector -->
+<!-- source: test/plugin/addpath-departure-rr-gr-expiry.ci -- at Restart Time expiry the reflected paths are withdrawn under ze's identifiers -->
 <h2 id="cli">CLI</h2>
 <pre><code> $ ze cli -c "show bgp rib received"
 # Shows routes with stale flag when applicable
@@ -664,7 +678,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

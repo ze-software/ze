@@ -14,23 +14,23 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 481 CLI commands, 38 config sections, 94 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
-- Test evidence counts: 37,100+ unit tests, 90 fuzz targets, 2,400+ end-to-end transcript steps, 192 interop scenarios across 10 target implementations.
-- Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-10-19.
+- Current generated counts: 52 shipped or experimental feature cards, 487 CLI commands, 38 config sections, 91 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
+- Test evidence counts: 38,000+ unit tests, 90 fuzz targets, 2,500+ end-to-end transcript steps, 207 interop scenarios across 11 target implementations.
+- Classified planning inventory (not release-readiness proof): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
+- Generated date: 2026-10-23.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 37,100+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 38,000+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 90 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 192 scenarios against 10 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 207 scenarios against 11 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -109,7 +109,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 
 - `anomaly`: Behavioral anomaly detection and response subsystem. Two plugins fill this container. anomaly-detect owns the detect subtree and reports incidents on the event bus. anomaly-shape adds the shape subtree and acts on those incidents... Children: detect, observe, shape.
 - `bfd`: BFD control configuration for Ze. The container holds the plugin switch, the reusable profiles, and the sessions an operator pins. A session that BGP or a static route asks for at runtime does not appear here. A... Children: bind-v6, enabled, multi-hop-session, persist-dir, profile, single-hop-session.
-- `bgp`: Border Gateway Protocol routing configuration. A peer inherits from its group defaults. A group inherits from this global level. Children: as-notation, blackhole, bmp, community, defaults, filter, group, healthcheck, multipath, peer, policy, rib, route-server, router-id, ....
+- `bgp`: Border Gateway Protocol routing configuration. A peer inherits from its group defaults. A group inherits from this global level. Children: as-notation, blackhole, bmp, community, defaults, filter, flowspec-redirect-check, group, healthcheck, multipath, peer, policy, rib, route-server, ....
 - `bgp-epe`: Instantiate BGP Egress Peer Engineering segments. The internal bgp-epe plugin consumes state events from attached BGP sessions. Each configured peer gets a persistent PeerNode SID index. While its session is established, the... Children: peer, srgb.
 - `bgp-ls-export`: Export native routing state through BGP-LS. Export the running native IGP databases to BGP peers that attach this internal plugin with state/refresh receive and update send grants. Each database snapshot replaces prior... Children: domain.
 - `class-of-service`: Named class-of-service profiles. A profile maps the 3-bit PCP field of an 802.1Q header to an internal priority, in the ingress direction and in the egress direction. An interface leaf and a unit leaf name the... Children: ieee-802.1p.
@@ -171,7 +171,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp-filter-path-asn`: Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/component/bgp/plugins/filter_path_asn`.
 - `bgp-filter-prefix`: Named prefix-list filter (CIDR + ge/le + accept/reject) Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/filter_prefix`.
 - `bgp-filter-remove-private-as`: Named AS-path action filter that removes RFC 6996 Private Use ASNs Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/filter_remove_private_as`.
-- `bgp-gr`: Graceful Restart capability and mechanism plugin Config roots: bgp. Dependencies: bgp, bgp-rib. Optional: bgp-rs. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/gr`.
+- `bgp-gr`: Graceful Restart capability and mechanism plugin Config roots: bgp. Dependencies: bgp, bgp-rib. Optional: bgp-rs. Start after (order only): bgp-rr. YANG files: 1. Source: `internal/component/bgp/plugins/gr`.
 - `bgp-healthcheck`: Service healthcheck plugin with watchdog route control Config roots: bgp. Dependencies: bgp, bgp-watchdog. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/healthcheck`.
 - `bgp-hostname`: FQDN capability decoding Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/hostname`.
 - `bgp-llnh`: Link-Local Next-Hop capability plugin Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/llnh`.
@@ -215,8 +215,6 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/flowexport`.
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall, bgp-rib. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/geodns`.
-- `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
-- `iface-ra`: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/ra`.
 - `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. Start after (order only): interface. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: none. Start after (order only): none. YANG files: 6. Source: `internal/component/iface`.
@@ -228,7 +226,6 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `l2tp-shaper`: Traffic shaping for L2TP subscriber sessions Config roots: l2tp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/l2tp/plugins/shaper`.
 - `ldp`: Label Distribution Protocol (RFC 5036): MPLS label distribution Config roots: ldp. Dependencies: fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ldp`.
 - `loop`: Route loop detection (RFC 4271 S9, RFC 4456 S8) Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/reactor/filter`.
-- `memlock`: Memory lock: keep the running executable resident under memory pressure Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/memlock`.
 - `mrt`: MRT routing information export (RFC 6396) Config roots: mrt. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/mrt`.
 - `ntp`: NTP client: system clock synchronization Config roots: environment/ntp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ntp`.
 - `ospf`: Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Config roots: ospf. Dependencies: interface, fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ospf`.
@@ -247,11 +244,12 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 136 daemon, 4 offline, 341 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 142 daemon, 4 offline, 341 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
-### `clear` commands (30)
+### `clear` commands (31)
 - `clear bgp healthcheck` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear bgp healthcheck`): Reset healthcheck probe to INIT
+- `clear bgp rib advertised` (daemon; wire ze-bgp:rib-clear-advertised; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib advertised <selector> [family <family>]`): Withdraw every route advertised to a peer\.
 - `clear bgp rib in` (daemon; wire ze-bgp:rib-clear-in; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `clear bgp rib in <selector>`): Remove all routes received from a peer\.
 - `clear bgp rib out` (daemon; wire ze-bgp:rib-clear-out; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib out <selector> [family <family>]`): Re\-advertise all routes to a peer\.
 - `clear cymru cache address` (daemon; wire ze-resolve:clear-cymru-cache-address; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args ip-address:union; usage `clear cymru cache address <ip-address>`): Remove the cached Cymru origin of one IP address\.
@@ -338,7 +336,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `plugin session ping` (read-only; wire ze-plugin:session-ping; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ping`): Answer a health check with the daemon process id\.
 - `plugin session ready` (read-only; wire ze-plugin:session-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ready`): Signal that this plugin process finished its initialization\.
 
-### `request` commands (56)
+### `request` commands (61)
 - `request as112 healthcheck` (daemon; wire ze-as112:health; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args target:string; usage `request as112 healthcheck [target <target>]`): Send one authoritative query and check the AS112 answer\.
 - `request bgp adj-rib-in accept-routes` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in accept-routes`): Install one pending route under the validation state given\.
 - `request bgp adj-rib-in batch-validate` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in batch-validate`): Apply up to 256 validation decisions in one call\.
@@ -360,6 +358,8 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request bgp rib withdraw-router` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp rib withdraw-router`): Withdraw all routes for a router under a protocol
 - `request bgp rpki validate` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp rpki validate <prefix> <origin-asn>`): Validate a prefix against the ROA cache
 - `request bgp watchdog announce` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog announce`): Announce routes in watchdog group
+- `request bgp watchdog forget` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog forget`): Withdraw and forget the routes an owner gave watchdog groups
+- `request bgp watchdog give` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog give`): Give a route to a watchdog group\, sent now or held
 - `request bgp watchdog withdraw` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog withdraw`): Withdraw routes in watchdog group
 - `request cache expire` (daemon; wire ze-bgp:cache-expire; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `request cache expire <id>`): Remove a cached message immediately\.
 - `request cache release` (daemon; wire ze-bgp:cache-release; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `request cache release <id>`): Ack without forwarding \(cache consumer\) or undo retain \(API\)\.
@@ -380,8 +380,11 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request ospf graceful-restart` (daemon; wire ze-ospf:graceful-restart-prepare; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request ospf graceful-restart`): Trigger a planned OSPFv2 graceful restart \(RFC 3623 section 2\.1\)\.
 - `request peer borr` (daemon; wire ze-bgp:peer-borr; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> borr`): Start an Enhanced Route Refresh cycle \(RFC 7313\)\.
 - `request peer clear soft` (daemon; wire ze-bgp:peer-clear-soft; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> clear soft`): Soft\-clear a peer without dropping the session\.
+- `request peer disable` (daemon; wire ze-bgp:peer-disable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, message:string; usage `request peer <selector> disable [message <message>]`): Hold a peer administratively down\.
+- `request peer enable` (daemon; wire ze-bgp:peer-enable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> enable`): Release a peer\'s administrative hold\.
 - `request peer eorr` (daemon; wire ze-bgp:peer-eorr; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> eorr`): Finish an Enhanced Route Refresh cycle \(RFC 7313\)\.
 - `request peer flush` (daemon; wire ze-bgp:peer-flush; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> flush`): Wait until all queued updates for a peer are sent\.
+- `request peer notify` (daemon; wire ze-bgp:peer-notify; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, code:uint, subcode:uint, hex:string, text:string; usage `request peer <selector> notify <code> <subcode> [hex <hex>] [text <text>]`): Close a peer session with a NOTIFICATION of any code and subcode\.
 - `request peer pause` (daemon; wire ze-bgp:peer-pause; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> pause`): Pause reading from a peer\'s TCP socket\.
 - `request peer plugin session ready` (daemon; wire ze-bgp:plugin-session-peer-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, session:string; usage `request peer <selector> plugin session <session> ready`): Signal that per\-peer plugin setup is complete\.
 - `request peer refresh` (daemon; wire ze-bgp:peer-refresh; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> refresh`): Ask a peer to re\-send all routes \(RFC 2918\)\.
@@ -1079,7 +1082,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 481 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 487 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): %(config_sections)s sections, indexed from live YANG (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

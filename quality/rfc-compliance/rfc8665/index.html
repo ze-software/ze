@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8665 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8665: OSPF Extensions for Segment Routing. 51 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8665 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8665: OSPF Extensions for Segment Routing. 51 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8665 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8665: OSPF Extensions for Segment Routing. 48 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8665: OSPF Extensions for Segment Routing. 51 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,27 +117,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.4%</strong><b>29 of 48 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.4%</strong><b>5 of 48 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>54.2%</strong><b>52 of 96 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>62.7%</strong><b>32 of 51 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.8%</strong><b>5 of 51 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.3%</strong><b>59 of 103 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>48</strong><b>of 83 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 48 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>51</strong><b>of 86 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 51 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>29.2%</strong><b>14 of 48 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.5%</strong><b>14 of 51 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 48 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 51 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -209,10 +209,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>83</td>
+<td>86</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>48</td>
+<td>51</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>96</td>
+<td>103</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>96</td>
+<td>103</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>29</td>
+<td>33</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>52</td>
+<td>59</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8665.md</code></td>
@@ -283,7 +283,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>29</strong></td>
+<td><strong>32</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
@@ -310,11 +310,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>48</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>51</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (29):</strong> <a href="#rfc8665-3.1-1"><code>RFC8665-3.1-1</code></a>, <a href="#rfc8665-3.1-3"><code>RFC8665-3.1-3</code></a>, <a href="#rfc8665-3.2-1"><code>RFC8665-3.2-1</code></a>, <a href="#rfc8665-3.2-2"><code>RFC8665-3.2-2</code></a>, <a href="#rfc8665-3.2-3"><code>RFC8665-3.2-3</code></a>, <a href="#rfc8665-3.2-6"><code>RFC8665-3.2-6</code></a>, <a href="#rfc8665-3.2-7"><code>RFC8665-3.2-7</code></a>, <a href="#rfc8665-3.2-14"><code>RFC8665-3.2-14</code></a>, <a href="#rfc8665-3.3-1"><code>RFC8665-3.3-1</code></a>, <a href="#rfc8665-3.3-2"><code>RFC8665-3.3-2</code></a>, <a href="#rfc8665-3.3-3"><code>RFC8665-3.3-3</code></a>, <a href="#rfc8665-3.3-4"><code>RFC8665-3.3-4</code></a>, <a href="#rfc8665-3.4-1"><code>RFC8665-3.4-1</code></a>, <a href="#rfc8665-5-1"><code>RFC8665-5-1</code></a>, <a href="#rfc8665-5-2"><code>RFC8665-5-2</code></a>, <a href="#rfc8665-5-3"><code>RFC8665-5-3</code></a>, <a href="#rfc8665-5-4"><code>RFC8665-5-4</code></a>, <a href="#rfc8665-5-5"><code>RFC8665-5-5</code></a>, <a href="#rfc8665-5-6"><code>RFC8665-5-6</code></a>, <a href="#rfc8665-5-7"><code>RFC8665-5-7</code></a>, <a href="#rfc8665-5-10"><code>RFC8665-5-10</code></a>, <a href="#rfc8665-5-11"><code>RFC8665-5-11</code></a>, <a href="#rfc8665-5-12"><code>RFC8665-5-12</code></a>, <a href="#rfc8665-5-13"><code>RFC8665-5-13</code></a>, <a href="#rfc8665-6.1-1"><code>RFC8665-6.1-1</code></a>, <a href="#rfc8665-7.4.1-1"><code>RFC8665-7.4.1-1</code></a>, <a href="#rfc8665-10-1"><code>RFC8665-10-1</code></a>, <a href="#rfc8665-9-1"><code>RFC8665-9-1</code></a>, <a href="#rfc8665-3.1-7"><code>RFC8665-3.1-7</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (32):</strong> <a href="#rfc8665-3.1-1"><code>RFC8665-3.1-1</code></a>, <a href="#rfc8665-3.1-3"><code>RFC8665-3.1-3</code></a>, <a href="#rfc8665-3.2-1"><code>RFC8665-3.2-1</code></a>, <a href="#rfc8665-3.2-2"><code>RFC8665-3.2-2</code></a>, <a href="#rfc8665-3.2-3"><code>RFC8665-3.2-3</code></a>, <a href="#rfc8665-3.2-6"><code>RFC8665-3.2-6</code></a>, <a href="#rfc8665-3.2-7"><code>RFC8665-3.2-7</code></a>, <a href="#rfc8665-3.2-14"><code>RFC8665-3.2-14</code></a>, <a href="#rfc8665-3.3-1"><code>RFC8665-3.3-1</code></a>, <a href="#rfc8665-3.3-2"><code>RFC8665-3.3-2</code></a>, <a href="#rfc8665-3.3-3"><code>RFC8665-3.3-3</code></a>, <a href="#rfc8665-3.3-4"><code>RFC8665-3.3-4</code></a>, <a href="#rfc8665-3.4-1"><code>RFC8665-3.4-1</code></a>, <a href="#rfc8665-5-1"><code>RFC8665-5-1</code></a>, <a href="#rfc8665-5-2"><code>RFC8665-5-2</code></a>, <a href="#rfc8665-5-3"><code>RFC8665-5-3</code></a>, <a href="#rfc8665-5-4"><code>RFC8665-5-4</code></a>, <a href="#rfc8665-5-5"><code>RFC8665-5-5</code></a>, <a href="#rfc8665-5-6"><code>RFC8665-5-6</code></a>, <a href="#rfc8665-5-7"><code>RFC8665-5-7</code></a>, <a href="#rfc8665-5-16"><code>RFC8665-5-16</code></a>, <a href="#rfc8665-5-10"><code>RFC8665-5-10</code></a>, <a href="#rfc8665-5-11"><code>RFC8665-5-11</code></a>, <a href="#rfc8665-5-12"><code>RFC8665-5-12</code></a>, <a href="#rfc8665-5-13"><code>RFC8665-5-13</code></a>, <a href="#rfc8665-6.1-1"><code>RFC8665-6.1-1</code></a>, <a href="#rfc8665-7.4.1-1"><code>RFC8665-7.4.1-1</code></a>, <a href="#rfc8665-10-1"><code>RFC8665-10-1</code></a>, <a href="#rfc8665-9-1"><code>RFC8665-9-1</code></a>, <a href="#rfc8665-3.1-7"><code>RFC8665-3.1-7</code></a>, <a href="#rfc8665-3.2-15"><code>RFC8665-3.2-15</code></a>, <a href="#rfc8665-3.3-10"><code>RFC8665-3.3-10</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (19):</strong> <a href="#rfc8665-3.1-2"><code>RFC8665-3.1-2</code></a>, <a href="#rfc8665-3.1-4"><code>RFC8665-3.1-4</code></a>, <a href="#rfc8665-3.1-5"><code>RFC8665-3.1-5</code></a>, <a href="#rfc8665-3.2-4"><code>RFC8665-3.2-4</code></a>, <a href="#rfc8665-3.2-5"><code>RFC8665-3.2-5</code></a>, <a href="#rfc8665-3.2-8"><code>RFC8665-3.2-8</code></a>, <a href="#rfc8665-3.4-2"><code>RFC8665-3.4-2</code></a>, <a href="#rfc8665-3.4-3"><code>RFC8665-3.4-3</code></a>, <a href="#rfc8665-4-1"><code>RFC8665-4-1</code></a>, <a href="#rfc8665-4-2"><code>RFC8665-4-2</code></a>, <a href="#rfc8665-4-3"><code>RFC8665-4-3</code></a>, <a href="#rfc8665-5-8"><code>RFC8665-5-8</code></a>, <a href="#rfc8665-5-9"><code>RFC8665-5-9</code></a>, <a href="#rfc8665-6.1-2"><code>RFC8665-6.1-2</code></a>, <a href="#rfc8665-6.2-1"><code>RFC8665-6.2-1</code></a>, <a href="#rfc8665-7.1-1"><code>RFC8665-7.1-1</code></a>, <a href="#rfc8665-7.1-2"><code>RFC8665-7.1-2</code></a>, <a href="#rfc8665-7.1-3"><code>RFC8665-7.1-3</code></a>, <a href="#rfc8665-7.2-1"><code>RFC8665-7.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -345,8 +345,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L119" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L138" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L127" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L146" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-4">RFC8665-3.1-4</code></td><td colspan="3"><span class="rfc-subject">If the SR-Algorithm TLV appears in multiple Router Information Opaque LSAs that have different flooding scopes, the SR-Algorithm TLV in the Router Information Opaque LSA with the area-scoped flooding scope MUST be used. (§3.1)</span></td></tr>
@@ -399,7 +399,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L161" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665EachRangeInItsOwnTLV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L169" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665EachRangeInItsOwnTLV</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> srBuildSRGB emits one packet.RITLV per configured range, internal/plugins/ospf/sr.go:167-172, so the encoder cannot express two ranges in one TLV and has no violating output to produce. The receive-side rejection of a range TLV carrying two SID/Label sub-TLVs is the RFC8665-3.2-3 negative test</p></td>
 </tr>
@@ -408,7 +408,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L189" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RangeOrderStableAcrossRestart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L197" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RangeOrderStableAcrossRestart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_range_order_test.go#L34" title="internal/plugins/ospf/rfc8665_range_order_test.go" target="_blank" rel="noopener"><code>TestRFC8665RangeOrderStableThroughConfigRestart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the advertised order is a pure function of the configured SRGB slice -- srBuildSRGB walks it in slice order with no sort and no map iteration, and parseSegmentRouting resolves the one YANG srgb container into a one-element slice on every start (applySRConfig, internal/plugins/ospf/sr_config.go) -- so a restart reproduces the same order by construction and there is no reordered input to reject</p></td>
@@ -491,8 +491,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L121" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L141" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L129" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L149" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.4-2">RFC8665-3.4-2</code></td><td colspan="3"><span class="rfc-subject">If the SRMS Preference TLV appears in multiple Router Information Opaque LSAs that have different flooding scopes, the SRMS Preference TLV in the Router Information Opaque LSA with the narrowest flooding scope MUST be used. (§3.4)</span></td></tr>
@@ -574,8 +574,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L258" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L286" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L266" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L294" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-5">RFC8665-5-5</code></td><td colspan="3"><span class="rfc-subject">All other combinations of V-Flag and L-Flag are invalid and any SID Advertisement received with an invalid setting for V- and L-Flags MUST be ignored. (§5)</span></td></tr>
@@ -593,10 +593,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L67" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L269" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L218" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go#L17" title="internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go" target="_blank" rel="noopener"><code>TestRFC8665TILFAIgnoresDuplicatePrefixSIDs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L337" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L50" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L229" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go#L19" title="internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go" target="_blank" rel="noopener"><code>TestRFC8665TILFAIgnoresDuplicatePrefixSIDs</code></a></span></div>
@@ -608,8 +608,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_flags_test.go#L46" title="internal/plugins/ospf/rfc8665_nexthop_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopEAndMFlagsApplied</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L360" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L402" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665OriginatorFlagsNotAppliedAtTransitHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L368" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L410" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665OriginatorFlagsNotAppliedAtTransitHop</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-16">RFC8665-5-16</code></td><td colspan="3"><span class="rfc-subject">This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go#L64" title="internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopFlagsAppliedOffBestPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go#L110" title="internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go" target="_blank" rel="noopener"><code>TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-5-8">RFC8665-5-8</code></td><td colspan="3"><span class="rfc-subject">The NP-Flag (No-PHP) MUST be set and the E-Flag MUST be clear for Prefix-SIDs allocated to inter-area prefixes that are originated by the ABR based on intra-area or inter-area reachability between areas unless the advertised prefix is directly attached to the ABR. (§5)</span></td></tr>
@@ -655,6 +664,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-12">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L19" title="internal/plugins/ospf/rfc8665_explicit_null_label_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullPushedAsLabelZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L347" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullReplacesPrefixSID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L380" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L33" title="internal/plugins/ospf/rfc8665_explicit_null_label_test.go" target="_blank" rel="noopener"><code>TestRFC8665NoExplicitNullWithoutEFlag</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L313" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NoPHPKeepsPrefixSIDLabel</code></a></span></div>
 </div></td>
@@ -664,8 +674,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-5-13">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L362" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagIgnoresNPAndE</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L376" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L364" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagIgnoresNPAndE</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L378" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-1">RFC8665-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Other bits: Reserved. These MUST be zero when sent and are ignored when received. (§6.1)</span></td></tr>
@@ -673,8 +683,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-6.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L389" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsZeroOnSend</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L408" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L393" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsZeroOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L412" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-6.1-2">RFC8665-6.1-2</code></td><td colspan="3"><span class="rfc-subject">When the P-Flag is set, the Adj-SID MUST be persistent (§6.1)</span></td></tr>
@@ -682,7 +692,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-6.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L215" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L223" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every Adj-SID is allocated from the SRLB when the adjacency reaches Full and freed when it drops, and it is advertised with only the V and L flags set, srAdjManager.neighborFull internal/plugins/ospf/sr_adjsid.go:62-69 with the flag encoder at internal/plugins/ospf/sr/codec.go:115-133, so ze never sets the P-Flag and the persistence obligation never binds. A negative case needs ze to advertise P without persistence, which the encoder cannot produce</p></td>
 </tr>
@@ -691,7 +701,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-6.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L221" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L229" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the LAN Adjacency SID is allocated by the same code path with lan set, srAdjManager.neighborFull internal/plugins/ospf/sr_adjsid.go:62-69, so it too carries the P-Flag clear and the persistence obligation never binds</p></td>
 </tr>
@@ -737,8 +747,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-7.4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go#L20" title="internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnThroughNeighborSink</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L434" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L469" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawKeyedByAdjacency</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L442" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L477" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawKeyedByAdjacency</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-10-1">RFC8665-10-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST assure that malformed TLVs and sub-TLVs defined in this document are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§10)</span></td></tr>
@@ -746,8 +756,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-10-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L465" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L480" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L469" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L484" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go#L16" title="internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go" target="_blank" rel="noopener"><code>TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA</code></a></span></div>
 </div></td>
 </tr>
@@ -761,14 +771,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L146" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L72" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L47" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidTLVIgnoresLSA</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L463" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L467" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L68" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L129" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L20" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSRGBIgnoresLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L148" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L84" title="internal/plugins/ospf/rfc8665_ext_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L56" title="internal/plugins/ospf/rfc8665_malformed_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthInvalidTLVIgnoresLSA</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L475" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L479" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.1-6">RFC8665-3.1-6</code></td><td colspan="3"><span class="rfc-subject">The SR-Algorithm TLV is optional. It SHOULD only be advertised once in the Router Information Opaque LSA. (§3.1)</span></td></tr>
@@ -1097,7 +1107,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L85" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAreAreaScoped</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L105" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L109" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.2-15">RFC8665-3.2-15</code></td><td colspan="3"><span class="rfc-subject">For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is REQUIRED. (§3.2)</span></td></tr>
+<tr><td></td>
+<td>REQUIRED</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.2-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L89" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAreAreaScoped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L112" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8665-3.3-10">RFC8665-3.3-10</code></td><td colspan="3"><span class="rfc-subject">For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED. (§3.3)</span></td></tr>
+<tr><td></td>
+<td>REQUIRED</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8665-3.3-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L91" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAreAreaScoped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L114" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -1214,12 +1242,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L138" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L146" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L119" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L127" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1302,7 +1330,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L161" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665EachRangeInItsOwnTLV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L169" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665EachRangeInItsOwnTLV</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1322,7 +1350,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L189" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RangeOrderStableAcrossRestart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L197" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RangeOrderStableAcrossRestart</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1486,12 +1514,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L141" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L149" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L121" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L129" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SingleAlgorithmAndSRMSInstanceUsed</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1560,7 +1588,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-3"><code>RFC8665-5-3</code></a></h3>
 <p>E-Flag: Explicit Null Flag. If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4) before forwarding the packet. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c22 re-judge. rfc8665_explicit_null_label_test.go drives installRoutes (rfc8665PushTowardOriginator) with the originator as next hop and reads the label in the mpls-fib push entry. Positive: NP=1 E=1 pushes the literal label 0, which covers both &#39;replace the Prefix-SID with the Explicit NULL label&#39; and &#39;(0 for IPv4)&#39; without comparing sr.ExplicitNullV4 with itself (author overlay ExplicitNullV4=3 reds it while the older units stay green; recorded revert of sr/install.go::OutgoingLabel). Negative: E clear (NP=1) pushes the Prefix-SID label 16009 and not 0 (recorded revert of OutgoingActionFor). RFC 8665 is IPv4-only, so the IPv4 value is the whole clause.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Strengthened: both positives now assert the literal label 0 (the &#39;(0 for IPv4)&#39; clause) rather than ExplicitNullV4 against itself, at the sr codec and through the installer push toward the originator. The negatives push 16009, never 0, with E clear.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1596,12 +1624,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L286" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L294" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L258" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L266" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1641,7 +1669,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L337" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1661,7 +1689,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L269" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1686,7 +1714,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L402" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665OriginatorFlagsNotAppliedAtTransitHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L410" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665OriginatorFlagsNotAppliedAtTransitHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1696,7 +1724,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L360" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L368" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8665-5-16"><code>RFC8665-5-16</code></a></h3>
+<p>This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 5: &#39;the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. This MUST be done regardless of whether the next-hop router contributes to the best path&#39;. Product fix read: srInstaller.forwarding now applies the next hop&#39;s own advertisement (advertisedBy over Originator and Also), and sr_malformed resolve lists the other advertisers of the same SID. The positive has the best path end at 10.0.0.9 (NP set) with next hop 10.0.0.2 also advertising: NP clear must PHP-pop 18009 with no push, and NP+E must push 0, never 17009. The old originator-only code swapped 17009 and fails it. The negative checks that a next hop that advertised nothing gets 17009 with no pop, even though both other advertisers have NP clear.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go#L110" title="internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go" target="_blank" rel="noopener"><code>TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go#L64" title="internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go" target="_blank" rel="noopener"><code>TestRFC8665NextHopFlagsAppliedOffBestPath</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1733,7 +1781,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-11"><code>RFC8665-5-11</code></a></h3>
 <p>If the NP-Flag is set and the E-Flag is not set, then: Any upstream neighbor of the Prefix-SID originator MUST keep the Prefix-SID on top of the stack. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: popping or replacing the SID with NP=1/E=0. TestRFC8665NoPHPKeepsPrefixSIDLabel requires ActionKeep with label 16009 imposed; negative TestRFC8665ExplicitNullReplacesPrefixSID requires NP=1/E=1 not to keep, so the keep rule is tied to E clear. The installer takes its action from OutgoingActionFor/OutgoingLabel; wiring is row RFC8665-5-7</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. NP=1/E=0 gives ActionKeep with 16009 imposed, and NP=1/E=1 does not keep the Prefix-SID.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1753,13 +1801,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-12"><code>RFC8665-5-12</code></a></h3>
 <p>If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c22 re-judge. Positive: NP and E both set pushes the literal IPv4 Explicit NULL 0 in the installed mpls-fib entry toward the originator, through installRoutes (recorded revert of sr/install.go::OutgoingLabel; overlay ExplicitNullV4=3 red). Negative: NP set with E clear is not the both-set case and pushes 16009, never 0 (recorded revert of OutgoingActionFor). The older decision-helper units stay as supplementary.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 against Section 5: &#34;If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label.&#34; Action: positives TestRFC8665ExplicitNullPushedAsLabelZero (installer pushes literal label 0) and TestRFC8665ExplicitNullReplacesPrefixSID. Condition, both halves: NP set E clear gives 16009 / ActionKeep (TestRFC8665NoExplicitNullWithoutEFlag, TestRFC8665NoPHPKeepsPrefixSIDLabel); E set NP clear gives ActionPHP, not ActionExplicitNull (TestRFC8665MappingServerFlagClearHonorsNPAndE, newly tagged, revert record on OutgoingActionFor). An E-only Explicit NULL rule now reddens a tagged negative; the earlier half-condition gap is closed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L33" title="internal/plugins/ospf/rfc8665_explicit_null_label_test.go" target="_blank" rel="noopener"><code>TestRFC8665NoExplicitNullWithoutEFlag</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L380" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1783,18 +1836,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-5-13"><code>RFC8665-5-13</code></a></h3>
 <p>When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 against Section 5: &#34;When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception.&#34; OutgoingActionFor (sr/install.go) returns ActionKeep on M before reading NP or E. Positive: M=1, NP=0, E=1 gives ActionKeep and label 16009 imposed; honoring NP would give PHP, honoring E with NP ignored would give Explicit NULL, so either reddens. Negative TestRFC8665MappingServerFlagClearHonorsNPAndE: without M the same NP=0/E=1 gives PHP and NP=1/E=1 gives ActionExplicitNull, so the ignore is conditional on M. Proven at the action function the installer calls, not through the installer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L376" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L378" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagClearHonorsNPAndE</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L362" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagIgnoresNPAndE</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L364" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665MappingServerFlagIgnoresNPAndE</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1809,12 +1862,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L408" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L412" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L389" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsZeroOnSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L393" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDReservedFlagBitsZeroOnSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1829,7 +1882,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L215" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L223" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1844,7 +1897,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L221" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L229" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDNeverClaimsPersistence</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1875,7 +1928,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L469" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawKeyedByAdjacency</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L477" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawKeyedByAdjacency</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1885,7 +1938,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L434" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L442" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1894,7 +1947,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-10-1"><code>RFC8665-10-1</code></a></h3>
 <p>Implementations MUST assure that malformed TLVs and sub-TLVs defined in this document are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§10)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c25). Two clauses. (a) detected: the earlier gap is closed. RFC 8665 Section 3.1 makes Length &#39;Variable, in octets, depending on the number of algorithms advertised&#39; and says &#39;If the SR-Algorithm TLV is advertised, Algorithm 0 MUST be included&#39;, so a zero-length SR-Algorithm TLV has an invalid length; DecodeAlgorithmValue (sr/codec.go) now returns ErrLength for it and srDecodeRemoteCapabilities (sr.go) length-checks every occurrence, a first-occurrence-ignored later one too, and returns no capability (Section 9). TestRFC8665TruncatedTLVsRejectedWithoutPanic now drives seven codecs including sr-algorithm (truncation to 0 octets must be rejected), TestRFC8665WellFormedTLVsDecode decodes {0,1}, and TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA drives the reception seam: a control {0}+SRGB body is applied, and a zero-length TLV alone, before a well-formed one, after the SRGB, or after a {0,1} first occurrence applies nothing. Each was red on HEAD&#39;s decoder or caller (author logs r1, r2, overlay o1 proves both halves of the fix are needed). (b) no crash: the truncation loop fails on a panic for every prefix length. Observed-red records on DecodeAlgorithmValue (both polarities) and srDecodeRemoteCapabilities (negative).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Shift only. Every truncation is rejected without panic, a zero-length SR-Algorithm TLV is ignored, and well-formed values decode.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1905,12 +1958,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L480" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L484" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L465" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L469" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1919,7 +1972,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-9-1"><code>RFC8665-9-1</code></a></h3>
 <p>For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§9)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestRFC8665LengthBeforeFlagsIgnoresLSA changed only by the lookupPrefix area argument (control lookup asserted before the negative, so the negative stays non-vacuous); its two records re-recorded (srRemotePrefixSIDs +, DecodePrefixSIDValue -) observed red. Earlier judgement stands: SRGB branch (TestRFC8665LengthInvalidSRGBIgnoresLSA), BGP-LS export (TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport) and the LSA-level proofs (Prefix-SID, Extended Prefix Range, Adj-SID, LAN Adj-SID, SRLB, SRMS).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Comment-only edit (ErrLength wraps ErrMalformed). Length-invalid SR TLVs and sub-TLVs cause the carrying RI, Extended Prefix and Extended Link LSAs to be ignored by SR install and BGP-LS export, and well-formed ones are applied.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1950,7 +2003,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L475" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L479" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1980,7 +2033,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L463" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L467" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2039,13 +2092,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8665-3.1-7"><code>RFC8665-3.1-7</code></a></h3>
 <p>For the purpose of SR-Algorithm TLV advertisement, area-scoped flooding is REQUIRED. (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. forbidden: flooding the SR-Algorithm TLV at a non-area scope, or not at area scope. TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes fails if type 8 is registered at AS or link scope; TestRFC8665SRCapabilityTLVsAreAreaScoped fails if it is missing at area scope. riTLVBuildersForScope is the sole producer of each scope&#39;s TLV set: buildRIInstances (ri.go) reads it unconditionally for the RI LSA of that scope, so the registry assertion is the emitted-LSA content</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.2-15/3.3-10 tags; type 8 is registered at area scope and absent from AS and link scope.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L105" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L109" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2053,6 +2106,46 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L85" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAreAreaScoped</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8665-3.2-15"><code>RFC8665-3.2-15</code></a></h3>
+<p>For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is REQUIRED. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 3.2 (&#39;For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is REQUIRED&#39;), split from the 3.1-7 sentence that covered only SR-Algorithm. Type 9 is registered at area scope and absent at AS and link scope, and the negative record is on riTLVBuildersForScope.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L112" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L89" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAreAreaScoped</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8665-3.3-10"><code>RFC8665-3.3-10</code></a></h3>
+<p>For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED. (§3.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 3.3 (&#39;For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED&#39;). Type 14 is registered at area scope and absent at AS and link scope.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L114" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L91" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665SRCapabilityTLVsAreAreaScoped</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2082,10 +2175,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/rfc8665.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>56</td>
+<td>57</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -2307,11 +2400,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
-<tr><td><code>5:9</code></td>
-<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>The second sentence of the same paragraph, qualifying the obligation site 5:8 carries; row RFC8665-5-7 states the qualification in its own text (&#34;regardless of whether it contributes to the best path&#34;).</td>
-<td>This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix.</td>
-</tr>
 <tr><td><code>8.5:1</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>The IANA &#34;OSPF Segment Routing Algorithms&#34; registry table in Section 8.5, whose Description column reproduces the Section 3.1 sentence about Algorithm 1 word for word; row RFC8665-3.1-2 cites both sections.</td>
@@ -2353,7 +2441,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

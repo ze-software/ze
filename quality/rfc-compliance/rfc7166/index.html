@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7166 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7166: Supporting Authentication Trailer for OSPFv3. 17 gated MUST-level requirements, 17 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7166: Supporting Authentication Trailer for OSPFv3. 17 gated MUST-level requirements, 19 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7166 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7166: Supporting Authentication Trailer for OSPFv3. 17 gated MUST-level requirements, 17 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7166: Supporting Authentication Trailer for OSPFv3. 17 gated MUST-level requirements, 19 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7166 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7166: Supporting Authentication Trailer for OSPFv3. 17 gated MUST-level requirements, 17 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7166: Supporting Authentication Trailer for OSPFv3. 17 gated MUST-level requirements, 19 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>17</strong><b>of 33 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>17</strong><b>of 34 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 17 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -136,6 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>17 of 17 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>2</strong><b>of 17 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -189,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -209,7 +210,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>33</td>
+<td>34</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>17</td>
@@ -218,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>17</td>
+<td>19</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,7 +237,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>0</td>
@@ -554,7 +555,16 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7166-4.6-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no OSPFv3 Authentication Trailer is received, so no sequence-number drop happens and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and the drop it guards, internal/plugins/ospf/auth_keystore.go::replayedSequence, serves the OSPFv2 trailer only</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.6-7">RFC7166-4.6-7</code></td><td colspan="3"><span class="rfc-subject">If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged. (§4.6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.6 - Packet reception</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7166-4.6-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no OSPFv3 Authentication Trailer digest is computed or compared, so no mismatch is detected and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and internal/plugins/ospf/packet/auth_verify.go compares the OSPFv2 trailer digest only</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-5-1">RFC7166-5-1</code></td><td colspan="3"><span class="rfc-subject">All OSPFv3 routers participating on a link SHOULD be migrated to OSPFv3 authentication at the same time. (§5)</span></td></tr>
 <tr><td></td>
@@ -687,6 +697,14 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td>{gap}, no test</td>
 <td>the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store</td>
 </tr>
+<tr><td><a href="#rfc7166-4.6-4"><code>RFC7166-4.6-4</code></a> If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged. (§4.6)</td>
+<td>{gap}</td>
+<td>no OSPFv3 Authentication Trailer is received, so no sequence-number drop happens and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and the drop it guards, internal/plugins/ospf/auth_keystore.go::replayedSequence, serves the OSPFv2 trailer only</td>
+</tr>
+<tr><td><a href="#rfc7166-4.6-7"><code>RFC7166-4.6-7</code></a> If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged. (§4.6)</td>
+<td>{gap}</td>
+<td>no OSPFv3 Authentication Trailer digest is computed or compared, so no mismatch is detected and no error event is logged for one. internal/plugins/ospf/auth_wiring.go::installAuthHooks returns before installing the verifier on an engine whose codec is not v4Codec, and internal/plugins/ospf/packet/auth_verify.go compares the OSPFv2 trailer digest only</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -761,6 +779,14 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <p>After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.6-6, so no unit is bound to it.</p>
+<h3><a href="#rfc7166-4.6-4"><code>RFC7166-4.6-4</code></a></h3>
+<p>If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged. (§4.6)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 7166 Section 4.6: &#39;If the cryptographic sequence number in the AT is less than or equal to the last sequence number ... the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged.&#39; Verified absent: installAuthHooks returns when the dispatch codec is not v4Codec, so an OSPFv3 engine gets neither signer nor dispatch.authOK; it is the only caller of SetSigner and the only setter of authOK, and nothing under internal/plugins/ospf/v3 parses or verifies a trailer. No sequence check, no drop, no log. Disclosed as Unsupported on the summary.</p>
+<p>No test carries RFC7166-4.6-4, so no unit is bound to it.</p>
+<h3><a href="#rfc7166-4.6-7"><code>RFC7166-4.6-7</code></a></h3>
+<p>If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged. (§4.6)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 7166 Section 4.6: &#39;If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged.&#39; Verified absent: installAuthHooks installs the verifier only for v4Codec engines and is the sole setter of dispatch.authOK, so no OSPFv3 trailer digest is computed or compared and no mismatch event exists. Disclosed as Unsupported on the summary.</p>
+<p>No test carries RFC7166-4.6-7, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -905,7 +931,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td>Packet reception</td>
 <td>4</td>
 <td>walked</td>
-<td>Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Two advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2) and the SHOULD to log an error event on a dropped or digest-failed packet (4.6-4, the trailing clause of sites 4.6:2 and 4.6:3).</td>
+<td>Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Three advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2), the SHOULD to log an error event on a packet dropped for its sequence number (4.6-4, the trailing clause of site 4.6:2), and the SHOULD to log an error event on a packet discarded for a digest mismatch (4.6-7, the trailing clause of site 4.6:3).</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>Migration</td>
@@ -998,7 +1024,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

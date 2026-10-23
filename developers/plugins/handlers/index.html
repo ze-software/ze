@@ -101,7 +101,7 @@ p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
 p.DeclareAppliesNothing("why a reload has nothing for this plugin to apply")
 p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput { ... })
-p.OnBye(func(reason string) { ... })
+p.OnBye(func(reason string) error { ... })
 
 // Post-startup callback (safe to make engine calls here)
 p.OnStarted(func(ctx context.Context) error { ... })
@@ -552,13 +552,18 @@ set to <code>true</code> in the Stage 1 registration.</p>
 </table>
 <p>If no handler is registered, OPEN validation returns <code>{accept: true}</code> (no-op).</p>
 <h3 id="onbye">OnBye</h3>
-<p>Called when the engine sends a shutdown notification. On the pipe transport,
+<p>Called when the engine sends <code>bye</code>: when it removes the plugin while the
+daemon keeps running (reason <code>removed</code>), and when it stops a subsystem process.
+A daemon stop sends no <code>bye</code>. It closes the connection, <code>Run</code> returns nil, and
+cleanup the plugin owes on daemon stop runs after <code>Run</code> returns
+(<code>docs/architecture/api/process-protocol.md</code>, "Shutdown"). On the pipe transport,
 the SDK responds OK before invoking this callback. On the bridge transport,
 the callback runs and then the result is sent back through the channel.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnBye -->
-<pre><code class="language-go">p.OnBye(func(reason string) {
-    log.Printf("shutting down: %s", reason)
-    // Clean up resources
+<pre><code class="language-go">p.OnBye(func(reason string) error {
+    // Withdraw what this plugin installed. An error keeps the plugin
+    // running, and the engine keeps its dependencies for a retry.
+    return cleanUp(reason)
 })
 </code></pre>
 <h3 id="onstarted">OnStarted</h3>
@@ -736,7 +741,7 @@ return fmt.Errorf("validation failed")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

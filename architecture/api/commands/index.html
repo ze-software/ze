@@ -291,7 +291,7 @@ produce continuously-updating output.</p>
 </tr>
 <tr>
 <td>Peer</td>
-<td>list, detail, capabilities, statistics, set (add/save), delete, teardown, flush</td>
+<td>list, detail, capabilities, statistics, set (add/save), delete, teardown, notify, flush</td>
 </tr>
 <tr>
 <td>Announce</td>
@@ -570,12 +570,12 @@ the bus from buggy or malicious producers.</p>
 <tr>
 <td><code>ze-bgp:show-policy-chain</code></td>
 <td><code>handleShowPolicyChain</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/cmd/policy/handler.go</code></span></span></td>
-<td><code>{"chains": [{"peer": "...", "name": "...", "import": [{"name": "...", "canonical": "..."}], "export": [...]}]}</code> — per-peer effective filter chains, plain name plus canonical ref</td>
+<td><code>{"chains": [{"peer": "...", "name": "...", "import": {"filters": [{"name": "...", "canonical": "..."}], "final": "accept"}, "export": {"filters": null, "final": "reject"}}]}</code> — effective policies, with a final only for configured operator policy. An absent direction with no automatic filters is omitted. <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- policyChain, handleShowPolicyChain --> <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo --></td>
 </tr>
 <tr>
 <td><code>ze-bgp:show-policy-test</code></td>
 <td><code>handleShowPolicyTest</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/cmd/policy/handler.go</code></span></span></td>
-<td><code>{"direction": "...", "peer": "...", "action": "accept|reject|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run, no forwarding or mutation</td>
+<td><code>{"direction": "...", "peer": "...", "action": "accept|reject|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain --></td>
 </tr>
 <tr>
 <td><code>ze-bgp:show-bmp-sessions</code></td>
@@ -1275,6 +1275,8 @@ show bgp peer &lt;selector&gt; capabilities # Show specific peer capabilities
 show bgp peer &lt;selector&gt; statistics   # Show specific peer statistics
 show bgp peer &lt;selector&gt; history      # Show FSM transition history
 request peer &lt;selector&gt; teardown [&lt;cease-subcode&gt;]  # Disconnect peer
+request peer &lt;selector&gt; notify &lt;code&gt; &lt;subcode&gt; [&lt;text&gt;]  # Disconnect one peer with any NOTIFICATION
+request peer &lt;selector&gt; notify &lt;code&gt; &lt;subcode&gt; hex &lt;octets&gt;  # The same, the Data field verbatim in hex
 create bgp peer &lt;address&gt; asn &lt;asn&gt; [...]  # Add a peer to the running daemon
 delete bgp peer &lt;name&gt;             # Stop a peer, configured or created, and remove it from the running set
 update bgp config                  # Write the running peer set to the config file
@@ -1401,10 +1403,9 @@ write instead:</p>
 <p><code>send bgp &lt;selector&gt; update text ... mp &lt;family&gt; del ...</code> (or <code>nlri del</code>) names no route to a
 peer whose session has advertised nothing, because RFC 4271 Section 4.3
 identifies a withdrawn route in the context of the connection it was previously
-advertised on. Such a peer is written the withdrawal's path attributes with no
-route in them, or nothing at all where the family's withdrawal carries no
-attributes of its own (<code>docs/architecture/update-building.md</code>, "A Withdrawal
-Names a Route This Connection Advertised"). The command still answers <code>done</code>,
+advertised on. Nothing is written to such a peer
+(<code>docs/architecture/update-building.md</code>, "A Withdrawal Names a Route This
+Connection Advertised"). The command still answers <code>done</code>,
 and the peers it withheld the routes from are named in the response's
 <code>warnings</code>:</p>
 <pre><code>withdraw ipv4/unicast: withdrawal withheld: this session has advertised no route to the peer: ipv4/unicast, peers 192.0.2.10
@@ -1457,11 +1458,11 @@ supported because replay re-sends stored routes, never withdrawals.</p>
 </tr>
 <tr>
 <td><code>announce eor &lt;afi&gt; &lt;safi&gt;</code></td>
-<td><code>update text mp &lt;family&gt; eor</code> (<code>update text nlri eor</code> for IPv4 unicast)</td>
+<td><code>update text mp &lt;family&gt; eor</code> (<code>update text nlri eor</code> for IPv4 unicast). A bare <code>announce eor</code> is IPv4 unicast, as in ExaBGP. The marker goes out each time it is asked for; a replaying plugin's <code>replay-eor</code> marker goes out once per session (<code>update-syntax.md</code>, "End-of-RIB")</td>
 </tr>
 <tr>
 <td><code>announce vpls ...</code></td>
-<td><code>update text mp l2vpn/vpls add ...</code></td>
+<td><code>update text mp l2vpn/vpls add rd &lt;rd&gt; ve-id &lt;n&gt; ve-block-offset &lt;n&gt; ve-block-size &lt;n&gt; label-base &lt;n&gt;</code></td>
 </tr>
 <tr>
 <td><code>announce l2vpn ...</code></td>
@@ -1477,7 +1478,7 @@ supported because replay re-sends stored routes, never withdrawals.</p>
 </tr>
 <tr>
 <td><code>withdraw vpls ...</code></td>
-<td><code>update text mp l2vpn/vpls del ...</code></td>
+<td><code>update text mp l2vpn/vpls del rd &lt;rd&gt; ve-id &lt;n&gt; ve-block-offset &lt;n&gt; ve-block-size &lt;n&gt; label-base &lt;n&gt;</code></td>
 </tr>
 <tr>
 <td><code>withdraw l2vpn ...</code></td>
@@ -1485,18 +1486,16 @@ supported because replay re-sends stored routes, never withdrawals.</p>
 </tr>
 </tbody>
 </table>
+<p>The ExaBGP bridge still reads ExaBGP's <code>announce vpls</code> and <code>withdraw vpls</code>
+(<code>docs/architecture/exabgp-bridge.md</code>); it is ze's own API that no longer has them.</p>
 <h3 id="watchdog-commands">Watchdog Commands</h3>
 <pre><code>request bgp watchdog announce &lt;name&gt; [med &lt;N&gt;] [peer]  # Send all routes in pool (optional MED override)
 request bgp watchdog withdraw &lt;name&gt; [peer]            # Withdraw all routes in pool from peers
 </code></pre>
-<p>Routes are tagged with a pool when announced:</p>
-<pre><code class="language-bash">update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 watchdog set mypool
-</code></pre>
-<blockquote>
-<p><strong>Note:</strong> <code>watchdog set</code> in wire-mode updates is parsed but not yet
-implemented. The <code>request bgp watchdog announce</code>/<code>request bgp watchdog withdraw</code>
-pool commands work independently of this tagging.</p>
-</blockquote>
+<p>A pool holds the routes the config places under a watchdog
+(<code>watchdog { name &lt;name&gt;; }</code> in a peer's update block). <code>update text</code> and the
+wire mode read <code>watchdog &lt;name&gt;</code> and refuse the command, because no pool holds
+an API route (<code>docs/architecture/api/update-syntax.md</code>, "Watchdog Commands").</p>
 <h3 id="rib-commands">RIB Commands</h3>
 <pre><code>show bgp rib [filters...] [terminal]        # Unified route display with pipeline
     source filters: received | advertised
@@ -1507,6 +1506,7 @@ show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in &lt;selector&gt;                  # Clear Adj-RIB-In (* for all peers)
 clear bgp rib out &lt;selector&gt; [family &lt;family&gt;] # Resend Adj-RIB-Out (* for all, optional family)
+clear bgp rib advertised &lt;selector&gt; [family &lt;family&gt;] # Withdraw Adj-RIB-Out (* for all, optional family)
 request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs] # Insert route into Adj-RIB-In (no session needed)
 request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;       # Remove route from Adj-RIB-In
 show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-prefix-match in Loc-RIB)
@@ -1522,6 +1522,9 @@ show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-p
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
+<p><code>clear bgp rib out</code> and <code>clear bgp rib advertised</code> act on the same table in opposite ways. <code>out</code> is bgp-rib's replay: it resends what each peer was sent, configured routes included, one family at a time, and brackets each family with a BoRR before and an EoRR after (RFC 7313 Section 4, a locally initiated refresh). The engine sends the two markers only to a peer that advertised Enhanced Route Refresh; a family with nothing in the Adj-RIB-Out gets no bracket. <code>advertised</code> is the engine's: it withdraws every route the session's Adj-RIB-Out holds, configured routes included, and forgets the peer's configured set, so a later reload sends it again. The withdrawals take the local withdraw rail, so bgp-rib drops each route from its own copy and a later <code>out</code> does not bring it back. A labeled route (RFC 8277, RFC 3107) is withdrawn with the Section 2.4 Compatibility field 0x800000, rebuilt from the table key, which holds no label stack. A family whose key cannot be written back as the withdrawn NLRI is refused by name rather than guessed. A selector that matches no peer is an error.</p>
+<!-- source: internal/component/bgp/reactor/reactor_api_advertised.go -- WithdrawAdvertised, adjOutWithdrawalNLRI -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/advertised.go -- handleRibClearAdvertised -->
 <p>RIB route filters such as <code>received</code>, <code>advertised</code>, <code>peer</code>, <code>family</code>, <code>prefix</code>, <code>path</code>, and <code>community</code> are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.</p>
 <p>Inject attributes: <code>origin &lt;igp|egp|incomplete&gt;</code>, <code>nhop|nexthop &lt;ip&gt;</code>, <code>aspath &lt;asn,asn,...&gt;</code>, <code>localpref &lt;n&gt;</code>, <code>med &lt;n&gt;</code>. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
@@ -1545,7 +1548,10 @@ This explicit handoff does not infer lifecycle ownership from peer state.</p>
 <h3 id="named-commits-batching">Named Commits (Batching)</h3>
 <p>A named commit holds withdrawals and flushes them to every peer the selector
 matches. There is no <code>group start</code> or <code>group end</code>: this page published that pair
-until 2026-09-05 and no handler ever answered either spelling.</p>
+until 2026-09-05 and no handler ever answered either spelling. An ExaBGP script's
+<code>group start</code> and <code>group end</code> are the ExaBGP bridge's, which applies the block
+through ordinary update commands (<code>docs/architecture/exabgp-bridge.md</code>, "A group
+is applied at its end").</p>
 <pre><code>request commit start &lt;name&gt;                      # Open a named commit
 request commit withdraw &lt;name&gt; route &lt;prefix&gt;    # Queue one withdrawal
 request commit show &lt;name&gt;                       # What the commit holds
@@ -2488,6 +2494,21 @@ Usage renders it <code>[force]</code>, the completer offers the keyword, and hel
 catalog name its kind <code>flag</code>.</p>
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
 <!-- source: internal/component/command/argbind.go -- ValidateArgs, unmatchedDefCount -->
+<p>A string leaf that carries <code>ze:rest-of-line</code> takes every word left on the line,
+joined by one space, and no word it takes is read as a keyword. Without it the
+keyword phase reads every word that names a leaf as that leaf's keyword, so
+<code>request peer &lt;sel&gt; notify 6 2 the code is wrong</code> was refused with <code>invalid value "is"</code> against <code>code</code>. <code>ValidateArgs</code> places the leaf before the keyword
+phase (<code>restStart</code>): it starts at its own keyword (<code>text the code is wrong</code>, the
+form <code>command.WriteInvocation</code> writes for MCP and the web form), or at the
+first word typed once every mandatory leaf is filled, and the phases see only
+the tokens in front of it. <code>ValidatedArgs.Keyed</code> answers it, as it answers
+every value typed after its keyword, and <code>ValidatedArgs.PositionalTokens</code>
+answers the tokens no keyword consumed and the leaf did not take, in the order
+typed, for a command whose leaves have a fixed order (<code>notify &lt;code&gt; &lt;subcode&gt;</code>). At most one leaf of a command carries the extension, only a string
+leaf, and it is declared last, because <code>WriteInvocation</code> writes arguments in
+declaration order and every word after the leaf's keyword is the leaf's.
+<code>ValidateArgs</code> refuses the other shapes with <code>ErrArgDef</code>.</p>
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, restStart, ValidatedArgs.Keyed, ValidatedArgs.PositionalTokens -->
 <p>A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that
 belong to no definition of its own, and it MUST NOT read one of them as a bad
@@ -3628,7 +3649,8 @@ and an address field. It answers 313 now.</p>
 <li>A HIDDEN declaration is skipped by the two published catalogs, because the
 daemon already keeps one out of <code>VisibleCommandEntries</code> and out of completion.
 <code>./le cli list</code> keeps it, because that inventory answers what ze
-REGISTERS. <code>request bgp adj-rib-in claim-replay</code> is the one such command.</li>
+REGISTERS. The plugin-to-plugin plumbing is hidden this way, for example
+<code>request bgp adj-rib-in claim-replay</code>; <code>./le cli list</code> names every one.</li>
 <li>The YANG node WINS wherever one exists. A plugin command can be modeled and
 still carry no wire method, <code>show vrrp interface</code> among them, so it arrives
 with an authored summary, long help and grammar already written. For a command
@@ -4042,7 +4064,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

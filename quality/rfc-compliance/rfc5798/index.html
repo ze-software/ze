@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5798 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 59 gated MUST-level requirements, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 59 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5798 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 59 gated MUST-level requirements, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 59 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5798 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 59 gated MUST-level requirements, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 59 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,11 +117,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.9%</strong><b>43 of 59 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>76.3%</strong><b>45 of 59 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6.8%</strong><b>4 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>98.0%</strong><b>144 of 147 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>96.8%</strong><b>150 of 155 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -135,7 +134,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>11.9%</strong><b>7 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1.7%</strong><b>1 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.8%</strong><b>4 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>47</strong><b>of 59 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
@@ -166,7 +166,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>Partial proof; remaining gap</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>7</td>
+<td>4</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>147</td>
+<td>155</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>147</td>
+<td>155</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>47</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>146</td>
+<td>154</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5798.md</code></td>
@@ -268,7 +268,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p>RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-header), and that is what a ze VRRPv3 IPv4 group sends and accepts by default. A group configured <code>checksum rfc5798-compatible</code> sends and accepts only the RFC 5798 pseudo-header form instead, which keepalived and the pre-RFC 9568 deployed base require.</p>
-<p class="rfc-prose"><strong>Enrolled 2026-09-01:</strong> <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md" target="_blank" rel="noopener"><code>rfc/short/rfc5798.md</code></a> declares 85 requirements, 59 of them MUST-level, and every one carries a <code>{superseded}</code> marker naming where RFC 9568 states it. 43 of those 59 are proven under RFC5798 ids in both polarities. 4 carry a positive test and a <code>{single-polarity}</code> annotation, because the producer writes a constant no input changes: <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a> and <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>. <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a> is the weakest of those four, because its only evidence is an integration-gated test the privileged QEMU suite runs and <code>./le rfc discriminate-record</code> cannot reach. 3 are met below ze and carry a <code>{lower-layer}</code> annotation: <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a> and <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, where Linux consumes a link-local scope multicast datagram rather than forwarding it, and <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, where Linux derives each device&#39;s Interface Identifier. 2 are conditional on an optional feature ze declined and carry a <code>{feature-declined}</code> annotation: <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, the VRRPv2/VRRPv3 dual-send flag RFC 5798 Section 8.4.2 makes a MAY, and RFC5798-A.2-1, the Token Ring functional-address mode. 7 are <code>{gap}</code> rows ze owes: <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a> and <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a> (no ND Router Advertisement is sent for a virtual router, so there is no option set to configure either), <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a> (the virtual-MAC macvlan carries no <code>addr_gen_mode</code>, so Linux derives its link-local Interface Identifier from the virtual router MAC), <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a> (a proxy ARP reply on a VRRP router does not carry the virtual router MAC), <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a> and <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a> (ze authors no Neighbor Solicitation for a host and installs nothing that sources one from the virtual MAC), and <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, where Section 7.1 makes the receiver discard an advertisement when the local router is the IPvX address owner and <code>Decode</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/validate.go</code></a>) verifies only the VRID half, because RFC 9568 erratum 8298 lowers the address-owner half to a log. One RFC 5798 obligation is NOT a restatement: <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> puts a pseudo-header under the checksum for both address families, which ze computes for IPv4 only in a group configured <code>checksum rfc5798-compatible</code>. RFC 5798 Section 5.2.8 cites the pseudo-header &#34;as defined in Section 8.1 of [RFC2460]&#34;, an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (<code>pseudoSumV4</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/checksum.go</code></a>) rather than the shape that sentence names.</p>
+<p class="rfc-prose"><strong>Enrolled 2026-09-01:</strong> <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md" target="_blank" rel="noopener"><code>rfc/short/rfc5798.md</code></a> declares 85 requirements, 59 of them MUST-level, and every one carries a <code>{superseded}</code> marker naming where RFC 9568 states it. 45 of those 59 are proven under RFC5798 ids in both polarities. 4 carry a positive test and a <code>{single-polarity}</code> annotation, because the producer writes a constant no input changes: <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a> and <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>. <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a> is the weakest of those four, because its only evidence is an integration-gated test the privileged QEMU suite runs and <code>./le rfc discriminate-record</code> cannot reach. 3 are met below ze and carry a <code>{lower-layer}</code> annotation: <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a> and <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, where Linux consumes a link-local scope multicast datagram rather than forwarding it, and <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, where Linux derives each device&#39;s Interface Identifier. 2 are conditional on an optional feature ze declined and carry a <code>{feature-declined}</code> annotation: <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, the VRRPv2/VRRPv3 dual-send flag RFC 5798 Section 8.4.2 makes a MAY, and RFC5798-A.2-1, the Token Ring functional-address mode. 4 are <code>{gap}</code> rows ze owes: <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a> and <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a> (no ND Router Advertisement is sent for a virtual router, so there is no option set to configure either), and <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a> and <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a> (ze authors no Neighbor Solicitation for a host and installs nothing that sources one from the virtual MAC). <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a> is met by refusal: <code>ze config verify</code> refuses proxy ARP on any interface an IPv4 VRRP group uses (<code>validateNoProxyARP</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/proxyarp.go</code></a>), because the kernel would answer with the device MAC. 1 carries a <code>{partial}</code> annotation: <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, the Section 7.1 discard of an advertisement the IPvX address owner receives, is met and tested only in an IPv4 group configured <code>checksum rfc5798-compatible</code>, whose owner discards it (<code>onPacket</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/instance.go</code></a>).</p>
+<p class="rfc-prose"><strong>The discard is IPv4-only:</strong> an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298 instead, which logs the advertisement and processes it, so that part of the RFC 5798 obligation stays unmet for them. One RFC 5798 obligation is NOT a restatement: <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> puts a pseudo-header under the checksum for both address families, which ze computes for IPv4 only in a group configured <code>checksum rfc5798-compatible</code>. RFC 5798 Section 5.2.8 cites the pseudo-header &#34;as defined in Section 8.1 of [RFC2460]&#34;, an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (<code>pseudoSumV4</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/checksum.go</code></a>) rather than the shape that sentence names.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -277,11 +278,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>43</strong></td>
+<td><strong>45</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>16</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -293,7 +294,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -308,8 +309,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (43):</strong> <a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a>, <a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a>, <a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a>, <a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a>, <a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a>, <a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a>, <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a>, <a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a>, <a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a>, <a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a>, <a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a>, <a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a>, <a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a>, <a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a>, <a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a>, <a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a>, <a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a>, <a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a>, <a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a>, <a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a>, <a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a>, <a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a>, <a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a>, <a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a>, <a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a>, <a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a>, <a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a>, <a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a>, <a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a>, <a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a>, <a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a>, <a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a>, <a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a>, <a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a>, <a href="#rfc5798-8.1.2-6"><code>RFC5798-8.1.2-6</code></a>, <a href="#rfc5798-8.1.1-2"><code>RFC5798-8.1.1-2</code></a>, <a href="#rfc5798-8.2.1-2"><code>RFC5798-8.2.1-2</code></a>, <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a>, <a href="#rfc5798-8.2.2-8"><code>RFC5798-8.2.2-8</code></a>, <a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (16):</strong> <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a>, <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a>, <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a>, <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a>, <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a>, <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a>, <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a>, <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, <a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (45):</strong> <a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a>, <a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a>, <a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a>, <a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a>, <a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a>, <a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a>, <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a>, <a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a>, <a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a>, <a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a>, <a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a>, <a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a>, <a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a>, <a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a>, <a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a>, <a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a>, <a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a>, <a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a>, <a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a>, <a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a>, <a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a>, <a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a>, <a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a>, <a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a>, <a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a>, <a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a>, <a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a>, <a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a>, <a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a>, <a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a>, <a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a>, <a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a>, <a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a>, <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a>, <a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a>, <a href="#rfc5798-8.1.2-6"><code>RFC5798-8.1.2-6</code></a>, <a href="#rfc5798-8.1.1-2"><code>RFC5798-8.1.1-2</code></a>, <a href="#rfc5798-8.2.1-2"><code>RFC5798-8.2.1-2</code></a>, <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a>, <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a>, <a href="#rfc5798-8.2.2-8"><code>RFC5798-8.2.2-8</code></a>, <a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (14):</strong> <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a>, <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a>, <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a>, <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a>, <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a>, <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, <a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -553,7 +555,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L72" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/promote_install_test.go#L29" title="internal/plugins/vrrp/promote_install_test.go" target="_blank" rel="noopener"><code>TestPromotionInstallsIPv4AddressOnVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L74" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L139" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L143" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L75" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></span></div>
 </div></td>
 </tr>
@@ -689,9 +691,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Decode internal/plugins/vrrp/packet/validate.go verifies the VRID half of this check and ze implements no address-owner half, so an advertisement arriving for a VRID whose address the local router owns is processed rather than discarded. RFC 9568 erratum 8298 lowers that half to a SHOULD that logs and ze follows the successor, so the RFC 5798 MUST as published is unmet</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L45" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798OwnerDiscardsAdvertisement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L72" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798NonOwnerProcessesAdvertisement</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-4">RFC5798-7.1-4</code></td><td colspan="3"><span class="rfc-subject">If any one of the above checks fails, the receiver MUST discard the packet (§7.1)</span></td></tr>
 <tr><td></td>
@@ -763,9 +765,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>7.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze creates the per-group macvlan carrying the virtual router MAC and writes no addr_gen_mode on it, because applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go writes accept_dad and nothing else on an IPv6 group, so Linux derives that device&#39;s link-local Interface Identifier from the virtual router MAC, which is the derivation this sentence forbids. Suppressing it, by writing addr_gen_mode on the IPv6 macvlan, is unbuilt</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L34" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L35" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.2-1">RFC5798-8.1.2-1</code></td><td colspan="3"><span class="rfc-subject">The Virtual Router Master MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2)</span></td></tr>
 <tr><td></td>
@@ -776,7 +778,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L176" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L62" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L44" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L141" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L145" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L177" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L63" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L45" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></span></div>
@@ -816,9 +818,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze offers proxy ARP, as the builtin proxy sysctl profile that writes net.ipv4.conf.&lt;iface&gt;.proxy_arp=1 internal/core/sysctl/profiles.go, and nothing makes a proxy ARP reply on a VRRP router carry the virtual router MAC: the kernel answers from the replying device&#39;s own address and ze installs no virtual-MAC proxy state, so the obligation is unbuilt rather than out of reach</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L33" title="internal/plugins/vrrp/proxyarp_test.go" target="_blank" rel="noopener"><code>TestProxyARPOnVRRPInterfaceRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L67" title="internal/plugins/vrrp/proxyarp_test.go" target="_blank" rel="noopener"><code>TestNoProxyARPOnVRRPInterfaceAccepted</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-1">RFC5798-8.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The Virtual Router Master MUST NOT respond with its physical MAC address. This allows the client to always use the same MAC address regardless of the current Master router. (§8.2.2)</span></td></tr>
 <tr><td></td>
@@ -853,7 +855,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze authors no Neighbor Solicitation -- the plugin&#39;s only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go -- and it installs nothing that makes a host solicitation source from the virtual-MAC macvlan, which doInstallVIPs internal/plugins/vrrp/instance.go gives the virtual address alone. The solicitation a Master sends for a host therefore leaves the parent, carrying the parent&#39;s own link-layer address</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the kernel fills the option from the device the host&#39;s route resolves through (Linux limitation LL-NS-SOURCE-MAC, docs/architecture/linux-limitations.md), and ze installs nothing that makes that device the virtual-MAC macvlan: an owned VIP sits there only as a /128 (vipMaskBits internal/plugins/vrrp/register.go), so the subnet route stays on the parent and the option carries the parent&#39;s physical MAC; no test observes the option; fix owned by plan/immediate/spec-vrrp-owner-arp-rfc-defects.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-3">RFC5798-8.2.2-3</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2)</span></td></tr>
 <tr><td></td>
@@ -862,7 +864,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the same unbuilt path as RFC5798-8.2.2-2. Ze authors no Neighbor Solicitation and installs nothing that keeps the physical MAC out of the source link-layer address option of one its stack sends for a host</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the kernel fills the option from the device the host&#39;s route resolves through (Linux limitation LL-NS-SOURCE-MAC, docs/architecture/linux-limitations.md), and ze installs nothing that makes that device the virtual-MAC macvlan: an owned VIP sits there only as a /128 (vipMaskBits internal/plugins/vrrp/register.go), so the subnet route stays on the parent and the option carries the parent&#39;s physical MAC; no test observes the option; fix owned by plan/immediate/spec-vrrp-owner-arp-rfc-defects.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-4">RFC5798-8.2.2-4</code></td><td colspan="3"><span class="rfc-subject">o At system boot, when initializing interfaces for VRRP operation, all ND Router and Neighbor Advertisements and Solicitation messages must be delayed until both the IPv6 address and the virtual router MAC address are configured. (§8.2.2; lowercase &#34;must&#34; in the RFC)</span></td></tr>
 <tr><td></td>
@@ -972,8 +974,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>8.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L92" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L93" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-5">RFC5798-8.2.2-5</code></td><td colspan="3"><span class="rfc-subject">When a VRRP router restarts or boots, it SHOULD NOT send any ND messages with its physical MAC address for the IPv6 address it owns; it should only send ND messages that include virtual MAC addresses. (§8.2.2)</span></td></tr>
@@ -1160,28 +1162,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>ze runs IPv6 virtual routers and sends no Router Advertisement for them. The announcer&#39;s only IPv6 frame is the unsolicited Neighbor Advertisement, icmpv6TypeNA 136, built by BuildNA internal/plugins/vrrp/transport/na.go and selected by frameBuilder internal/plugins/vrrp/transport/transport.go, and no Router Advertisement builder and no RA send path exists under internal/plugins/vrrp</td>
 </tr>
 <tr><td><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a> - MUST verify that the VRID is configured on the receiving interface and the local router is not the IPvX address owner (Priority = 255 (decimal)). (§7.1)</td>
-<td>{gap}, no test</td>
-<td>Decode internal/plugins/vrrp/packet/validate.go verifies the VRID half of this check and ze implements no address-owner half, so an advertisement arriving for a VRID whose address the local router owns is processed rather than discarded. RFC 9568 erratum 8298 lowers that half to a SHOULD that logs and ze follows the successor, so the RFC 5798 MUST as published is unmet</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it</td>
 </tr>
 <tr><td><a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a> IPv6 routers running VRRP MUST create their Interface Identifiers in the normal manner (e.g., &#34;Transmission of IPv6 Packets over Ethernet Networks&#34; [RFC2464]). (§7.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux SLAAC; internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls is the only IPv6 state ze writes on a VRRP device and it writes accept_dad alone, while Linux derives each device&#39;s Interface Identifier from that device&#39;s MAC in the RFC 2464 manner this sentence names, so no value ze writes decides the derivation</td>
 </tr>
-<tr><td><a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a> They MUST NOT use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers. (§7.4)</td>
-<td>{gap}, no test</td>
-<td>ze creates the per-group macvlan carrying the virtual router MAC and writes no addr_gen_mode on it, because applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go writes accept_dad and nothing else on an IPv6 group, so Linux derives that device&#39;s link-local Interface Identifier from the virtual router MAC, which is the derivation this sentence forbids. Suppressing it, by writing addr_gen_mode on the IPv6 macvlan, is unbuilt</td>
-</tr>
-<tr><td><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a> If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the virtual router MAC address in the Proxy ARP message. (§8.1.3; lowercase &#34;must&#34; in the RFC)</td>
-<td>{gap}, no test</td>
-<td>ze offers proxy ARP, as the builtin proxy sysctl profile that writes net.ipv4.conf.&lt;iface&gt;.proxy_arp=1 internal/core/sysctl/profiles.go, and nothing makes a proxy ARP reply on a VRRP router carry the virtual router MAC: the kernel answers from the replying device&#39;s own address and ze installs no virtual-MAC proxy state, so the obligation is unbuilt rather than out of reach</td>
-</tr>
 <tr><td><a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a> When a Virtual Router Master sends an ND Neighbor Solicitation message for a host&#39;s IPv6 address, the Virtual Router Master MUST include the virtual MAC address for the virtual router if it sends a source link-layer address option in the neighbor solicitation message. (§8.2.2)</td>
 <td>{gap}, no test</td>
-<td>ze authors no Neighbor Solicitation -- the plugin&#39;s only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go -- and it installs nothing that makes a host solicitation source from the virtual-MAC macvlan, which doInstallVIPs internal/plugins/vrrp/instance.go gives the virtual address alone. The solicitation a Master sends for a host therefore leaves the parent, carrying the parent&#39;s own link-layer address</td>
+<td>the kernel fills the option from the device the host&#39;s route resolves through (Linux limitation LL-NS-SOURCE-MAC, docs/architecture/linux-limitations.md), and ze installs nothing that makes that device the virtual-MAC macvlan: an owned VIP sits there only as a /128 (vipMaskBits internal/plugins/vrrp/register.go), so the subnet route stays on the parent and the option carries the parent&#39;s physical MAC; no test observes the option; fix owned by plan/immediate/spec-vrrp-owner-arp-rfc-defects.md</td>
 </tr>
 <tr><td><a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a> It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2)</td>
 <td>{gap}, no test</td>
-<td>the same unbuilt path as RFC5798-8.2.2-2. Ze authors no Neighbor Solicitation and installs nothing that keeps the physical MAC out of the source link-layer address option of one its stack sends for a host</td>
+<td>the kernel fills the option from the device the host&#39;s route resolves through (Linux limitation LL-NS-SOURCE-MAC, docs/architecture/linux-limitations.md), and ze installs nothing that makes that device the virtual-MAC macvlan: an owned VIP sits there only as a /128 (vipMaskBits internal/plugins/vrrp/register.go), so the subnet route stays on the parent and the option carries the parent&#39;s physical MAC; no test observes the option; fix owned by plan/immediate/spec-vrrp-owner-arp-rfc-defects.md</td>
 </tr>
 <tr><td><a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a> The Backup routers must be configured to send the same Router Advertisement options as the address owner. (§8.2.3; lowercase &#34;must&#34; in the RFC)</td>
 <td>{gap}, no test</td>
@@ -1712,7 +1706,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L139" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L143" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2035,8 +2029,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></h3>
 <p>- MUST verify that the VRID is configured on the receiving interface and the local router is not the IPvX address owner (Priority = 255 (decimal)). (§7.1)</p>
+<p>Scoped tag-claim records only: tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it; zero whole-requirement credit.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.1-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L72" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798NonOwnerProcessesAdvertisement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L45" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798OwnerDiscardsAdvertisement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a></h3>
 <p>If any one of the above checks fails, the receiver MUST discard the packet (§7.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says &#34;If any one of the above checks fails, the receiver MUST discard the packet&#34;. TestInstanceRxValidAdvertReachesFSM changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestInstanceRxFailedCheckIsDiscarded is unchanged, and an overlay mutant giving instance.lookup the wrong checksum mode reddened both, so the discard path is still exercised end to end. The owner-check carve-out under erratum 8298 stands. Verdict unchanged.</p>
@@ -2112,7 +2123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L40" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L100" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV6OnWire</code></a></td>
@@ -2142,7 +2153,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L43" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L102" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV6OnWire</code></a></td>
@@ -2189,7 +2200,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a></h3>
 <p>They MUST NOT use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers. (§7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-7.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L35" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L34" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a></h3>
 <p>The Virtual Router Master MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.1.2 says &#34;The Virtual Router Master MUST NOT respond with its physical MAC address in the ARP response.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ARP captures with and without the owner filter are unchanged. Verdict unchanged; the guest record is owed a re-record.</p>
@@ -2198,7 +2225,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L141" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L145" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2313,7 +2340,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a></h3>
 <p>If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the virtual router MAC address in the Proxy ARP message. (§8.1.3; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5798-8.1.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L67" title="internal/plugins/vrrp/proxyarp_test.go" target="_blank" rel="noopener"><code>TestNoProxyARPOnVRRPInterfaceAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L33" title="internal/plugins/vrrp/proxyarp_test.go" target="_blank" rel="noopener"><code>TestProxyARPOnVRRPInterfaceRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a></h3>
 <p>The Virtual Router Master MUST NOT respond with its physical MAC address. This allows the client to always use the same MAC address regardless of the current Master router. (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.2.2 says &#34;The Virtual Router Master MUST NOT respond with its physical MAC address. This allows the client to always use the same MAC address regardless of the current Master router.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly and TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the Neighbor Advertisement captures and their physical-MAC controls are unchanged. Verdict unchanged; the guest records are owed a re-record.</p>
@@ -2454,6 +2497,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>The functional-address mode of operation MUST be implemented by routers supporting VRRP on Token Ring. (§A.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5798-A.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.2.1-1"><code>RFC5798-8.2.1-1</code></a></h3>
+<p>The IPv6 source address of an ICMPv6 redirect should be the address that the end-host used when making its next-hop routing decision. (§8.2.1; lowercase &#34;should&#34; in the RFC)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L93" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L92" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -3515,7 +3578,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
                 </div>
             </div>
         </footer>

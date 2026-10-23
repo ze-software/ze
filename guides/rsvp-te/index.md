@@ -256,8 +256,12 @@ make-before-break, admission/preemption or complete RFC conformance.
 
 ### Building the peer artifacts
 
-The source pin is freeRouter commit
-[`6c295d8ae79c834ef631d3d21d373c335fb05328`](https://github.com/mc36/freeRtr/tree/6c295d8ae79c834ef631d3d21d373c335fb05328).
+The source pin is the freeRouter commit that `ZE_SOURCE_COMMIT` names in
+`test/interop-rsvpte/Dockerfile.freertr`. freeRouter publishes no stable
+release, so the pin follows upstream master and is moved at least monthly with
+`./le lab pin bump dockerfile test/interop-rsvpte/Dockerfile.freertr`: the image
+build refuses a pin more than one month old (owner decision M14,
+`docs/architecture/testing/interop.md`, "Source-built peers").
 `test/interop-rsvpte/Dockerfile.freertr` compiles the upstream Java sources for
 Java 21 and builds `misc/iface/tapInt.c` and `misc/iface/rawInt.c` with static
 musl linkage. Its `export` stage is the directory this carrier copies into a
@@ -309,9 +313,9 @@ the test.
 
 ### Ze-ingress limitation of this peer
 
-The pinned freeRouter
-[`packRsvp.parseDatPatReq`](https://github.com/mc36/freeRtr/blob/6c295d8ae79c834ef631d3d21d373c335fb05328/src/org/freertr/pack/packRsvp.java)
-requires SESSION_ATTRIBUTE on PATH. Ze's ordinary local tunnel emits that object
+freeRouter's
+[`packRsvp.parseDatPatReq`](https://github.com/mc36/freeRtr/blob/96368b02da1030148d44fc1821e844deeba0a2f0/src/org/freertr/pack/packRsvp.java),
+read at commit 96368b0 (2026-10-22), requires SESSION_ATTRIBUTE on PATH. Ze's ordinary local tunnel emits that object
 only when protection is configured. The peer also requires ADSPEC on PathTear,
 which Ze's tear builder omits. Those parser requirements prevent this peer from
 serving as an ordinary Ze-ingress setup-and-teardown oracle. The carrier does
