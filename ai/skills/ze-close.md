@@ -21,8 +21,7 @@ phase itself.
   (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 - **CLOSE ONE SPEC AT A TIME.** Closure is the most expensive phase in this
   repository and it ends in a commit, so two closures running at once contend for
-  the build cache, the ports and the index files, and each one's `--unverified`
-  attribution has to describe a tree the other is moving. Wait for one to land
+  the build cache, the ports and the index files. Wait for one to land
   before starting the next.
 - **This skill MUST NOT spawn a subagent, and the agent running it MUST NOT
   either (owner directive, 2026-08-15).** Every step below, the Review Gate at
@@ -60,8 +59,9 @@ not produce it. No specific model is required (`ai/rules/planning.md`).
 
 ## Precondition
 
-The implementation is complete and `./le go lint run && ./le test unit all &&
-./le test functional gating` is green (`/ze-implement` steps 1-10). If feature code is
+The implementation is complete and the targeted tests for what it changed are
+green (`/ze-implement` steps 1-10). The full gate has not run yet: it runs
+once, after this skill's closing commit (step 6f). If feature code is
 still missing, go back: this skill does not implement.
 
 Two entry statuses are valid, `in-progress` and `verification`, and they differ
@@ -116,7 +116,11 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
      - Information leakage (error messages exposing internals, sensitive data in logs)
      - Any OWASP Top 10 relevant to the code's context
    - Fix every issue found. If a fix requires design changes, present to user before proceeding.
-3. **Re-run verification:** `./le verify worktree`
+3. **Re-run what the step 2 fixes touched:** the scoped package test for each
+   package a fix changed, under `./le job run`, and the functional test of the
+   behavior it changed. Skip this step when step 2 changed nothing. Never run
+   `./le verify current` or `./le verify worktree` here: both judge HEAD, which
+   does not hold this work until commit A lands.
 4. **Documentation review (BLOCKING):** This step VERIFIES the pages `/ze-implement` already updated, and finds the gaps it left. It is not where documentation starts (`ai/rules/documentation.md`). A page this step finds stale is a defect of the phase that changed the behavior. Repair it here. Record a Mistake Log row, so the next spec does not repeat it. Use the spec's **Documentation Update Checklist** table. For each row:
    - Answer Yes or No. Every Yes MUST name the file and the update, and MUST point at the commit or diff hunk that already made it.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
@@ -140,7 +144,8 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
    - **More than five passes is THOMAS'S decision.** A sixth round is also refused without `owner-authorised <reason>` (owner ruling 2026-08-17). Both tolls are owed past the cap, and neither substitutes for the other. You MUST NOT set that keyword on your own initiative. At the cap you stop, report what the loop keeps finding, and ask him whether it runs another pass.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by). NOTEs do not block: record and proceed.
    - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/completion.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
-   - Re-run `./le verify worktree`.
+   - Re-run only what the fixes touched: the scoped package test of each
+     package a fix changed, and the functional test of each behavior it changed.
    - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
 6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**
@@ -161,8 +166,9 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
      is parked in a row, so closure removes no shard.
      **Dropping the item instead of homing it is the owner's decision, never
      yours** (`ai/rules/completion.md`).
-   Running the commit script finishes the work. There is no step 7. The script is the
-   final action. Everything below MUST be in that single script.
+   Running the commit script finishes the closure. There is no step 7. Every
+   change below MUST be in that single script; the only thing after it is the
+   full gate over the commits it made (6f).
 
    a. **Route any lesson to its governing surface.** Follow the lesson-routing
       rule in `ai/rules/planning.md`. Update an existing rule, architecture page,
@@ -223,7 +229,16 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
       - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
-   e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
+   e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
+   f. **The full gate, once, over the closing commits.** This is the only full
+      run the spec gets: no phase, review round or fix before it ran one, because
+      `./le verify current` judges HEAD and HEAD did not hold the work until
+      commit A. The agent running this skill has done other work, so it MUST NOT
+      start the run itself (`ai/rules/commands.md`): name `./le verify current`
+      as owed in the report, and the main thread runs it, itself or through a
+      fresh `/ze-verify` agent. A red there gets a fix commit of its own. It does
+      not reopen the spec and does not hold the closing commits
+      (`ai/rules/pre-release.md`).
 
    **Why one script, two commits, no follow-up:** closure must not depend on a
    later reminder to remove the spec. Include all required changes in the script.

@@ -9,7 +9,7 @@ Prepare a commit script (verification only when needed) and run it yourself.
 Does NOT run git commit or git add as direct tool calls -- everything goes
 through the script. This is not a late implementation review.
 
-See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (standalone verification)
+See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone verification)
 
 ## Steps
 
@@ -33,17 +33,24 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
    loop, queue, retry, and cache? Does each new name say what the value IS rather
    than its Go type? Does each new lifecycle or paired call state its obligation
    with MUST on BOTH sides? Fix what they find before you draft the message.
-3. **Verification decision:** Apply `ai/rules/git-safety.md`.
+3. **Verification decision:** A commit owes the focused test for what it
+   changed, run once (`ai/rules/testing.md`). It never owes the full gate,
+   which runs once per piece of work, over its final commit.
    - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
-     files per the NO row, skip `./le verify worktree` entirely and record the skip reason.
+     files, skip verification entirely and record the skip reason.
    - Before verification, run `./le verify status check` with one `path <file>` pair per scoped file.
-   - If it prints FRESH, MUST NOT run `./le verify worktree` again. Use the
+   - If it prints FRESH, MUST NOT run anything again. Use the
      reported timestamp as evidence.
-   - If it prints STALE and verification applies, run `./le verify worktree`
-     once. There is no changed-only spelling.
+   - If it prints STALE and verification applies, run the scoped package test
+     for each changed package under `./le job run`, the functional test of
+     each behavior the commit changed, and `./le verify current fast` once.
+     Never run `./le verify current` or `./le verify worktree` here: both judge
+     HEAD, which does not hold this commit yet.
 4. **Failure handling:** If verification fails, read
-   `tmp/ze-verify-failures.log` first, report the blocking failure groups, and
-   stop. Do not prepare a commit script for failing code.
+   `tmp/ze-verify-failures.log` first and ask of each red whether it says the
+   product is wrong (`ai/rules/pre-release.md`). A red does not hold the
+   commit: name the red test and its cause in one line of the commit body, and
+   report each red that exposes a product defect so it gets its source fix.
 5. **Draft commit message:** Base the subject and body on the scoped changes.
    Do not run `git log` just to imitate style unless the user explicitly asks.
 6. **Generate commit script:** Use `./le commit create`; it is the sole staging
@@ -71,8 +78,8 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
 
 - **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the script from `./le commit create`, then run the exact `script=` path it printed.
 - `./le commit create` is the sole staging and commit route. There is no hand-written fallback.
-- Always run `./le verify status check` with the scoped paths before verification. A FRESH PASS is authoritative and forbids rerunning `./le verify worktree`.
-- If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.
+- Always run `./le verify status check` with the scoped paths before verification. A FRESH PASS is authoritative and forbids rerunning anything.
+- If verification is STALE and required, run step 3's focused set once, then proceed from its result. Do not stack extra health checks or speculative gates.
 - Do not run late completeness audits, health checks, recent-commit style reviews, remaining-work tables, or companion-artifact reviews unless the user explicitly asks for them.
 - Step 2's style gate is the ONE exception, and it stays inside its bounds: one grep, one read of the added lines, four questions. It never grows into `/ze-review`.
 - Never include spec files unless the user explicitly asks.

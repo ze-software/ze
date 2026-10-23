@@ -30,7 +30,14 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
 | 4 | `./le verify current fast` | Checking the working tree before a commit | about 2 minutes |
-| 5 | `./le verify current` | The full gate over the last commit | minutes |
+| 5 | `./le verify current` | The full gate, once per piece of work, over its final commit | minutes |
+
+Steps 1 to 4 are development: run the ones that cover what you changed, and
+`./le repo changed scope print both` names them
+(`running-commands.md`, "The changed-set selector"). Step 5 never runs between
+phases, review rounds or fixes, because it judges HEAD and the work is not in
+HEAD until its final commit. A red it finds gets a fix commit; it does not hold
+the commit it judged.
 
 `./le verify current` is the full gate. It runs every stage in a fresh
 detached worktree at HEAD, through the same lifecycle as `./le verify worktree`,
@@ -650,7 +657,8 @@ Reproducing a load-dependent flake is
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
-| Run the pre-commit check | `./le verify current` |
+| Check the working tree before a commit | `./le verify current fast` |
+| Run the full gate, once, after the final commit of a piece of work | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

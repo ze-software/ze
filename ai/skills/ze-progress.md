@@ -20,7 +20,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | 1 | Implementation | Every AC names the producing function, every TDD test exists, every "Files to Modify/Create" entry was touched, and the Wiring Test table rows all have a real `.ci` test |
 | 2 | Work Not Done | Every row in this spec's **Work Not Done** table names a spec that exists on disk, and no other spec's table routes unfinished work here. See step 5 for the two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
-| 4 | Commit A | `./le verify worktree` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
+| 4 | Commit A | The targeted tests for what changed passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed. No full gate is owed before commit A: it runs once, over the closing commits (`/ze-close` step 6f) |
 | 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/<work-folder>/spec-<name>.md` has been removed via `./le commit create ... remove plan/<work-folder>/spec-<name>.md` in the same commit, which also deletes its working-tree copy |
 
 A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpoints, not endpoints.
@@ -47,7 +47,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - If uncommitted code exists AND no review has run since it was written: STAGE = 3. Go to step 9.
    - If a review ran but reported unresolved BLOCKER or ISSUE items that are not yet fixed: STAGE = 3.
 7. **Stage 4 -- Commit A:** Check:
-   - Did `./le verify worktree` pass recently? Check `tmp/ze-verify.log` (<1h old) or a documented pass in session state.
+   - Did the targeted tests for what changed pass (the scoped package tests, component groups, functional suites and `./le verify current fast` named in session state or the phase handoffs)? A missing full gate run is not a gap at this stage.
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
@@ -92,7 +92,8 @@ Or: "Every item this spec did not do names a spec that exists."
 
 ### Commit A (code + completed spec)
 - Uncommitted files in spec scope: [list, or "none"]
-- `./le verify worktree`: [PASS (Nh ago) / FAIL / not run recently]
+- Targeted tests: [PASS / FAIL / not run, naming what ran]
+- Full gate (`./le verify current`, owed once after commit B): [PASS / FAIL with its fix commit / owed]
 
 ### Commit B (closure -- spec -> journal)
 - Journal row naming this spec: [present in plan/journal/<class>.md / missing]

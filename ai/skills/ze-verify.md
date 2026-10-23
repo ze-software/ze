@@ -5,7 +5,16 @@ description: Verify
 
 # Verify
 
-Run `./le verify worktree` and report results clearly.
+Run the tests that cover what changed and report results clearly. The full gate
+runs only in full mode (below).
+
+| Mode | When | What runs |
+|------|------|-----------|
+| targeted (the default) | during development: after a phase, a fix or a review round | the scoped package tests, component groups and functional suites for what changed, then `./le verify current fast` |
+| full | the caller is past the final commit of a piece of work (for a spec, after `/ze-close` landed commit A), or explicitly asks for the full gate | `./le verify current` |
+
+The full gate judges HEAD in a fresh worktree, so it runs once per piece of
+work, over its final commit, and never between phases, review rounds or fixes.
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
@@ -36,11 +45,22 @@ phase itself.
 
 1. **Check freshness:** Run `./le verify status check`. A FRESH answer forbids
    rerunning the gate. A STALE answer names why verification is owed.
-2. **Run verification:** Execute `./le verify worktree` in the foreground,
-   giving the call the largest timeout the harness allows. Never poll or kill a
-   slow live run. Native job admission queues or attaches equivalent work.
-   `commit <revision>` selects a commit other than HEAD; `keep` retains a red
-   worktree for inspection.
+2. **Run verification** in the foreground, giving each call the largest
+   timeout the harness allows. Never poll or kill a slow live run. Native job
+   admission queues or attaches equivalent work.
+   - **Targeted:** run `./le repo changed scope print both` to name the changed
+     packages, their importers and the feature tags they reach
+     (`docs/contributing/running-commands.md`, "The changed-set selector").
+     Run the scoped package tests under `./le job run`, the component group
+     for each package (`./le test unit <group>`), and the functional suite for
+     each behavior the change touched (`./le test functional <suite>`), picking
+     the rungs of `docs/contributing/testing.md`, "The escalation ladder".
+     Then run `./le verify current fast`, which runs the changed-files stages
+     in place. Do not widen to `./le test unit all`, `./le test functional
+     gating` or the full gate.
+   - **Full:** run `./le verify current`, which judges HEAD in a fresh
+     worktree. `./le verify worktree commit <revision>` selects a commit other
+     than HEAD; `keep` retains a red worktree for inspection.
 3. **Parse results:** On failure, search the log:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
    - Also check exit code
@@ -48,7 +68,7 @@ phase itself.
 
    **On success:**
    ```
-   ## Verify: PASS
+   ## Verify (targeted|full): PASS
    - Lint: pass
    - Unit tests: pass ([count] tests)
    - Functional tests: pass ([count] tests)
@@ -57,7 +77,7 @@ phase itself.
 
    **On failure:**
    ```
-   ## Verify: FAIL
+   ## Verify (targeted|full): FAIL
 
    ### Failures
    | # | Type | Test | Error |
@@ -75,9 +95,9 @@ phase itself.
 
 ## Fallback
 
-A slow run and admission contention are not failures. Fall back to individual
-native stages only when the worktree action cannot run for an environmental
-reason:
+A slow run and admission contention are not failures. In full mode, fall back
+to individual native stages only when the worktree action cannot run for an
+environmental reason:
 1. `./le go lint run`
 2. `./le test unit all`
 3. `./le test functional gating`

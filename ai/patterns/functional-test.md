@@ -292,5 +292,5 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 [ ] If testing JSON: expect=json with all non-volatile fields
 [ ] If testing CLI: expect=exit:code + expect=stdout:contains
 [ ] If testing error: expect=stderr:contains or pattern
-[ ] Test runs successfully with ./le test functional gating
+[ ] Test runs successfully with ./le test functional <suite>, the suite it lives in
 ```

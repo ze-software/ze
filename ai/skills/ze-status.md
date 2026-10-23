@@ -24,10 +24,13 @@ See also: `/ze-debrief` (deep dive on current session/spec)
    - Uncommitted changes (count and key files)
    - Recent commits (last 5)
 4. **Release categories:** Use the inventory's category counts, not an independent set of directory globs. Show release fixes first, with validation and delivery alongside their prerequisites. Then read the selected spec's **Work Not Done** table and list any row whose owning spec is absent from the inventory.
-5. **Test state:** Check `tmp/ze-verify.log`. If it exists, check its age and whether it shows failures.
-   - Fresh (<1h) and passing: "Tests: PASS (Nh ago)"
-   - Fresh and failing: "Tests: FAIL -- [count] failures (Nh ago)"
-   - Stale (>1h) or missing: "Tests: not run recently"
+5. **Test state:** Check `tmp/ze-verify.log`. If it exists, report its age and whether it shows failures.
+   - Passing: "Tests: PASS (Nh ago)"
+   - Failing: "Tests: FAIL -- [count] failures (Nh ago)"
+   - Missing: "Tests: no run recorded"
+   An old or missing run is not an attention item. During development only
+   the targeted tests for what changed run, and the full gate runs once per
+   piece of work, over its final commit.
 6. **Present the status** using this format:
 
 ```
@@ -59,7 +62,6 @@ Generate the attention list by checking these conditions in order:
 | Spec blocked | "[spec] blocked on [dependency]" | Check dependency |
 | A **Work Not Done** row naming a spec that is not on disk | "[spec] routes N items at a spec nobody wrote" | Write the spec in the bucket that item belongs to |
 | No spec selected but specs exist | "No spec selected" | `/ze-spec` to resume or create |
-| Stale test results | "Tests not run recently" | `/ze-verify` |
 
 Only show items that actually apply. If nothing needs attention, say "Nothing pending."
 

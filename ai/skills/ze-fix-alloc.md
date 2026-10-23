@@ -23,7 +23,7 @@ See also: `/ze-find-alloc` (find allocations to fix)
 5. Read callers of the function to understand how the result is used
 6. Apply the appropriate fix pattern (see below)
 7. Update any page from step 3 that this change made wrong, in the same diff, before you verify
-8. Run `./le go lint run && ./le test unit all` to verify
+8. Verify with the targeted set: the scoped package test of the changed package under `./le job run`, its component group (`./le test unit <group>`), and `./le verify current fast`. The full gate runs once, over the final commit of the work
 
 ## Pre-Flight Checks
 
@@ -183,8 +183,8 @@ n.cached = make([]byte, 2+len(data))
 After making changes:
 
 1. **Compile:** `go build ./...`
-2. **Lint:** `./le go lint run`
-3. **Test:** `./le test unit all`
+2. **Test:** the scoped package test of each changed package under `./le job run`, then its component group (`./le test unit <group>`)
+3. **Changed-files stages:** `./le verify current fast`, which runs the changed-files stages in place. Never `./le test unit all` or the full gate here: the full gate runs once, over the final commit of the work
 4. **Check for Pack() deprecation:** If ALL callers now use WriteTo, add deprecation comment to Pack()
 5. **Documentation:** the pages from instruction 3 describe the code as it now stands, and the diff carries those edits (`ai/rules/documentation.md`)
 
