@@ -152,6 +152,41 @@ func TestNegotiatedFamilies(t *testing.T) {
 	require.Len(t, families, 2)
 }
 
+// TestNegotiatedFamiliesKeepThePeerOrder checks that Families answers the
+// negotiated families in the order the peer's OPEN listed them, filtered by
+// what ze sent, and keeps that order on every call.
+//
+// VALIDATES: Negotiate records the peer's Multiprotocol order, the order ExaBGP
+// lists the negotiated families in (negotiated.py, Negotiated.received), which
+// the negotiated event and the ExaBGP bridge then carry unchanged.
+// PREVENTS: a family list in Go map order, which two events of one session
+// could disagree on, or one sorted into an order ExaBGP never writes.
+func TestNegotiatedFamiliesKeepThePeerOrder(t *testing.T) {
+	t.Parallel()
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIFlowSpec},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
+	}
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIMulticast}, // not sent: filtered out
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIFlowSpec},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast}, // repeated: listed once
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+	}
+	want := []Family{
+		{AFI: AFIIPv6, SAFI: SAFIUnicast},
+		{AFI: AFIIPv4, SAFI: SAFIFlowSpec},
+		{AFI: AFIIPv4, SAFI: SAFIUnicast},
+	}
+
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
+	for range 3 {
+		require.Equal(t, want, neg.Families())
+	}
+}
+
 // TestNegotiateEmpty verifies negotiation with no capabilities.
 //
 // VALIDATES: Edge case - minimal BGP session. Neither side declares a

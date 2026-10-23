@@ -6,11 +6,9 @@
 package bridge
 
 import (
-	"slices"
 	"sync"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/family"
 )
 
 // sessionStateDown is ze's state word for a session that left Established,
@@ -175,7 +173,9 @@ func unexchangedNegotiated() map[string]any {
 //	 "families": ["ipv4 unicast", "ipv6 unicast"], "nexthop": [],
 //	 "add_path": {"send": [], "receive": []}}
 //
-// The families are in AFI then SAFI order, the order ExaBGP lists them in.
+// The families keep the order ze's event carries, the peer's OPEN order, which
+// is the order ExaBGP lists them in (negotiated.py, Negotiated.received): the
+// bridge never reorders them.
 // `multisession` and `operational` are false on every ze session: ze opens no
 // multi-session session and speaks no OPERATIONAL (ai/META-DECISIONS.md).
 // The empty lists are written, as ExaBGP writes them, so a helper that indexes
@@ -226,7 +226,7 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 	}
 	// ExaBGP writes one "<afi> <safi> <next-hop afi>" per RFC 8950 tuple.
 	if nextHops, ok := zebgp["extended-next-hop"].(map[string]any); ok {
-		result[negotiatedNextHop] = convertNextHops(nextHops)
+		result[negotiatedNextHop] = convertNextHops(nextHops, zebgp["families"])
 	}
 	// Paths-limit is ze's, with no ExaBGP spelling to match: its keys follow
 	// the ExaBGP conventions (underscore, space-separated families).
@@ -243,71 +243,50 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 	return result
 }
 
-// convertNextHops answers ze's family to next-hop AFI map as ExaBGP's list,
-// in the order of the families.
-func convertNextHops(nextHops map[string]any) []string {
-	families := make([]string, 0, len(nextHops))
-	for name := range nextHops {
-		families = append(families, name)
-	}
-	slices.SortStableFunc(families, compareFamilyNames)
-	result := make([]string, 0, len(families))
-	for _, name := range families {
-		afi, _ := nextHops[name].(string)
+// convertNextHops answers ze's family to next-hop AFI map as ExaBGP's list.
+// Ze's event carries the tuples as a JSON object, which holds no order, so the
+// list follows the negotiated families: the peer's OPEN order, the order the
+// event's `families` carries. A family the map names that the list does not
+// is not negotiated, and ze never writes one (NegotiatedToDecoded).
+func convertNextHops(nextHops map[string]any, families any) []string {
+	names, _ := families.([]any)
+	result := make([]string, 0, len(nextHops))
+	for _, f := range names {
+		name, ok := f.(string)
+		if !ok {
+			continue
+		}
+		afi, ok := nextHops[name].(string)
+		if !ok {
+			continue
+		}
 		result = append(result, exabgpFamilyName(name)+" "+afi)
 	}
 	return result
 }
 
 // convertFamilyList converts a list of families from ZeBGP to ExaBGP format:
-// "ipv4/unicast" becomes "ipv4 unicast", in AFI then SAFI order.
+// "ipv4/unicast" becomes "ipv4 unicast", in the order ze's event lists them.
 //
 // Through exabgpFamilyName, not a slash swap. Two SAFIs are spelled differently
 // by the two projects -- ze's mpls-label is ExaBGP's nlri-mpls, and ze's mvpn is
 // its mcast-vpn -- and every other name is identical, which is exactly why a
 // bare ReplaceAll looked right for years.
 //
-// The order is ExaBGP's, and ze's event does not keep one: it lists the
-// families as a Go map iterates them, so two events of one session could
-// disagree, and a 5.0 helper comparing the list met a different one on each
-// line (TestOldResponses50).
+// The order is not changed. Ze's event lists the families in the order the
+// peer's OPEN carried them (capability.Negotiated.Families), and ExaBGP 5.0.1
+// lists them the same way (negotiated.py, Negotiated.received), as does the
+// pin (f9bfb853b: "self.families = [family for family in
+// self._multiprotocol(recv_capa) if family in sent_families]"). The ADD-PATH
+// lists are filtered from that list, in its order, on both sides.
 func convertFamilyList(families []any) []string {
-	names := make([]string, 0, len(families))
+	result := make([]string, 0, len(families))
 	for _, f := range families {
-		if s, ok := f.(string); ok {
-			names = append(names, s)
+		if name, ok := f.(string); ok {
+			result = append(result, exabgpFamilyName(name))
 		}
-	}
-	slices.SortStableFunc(names, compareFamilyNames)
-	result := make([]string, 0, len(names))
-	for _, name := range names {
-		result = append(result, exabgpFamilyName(name))
 	}
 	return result
-}
-
-// compareFamilyNames orders two ze family names by AFI, then SAFI. A name the
-// family registry does not know sorts after every known one, and two unknown
-// names keep the order they came in.
-func compareFamilyNames(a, b string) int {
-	first, firstKnown := family.LookupFamily(a)
-	second, secondKnown := family.LookupFamily(b)
-	if !firstKnown {
-		if secondKnown {
-			return 1
-		}
-		return 0
-	}
-	if !secondKnown {
-		return -1
-	}
-	if family.FamilyLess(first, second) {
-		return -1
-	}
-	if family.FamilyLess(second, first) {
-		return 1
-	}
-	return 0
 }
 
 // convertFamilyKeyMap converts a map with family keys from ZeBGP to ExaBGP

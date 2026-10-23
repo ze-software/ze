@@ -844,9 +844,12 @@ func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	fleet.Stop()
 
 	block := negotiatedOfUpdate(t, readFile(t, grantedOut))
+	// The families keep the event's order, the peer's OPEN order, as ExaBGP
+	// lists them (negotiated.py, Negotiated.received); this test expected AFI
+	// then SAFI order while the bridge sorted, which ExaBGP never did.
 	want := map[string]any{
 		"add_path": map[string]any{"receive": []any{}, "send": []any{}},
-		"asn4":     true, "families": []any{"ipv4 unicast", "ipv6 unicast"},
+		"asn4":     true, "families": []any{"ipv6 unicast", "ipv4 unicast"},
 		"hold_time": float64(90), "message_size": float64(4096), "multisession": false,
 		"nexthop": []any{}, "operational": false, "refresh": "normal",
 	}

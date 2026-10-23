@@ -452,6 +452,34 @@ func TestNegotiatedToDecoded(t *testing.T) {
 		require.Equal(t, "normal", decoded.RouteRefresh)
 	})
 
+	// The families and the ADD-PATH send list keep the peer's OPEN order, which
+	// is not AFI then SAFI order here: the negotiated event carries it, and the
+	// ExaBGP bridge gives it to a script as ExaBGP would (negotiated.py,
+	// Negotiated.received).
+	t.Run("families_in_peer_order", func(t *testing.T) {
+		both := &capability.AddPath{Families: []capability.AddPathFamily{
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathBoth},
+			{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast, Mode: capability.AddPathBoth},
+		}}
+		local := []capability.Capability{
+			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+			&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
+			both,
+		}
+		remote := []capability.Capability{
+			&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
+			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+			both,
+		}
+		neg := capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})
+
+		decoded := NegotiatedToDecoded(neg)
+
+		require.Equal(t, []string{"ipv6/unicast", "ipv4/unicast"}, decoded.Families)
+		require.Equal(t, []string{"ipv6/unicast", "ipv4/unicast"}, decoded.AddPathSend)
+		require.Equal(t, []string{"ipv6/unicast", "ipv4/unicast"}, decoded.AddPathReceive)
+	})
+
 	t.Run("no_route_refresh", func(t *testing.T) {
 		neg := &capability.Negotiated{
 			RouteRefresh:         false,

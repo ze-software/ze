@@ -114,7 +114,8 @@ type Negotiated struct {
 	// which won't appear in the negotiated intersection if we don't advertise them.
 	peerCodes map[Code]bool
 
-	// Cached family slice
+	// familySlice is the negotiated families in the order the peer's OPEN
+	// listed them (Negotiate), which Families answers.
 	familySlice []Family
 }
 
@@ -149,6 +150,10 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 	// Build sets for efficient lookup
 	localFamilies := make(map[Family]bool)
 	remoteFamilies := make(map[Family]bool)
+	// remoteOrder keeps the peer's Multiprotocol capabilities in the order its
+	// OPEN carried them, each once: ExaBGP lists the negotiated families in that
+	// order, and a migrated script reads that list (Families).
+	var remoteOrder []Family
 	var localAddPath, remoteAddPath *AddPath
 	var localPathsLimit, remotePathsLimit *PathsLimit
 	var localExtNH, remoteExtNH *ExtendedNextHop
@@ -200,7 +205,11 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 		neg.peerCodes[c.Code()] = true
 		switch cap := c.(type) {
 		case *Multiprotocol:
-			remoteFamilies[Family{AFI: cap.AFI, SAFI: cap.SAFI}] = true
+			f := Family{AFI: cap.AFI, SAFI: cap.SAFI}
+			if !remoteFamilies[f] {
+				remoteOrder = append(remoteOrder, f)
+			}
+			remoteFamilies[f] = true
 		case *ASN4:
 			remoteASN4 = true
 		case *AddPath:
@@ -313,6 +322,7 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 	}
 	if len(remoteFamilies) == 0 {
 		remoteFamilies[FamilyImplicit] = true
+		remoteOrder = append(remoteOrder, FamilyImplicit)
 	}
 
 	// RFC 4760 Section 8: Multiprotocol capability negotiation
@@ -331,6 +341,17 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 			})
 		}
 	}
+	// The negotiated families in the peer's OPEN order, the order ExaBGP 5.0.1
+	// writes them in (negotiated.py, Negotiated.received: "for family in
+	// recv_capa[Capability.CODE.MULTIPROTOCOL]: if family in
+	// sent_capa[Capability.CODE.MULTIPROTOCOL]: self.families.append(family)").
+	neg.familySlice = make([]Family, 0, len(neg.families))
+	for _, f := range remoteOrder {
+		if neg.families[f] {
+			neg.familySlice = append(neg.familySlice, f)
+		}
+	}
+
 	// Also track families peer supports but we don't
 	for f := range remoteFamilies {
 		if !localFamilies[f] {
@@ -533,17 +554,14 @@ func (n *Negotiated) ExtendedNextHopAFI(f Family) AFI {
 	return n.extendedNextHop[f]
 }
 
-// Families returns a slice of all negotiated families.
+// Families returns the negotiated families, in the order the peer's OPEN
+// listed them.
 // RFC 4760: Returns the intersection of local and remote multiprotocol
 // capabilities, where a side that advertised none counts as having advertised
-// ipv4/unicast (Negotiate).
+// ipv4/unicast (Negotiate). The order is stable for the session and is the one
+// ExaBGP gives a script, so the negotiated event, its ADD-PATH lists and the
+// ExaBGP bridge all carry it unchanged. The caller MUST NOT modify the slice.
 func (n *Negotiated) Families() []Family {
-	if n.familySlice == nil {
-		n.familySlice = make([]Family, 0, len(n.families))
-		for f := range n.families {
-			n.familySlice = append(n.familySlice, f)
-		}
-	}
 	return n.familySlice
 }
 

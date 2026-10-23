@@ -13,7 +13,11 @@ import (
 // TestSessionsKeepTheBlockFromNegotiatedToDown checks the life of a session's
 // negotiated block: an UPDATE of the peer gets it after the peer's
 // `negotiated` event, an UPDATE of another peer does not, and none does once
-// the peer went down.
+// the peer went down. The families, the ADD-PATH list and the next hops keep
+// the order ze's event carries, the peer's OPEN order, which is not AFI then
+// SAFI order here: ExaBGP lists them as the peer's OPEN did (negotiated.py,
+// Negotiated.received), so a bridge that sorted them gave a script a list
+// ExaBGP never writes.
 //
 // VALIDATES: Sessions.Note, the runner state behind the negotiated block
 // ExaBGP writes on every UPDATE line (Response.JSON.update).
@@ -37,8 +41,8 @@ func TestSessionsKeepTheBlockFromNegotiatedToDown(t *testing.T) {
 			"timer": map[string]any{"hold-time": float64(180)}, "message-size": float64(65535),
 			"route-refresh": "enhanced", "asn4": true,
 			"families":          []any{"ipv6/unicast", "ipv4/flow", "ipv4/unicast"},
-			"add-path":          map[string]any{"send": []any{"ipv4/unicast"}},
-			"extended-next-hop": map[string]any{"ipv4/unicast": "ipv6"},
+			"add-path":          map[string]any{"send": []any{"ipv6/unicast", "ipv4/unicast"}},
+			"extended-next-hop": map[string]any{"ipv4/unicast": "ipv6", "ipv4/flow": "ipv6"},
 		},
 	}})
 	sessions.Note(&negotiated)
@@ -48,9 +52,9 @@ func TestSessionsKeepTheBlockFromNegotiatedToDown(t *testing.T) {
 	want := map[string]any{
 		"hold_time": float64(180), "message_size": float64(65535), "asn4": true,
 		"multisession": false, "operational": false, "refresh": "enhanced",
-		"families": []string{"ipv4 unicast", "ipv4 flow", "ipv6 unicast"},
-		"nexthop":  []string{"ipv4 unicast ipv6"},
-		"add_path": map[string]any{"send": []string{"ipv4 unicast"}, "receive": []string{}},
+		"families": []string{"ipv6 unicast", "ipv4 flow", "ipv4 unicast"},
+		"nexthop":  []string{"ipv4 flow ipv6", "ipv4 unicast ipv6"},
+		"add_path": map[string]any{"send": []string{"ipv6 unicast", "ipv4 unicast"}, "receive": []string{}},
 	}
 	if !reflect.DeepEqual(ours.Negotiated, want) {
 		t.Errorf("the peer's UPDATE block:\n got %v\nwant %v", ours.Negotiated, want)
