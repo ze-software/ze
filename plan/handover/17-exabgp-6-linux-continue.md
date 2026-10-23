@@ -7,33 +7,74 @@ Linux host. The long running log is `03-session-2026-10-18-linux-continue.md`
 Claimed spec: `plan/release/fixes/spec-exabgp-6-api-compatibility.md` (Phase 7
 in progress). Claim it with `./le spec claim spec <file>`.
 
-## START HERE: Mac session eaf85631 (2026-10-23)
+## START HERE: end of Mac session eaf85631 (2026-10-23)
 
-Done and committed:
-- FlowSpec IPv6 route-target redirect sent from config, `update text` and the
-  ExaBGP bridge (2ad0b56c6b); the config tokenizer keeps `redirect:[<IPv6>]:<nn>`
-  as one word. Proof: `test/encode/flow-redirect-ipv6.ci`, a fifth case in
-  `test/exabgp-compat/api/api-flow-redirect.ci`. Journal row closed.
-- The negotiated-before-KEEPALIVE page text restored (the reactor fix had
-  landed in afbfe6b42f); the held page file is deleted.
-- Gate repair a47edcaa21: core-only and cgo-free builds compile again
-  (staticcheck part 2 of 6 green). Orphan `api-keep-first-v4.ci` removed.
-- `ai/META-DECISIONS.md` rewritten as plain rules, labels removed tree-wide
-  (ecf2804fc1 and the plan/ commit after it).
+Supersedes "Owner decisions still open" and items 4 and 5 of "Remaining work"
+below. Claim the spec, read its "Open Owner Decisions" (OD-1, OD-2), then
+work the list here.
 
-Open, for the next session:
-- `exabgp-test` replay of the 4.2/5.0 recordings is red on `api-multisession`:
-  an intended difference with no allowed entry (journal row in
-  `test-against-broken-path.md`).
-- Scoped lint reports two findings in committed
-  `internal/component/config/parser_diagnostics.go` (errorlint line 29,
-  gocritic ifElseChain line 50).
-- Four other sessions' `test/weakened/` shards hold uncommitted label removals
-  that only their sessions can commit.
-- Full verification of this session's commits is owed; the Linux host takes no
-  full runs, so it runs on the Mac. Push stays refused until the debt clears.
-- Next for the spec: items 4, 5 and 8 below, then Phase 8, review, close.
-  The wiki review is unchecked (`../wiki`, 351aba8 unpushed).
+Landed (main, not pushed):
+- FlowSpec IPv6 route-target redirect from config, `update text` and the
+  bridge (2ad0b56c6b). Gate repair a47edcaa21. `ai/META-DECISIONS.md` as
+  plain rules (ecf2804fc1). `api-multisession` allowed in the old replays.
+- Plugin-family config routes carry every generic attribute, encoded once by
+  the dispatcher (a4fe1b70f3); SR Policy carries its Route Target (79fa5db993,
+  found by interop: a4fe1b70f3 had refused it at load).
+- A withheld route (RPKI pending or Invalid, NO_EXPORT, NO_ADVERTISE,
+  next-hop gates, AIGP, policy or role reject) is withdrawn only from a
+  destination that was advertised it (010e649057, OD-2; RFC 4271 Section 3.1,
+  FRR and BIRD agree). The RPKI-engine half of OD-2 needed no code: tests pin
+  that a pending withdrawal cancels its verdict and cannot overtake a queued
+  revalidation. Owner approved the re-fixtured RFC-tagged tests (OD-2 row).
+- `conf-watchdog`: the compat harness now puts the running le on the
+  daemon's PATH, a helper that cannot start logs an ERROR, and migration keeps
+  a watchdog route's `withdraw` start (e2e318b4cb). Journal row closed.
+- Interop scenarios: `bgp-send-community-suppress-frr` attaches rs (red
+  since attach-driven delivery), both SR Policy GoBGP scenarios assert the
+  Route Target by type and sub-type (440ee43f73).
+- Owner answers recorded in the build-cache-cap and shared-launcher specs
+  (886fd58d46); RFC-quote approval for verification debt 42ff67c4 (99bead542d).
+
+Interop evidence on the Mac (Colima arm64), all green after the fixes:
+bgp-vpn-withheld-withdraw-frr, bgp-role-otc-withdraw-frr,
+bgp-role-rs-client-learned-not-upward-frr, bgp-route-withdrawal-frr, the
+three bgp-relay-withdraw-*-frr, rpki-frr, bgp-community-frr,
+bgp-send-community-suppress-frr, bgp-flowspec-frr, bgp-flowspec-gobgp,
+bgp-flowspec-redirect-check-frr, bgp-evpn-frr, bgp-evpn-gobgp,
+bgp-sr-policy-gobgp, bgp-exabgp-bridge-sr-policy-gobgp. The exabgp-test
+stage is green against 5.0.15 and main.
+
+Owed, in order:
+1. Full verification (`./le verify current`), on a quiet Mac or another
+   host, never the Linux host. Push stays refused until it is FRESH.
+2. RFC records the withdrawal fix staled: `/ze-rfc-audit` by an agent that
+   did not write it, for RFC2545-3-1, RFC4659-3.2.1.1-1, RFC7311-3.4.3-6 and
+   -7, RFC7911-2-1 and 2-2, RFC7947-x-4, RFC8955-4-3; then `./le rfc reseal`
+   (whole tree: run it when no other session holds rfc/ edits) for linklocal
+   6-1, rfc2545 3-2 and 3-3, rfc7311 3.4.3-2, rfc7911 5-3, rfc7947 2.2-1.
+3. End-to-end `.ci` for a route withdrawn while pending RPKI validation
+   through rr or rs: extend the `plugin/rpki-revalidate-relay` observer
+   (`internal/test/fixture/plugin_fixture_15_rpki.go`) with announce while
+   pending, withdraw before the VRP release, then release; the destination
+   must receive nothing.
+4. Spec work: the `auto-flush` leaf is accepted but unwired; item 8 below
+   (rfc-verdict-fix-bgp interop records); Phase 8 docs, spec review, close.
+5. Wiki review (`../wiki`, 351aba8 unpushed).
+
+Journaled, not this spec's: the late-verdict WARN that calls a normal case a
+bug (`normal-state-logged-at-error.md`); a msgID-less text verdict applied to
+the next generation (`late-write-lands-on-the-successor.md`); label/labels
+ignored in a plugin family's block (`unwired-feature.md`); reactor lint
+findings in untouched files (`lint-contract-not-applied.md`). The 12 reactor
+RS and owed-key race reds belong to `spec-bgp-rs-replacement-on-withdrawal`.
+
+Traps met: zsh `>(...)` swallows output, redirect to a file; a named
+`./le --name X test exabgp N` used to run without its helper (fixed in
+e2e318b4cb); RFC evidence is now one file per requirement
+(`rfc/discrimination/<stem>/<rid>.json`, dcc219072a), so run `./le --update`
+before any `./le rfc` command; the gobgp session owns
+`internal/le/interoplab/bgp/checkers.go`, `names.go` and its two scenarios
+while its edits are uncommitted.
 
 ## START HERE: state at the end of Linux session ed4b8d60 (2026-10-22)
 
