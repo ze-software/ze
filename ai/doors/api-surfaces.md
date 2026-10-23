@@ -20,7 +20,7 @@ exporter (`telemetry`). Their wiring lives in `cmd/ze/hub` (`hub-engine.md`).
     surfaces `Web` and `MCP`). The looking glass gets the web one
     (`cmd/ze/hub/service_lg.go` `buildLGService`) and never imports a RIB or
     peer package (`docs/architecture/web-interface.md`, "LG Data Access").
-  - MCP builds its tools at `tools/list` time from the live command list
+  - MCP builds its tools at `tools/list` time from the live command list <!-- doc-links: ignore (MCP method name, not a repository path) -->
     (`internal/component/mcp` `CommandLister`), so a new command needs no MCP edit.
 - **Two surfaces do not go through the command registry.** gNMI serves the
   YANG config tree (Get, Set, Subscribe) through a config session manager
@@ -37,7 +37,7 @@ exporter (`telemetry`). Their wiring lives in `cmd/ze/hub` (`hub-engine.md`).
 | Outside party | Contract | Breaks when |
 |---------------|----------|-------------|
 | Alice-LG and other birdwatcher clients | `docs/architecture/api/birdwatcher-compat.md`, which is normative: endpoints, envelope, snake_case keys (the one JSON exception, `web-interface.md`), and five listed divergences from upstream | A field, a count or an endpoint direction changes. Upstream publishes no schema, so that page is the only reference |
-| gNMI collectors and tools (gnmic, Ansible, controllers) | gNMI Capabilities, Get, Set and Subscribe over the Ze YANG models, port 9339 by default (`api/architecture.md`, "gNMI Transport") | A YANG path or a key changes, because the client addresses config by path |
+| gNMI collectors and tools (gnmic, Ansible, controllers) | gNMI Capabilities, Get, Set and Subscribe over the Ze YANG models, port 9339 by default (`docs/architecture/api/architecture.md`, "gNMI Transport") | A YANG path or a key changes, because the client addresses config by path |
 | REST clients | `/api/v1/...` routes, the generated OpenAPI at `/api/v1/openapi.json` (`internal/component/api/rest/server.go`), `docs/guide/api.md` | A route, a parameter or the response JSON changes |
 | gRPC clients | `api/proto/ze.proto` (`ZeService`, `ZeConfigService`) | A message or a field number changes |
 | MCP clients | The `2026-07-28` Streamable HTTP profile, the only one accepted (`docs/architecture/mcp/overview.md`), and tools derived from commands | A command's name, parameters or answer shape changes, because the tool changes with it |

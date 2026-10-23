@@ -8,7 +8,7 @@ By contributing, you agree to the terms of the
 ## Process
 
 1. **Open an issue** describing what you want to work on.
-2. **Wait for a spec.** The maintainer will create a spec from `plan/TEMPLATE.md`
+2. **Wait for a spec.** The maintainer will create a spec from `plan/templates/TEMPLATE.md`
    so the work follows the project's structure and standards.
 3. **Implement the spec.** Follow the rules in `.claude/rules/` -- they apply to
    all contributions, whether written by hand or with AI assistance.

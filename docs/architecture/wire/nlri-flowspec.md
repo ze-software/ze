@@ -528,7 +528,7 @@ d4 01 f4           len=2, end, AND, lt   <500
 
 A peer that receives two Type 4 components instead reads the UPDATE as malformed.
 GoBGP v4.10.0 logs "ipv4-flowspec nlri violate strict type ordering" and resets the
-session (`pkg/packet/bgp/validate.go`, `ValidateUpdateMsg`).
+session (`pkg/packet/bgp/validate.go`, `ValidateUpdateMsg`). <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
 
 ### Packet-filter precedence
 

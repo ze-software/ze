@@ -449,7 +449,7 @@ once.
 A reused test result is only as good as the environment it was recorded
 under, and Go's test cache sees little of it. It hashes only the variables a
 test read through `os.Getenv` or `os.LookupEnv`; a read through `os.Environ`
-logs nothing (`computeTestInputsID`, `cmd/go/internal/test/test.go`), and
+logs nothing (`computeTestInputsID`, `cmd/go/internal/test/test.go`), and <!-- doc-links: ignore (Go toolchain source, outside this repository) -->
 `internal/core/env` builds its cache from `os.Environ`. Every Ze setting a test
 reads through `env.Get` is therefore invisible to it: change one in your shell
 and the next run may still answer `(cached)`. Run with `-count=1` after you
@@ -531,7 +531,7 @@ repopulates what it needs.
 <!-- source: internal/le/scratch/cacheclean.go -- cleanOldCacheEntries -->
 
 The floor and the hourly refresh are both fixed: `cacheEntryAgeFloor` in le,
-`mtimeInterval` in Go's `cmd/go/internal/cache`.
+`mtimeInterval` in Go's `cmd/go/internal/cache`. <!-- doc-links: ignore (Go toolchain source, outside this repository) -->
 
 The full empty, `./le scratch cache-clean all`, is the cause that does not
 clear so easily: emptied mid-run, the staticcheck matrix lost its parts 2 and 3

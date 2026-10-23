@@ -259,8 +259,8 @@ both", and ze offers the post-policy Adj-RIB-Out view only.
 
 The other six say a sentence does not bind ze. This one says the opposite: somebody is bound,
 over there. It exists because owner ruling D-1 (2026-07-31) moved twelve RFC 7296 sites out
-of `rfc/short/rfc7296.md` and into `plan/immediate/spec-ipsec-remote-access.md` and
-`plan/spec-ipsec-ipcomp.md`, where they stay gated. No other kind can say that. Forcing
+of `rfc/short/rfc7296.md` and into `plan/release/fixes/spec-ipsec-remote-access.md` and
+`plan/post-release/features/spec-ipsec-ipcomp.md`, where they stay gated. No other kind can say that. Forcing
 `binds-another-role` onto such a site would assert Ze plays no IRAS or IPComp role, while
 two specs exist to implement exactly those roles.
 

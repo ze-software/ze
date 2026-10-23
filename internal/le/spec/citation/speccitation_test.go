@@ -306,7 +306,7 @@ func TestEveryReleaseBucketIsCitedAndScanned(t *testing.T) {
 func TestEveryCurrentCategoryChecksReferences(t *testing.T) {
 	files := map[string]string{}
 	for _, category := range specpath.Categories() {
-		files[category.Dir+"/spec-"+category.Name+".md"] = "See `plan/release/fixes/spec-missing.md`.\n"
+		files[category.Dir+"/spec-"+category.Name+".md"] = "See `plan/release/fixes/spec-missing.md`.\n" // <!-- doc-links: ignore (synthetic missing target required by this negative test) -->
 	}
 	report := scanCitationTree(t, files)
 	if report.Specs != len(files) || len(report.Dangling) != len(files) {

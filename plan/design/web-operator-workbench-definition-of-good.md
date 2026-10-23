@@ -14,7 +14,7 @@ new explicit design decision.
 The page-level blueprint lives in
 [web-interface-design.md](web-interface-design.md). The implementation spec for
 the modular registry lives in
-[`plan/spec-web-plugin-extension-registry.md`](../spec-web-plugin-extension-registry.md).
+[`plan/post-release/features/spec-web-plugin-extension-registry.md`](../post-release/features/spec-web-plugin-extension-registry.md).
 
 ## The Short Version
 

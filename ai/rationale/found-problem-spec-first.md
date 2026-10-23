@@ -1,4 +1,4 @@
-**Superseded** by owner decision M28 (`ai/META-DECISIONS.md`, 2026-10-22): a found problem gets one journal row by default (the 2026-08-10 route in `ai/rules/rule-precedence.md`), and a spec only when one row cannot carry it; `plan/spec-journal-resolution.md` owns how rows are resolved. The text below is the history.
+**Superseded** by owner decision M28 (`ai/META-DECISIONS.md`, 2026-10-22): a found problem gets one journal row by default (the 2026-08-10 route in `ai/rules/rule-precedence.md`), and a spec only when one row cannot carry it; `plan/post-release/engineering/spec-journal-resolution.md` owns how rows are resolved. The text below is the history.
 
 # Why a found problem gets a spec before it gets a fix
 

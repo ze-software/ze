@@ -105,7 +105,7 @@ For a `library` entry, read the module in the module cache:
   output hook that rewrites the sender MAC, `arp saddr ether set <vmac>`; the
   appliance kernel has `CONFIG_NF_TABLES_ARP=y` and `CONFIG_NFT_PAYLOAD=y`
   (`gokrazy/kernel/kernel.config`). The test that settles both is a QEMU
-  functional test, `test/vrrp/vrrp-proxy-arp-vmac.ci` (not yet written), on
+  functional test, `test/vrrp/vrrp-proxy-arp-vmac.ci` (not yet written), on <!-- doc-links: ignore (planned test, not an existing fixture) -->
   the pattern of `vrrp-track.ci`: an Active and a Backup router, a host that
   sends an ARP request for a proxied address, and an AF_PACKET capture that
   reads the sender MAC of every reply and checks the Backup sends none.
