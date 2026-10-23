@@ -1333,6 +1333,14 @@ file's path, and every KEY names the path. A move therefore breaks nothing but
 the keys, and `./le rfc rename` rewrites the keys rather than re-stamping
 anything.
 
+The rename action removes its sources immediately; it does not prepare a
+commit. For tracked-file relocation, use the commit-owned `file`/`remove`
+workflow in [Committing](committing.md) instead. An untagged file with no
+evidence keys can be copied byte-for-byte to its destination while its source
+stays in place until the commit script removes it. Historical record citations
+keep their original paths.
+<!-- source: internal/le/rfc/rename.go -- applyRename -->
+
 ```
 ./le rfc rename from <old> to <new>
 ./le rfc rename plan <file>
