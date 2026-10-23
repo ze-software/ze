@@ -367,8 +367,9 @@ N-A: tooling, no protocol peer.
 
 ## Owner Questions
 
-Answered 2026-10-22 (Thomas): spec approved; Q-1 "yes require hardlink"; Q-2
-and Q-3 taken at the readings below, stated to him and not overruled.
+Answered 2026-10-22 (Thomas): spec approved; Q-1 "yes require hardlink".
+Q-2 and Q-3 confirmed 2026-10-23 (Thomas chose the readings below: `le-<name>`
+only, and a 1 hour floor).
 
 | ID | Question | Reading this spec proceeds under |
 |----|----------|----------------------------------|

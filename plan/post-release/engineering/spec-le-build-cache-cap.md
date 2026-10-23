@@ -406,6 +406,7 @@ The unmet line, as a text sample (the implementer may reword within AC-12):
 - A cache reader outside this user's process table (another user, a container not started by le) is not seen (A-2); the doc names this residual.
 - The race R-2 remains, as it does for Go's own trim.
 - Owner decision 2026-10-22 (Q-3, Thomas: "ok" to the recommendation): an unmet cap ALSO surfaces in the session-start banner (one line, printed only while the cap is unmet, naming the size, the budget key, the holding process and the fix) and as a `./le setup check` row, both read from the one ledger record the trim writes, so they cannot disagree; no cache walk at session start. The implementer adds the AC, test and wiring for both.
+- Owner decision 2026-10-23 (Thomas chose it when asked): the ambient cache budget `ze.le.store.ambient-cache-budget` defaults to 20G.
 
 ## Checklist
 
