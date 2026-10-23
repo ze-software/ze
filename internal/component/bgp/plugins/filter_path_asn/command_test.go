@@ -395,3 +395,51 @@ func TestAttachmentCountsPreserveFinalOnlyPolicies(t *testing.T) {
 		t.Fatalf("attachments = %+v, want import 0 export 1", got)
 	}
 }
+
+// TestShowCountsDynamicTemplateAttachments delivers real config and reads the
+// command answer: a template counts once, separately from its named member and
+// a standalone peer with the same name as the group. Repeated references at
+// different levels must not count one visit twice.
+func TestShowCountsDynamicTemplateAttachments(t *testing.T) {
+	held := installedRejectASN.Load()
+	t.Cleanup(func() { installedRejectASN.Store(held) })
+	err := configure([]sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{
+		"policy":{"reject-asn":{
+			"USED":{"anywhere":["6939"]},
+			"UNUSED":{"anywhere":["174"]}
+		}},
+		"peer":{"ix":{
+			"connection":{"remote":{"ip":"198.51.100.1"}},
+			"filter":{"import":{"filters":["USED"],"final":"accept"}}
+		}},
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+			"filter":{
+				"import":{"filters":["bgp-filter-path-asn:USED"],"final":"accept"},
+				"export":{"filters":["reject-asn:USED"],"final":"reject"}
+			},
+			"peer":{"named":{
+				"connection":{"remote":{"ip":"192.0.2.7"}},
+				"filter":{"import":{"filters":["USED"],"final":"accept"}}
+			}}
+		}}
+	}}`}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	answer := answerOf(t, cmdShowRejectASN)
+	used := listNamed(t, answer, "USED")
+	if got := used["import-peers"]; got != float64(3) {
+		t.Errorf("import attachments = %v, want template, named member and standalone peer", got)
+	}
+	if got := used["export-peers"]; got != float64(2) {
+		t.Errorf("export attachments = %v, want template and named member", got)
+	}
+	unused := listNamed(t, answer, "UNUSED")
+	if got := unused["import-peers"]; got != float64(0) {
+		t.Errorf("unused import attachments = %v, want zero", got)
+	}
+	if got := unused["export-peers"]; got != float64(0) {
+		t.Errorf("unused export attachments = %v, want zero", got)
+	}
+}

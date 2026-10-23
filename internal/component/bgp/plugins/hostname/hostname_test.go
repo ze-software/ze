@@ -3,6 +3,7 @@ package hostname
 
 import (
 	"bytes"
+	"encoding/hex"
 	"strings"
 	"testing"
 
@@ -581,4 +582,43 @@ func TestExtractHostnameCapabilities_GroupPeerOverride(t *testing.T) {
 	host2, domain2 := decodeFQDN(data2)
 	assert.Equal(t, "group-host", host2, "peer without hostname should inherit group")
 	assert.Equal(t, "group.com", domain2, "peer without domain should inherit group")
+}
+
+// TestExtractHostnameCapabilitiesDynamicTemplate parses a dynamic group alongside
+// a same-name standalone peer and a named member with its own hostname.
+// It keeps template selectors and all three hostname payloads distinct.
+func TestExtractHostnameCapabilitiesDynamicTemplate(t *testing.T) {
+	config := `{"bgp":{
+		"peer":{"ix":{"session":{"capability":{"hostname":{"host":"standalone","domain":"peer.test"}}}}},
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+			"session":{"capability":{"hostname":{"host":"template","domain":"group.test"}}},
+			"peer":{"named":{
+				"connection":{"remote":{"ip":"192.0.2.1"}},
+				"session":{"capability":{"hostname":{"host":"override","domain":"named.test"}}}
+			}}
+		}}
+	}}`
+
+	caps := extractHostnameCapabilities(config)
+	assert.ElementsMatch(t, []sdk.CapabilityDecl{
+		{
+			Code:     73,
+			Encoding: sdk.CapEncodingHex,
+			Payload:  hex.EncodeToString([]byte("\x08template\x0agroup.test")),
+			Peers:    []string{"group:ix"},
+		},
+		{
+			Code:     73,
+			Encoding: sdk.CapEncodingHex,
+			Payload:  hex.EncodeToString([]byte("\x0astandalone\x09peer.test")),
+			Peers:    []string{"ix"},
+		},
+		{
+			Code:     73,
+			Encoding: sdk.CapEncodingHex,
+			Payload:  hex.EncodeToString([]byte("\x08override\x0anamed.test")),
+			Peers:    []string{"named"},
+		},
+	}, caps)
 }

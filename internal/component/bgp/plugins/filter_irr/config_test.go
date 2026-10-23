@@ -338,3 +338,48 @@ func TestIRRPolicyFinalOnlyDoesNotEnroll(t *testing.T) {
 		}
 	}
 }
+
+// TestIRRDynamicTemplateDoesNotInventAPeer parses a listen-range group with an
+// IRR chain. The template has no remote ASN to resolve; a named member with its
+// own ASN must still enroll through the inherited chain.
+func TestIRRDynamicTemplateDoesNotInventAPeer(t *testing.T) {
+	group := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{
+			"ip": "dynamic", "range": []any{"192.0.2.0/24"},
+		}},
+		"filter": map[string]any{"import": map[string]any{
+			"filters": []any{"bgp-filter-irr:65001"}, "final": "accept",
+		}},
+	}
+	tree := map[string]any{"group": map[string]any{"ix": group}}
+	if cfg := parseIRRConfig(tree); len(cfg.Peers) != 0 {
+		t.Fatalf("peerless template invented IRR peers: %+v", cfg.Peers)
+	}
+
+	group["peer"] = map[string]any{"named": map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.7"}},
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65001"},
+		},
+	}}
+	cfg := parseIRRConfig(tree)
+	if len(cfg.Peers) != 1 {
+		t.Fatalf("IRR peers = %+v, want only the named member", cfg.Peers)
+	}
+	peer := cfg.Peers[0]
+	if peer.PeerAddr != "named" {
+		t.Errorf("peer identity = %q, want named", peer.PeerAddr)
+	}
+	if peer.RemoteASN != 65001 {
+		t.Errorf("remote ASN = %d, want 65001", peer.RemoteASN)
+	}
+	if peer.RemoteIP.String() != "192.0.2.7" {
+		t.Errorf("remote IP = %v, want 192.0.2.7", peer.RemoteIP)
+	}
+	if peer.ASSet != "" {
+		t.Errorf("AS set = %q, want automatic discovery from the named member's ASN", peer.ASSet)
+	}
+	if !peer.enrolled() {
+		t.Error("the named member lost its IRR enrollment")
+	}
+}

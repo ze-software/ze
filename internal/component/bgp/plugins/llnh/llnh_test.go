@@ -289,6 +289,53 @@ func TestExtractLLNHCapabilities_GroupPeerOverride(t *testing.T) {
 	}
 }
 
+// TestExtractLLNHCapabilities_DynamicTemplate extracts a dynamic group's
+// declaration alongside a same-name peer and an inheriting static member.
+// A second static member disables the capability without disabling the template.
+func TestExtractLLNHCapabilities_DynamicTemplate(t *testing.T) {
+	jsonStr := `{"bgp":{
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+			"session":{"link-local":"fe80::1","capability":{"link-local-nexthop":"enable"}},
+			"peer":{
+				"member":{"connection":{"remote":{"ip":"192.0.2.1"}}},
+				"disabled":{
+					"connection":{"remote":{"ip":"192.0.2.2"}},
+					"session":{"capability":{"link-local-nexthop":"disable"}}
+				}
+			}
+		}},
+		"peer":{"ix":{
+			"connection":{"remote":{"ip":"198.51.100.1"}},
+			"session":{"link-local":"fe80::2","capability":{"link-local-nexthop":"enable"}}
+		}}
+	}}`
+	if err := refuseLinkLocalCapabilityWithoutAddress(jsonStr); err != nil {
+		t.Fatal(err)
+	}
+	caps := extractLLNHCapabilities(jsonStr)
+	want := map[string]bool{"group:ix": true, "ix": true, "member": true}
+	if len(caps) != len(want) {
+		t.Fatalf("got %d declarations, want %d: %+v", len(caps), len(want), caps)
+	}
+	for _, cap := range caps {
+		if len(cap.Peers) != 1 {
+			t.Fatalf("expected one selector, got %v", cap.Peers)
+		}
+		selector := cap.Peers[0]
+		if !want[selector] {
+			t.Fatalf("unexpected or duplicate selector %q", selector)
+		}
+		if cap.Code != llnhCapCode {
+			t.Errorf("%s: code = %d, want %d", selector, cap.Code, llnhCapCode)
+		}
+		if cap.Payload != "" {
+			t.Errorf("%s: payload = %q, want empty", selector, cap.Payload)
+		}
+		delete(want, selector)
+	}
+}
+
 // TestLLNHValueOutsideEnumRefused verifies a link-local-nexthop value the YANG
 // enumeration does not hold is refused, never read as enable.
 //

@@ -1,129 +1,11 @@
 package configjson
 
 import (
-	"io/fs"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// callerDisposition records how one non-test ForEachPeer caller treats the
-// template visit a dynamic group produces. keyedBy names the configjson helper
-// the caller must use to key that visit; an empty keyedBy means the caller
-// deliberately keys nothing, and abstains says why.
-type callerDisposition struct {
-	keyedBy  string
-	abstains string
-}
-
-// forEachPeerCallers is the accounting the spec's "Every caller handled" review
-// row asserts, moved out of review and into a gate. Every non-test caller of
-// ForEachPeer appears here exactly once.
-//
-// The defect this whole package change exists to fix was silent: a dynamic group
-// reached no plugin and the operator got no error. A twelfth caller that ignored
-// PeerOrigin would restore that silence for its own plugin, and nothing else in
-// the tree would say so.
-var forEachPeerCallers = map[string]callerDisposition{
-	"internal/component/bgp/plugins/role/config.go":                       {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/softver/softver.go":                   {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/gr/gr_capability.go":                  {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/gr/gr_llgr.go":                        {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/llnh/llnh.go":                         {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/hostname/hostname.go":                 {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/filter_community/filter_community.go": {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/rpki/rpki_config.go":                  {keyedBy: "KeyFor"},
-	"internal/component/bgp/blackholecfg/blackholecfg.go":                 {keyedBy: "GroupKey"},
-	"internal/component/bgp/plugins/filter_irr/config.go": {abstains: "IRR resolution keys on the peer's remote ASN, " +
-		"which parsePeerIRR reads from session.asn.remote. A listen-range group states none: its members declare " +
-		"theirs in the OPEN, after the config is parsed. The template carries nothing this plugin could key."},
-	"internal/component/bgp/plugins/filter_path_asn/command.go": {abstains: "this visitor stores nothing under a " +
-		"peer identity: it COUNTS the peers whose filter chain names each reject-asn list, for `show bgp " +
-		"reject-asn`. A dynamic group's members are not in the config document, so the template visit is the " +
-		"only thing there is to count, and it counts as one attachment."},
-	"internal/component/bgp/plugins/filter_family/config.go": {abstains: "this visitor validates and stores nothing, " +
-		"so it keys no template. The template visit still carries the group's map, so a dynamic group's export " +
-		"chain is now validated where a group with no peer list produced no visit at all."},
-}
-
-// repoRootFromPackage walks up from this package to the ze checkout root.
-func repoRootFromPackage(t *testing.T) string {
-	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
-	require.NoError(t, err)
-	require.FileExists(t, filepath.Join(root, "go.mod"), "walked to the wrong root")
-	return root
-}
-
-// TestEveryForEachPeerCallerIsAccountedFor is R-1's mitigation: the risk that the
-// visitor change touches many callers and one that ignores the new template visit
-// keeps the defect silently.
-//
-// VALIDATES: the set of non-test ForEachPeer call sites in the tree equals the set
-// recorded above, and every caller that claims to key the template names the
-// configjson helper that produces its key.
-// PREVENTS: a new caller silently dropping a dynamic group's config. Adding one
-// fails this test until its author records which key the template lands under, or
-// writes down why the plugin needs none.
-func TestEveryForEachPeerCallerIsAccountedFor(t *testing.T) {
-	root := repoRootFromPackage(t)
-
-	var found []string
-	for _, tree := range []string{"internal", "cmd", "pkg"} {
-		err := filepath.WalkDir(filepath.Join(root, tree), func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-				return nil
-			}
-			src, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return readErr
-			}
-			if !strings.Contains(string(src), "configjson.ForEachPeer(") {
-				return nil
-			}
-			rel, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				return relErr
-			}
-			found = append(found, filepath.ToSlash(rel))
-			return nil
-		})
-		require.NoError(t, err)
-	}
-	slices.Sort(found)
-
-	recorded := make([]string, 0, len(forEachPeerCallers))
-	for file := range forEachPeerCallers {
-		recorded = append(recorded, file)
-	}
-	slices.Sort(recorded)
-
-	require.Equal(t, recorded, found,
-		"a ForEachPeer caller appeared or vanished: record how it treats a dynamic group's "+
-			"template visit in forEachPeerCallers, or remove its row")
-
-	for file, disposition := range forEachPeerCallers {
-		src, err := os.ReadFile(filepath.Join(root, file))
-		require.NoError(t, err)
-
-		if disposition.keyedBy == "" {
-			assert.NotEmpty(t, disposition.abstains,
-				"%s keys no template, so it must say why", file)
-			continue
-		}
-		assert.Contains(t, string(src), "configjson."+disposition.keyedBy,
-			"%s is recorded as keying the template with %s, and no longer calls it",
-			file, disposition.keyedBy)
-	}
-}
 
 // indexByKey walks one bgp subtree the way every ForEachPeer caller does: it
 // stores each visit's effective config under the key KeyFor returns, so a runtime
@@ -152,8 +34,8 @@ func indexByKey(t *testing.T, tree map[string]any, leaf string) map[PeerConfigKe
 	return index
 }
 
-// TestDynamicGroupPluginConfigMatchesAStaticPeer verifies AC-8 at the delivery
-// layer, which is the layer all 11 ForEachPeer callers share.
+// TestDynamicGroupPluginConfigMatchesAStaticPeer verifies AC-8 at the shared
+// config delivery layer.
 //
 // VALIDATES: one config states the same plugin leaves on a static peer and on a
 // dynamic group. Both are keyed reachably, and the config a member of the group

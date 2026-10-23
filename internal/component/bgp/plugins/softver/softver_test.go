@@ -379,3 +379,49 @@ func TestExtractSoftverCapabilitiesUnknownEncodingIsRefused(t *testing.T) {
 	assert.Contains(t, err.Error(), `"frr"`)
 	assert.Empty(t, caps)
 }
+
+// TestExtractSoftverCapabilitiesDynamicTemplate parses a dynamic group's legacy
+// encoding beside a same-name standalone peer and a named member using draft.
+// A disabled member must not gain a declaration from the template.
+func TestExtractSoftverCapabilitiesDynamicTemplate(t *testing.T) {
+	config := `{"bgp":{
+		"peer":{"ix":{"session":{"capability":{"software-version":{"mode":"enable","encoding":"draft"}}}}},
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+			"session":{"capability":{"software-version":{"mode":"enable","encoding":"legacy"}}},
+			"peer":{
+				"named":{
+					"connection":{"remote":{"ip":"192.0.2.1"}},
+					"session":{"capability":{"software-version":{"mode":"enable","encoding":"draft"}}}
+				},
+				"disabled":{
+					"connection":{"remote":{"ip":"192.0.2.2"}},
+					"session":{"capability":{"software-version":{"mode":"disable"}}}
+				}
+			}
+		}}
+	}}`
+
+	caps, err := extractSoftverCapabilities(config)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []sdk.CapabilityDecl{
+		{
+			Code:     75,
+			Encoding: sdk.CapEncodingHex,
+			Payload:  hex.EncodeToString(append([]byte{byte(len(ZeVersion))}, ZeVersion...)),
+			Peers:    []string{"group:ix"},
+		},
+		{
+			Code:     75,
+			Encoding: sdk.CapEncodingHex,
+			Payload:  hex.EncodeToString([]byte(ZeVersion)),
+			Peers:    []string{"ix"},
+		},
+		{
+			Code:     75,
+			Encoding: sdk.CapEncodingHex,
+			Payload:  hex.EncodeToString([]byte(ZeVersion)),
+			Peers:    []string{"named"},
+		},
+	}, caps)
+}

@@ -443,3 +443,62 @@ func TestRoleAddressEntryBeatsStaleNameEntry(t *testing.T) {
 		t.Fatalf("the reader took the stale role under the name over the address entry: %q", learned)
 	}
 }
+
+// TestRoleDynamicGroupDeliveryLookup installs the actual Stage 2 JSON and reads
+// it through the filter consumer. No test constructs the parsed policy map:
+// traversal, selector creation, installation and lookup must agree on identity.
+func TestRoleDynamicGroupDeliveryLookup(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure([]sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{
+		"peer":{
+			"ix":{"connection":{"remote":{"ip":"192.0.2.1"}},"role":{"import":"provider"}},
+			"203.0.113.1":{"role":{"import":"customer"}}
+		},
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["198.51.100.0/24"]}},
+			"role":{"import":"rs","strict":true},
+			"peer":{"named":{
+				"connection":{"remote":{"ip":"198.51.100.2"}},
+				"role":{"import":"peer","strict":false}
+			}}
+		}}
+	}}`}}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		addr   string
+		peer   string
+		group  string
+		role   string
+		strict bool
+	}{
+		{name: "dynamic member", addr: "198.51.100.7", peer: "dyn-198.51.100.7", group: "ix", role: roleRS, strict: true},
+		{name: "named override", addr: "198.51.100.2", peer: "named", group: "ix", role: rolePeer},
+		{name: "peer sharing group name", addr: "192.0.2.1", peer: "ix", role: roleProvider},
+		{name: "address-named peer", addr: "203.0.113.1", peer: "203.0.113.1", role: roleCustomer},
+		{name: "different group", addr: "198.51.100.8", peer: "dyn-198.51.100.8", group: "other"},
+		{name: "no group", addr: "198.51.100.9", peer: "dyn-198.51.100.9"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, _ := getFilterConfig(tc.addr, tc.peer, tc.group)
+			if tc.role == "" {
+				if cfg != nil {
+					t.Fatalf("unconfigured session resolved role %q", cfg.role)
+				}
+				return
+			}
+			if cfg == nil {
+				t.Fatal("configured session resolved no policy")
+			}
+			if cfg.role != tc.role {
+				t.Errorf("role = %q, want %q", cfg.role, tc.role)
+			}
+			if cfg.strict != tc.strict {
+				t.Errorf("strict = %v, want %v", cfg.strict, tc.strict)
+			}
+		})
+	}
+}

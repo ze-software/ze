@@ -137,3 +137,38 @@ func TestExportPolicyFinalDoesNotHideReferences(t *testing.T) {
 		}
 	}
 }
+
+// TestDynamicGroupExportValidation parses a peerless listen-range group so the
+// template visit, rather than an incidental static peer, must enforce the
+// import-only restriction. Legal import and remove policies remain accepted.
+func TestDynamicGroupExportValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		direction string
+		action    string
+		refused   bool
+	}{
+		{name: "tear-down export", direction: "export", action: actionTearDown, refused: true},
+		{name: "tear-down import", direction: "import", action: actionTearDown},
+		{name: "remove export", direction: "export", action: actionRemove},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseFamilyFilters(map[string]any{
+				"policy": map[string]any{"family-filter": map[string]any{
+					"guard": map[string]any{"family": "ipv4/flow", "action": tc.action},
+				}},
+				"group": map[string]any{"ix": map[string]any{
+					"connection": map[string]any{"remote": map[string]any{
+						"ip": "dynamic", "range": []any{"192.0.2.0/24"},
+					}},
+					"filter": map[string]any{tc.direction: map[string]any{
+						"filters": []any{"bgp-filter-family:guard"}, "final": "accept",
+					}},
+				}},
+			})
+			if (err != nil) != tc.refused {
+				t.Fatalf("parse error = %v, want refusal %v", err, tc.refused)
+			}
+		})
+	}
+}

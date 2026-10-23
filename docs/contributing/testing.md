@@ -78,6 +78,14 @@ round-trip.
 ./le verify current
 ```
 
+Dynamic-group coverage exercises each plugin's real configuration boundary:
+capability declarations, policy lookups, validation, and command output. Opposite
+group and peer values expose lost inheritance; same-name peers and groups expose
+namespace collisions. A list of caller filenames or helper names proves neither.
+For example, the redirect tests pass plugin JSON through the RIB parser before
+querying the session's effective setting.
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
+
 #### Fixture environment isolation
 
 Native Go test commands remove the launching le's `ze.repo.root` and

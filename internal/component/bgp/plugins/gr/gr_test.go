@@ -470,6 +470,86 @@ func TestExtractGRCapabilities_GroupPeerOverride(t *testing.T) {
 		"peer without GR config should inherit group restart-time 120")
 }
 
+// TestExtractRestartCapabilities_DynamicTemplate keeps group and peer selectors
+// distinct by extracting both capabilities from a template, a same-name peer,
+// and a static member that overrides the template's timers.
+func TestExtractRestartCapabilities_DynamicTemplate(t *testing.T) {
+	jsonStr := `{"bgp":{
+		"group":{"ix":{
+			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
+			"session":{"family":{"ipv4/unicast":{}},"capability":{"graceful-restart":{
+				"restart-time":120,"long-lived-stale-time":7200
+			}}},
+			"peer":{"member":{
+				"connection":{"remote":{"ip":"192.0.2.1"}},
+				"session":{"capability":{"graceful-restart":{
+					"restart-time":300,"long-lived-stale-time":3600
+				}}}
+			}}
+		}},
+		"peer":{"ix":{
+			"connection":{"remote":{"ip":"198.51.100.1"}},
+			"session":{"family":{"ipv4/unicast":{}},"capability":{"graceful-restart":{
+				"restart-time":60,"long-lived-stale-time":1800
+			}}}
+		}}
+	}}`
+	if err := refuseUncarriedGRFamilies(jsonStr); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		extract func(string) []sdk.CapabilityDecl
+		code    uint8
+		want    map[string]string
+	}{
+		{
+			name: "GR", extract: extractGRCapabilities, code: 64,
+			want: map[string]string{
+				"group:ix": "007800010100",
+				"member":   "012c00010100",
+				"ix":       "003c00010100",
+			},
+		},
+		{
+			name: "LLGR", extract: extractLLGRCapabilities, code: 71,
+			want: map[string]string{
+				"group:ix": "00010180001c20",
+				"member":   "00010180000e10",
+				"ix":       "00010180000708",
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			caps := tc.extract(jsonStr)
+			if len(caps) != len(tc.want) {
+				t.Fatalf("got %d declarations, want %d: %+v", len(caps), len(tc.want), caps)
+			}
+			for _, cap := range caps {
+				if len(cap.Peers) != 1 {
+					t.Fatalf("expected one selector, got %v", cap.Peers)
+				}
+				selector := cap.Peers[0]
+				payload, ok := tc.want[selector]
+				if !ok {
+					t.Fatalf("unexpected or duplicate selector %q", selector)
+				}
+				if cap.Code != tc.code {
+					t.Errorf("%s: code = %d, want %d", selector, cap.Code, tc.code)
+				}
+				if cap.Encoding != sdk.CapEncodingHex {
+					t.Errorf("%s: encoding = %q, want hex", selector, cap.Encoding)
+				}
+				if cap.Payload != payload {
+					t.Errorf("%s: payload = %q, want %q", selector, cap.Payload, payload)
+				}
+				delete(tc.want, selector)
+			}
+		})
+	}
+}
+
 // --- LLGR capability decode tests (RFC 9494) ---
 
 // TestDecodeLLGR_Basic verifies basic LLGR capability wire format decode.
