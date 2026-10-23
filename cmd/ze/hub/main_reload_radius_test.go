@@ -196,6 +196,8 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 				"timeout": "1",
 				"server": map[string]any{"test": map[string]any{
 					"address": "127.0.0.1", "port": radiusPort, "shared-key": "reload-key",
+					// Accounting has its own destination, defaulting to 1813.
+					"accounting-port": radiusPort,
 				}},
 			}},
 		},
