@@ -155,14 +155,14 @@ func (entry *pluginEntry) isTest() bool {
 // pluginGroup is one area of the catalog: the plugins filed under it, and what
 // the filter controls say about it.
 type pluginGroup struct {
-	ID      string
-	Label   string
-	Short   string
-	Tone    string
-	Bucket  string
-	Roots   []string
-	Sources []string
-	Plugins []*pluginEntry
+	ID       string
+	Label    string
+	Short    string
+	Category string
+	Bucket   string
+	Roots    []string
+	Sources  []string
+	Plugins  []*pluginEntry
 }
 
 // renderPluginCatalog publishes the catalog and one detail page for each
@@ -399,14 +399,34 @@ func pluginGroupShort(id string) string {
 	return strings.TrimRight(label[:16], " ") + "..."
 }
 
-// pluginGroupTone picks one of the presentation tones for a group, from the
-// group's own identifier, so a group keeps its color between builds.
-func pluginGroupTone(id string) string {
-	sum := 0
-	for _, letter := range id {
-		sum += int(letter)
+// pluginGroupCategory identifies the subject of an existing generated area.
+// It deliberately does not use the navigation bucket: MPLS and IPsec both
+// filter as tunneling, but their website subjects are routing and services.
+// Unknown areas stay neutral until their subject is known.
+func pluginGroupCategory(id string) string {
+	if id == testHarnessGroup {
+		return categoryMeta
 	}
-	return presentationTones[sum%len(presentationTones)]
+	// enumeration: exempt (these are semantic area keywords, not plugin registrations)
+	for _, rule := range []struct {
+		category string
+		areas    []string
+	}{
+		{categoryRouting, []string{bgpGroup, "bfd", "bmp", "connected", "flowspec", "isis", "ldp", "mpls", "mrt", "ospf", "rib", "route", "routing", "rsvp", "static", "vrrp"}},
+		{categoryServices, []string{"as112", "class-of-service", "cos", "dhcp", "dns", "fib", "firewall", "ike", "interface", "ipsec", "l2tp", "ntp", "policy", "ppp", "radius", "resolve", "service", "tftp", "vpn", "vpp"}},
+		{categorySecure, []string{"aaa", "anomaly", "authz", "control-plane-protection", "copp", "ddos", "pki", "tacacs"}},
+		{categoryAutomate, []string{"api", "exabgp", "gnmi", "managed", "mcp", "plugin", "provision"}},
+		{categoryObserve, []string{"crashes", "debug", "diag", "doctor", "flow", "host", "log", "support", "telemetry", "traffic"}},
+		{categoryOperate, []string{"cli", "config", "lg", "ssh", "web"}},
+		{categoryPlatform, []string{"appliance", "environment", "gokrazy", "kernel", "storage", "sysctl", "systemd"}},
+	} {
+		for _, area := range rule.areas {
+			if id == area || strings.HasPrefix(id, area+"-") {
+				return rule.category
+			}
+		}
+	}
+	return categoryMeta
 }
 
 // pluginGroups files every plugin under its area and answers the areas in the
@@ -420,10 +440,10 @@ func pluginGroups(entries []*pluginEntry) []*pluginGroup {
 		group, found := byID[entry.Group]
 		if !found {
 			group = &pluginGroup{
-				ID:    entry.Group,
-				Label: pluginGroupLabel(entry.Group),
-				Short: pluginGroupShort(entry.Group),
-				Tone:  pluginGroupTone(entry.Group),
+				ID:       entry.Group,
+				Label:    pluginGroupLabel(entry.Group),
+				Short:    pluginGroupShort(entry.Group),
+				Category: pluginGroupCategory(entry.Group),
 			}
 			byID[entry.Group] = group
 			roots[entry.Group] = make(map[string]bool)
@@ -743,7 +763,7 @@ func pluginGroupHTML(group *pluginGroup) string {
 	return "\n" +
 		`                <section class="plugin-group" data-plugin-group data-family="` + html.EscapeString(group.ID) +
 		`" data-category="` + html.EscapeString(group.Bucket) + `" aria-labelledby="plugin-group-` + html.EscapeString(group.ID) + `">` + "\n" +
-		`                    <div class="plugin-group-head tone-` + group.Tone + `">` + "\n" +
+		`                    <div class="plugin-group-head cat-` + group.Category + `">` + "\n" +
 		`                        <h2 id="plugin-group-` + html.EscapeString(group.ID) + `">` + html.EscapeString(group.Label) + "</h2>\n" +
 		"                        <span>" + plural(len(group.Plugins), "plugin") + "</span>\n" +
 		"                    </div>\n" +
@@ -787,7 +807,7 @@ func pluginCardHTML(entry *pluginEntry, group *pluginGroup) string {
 		test = ` data-test="true"`
 	}
 	return "\n" +
-		`                    <article class="card plugin-card tone-` + group.Tone + `" id="plugin-` + html.EscapeString(entry.Slug) +
+		`                    <article class="card plugin-card cat-` + group.Category + `" id="plugin-` + html.EscapeString(entry.Slug) +
 		`" data-plugin-card data-family="` + html.EscapeString(group.ID) + `" data-category="` + html.EscapeString(group.Bucket) +
 		`" data-search="` + html.EscapeString(pluginSearchText(entry, group)) + `"` + test + ">\n" +
 		`                        <span class="cat">` + html.EscapeString(group.Short) + "</span>\n" +

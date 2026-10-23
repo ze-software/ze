@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -316,7 +317,7 @@ func TestTheBlogIndexRendersItsAuthoredInputs(t *testing.T) {
 		`<link rel="alternate" type="application/rss+xml" title="Ze blog" href="feed.xml" />`,
 		`<main id="top" class="site-main-wide" tabindex="-1">`,
 		`<section class="blog-index" aria-labelledby="blog-title">`,
-		`<article class="card card-post blog-card has-media tone-sky">`,
+		`<article class="card card-post blog-card has-media cat-meta">`,
 		`<div class="blog-theme-image has-dark blog-card-media" role="img"`,
 		`<img class="blog-theme-image-light" src="../assets/blog/probe.svg"`,
 		`<img class="blog-theme-image-dark" src="../assets/blog/probe-dark.svg"`,
@@ -361,23 +362,28 @@ func TestTheBlogIndexRendersItsAuthoredInputs(t *testing.T) {
 	}
 }
 
-// VALIDATES: presentation tones cycle by position rather than by topic or
-// title. Eight controlled articles exercise the palette wraparound.
-func TestAnIndexCardTakesTheToneAtItsPosition(t *testing.T) {
-	articles := make([]blogArticle, len(presentationTones)+1)
+// VALIDATES: mixed editorial cards remain neutral in every position. The
+// complete article inventory and each title survive reordering.
+func TestAnIndexCardKeepsItsCategoryWhenReordered(t *testing.T) {
+	articles := make([]blogArticle, 8)
 	for index := range articles {
-		articles[index] = blogArticle{Slug: "probe", Title: "Same title"}
+		articles[index] = blogArticle{Slug: "probe-" + strconv.Itoa(index), Title: "Article " + strconv.Itoa(index)}
 	}
-	page := blogIndexBody(articles)
-	cards := strings.Split(page, `<article class="card card-post blog-card `)[1:]
-	if len(cards) != len(articles) {
-		t.Fatalf("rendered %d cards for %d articles", len(cards), len(articles))
-	}
-	for index, card := range cards {
-		want := "tone-" + presentationTones[index%len(presentationTones)] + `">`
-		if !strings.HasPrefix(card, want) {
-			t.Errorf("card %d did not take its positional tone %q", index, want)
+	for range 2 {
+		page := blogIndexBody(articles)
+		cards := strings.Split(page, `<article class="card card-post blog-card `)[1:]
+		if len(cards) != len(articles) {
+			t.Fatalf("rendered %d cards for %d articles", len(cards), len(articles))
 		}
+		for index, card := range cards {
+			if !strings.HasPrefix(card, `cat-meta">`) {
+				t.Errorf("card %d did not retain its neutral category", index)
+			}
+			if !strings.Contains(card, `href="`+articles[index].Slug+`/">`+articles[index].Title+`</a>`) {
+				t.Errorf("card %d lost its article's title, link or order", index)
+			}
+		}
+		slices.Reverse(articles)
 	}
 }
 

@@ -918,13 +918,8 @@ main.has-page-sidebar > :not(.page-sidebar) {
     padding: 0.42rem 0.75rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-radius: 999px;
-    color: var(--accent-solid-foreground);
-    background: linear-gradient(
-        105deg,
-        var(--grape-base),
-        var(--pink-base) 55%,
-        var(--tangerine-base)
-    );
+    color: var(--acc-deep, var(--sky-deep));
+    background: var(--acc-chip, var(--sky-chip));
     box-shadow: var(--clay);
     font-size: 0.78rem;
     font-weight: 800;
@@ -936,10 +931,8 @@ main.has-page-sidebar > :not(.page-sidebar) {
     width: 0.55rem;
     height: 0.55rem;
     border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 0 0.8rem rgba(255, 255, 255, 0.85);
+    background: var(--acc, var(--brand-bright));
     content: "";
-    animation: pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -1251,6 +1244,19 @@ a.hl:hover {
     line-height: 1.4;
 }
 
+/* Unclassified and cross-topic cards make no subject claim. */
+:where(.card, .proof, .audience-card, .capability, .whats-new-item,
+    .contribute-route, .contribute-contract, .contribute-funding,
+    .contribute-action, .faq-card, .faq-index a),
+.cat-meta {
+    --acc: var(--neutral-base);
+    --acc-mid: var(--neutral-mid);
+    --acc-deep: var(--neutral-deep);
+    --acc-chip: var(--neutral-chip);
+    --acc-tint: var(--neutral-tint);
+    --acc-glow: var(--neutral-glow);
+}
+
 .proof-strip {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1259,11 +1265,6 @@ a.hl:hover {
 }
 
 .proof {
-    --acc: var(--sky-base);
-    --acc-deep: var(--sky-deep);
-    --acc-chip: var(--sky-chip);
-    --acc-tint: var(--sky-tint);
-    --acc-glow: var(--sky-glow);
     position: relative;
     overflow: hidden;
     min-height: 12rem;
@@ -1280,30 +1281,6 @@ a.hl:hover {
     transition:
         transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 200ms ease;
-}
-
-.proof:nth-child(2) {
-    --acc: var(--pink-base);
-    --acc-deep: var(--pink-deep);
-    --acc-chip: var(--pink-chip);
-    --acc-tint: var(--pink-tint);
-    --acc-glow: var(--pink-glow);
-}
-
-.proof:nth-child(3) {
-    --acc: var(--grape-base);
-    --acc-deep: var(--grape-deep);
-    --acc-chip: var(--grape-chip);
-    --acc-tint: var(--grape-tint);
-    --acc-glow: var(--grape-glow);
-}
-
-.proof:nth-child(4) {
-    --acc: var(--gold-base);
-    --acc-deep: var(--gold-deep);
-    --acc-chip: var(--gold-chip);
-    --acc-tint: var(--gold-tint);
-    --acc-glow: var(--gold-glow);
 }
 
 .proof::before {
@@ -1669,35 +1646,30 @@ section[aria-labelledby="blog-teaser-title"] {
 
 /*
  * Category cards use one accent for their label, border and metadata.
- * The title uses the shared text color. Uncategorized cards use the blue
- * accent and the same surface tokens as other shared components.
+ * The title uses the shared text color. Uncategorized cards use neutral
+ * accents, so a missing category never makes a false subject claim.
  */
 .card {
-    --acc: var(--sky-base);
-    --acc-deep: var(--sky-deep);
-    --acc-chip: var(--sky-chip);
-    --acc-tint: var(--sky-tint);
-    --acc-glow: var(--sky-glow);
     position: relative;
     min-height: 12rem;
     padding: 1.4rem;
     border: 1px solid var(--line);
     border-top: 3px solid var(--acc);
     border-radius: 0.75rem;
-    background: var(--panel);
+    background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%);
     box-shadow: var(--clay);
     transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
-:is(.card[class*="cat-"], .card[class*="tone-"]) {
+.card[class*="cat-"] {
     overflow: visible;
     padding-top: 1.4rem;
     border-color: var(--line);
     border-top-color: var(--acc);
-    background: var(--panel);
+    background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%);
 }
 
-:is(.card[class*="cat-"], .card[class*="tone-"])::before {
+.card[class*="cat-"]::before {
     content: none;
 }
 
@@ -1713,7 +1685,7 @@ section[aria-labelledby="blog-teaser-title"] {
     border-color: var(--card-hover-border);
 }
 
-:is(.card[class*="cat-"], .card[class*="tone-"]):hover {
+.card[class*="cat-"]:hover {
     border-color: var(--acc);
 }
 
@@ -1938,12 +1910,10 @@ section[aria-labelledby="blog-teaser-title"] {
 
 
 /*
- * Topic categories set accents only when the element's content belongs to
- * that category. Presentation tones provide the same palette without making
- * a semantic claim.
+ * Subject categories share one palette across cards, labels and controls.
+ * Use cat-meta for cross-topic content. Never choose a hue by position.
  */
-.cat-operate,
-.tone-sky {
+.cat-operate {
     --acc: var(--sky-base);
     --acc-mid: var(--sky-mid);
     --acc-deep: var(--sky-deep);
@@ -1951,8 +1921,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--sky-tint);
     --acc-glow: var(--sky-glow);
 }
-.cat-routing,
-.tone-lemon {
+.cat-routing {
     --acc: var(--lemon-base);
     --acc-mid: var(--lemon-mid);
     --acc-deep: var(--lemon-deep);
@@ -1960,8 +1929,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--lemon-tint);
     --acc-glow: var(--lemon-glow);
 }
-.cat-automate,
-.tone-grape {
+.cat-automate {
     --acc: var(--grape-base);
     --acc-mid: var(--grape-mid);
     --acc-deep: var(--grape-deep);
@@ -1969,8 +1937,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--grape-tint);
     --acc-glow: var(--grape-glow);
 }
-.cat-observe,
-.tone-mint {
+.cat-observe {
     --acc: var(--mint-base);
     --acc-mid: var(--mint-mid);
     --acc-deep: var(--mint-deep);
@@ -1978,8 +1945,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--mint-tint);
     --acc-glow: var(--mint-glow);
 }
-.cat-secure,
-.tone-pink {
+.cat-secure {
     --acc: var(--pink-base);
     --acc-mid: var(--pink-mid);
     --acc-deep: var(--pink-deep);
@@ -1987,8 +1953,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--pink-tint);
     --acc-glow: var(--pink-glow);
 }
-.cat-services,
-.tone-gold {
+.cat-services {
     --acc: var(--gold-base);
     --acc-mid: var(--gold-mid);
     --acc-deep: var(--gold-deep);
@@ -1996,8 +1961,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--gold-tint);
     --acc-glow: var(--gold-glow);
 }
-.cat-platform,
-.tone-teal {
+.cat-platform {
     --acc: var(--teal-base);
     --acc-mid: var(--teal-mid);
     --acc-deep: var(--teal-deep);
@@ -2017,8 +1981,8 @@ section[aria-labelledby="blog-teaser-title"] {
     margin-bottom: 0.65rem;
     padding: 0.3rem 0.65rem;
     border-radius: 0.6rem;
-    background: var(--acc-deep);
-    color: var(--accent-solid-foreground);
+    background: var(--acc-chip);
+    color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
     font-weight: 800;
@@ -2040,7 +2004,7 @@ section[aria-labelledby="blog-teaser-title"] {
     content: "";
 }
 
-:is(.card[class*="cat-"], .card[class*="tone-"]) .cat {
+.card[class*="cat-"] .cat {
     position: absolute;
     top: -0.78rem;
     left: 1.1rem;
@@ -2048,8 +2012,8 @@ section[aria-labelledby="blog-teaser-title"] {
     margin: 0;
     padding: 0.34rem 0.9rem;
     border-radius: 999px;
-    background: var(--acc-deep);
-    color: var(--accent-solid-foreground);
+    background: var(--acc-chip);
+    color: var(--acc-deep);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.42),
         0 0.65rem 1.1rem -0.7rem var(--acc-glow);
@@ -2058,16 +2022,11 @@ section[aria-labelledby="blog-teaser-title"] {
     transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-:is(.card.cat-services, .card.tone-gold) .cat {
-    background: var(--gold-base);
-    color: var(--accent-solid-foreground);
-}
-
-:is(.card[class*="cat-"], .card[class*="tone-"]):hover .cat {
+.card[class*="cat-"]:hover .cat {
     transform: translateY(-1px);
 }
 
-:is(.card[class*="cat-"], .card[class*="tone-"]) .cat::before {
+.card[class*="cat-"] .cat::before {
     display: none;
 }
 
@@ -2190,6 +2149,8 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 .card-label {
+    color: var(--acc-deep);
+    background: var(--acc-chip);
     display: inline-flex;
     width: fit-content;
     margin-bottom: 0.6rem;
@@ -2205,31 +2166,6 @@ section[aria-labelledby="blog-teaser-title"] {
         "Liberation Mono", monospace;
     font-size: 0.8rem;
     font-weight: 700;
-}
-
-.card-label.blue {
-    color: var(--accent-solid-foreground);
-    background: var(--sky-deep);
-}
-.card-label.coral {
-    color: #fff;
-    background: #a83a14;
-}
-.card-label.green {
-    color: var(--accent-solid-foreground);
-    background: var(--mint-deep);
-}
-.card-label.purple {
-    color: var(--accent-solid-foreground);
-    background: var(--grape-deep);
-}
-.card-label.teal {
-    color: var(--accent-solid-foreground);
-    background: var(--teal-deep);
-}
-.card-label.gold {
-    color: var(--accent-solid-foreground);
-    background: var(--lemon-deep);
 }
 
 .card h3 a {
@@ -2258,10 +2194,9 @@ section[aria-labelledby="blog-teaser-title"] {
     align-items: center;
     gap: 0.48rem;
     padding: 0.5rem 0.78rem 0.5rem 0.62rem;
-    border: 1px solid var(--acc-mid);
+    border: 1px solid var(--acc);
     border-radius: 999px;
-    background-color: var(--acc-tint);
-    background-image: linear-gradient(180deg, var(--glass-surface-strong), var(--glass-surface));
+    background-color: var(--acc-chip);
     color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.72rem;
@@ -2308,17 +2243,16 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .legend button[aria-pressed="true"] {
     border-color: var(--acc-deep);
-    background-color: var(--acc);
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08));
-    color: var(--accent-solid-foreground);
+    background-color: var(--acc-chip);
+    color: var(--acc-deep);
     box-shadow:
-        0 0 0 2px rgba(255, 255, 255, 0.95),
+        0 0 0 2px var(--acc-deep),
         0 0.75rem 1.7rem -0.7rem var(--acc-glow);
 }
 
 .legend button[aria-pressed="true"]::before {
-    background: #fff;
-    box-shadow: 0 0 0 0.22rem rgba(255, 255, 255, 0.28);
+    background: var(--acc-deep);
+    box-shadow: 0 0 0 0.22rem var(--acc-tint);
 }
 
 .legend-count {
@@ -2559,7 +2493,7 @@ pre {
 .audience-card:not(.card) {
     padding: 1.25rem;
     border: 2px solid var(--glass-border);
-    border-left: 6px solid var(--lemon-mid);
+    border-left: 6px solid var(--acc);
     border-radius: 0.75rem;
     background: var(--panel);
     box-shadow: var(--clay);
@@ -2578,25 +2512,6 @@ pre {
     box-shadow: var(--clay), 0 1.2rem 2.6rem -0.8rem var(--card-hover-shadow);
 }
 
-.audience-card:not(.card):nth-child(1) {
-    border-left-color: var(--lemon-mid);
-}
-.audience-card:not(.card):nth-child(1) h3 {
-    color: var(--pink-deep);
-}
-.audience-card:not(.card):nth-child(2) {
-    border-left-color: var(--sky-base);
-}
-.audience-card:not(.card):nth-child(2) h3 {
-    color: var(--sky-deep);
-}
-.audience-card:not(.card):nth-child(3) {
-    border-left-color: var(--grape-base);
-}
-.audience-card:not(.card):nth-child(3) h3 {
-    color: var(--grape-deep);
-}
-
 .audience-card:not(.card) p {
     margin-bottom: 0;
     color: var(--muted);
@@ -2610,9 +2525,8 @@ pre {
 }
 
 .card.audience-card .cat {
-    border: 1px solid var(--acc-chip);
-    background:
-        linear-gradient(180deg, var(--glass-surface-strong), var(--acc-tint));
+    border: 1px solid var(--acc);
+    background: var(--acc-chip);
     color: var(--acc-deep);
     box-shadow:
         inset 0 1px 0 var(--glass-highlight),
@@ -3058,8 +2972,8 @@ footer {
     height: 2rem;
     margin-bottom: 0.85rem;
     border-radius: 999px;
-    color: var(--accent-solid-foreground);
-    background: linear-gradient(135deg, var(--sky-base), var(--grape-base));
+    color: var(--acc-deep, var(--neutral-deep));
+    background: var(--acc-chip, var(--neutral-chip));
     font-weight: 800;
 }
 
@@ -3259,7 +3173,7 @@ footer {
         0 1.2rem 2.4rem -1.4rem var(--acc-glow);
 }
 
-.blog-card::before {
+.card.blog-card::before {
     position: absolute;
     inset: 0 0 auto;
     height: 0.42rem;
@@ -3701,21 +3615,10 @@ footer {
     width: 0.62rem;
     height: 0.62rem;
     border-radius: 50%;
-    background: var(--sky-base);
-    box-shadow: 0 0 0 0.22rem var(--sky-chip);
+    background: var(--acc, var(--brand));
+    box-shadow: 0 0 0 0.22rem var(--acc-chip, var(--sky-chip));
     content: "";
 }
-
-.blog-key-points li:nth-child(2)::before {
-    background: var(--grape-base);
-    box-shadow: 0 0 0 0.22rem var(--grape-chip);
-}
-
-.blog-key-points li:nth-child(3)::before {
-    background: var(--teal-base);
-    box-shadow: 0 0 0 0.22rem var(--teal-chip);
-}
-
 
 .post-back {
     align-self: end;
@@ -4144,8 +4047,8 @@ footer {
     margin-bottom: 0.7rem;
     padding: 0.28rem 0.55rem;
     border-radius: 999px;
-    background: var(--acc-chip, var(--grape-chip));
-    color: var(--acc-deep, var(--grape-deep));
+    background: var(--acc-chip, var(--neutral-chip));
+    color: var(--acc-deep, var(--neutral-deep));
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.68rem;
     font-weight: 900;
@@ -4177,11 +4080,6 @@ footer {
     gap: 1.2rem;
     margin: 1rem 0 2rem;
     padding: 1.25rem;
-    --acc: var(--pink-base);
-    --acc-deep: var(--pink-deep);
-    --acc-chip: var(--pink-chip);
-    --acc-tint: var(--pink-tint);
-    --acc-glow: var(--pink-glow);
 }
 
 .contribute-contract aside {
@@ -4194,7 +4092,7 @@ footer {
 .contribute-contract aside strong {
     display: block;
     margin-bottom: 0.4rem;
-    color: var(--pink-deep);
+    color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -4575,7 +4473,7 @@ footer {
 }
 
 .md-content td.cell-yes {
-    color: var(--mint-deep);
+    color: var(--green);
     font-weight: 700;
     text-align: center;
 }
@@ -4587,7 +4485,7 @@ footer {
 }
 
 .md-content td.cell-partial {
-    color: var(--lemon-deep);
+    color: var(--amber);
     font-weight: 700;
     text-align: center;
 }
@@ -4685,8 +4583,14 @@ footer {
 }
 
 .compare-dispatch .card {
+    --dispatch-top: var(--acc-tint);
+    --dispatch-bottom: var(--panel);
+    --dispatch-line: var(--acc-chip);
+    --dispatch-line-soft: var(--acc-tint);
+    --dispatch-glow: var(--acc-glow);
     isolation: isolate;
     border-color: var(--glass-border);
+    border-top-color: var(--acc);
     background:
         radial-gradient(circle at 18% 8%, var(--glass-surface-strong) 0 12%, transparent 33%),
         radial-gradient(circle at 88% 4%, transparent 0 20%, var(--dispatch-line-soft) 21%, transparent 22% 34%, var(--dispatch-line) 35%, transparent 36%),
@@ -4741,34 +4645,6 @@ footer {
 .compare-dispatch .card > * {
     position: relative;
     z-index: 1;
-}
-
-.compare-card-bgp {
-    --dispatch-top: var(--pink-tint);
-    --dispatch-bottom: var(--grape-tint);
-    --dispatch-line: var(--grape-chip);
-    --dispatch-line-soft: var(--pink-chip);
-    --dispatch-glow: var(--pink-glow);
-    --acc: var(--pink-base);
-    --acc-mid: var(--grape-mid);
-    --acc-deep: var(--grape-deep);
-    --acc-chip: var(--pink-chip);
-    --acc-tint: var(--pink-tint);
-    --acc-glow: var(--pink-glow);
-}
-
-.compare-card-nos {
-    --dispatch-top: var(--mint-tint);
-    --dispatch-bottom: var(--sky-tint);
-    --dispatch-line: var(--sky-chip);
-    --dispatch-line-soft: var(--mint-chip);
-    --dispatch-glow: var(--mint-glow);
-    --acc: var(--mint-base);
-    --acc-mid: var(--sky-mid);
-    --acc-deep: var(--sky-deep);
-    --acc-chip: var(--mint-chip);
-    --acc-tint: var(--mint-tint);
-    --acc-glow: var(--mint-glow);
 }
 
 .md-content .compare-dispatch .card h3 {
@@ -5688,13 +5564,9 @@ body.search-open {
 
 .cmd-eq-coverage-grid strong {
     display: block;
-    color: var(--sky-deep);
+    color: var(--acc-deep, var(--neutral-deep));
     font-size: 1.65rem;
     line-height: 1;
-}
-
-.cmd-eq-coverage-total strong {
-    color: var(--teal-deep);
 }
 
 .cmd-eq-panel,

@@ -57,11 +57,6 @@ const changesIndexDescription = "What shipped in Ze, week by week: the weekly up
 // week may carry, and the category that colors its chip.
 const topicsVocabularyFile = "data/topics.json"
 
-// categoryMeta is the eighth chip color, and the one no page takes. It is
-// neutral, for work that belongs to no subsystem: a talk, an interoperability
-// run, a standards pass.
-const categoryMeta = "meta"
-
 // categoryFilterOrder is the order the chips, the filter buttons and each
 // week's category list are written in.
 //
@@ -210,14 +205,9 @@ func loadTopicVocabulary(source string) (map[string]string, error) {
 	if len(vocabulary.Tags) == 0 {
 		return nil, fmt.Errorf("%s states no tag", path)
 	}
-	known := make(map[string]bool, len(categoryFilterOrder))
-	for _, category := range categoryFilterOrder {
-		known[category] = true
-	}
 	for family, category := range vocabulary.Tags {
-		if !known[category] {
-			return nil, fmt.Errorf("%s maps the tag %s to the category %s, which the site has no color for",
-				path, family, category)
+		if err := validateCategory(category); err != nil {
+			return nil, fmt.Errorf("%s maps tag %q: %w", path, family, err)
 		}
 	}
 	return vocabulary.Tags, nil
@@ -722,25 +712,21 @@ const changesIndexStyle = `        <style>
                 border: 1px solid var(--acc, var(--line));
                 white-space: nowrap;
             }
-            .ch-chip.cat-meta {
-                background: var(--bg-soft);
-                color: var(--muted);
-                border-color: var(--line);
-                border-style: dashed;
-            }
-            /* The meta bucket has no accent hue, so the shared .legend button
-               style (white text over var(--acc)) renders invisible. Give the
-               filter button a readable neutral treatment instead. */
-            .ch-filters .cat-meta {
-                background: var(--bg-soft);
-                color: var(--muted);
-                border-color: var(--line);
-            }
-            .ch-filters .cat-meta:hover { color: var(--text); }
-            .ch-filters .cat-meta[aria-pressed="true"] {
-                border-color: var(--muted);
-                box-shadow: 0 0 0 2px var(--line);
-            }
+            .ch-chip.cat-meta { border-style: dashed; }
             .ch-draft { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--acc-deep, var(--muted)); margin-left: 0.5rem; }
         </style>
 `
+
+// cardCategory keeps a weekly card neutral when its validated topics span more
+// than one category. The individual chips still name every subject in the week.
+func (week *changeWeek) cardCategory() string {
+	category := categoryMeta
+	for index, topic := range week.Topics {
+		if index == 0 {
+			category = topic.Category
+		} else if category != topic.Category {
+			return categoryMeta
+		}
+	}
+	return category
+}

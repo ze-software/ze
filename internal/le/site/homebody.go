@@ -170,7 +170,7 @@ const homeTemplate = `        <div class="site-home">
 
 
             <section id="why-ze" class="home-section-panel home-section-panel-why" aria-labelledby="why-title">
-                <div class="section-head reveal tone-sky">
+                <div class="section-head reveal cat-meta">
                     <h2 id="why-title"><a href="project/why-ze/">Why Ze?</a></h2>
                     <p>
                         Ze is a network operating system, and more: a routing
@@ -196,7 +196,7 @@ const homeTemplate = `        <div class="site-home">
                 </article>
 
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
-                    <article class="card usp-card tone-mint">
+                    <article class="card usp-card cat-operate">
                         <span class="cat">Decision</span>
                         <h3><a href="project/why-ze/">Reasons to consider Ze</a></h3>
                         <p>
@@ -224,8 +224,8 @@ const homeTemplate = `        <div class="site-home">
                             configuration through SSH and the web UI.
                         </p>
                     </article>
-                    <article class="card usp-card tone-pink">
-                        <span class="cat">Honest</span>
+                    <article class="card usp-card cat-automate">
+                        <span class="cat">Modular</span>
                         <h3><a href="reference/plugins/">Plugins keep their own contract</a></h3>
                         <p>
                             Plugins can be compiled Go modules or external
@@ -260,7 +260,7 @@ const homeTemplate = `        <div class="site-home">
             </section>
 
             <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
-                <div class="section-head reveal tone-teal">
+                <div class="section-head reveal cat-platform">
                     <h2 id="run-title">
                         Run it as a lab,<br />daemon, or appliance.
                     </h2>
@@ -396,7 +396,7 @@ const homeTemplate = `        <div class="site-home">
             </section>
 
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
-                <div class="section-head reveal tone-grape">
+                <div class="section-head reveal cat-meta">
                     <h2 id="try-title">First paths for routing feedback.</h2>
                     <p>The BGP lab, ExaBGP migration, and appliance install are good starting points.</p>
                 </div>

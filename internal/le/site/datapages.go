@@ -175,9 +175,8 @@ func (card *featureCard) validate(where string) error {
 	if card.Title == "" {
 		return fmt.Errorf("%s: a feature card states no title", where)
 	}
-	if !pageCategories[card.Category] {
-		return fmt.Errorf("%s: feature card %q states category %q, which is not one of the seven",
-			where, card.Title, card.Category)
+	if err := validateSubjectCategory(card.Category); err != nil {
+		return fmt.Errorf("%s: feature card %q: %w", where, card.Title, err)
 	}
 	if card.Href == "" {
 		return fmt.Errorf("%s: feature card %q links nowhere", where, card.Title)
@@ -572,9 +571,8 @@ func groupMilestones(milestones []milestone) ([]milestoneQuarter, error) {
 			return nil, fmt.Errorf("data/%s: milestone %q states date %q: %w",
 				milestonesDataFile, item.Title, item.Date, err)
 		}
-		if !pageCategories[item.Category] {
-			return nil, fmt.Errorf("data/%s: milestone %q states category %q, which is not one of the seven",
-				milestonesDataFile, item.Title, item.Category)
+		if err := validateSubjectCategory(item.Category); err != nil {
+			return nil, fmt.Errorf("data/%s: milestone %q: %w", milestonesDataFile, item.Title, err)
 		}
 	}
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "The homepage 'What's new in Ze' band, rendered by `./le site build` directly above the proof strip. The article and weekly-update slots are generated from the newest blog/posts/*.md and changes/posts/*.md, so only the freeform note below is edited by hand. Keep title and body short: the band sits above the fold and the KPI cards under it must stay visible on a laptop screen. `tone` picks a presentation color without claiming the note belongs to a feature category. Drop the whole `note` object to render the band with two slots.",
+  "_comment": "The homepage 'What's new in Ze' band, rendered by `./le site build` directly above the proof strip. The article and weekly-update slots are generated from the newest blog/posts/*.md and changes/posts/*.md, so only the freeform note below is edited by hand. Keep title and body short: the band sits above the fold and the KPI cards under it must stay visible on a laptop screen. `category` uses the shared subject vocabulary; use `meta` for mixed or project-wide news. Drop the whole `note` object to render the band with two slots.",
   "title": "Latest news",
   "link": {
     "href": "project/changes/",
@@ -7,7 +7,7 @@
   },
   "note": {
     "label": "RFC compliance progress",
-    "tone": "pink",
+    "category": "meta",
     "title": "Every MUST-level requirement, and what proves it",
     "body": "One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.",
     "link": {

@@ -3,7 +3,7 @@
 Ze takes code, documentation, bug reports, and real-world interop reports. The repositories are public, the issue tracker is public, and development happens in the open.
 
 <div class="contribute-intro">
-  <article class="contribute-route cat-operate">
+  <article class="contribute-route cat-meta">
     <span class="contribute-route-kicker">Code</span>
     <h2>Fix the thing you can reproduce</h2>
     <p>Small, well-proven changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and test coverage that catches real behavior.</p>
@@ -22,7 +22,7 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
 
 ## The contribution contract
 
-<div class="contribute-contract">
+<div class="contribute-contract cat-meta">
   <div>
     <span class="contribute-label">Hard requirement</span>
     <h3>No signed CLA, no merge.</h3>
@@ -37,7 +37,7 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
 
 ## How Ze is funded
 
-<div class="contribute-funding cat-services">
+<div class="contribute-funding cat-meta">
   <div>
     <span class="contribute-label">Stewardship</span>
     <h3>Backed work, public project</h3>
@@ -50,17 +50,17 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
 ## Where to start
 
 <div class="contribute-start">
-  <a class="contribute-action cat-routing" href="https://github.com/ze-software/ze/issues">
+  <a class="contribute-action cat-meta" href="https://github.com/ze-software/ze/issues">
     <span>Issues</span>
     <strong>Browse or file a bug</strong>
     <small>Use this for reproducible problems, missing docs, and clear feature gaps.</small>
   </a>
-  <a class="contribute-action cat-platform" href="https://github.com/ze-software/ze">
+  <a class="contribute-action cat-meta" href="https://github.com/ze-software/ze">
     <span>Repository</span>
     <strong>GitHub is the source repository</strong>
     <small>Development moved off Codeberg in July 2026. Clone, issues and pull requests all live on GitHub.</small>
   </a>
-  <a class="contribute-action cat-automate" href="https://discord.gg/T8s7CjPDne">
+  <a class="contribute-action cat-meta" href="https://discord.gg/T8s7CjPDne">
     <span>Discussion</span>
     <strong>Ask before guessing</strong>
     <small>There is no formal good-first-issue program yet. Ask where help is most useful right now.</small>

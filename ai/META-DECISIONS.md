@@ -148,6 +148,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 
 ## How agents work
 
+- Before handing work back, clean up the task's obsolete temporary files and
+  local servers. Check ownership, references and running processes first;
+  preserve current deliverables, originals, useful comparisons and other
+  sessions' work. Check available space before large copies and reuse suitable
+  outputs. Record the purpose and removal condition of anything retained,
+  explain large retained items, and report substantial space recovered.
 - A defect you walk into while working on something else gets one journal row in
   `plan/journal/<class>.md`; grep `plan/journal/` first, because other sessions
   meet the same defect. List that row in the owned journal rows table of the

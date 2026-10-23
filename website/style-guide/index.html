@@ -227,8 +227,8 @@
 
             <section aria-labelledby="sg-palette">
                 <div class="section-head reveal">
-                    <h2 id="sg-palette">Palette: logo blue and clear surfaces</h2>
-                    <p>Logo blue identifies Ze. Category accents and status colors retain their meanings.</p>
+                    <h2 id="sg-palette">Palette: brand, subjects and status</h2>
+                    <p>Logo blue identifies Ze. Seven distinct subject colors connect related content across the website.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
@@ -245,62 +245,81 @@
                     </p>
                     <p>
                         Category tokens retain their existing names for authored
-                        pages. <code>-base</code> and <code>-mid</code> mark
-                        accents, <code>-deep</code> supplies readable text,
-                        <code>-chip</code> and <code>-tint</code> supply surfaces,
-                        and <code>-glow</code> supplies a subtle shadow. Category
-                        labels accompany color. Pass, warning and failure states
-                        use <code>--green</code>, <code>--amber</code> and
-                        <code>--danger-deep</code>, with text that explains the
-                        state.
+                        pages. <code>-base</code> supplies vivid borders and markers;
+                        <code>-mid</code> supplies a secondary accent.
+                        <code>-deep</code> is readable text on <code>-chip</code>
+                        labels and <code>-tint</code> surfaces. Despite its name,
+                        <code>-deep</code> becomes lighter in the dark theme.
+                        Labels, selected filters and cards use these same roles.
+                        Do not put white text on a bright accent without checking
+                        contrast. Normal text needs at least 4.5:1 in both themes.
+                    </p>
+                    <p>
+                        The category identities are fixed: Operate is blue,
+                        Routing amber, Services orange, Automate violet,
+                        Observe green, Secure magenta and Platform teal.
+                        Broad project updates and cross-topic evidence are neutral. Keep these identities
+                        in explicit and automatic dark mode. Status colors
+                        remain independent of this subject palette.
                     </p>
                 </div>
+                <nav class="legend" aria-label="Subject palette">
+                    <a class="cat-operate" href="#sg-palette-operate">Operate</a>
+                    <a class="cat-routing" href="#sg-palette-routing">Routing</a>
+                    <a class="cat-services" href="#sg-palette-services">Services</a>
+                    <a class="cat-automate" href="#sg-palette-automate">Automate</a>
+                    <a class="cat-observe" href="#sg-palette-observe">Observe</a>
+                    <a class="cat-secure" href="#sg-palette-secure">Secure</a>
+                    <a class="cat-platform" href="#sg-palette-platform">Platform</a>
+                    <a class="cat-meta" href="#sg-palette-meta">Neutral</a>
+                </nav>
                 <div class="cards reveal">
-                    <article class="card cat-operate">
+                    <article class="card cat-operate" id="sg-palette-operate">
                         <span class="cat">Operate</span>
                         <h3>Blue</h3>
                         <div class="chips"><span class="chip">--sky-*</span></div>
                         <p>Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.</p>
                     </article>
-                    <article class="card cat-routing">
+                    <article class="card cat-routing" id="sg-palette-routing">
                         <span class="cat">Routing</span>
-                        <h3>Warm brown</h3>
+                        <h3>Amber</h3>
                         <div class="chips"><span class="chip">--lemon-*</span></div>
-                        <p>Control plane: BGP engine, static routes, BFD, MRT, MPLS signaling.</p>
+                        <p>Control plane: BGP engine, static routes, BFD, MRT, RPKI, MPLS signaling.</p>
                     </article>
-                    <article class="card cat-services">
+                    <article class="card cat-services" id="sg-palette-services">
                         <span class="cat">Services</span>
-                        <h3>Blue</h3>
+                        <h3>Orange</h3>
                         <div class="chips"><span class="chip">--gold-*</span></div>
-                        <p>Network services and data plane: VPN, BNG, firewall, interfaces, VPP, DNS.</p>
+                        <p>Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.</p>
                     </article>
-                    <article class="card cat-automate">
+                    <article class="card cat-automate" id="sg-palette-automate">
                         <span class="cat">Automate</span>
                         <h3>Violet</h3>
                         <div class="chips"><span class="chip">--grape-*</span></div>
                         <p>Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.</p>
                     </article>
-                    <article class="card cat-observe">
+                    <article class="card cat-observe" id="sg-palette-observe">
                         <span class="cat">Observe</span>
-                        <h3>Steel blue</h3>
+                        <h3>Green</h3>
                         <div class="chips"><span class="chip">--mint-*</span></div>
-                        <p>Visibility and evidence: telemetry, health, diagnostics, testing proof.</p>
+                        <p>Visibility: telemetry, health and diagnostics.</p>
                     </article>
-                    <article class="card cat-secure">
+                    <article class="card cat-secure" id="sg-palette-secure">
                         <span class="cat">Secure</span>
-                        <h3>Berry</h3>
+                        <h3>Magenta</h3>
                         <div class="chips"><span class="chip">--pink-*</span></div>
-                        <p>Security: SSH and RBAC, RPKI, TACACS+, audit trail, PKI store.</p>
+                        <p>Security: SSH authentication, access control, TACACS+, audit trail and PKI store.</p>
                     </article>
-                    <article class="card cat-platform">
+                    <article class="card cat-platform" id="sg-palette-platform">
                         <span class="cat">Platform</span>
-                        <h3>Ochre</h3>
+                        <h3>Teal</h3>
                         <div class="chips"><span class="chip">--teal-*</span></div>
-                        <p>Packaging and lifecycle: appliance and daemon targets, install, Docker, tunables.</p>
+                        <p>Runtime and lifecycle: performance engineering, appliance and daemon targets, install, Docker, tunables.</p>
                     </article>
-                    <article class="card">
-                        <h3>Neutrals and brand</h3>
-                        <div class="chips"><span class="chip">--bg / --text / --brand</span></div>
+                    <article class="card cat-meta" id="sg-palette-meta">
+                        <span class="cat">Neutral</span>
+                        <h3>Cross-topic content</h3>
+                        <div class="chips"><span class="chip">--neutral-*</span></div>
                         <p>A pale blue-gray page with white surfaces and navy text in the light theme; deep navy surfaces and pale text in the dark theme. Blue links and primary actions identify a destination. Uncategorized cards use the shared neutral surface.</p>
                     </article>
                 </div>
@@ -310,22 +329,38 @@
                 <div class="section-head reveal">
                     <h2 id="sg-category">Color means category</h2>
                     <p>
-                        On feature cards, color is information, never
-                        decoration.
+                        A subject keeps the same color wherever it appears.
                     </p>
                 </div>
                 <div class="section-note reveal">
                     <p>
-                        A <code>cat-*</code> class on the card sets one accent
-                        hue for its category label, top border, technology
-                        chips and bullet markers. Titles use the shared text
-                        color so long names remain easy to read. Do not color cards by
-                        position (<code>nth-child</code> cycling is banned for
-                        cards) and do not mix hues within one card. Decorative
-                        variety is fine only where order carries no meaning --
-                        the homepage proof strip and audience trio.
+                        A <code>cat-*</code> class sets the subject color for
+                        labels, borders, technology chips, links and bullet
+                        markers. Titles use the shared text color for readability.
+                        The same rules cover homepage, feature, documentation,
+                        article, plugin, comparison, FAQ and evidence cards.
                     </p>
                 </div>
+                <ol class="section-note">
+                    <li>Choose the existing category that describes the card's
+                        primary subject. Keep it in the source record or an
+                        explicit semantic classification, not in a styling loop.</li>
+                    <li>Use <code>cat-meta</code> for cross-topic content with no
+                        primary subject. Unclassified cards use the same neutral
+                        roles. Do not invent a category to create variety.</li>
+                    <li>Pass authored categories through the shared generator
+                        vocabulary. Unknown values are errors, not permission
+                        to choose an arbitrary color.</li>
+                    <li>Use shared <code>--acc</code>, <code>--acc-deep</code>,
+                        <code>--acc-chip</code> and <code>--acc-tint</code> roles.
+                        Do not assign hues by position, hash or presentation
+                        tone, or override them for a page or theme.</li>
+                    <li>Keep status independent. Success, warning and failure
+                        use <code>--green</code>, <code>--amber</code> and
+                        <code>--danger-deep</code>, with words explaining the
+                        result. Neutral evidence measures make no verdict.
+                        Maturity keeps its explicit labels and border treatment.</li>
+                </ol>
                 <div class="cards reveal">
                     <article class="card cat-routing">
                         <span class="cat">Routing</span>
@@ -409,7 +444,7 @@
                         Use <code>.journey-hero</code> for the shared navy page
                         opening. Two-choice dispatch pages, including
                         Compare, use <code>.compare-dispatch</code> cards with
-                        page-specific accent classes and restrained line decoration.
+                        subject category classes and restrained line decoration.
                     </p>
                 </div>
                 <div class="cards reveal">

@@ -52,8 +52,8 @@
         },
         {
             "title": "Looking glass",
-            "label": "Observe",
-            "category": "observe",
+            "label": "Operate",
+            "category": "operate",
             "chips": ["Read-only", "BGP visibility"],
             "body": "Operators who need read-only BGP visibility can publish a looking glass and inspect routes without giving shell access.",
             "link": {"href": "guides/public-looking-glass/", "label": "Looking glass", "sublabel": "read-only BGP"}
@@ -70,7 +70,6 @@
             "title": "AI-assisted operations",
             "label": "MCP",
             "category": "automate",
-            "tone": "pink",
             "chips": ["MCP", "CLI catalogue"],
             "body": "MCP exposes Ze commands and structured output to AI tools without a separate command set.",
             "link": {"href": "features/ai-first/", "label": "AI via MCP", "sublabel": "same command catalogue"}

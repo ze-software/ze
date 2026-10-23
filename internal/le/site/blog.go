@@ -41,25 +41,6 @@ func blogIndexLead(changelogLink string) string {
 		"For week-by-week shipping notes, read the " + changelogLink + "."
 }
 
-// The site's presentation palette. A tone is a color and never a topic
-// category, so a card carrying one states nothing about what it says. Naming
-// each one keeps the seven spellings in one place: blog.go cycles them for the
-// index cards, plugins.go picks one per plugin, and home.go uses three of them.
-const (
-	toneSky   = "sky"
-	toneLemon = "lemon"
-	toneGrape = "grape"
-	toneMint  = "mint"
-	tonePink  = "pink"
-	toneGold  = "gold"
-	toneTeal  = "teal"
-)
-
-// presentationTones color the index cards. The order is the palette's own, and
-// a card takes the tone at its position in the list, so inserting an article
-// recolors the ones below it.
-var presentationTones = []string{toneSky, toneLemon, toneGrape, toneMint, tonePink, toneGold, toneTeal}
-
 // blogArticle is one editorial article: its front matter and its Markdown body.
 //
 // Title and Author are required, so neither is ever empty here. Date is not:
@@ -71,6 +52,7 @@ type blogArticle struct {
 	Date        string
 	Author      string
 	Description string
+	Category    string
 	// Deck is the hero lead, and it wins over Description, which is written
 	// for the index card and the feed entry rather than for the page.
 	Deck string
@@ -81,6 +63,15 @@ type blogArticle struct {
 	ImageAlt  string
 	KeyPoints []string
 	Body      string
+}
+
+// cardCategory also gives a zero-value article neutral presentation. Sources
+// with a stated category were validated by readBlogArticle before rendering.
+func (article *blogArticle) cardCategory() string {
+	if article.Category == "" {
+		return categoryMeta
+	}
+	return article.Category
 }
 
 // lead answers the sentence under the article title: the deck an author wrote
@@ -214,6 +205,10 @@ func readBlogArticle(sourcePath string) (blogArticle, error) {
 			return blogArticle{}, fmt.Errorf("date %q is not YYYY-MM-DD", date)
 		}
 	}
+	category, err := cardCategory(metadata["category"])
+	if err != nil {
+		return blogArticle{}, err
+	}
 	slug := metadata["slug"]
 	if slug == "" {
 		slug = strings.TrimSuffix(filepath.Base(sourcePath), markdownExtension)
@@ -224,6 +219,7 @@ func readBlogArticle(sourcePath string) (blogArticle, error) {
 		Date:        metadata["date"],
 		Author:      metadata["author"],
 		Description: metadata["description"],
+		Category:    category,
 		Deck:        metadata["deck"],
 		Image:       metadata["image"],
 		ImageDark:   metadata["image-dark"],
@@ -462,20 +458,20 @@ func blogIndexBody(articles []blogArticle) string {
 		"Blog", ` id="blog-title"`, "journey-hero blog-index-hero reveal")).Byte('\n')
 	page.Str(`                <div class="blog-list reveal">`).Byte('\n')
 	for index := range articles {
-		page.Str(blogIndexCard(&articles[index], presentationTones[index%len(presentationTones)]))
+		page.Str(blogIndexCard(&articles[index]))
 	}
 	page.Str("                </div>\n            </section>\n")
 	return page.String()
 }
 
 // blogIndexCard renders one article's card on the index.
-func blogIndexCard(article *blogArticle, tone string) string {
+func blogIndexCard(article *blogArticle) string {
 	classes := "card card-post blog-card"
 	if article.Image != "" {
 		classes += " has-media"
 	}
 	var card textbuf.Buffer
-	card.Str(`                    <article class="`).Str(classes).Str(" tone-").Str(tone).Str(`">`).Byte('\n')
+	card.Str(`                    <article class="`).Str(classes).Str(" cat-").Str(article.cardCategory()).Str(`">`).Byte('\n')
 	if article.Date != "" {
 		card.Str(`                        <div class="blog-card-meta"><time datetime="`).
 			Str(html.EscapeString(article.Date)).Str(`">`).Str(html.EscapeString(article.Date)).

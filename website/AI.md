@@ -278,7 +278,7 @@ The supported fields are:
 | `description` | Required for new pages | SEO and social-card description. |
 | `destination` | Required when the command does not pass an output path | Site-relative directory or a path ending in `index.html`. The renderer rejects paths outside the site root. |
 | `title` | Optional | Browser and social title. The first level-one heading is used when omitted. The body should still have one level-one heading. |
-| `category` | Optional | Heading color: `operate`, `routing`, `automate`, `observe`, `secure`, `services`, or `platform`. |
+| `category` | Optional | Subject category: `operate`, `routing`, `automate`, `observe`, `secure`, `services`, or `platform`. The shared card palette also has `meta` for cross-topic content. |
 | `journey` | Optional | Short label shown in the page hero. The renderer derives it from the destination when omitted. |
 | `table-columns` | Optional, defaults to `true` | Enables shared show/hide controls for tables on the page. |
 
@@ -338,13 +338,25 @@ Before adding or restyling a page or component, read the
 That section is the canonical record of the owner's approved website design
 rules. Apply it to proposals and implementation.
 
-The approved design uses the logo blue, pale blue accents, white or light
-reading surfaces and dark navy heroes and terminal panels. Poppins headings
+The approved design uses logo blue for Ze's identity and seven distinct subject
+colors for related content. Follow the canonical [card color rules and live
+palette](style-guide/index.html#sg-category), including the neutral case and
+independent status colors. Keep category identity on matching cards, labels,
+chips and selection controls across both themes. Do not assign hues by position,
+hash or presentation tone. White or light reading surfaces and dark navy heroes
+and terminal panels retain the approved layout. Poppins headings
 and Lato body text share the same hierarchy across the homepage, guides,
 catalogs and articles. The root element's `data-theme` attribute and `ze-theme`
 storage key remain the theme contract; the prepaint bootstrap and the shared
 script must agree about both. A new design treatment needs owner approval,
 followed by the matching style-guide update.
+
+Card producers use `cardCategory` in `internal/le/site/docpage.go` for optional
+categories. It shares `pageCategories` and `validateCategory` with page metadata,
+returns `meta` when the category is absent, and rejects unknown values. Emit the
+result as `cat-<category>` and keep functional filter metadata separate. Take
+subject assignments from the existing feature and topic records, not a new
+page-specific color map. The design guide owns the palette and assignment rules.
 
 The homepage keeps all of its authored sections and data slots. Its primary
 actions reach the demo gallery and BGP quickstart directly. Product screenshots

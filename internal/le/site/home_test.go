@@ -416,26 +416,31 @@ func TestATeaserShowsOneTagPerCategoryFirst(t *testing.T) {
 	}
 }
 
-// VALIDATES: the three teasers are the three newest weeks, numbered from one
-// and toned by position.
+// VALIDATES: the three teasers are the three newest weeks, numbered from one.
+// These weeks cover BGP and CLI, so every card remains neutral while the chips
+// retain each subject's own category.
 func TestTheTeasersAreTheThreeNewestWeeks(t *testing.T) {
 	page, _ := renderHomeFixture(t)
+	cards := strings.Split(page, `<article class="card card-post home-update-card `)[1:]
+	if len(cards) != homeTeasers {
+		t.Fatalf("the homepage shows %d teasers, want %d", len(cards), homeTeasers)
+	}
 	for index, week := range homeFixtureWeeks() {
-		card := `<article class="card card-post home-update-card tone-` + homeTeaserTones[index] + `">`
-		at := strings.Index(page, card)
-		if at < 0 {
-			t.Fatalf("teaser %d carries no %s tone", index+1, homeTeaserTones[index])
+		card, _, _ := strings.Cut(cards[index], "</article>")
+		if !strings.HasPrefix(card, `cat-meta">`) {
+			t.Errorf("teaser %d is not neutral for its mixed topics", index+1)
 		}
-		rest := page[at:]
-		if !strings.Contains(rest[:600], `<span class="home-update-number">0`+strconv.Itoa(index+1)+`</span>`) {
+		if !strings.Contains(card, `<span class="home-update-number">0`+strconv.Itoa(index+1)+`</span>`) {
 			t.Errorf("teaser %d is not numbered %02d", index+1, index+1)
 		}
-		if !strings.Contains(rest[:600], "Week of "+week) {
+		if !strings.Contains(card, "Week of "+week) {
 			t.Errorf("teaser %d does not name the week %s", index+1, week)
 		}
-	}
-	if got := strings.Count(page, `class="card card-post home-update-card`); got != homeTeasers {
-		t.Errorf("the homepage shows %d teasers, want %d", got, homeTeasers)
+		for _, subject := range []string{`cat-routing">BGP`, `cat-operate">CLI`} {
+			if !strings.Contains(card, subject) {
+				t.Errorf("teaser %d lost topic %s", index+1, subject)
+			}
+		}
 	}
 }
 

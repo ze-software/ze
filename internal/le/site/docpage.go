@@ -16,14 +16,15 @@ import (
 	"strings"
 )
 
-// The seven topic hues a page title can take. They are the Features page's own
-// colors, so a reader learns one convention across the whole site.
+// The shared subject vocabulary for pages and cards. Meta is the neutral
+// category for mixed subjects and project work.
 //
 // Each one is named because a category is written in three places that must
 // agree: a row of the recovered registry, a page's own front matter, and the
 // cat- class the section element opens with.
 const (
 	categoryAutomate = "automate"
+	categoryMeta     = "meta"
 	categoryObserve  = "observe"
 	categoryOperate  = "operate"
 	categoryPlatform = "platform"
@@ -32,11 +33,11 @@ const (
 	categoryServices = "services"
 )
 
-// pageCategories is the set a front matter category is checked against.
+// pageCategories is the vocabulary every authored category is checked against.
 var pageCategories = map[string]bool{
 	categoryAutomate: true, categoryObserve: true, categoryOperate: true,
 	categoryPlatform: true, categoryRouting: true, categorySecure: true,
-	categoryServices: true,
+	categoryServices: true, categoryMeta: true,
 }
 
 // firstHeading matches the first level 1 heading of a Markdown source, which
@@ -81,13 +82,42 @@ func pageCategory(page sitePage, metadata map[string]string) (string, error) {
 	if category == "" {
 		return "", nil
 	}
-	if !pageCategories[category] {
-		return "", fmt.Errorf("category %q is not one of the site's seven: %s", category, strings.Join(sortedCategories(), ", "))
+	if err := validateCategory(category); err != nil {
+		return "", err
 	}
 	return category, nil
 }
 
-// sortedCategories names the seven categories in one order, so an error reads
+// validateCategory refuses a category the shared stylesheet cannot use.
+func validateCategory(category string) error {
+	if !pageCategories[category] {
+		return fmt.Errorf("category %q is not one of the site's categories: %s", category, strings.Join(sortedCategories(), ", "))
+	}
+	return nil
+}
+
+// validateSubjectCategory keeps the seven-subject catalogs closed to neutral
+// entries: their filters and the homepage overview cover those subjects only.
+func validateSubjectCategory(category string) error {
+	if category == categoryMeta {
+		return fmt.Errorf("category %q is neutral; this catalog requires one of the seven subject categories", category)
+	}
+	return validateCategory(category)
+}
+
+// cardCategory validates an optional authored category. Omission means mixed or
+// unspecified content, so it takes the neutral category rather than a subject.
+func cardCategory(category string) (string, error) {
+	if category == "" {
+		return categoryMeta, nil
+	}
+	if err := validateCategory(category); err != nil {
+		return "", err
+	}
+	return category, nil
+}
+
+// sortedCategories names the categories in one order, so an error reads
 // the same every time it is raised.
 func sortedCategories() []string {
 	names := make([]string, 0, len(pageCategories))

@@ -39,11 +39,6 @@ const (
 	whatsNewDataFile = "whats-new.json"
 )
 
-// homeTeaserTones are the presentation colors the three weekly-update teasers
-// cycle through, by position rather than by content: a tone says nothing about
-// what a week contains, which is why it is not a category.
-var homeTeaserTones = []string{toneSky, tonePink, toneGrape}
-
 // homeTeasers and homeUpdateTags bound the two lists the momentum band shows.
 // Both bounds are the page's, not the data's: a fourth teaser pushes the proof
 // strip off a laptop screen, and a fifth tag wraps the card.
@@ -69,14 +64,12 @@ type audienceData struct {
 
 // audienceCard is one card of either grid.
 //
-// Category colors the card and Tone overrides that color without claiming the
-// card belongs to a category. Link is optional: a card with none shows no call
-// to action.
+// Category identifies the subject; omission is neutral. Link is optional: a
+// card with none shows no call to action.
 type audienceCard struct {
 	Title    string        `json:"title"`
 	Label    string        `json:"label"`
 	Category string        `json:"category"`
-	Tone     string        `json:"tone"`
 	Chips    []string      `json:"chips"`
 	Body     string        `json:"body"`
 	Link     *audienceLink `json:"link"`
@@ -104,11 +97,11 @@ type whatsNewData struct {
 // whatsNewNote is the hand-written slot of the band. Dropping the whole object
 // renders the band with its two generated slots.
 type whatsNewNote struct {
-	Label string        `json:"label"`
-	Tone  string        `json:"tone"`
-	Title string        `json:"title"`
-	Body  string        `json:"body"`
-	Link  *audienceLink `json:"link"`
+	Label    string        `json:"label"`
+	Category string        `json:"category"`
+	Title    string        `json:"title"`
+	Body     string        `json:"body"`
+	Link     *audienceLink `json:"link"`
 }
 
 // renderHome publishes the homepage and its Markdown mirror.
@@ -256,9 +249,13 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	if err != nil {
 		return "", err
 	}
+	news, err := whatsNewBand(whatsNew, articles, weeks)
+	if err != nil {
+		return "", err
+	}
 	slots := append([]string(nil), hero...)
 	slots = append(slots,
-		"{whats_new}", whatsNewBand(whatsNew, articles, weeks),
+		"{whats_new}", news,
 		"{run_cards}", runCards,
 		"{who_cards}", whoCards,
 		"{category_links}", featureCategoryLinks(features),
@@ -367,17 +364,13 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 	if card.Body == "" {
 		return "", fmt.Errorf("the audience card %q states no body", card.Title)
 	}
-	category := card.Category
-	if category == "" {
-		category = categoryPlatform
+	category, err := cardCategory(card.Category)
+	if err != nil {
+		return "", fmt.Errorf("audience card %q: %w", card.Title, err)
 	}
 	label := card.Label
 	if label == "" {
 		label = capitalizeWord(category)
-	}
-	tone := ""
-	if card.Tone != "" {
-		tone = " tone-" + html.EscapeString(card.Tone)
 	}
 	title := html.EscapeString(card.Title)
 	action := ""
@@ -394,7 +387,7 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 	}
 
 	var out textbuf.Buffer
-	out.Reset().Str("                    <article class=\"card audience-card cat-").Str(html.EscapeString(category)).Str(tone).Str("\">\n")
+	out.Reset().Str("                    <article class=\"card audience-card cat-").Str(category).Str("\">\n")
 	out.Str("                        <span class=\"cat\">").Str(html.EscapeString(label)).Str("</span>\n")
 	out.Str("                        <h3>").Str(title).Str("</h3>\n")
 	out.Str("                        <p>\n")
@@ -465,11 +458,11 @@ func homeFeatureOverview(features featureData) string {
 // A slot with nothing to show is dropped rather than rendered empty, and a band
 // with no slot at all renders nothing, so a checkout with no article still
 // publishes a homepage.
-func whatsNewBand(data *whatsNewData, articles []blogArticle, weeks []changeWeek) string {
+func whatsNewBand(data *whatsNewData, articles []blogArticle, weeks []changeWeek) (string, error) {
 	var items []string
 	if len(articles) != 0 {
 		newest := articles[0]
-		items = append(items, whatsNewItem("Engineering note", toneGrape,
+		items = append(items, whatsNewItem("Engineering note", newest.cardCategory(),
 			blogDirectory+"/"+newest.Slug+"/", newest.Title, clipSummary(newest.Description)))
 	}
 	if len(weeks) != 0 {
@@ -478,7 +471,7 @@ func whatsNewBand(data *whatsNewData, articles []blogArticle, weeks []changeWeek
 		if intro == "" {
 			intro = "What shipped that week."
 		}
-		items = append(items, whatsNewItem("Recently shipped", toneSky,
+		items = append(items, whatsNewItem("Recently shipped", newest.cardCategory(),
 			changeWeek{Slug: newest.Slug}.route(), "Week of "+newest.Slug, clipSummary(intro)))
 	}
 	if note := data.Note; note != nil {
@@ -486,26 +479,26 @@ func whatsNewBand(data *whatsNewData, articles []blogArticle, weeks []changeWeek
 		if note.Link != nil {
 			href = note.Link.Href
 		}
-		tone := note.Tone
-		if tone == "" {
-			tone = toneSky
+		category, err := cardCategory(note.Category)
+		if err != nil {
+			return "", fmt.Errorf("news note %q: %w", note.Title, err)
 		}
-		items = append(items, whatsNewItem(note.Label, tone, href, note.Title, clipSummary(note.Body)))
+		items = append(items, whatsNewItem(note.Label, category, href, note.Title, clipSummary(note.Body)))
 	}
 	if len(items) == 0 {
-		return ""
+		return "", nil
 	}
 	return "            <section class=\"whats-new reveal\" aria-labelledby=\"whats-new-title\">\n" +
 		"                <div class=\"whats-new-head\">\n" +
 		"                    <h2 id=\"whats-new-title\">" + html.EscapeString(data.Title) + "</h2>\n" +
 		"                    <a href=\"" + html.EscapeString(data.Link.Href) + "\">" +
 		html.EscapeString(data.Link.Label) + "</a>\n" +
-		"                </div>\n" + strings.Join(items, "\n") + "\n            </section>\n"
+		"                </div>\n" + strings.Join(items, "\n") + "\n            </section>\n", nil
 }
 
 // whatsNewItem renders one slot of the Latest news band.
-func whatsNewItem(label, tone, href, title, summary string) string {
-	return "                <article class=\"whats-new-item tone-" + html.EscapeString(tone) + "\">\n" +
+func whatsNewItem(label, category, href, title, summary string) string {
+	return "                <article class=\"whats-new-item cat-" + category + "\">\n" +
 		"                    <span class=\"whats-new-label\">" + html.EscapeString(label) + "</span>\n" +
 		"                    <h3><a href=\"" + html.EscapeString(href) + "\">" + html.EscapeString(title) + "</a></h3>\n" +
 		"                    <p>" + html.EscapeString(summary) + "</p>\n" +
@@ -527,8 +520,8 @@ func blogTeaserCards(weeks []changeWeek) string {
 			intro = "Weekly update"
 		}
 		var out textbuf.Buffer
-		out.Reset().Str("                    <article class=\"card card-post home-update-card tone-").
-			Str(homeTeaserTones[index%len(homeTeaserTones)]).Str("\">\n")
+		out.Reset().Str("                    <article class=\"card card-post home-update-card cat-").
+			Str(week.cardCategory()).Str("\">\n")
 		out.Str("                        <div class=\"home-update-head\">\n")
 		out.Str("                            <span class=\"cat\">Update</span>\n")
 		out.Str("                            <span class=\"home-update-number\">").

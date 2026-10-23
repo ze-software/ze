@@ -216,7 +216,29 @@ declarations. The rules are in `docs/contributing/feature-maturity.md`, "The
 published surfaces".
 <!-- source: internal/le/site/datapages.go -- loadFeatureData -->
 
-The feature catalog uses the shared logo-blue design. Its filter rail combines
+Card colours identify subjects across the website. Use the existing categories
+`operate`, `routing`, `services`, `automate`, `observe`, `secure`, and `platform`;
+use `meta` for mixed subjects, general editorial or project work. The
+[style guide](../../website/style-guide/index.html#sg-category) defines the
+palette and examples. When a card names a feature already in
+`website/data/features.json`, keep that feature's category. A category does not
+express maturity, health, test success or RFC compliance; those remain separate
+labels and status treatments.
+
+All producer inputs use the shared category vocabulary in `docpage.go`.
+`cardCategory` makes an omitted optional category neutral and rejects unknown
+values. Feature and milestone inventories use `validateSubjectCategory` to
+retain their seven-subject filters and reject neutral entries.
+Blog front matter can state `category:` for a clear subject. Weekly cards use a
+subject colour only when all their topics agree, while every topic chip retains
+its own category. Reordering a list never changes a card's colour. Plugin cards
+use their generated area's subject independently of their navigation filter
+bucket. Do not add presentation tones, position cycles, hashes, or inline hues.
+<!-- source: internal/le/site/docpage.go -- cardCategory, validateCategory, validateSubjectCategory -->
+<!-- source: internal/le/site/changes.go -- cardCategory -->
+<!-- source: internal/le/site/plugins.go -- pluginGroupCategory, pluginBucketOf -->
+
+The feature catalog uses the shared category palette. Its filter rail combines
 text, category and maturity, with one reset action and a live result count.
 Every card states its maturity in words as well as its border treatment. Those
 labels and filter values come from the same derived state that places the card
