@@ -29,7 +29,7 @@ audit; everything below serves it.
 5. For EACH gated requirement, open every tagged test and judge it (see below).
 6. WRITE each new verdict to a pending file OUTSIDE `rfc/audit/` (this session's scratch),
    then run `./le rfc audit-stamp stem $ARGUMENTS from <pending file>`. It computes the
-   fingerprints and merges the verdicts into `rfc/audit/$ARGUMENTS.json`. A verdict you
+   fingerprints and writes each verdict to `rfc/audit/$ARGUMENTS/<requirement-id>.json`. A verdict you
    re-made over a requirement that already has one goes in its own pending file, stamped with
    `mode rejudge` (see "Re-judging a recorded verdict").
 7. Run `./le rfc check`.

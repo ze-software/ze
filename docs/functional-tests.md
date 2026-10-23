@@ -1486,7 +1486,7 @@ Contract: `rfc/extraction/README.md`.
 
 A tag proves a LINK exists. Nothing in it can say whether the test would FAIL if the
 implementation stopped complying. That judgement is what a compliance claim actually rests on.
-It is recorded per requirement in `rfc/audit/<rfc>.json` by `/ze-rfc-audit`, and the gate
+It is recorded per requirement in `rfc/audit/<rfc>/<requirement-id>.json` by `/ze-rfc-audit`, and the gate
 now reads it.
 
 The verdict is one of five closed values. `enforced` is the only one that means proven, and it

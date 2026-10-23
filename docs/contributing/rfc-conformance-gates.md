@@ -1067,7 +1067,7 @@ raw text. An unrelated comment, a reflow, an inserted header and a blank line
 each leave a record verified; a changed assertion or a rewritten producer voids
 it. That is the same predicate `ChangedTags` uses, so a record goes stale
 exactly when the obligation says its unit moved, and the re-stamp burden
-`rfc/audit/rfc7606.json` records does not repeat here. Measured over this
+the RFC 7606 audit verdicts recorded does not repeat here. Measured over this
 checkout's own records: a nine-line header prepended to every file they name,
 which is the edit that cost that artifact two paragraphs of re-stamping, leaves
 every one of them verified.

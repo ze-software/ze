@@ -33,10 +33,8 @@ func stampTree(t *testing.T, recorded map[string]any) string {
 		selftestCIPath:         fixtureWidgetCI,
 		selftestProducerPath:   selftestProducerSource,
 	}
-	if recorded != nil {
-		for rid, verdict := range recorded {
-			files[auditRecordRel("rfc9999", rid)] = string(renderAuditVerdict(verdict))
-		}
+	for rid, verdict := range recorded {
+		files[auditRecordRel("rfc9999", rid)] = string(renderAuditVerdict(verdict))
 	}
 	root := t.TempDir()
 	writeFixtureFiles(t, root, files)

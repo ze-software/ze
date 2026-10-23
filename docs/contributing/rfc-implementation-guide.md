@@ -669,7 +669,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
-  complying, and records a per-requirement verdict in `rfc/audit/<rfc>.json`.
+  complying, and records a per-requirement verdict in `rfc/audit/<rfc>/<requirement-id>.json`.
   The verdict uses the closed vocabulary the gate reads:
   - `enforced` is the only one that means whole-requirement proof.
   - `partial` means the declared tested scope is proven while the remainder is

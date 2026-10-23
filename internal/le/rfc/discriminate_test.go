@@ -88,7 +88,7 @@ func discriminationTree(t *testing.T, files map[string]string) string {
 // METHOD: one record verified against five trees. The first is the tree it was recorded
 // against. Three are mechanical: a file-top header that shifts every line, a comment
 // inside both units, and a reflow. The last inverts the assertion.
-// PREVENTS: the re-stamp burden rfc/audit/rfc7606.json records, where a 9-line inserted
+// PREVENTS: the re-stamp burden the RFC 7606 audit verdicts recorded, where a 9-line inserted
 // header shifted every key and cost two whole paragraphs of mechanical re-sealing.
 func TestDiscriminationRecordKeyedOnUnitHashNotLine(t *testing.T) {
 	files, record := discriminationFixture(t)
@@ -796,8 +796,8 @@ func TestDiscriminationCitationMustExistInCarrier(t *testing.T) {
 // the ratchet reporting a real change; asserting over it would make this test fail for
 // something it does not test. The test still fails if EVERY record is already stale,
 // because then the header was never put to the question.
-// PREVENTS: the re-stamp burden rfc/audit/rfc7606.json already pays. Two whole paragraphs
-// of that artifact exist because a nine-line inserted header shifted every key it held,
+// PREVENTS: the re-stamp burden the RFC 7606 audit verdicts already paid. Two whole
+// paragraphs of those verdicts' notes existed because a nine-line inserted header shifted every key it held,
 // and this is the same edit applied to the same question.
 func TestDiscriminationRealRecordsSurviveAMechanicalRename(t *testing.T) {
 	root := checkoutRoot(t)

@@ -4,7 +4,7 @@ package wireu
 // every message it emits carries at most one NLRI-bearing field, withdrawals
 // precede announcements, and no field is lost. They carry no RFC requirement tag:
 // the units that prove RFC7606-5.1-2 are the ones its verdict in
-// rfc/audit/rfc7606.json names. These stay as regression protection for the
+// rfc/audit/rfc7606/RFC7606-5.1-2.json names. These stay as regression protection for the
 // splitter's ordering and completeness.
 
 import (

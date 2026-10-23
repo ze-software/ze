@@ -6,7 +6,7 @@
 // "Exists, not run" never reaches Supported.
 //
 // The record is committed beside the declarations, features/runs/<id>.json, for
-// the reason rfc/discrimination/<stem>.json is: the published page is derived
+// the reason rfc/discrimination/<stem>/<requirement-id>.json is: the published page is derived
 // on any checkout, CI included, and a record under tmp/ exists on one machine
 // only. "Newer than the last change to the test" is decided by CONTENT, not by
 // the git history of the file: each run carries the git blob id the test file
